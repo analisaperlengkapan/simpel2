@@ -11,6 +11,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 **Completion Status:** 80-85% complete
 
 **Priority Legend:**
+
 - 🔴 Critical Path - Must complete before dependent tasks
 - 🟡 High Priority - Core functionality
 - 🟢 Medium Priority - Important but not blocking
@@ -21,6 +22,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 1: Foundation & Infrastructure (0 hours - 100% COMPLETE ✅)
 
 ### 1. Database Schema & Migrations
+
 - [x] 1.1 Create database migration scripts for all schemas (8h) 🔴
   - [x] 1.1.1 Create perlengkapan schema with naming conventions
   - [x] 1.1.2 Create integrasi schema for SIMAN/MySIMKARI data
@@ -38,6 +40,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: 20260209_create_dashboard_views.sql_
 
 ### 2. Shared Libraries Enhancement
+
 - [x] 2.1 Enhance lib-common with new modules (12h) 🔴
   - [x] 2.1.1 Implement audit logging module (AuditEvent types, AuditLogger)
   - [x] 2.1.2 Implement cache module (CacheManager with Redis, TTL, sensitivity levels)
@@ -64,6 +67,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 2: Integration Services (0 hours - 100% COMPLETE ✅)
 
 ### 3. Integrasi Service Implementation
+
 - [x] 3.1 Create SIMAN API client (8h) 🔴
   - [x] 3.1.1 Implement SimanClient with authentication (Secreton integration)
   - [x] 3.1.2 Implement get_assets_by_satker endpoint
@@ -98,6 +102,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 3: Core Services (10 hours - 75% COMPLETE)
 
 ### 4. Workflow Service Completion (70% → 100%)
+
 **Note:** Core WorkflowEngine already exists at `layanan/perlengkapan/crates/api/src/workflow/` with 9 files implemented (engine.rs, config.rs, sla.rs, delegation.rs, dokumen_client.rs, notifikasi_client.rs, monitoring.rs, parallel.rs, mod.rs). Focus on missing 30%: Admin UI, auto-escalation scheduler, monitoring dashboard UI.
 
 - [x] 4.1 Complete workflow engine enhancements (4h) 🟡
@@ -113,6 +118,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - [x] 4.2.5 Integrate with workflow REST API endpoints
 
 ### 5. Dokumen Service Implementation
+
 - [x] 5.1 Implement template engine (8h) 🔴
   - [x] 5.1.1 Implement TemplateEngine with Tera
   - [x] 5.1.2 Load templates from database
@@ -139,6 +145,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: layanan/perlengkapan/crates/dokumen/ with 10+ RPC endpoints_
 
 ### 6. Notifikasi Service Implementation
+
 - [x] 6.1 Implement notification channels (10h) 🔴
   - [x] 6.1.1 Implement InAppNotificationChannel
   - [x] 6.1.2 Implement EmailNotificationChannel with SMTP
@@ -162,6 +169,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 4: Business Modules (32 hours - 60% COMPLETE)
 
 ### 7. Kebutuhan BMN Module
+
 - [x] 7.1 Implement period management (12h) 🔴
   - [x] 7.1.1 Implement POST /api/v1/kebutuhan/periods (create period)
   - [x] 7.1.2 Implement POST /api/v1/kebutuhan/periods/{id}/eligible-bmn
@@ -208,6 +216,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: 25+ API endpoints, complete backend in handlers.rs_
 
 ### 8. Pemakaian BMN Module
+
 - [x] 8.1 Implement permit creation workflow (14h) 🔴
   - [x] 8.1.1 Implement POST /api/v1/pemakaian/permits (create permit)
   - [x] 8.1.2 Implement POST /api/v1/pemakaian/permits/{id}/pegawai
@@ -254,6 +263,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: gRPC service in layanan/perlengkapan/crates/api/_
 
 ### 9. Penghapusan BMN Module
+
 - [x] 9.1 Implement request workflow (14h) 🔴
   - [x] 9.1.1 Implement POST /api/v1/penghapusan/requests (create request)
   - [x] 9.1.2 Implement POST /api/v1/penghapusan/requests/{id}/bmn
@@ -289,6 +299,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 5: Dashboard & Advanced Features (20 hours - 50% COMPLETE)
 
 ### 10. Dashboard Implementation
+
 - [x] 10.1 Implement portal dashboard (8h) 🟡
   - [x] 10.1.1 Implement GET /api/v1/dashboard/portal (backend)
   - [x] 10.1.2 Fetch system metrics, cross-domain metrics, auth metrics
@@ -309,6 +320,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: WebSocket support in layanan/perlengkapan/crates/api/_
 
 ### 11. Search Implementation
+
 - [x] 11.1 Implement full-text search (8h) 🟡
   - [x] 11.1.1 Enable pg_trgm extension in PostgreSQL
   - [x] 11.1.2 Implement SearchEngine with SearchQuery
@@ -323,6 +335,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Note: Backend complete, need frontend UI_
 
 ### 12. Export Features
+
 - [x] 12.1 Implement export endpoints (6h) 🟢
   - [x] 12.1.1 Implement GET /api/v1/kebutuhan/export (Excel, CSV)
   - [x] 12.1.2 Implement GET /api/v1/pemakaian/export
@@ -335,6 +348,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 6: Testing & Quality Assurance (54 hours - 32% COMPLETE)
 
 ### 13. Unit Tests
+
 - [x] 13.1 Write unit tests for lib-common (8h) 🟡
   - [x] 13.1.1 Test audit logging module
   - [x] 13.1.2 Test cache module
@@ -355,6 +369,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Note: Minimal coverage exists, need comprehensive tests_
 
 ### 14. Integration Tests
+
 - [x] 14.1 Write integration tests for workflows (12h) 🟡
   - [x] 14.1.1 Test kebutuhan BMN complete workflow
   - [x] 14.1.2 Test pemakaian BMN complete workflow
@@ -369,6 +384,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Note: Minimal coverage exists, need comprehensive tests_
 
 ### 15. End-to-End Tests with Playwright
+
 - [x] 15.1 Setup Playwright test environment (4h) 🔴
   - [x] 15.1.1 Install Playwright and dependencies
   - [x] 15.1.2 Create test user fixtures (operator, validator wilayah, validator pusat, admin)
@@ -413,6 +429,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 ## Phase 7: Deployment & Documentation (8 hours - 60% COMPLETE)
 
 ### 16. Deployment Configuration
+
 - [x] 16.1 Create Kubernetes manifests (8h) 🔴
   - [x] 16.1.1 Create base manifests for all services
   - [x] 16.1.2 Create staging overlay
@@ -427,6 +444,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - _Evidence: Dockerfiles in layanan/ and antarmuka/ directories_
 
 ### 17. Documentation
+
 - [x] 17.1 Write API documentation (4h) 🟡
   - [x] 17.1.1 Generate OpenAPI/Swagger specs for all REST endpoints
   - [x] 17.1.2 Document gRPC proto files
@@ -448,6 +466,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 **Completion Status:** 80-85% complete
 
 **Completion by Phase:**
+
 - Phase 1: Foundation & Infrastructure - 100% ✅ (0h remaining)
 - Phase 2: Integration Services - 100% ✅ (0h remaining)
 - Phase 3: Core Services - 75% (10h remaining)
@@ -457,6 +476,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 - Phase 7: Deployment & Documentation - 60% (8h remaining)
 
 **Critical Remaining Work:**
+
 1. Frontend UI for business modules (32h) - Kebutuhan, Pemakaian, Penghapusan, Pakaian Dinas
 2. Workflow admin UI (8h) - Configuration and monitoring dashboard
 3. Dashboard frontend UI (10h) - Portal and Perlengkapan dashboards
@@ -464,6 +484,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 5. Documentation (8h) - API docs and user guides
 
 **What's Already Complete:**
+
 - ✅ All database migrations (20 files)
 - ✅ All shared libraries (lib-common, lib-perlengkapan, lib-ui)
 - ✅ Complete integration services (SIMAN, MySIMKARI with gRPC)
@@ -477,6 +498,7 @@ This task list implements the complete SIMPEL system based on the approved requi
 - ✅ Kubernetes manifests and Docker images
 
 **Critical Path:**
+
 1. Phase 3: Workflow admin UI (10h)
 2. Phase 4: Frontend UI for business modules (32h)
 3. Phase 5: Dashboard frontend UI (20h)
@@ -484,11 +506,13 @@ This task list implements the complete SIMPEL system based on the approved requi
 5. Phase 7: Documentation (8h)
 
 **Parallel Work Opportunities:**
+
 - Frontend UI can be developed in parallel across modules
 - Unit tests can be written in parallel with frontend development
 - Documentation can be written in parallel with testing
 
 **Dependencies:**
+
 - Frontend UI depends on backend APIs (already complete)
 - Dashboard UI depends on backend metrics endpoints (already complete)
 - Testing depends on frontend UI completion

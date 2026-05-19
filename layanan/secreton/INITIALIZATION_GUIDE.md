@@ -25,6 +25,7 @@ curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response (uninitialized):
+
 ```json
 {
   "seal_type": "shamir",
@@ -41,6 +42,7 @@ Response (uninitialized):
 #### Step 2: Initialize Secret Vault (Generate Master Key Shares)
 
 Initialize engine with **Shamir Secret Sharing**:
+
 - `secret_shares`: Total number of key shares to generate (e.g., 5)
 - `secret_threshold`: Minimum shares needed to unseal (e.g., 3)
 
@@ -56,6 +58,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -86,11 +89,13 @@ Response:
    - Can be revoked after setting up proper auth
 
 3. **Verify initialization**:
+
    ```bash
    curl http://localhost:8200/v1/sys/seal-status
    ```
 
    Response should show:
+
    ```json
    {
      "initialized": true,
@@ -119,6 +124,7 @@ curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response (sealed):
+
 ```json
 {
   "sealed": true,
@@ -151,6 +157,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 Response after each share:
+
 ```json
 {
   "sealed": true,
@@ -161,6 +168,7 @@ Response after each share:
 ```
 
 Response when threshold reached:
+
 ```json
 {
   "sealed": false,
@@ -177,6 +185,7 @@ curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response (unsealed):
+
 ```json
 {
   "sealed": false,
@@ -341,21 +350,27 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ## API Reference
 
 ### GET /v1/sys/seal-status
+
 Returns current seal status (accessible when sealed)
 
 ### POST /v1/sys/init
+
 Initialize engine with Shamir shares
 
 ### POST /v1/sys/unseal
+
 Provide unseal key/share
 
 ### POST /v1/sys/seal
+
 Seal the engine (requires authentication)
 
 ### POST /v1/sys/rekey/init
+
 Start rekey operation
 
 ### POST /v1/sys/rekey/update
+
 Provide shares for rekey
 
 ## Examples

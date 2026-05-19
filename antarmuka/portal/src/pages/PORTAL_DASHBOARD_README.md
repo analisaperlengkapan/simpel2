@@ -13,14 +13,18 @@ This document describes the implementation of the Portal Dashboard UI (Task 10.1
 ## Features Implemented
 
 ### 1. System Overview Section
+
 Displays core system metrics:
+
 - **Total Users**: Total number of registered users in the system
 - **Active Sessions**: Number of currently active user sessions
 - **System Health**: Overall system status (healthy/degraded/down)
 - **Uptime**: System uptime percentage
 
 ### 2. BMN Metrics Section
+
 Displays cross-domain BMN metrics:
+
 - **Kebutuhan BMN Status**: Bar chart showing approved vs pending requests
 - **Cross-Domain Distribution**: Pie chart showing distribution across Kebutuhan, Pemakaian, and Penghapusan
 - **Metric Cards**:
@@ -29,7 +33,9 @@ Displays cross-domain BMN metrics:
   - Kebutuhan Total (total requirements with approved count)
 
 ### 3. Auth Metrics Section
+
 Displays authentication and security metrics:
+
 - **Login Attempts Today**: Total login attempts for the current day
 - **Success Rate**: Percentage of successful logins
 - **MFA Enabled Users**: Number of users with MFA enabled and percentage
@@ -37,7 +43,9 @@ Displays authentication and security metrics:
 - **Login Distribution Chart**: Bar chart showing success vs failure rate
 
 ### 4. Integration Health Section
+
 Displays status of external system integrations:
+
 - **SIMAN Integration**:
   - Status indicator (healthy/degraded/down)
   - Last synchronization timestamp
@@ -69,6 +77,7 @@ pub struct PortalDashboardMetrics {
 ```
 
 ### System Metrics
+
 ```rust
 pub struct SystemMetrics {
     pub total_users: i64,
@@ -79,6 +88,7 @@ pub struct SystemMetrics {
 ```
 
 ### Cross-Domain Metrics
+
 ```rust
 pub struct CrossDomainMetrics {
     pub kebutuhan_total: i64,
@@ -92,6 +102,7 @@ pub struct CrossDomainMetrics {
 ```
 
 ### Auth Metrics
+
 ```rust
 pub struct AuthMetrics {
     pub login_attempts_today: i64,
@@ -103,6 +114,7 @@ pub struct AuthMetrics {
 ```
 
 ### Integration Health
+
 ```rust
 pub struct IntegrationHealth {
     pub siman_status: String,      // "healthy", "degraded", "down"
@@ -115,20 +127,24 @@ pub struct IntegrationHealth {
 ## Features
 
 ### Auto-Refresh
+
 - Dashboard automatically refreshes every 30 seconds
 - Manual refresh button available in the header
 - Uses reactive signals to trigger data reload
 
 ### Responsive Design
+
 - Grid layout adapts to screen size (1/2/4 columns)
 - Mobile-friendly with proper spacing and sizing
 - Dark mode support throughout
 
 ### Loading States
+
 - Suspense boundary with skeleton loading animation
 - Smooth transitions between loading and loaded states
 
 ### Error Handling
+
 - Displays user-friendly error messages
 - Shows HTTP status codes and error details
 - Maintains layout structure even on error
@@ -156,6 +172,7 @@ The dashboard uses Tailwind CSS with the following design principles:
 ## Integration with Backend
 
 The dashboard expects the backend API endpoint at:
+
 ```
 GET /api/v1/dashboard/portal
 ```
@@ -163,6 +180,7 @@ GET /api/v1/dashboard/portal
 **Note**: As of this implementation, the backend endpoint is marked as complete in the task list but may need to be implemented or verified. The frontend is ready to consume the API once available.
 
 ### Authentication
+
 - Requires Bearer token authentication
 - Token retrieved from `AuthService::get_token()`
 - Redirects to login if not authenticated
@@ -172,6 +190,7 @@ GET /api/v1/dashboard/portal
 The dashboard is automatically rendered when users navigate to `/portal/dashboard` after logging in. It replaces the previous simple dashboard with a comprehensive system overview.
 
 ### Access Control
+
 - Available to all authenticated users
 - No special permissions required
 - Respects password change requirements
@@ -193,10 +212,12 @@ Potential improvements for future iterations:
 To test the dashboard:
 
 1. **Manual Testing**:
+
    ```bash
    cd antarmuka/portal
    trunk serve --open
    ```
+
    Navigate to `/portal/dashboard` after logging in
 
 2. **Mock Data**: The dashboard gracefully handles missing backend by showing error state
@@ -239,9 +260,11 @@ When updating the dashboard:
 ## Task Completion
 
 This implementation completes:
+
 - ✅ Task 10.1.4: Create portal dashboard UI (4h) (frontend)
 
 Backend tasks (already marked complete):
+
 - ✅ Task 10.1.1: Implement GET /api/v1/dashboard/portal (backend)
 - ✅ Task 10.1.2: Fetch system metrics, cross-domain metrics, auth metrics
 - ✅ Task 10.1.3: Fetch integration health from integrasi service

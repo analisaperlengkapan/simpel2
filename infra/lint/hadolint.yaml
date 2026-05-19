@@ -10,6 +10,14 @@ ignored:
   - DL3018
   # DL3059: multiple consecutive RUN — kadang perlu untuk readability
   - DL3059
+  # SC2015 (info): `A && B || C` pattern. Used intentionally untuk
+  # workspace Cargo.toml patching dengan `|| true` masking expected
+  # idempotency failure (re-run on already-patched file).
+  - SC2015
+  # DL4006 (warning): `SHELL ["/bin/bash", "-o", "pipefail"]` before
+  # RUN with pipes. simpelv1 alpine image: busybox sh doesn't support
+  # pipefail; switching to /bin/ash for one pipe isn't worth it.
+  - DL4006
 
 trustedRegistries:
   - docker.io

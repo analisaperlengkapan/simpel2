@@ -49,7 +49,11 @@ base64 = { workspace = true, optional = true }
 default = ["transit"]
 aws-kms = ["dep:aws-config", "dep:aws-sdk-kms"]
 gcp-kms = ["dep:google-cloudkms1"]
-azure-kv = ["dep:azure_security_keyvault", "dep:azure_identity", "dep:azure_core"]
+azure-kv = [
+  "dep:azure_security_keyvault",
+  "dep:azure_identity",
+  "dep:azure_core",
+]
 transit = ["dep:tonic", "dep:prost", "dep:base64", "dep:secreton-grpc"]
 all-providers = ["aws-kms", "gcp-kms", "azure-kv", "transit"]
 

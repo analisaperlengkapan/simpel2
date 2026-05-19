@@ -17,6 +17,7 @@
 SIMPEL (Sistem Informasi Manajemen Perlengkapan) adalah sistem untuk mengelola Barang Milik Negara (BMN) di lingkungan Kejaksaan RI.
 
 **Peran Operator Satker:**
+
 - Menginput kebutuhan BMN satker
 - Mengajukan kebutuhan pakaian dinas pegawai
 - Membuat izin pemakaian BMN
@@ -42,6 +43,7 @@ SIMPEL (Sistem Informasi Manajemen Perlengkapan) adalah sistem untuk mengelola B
 ### Dashboard
 
 Setelah login, Anda akan melihat dashboard dengan:
+
 - **Ringkasan**: Total pengajuan, status, dan notifikasi
 - **Menu Utama**: Akses ke semua modul
 - **Notifikasi**: Pemberitahuan terbaru
@@ -78,6 +80,7 @@ Setelah login, Anda akan melihat dashboard dengan:
    - Pengajuan tidak dapat diubah setelah disubmit
 
 **Tips:**
+
 - Pastikan justifikasi jelas dan lengkap
 - Upload dokumen pendukung yang relevan
 - Cek ketersediaan BMN existing di SIMAN sebelum mengajukan
@@ -134,6 +137,7 @@ Jika pengajuan dikembalikan untuk revisi:
      3. Kejagung (Validator Pusat)
 
 **Tips:**
+
 - Pastikan ukuran akurat untuk menghindari revisi
 - Cek data pegawai (eselon, pangkat, jabatan) sudah benar
 - Untuk pegawai baru, pastikan sudah terdaftar di MySIMKARI
@@ -187,6 +191,7 @@ Jika pengajuan dikembalikan untuk revisi:
    - Status izin menjadi **COMPLETED**
 
 **Tips:**
+
 - Cek ketersediaan BMN sebelum memilih
 - Pastikan periode pemakaian sesuai kebutuhan
 - Simpan dokumen yang sudah ditandatangani dengan baik
@@ -203,6 +208,7 @@ Jika izin akan berakhir:
 ### Notifikasi Kadaluarsa
 
 Sistem akan mengirim notifikasi:
+
 - **H-30**: 30 hari sebelum berakhir
 - **H-14**: 14 hari sebelum berakhir
 - **H-7**: 7 hari sebelum berakhir
@@ -246,6 +252,7 @@ Sistem akan mengirim notifikasi:
    - Pengajuan akan masuk ke alur persetujuan
 
 **Tips:**
+
 - Pastikan BMN tidak sedang digunakan (tidak ada izin aktif)
 - Upload foto kondisi BMN yang jelas
 - Isi alasan dengan lengkap dan detail
@@ -289,11 +296,13 @@ A: Cek folder spam/junk email Anda. Jika masih tidak ada, hubungi Admin
 ### Kontak Bantuan
 
 **Helpdesk SIMPEL:**
+
 - **Email:** helpdesk@simpel.kejaksaan.go.id
 - **Telepon:** (021) 1234-5678
 - **Jam Kerja:** Senin-Jumat, 08:00-16:00 WIB
 
 **Panduan Video:**
+
 - Kunjungi https://simpel.kejaksaan.go.id/panduan untuk video tutorial
 
 ---

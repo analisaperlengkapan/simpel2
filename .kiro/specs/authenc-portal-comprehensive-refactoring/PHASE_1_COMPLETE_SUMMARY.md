@@ -94,6 +94,7 @@ Updated `services/cache/mod.rs` with proper feature gates (already done in previ
 ### Phase 2: Add Missing Types (30 minutes)
 
 Add the 5 missing types to authenc-types:
+
 1. `AuthorizationRequest` → `crates/types/src/domain/oauth2.rs`
 2. `OidcClient` → `crates/types/src/domain/oauth2.rs`
 3. `TokenResponse` → `crates/types/src/domain/oauth2.rs`
@@ -105,12 +106,14 @@ Add the 5 missing types to authenc-types:
 ### Phase 3: Add Missing Dependencies (10 minutes)
 
 Add to `crates/core/Cargo.toml`:
+
 ```toml
 reqwest = { workspace = true, optional = true }
 base32 = "0.5"
 ```
 
 Add feature:
+
 ```toml
 [features]
 elasticsearch = ["reqwest"]

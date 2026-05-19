@@ -18,6 +18,7 @@ The Response Wrapping Service provides a one-time token mechanism for secure sec
 ## Use Cases
 
 ### 1. Secure Secret Distribution
+
 ```rust
 // Wrap a database password for one-time retrieval
 let request = WrapRequest {
@@ -35,29 +36,35 @@ let secret = service.unwrap(&response.token, "default").await?;
 ```
 
 ### 2. API Response Wrapping
+
 Automatically wrap sensitive API responses using the `X-Secret Vault-Wrap-TTL` header.
 
 ### 3. Temporary Credentials
+
 Wrap dynamic database credentials for secure distribution to applications.
 
 ## API
 
 ### Wrap Data
+
 ```rust
 pub async fn wrap(&self, request: WrapRequest) -> Result<WrapResponse, WrappingError>
 ```
 
 ### Unwrap Token (One-Time Use)
+
 ```rust
 pub async fn unwrap(&self, token: &str, namespace: &str) -> Result<JsonValue, WrappingError>
 ```
 
 ### Lookup Metadata
+
 ```rust
 pub async fn lookup(&self, token: &str, namespace: &str) -> Result<WrappedTokenInfo, WrappingError>
 ```
 
 ### Cleanup Expired Tokens
+
 ```rust
 pub async fn cleanup_expired(&self) -> Result<usize, WrappingError>
 ```

@@ -50,7 +50,8 @@
 
 ### Error Types Consolidated
 
-#### Per Crate:
+#### Per Crate
+
 - **crypto**: `CryptoError` in `crates/crypto/src/error.rs` ✅
 - **api**: `ApiError` in `crates/api/src/error.rs` ✅
 - **core**: `CoreError` and `SecretonError` in `crates/core/src/error.rs` ✅

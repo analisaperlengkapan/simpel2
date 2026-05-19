@@ -16,17 +16,20 @@ This crate implements WebAuthn/FIDO2 passkey authentication as the PRIMARY authe
 ## Security Features
 
 ### Phishing-Resistant Authentication
+
 - Public key cryptography (no shared secrets)
 - Origin-bound credentials (cannot be used on different domains)
 - Replay attack prevention via credential counter
 
 ### Platform Authenticator Support
+
 - **iOS/iPadOS**: Touch ID, Face ID, iCloud Keychain sync
 - **macOS**: Touch ID, iCloud Keychain sync
 - **Android**: Biometric authentication, Google Password Manager sync
 - **Windows**: Windows Hello (biometric or PIN)
 
 ### Security Key Support
+
 - FIDO2 security keys (YubiKey, Titan Key, etc.)
 - USB, NFC, and Bluetooth security keys
 - Multiple security keys per user
@@ -34,6 +37,7 @@ This crate implements WebAuthn/FIDO2 passkey authentication as the PRIMARY authe
 ## WebAuthn Flow
 
 ### Registration Flow
+
 1. Client calls `start_registration()` to get creation challenge
 2. Browser calls `navigator.credentials.create()` with challenge
 3. User verifies with biometric or PIN
@@ -41,6 +45,7 @@ This crate implements WebAuthn/FIDO2 passkey authentication as the PRIMARY authe
 5. Server verifies and stores credential
 
 ### Authentication Flow
+
 1. Client calls `start_authentication()` to get authentication challenge
 2. Browser calls `navigator.credentials.get()` with challenge
 3. User verifies with biometric or PIN
@@ -59,6 +64,7 @@ This crate implements WebAuthn/FIDO2 passkey authentication as the PRIMARY authe
 ## Requirements
 
 Implements requirements:
+
 - REQ-AUTH-005 (Passwordless authentication - MANDATORY)
 - REQ-WEBAUTHN-001 through REQ-WEBAUTHN-010 (WebAuthn features)
 - REQ-SEC-010 (Phishing-resistant authentication)

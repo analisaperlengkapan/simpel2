@@ -39,6 +39,7 @@ stateDiagram-v2
 ## ⚡ Performance Patterns
 
 ### Signal Reactivity Best Practices
+
 Gunakan Leptos 0.8.x signal API untuk reaktivitas yang efisien:
 
 ```rust
@@ -55,6 +56,7 @@ let doubled = move || *count.read() * 2;
 ```
 
 ### Memoization untuk Expensive Computations
+
 Gunakan `Memo::new` untuk memoizing computed values:
 
 ```rust
@@ -73,6 +75,7 @@ let filtered_items = Memo::new(move |_| {
 ```
 
 ### Lazy Loading untuk Routes
+
 Implement lazy loading untuk mengurangi initial bundle size:
 
 ```rust
@@ -102,6 +105,7 @@ pub fn App() -> impl IntoView {
 ```
 
 ### Component Reusability
+
 Desain komponen agar reusable dan tidak mengandung logika bisnis:
 
 ```rust
@@ -132,6 +136,7 @@ pub fn TabelBarangBMN(
 ```
 
 ### CSS Optimization
+
 Gunakan utility classes dan hindari inline styles:
 
 ```rust
@@ -151,6 +156,7 @@ view! {
 ```
 
 ### Bundle Size Optimization
+
 Minimize bundle size dengan best practices:
 
 - **Tree shaking**: Hanya import yang diperlukan dari libraries
@@ -169,6 +175,7 @@ release = true
 ```
 
 ### Debouncing untuk User Input
+
 Gunakan debouncing untuk input yang memicu expensive operations:
 
 ```rust
@@ -185,6 +192,7 @@ let debounced_search = Memo::new(move |_| {
 ```
 
 ### Virtual Scrolling untuk Large Lists
+
 Untuk lists dengan banyak items, gunakan virtual scrolling:
 
 ```rust
@@ -193,6 +201,7 @@ Untuk lists dengan banyak items, gunakan virtual scrolling:
 ```
 
 ### Performance Monitoring
+
 Instrument komponen untuk performance tracking:
 
 ```rust

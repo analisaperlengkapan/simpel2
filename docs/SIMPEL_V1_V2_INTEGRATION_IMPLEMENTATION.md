@@ -36,9 +36,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ## Phase Deliverables
 
 ### Phase 1: Portal UI Submenu ✅
+
 **Objective**: Create smooth expandable submenu for selecting v1 vs v2
 
 **Deliverables**:
+
 - `antarmuka/portal/src/features/microfrontends.rs`: Added `SubApp` struct for submenu variants
 - `antarmuka/portal/src/pages/apps.rs`: 230+ lines of animated dropdown component
   - Expandable button with SVG chevron-down icon
@@ -52,9 +54,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 2: v1 OAuth Middleware ✅
+
 **Objective**: Implement OAuth redirect flow from Portal to v1
 
 **Deliverables**:
+
 - `monolith/simpelv1/app/Http/Middleware/TokenToOAuthMiddleware.php`: Intercepts unauthenticated requests, redirects to Portal OAuth flow
 - `monolith/simpelv1/app/Http/Controllers/AuthController.php`:
   - `oauthCallback()`: Receives JWT from Portal, validates, creates session
@@ -64,6 +68,7 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 - `monolith/simpelv1/.env`: Added OAuth config (PORTAL_URL, gRPC endpoints)
 
 **Authentication Flow**:
+
 ```
 1. User unauthenticated in v1
 2. TokenToOAuthMiddleware intercepts request
@@ -80,14 +85,17 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 3: Docker Containerization ✅
+
 **Objective**: Package v1 as production-ready Docker image
 
 **Deliverables**:
+
 - `monolith/simpelv1/Dockerfile`: Multi-stage PHP 8.2 builder → nginx runtime on port 8080
 - `monolith/simpelv1/nginx.conf`: SPA routing, security headers, gzip compression
 - `monolith/simpelv1/routes/web.php`: Added `/health` endpoint for Kubernetes probes
 
 **Security Features**:
+
 - Non-root user (nobody:33)
 - Read-only root filesystem
 - Security headers (X-Frame-Options, CSP, HSTS, etc.)
@@ -99,9 +107,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 4: Kubernetes Deployment ✅
+
 **Objective**: Create K8s manifests for staging & production
 
 **Deliverables**:
+
 - `infra/k8s/base/backend/simpelv1.yaml` (Staging):
   - Deployment with 2 replicas
   - Init-container for DB migration from `dbsimpelv1.sql.gz`
@@ -124,9 +134,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 5: Istio Routing ✅
+
 **Objective**: Configure path-based routing for v1/v2 under `/perlengkapan/`
 
 **Deliverables**:
+
 - `infra/k8s/base/istio/simpel-perlengkapan-vs.yaml` (Staging):
   - VirtualService: Routes `/perlengkapan/simpel/v1` → simpelv1:80
   - Routes `/perlengkapan/simpel/v2` → layasan-perlengkapan:3020
@@ -145,9 +157,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 6: Database Migration ✅
+
 **Objective**: Set up automated DB restoration from backup
 
 **Deliverables**:
+
 - `scripts/restore-db.sh`: Bash script for manual DB restoration
   - Checks PostgreSQL connectivity
   - Verifies database existence
@@ -169,9 +183,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 7: Docker Compose ✅
+
 **Objective**: Complete local development environment
 
 **Deliverables**:
+
 - `docker-compose.build.yml`: Updated with simpelv1 service
 - `docker-compose.yml`: New comprehensive local stack
   - PostgreSQL 15 (postgres:5432)
@@ -190,9 +206,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 8: CI/CD Pipeline ✅
+
 **Objective**: Automate builds & tests for v1
 
 **Deliverables**:
+
 - `.gitlab-ci.yml`: Added 2 new jobs
   - `build:simpelv1`: Docker build & push to registry (stage: build)
   - `security:simpelv1`: Trivy vulnerability scan (stage: security-scan)
@@ -206,6 +224,7 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
   - Automatic GitHub releases on tags
 
 **Pipeline Features**:
+
 - Only runs on: main, staging, feat/* branches
 - Paths filter: changes to monolith/simpelv1/* trigger builds
 - Cache optimization: GitHub Actions cache for docker layers
@@ -217,9 +236,11 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 ---
 
 ### Phase 9: gRPC Service Integration ✅
+
 **Objective**: Implement PHP gRPC clients for backend services
 
 **Deliverables**:
+
 - `scripts/generate-grpc-stubs.sh`: Proto code generation script (executable)
 
 - `monolith/simpelv1/app/Services/Grpc/AuthencGrpcClient.php`:
@@ -251,6 +272,7 @@ Successfully implemented comprehensive integration between SIMPEL v2 (Modern Rus
 - `monolith/simpelv1/config/app.php`: Registered GrpcServiceProvider
 
 **gRPC Configuration** (from .env):
+
 ```
 AUTHENC_GRPC_URL=authenc:50051
 INTEGRASI_GRPC_URL=layasan-integrasi:50052
@@ -265,9 +287,11 @@ GRPC_SSL_MODE=insecure (dev), require (prod)
 ---
 
 ### Phase 10: Session Sharing ✅
+
 **Objective**: Implement cross-tab logout via localStorage
 
 **Deliverables**:
+
 - `monolith/simpelv1/app/Services/SessionService.php`: Session management service
   - `broadcastLogout()`: Sets logout event marker
   - `handleRemoteLogout()`: Processes logout from other tab
@@ -285,6 +309,7 @@ GRPC_SSL_MODE=insecure (dev), require (prod)
   - Properly invalidates and regenerates session
 
 **Client-Side Flow**:
+
 ```javascript
 // Listen to storage events across tabs
 window.addEventListener('storage', (e) => {
@@ -297,6 +322,7 @@ window.addEventListener('storage', (e) => {
 ```
 
 **Canonical localStorage Keys**:
+
 - `auth_token`: JWT access token
 - `logout_event`: Cross-tab logout broadcast marker
 - `refresh_token`: JWT refresh token (optional)
@@ -306,9 +332,11 @@ window.addEventListener('storage', (e) => {
 ---
 
 ### Phase 11: E2E Tests ✅
+
 **Objective**: Comprehensive end-to-end testing
 
 **Deliverables**:
+
 - `tests/e2e/simpelv1-integration.spec.ts`: 18+ test scenarios
   - Portal navigation (4 tests)
   - v1 OAuth flow (4 tests)
@@ -335,6 +363,7 @@ window.addEventListener('storage', (e) => {
   - CI/CD integration notes
 
 **Test Metrics**:
+
 - Health endpoint: < 100ms ✓
 - Dashboard load: < 3s ✓
 - OAuth callback: < 2s ✓
@@ -344,9 +373,11 @@ window.addEventListener('storage', (e) => {
 ---
 
 ### Phase 12: Git Workflow 🔄
+
 **Objective**: Finalize branch and create PR
 
 **Status**: ✅ All commits complete
+
 - 11 feature commits
 - All changes staged and committed
 - Working directory clean
@@ -357,27 +388,32 @@ window.addEventListener('storage', (e) => {
 ## Key Architecture Decisions
 
 ### 1. **gRPC-First for Backend Services**
+
 - ✅ All service-to-service communication via gRPC
 - ✅ REST API only for Frontend → Backend
 - ✅ mTLS in production, insecure for local dev
 
 ### 2. **Path-Based Routing for Dual Versions**
+
 - `/perlengkapan/simpel/v1` → v1 (PHP/Laravel)
 - `/perlengkapan/simpel/v2` → v2 (Rust/Axum)
 - Handled by Istio VirtualService with DestinationRules
 
 ### 3. **Init-Container Pattern for DB Migration**
+
 - Automated database restoration on pod startup
 - Idempotent checks prevent re-running on pod restart
 - ConfigMap/Secret stores compressed backup
 
 ### 4. **OAuth Token as Session Bridge**
+
 - Portal holds primary auth (Authenc gRPC)
 - JWT token passed to v1 via OAuth callback
 - v1 creates Laravel session from token claims
 - Cross-tab logout via localStorage broadcast
 
 ### 5. **Multi-Stage Docker Build**
+
 - PHP 8.2 builder stage → nginx runtime
 - Minimal attack surface, security-hardened
 - Non-root user, read-only filesystem
@@ -387,16 +423,19 @@ window.addEventListener('storage', (e) => {
 ## Testing Strategy
 
 ### Unit Tests
+
 - PHP controller methods (OAuth callback validation)
 - Session service functions
 - Middleware logic
 
 ### Integration Tests
+
 - Database migration idempotency
 - gRPC client connectivity
 - Session creation from JWT claims
 
 ### E2E Tests
+
 - Portal submenu expansion/collapse
 - OAuth flow end-to-end
 - Cross-version navigation
@@ -405,6 +444,7 @@ window.addEventListener('storage', (e) => {
 - Performance benchmarks
 
 ### Security Tests
+
 - CSRF token validation
 - Secure cookie flags (httpOnly, secure)
 - JWT expiration handling
@@ -415,12 +455,14 @@ window.addEventListener('storage', (e) => {
 ## Deployment Checklist
 
 ### Pre-Staging
+
 - [ ] Pull latest code: `git pull origin feat/simpel-v1-v2-integration`
 - [ ] Run local tests: `npm run test:e2e`
 - [ ] Build Docker image: `docker compose build simpelv1`
 - [ ] Verify health endpoint: `curl http://localhost:8000/health`
 
 ### Staging Deployment
+
 - [ ] Create ConfigMap for DB backup: `kubectl create configmap simpelv1-db-backup ...`
 - [ ] Apply Helm chart: `./infra/helm/deploy.sh staging install`
 - [ ] Verify Istio routing: `istioctl analyze`
@@ -429,6 +471,7 @@ window.addEventListener('storage', (e) => {
 - [ ] Run E2E tests against staging
 
 ### Production Deployment (after staging validation)
+
 - [ ] Tag release: `git tag v1.0.0-simpelv1`
 - [ ] Apply Helm chart: `./infra/helm/deploy.sh production install`
 - [ ] Verify HPA & PDB: `kubectl get hpa,pdb`
@@ -492,13 +535,16 @@ window.addEventListener('storage', (e) => {
 ### Total: 50+ files, 3,335+ lines of code
 
 **Portal (antarmuka/)**:
+
 - `portal/src/features/microfrontends.rs` (modified)
 - `portal/src/pages/apps.rs` (created)
 
 **Backend Services (layanan/)**:
+
 - (gRPC proto definitions referenced, not modified)
 
 **Legacy Application (monolith/simpelv1/)**:
+
 - `Dockerfile` (created)
 - `nginx.conf` (created)
 - `app/Http/Middleware/TokenToOAuthMiddleware.php` (created)
@@ -514,28 +560,34 @@ window.addEventListener('storage', (e) => {
 - `.env` (modified - excluded from git)
 
 **Infrastructure (infra/)**:
+
 - `k8s/base/backend/simpelv1.yaml` (created)
 - `k8s/base/istio/simpel-perlengkapan-vs.yaml` (created)
 - `k8s/overlays/production/simpelv1.yaml` (created)
 - `k8s/overlays/production/simpel-perlengkapan-vs.yaml` (created)
 
 **CI/CD (.github/, .gitlab-ci.yml)**:
+
 - `.gitlab-ci.yml` (modified)
 - `.github/workflows/simpelv1.yml` (created)
 
 **Docker**:
+
 - `docker-compose.yml` (created)
 - `docker-compose.build.yml` (modified)
 
 **Scripts (scripts/)**:
+
 - `restore-db.sh` (created, executable)
 - `generate-grpc-stubs.sh` (created, executable)
 
 **Tests (tests/)**:
+
 - `e2e/simpelv1-integration.spec.ts` (created)
 - `playwright.config.ts` (created)
 
 **Documentation (docs/)**:
+
 - `SIMPEL_V1_DATABASE_MIGRATION.md` (created)
 - `E2E_TEST_GUIDE.md` (created)
 
@@ -544,6 +596,7 @@ window.addEventListener('storage', (e) => {
 ## Recommendations for Next Steps
 
 ### Immediate (Before Staging Deployment)
+
 1. ✅ Commit all changes (DONE)
 2. ⏳ Push to origin: `git push origin feat/simpel-v1-v2-integration`
 3. ⏳ Create PR to main with checklist
@@ -552,6 +605,7 @@ window.addEventListener('storage', (e) => {
 6. ⏳ Deploy to microk8s staging
 
 ### Short Term (Week 1-2)
+
 1. Validate E2E tests against staging
 2. Performance testing (load test with 50+ concurrent users)
 3. Security audit (OWASP Top 10)
@@ -559,6 +613,7 @@ window.addEventListener('storage', (e) => {
 5. Add rate limiting & DDoS protection
 
 ### Medium Term (Week 3-4)
+
 1. Optimize database queries (query logging)
 2. Add caching layer (Redis integration)
 3. Implement comprehensive logging & monitoring
@@ -566,6 +621,7 @@ window.addEventListener('storage', (e) => {
 5. Documentation review & team training
 
 ### Long Term (After Launch)
+
 1. Monitor production metrics
 2. Gradual traffic migration (20% → 50% → 100% v1 users)
 3. Deprecation planning for legacy v1 code

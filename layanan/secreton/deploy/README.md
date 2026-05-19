@@ -129,6 +129,7 @@ Region A                Region B                Region C
 See [`../secreton.toml.example`](../secreton.toml.example) for full reference.
 
 Key sections:
+
 - `[server]`: API listener configuration
 - `[storage]`: Backend storage settings
 - `[seal]`: Seal/unseal mechanism

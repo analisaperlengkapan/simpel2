@@ -26,6 +26,7 @@
 **File**: `layanan/authenc/crates/core/src/services/oauth2_service.rs` (500+ lines)
 
 **Evidence**:
+
 ```rust
 pub struct OAuth2ServiceImpl {
     client_store: Arc<dyn ClientStore>,
@@ -36,6 +37,7 @@ pub struct OAuth2ServiceImpl {
 ```
 
 **Features Implemented**:
+
 - ✅ Authorization Code flow with PKCE (OAuth 2.1 compliant)
 - ✅ Client Credentials flow
 - ✅ Refresh Token flow with rotation
@@ -53,12 +55,14 @@ pub struct OAuth2ServiceImpl {
 ### Finding 2: Error-Causing Services are Unused Wrappers ❌
 
 **Files with Errors**:
+
 1. `crates/core/src/services/oidc_client_store.rs` (6 errors)
 2. `crates/core/src/services/oidc_code_store.rs` (2 errors)
 3. `crates/core/src/services/device.rs` (4 errors)
 4. `crates/core/src/services/client_scope_service.rs` (4 errors)
 
 **Evidence from oidc_client_store.rs**:
+
 ```rust
 pub struct OidcClientStore {
     db: Arc<Database>,
@@ -76,6 +80,7 @@ impl OidcClientStore {
 **Problem**: These services are **thin wrappers** around `authenc_storage::operations::oauth2` which is **DISABLED** (commented out in `crates/storage/src/operations/legacy/oauth2.rs`).
 
 **Usage Check**:
+
 ```bash
 # Searched entire codebase for usage
 grep -r "OidcClientStore" layanan/authenc/
@@ -95,6 +100,7 @@ grep -r "ClientScopeService" layanan/authenc/
 **File**: `layanan/authenc/crates/api/src/state.rs`
 
 **Evidence**:
+
 ```rust
 #[derive(Clone)]
 pub struct ApiState {
@@ -116,6 +122,7 @@ pub struct ApiState {
 **File**: `layanan/authenc/crates/api/src/handlers/oauth2.rs` (323 lines)
 
 **Evidence**:
+
 ```rust
 pub async fn authorize_handler(...) -> Result<Response, ErrorResponse> {
     // TODO: Implement authorization logic
@@ -144,6 +151,7 @@ pub async fn discovery_handler(...) -> Result<Json<OidcDiscoveryResponse>, Error
 **File**: `layanan/authenc/crates/storage/src/operations/legacy/oauth2.rs`
 
 **Evidence**:
+
 ```rust
 // This file EXISTS with complete implementation
 pub async fn create_client(db: &Database, client: &OAuth2Client) -> Result<OAuth2Client> {
@@ -156,6 +164,7 @@ pub async fn get_client_by_id(db: &Database, client_id: &str) -> Result<Option<O
 ```
 
 **But in `crates/storage/src/operations/mod.rs`**:
+
 ```rust
 // pub mod oauth2;  // ❌ COMMENTED OUT
 ```
@@ -171,6 +180,7 @@ pub async fn get_client_by_id(db: &Database, client_id: &str) -> Result<Option<O
 **File**: `layanan/authenc/crates/types/src/domain/oauth2.rs` (600+ lines)
 
 **Evidence**:
+
 ```rust
 pub struct OAuth2Client { /* 40+ fields, RFC 7591 compliant */ }
 pub struct OAuth2AuthorizationCode { /* complete */ }
@@ -191,6 +201,7 @@ impl TryFrom<tokio_postgres::Row> for OAuth2AccessToken { /* complete */ }
 ### Reason 1: Architectural Superiority
 
 **OAuth2ServiceImpl (GOOD)**:
+
 ```rust
 // Trait-based design (SOLID principles)
 pub struct OAuth2ServiceImpl {
@@ -202,6 +213,7 @@ pub struct OAuth2ServiceImpl {
 ```
 
 **OidcClientStore (BAD)**:
+
 ```rust
 // Direct database coupling (tight coupling)
 pub struct OidcClientStore {
@@ -223,6 +235,7 @@ impl OidcClientStore {
 ### Reason 2: No Usage = Dead Code
 
 **Evidence**:
+
 ```bash
 # Comprehensive search across entire codebase
 grep -r "OidcClientStore" layanan/authenc/src/
@@ -233,6 +246,7 @@ grep -r "oidc_client_store" layanan/authenc/
 ```
 
 **YAGNI Principle**: "You Aren't Gonna Need It"
+
 - If code is not used, it's dead code
 - Dead code increases maintenance burden
 - Dead code confuses future developers
@@ -246,6 +260,7 @@ grep -r "oidc_client_store" layanan/authenc/
 **DRY Principle**: "Don't Repeat Yourself"
 
 **Current Situation**:
+
 - OAuth2ServiceImpl: ✅ Complete OAuth2 implementation
 - OidcClientStore: ❌ Partial wrapper around storage operations
 - oidc_code_store: ❌ Partial wrapper around storage operations
@@ -259,6 +274,7 @@ grep -r "oidc_client_store" layanan/authenc/
 ### Reason 4: Implementation Would Take Longer
 
 **If we implement missing storage operations**:
+
 - Time: 6-8 hours
 - Result: Duplicate functionality (OAuth2ServiceImpl already works)
 - Maintenance: 2x code to maintain
@@ -266,6 +282,7 @@ grep -r "oidc_client_store" layanan/authenc/
 - Bugs: 2x surface area for bugs
 
 **If we cleanup**:
+
 - Time: 2-3 hours
 - Result: Clean codebase with single source of truth
 - Maintenance: 1x code to maintain
@@ -288,6 +305,7 @@ grep -r "oidc_client_store" layanan/authenc/
 | `client_scope_service.rs` | 4 | Duplicates OAuth2ServiceImpl scope logic | DELETE |
 
 **Justification**: These services are thin wrappers that:
+
 1. Depend on disabled storage operations
 2. Are not used anywhere in the codebase
 3. Duplicate functionality in OAuth2ServiceImpl
@@ -333,6 +351,7 @@ grep -r "oidc_client_store" layanan/authenc/
 | `crate::stores::audit_log_store` | Audit logging (CRITICAL) | CREATE minimal audit store |
 
 **Justification**:
+
 - Utils: Common utilities needed by services
 - Events: Event system for audit trail (security requirement)
 - Audit log store: CRITICAL for security compliance
@@ -380,6 +399,7 @@ grep -r "oidc_client_store" layanan/authenc/
 ### Phase 1: Cleanup Unused Services (30 minutes)
 
 **Step 1.1**: Delete unused service files
+
 ```bash
 cd layanan/authenc
 rm crates/core/src/services/oidc_client_store.rs
@@ -389,6 +409,7 @@ rm crates/core/src/services/client_scope_service.rs
 ```
 
 **Step 1.2**: Update `crates/core/src/services/mod.rs`
+
 ```rust
 // Remove these lines:
 // pub mod oidc_client_store;
@@ -404,6 +425,7 @@ rm crates/core/src/services/client_scope_service.rs
 ### Phase 2: Add Missing Domain Types (1 hour)
 
 **Step 2.1**: Add domain types to `crates/types/src/domain_types.rs`
+
 ```rust
 // Add if not exist
 pub type UserId = Uuid;
@@ -412,6 +434,7 @@ pub type RealmId = Uuid;
 ```
 
 **Step 2.2**: Verify User and Role types exist in `crates/types/src/domain/`
+
 ```bash
 # Check if these files exist and are complete
 ls -la crates/types/src/domain/user.rs
@@ -419,6 +442,7 @@ ls -la crates/types/src/domain/role.rs
 ```
 
 **Step 2.3**: Add ComplianceMetrics (optional)
+
 ```rust
 // crates/types/src/domain/compliance.rs
 pub struct ComplianceMetrics {
@@ -430,6 +454,7 @@ pub struct ComplianceMetrics {
 ```
 
 **Step 2.4**: Add or refactor SsoCookieConfig
+
 ```rust
 // crates/types/src/config.rs
 pub struct SsoCookieConfig {
@@ -449,6 +474,7 @@ pub struct SsoCookieConfig {
 ### Phase 3: Create Minimal Modules (2 hours)
 
 **Step 3.1**: Create utils module
+
 ```rust
 // crates/core/src/utils/mod.rs
 pub mod crypto_utils;
@@ -459,6 +485,7 @@ pub mod time_utils;
 ```
 
 **Step 3.2**: Create events module
+
 ```rust
 // crates/core/src/events/mod.rs
 use authenc_types::Result;
@@ -485,6 +512,7 @@ pub struct Event {
 ```
 
 **Step 3.3**: Create audit log store
+
 ```rust
 // crates/core/src/stores/audit_log_store.rs
 use authenc_storage::Database;
@@ -522,6 +550,7 @@ pub struct AuditLog {
 ### Phase 4: Remove Wrong References (15 minutes)
 
 **Step 4.1**: Search and remove wrong references
+
 ```bash
 # Find files with wrong references
 grep -r "crate::handlers" crates/core/src/
@@ -538,6 +567,7 @@ grep -r "crate::secreton_client" crates/core/src/
 ### Phase 5: Fix Feature-Gated Exports (5 minutes)
 
 **Step 5.1**: Update `crates/core/src/services/mod.rs`
+
 ```rust
 // Add conditional export
 #[cfg(feature = "redis-cache")]
@@ -551,6 +581,7 @@ pub mod redis_cache;
 ### Phase 6: Remove lib_common Dependency (15 minutes)
 
 **Step 6.1**: Find and replace `lib_common::cache` references
+
 ```bash
 grep -r "lib_common::cache" crates/core/src/
 # Replace with authenc-core's own cache implementation
@@ -563,6 +594,7 @@ grep -r "lib_common::cache" crates/core/src/
 ### Phase 7: Final Cleanup (30 minutes)
 
 **Step 7.1**: Run cargo check and fix remaining issues
+
 ```bash
 cd layanan/authenc
 cargo check -p authenc-core 2>&1 | tee check_output.txt
@@ -607,11 +639,13 @@ cargo check -p authenc-core 2>&1 | tee check_output.txt
 ### Lesson 1: Trait-Based Design > Direct Storage Operations
 
 **Good (OAuth2ServiceImpl)**:
+
 ```rust
 client_store: Arc<dyn ClientStore>  // ✅ Testable, extensible
 ```
 
 **Bad (OidcClientStore)**:
+
 ```rust
 db: Arc<Database>  // ❌ Tight coupling
 ```
@@ -655,6 +689,7 @@ db: Arc<Database>  // ❌ Tight coupling
 **Confidence**: **VERY HIGH** (based on actual code inspection)
 
 **Rationale**:
+
 1. ✅ OAuth2ServiceImpl is production-ready and follows best practices
 2. ✅ Error-causing services are unused legacy wrappers
 3. ✅ ApiState already uses correct services

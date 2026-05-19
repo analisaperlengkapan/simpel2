@@ -3,13 +3,16 @@
 > **Notice to Agents**: File ini adalah pedoman (Level 2 Archetype) untuk SELURUH Backend Services (`layanan/`) di monorepo SIMPEL. Baca file ini sebelum memodifikasi kode backend.
 
 ## 🗺️ Domain Routing
+
 Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
+
 - 🛠️ **Perlengkapan**: Baca `layanan/perlengkapan/AGENTS.md` (Backend BMN, 4 crates).
 - 🔗 **Integrasi**: Baca `layanan/integrasi/AGENTS.md` (MonSAKTI, MySIMKARI, SIMAN).
 - 🔐 **Authenc**: Baca `layanan/authenc/AGENTS.md` (OAuth2, OIDC, MFA, Identity).
 - 🔒 **Secreton**: Baca `layanan/secreton/AGENTS.md` (Secrets Vault, Transit, PKI).
 
 ## 📑 Daftar Isi (Table of Contents)
+
 1. 🏛️ Backend Architecture
 2. 🗄️ Database Architecture
 --- *Batas Truncation* ---
@@ -22,10 +25,12 @@ Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
 ## 🏛️ Backend Architecture
 
 Backend SIMPEL terbagi menjadi dua jenis layanan:
+
 1. **Domain Services** (e.g., `layanan-perlengkapan`, `layanan-integrasi`): Menangani logika bisnis spesifik dan menerima *traffic* dari Microfrontends (via REST API).
 2. **Core Infrastructure Services** (e.g., `authenc`, `secreton`): Layanan dasar untuk autentikasi dan manajemen secret, diakses HANYA oleh layanan backend lain (via gRPC mTLS).
 
 ### 🚨 Critical Backend Communication Rules
+
 - Backend → Backend/Core: **WAJIB gRPC (mTLS)**
 - Frontend → Backend: **REST API (JSON/HTTP)**
 - DILARANG mengekspos Authenc atau Secreton langsung ke Microfrontend.
@@ -130,7 +135,9 @@ let secret = state.secreton_client
 ## 🔍 Observability & Monitoring Patterns
 
 ### Structured Logging
+
 Gunakan `tracing` dengan structured fields untuk semua layanan backend.
+
 - Include fields: `request_id`, `user_id`, `service_name`, `operation`, `duration_ms`
 
 ```rust
@@ -144,6 +151,7 @@ async fn get_item(db: &Database, item_id: Uuid, user_id: Uuid) -> Result<Item> {
 ```
 
 ### Distributed Tracing
+
 Gunakan OpenTelemetry integration untuk distributed tracing. Propagasi *trace context* via gRPC metadata:
 
 ```rust
@@ -201,6 +209,7 @@ impl axum::response::IntoResponse for AppError {
 ## 🛡️ Resilience Patterns
 
 ### Circuit Breaker & Rate Limiting
+
 - Implementasi circuit breaker untuk gRPC calls ke layanan eksternal.
 - Thresholds: failure rate (50%), timeout (5s), consecutive errors (5).
 
@@ -215,6 +224,7 @@ if limiter.check().is_err() {
 ```
 
 ### Retry Strategy
+
 - Gunakan *Exponential backoff* untuk transient failures.
 - Max retry limits per operation (3-5 retries).
 

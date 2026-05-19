@@ -9,6 +9,7 @@ This design document provides a comprehensive technical specification for comple
 **Document Status:** Updated based on codebase inspection (migrations, routes, handlers, services)
 
 **Key Focus Areas:**
+
 1. Document actual database schema (from migration files)
 2. Document actual API endpoints (from routes.rs)
 3. Identify implementation gaps with evidence
@@ -37,6 +38,7 @@ This design document provides a comprehensive technical specification for comple
 **Location:** `layanan/perlengkapan/crates/api/src/workflow/`
 
 **Files Found:**
+
 - `engine.rs` - WorkflowEngine with transition logic
 - `config.rs` - Workflow configuration
 - `sla.rs` - SLA tracking
@@ -69,6 +71,7 @@ This design document provides a comprehensive technical specification for comple
 **Migration Files:** `layanan/perlengkapan/crates/api/migrations/`
 
 **Schemas:**
+
 - `perlengkapan` - Main application schema
 - `integrasi` - External system integration data (SIMAN, MySIMKARI)
 
@@ -77,6 +80,7 @@ This design document provides a comprehensive technical specification for comple
 **Source:** `20260202_create_kebutuhan_bmn_tables.sql`
 
 **Main Tables:**
+
 1. `perlengkapan.ms_aktivitas_bmn` - Workflow status codes (2000-2009)
 2. `perlengkapan.pengajuan_kebutuhan_bmn` - Main request entity
 3. `perlengkapan.pengajuan_kebutuhan_bmn_asset` - Asset types per request
@@ -85,6 +89,7 @@ This design document provides a comprehensive technical specification for comple
 6. `perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas` - Workflow history
 
 **Key Fields:**
+
 ```sql
 -- pengajuan_kebutuhan_bmn
 id UUID PRIMARY KEY
@@ -120,6 +125,7 @@ existing_count INTEGER DEFAULT 0 -- From SIMAN
 ```
 
 **Indexes:**
+
 - `idx_pkb_tahun` ON tahun
 - `idx_pkb_status` ON status_kode
 - `idx_pkb_satker_pengajuan` ON pengajuan_id
@@ -127,6 +133,7 @@ existing_count INTEGER DEFAULT 0 -- From SIMAN
 - `idx_pkb_barang_skor` ON skor DESC
 
 **View:**
+
 - `vw_kebutuhan_bmn_summary` - Dashboard statistics
 
 ### 2.3 Pakaian Dinas Tables (ACTUAL)
@@ -134,12 +141,14 @@ existing_count INTEGER DEFAULT 0 -- From SIMAN
 **Source:** `20260202_create_pakaian_dinas_tables.sql`
 
 **Master Tables:**
+
 1. `ms_jenis_pakaian_dinas` - Uniform types (PDH, PDL, Toga)
 2. `ms_spesifikasi_pakaian_dinas` - Specifications with size groups
 3. `ms_subspesifikasi_pakaian_dinas` - Sub-specifications
 4. `ms_ukuran` - Size master (BAJU, CELANA, SEPATU)
 
 **Transaction Tables:**
+
 1. `pengajuan_pakaian_dinas` - Main request header
 2. `pengajuan_pakaian_dinas_satker_terpilih` - Selected satkers
 3. `pengajuan_pakaian_dinas_pakaian` - Clothing items in request
@@ -150,6 +159,7 @@ existing_count INTEGER DEFAULT 0 -- From SIMAN
 8. `pegawai_pakaian_dinas` - Persistent employee sizes
 
 **Key Fields:**
+
 ```sql
 -- pengajuan_pakaian_dinas
 id UUID PRIMARY KEY
@@ -176,6 +186,7 @@ PRIMARY KEY (ukuran, "group")
 ```
 
 **Indexes:**
+
 - `idx_pengajuan_pakaian_dinas_tahun` ON tahun
 - `idx_ppd_satker_pengajuan` ON pengajuan_id
 - `idx_ppd_satker_pegawai_nip` ON nip
@@ -187,6 +198,7 @@ PRIMARY KEY (ukuran, "group")
 **Main Table:** `perlengkapan.izin_pemakaian_bmn`
 
 **Key Fields:**
+
 ```sql
 id UUID PRIMARY KEY
 satker_id UUID NOT NULL
@@ -205,6 +217,7 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
 **Indexes:**
+
 - `idx_izin_satker` ON satker_id
 - `idx_izin_pegawai` ON pegawai_nip
 - `idx_izin_bmn` ON bmn_nup
@@ -216,10 +229,12 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 **Source:** `20260211_create_penghapusan_bmn_tables.sql`
 
 **Main Tables:**
+
 1. `perlengkapan.penghapusan_bmn` - Deletion requests
 2. `perlengkapan.penghapusan_bmn_aktivitas` - Workflow history
 
 **Key Fields:**
+
 ```sql
 -- penghapusan_bmn
 id UUID PRIMARY KEY
@@ -249,6 +264,7 @@ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
 **Indexes:**
+
 - `idx_penghapusan_bmn_satker` ON satker_id
 - `idx_penghapusan_bmn_asset` ON asset_id
 - `idx_penghapusan_bmn_status` ON status
@@ -261,12 +277,14 @@ created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 **Schema:** `integrasi`
 
 **SIMAN Asset Tables:**
+
 1. `integrasi.siman_aset_tanah` - Land assets
 2. `integrasi.siman_aset_gedung_bangunan` - Buildings
 3. `integrasi.siman_aset_alat_besar` - Heavy equipment
 4. `integrasi.siman_aset_angkutan_bermotor` - Motor vehicles
 
 **Common SIMAN Fields:**
+
 ```sql
 id UUID PRIMARY KEY
 nup VARCHAR(50) NOT NULL UNIQUE -- Nomor Urut Pendaftaran
@@ -284,6 +302,7 @@ updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
 **MySIMKARI Table:**
+
 ```sql
 -- integrasi.mysimkari_pegawai
 id UUID PRIMARY KEY
@@ -310,6 +329,7 @@ synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ```
 
 **Sync Tracking Tables:**
+
 ```sql
 -- integrasi.api_call_log
 id BIGSERIAL PRIMARY KEY
@@ -341,16 +361,19 @@ error_message TEXT
 ```
 
 **Indexes:**
+
 - GIN indexes on all `raw_data` JSONB columns
 - Trigram indexes on `nama` fields for full-text search
 - Composite indexes on (service_name, called_at) for monitoring
 
 **Views:**
+
 - `v_latest_sync_status` - Latest sync per service/entity
 - `v_api_call_statistics` - Hourly API call stats (24h)
 - `v_integration_health` - Overall health status
 
 **Helper Functions:**
+
 - `get_asset_count_by_satker(satker_code, kode_barang, kondisi)` - Asset counts
 - `get_employee_count_by_satker(satker_code, status_pegawai)` - Employee counts
 - `cleanup_old_api_logs()` - Delete logs older than 90 days
@@ -361,6 +384,7 @@ error_message TEXT
 **Source:** `ms_aktivitas_bmn` table
 
 **Kebutuhan BMN Workflow:**
+
 - 2000: DRAFT - Initial state
 - 2001: INPUT_BARANG - Operator entering goods
 - 2002: SUBMIT_SATKER - Submitted to validator
@@ -373,22 +397,26 @@ error_message TEXT
 - 2009: CANCELLED - Cancelled
 
 **Pakaian Dinas Workflow:**
+
 - 1000: DRAFT (default aktivitas_id)
 - Additional states defined in workflow engine
 
 **Penghapusan BMN Workflow:**
+
 - Status stored as VARCHAR in `status` column
 - DRAFT, SUBMITTED, REVIEWED, APPROVED, REJECTED, CANCELLED
 
 ### 2.8 Missing Tables (Identified Gaps)
 
 **Not Found in Migrations:**
+
 1. Master data tables for kode barang (kodefikasi mapping CRUD)
 2. Roadmap sarpras detailed tables (basic structure exists in `20260209_create_new_entity_tables.sql`)
 3. Document template tables
 4. Notification queue tables (schema may exist in separate notifikasi crate)
 
 **Action Required:**
+
 - Check if master data tables exist in separate migration files
 - Verify roadmap_sarpras table structure
 - Confirm dokumen and notifikasi schemas
@@ -404,9 +432,11 @@ error_message TEXT
 ### 3.2 Kebutuhan BMN Endpoints (IMPLEMENTED)
 
 **Dashboard:**
+
 - `GET /kebutuhan-bmn/dashboard` - Dashboard statistics
 
 **Pengajuan CRUD:**
+
 - `GET /kebutuhan-bmn/pengajuan` - List all pengajuan
 - `POST /kebutuhan-bmn/pengajuan` - Create pengajuan
 - `GET /kebutuhan-bmn/pengajuan/{id}` - Get pengajuan by ID
@@ -414,10 +444,12 @@ error_message TEXT
 - `DELETE /kebutuhan-bmn/pengajuan/{id}` - Delete pengajuan
 
 **Workflow:**
+
 - `POST /kebutuhan-bmn/pengajuan/{id}/transition` - Transition status
 - `GET /kebutuhan-bmn/pengajuan/{id}/export` - Export pengajuan
 
 **Satker Operations:**
+
 - `GET /kebutuhan-bmn/pengajuan/{id}/satker` - Get satkers for pengajuan
 - `POST /kebutuhan-bmn/pengajuan/{id}/satker` - Add satker to pengajuan
 - `GET /kebutuhan-bmn/satker/{id}` - Get satker detail
@@ -426,27 +458,33 @@ error_message TEXT
 - `GET /kebutuhan-bmn/satker/{id}/analisis` - Get feasibility analysis
 
 **Validator Actions:**
+
 - `POST /kebutuhan-bmn/satker/{id}/submit-wilayah` - Submit to wilayah validator
 - `POST /kebutuhan-bmn/satker/{id}/validator-wilayah` - Wilayah validator action
 - `POST /kebutuhan-bmn/satker/{id}/keputusan-pusat` - Pusat validator decision
 
 **Barang Operations:**
+
 - `POST /kebutuhan-bmn/satker/{id}/barang` - Create barang
 - `PUT /kebutuhan-bmn/barang/{id}/approval` - Update barang approval
 - `DELETE /kebutuhan-bmn/barang/{id}` - Delete barang
 
 **Priority & Analysis:**
+
 - `POST /kebutuhan-bmn/prioritas` - Set barang priority
 
 **SIMAN Integration:**
+
 - `GET /kebutuhan-bmn/siman/search` - Search SIMAN assets
 - `GET /kebutuhan-bmn/siman/summary/{satker_id}` - Get SIMAN satker summary
 
 **Advanced Features:**
+
 - `GET /kebutuhan-bmn/search` - Advanced search
 - `GET /kebutuhan-bmn/search/suggestions` - Search suggestions
 
 **Batch Operations:**
+
 - `POST /kebutuhan-bmn/batch/approve` - Batch approve
 - `POST /kebutuhan-bmn/batch/reject` - Batch reject
 - `POST /kebutuhan-bmn/batch/update-status` - Batch update status
@@ -454,6 +492,7 @@ error_message TEXT
 ### 3.3 Pakaian Dinas Endpoints (IMPLEMENTED)
 
 **Master Data:**
+
 - `GET /pakaian-dinas/jenis` - List jenis pakaian
 - `POST /pakaian-dinas/jenis` - Create jenis pakaian
 - `GET /pakaian-dinas/jenis/{id}` - Get jenis by ID
@@ -474,30 +513,36 @@ error_message TEXT
 - `GET /pakaian-dinas/ukuran` - List ukuran
 
 **Pengajuan:**
+
 - `GET /pakaian-dinas/pengajuan` - List pengajuan
 - `POST /pakaian-dinas/pengajuan` - Create pengajuan
 - `GET /pakaian-dinas/pengajuan/{id}` - Get pengajuan by ID
 - `DELETE /pakaian-dinas/pengajuan/{id}` - Delete pengajuan
 
 **Satker:**
+
 - `GET /pakaian-dinas/pengajuan/{pengajuan_id}/satker` - List satker for pengajuan
 - `GET /pakaian-dinas/satker/{id}` - Get satker by ID
 
 **Workflow:**
+
 - `POST /pakaian-dinas/validator-action` - Validator action
 - `POST /pakaian-dinas/pengajuan/{id}/submit` - Submit pengajuan
 - `POST /pakaian-dinas/pengajuan/{id}/approve` - Approve pengajuan
 - `POST /pakaian-dinas/pengajuan/{id}/reject` - Reject pengajuan
 
 **Personal Sizes:**
+
 - `GET /pakaian-dinas/ukuran-pakaian-pegawai` - Get personal sizes
 - `POST /pakaian-dinas/ukuran-pakaian-pegawai` - Update personal sizes
 
 **MySIMKARI Integration:**
+
 - `GET /pakaian-dinas/pegawai-satker/{satker_id}` - Get pegawai by satker
 - `GET /pakaian-dinas/pegawai-satker/{satker_id}/with-sizes` - Get pegawai with sizes
 
 **Reports:**
+
 - `GET /pakaian-dinas/laporan/rekap-ukuran` - Size summary report
 - `GET /pakaian-dinas/laporan/daftar-pegawai` - Employee list report
 - `GET /pakaian-dinas/laporan/cetak` - Print report
@@ -506,42 +551,51 @@ error_message TEXT
 ### 3.4 Pemakaian BMN Endpoints (IMPLEMENTED)
 
 **Permit CRUD:**
+
 - `GET /pemakaian-bmn` - List permits
 - `POST /pemakaian-bmn` - Create permit
 - `GET /pemakaian-bmn/{id}` - Get permit by ID
 - `PUT /pemakaian-bmn/{id}` - Update permit
 
 **Workflow:**
+
 - `POST /pemakaian-bmn/{id}/transition` - Transition permit status
 - `POST /pemakaian-bmn/{id}/activate` - Activate permit
 - `GET /pemakaian-bmn/{id}/document` - Get permit document
 
 **Document Generation:**
+
 - `POST /pemakaian-bmn/{id}/generate-konsep-surat` - Generate draft permit
 - `POST /pemakaian-bmn/{id}/upload-signed-pdf` - Upload signed PDF
 
 **Permit Management:**
+
 - `POST /pemakaian-bmn/{id}/revoke` - Revoke permit
 - `POST /pemakaian-bmn/{id}/renew` - Renew permit
 
 **BMN Tracking:**
+
 - `GET /pemakaian-bmn/bmn/{bmn_nup}/availability` - Check BMN availability
 - `GET /pemakaian-bmn/bmn/{bmn_nup}/history` - Get BMN usage history
 
 **Pegawai Tracking:**
+
 - `GET /pemakaian-bmn/pegawai/{pegawai_nip}/history` - Get pegawai usage history
 
 **Expiry Management:**
+
 - `GET /pemakaian-bmn/expiring` - Get expiring permits
 - `POST /pemakaian-bmn/auto-expire` - Auto-expire permits
 
 **Monitoring:**
+
 - `GET /pemakaian-bmn/monitoring/active-usage` - Active usage dashboard
 - `GET /pemakaian-bmn/monitoring/utilization-report` - BMN utilization report
 
 ### 3.5 Penghapusan BMN Endpoints (IMPLEMENTED)
 
 **CRUD:**
+
 - `GET /penghapusan-bmn` - List penghapusan
 - `POST /penghapusan-bmn` - Create penghapusan
 - `GET /penghapusan-bmn/{id}` - Get penghapusan by ID
@@ -550,11 +604,13 @@ error_message TEXT
 - `GET /penghapusan-bmn/{id}/detail` - Get detailed view
 
 **Workflow:**
+
 - `POST /penghapusan-bmn/{id}/transition` - Transition status
 - `POST /penghapusan-bmn/{id}/submit-wilayah` - Submit to wilayah
 - `POST /penghapusan-bmn/{id}/validator-wilayah` - Wilayah validator action
 
 **Document Generation:**
+
 - `POST /penghapusan-bmn/{id}/generate-sk` - Generate SK draft
 - `POST /penghapusan-bmn/{id}/upload-signed-sk` - Upload signed SK
 - `GET /penghapusan-bmn/{id}/document` - Get SK document
@@ -562,10 +618,12 @@ error_message TEXT
 ### 3.6 Dashboard Endpoints (IMPLEMENTED)
 
 **General:**
+
 - `GET /health` - Health check
 - `GET /dashboard/stats` - General dashboard stats
 
 **Perlengkapan Dashboard:**
+
 - `GET /dashboard/perlengkapan` - Perlengkapan metrics
 - `GET /dashboard/ws` - WebSocket for real-time updates
 - `GET /dashboard/perlengkapan/export/excel` - Export to Excel
@@ -574,6 +632,7 @@ error_message TEXT
 ### 3.7 Mapping Kodefikasi Endpoints (READ-ONLY)
 
 **Detection & Analysis:**
+
 - `GET /mapping/detect` - Detect non-standard codes
 - `GET /mapping/standard` - List standard codes
 - `GET /mapping/suggestions` - Get mapping suggestions
@@ -584,6 +643,7 @@ error_message TEXT
 ### 3.8 Roadmap Sarpras Endpoints (BASIC)
 
 **Forecast:**
+
 - `GET /forecast` - Get forecast
 - `GET /forecast/summary` - Get forecast summary
 - `GET /forecast/compare` - Compare forecasts
@@ -592,6 +652,7 @@ error_message TEXT
 ### 3.9 Export Endpoints (IMPLEMENTED)
 
 **General Export:**
+
 - `GET /export/excel` - Export to Excel
 - `GET /export/jobs/{id}/status` - Get export job status
 - `GET /export/jobs/{id}/download` - Download export job
@@ -599,6 +660,7 @@ error_message TEXT
 ### 3.10 Missing Endpoints (Identified Gaps)
 
 **Not Found in routes.rs:**
+
 1. Master data CRUD endpoints (kode barang, standar spesifikasi, standar jumlah)
 2. Notifikasi endpoints (may be in separate notifikasi crate)
 3. Dokumen template management endpoints (may be in separate dokumen crate)
@@ -606,11 +668,13 @@ error_message TEXT
 5. Integration sync trigger endpoints (manual sync, sync status)
 
 **Action Required:**
+
 - Check if notifikasi and dokumen crates have separate route definitions
 - Verify if master data endpoints exist in a separate module
 - Confirm workflow configuration API
 
 **Example - Audit Module:**
+
 ```rust
 // lib/common/src/audit.rs
 use serde::{Deserialize, Serialize};
@@ -659,6 +723,7 @@ impl AuditLogger {
 ```
 
 **Example - Cache Module:**
+
 ```rust
 // lib/common/src/cache.rs
 use redis::aio::ConnectionManager;
@@ -734,6 +799,7 @@ impl CacheManager {
 **Location:** `lib/perlengkapan/`
 
 **Modules:**
+
 ```rust
 // lib/perlengkapan/src/lib.rs
 pub mod models;         // Domain models (Kebutuhan, PakaianDinas, Asset, Roadmap, RiwayatPemenuhan)
@@ -746,6 +812,7 @@ pub mod client;         // API client for frontends (no separate client library 
 ```
 
 **Example - Models:**
+
 ```rust
 // lib/perlengkapan/src/models.rs
 use serde::{Deserialize, Serialize};
@@ -795,6 +862,7 @@ pub struct RoadmapSarpras {
 ```
 
 **Example - Gap Analysis:**
+
 ```rust
 // lib/perlengkapan/src/gap_analysis.rs
 use crate::models::KebutuhanBmn;
@@ -861,6 +929,7 @@ impl GapAnalyzer {
 ```
 
 **Example - Prioritization:**
+
 ```rust
 // lib/perlengkapan/src/prioritization.rs
 
@@ -930,6 +999,7 @@ impl PrioritizationEngine {
 **Location:** `lib/ui/`
 
 **Components:**
+
 ```rust
 // lib/ui/src/lib.rs
 pub mod components;     // Reusable UI components
@@ -942,6 +1012,7 @@ pub mod layouts;        // Layout components
 ```
 
 **Example - Dashboard Widget:**
+
 ```rust
 // lib/ui/src/dashboard/metric_card.rs
 use leptos::prelude::*;
@@ -984,6 +1055,7 @@ pub fn MetricCard(
 **Location:** `layanan/perlengkapan/crates/integrasi/`
 
 **Structure:**
+
 ```
 layanan/perlengkapan/crates/integrasi/
 ├── Cargo.toml
@@ -1009,6 +1081,7 @@ layanan/perlengkapan/crates/integrasi/
 ### 4.2 SIMAN Integration
 
 **API Client:**
+
 ```rust
 // layanan/perlengkapan/crates/integrasi/src/clients/siman.rs
 use reqwest::Client;
@@ -1104,6 +1177,7 @@ impl SimanClient {
 ```
 
 **Sync Logic:**
+
 ```rust
 // layanan/perlengkapan/crates/integrasi/src/sync/siman_sync.rs
 use tokio_cron_scheduler::{Job, JobScheduler};
@@ -1258,6 +1332,7 @@ impl SimanSyncService {
 ### 4.3 MySIMKARI Integration
 
 **API Client:**
+
 ```rust
 // layanan/perlengkapan/crates/integrasi/src/clients/mysimkari.rs
 
@@ -1318,6 +1393,7 @@ impl MySIMKARIClient {
 ```
 
 **Sync Logic:**
+
 ```rust
 // layanan/perlengkapan/crates/integrasi/src/sync/mysimkari_sync.rs
 
@@ -1374,6 +1450,7 @@ impl MySIMKARISyncService {
 ### 4.4 Integration gRPC Service
 
 **Proto Definition:**
+
 ```protobuf
 // layanan/perlengkapan/crates/integrasi/proto/integrasi.proto
 syntax = "proto3";
@@ -1418,6 +1495,7 @@ message GetSyncStatusResponse {
 ```
 
 **gRPC Implementation:**
+
 ```rust
 // layanan/perlengkapan/crates/integrasi/src/grpc/service.rs
 use tonic::{Request, Response, Status};
@@ -1502,6 +1580,7 @@ impl IntegrationService for IntegrationServiceImpl {
 **Location:** `layanan/perlengkapan/crates/api/src/workflow/`
 
 **State Transition Rules:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/workflow/config.rs
 use std::collections::HashMap;
@@ -1822,6 +1901,7 @@ impl ParallelApprovalEngine {
 **Location:** `layanan/perlengkapan/crates/dokumen/`
 
 **Structure:**
+
 ```
 layanan/perlengkapan/crates/dokumen/
 ├── Cargo.toml
@@ -2138,6 +2218,7 @@ impl DocumentService for DocumentServiceImpl {
 **Location:** `layanan/perlengkapan/crates/notifikasi/`
 
 **Structure:**
+
 ```
 layanan/perlengkapan/crates/notifikasi/
 ├── Cargo.toml
@@ -2629,6 +2710,7 @@ impl NotificationService for NotificationServiceImpl {
 **Frontend:** `antarmuka/portal/src/pages/dashboard.rs`
 
 **Metrics:**
+
 ```rust
 // layanan/portal/src/modules/dasbor.rs
 use axum::{extract::State, Json};
@@ -2716,6 +2798,7 @@ async fn fetch_system_metrics(db_pool: &deadpool_postgres::Pool) -> Result<Syste
 ```
 
 **Frontend Component:**
+
 ```rust
 // antarmuka/portal/src/pages/dashboard.rs
 use leptos::prelude::*;
@@ -2798,6 +2881,7 @@ pub fn PortalDashboard() -> impl IntoView {
 **Frontend:** `antarmuka/perlengkapan/src/pages/dashboard.rs`
 
 **Metrics:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/dashboard.rs
 
@@ -2996,6 +3080,7 @@ async fn fetch_workflow_metrics(db_pool: &deadpool_postgres::Pool) -> Result<Wor
 ```
 
 **Frontend Component:**
+
 ```rust
 // antarmuka/perlengkapan/src/pages/dashboard.rs
 use leptos::prelude::*;
@@ -3098,6 +3183,7 @@ pub fn PerlengkapanDashboard() -> impl IntoView {
 ### 8.3 Real-Time Updates
 
 **WebSocket Support:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/websocket.rs
 use axum::{
@@ -3141,6 +3227,7 @@ pub async fn broadcast_dashboard_update(
 **Location:** `lib/perlengkapan/src/search.rs`
 
 **Full-Text Search with pg_trgm:**
+
 ```rust
 // lib/perlengkapan/src/search.rs
 use serde::{Deserialize, Serialize};
@@ -3287,6 +3374,7 @@ impl SearchEngine {
 ```
 
 **REST API Handler:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/search.rs
 use axum::{extract::{Query, State}, Json};
@@ -3308,6 +3396,7 @@ pub async fn search_kebutuhan(
 **Location:** `layanan/perlengkapan/crates/api/src/handlers/export.rs`
 
 **Excel Export:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/export.rs
 use axum::{
@@ -3484,6 +3573,7 @@ async fn process_export_job(state: Arc<AppState>, job_id: Uuid) -> Result<()> {
 **Location:** `layanan/perlengkapan/crates/api/src/handlers/batch.rs`
 
 **Batch Approval:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/batch.rs
 use axum::{extract::State, Json};
@@ -3613,6 +3703,7 @@ pub async fn batch_update_status(
 ### 10.1 Database Optimization
 
 **Indexes:**
+
 ```sql
 -- Foreign key indexes
 CREATE INDEX idx_kebutuhan_bmn_satker ON perlengkapan.kebutuhan_bmn(satker_id);
@@ -3633,6 +3724,7 @@ ON perlengkapan.kebutuhan_bmn(satker_id, tahun_anggaran, status);
 ```
 
 **Database Views:**
+
 ```sql
 -- Materialized view for dashboard (refresh every 5 minutes)
 CREATE MATERIALIZED VIEW perlengkapan.mv_dashboard_metrics AS
@@ -3659,6 +3751,7 @@ $$ LANGUAGE plpgsql;
 ### 10.2 Caching Strategy
 
 **Redis Caching:**
+
 ```rust
 // lib/common/src/cache.rs - Extended implementation
 
@@ -3700,6 +3793,7 @@ impl CacheManager {
 ```
 
 **Cache Middleware:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/middleware/cache.rs
 use axum::{
@@ -3735,6 +3829,7 @@ pub async fn cache_middleware(
 ### 10.3 Connection Pooling
 
 **Database Pool Configuration:**
+
 ```rust
 // lib/common/src/database.rs
 use deadpool_postgres::{Config, Pool, Runtime};
@@ -3761,6 +3856,7 @@ pub async fn create_pool(database_url: &str) -> Result<Pool> {
 ### 10.4 Rate Limiting
 
 **Rate Limiter:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/middleware/rate_limit.rs
 use tower_governor::{
@@ -3786,6 +3882,7 @@ pub fn rate_limit_layer() -> GovernorLayer<'static> {
 ### 10.5 Prepared Statements
 
 **Prepared Statement Cache:**
+
 ```rust
 // lib/common/src/database.rs
 use std::collections::HashMap;
@@ -3835,6 +3932,7 @@ impl PreparedStatementCache {
 ### 11.1 Unit Tests
 
 **Example - Gap Analysis Tests:**
+
 ```rust
 // lib/perlengkapan/src/gap_analysis.rs
 #[cfg(test)]
@@ -3893,6 +3991,7 @@ mod tests {
 ### 11.2 Integration Tests
 
 **Example - Workflow Engine Tests:**
+
 ```rust
 // layanan/perlengkapan/crates/api/tests/workflow_tests.rs
 use testcontainers::*;
@@ -3951,6 +4050,7 @@ async fn test_workflow_transition_invalid() {
 ### 11.3 Load Tests
 
 **Example - k6 Load Test:**
+
 ```javascript
 // tests/load/dashboard_load_test.js
 import http from 'k6/http';
@@ -3984,48 +4084,56 @@ export default function() {
 ### 12.1 Migration Plan
 
 **Phase 1: Database Refactoring (Week 1-2)**
+
 1. Create new standardized tables
 2. Migrate existing data
 3. Update indexes and views
 4. Test data integrity
 
 **Phase 2: Shared Libraries (Week 3-4)**
+
 1. Extract common code to `lib-common`
 2. Extract domain logic to `lib-perlengkapan`
 3. Extract UI components to `lib-ui`
 4. Update all services to use shared libraries
 
 **Phase 3: Integration Services (Week 5-6)**
+
 1. Implement SIMAN integration
 2. Implement MySIMKARI integration
 3. Test sync logic
 4. Deploy integration service
 
 **Phase 4: Workflow Engine (Week 7-8)**
+
 1. Implement workflow engine
 2. Migrate existing workflows
 3. Test state transitions
 4. Deploy workflow engine
 
 **Phase 5: Document & Notification Services (Week 9-10)**
+
 1. Implement document generation
 2. Implement notification delivery
 3. Test multi-channel notifications
 4. Deploy services
 
 **Phase 6: Dashboard Separation (Week 11-12)**
+
 1. Implement portal dashboard
 2. Implement perlengkapan dashboard
 3. Test real-time updates
 4. Deploy dashboards
 
 **Phase 7: Advanced Features (Week 13-14)**
+
 1. Implement search
 2. Implement export
 3. Implement batch operations
 4. Deploy features
 
 **Phase 8: Testing & Optimization (Week 15-16)**
+
 1. Load testing
 2. Performance optimization
 3. Security audit
@@ -4034,6 +4142,7 @@ export default function() {
 ### 12.2 Rollback Plan
 
 **Database Rollback:**
+
 ```sql
 -- Backup before migration
 pg_dump -h localhost -U simpelv2 perlengkapan > backup_pre_migration.sql
@@ -4050,6 +4159,7 @@ COMMIT;
 ```
 
 **Service Rollback:**
+
 ```bash
 # Kubernetes rollback
 kubectl rollout undo deployment/layanan-perlengkapan -n simpelv2-production
@@ -4063,6 +4173,7 @@ docker service update --rollback layanan-perlengkapan
 ### 13.1 Metrics
 
 **Prometheus Metrics:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/metrics.rs
 use prometheus::{
@@ -4094,6 +4205,7 @@ lazy_static! {
 ### 13.2 Logging
 
 **Structured Logging:**
+
 ```rust
 // Use tracing for structured logging
 tracing::info!(
@@ -4114,6 +4226,7 @@ tracing::error!(
 ### 13.3 Health Checks
 
 **Health Check Endpoint:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/health.rs
 use axum::{extract::State, Json};
@@ -4173,6 +4286,7 @@ pub async fn health_check(
 ## 15. Correctness Properties
 
 ### Property 1: Gap Analysis Correctness
+
 **Validates: Requirements 10.1-10.10**
 
 The gap calculation must always equal standard quantity minus existing good condition quantity.
@@ -4206,6 +4320,7 @@ mod gap_analysis_properties {
 ```
 
 ### Property 2: Workflow Transition Validity
+
 **Validates: Requirements 6.1-6.10**
 
 All workflow transitions must follow configured rules.
@@ -4234,6 +4349,7 @@ proptest! {
 ```
 
 ### Property 3: Batch Operation Atomicity
+
 **Validates: Requirements 12.1-12.10**
 
 Each item in a batch operation must be processed independently.
@@ -4318,6 +4434,7 @@ CREATE INDEX idx_riwayat_izin ON perlengkapan.riwayat_izin_pemakaian(izin_id);
 ### 16.3 Business Logic
 
 **Dynamic Form Generation:**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/handlers/pemakaian.rs
 use axum::{extract::{State, Path}, Json};
@@ -5186,7 +5303,6 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
 **Last Updated:** February 9, 2026
 **Status:** Complete - Ready for Implementation
 
-
 ## 21. Kebutuhan BMN Business Process Flow
 
 ### 21.1 Overview
@@ -5210,6 +5326,7 @@ DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → APPROVED/REJECTE
 ```
 
 **State Definitions:**
+
 - `DRAFT`: Initial state, operator satker is preparing submission
 - `SUBMITTED`: Operator satker has submitted to validator wilayah
 - `REVIEWED_WILAYAH`: Validator wilayah has reviewed and forwarded to validator pusat
@@ -5319,6 +5436,7 @@ sequenceDiagram
 ### 21.5 REST API Endpoints
 
 **Period Management (Validator Pusat only):**
+
 ```
 POST   /api/v1/kebutuhan/periods
 GET    /api/v1/kebutuhan/periods
@@ -5330,6 +5448,7 @@ GET    /api/v1/kebutuhan/periods/active
 ```
 
 **Submission Management:**
+
 ```
 POST   /api/v1/kebutuhan/submissions
 GET    /api/v1/kebutuhan/submissions
@@ -5346,6 +5465,7 @@ GET    /api/v1/kebutuhan/submissions/{id}/analysis
 ```
 
 **Report Generation:**
+
 ```
 POST   /api/v1/kebutuhan/reports/generate
 GET    /api/v1/kebutuhan/reports
@@ -5354,6 +5474,7 @@ GET    /api/v1/kebutuhan/reports
 ### 21.6 Database Schema
 
 **Period Configuration:**
+
 ```sql
 CREATE TABLE perlengkapan.kebutuhan_bmn_period (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5384,6 +5505,7 @@ CREATE TABLE perlengkapan.kebutuhan_bmn_period_eligible_satker (
 ```
 
 **Submission Data:**
+
 ```sql
 CREATE TABLE perlengkapan.kebutuhan_bmn_submission (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5426,6 +5548,7 @@ CREATE TABLE perlengkapan.kebutuhan_bmn_submission_attachment (
 ### 21.7 Integration Points
 
 **SIMAN Integration (via Integrasi Service gRPC):**
+
 ```protobuf
 service IntegrasiService {
     rpc GetSimanAssets(GetSimanAssetsRequest) returns (GetSimanAssetsResponse);
@@ -5451,6 +5574,7 @@ message SimanAsset {
 ```
 
 **MySIMKARI Integration (via Integrasi Service gRPC):**
+
 ```protobuf
 service IntegrasiService {
     rpc GetMySIMKARIPegawaiSummary(GetPegawaiSummaryRequest) returns (GetPegawaiSummaryResponse);
@@ -5477,6 +5601,7 @@ message GolonganBreakdown {
 ### 21.8 Validation Rules
 
 **Period Validation:**
+
 - Start date must be before end date
 - Deadline must be after start date
 - Only one active period allowed at a time
@@ -5484,6 +5609,7 @@ message GolonganBreakdown {
 - Eligible satkers must exist in authenc.satkers
 
 **Submission Validation:**
+
 - Must be within active period
 - Submission date must be before deadline
 - Satker must be in eligible satkers list
@@ -5492,11 +5618,11 @@ message GolonganBreakdown {
 - At least one supporting document required
 
 **Workflow Transition Validation:**
+
 - DRAFT → SUBMITTED: Requires at least one item and one attachment
 - SUBMITTED → REVIEWED_WILAYAH: Only Validator Wilayah can forward
 - SUBMITTED → DRAFT: Only Validator Wilayah can return with notes
 - REVIEWED_WILAYAH → APPROVED/REJECTED: Only Validator Pusat can approve/reject
-
 
 ## 22. Pemakaian BMN Business Process Flow
 
@@ -5522,6 +5648,7 @@ DRAFT → DOCUMENT_GENERATED → COMPLETED → EXPIRED/REVOKED
 ```
 
 **State Definitions:**
+
 - `DRAFT`: Operator satker is preparing permit request
 - `DOCUMENT_GENERATED`: System has generated DOCX draft permit
 - `COMPLETED`: Operator satker has uploaded signed PDF permit
@@ -5670,6 +5797,7 @@ sequenceDiagram
 ### 22.7 REST API Endpoints
 
 **Permit Management:**
+
 ```
 POST   /api/v1/pemakaian/permits
 GET    /api/v1/pemakaian/permits
@@ -5686,12 +5814,14 @@ POST   /api/v1/pemakaian/permits/{id}/revoke
 ```
 
 **BMN Availability:**
+
 ```
 GET    /api/v1/pemakaian/bmn/available
 GET    /api/v1/pemakaian/bmn/{nup}/status
 ```
 
 **Monitoring and Reports:**
+
 ```
 GET    /api/v1/pemakaian/permits/expiring
 GET    /api/v1/pemakaian/reports/active-permits
@@ -5703,6 +5833,7 @@ GET    /api/v1/pemakaian/reports/history/pegawai/{nip}
 ### 22.8 Database Schema
 
 **Permit Data:**
+
 ```sql
 CREATE TABLE perlengkapan.izin_pemakaian_bmn (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -5754,6 +5885,7 @@ CREATE INDEX idx_izin_pemakaian_end_date ON perlengkapan.izin_pemakaian_bmn(end_
 ### 22.9 Validation Rules
 
 **Permit Creation Validation:**
+
 - Pegawai must exist in MySIMKARI
 - Pegawai must belong to the satker
 - BMN must exist in SIMAN
@@ -5762,6 +5894,7 @@ CREATE INDEX idx_izin_pemakaian_end_date ON perlengkapan.izin_pemakaian_bmn(end_
 - At least one BMN item required
 
 **BMN Availability Check:**
+
 ```sql
 -- Check if BMN has active permit
 SELECT COUNT(*) FROM perlengkapan.izin_pemakaian_bmn p
@@ -5772,11 +5905,13 @@ WHERE i.nup = $1
 ```
 
 **Renewal Validation:**
+
 - Previous permit must exist
 - Previous permit must be COMPLETED or EXPIRED
 - Can create renewal before expiry (for continuity)
 
 **Revocation Validation:**
+
 - Permit must be COMPLETED (not already EXPIRED or REVOKED)
 - Revocation reason required (minimum 20 characters)
 - Only Admin or Validator Pusat can revoke
@@ -5784,6 +5919,7 @@ WHERE i.nup = $1
 ### 22.10 Document Format Specification
 
 **Page 1: Pegawai Identity**
+
 ```
 SURAT IZIN PEMAKAIAN BARANG MILIK NEGARA
 Nomor: {permit_number}
@@ -5804,6 +5940,7 @@ Tanggal Akhir : {end_date}
 ```
 
 **Page 2+: BMN Details Table**
+
 ```
 RINCIAN BARANG MILIK NEGARA
 
@@ -5829,6 +5966,7 @@ Catatan:
 ### 22.11 Expiry Reminder Schedule
 
 **Automated Cron Job (Daily at 00:00 WIB):**
+
 ```rust
 // layanan/perlengkapan/crates/api/src/cron/pemakaian_expiry.rs
 pub async fn check_expiring_permits() -> Result<()> {
@@ -5862,7 +6000,6 @@ pub async fn check_expiring_permits() -> Result<()> {
 }
 ```
 
-
 ## 23. SK Penghapusan BMN Business Process Flow
 
 ### 23.1 Overview
@@ -5887,6 +6024,7 @@ DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERAT
 ```
 
 **State Definitions:**
+
 - `DRAFT`: Operator satker is preparing request
 - `SUBMITTED`: Operator satker has submitted to validator wilayah
 - `REVIEWED_WILAYAH`: Validator wilayah has reviewed and forwarded to validator pusat
@@ -6022,6 +6160,7 @@ sequenceDiagram
 ### 23.5 REST API Endpoints
 
 **Request Management:**
+
 ```
 POST   /api/v1/penghapusan/requests
 GET    /api/v1/penghapusan/requests
@@ -6041,12 +6180,14 @@ GET    /api/v1/penghapusan/requests/{id}/bmn-details
 ```
 
 **BMN Availability:**
+
 ```
 GET    /api/v1/penghapusan/bmn/available
 GET    /api/v1/penghapusan/bmn/{nup}/eligibility
 ```
 
 **Monitoring and Reports:**
+
 ```
 GET    /api/v1/penghapusan/reports/by-satker
 GET    /api/v1/penghapusan/reports/by-wilayah
@@ -6056,6 +6197,7 @@ GET    /api/v1/penghapusan/reports/summary
 ### 23.6 Database Schema
 
 **Request Data:**
+
 ```sql
 CREATE TABLE perlengkapan.sk_penghapusan_bmn_request (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -6112,6 +6254,7 @@ CREATE INDEX idx_sk_penghapusan_item_nup ON perlengkapan.sk_penghapusan_bmn_item
 ### 23.7 Validation Rules
 
 **Request Creation Validation:**
+
 - Satker must exist in authenc.satkers
 - At least one BMN item required
 - At least one supporting document required
@@ -6119,6 +6262,7 @@ CREATE INDEX idx_sk_penghapusan_item_nup ON perlengkapan.sk_penghapusan_bmn_item
 - BMN must not have active izin pemakaian (status = COMPLETED)
 
 **BMN Eligibility Check:**
+
 ```sql
 -- Check if BMN has active permit (should NOT be in active use)
 SELECT COUNT(*) FROM perlengkapan.izin_pemakaian_bmn p
@@ -6131,6 +6275,7 @@ WHERE i.nup = $1
 ```
 
 **Workflow Transition Validation:**
+
 - DRAFT → SUBMITTED: Requires at least one BMN item and one attachment
 - SUBMITTED → REVIEWED_WILAYAH: Only Validator Wilayah can forward
 - SUBMITTED → DRAFT: Only Validator Wilayah can return with revision notes
@@ -6139,6 +6284,7 @@ WHERE i.nup = $1
 - DOCUMENT_GENERATED → COMPLETED: Only Validator Pusat can upload signed SK
 
 **Supporting Document Validation:**
+
 - File size limit: 10 MB per file
 - Allowed MIME types: application/pdf, image/jpeg, image/png
 - SHA-256 checksum calculated and stored for integrity verification
@@ -6146,6 +6292,7 @@ WHERE i.nup = $1
 ### 23.8 Document Format Specification
 
 **SK Penghapusan BMN Format:**
+
 ```
 [Official Letterhead - Kejaksaan Republik Indonesia]
 
@@ -6197,6 +6344,7 @@ TOTAL NILAI PEROLEHAN: Rp {total_nilai_perolehan}
 ### 23.9 Integration with Pemakaian Service
 
 **gRPC Service Definition:**
+
 ```protobuf
 // layanan/perlengkapan/crates/pemakaian/proto/pemakaian.proto
 service PemakaianService {
@@ -6217,6 +6365,7 @@ message CheckBMNActivePermitResponse {
 ```
 
 **Implementation:**
+
 ```rust
 // layanan/perlengkapan/crates/pemakaian/src/grpc/service.rs
 #[tonic::async_trait]
@@ -6268,6 +6417,7 @@ impl PemakaianService for PemakaianServiceImpl {
 ### 23.10 Monitoring Dashboard
 
 **Dashboard Metrics:**
+
 - Total SK Penghapusan requests by status
 - Requests by satker and wilayah
 - Average processing time per workflow stage
@@ -6275,6 +6425,7 @@ impl PemakaianService for PemakaianServiceImpl {
 - Pending requests requiring action
 
 **Dashboard Queries:**
+
 ```sql
 -- Summary by status
 SELECT status, COUNT(*) as count
@@ -6309,7 +6460,6 @@ WHERE completed_at IS NOT NULL;
 **Last Updated:** February 11, 2026
 **Status:** Complete with Detailed Business Process Flows
 
-
 ## 24. End-to-End Testing Strategy with Playwright
 
 ### 24.1 Overview
@@ -6317,6 +6467,7 @@ WHERE completed_at IS NOT NULL;
 This section defines comprehensive end-to-end testing strategy using Playwright to validate all business process flows across the entire system, from frontend microfrontend through backend services to database and external integrations.
 
 **Testing Scope:**
+
 1. Kebutuhan BMN complete workflow
 2. Kebutuhan Pakaian Dinas complete workflow
 3. Pemakaian BMN complete workflow (creation, renewal, revocation)
@@ -6327,6 +6478,7 @@ This section defines comprehensive end-to-end testing strategy using Playwright 
 ### 24.2 Test User Setup
 
 **Mock Users for Testing:**
+
 ```typescript
 // tests/e2e/fixtures/users.ts
 export const testUsers = {
@@ -6404,6 +6556,7 @@ export const testUsers = {
 ### 24.3 Test Data Setup
 
 **Mock Integration Data:**
+
 ```typescript
 // tests/e2e/fixtures/integration-data.ts
 export const mockSimanData = {
@@ -7512,6 +7665,7 @@ test.describe('Kebutuhan Pakaian Dinas - Complete Workflow', () => {
 ### 24.8 Test Configuration and Setup
 
 **Playwright Configuration:**
+
 ```typescript
 // playwright.config.ts
 import { defineConfig, devices } from '@playwright/test';
@@ -7556,6 +7710,7 @@ export default defineConfig({
 ```
 
 **Test Database Setup:**
+
 ```bash
 # tests/e2e/setup/database.sh
 #!/bin/bash
@@ -7572,6 +7727,7 @@ psql -U postgres -d simpelv2_test -f tests/e2e/fixtures/seed-data.sql
 ```
 
 **Test Data Seeding:**
+
 ```sql
 -- tests/e2e/fixtures/seed-data.sql
 
@@ -7602,6 +7758,7 @@ VALUES
 ### 24.9 CI/CD Integration
 
 **GitHub Actions Workflow:**
+
 ```yaml
 # .github/workflows/e2e-tests.yml
 name: E2E Tests

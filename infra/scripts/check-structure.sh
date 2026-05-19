@@ -13,7 +13,7 @@ FAILED=0
 echo -e "\n1. Checking for invalid directories in root..."
 for dir in */; do
   dir=${dir%/}
-  if [[ ! " ${ALLOWED_FOLDERS[@]} " =~ " ${dir} " ]]; then
+  if [[ ! " ${ALLOWED_FOLDERS[*]} " =~ " ${dir} " ]]; then
     echo "❌ ERROR: Directory '$dir' is not allowed in root."
     FAILED=1
   fi

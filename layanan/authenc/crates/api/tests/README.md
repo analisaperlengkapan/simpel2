@@ -7,18 +7,21 @@ This directory contains comprehensive integration tests for the Authenc API hand
 **Current Status**: Tests are blocked by authenc-core compilation errors.
 
 **Blocker Details**:
+
 - authenc-core compiles with warnings but no errors
 - However, integration tests require fully functional service implementations
 - Some services may have incomplete implementations or missing dependencies
 - Tests are marked with `#[ignore = "Blocked by authenc-core compilation errors"]`
 
 **What Needs to be Fixed**:
+
 1. Complete service implementations in authenc-core
 2. Ensure all trait implementations are complete
 3. Verify all dependencies between crates are resolved
 4. Test that services can be instantiated and used
 
 **How to Unblock**:
+
 ```bash
 # 1. Verify authenc-core compiles
 cargo check --package authenc-core
@@ -48,11 +51,13 @@ cargo test --package authenc-api
 **Test Coverage**:
 
 #### Section 1: Authentication Flow Tests (REQ-AUTH-001, REQ-AUTH-003)
+
 - `test_authentication_flow_end_to_end` - Complete login flow with JWT generation
 - `test_authentication_invalid_credentials` - Brute force protection
 - `test_authentication_with_mfa` - MFA verification flow
 
 #### Section 2: WebAuthn/Passkeys Tests (REQ-AUTH-005, REQ-WEBAUTHN-*)
+
 - `test_webauthn_registration_flow` - Passkey registration (REQ-WEBAUTHN-001)
 - `test_webauthn_authentication_flow` - Passkey authentication (REQ-WEBAUTHN-002)
 - `test_webauthn_usernameless_authentication` - Discoverable credentials (REQ-WEBAUTHN-002)
@@ -61,25 +66,30 @@ cargo test --package authenc-api
 - `test_webauthn_credential_management` - CRUD operations (REQ-WEBAUTHN-003)
 
 #### Section 3: OAuth2 Flow Tests (REQ-OAUTH-001, REQ-OAUTH-002)
+
 - `test_oauth2_authorization_code_flow_with_pkce` - Authorization Code + PKCE (REQ-OAUTH-001)
 - `test_oauth2_client_credentials_flow` - Service-to-service auth (REQ-OAUTH-002)
 - `test_oauth2_refresh_token_rotation` - Token rotation (REQ-OAUTH-003)
 
 #### Section 4: Token Validation Tests (REQ-TOKEN-003, REQ-TOKEN-004)
+
 - `test_token_validation_valid` - Valid JWT validation
 - `test_token_validation_expired` - Expired token handling
 - `test_token_validation_invalid_signature` - Signature verification
 - `test_token_revocation` - Token revocation (REQ-TOKEN-004)
 
 #### Section 5: Rate Limiting Tests (REQ-SEC-006)
+
 - `test_rate_limiting` - Rate limit enforcement
 - `test_adaptive_rate_limiting` - Risk-based rate limiting
 
 #### Section 6: CORS Tests (REQ-SEC-007)
+
 - `test_cors_preflight` - CORS preflight handling
 - `test_cors_with_credentials` - Credentials support
 
 #### Section 7: Integration Tests (REQ-TEST-002)
+
 - `test_api_core_integration` - authenc-api → authenc-core
 - `test_api_webauthn_integration` - authenc-api → authenc-webauthn
 - `test_api_crypto_integration` - authenc-api → authenc-crypto
@@ -170,6 +180,7 @@ cargo test --package authenc-api -- --ignored
 ## Implementation Status
 
 ### ✅ Completed (Task 8.5.1 - Test Stubs)
+
 - Test structure and organization
 - Detailed test stubs with requirements mapping
 - Test cases for all authentication flows
@@ -183,6 +194,7 @@ cargo test --package authenc-api -- --ignored
 - Comprehensive documentation
 
 ### ⏳ Pending (Blocked by authenc-core)
+
 - Mock service implementations
 - Test database setup
 - Actual test execution
@@ -228,6 +240,7 @@ cargo test --test client_management_tests dcr
 ## Implementation Status
 
 ### ✅ Completed
+
 - Test structure and organization
 - Test cases for all client management endpoints
 - Test cases for DCR (RFC 7591/7592)
@@ -235,6 +248,7 @@ cargo test --test client_management_tests dcr
 - Helper function signatures
 
 ### ⏳ Pending
+
 - Mock service implementations in helpers
 - In-memory database setup for testing
 - Protocol mapper endpoint tests (waiting for implementation)
@@ -250,6 +264,7 @@ cargo test --test client_management_tests dcr
 ## Next Steps to Unblock Tests
 
 ### Step 1: Fix authenc-core Dependencies
+
 1. **Complete service implementations**:
    - Ensure `AuthenticationServiceImpl` is fully implemented
    - Ensure `UserManagementServiceImpl` is fully implemented
@@ -257,14 +272,17 @@ cargo test --test client_management_tests dcr
    - Ensure all trait implementations match trait definitions
 
 2. **Verify crate dependencies**:
+
    ```bash
    cargo tree --package authenc-core
    ```
+
    - Check for circular dependencies
    - Check for missing dependencies
    - Check for version conflicts
 
 3. **Test service instantiation**:
+
    ```rust
    // In authenc-core/src/lib.rs or tests
    #[test]
@@ -275,7 +293,9 @@ cargo test --test client_management_tests dcr
    ```
 
 ### Step 2: Create Mock Services for Testing
+
 1. **Create mock trait implementations**:
+
    ```rust
    // In crates/api/tests/helpers/mocks.rs
    pub struct MockAuthenticationService {
@@ -301,6 +321,7 @@ cargo test --test client_management_tests dcr
    - Mock JWT keys
 
 ### Step 3: Implement Test Helpers
+
 1. **Implement `create_test_router()`**:
    - Create ApiState with mock services
    - Create router with all routes
@@ -322,13 +343,16 @@ cargo test --test client_management_tests dcr
    - Return Database instance
 
 ### Step 4: Remove `#[ignore]` Attributes
+
 Once all dependencies are resolved:
+
 1. Remove `#[ignore = "Blocked by authenc-core compilation errors"]` from tests
 2. Run tests: `cargo test --package authenc-api`
 3. Fix any failing tests
 4. Measure test coverage: `cargo tarpaulin --package authenc-api`
 
 ### Step 5: Verify Compilation (Task 8.5.3)
+
 ```bash
 # Must pass without errors
 cargo check --package authenc-api
@@ -366,6 +390,7 @@ let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 ### RFC 7591/7592 Compliance Testing
 
 Tests verify:
+
 - Required response fields (client_id, client_id_issued_at, etc.)
 - Optional response fields (client_secret, registration_access_token)
 - Error response format (error, error_description)

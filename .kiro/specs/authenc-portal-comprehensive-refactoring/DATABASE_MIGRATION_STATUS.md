@@ -24,6 +24,7 @@ The database layer migration from `src/database/` to `crates/storage/` is **FUNC
 ### ✅ Fully Migrated Files (Operational in crates/storage/)
 
 #### Core Database Infrastructure
+
 | Source (src/database/) | Destination (crates/storage/src/) | Status |
 |------------------------|-----------------------------------|--------|
 | `mod.rs` | `database.rs` | ✅ Migrated & Enabled |
@@ -37,6 +38,7 @@ The database layer migration from `src/database/` to `crates/storage/` is **FUNC
 | `migrations.rs` | `migrations.rs` | ✅ Migrated & Enabled |
 
 #### Store Implementations (New Architecture)
+
 | Source | Destination (crates/storage/src/stores/) | Status |
 |--------|------------------------------------------|--------|
 | N/A (new) | `user_store.rs` | ✅ Implemented & Enabled |
@@ -46,6 +48,7 @@ The database layer migration from `src/database/` to `crates/storage/` is **FUNC
 | N/A (new) | `credential_store.rs` | ✅ Implemented & Enabled |
 
 #### Specialized Operations
+
 | Source (src/database/) | Destination (crates/storage/src/) | Status |
 |------------------------|-----------------------------------|--------|
 | `audit_operations.rs` | `audit_operations.rs` | ⚠️ Migrated but disabled (pending model migration) |
@@ -53,6 +56,7 @@ The database layer migration from `src/database/` to `crates/storage/` is **FUNC
 | `satker_operations.rs` | `satker_operations.rs` | ⚠️ Migrated but disabled (pending model migration) |
 
 #### Operations (Enabled)
+
 | Source (src/database/operations/) | Destination (crates/storage/src/operations/) | Status |
 |-----------------------------------|----------------------------------------------|--------|
 | `client_registration_ops.rs` | `client_registration_ops.rs` | ✅ Migrated & Enabled |
@@ -69,6 +73,7 @@ The database layer migration from `src/database/` to `crates/storage/` is **FUNC
 The legacy operations in `src/database/operations/legacy/` have been migrated to `crates/storage/src/operations/legacy/` but are in various states of enablement:
 
 #### Enabled Legacy Operations (11/31)
+
 | File | Status | Notes |
 |------|--------|-------|
 | `admin_console.rs` | ✅ Enabled | Admin console operations |
@@ -84,6 +89,7 @@ The legacy operations in `src/database/operations/legacy/` have been migrated to
 | `service_accounts.rs` | ✅ Enabled | Service account operations |
 
 #### Disabled Legacy Operations (20/31)
+
 | File | Status | Reason |
 |------|--------|--------|
 | `audit.rs` | ⚠️ Disabled | Pending AuditLog model migration |
@@ -111,6 +117,7 @@ The legacy operations in `src/database/operations/legacy/` have been migrated to
 ## Files Remaining in src/database/
 
 ### Core Files (Still Referenced by Monolithic Code)
+
 These files remain in `src/database/` because they are still imported by `src/app.rs` and various handlers:
 
 ```
@@ -127,6 +134,7 @@ src/database/
 ```
 
 ### Operations Files (Still Referenced)
+
 ```
 src/database/operations/
 ├── mod.rs                          # Re-exports for old code
@@ -139,6 +147,7 @@ src/database/operations/
 ```
 
 ### Legacy Operations (Still Referenced)
+
 ```
 src/database/operations/legacy/
 ├── mod.rs                          # Re-exports for old code
@@ -179,6 +188,7 @@ src/database/operations/legacy/
 ## Why These Files Remain
 
 ### 1. Monolithic App Dependencies
+
 The current `src/app.rs` (989 lines) still initializes the database using the old structure:
 
 ```rust
@@ -192,6 +202,7 @@ pub struct AppState {
 ```
 
 ### 2. Handler Dependencies
+
 Many handlers in `src/handlers/` still import from `src/database/operations/`:
 
 ```rust
@@ -201,7 +212,9 @@ use crate::database::operations::realms_ops;
 ```
 
 ### 3. Backward Compatibility
+
 During the migration phase, both old and new code paths must coexist to allow:
+
 - Incremental testing
 - Gradual rollout
 - Easy rollback if issues arise
@@ -235,6 +248,7 @@ These files will be removed in **Phase 6: Cleanup and Optimization** (Week 13-14
 ## Verification Checklist
 
 ### Storage Layer Migration (Phase 2) - ✅ COMPLETE
+
 - [x] Core database infrastructure migrated
 - [x] Store implementations created and tested
 - [x] Specialized operations migrated
@@ -243,12 +257,14 @@ These files will be removed in **Phase 6: Cleanup and Optimization** (Week 13-14
 - [x] Documentation updated
 
 ### API Layer Migration (Phase 3) - ⏳ PENDING
+
 - [ ] Handlers migrated to crates/api/
 - [ ] Handlers migrated to crates/iam-api/
 - [ ] All handler imports updated to use crates/storage/
 - [ ] Integration tests updated
 
 ### Cleanup (Phase 6) - ⏳ PENDING
+
 - [ ] All references to src/database/ removed
 - [ ] src/database/ directory deleted
 - [ ] Compilation successful without src/database/
@@ -262,6 +278,7 @@ These files will be removed in **Phase 6: Cleanup and Optimization** (Week 13-14
 **Status**: The database layer migration is **FUNCTIONALLY COMPLETE** for Phase 2. The files remaining in `src/database/` are **intentionally kept** for backward compatibility during the migration period and will be removed in Phase 6 after the API layer migration is complete.
 
 **Next Steps**:
+
 1. Proceed to Phase 3: API Migration (migrate handlers to crates/api/ and crates/iam-api/)
 2. Update all handler imports to use crates/storage/ instead of src/database/
 3. In Phase 6, remove src/database/ entirely

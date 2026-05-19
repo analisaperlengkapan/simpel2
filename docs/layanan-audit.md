@@ -128,6 +128,7 @@ make test-audit
 ```
 
 Meliputi:
+
 - Simulasi penyimpanan log
 - Uji penanganan input tidak sah
 - Benchmark penulisan 10.000 log

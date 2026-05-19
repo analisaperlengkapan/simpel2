@@ -17,10 +17,12 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
 ## Files Migrated
 
 ### 1. federation_provider.rs (150 lines - SIMPLE)
+
 **Source**: `src/services/federation_provider.rs`
 **Target**: `crates/core/src/services/federation_provider.rs`
 
 **Changes**:
+
 - Updated imports: `crate::models::user::*` → `authenc_types::User`
 - No SPI references (clean migration)
 - Exports:
@@ -33,16 +35,19 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
 ---
 
 ### 2. federation_manager.rs (920 lines - COMPLEX with SPI)
+
 **Source**: `src/services/federation_manager.rs`
 **Target**: `crates/core/src/services/federation_manager.rs`
 
 **Changes**:
+
 1. Updated imports:
    - `crate::database::Database` → `crate::database::Database` (already in core)
    - `crate::error::*` → `crate::error::*` (already in core)
    - `crate::models::User` → `authenc_types::User`
 
 2. **SPI References Stubbed**:
+
    ```rust
    // TODO: SPI module doesn't exist yet - needs implementation
    // use crate::spi::ldap_federation::{
@@ -66,6 +71,7 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
    - JIT provisioning structure (stubbed for social)
 
 **Exports**:
+
 - `FederationProviderType` enum
 - `FederatedIdentityLink` struct
 - `IdentityProviderConfig` struct
@@ -79,10 +85,12 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
 ---
 
 ### 3. advanced_federation.rs (1099 lines - COMPLEX with SPI)
+
 **Source**: `src/services/advanced_federation.rs`
 **Target**: `crates/core/src/services/advanced_federation.rs`
 
 **Changes**:
+
 1. Updated imports:
    - `crate::error::AuthencError` → `crate::error::AuthencError` (already in core)
 
@@ -94,6 +102,7 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
    - SAML provider is a placeholder implementation
 
 **Exports**:
+
 - `UserFederationProvider` trait
 - `UserInfo` struct
 - `SyncResult` struct
@@ -119,6 +128,7 @@ Successfully migrated all 7 federation files from `src/services/` to `crates/cor
 **File**: `crates/core/src/services/mod.rs`
 
 **Added**:
+
 ```rust
 // Federation services
 pub mod federation;
@@ -149,40 +159,45 @@ pub use advanced_federation::*;
 
 The following functionality is stubbed and requires SPI implementation:
 
-### In federation_manager.rs:
+### In federation_manager.rs
 
 1. **LDAP Provider Registration**:
+
    ```rust
    // TODO: Needs LdapFederationConfig and DefaultLdapFederationProvider from SPI
    async fn register_ldap_provider(&self, config: &IdentityProviderConfig) -> Result<()>
    ```
 
 2. **Social Provider Registration**:
+
    ```rust
    // TODO: Needs SocialProviderConfig and DefaultSocialProvider from SPI
    async fn register_social_provider(&self, config: &IdentityProviderConfig) -> Result<()>
    ```
 
 3. **LDAP Authentication**:
+
    ```rust
    // TODO: Needs LDAP provider implementation
    pub async fn authenticate_ldap(...) -> Result<FederationAuthResult>
    ```
 
 4. **Social Authentication**:
+
    ```rust
    // TODO: Needs Social provider implementation
    pub async fn authenticate_social(...) -> Result<FederationAuthResult>
    ```
 
 5. **Provider Getters**:
+
    ```rust
    // TODO: Needs SPI trait implementations
    pub async fn get_social_provider(&self, alias: &str) -> Option<Arc<dyn SocialProvider>>
    pub async fn get_ldap_provider(&self, alias: &str) -> Option<Arc<dyn LdapFederationProvider>>
    ```
 
-### SPI Module Structure Needed:
+### SPI Module Structure Needed
 
 ```
 crates/core/src/spi/
@@ -202,7 +217,8 @@ crates/core/src/spi/
 
 ## Next Steps
 
-### Immediate (Priority 1):
+### Immediate (Priority 1)
+
 1. ✅ Federation migration complete
 2. ⏳ Continue with remaining Priority 1 services:
    - SSO (4 files)
@@ -210,7 +226,8 @@ crates/core/src/spi/
    - Social (1 file)
    - OID4VC (1 file)
 
-### Future (When SPI is implemented):
+### Future (When SPI is implemented)
+
 1. Create `crates/core/src/spi/` module
 2. Implement LDAP federation provider
 3. Implement social login provider
@@ -221,12 +238,14 @@ crates/core/src/spi/
 
 ## Impact Assessment
 
-### Unblocks:
+### Unblocks
+
 - `crates/api/src/handlers/oidc_sso.rs` (federation dependencies)
 - `crates/api/src/handlers/federated_*.rs` (federation dependencies)
 - `crates/api/src/handlers/federation_admin.rs` (federation dependencies)
 
-### Dependencies:
+### Dependencies
+
 - ✅ `authenc-types` (User type)
 - ✅ `authenc-core` (Database, Error)
 - ⏳ SPI module (future implementation)

@@ -3,17 +3,20 @@
 ## 1. Overview
 
 ### 1.1 Purpose
+
 Enhance Secreton to achieve feature parity with HashiCorp Vault while maintaining its unique advantages (Rust-based, quantum-safe cryptography, government compliance). This spec addresses critical gaps identified through comprehensive analysis of both systems.
 
 ### 1.2 Executive Summary
 
 **Current State:** Secreton is ~85% production-ready with comprehensive core functionality:
+
 - ✅ **Secrets Management**: KV storage, dynamic secrets (DB, AWS, GCP, Azure), lease management
 - ✅ **Cryptography**: Transit engine, PKI, SSH CA, TOTP, Transform (FPE/tokenization/masking)
 - ✅ **Security**: Seal/unseal, Raft consensus, audit logging, namespace isolation, policy engine
 - ✅ **Compliance**: Post-quantum cryptography, FIPS-ready, government standards
 
 **Missing Features:** Primarily operational/enterprise capabilities:
+
 - ❌ Auto-unseal (AWS/GCP/Azure KMS, Transit)
 - ❌ Replication (performance, disaster recovery)
 - ❌ Kubernetes integration (Agent/Sidecar, Secrets Operator)
@@ -21,6 +24,7 @@ Enhance Secreton to achieve feature parity with HashiCorp Vault while maintainin
 - ❌ Advanced monitoring (OpenTelemetry full integration)
 
 **Impact:** These gaps prevent production deployment at Kejaksaan RI, particularly for:
+
 1. Kubernetes auto-restart scenarios (requires auto-unseal)
 2. Multi-region deployment (requires replication)
 3. Application integration (requires Agent/Sidecar)
@@ -29,11 +33,13 @@ Enhance Secreton to achieve feature parity with HashiCorp Vault while maintainin
 **Recommendation:** Implement all 14 user stories over 14 weeks to achieve 95%+ production readiness.
 
 ### 1.3 Background
+
 Secreton is currently ~85% production-ready with solid core functionality (KV storage, seal/unseal, Raft consensus, audit logging). However, comparison with HashiCorp Vault reveals missing enterprise features critical for government deployment at Kejaksaan RI.
 
 ### 1.4 Current State Analysis
 
 **Secreton Strengths:**
+
 - ✅ Rust-based (memory safety, performance)
 - ✅ Post-quantum cryptography (ML-KEM, ML-DSA)
 - ✅ Comprehensive audit logging
@@ -49,6 +55,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 **Detailed Feature Status:**
 
 **Dynamic Secrets (✅ COMPLETE):**
+
 - PostgreSQL credential generation with TTL
 - MySQL credential generation
 - MongoDB credential generation
@@ -61,6 +68,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 - Lease integration
 
 **Lease Management (✅ COMPLETE):**
+
 - Lease creation with TTL and max_ttl
 - Lease renewal with increment validation
 - Lease revocation with cascade to children
@@ -73,6 +81,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 - PostgreSQL persistence with caching
 
 **Policy Engine (✅ COMPLETE):**
+
 - RBAC/ABAC policy evaluation
 - Path matching with glob patterns (*, **)
 - Capability-based access control
@@ -88,6 +97,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 - Policy CRUD via REST API
 
 **Critical Gaps vs Vault:**
+
 - ❌ Auto-unseal (AWS KMS, GCP KMS, Azure Key Vault, Transit)
 - ❌ Performance replication (multi-region)
 - ❌ Disaster recovery replication
@@ -100,6 +110,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 - ❌ Comprehensive health checks
 
 ### 1.5 Success Criteria
+
 - Secreton achieves 95%+ production readiness
 - All critical enterprise features implemented
 - Performance matches or exceeds Vault benchmarks
@@ -119,6 +130,7 @@ Secreton is currently ~85% production-ready with solid core functionality (KV st
 As a DevOps engineer, I need Secreton to automatically unseal after restarts so that I don't need manual intervention during pod restarts, upgrades, or failures.
 
 **Acceptance Criteria:**
+
 1. **AC 2.1.1**: Secreton supports Transit auto-unseal using another Secreton instance
 2. **AC 2.1.2**: Secreton supports AWS KMS auto-unseal for AWS deployments
 3. **AC 2.1.3**: Secreton supports GCP KMS auto-unseal for GCP deployments
@@ -141,6 +153,7 @@ As a DevOps engineer, I need Secreton to automatically unseal after restarts so 
 As a system architect, I need to replicate Secreton data across multiple regions so that users in different geographic locations experience low-latency access to secrets.
 
 **Acceptance Criteria:**
+
 1. **AC 2.2.1**: Primary cluster can designate secondary clusters as performance replicas
 2. **AC 2.2.2**: Read operations are served by local performance replicas
 3. **AC 2.2.3**: Write operations are forwarded to primary cluster
@@ -163,6 +176,7 @@ As a system architect, I need to replicate Secreton data across multiple regions
 As a security officer, I need a standby Secreton cluster that can take over completely if the primary cluster fails catastrophically, including all tokens, leases, and ephemeral data.
 
 **Acceptance Criteria:**
+
 1. **AC 2.3.1**: DR secondary replicates ALL data (secrets, tokens, leases, policies)
 2. **AC 2.3.2**: DR secondary remains sealed until promoted
 3. **AC 2.3.3**: Promotion process is documented and tested
@@ -185,6 +199,7 @@ As a security officer, I need a standby Secreton cluster that can take over comp
 As a platform engineer, I need standby nodes that can serve read requests so that the system can scale horizontally under high load.
 
 **Acceptance Criteria:**
+
 1. **AC 2.4.1**: Standby nodes can serve read-only requests
 2. **AC 2.4.2**: Standby nodes forward write requests to active node
 3. **AC 2.4.3**: Standby nodes maintain hot cache of frequently accessed secrets
@@ -207,6 +222,7 @@ As a platform engineer, I need standby nodes that can serve read requests so tha
 As a database administrator, I need automated backup procedures so that I can recover from data corruption or accidental deletion without manual intervention.
 
 **Acceptance Criteria:**
+
 1. **AC 2.5.1**: Scheduled backups run automatically (cron-like)
 2. **AC 2.5.2**: Backups include Raft snapshots + PostgreSQL dumps
 3. **AC 2.5.3**: Backups are encrypted with separate key
@@ -229,6 +245,7 @@ As a database administrator, I need automated backup procedures so that I can re
 As an SRE, I need comprehensive monitoring and tracing so that I can diagnose performance issues and security incidents quickly.
 
 **Acceptance Criteria:**
+
 1. **AC 2.6.1**: OpenTelemetry integration for distributed tracing
 2. **AC 2.6.2**: Prometheus metrics for all operations
 3. **AC 2.6.3**: Grafana dashboard templates provided
@@ -251,6 +268,7 @@ As an SRE, I need comprehensive monitoring and tracing so that I can diagnose pe
 As a security engineer, I need automatic rotation of secrets so that credentials are regularly refreshed without manual intervention.
 
 **Acceptance Criteria:**
+
 1. **AC 2.7.1**: Database credentials rotate automatically
 2. **AC 2.7.2**: API keys rotate on schedule
 3. **AC 2.7.3**: Certificates auto-renew before expiry
@@ -273,6 +291,7 @@ As a security engineer, I need automatic rotation of secrets so that credentials
 As a performance engineer, I need response caching so that frequently accessed secrets don't hit the storage backend repeatedly.
 
 **Acceptance Criteria:**
+
 1. **AC 2.8.1**: In-memory cache for read responses
 2. **AC 2.8.2**: Cache TTL is configurable per secret type
 3. **AC 2.8.3**: Cache invalidation on secret updates
@@ -295,6 +314,7 @@ As a performance engineer, I need response caching so that frequently accessed s
 As a developer, I need requests to be automatically forwarded to the active node so that I don't need to track which node is active.
 
 **Acceptance Criteria:**
+
 1. **AC 2.9.1**: Standby nodes forward writes to active node
 2. **AC 2.9.2**: Forwarding is transparent to clients
 3. **AC 2.9.3**: Forwarding preserves authentication context
@@ -317,6 +337,7 @@ As a developer, I need requests to be automatically forwarded to the active node
 As a Kubernetes operator, I need detailed health checks so that the orchestrator can make informed decisions about pod lifecycle.
 
 **Acceptance Criteria:**
+
 1. **AC 2.10.1**: `/health` endpoint returns detailed status
 2. **AC 2.10.2**: Liveness probe checks process health
 3. **AC 2.10.3**: Readiness probe checks seal status
@@ -339,6 +360,7 @@ As a Kubernetes operator, I need detailed health checks so that the orchestrator
 As a Kubernetes application developer, I need a sidecar container that automatically fetches and renews secrets so that my application doesn't need to implement Secreton client logic.
 
 **Acceptance Criteria:**
+
 1. **AC 2.11.1**: Sidecar container authenticates with Secreton using Kubernetes ServiceAccount
 2. **AC 2.11.2**: Sidecar fetches secrets on startup and writes to shared volume
 3. **AC 2.11.3**: Sidecar automatically renews secrets before expiry
@@ -361,6 +383,7 @@ As a Kubernetes application developer, I need a sidecar container that automatic
 As a platform engineer, I need a Kubernetes operator that syncs Secreton secrets to Kubernetes Secrets so that applications can use standard Kubernetes patterns.
 
 **Acceptance Criteria:**
+
 1. **AC 2.12.1**: Operator watches SecretonSecret CRD
 2. **AC 2.12.2**: Operator creates/updates Kubernetes Secret from Secreton
 3. **AC 2.12.3**: Operator supports multiple Secreton paths per CRD
@@ -383,6 +406,7 @@ As a platform engineer, I need a Kubernetes operator that syncs Secreton secrets
 As an infrastructure administrator, I need KMIP protocol support so that VMware vSphere and NetApp storage can use Secreton for key management.
 
 **Acceptance Criteria:**
+
 1. **AC 2.13.1**: KMIP server listens on configurable port (default: 5696)
 2. **AC 2.13.2**: KMIP server supports TLS client authentication
 3. **AC 2.13.3**: KMIP server implements KMIP 1.4 Baseline Server profile
@@ -405,6 +429,7 @@ As an infrastructure administrator, I need KMIP protocol support so that VMware 
 As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and Azure Key Vault from Secreton so that I have centralized key lifecycle management.
 
 **Acceptance Criteria:**
+
 1. **AC 2.14.1**: Support AWS KMS key creation and rotation
 2. **AC 2.14.2**: Support GCP KMS key creation and rotation
 3. **AC 2.14.3**: Support Azure Key Vault key creation and rotation
@@ -424,6 +449,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 ## 3. Non-Functional Requirements
 
 ### 3.1 Performance
+
 - **NFR 3.1.1**: Read latency < 10ms (p99)
 - **NFR 3.1.2**: Write latency < 50ms (p99)
 - **NFR 3.1.3**: Throughput > 10,000 ops/sec per node
@@ -431,6 +457,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - **NFR 3.1.5**: Cache hit ratio > 80% for reads
 
 ### 3.2 Reliability
+
 - **NFR 3.2.1**: Uptime > 99.95% (4.38 hours downtime/year)
 - **NFR 3.2.2**: Zero data loss during failover
 - **NFR 3.2.3**: Automatic recovery from transient failures
@@ -438,6 +465,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - **NFR 3.2.5**: Circuit breaker for failing backends
 
 ### 3.3 Security
+
 - **NFR 3.3.1**: All data encrypted at rest (AES-256-GCM)
 - **NFR 3.3.2**: All data encrypted in transit (TLS 1.3)
 - **NFR 3.3.3**: mTLS for all inter-node communication
@@ -445,6 +473,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - **NFR 3.3.5**: Zero-trust architecture
 
 ### 3.4 Scalability
+
 - **NFR 3.4.1**: Support 100+ namespaces
 - **NFR 3.4.2**: Support 1M+ secrets
 - **NFR 3.4.3**: Support 10+ node clusters
@@ -452,6 +481,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - **NFR 3.4.5**: Vertical scaling for writes
 
 ### 3.5 Maintainability
+
 - **NFR 3.5.1**: Zero-downtime upgrades
 - **NFR 3.5.2**: Rolling updates supported
 - **NFR 3.5.3**: Configuration hot-reload
@@ -463,6 +493,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 ## 4. Constraints & Assumptions
 
 ### 4.1 Technical Constraints
+
 - Must remain compatible with existing Secreton API
 - Must maintain Rust-only codebase (no C/C++ dependencies)
 - Must support Kubernetes deployment
@@ -470,6 +501,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - Must support PostgreSQL and Raft storage backends
 
 ### 4.2 Business Constraints
+
 - Must comply with Indonesian government security standards
 - Must support air-gapped deployments
 - Must provide Indonesian language documentation
@@ -477,6 +509,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - Budget: Internal development (no licensing costs)
 
 ### 4.3 Assumptions
+
 - Kubernetes cluster is available and configured
 - PostgreSQL database is available for metadata
 - Network latency between nodes < 10ms
@@ -488,6 +521,7 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 ## 5. Dependencies
 
 ### 5.1 External Dependencies
+
 - Kubernetes 1.28+
 - PostgreSQL 15+
 - Redis 7+ (optional, for distributed cache)
@@ -495,11 +529,13 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 - Prometheus + Grafana (for monitoring)
 
 ### 5.2 Internal Dependencies
+
 - Authenc service (for authentication)
 - lib-common (shared utilities)
 - lib-crypto (cryptographic operations)
 
 ### 5.3 Third-Party Crates
+
 - `openraft` - Raft consensus
 - `aws-sdk-kms` - AWS KMS integration
 - `google-cloudkms1` - GCP KMS integration
@@ -514,28 +550,34 @@ As a cloud architect, I need to manage encryption keys in AWS KMS, GCP KMS, and 
 ### 6.1 Technical Risks
 
 **Risk 6.1.1**: Auto-unseal introduces single point of failure
+
 - **Mitigation**: Support multiple auto-unseal providers with fallback
 - **Severity**: HIGH
 
 **Risk 6.1.2**: Replication lag causes stale reads
+
 - **Mitigation**: Implement read-your-writes consistency option
 - **Severity**: MEDIUM
 
 **Risk 6.1.3**: Performance degradation under high load
+
 - **Mitigation**: Implement rate limiting and circuit breakers
 - **Severity**: MEDIUM
 
 **Risk 6.1.4**: Backup corruption goes undetected
+
 - **Mitigation**: Automated backup verification
 - **Severity**: HIGH
 
 ### 6.2 Operational Risks
 
 **Risk 6.2.1**: Complex disaster recovery procedures
+
 - **Mitigation**: Comprehensive documentation and quarterly drills
 - **Severity**: HIGH
 
 **Risk 6.2.2**: Monitoring gaps lead to undetected issues
+
 - **Mitigation**: Comprehensive alerting and on-call procedures
 - **Severity**: MEDIUM
 
@@ -559,6 +601,7 @@ The following are explicitly OUT OF SCOPE for this spec:
 ## 8. Success Metrics
 
 ### 8.1 Technical Metrics
+
 - Code coverage > 80%
 - All integration tests passing
 - Performance benchmarks meet NFRs
@@ -568,6 +611,7 @@ The following are explicitly OUT OF SCOPE for this spec:
 - All 140 acceptance criteria met
 
 ### 8.2 Operational Metrics
+
 - Mean Time To Recovery (MTTR) < 15 minutes
 - Mean Time Between Failures (MTBF) > 720 hours
 - Deployment success rate > 99%
@@ -577,6 +621,7 @@ The following are explicitly OUT OF SCOPE for this spec:
 - Replication lag < 100ms (p99)
 
 ### 8.3 Business Metrics
+
 - Production deployment at Kejaksaan RI
 - Zero security incidents
 - User satisfaction > 4.5/5
@@ -586,6 +631,7 @@ The following are explicitly OUT OF SCOPE for this spec:
 - KMIP integration with VMware/NetApp successful
 
 ### 8.4 Feature Completeness Metrics
+
 - Core secrets management: 100% (already complete)
 - Operational features: Target 95% (from current 60%)
 - Kubernetes integration: Target 100% (from current 0%)
@@ -597,26 +643,31 @@ The following are explicitly OUT OF SCOPE for this spec:
 ## 9. Timeline & Milestones
 
 ### Phase 1: Critical Features (Weeks 1-3)
+
 - **Week 1**: Auto-unseal implementation (Transit, AWS KMS)
 - **Week 2**: Automated backup/restore procedures
 - **Week 3**: Comprehensive health checks
 
 ### Phase 2: High Availability (Weeks 4-6)
+
 - **Week 4**: Performance replication
 - **Week 5**: Disaster recovery replication
 - **Week 6**: Performance standby nodes
 
 ### Phase 3: Kubernetes Integration (Weeks 7-9)
+
 - **Week 7**: Vault Agent/Sidecar implementation
 - **Week 8**: Kubernetes Secrets Operator
 - **Week 9**: Helm chart and webhook integration
 
 ### Phase 4: Enterprise Features (Weeks 10-12)
+
 - **Week 10**: KMIP secrets engine
 - **Week 11**: Key Management secrets engine
 - **Week 12**: Advanced monitoring and observability
 
 ### Phase 5: Optimization & Automation (Weeks 13-14)
+
 - **Week 13**: Response caching, request forwarding optimization
 - **Week 14**: Secrets rotation automation, testing, documentation
 
@@ -650,12 +701,14 @@ The following are explicitly OUT OF SCOPE for this spec:
 **Status:** DRAFT - Awaiting Review
 
 **Reviewers:**
+
 - [ ] Technical Lead - Architecture Review
 - [ ] Security Officer - Security Review
 - [ ] DevOps Lead - Operations Review
 - [ ] Product Owner - Business Requirements Review
 
 **Approval:**
+
 - [ ] Approved for Design Phase
 - [ ] Approved for Implementation
 
@@ -668,6 +721,7 @@ The following are explicitly OUT OF SCOPE for this spec:
 After comprehensive codebase analysis, the following Vault features are **FULLY IMPLEMENTED** in Secreton:
 
 **Secrets Engines:**
+
 - ✅ **SSH Secrets Engine** (`crates/core/src/services/secrets/ssh.rs`)
   - SSH CA certificate signing
   - User certificate generation with TTL
@@ -694,12 +748,14 @@ After comprehensive codebase analysis, the following Vault features are **FULLY 
   - PCI/GDPR compliance features
 
 **Authentication Methods:**
+
 - ✅ **Token Authentication** (built-in)
 - ✅ **AppRole** (via Authenc integration)
 - ✅ **Kubernetes Auth** (via Authenc integration)
 - ✅ **OIDC/OAuth2** (via Authenc integration)
 
 **Infrastructure:**
+
 - ✅ **Raft Consensus** (HA clustering)
 - ✅ **Namespace Isolation** (multi-tenant)
 - ✅ **Audit Logging** (comprehensive)
@@ -709,6 +765,7 @@ After comprehensive codebase analysis, the following Vault features are **FULLY 
 ### 12.2 Features NOT Implemented (Gaps vs Vault)
 
 **Critical Gaps (MUST HAVE for Production):**
+
 1. ❌ **Auto-Unseal** (AWS KMS, GCP KMS, Azure Key Vault, Transit)
 2. ❌ **Performance Replication** (multi-region read replicas)
 3. ❌ **Disaster Recovery Replication** (full cluster failover)
@@ -754,21 +811,25 @@ The following Vault Enterprise features are **NOT REQUIRED** for this project:
 Based on Kejaksaan RI requirements and production deployment needs:
 
 **Phase 1: Critical Production Features (Weeks 1-3)**
+
 - Auto-unseal (AWS KMS, Transit)
 - Automated backup/restore
 - Comprehensive health checks
 
 **Phase 2: High Availability (Weeks 4-6)**
+
 - Performance replication
 - Disaster recovery replication
 - Performance standby nodes
 
 **Phase 3: Kubernetes Integration (Weeks 7-8)**
+
 - Vault Agent/Sidecar
 - Kubernetes Secrets Operator
 - Advanced monitoring (OpenTelemetry)
 
 **Phase 4: Enterprise Features (Weeks 9-10)**
+
 - KMIP secrets engine (for VMware/NetApp)
 - Key Management secrets engine
 - Secrets rotation automation (API keys, certificates)
@@ -778,6 +839,7 @@ Based on Kejaksaan RI requirements and production deployment needs:
 ## 13. References
 
 ### 13.1 Internal Documentation
+
 - [Secreton AGENTS.md](../../../AGENTS.md)
 - [Secreton Architecture](../../../ARCHITECTURE.md)
 - [Secreton Security](../../../SECURITY.md)
@@ -787,6 +849,7 @@ Based on Kejaksaan RI requirements and production deployment needs:
 - [Transform Secrets Engine](../../../crates/core/src/services/secrets/transform.rs)
 
 ### 13.2 External References
+
 - [HashiCorp Vault Documentation](https://developer.hashicorp.com/vault)
 - [Vault Production Hardening](https://learn.hashicorp.com/tutorials/vault/production-hardening)
 - [Vault Auto-Unseal](https://learn.hashicorp.com/tutorials/vault/autounseal-transit)

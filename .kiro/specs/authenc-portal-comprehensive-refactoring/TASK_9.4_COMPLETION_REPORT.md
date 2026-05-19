@@ -38,6 +38,7 @@ All 15 admin handler files have been migrated to `crates/iam-api/src/handlers/`:
 The following files remain in `src/handlers/` and are **intentionally NOT migrated** to authenc-iam-api:
 
 #### Authentication & Session Handlers (NOT IAM Admin)
+
 These handlers belong to the public authentication API (authenc-api), not the IAM admin API:
 
 1. **auth_helpers.rs** - Authentication helper functions
@@ -76,12 +77,14 @@ These handlers belong to the public authentication API (authenc-api), not the IA
    - **Status**: Part of Phase 3 (Task 8) - authenc-api migration
 
 #### Main Application Router
+
 8. **mod.rs** - Main handler module and router
    - **Reason**: Root router that combines all API routes (authenc-api + authenc-iam-api + authenc-grpc)
    - **Destination**: Will be updated to import from crates in Phase 6 (Task 18)
    - **Status**: Entry point - stays in src/ until final cleanup
 
 #### API Subdirectory
+
 9. **api/** - API handler subdirectory
    - **Reason**: Contains additional API handlers for the main application
    - **Destination**: Will be migrated to appropriate crates in Phase 3/6
@@ -112,6 +115,7 @@ The following files exist in BOTH `src/handlers/` and `crates/iam-api/src/handle
 ## Reason for Keeping Files in src/handlers/
 
 ### Category 1: Public Authentication API (authenc-api)
+
 Files like `auth_helpers.rs`, `oauth2.rs`, `session.rs`, `totp.rs`, `totp_verify.rs`, `webauthn.rs`, `oidc_client.rs` are **public authentication endpoints** that belong to the `authenc-api` crate, NOT the `authenc-iam-api` crate.
 
 - **authenc-api**: Public authentication API (login, logout, OAuth2, OIDC, WebAuthn, MFA)
@@ -120,7 +124,9 @@ Files like `auth_helpers.rs`, `oauth2.rs`, `session.rs`, `totp.rs`, `totp_verify
 These files will be migrated in **Phase 3 (Task 8)** when the authenc-api crate is completed.
 
 ### Category 2: Main Application Router
+
 The `mod.rs` file is the **root router** that combines all API routes from different crates:
+
 - Routes from `authenc-api` (public authentication)
 - Routes from `authenc-iam-api` (admin IAM)
 - Routes from `authenc-grpc` (service-to-service)
@@ -128,11 +134,14 @@ The `mod.rs` file is the **root router** that combines all API routes from diffe
 This file will be updated in **Phase 6 (Task 18)** to import from the new crates instead of local modules.
 
 ### Category 3: Duplicate Files (Original Implementations)
+
 Files that exist in both `src/handlers/` and `crates/iam-api/src/handlers/` are duplicates:
+
 - `src/handlers/` contains the **original implementations** (full business logic)
 - `crates/iam-api/src/handlers/` contains **skeleton implementations** (NOT_IMPLEMENTED errors)
 
 These duplicates will be resolved in **Phase 6 (Task 18)** by:
+
 1. Implementing the full business logic in `crates/iam-api/src/handlers/`
 2. Deleting the original files from `src/handlers/`
 
@@ -143,6 +152,7 @@ The MIGRATION_ANALYSIS.md file has been updated with a new section documenting t
 ### Section Added: "Phase 3: IAM API Migration (authenc-iam-api)"
 
 This section documents:
+
 - ✅ All 20 handler files migrated to authenc-iam-api
 - ✅ IamApiState created with proper dependency injection
 - ✅ Router created with all IAM admin routes
@@ -165,11 +175,13 @@ The authenc-iam-api migration is marked as **COMPLETE** in MIGRATION_ANALYSIS.md
 ## Next Steps
 
 ### Immediate Actions (Phase 3 Continuation)
+
 1. **Complete Task 8 (authenc-api)**: Migrate public authentication handlers from `src/handlers/` to `crates/api/src/handlers/`
 2. **Resolve authenc-core errors**: Fix 127 compilation errors in authenc-core (blocking Task 9.3 testing)
 3. **Re-run Task 9.3**: Once authenc-core compiles, re-run integration tests for authenc-iam-api
 
 ### Phase 6 Actions (Cleanup)
+
 1. **Implement full business logic**: Replace NOT_IMPLEMENTED errors in `crates/iam-api/src/handlers/` with actual implementations
 2. **Delete duplicate files**: Remove original files from `src/handlers/` after verifying iam-api implementations
 3. **Update main router**: Update `src/handlers/mod.rs` to import from crates instead of local modules

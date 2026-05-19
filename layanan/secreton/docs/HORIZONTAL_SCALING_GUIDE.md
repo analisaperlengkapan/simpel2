@@ -7,6 +7,7 @@ Secreton supports horizontal scaling through its Raft-based distributed consensu
 ## Architecture
 
 Secreton uses OpenRaft for distributed consensus, which provides:
+
 - **Leader Election**: Automatic leader election within 5 seconds of failure
 - **Log Replication**: All write operations are replicated to follower nodes
 - **Joint Consensus**: Safe cluster membership changes without downtime
@@ -32,6 +33,7 @@ Before scaling your cluster:
 ### Step 1: Prepare the New Node
 
 1. Install Secreton on the new server:
+
 ```bash
 # Download and install Secreton binary
 curl -O https://releases.secreton.io/secreton-latest-linux-amd64.tar.gz
@@ -40,6 +42,7 @@ sudo mv secreton /usr/local/bin/
 ```
 
 2. Create configuration file `/etc/secreton/secreton.toml`:
+
 ```toml
 [server]
 address = "0.0.0.0:8200"
@@ -58,6 +61,7 @@ connection_string = "postgresql://secreton:password@postgres:5432/secreton"
 ```
 
 3. Start the Secreton service:
+
 ```bash
 sudo systemctl start secreton
 ```
@@ -95,6 +99,7 @@ curl https://leader:8200/v1/sys/raft/configuration \
 ```
 
 Expected output:
+
 ```json
 {
   "data": {
@@ -239,22 +244,26 @@ When adding/removing a node:
 ### Key Metrics to Monitor
 
 1. **Raft State**:
+
    ```bash
    curl https://leader:8200/v1/sys/raft/configuration
    ```
 
 2. **Leader Election Time**: Should be < 5 seconds
+
    ```bash
    # Check metrics endpoint
    curl https://leader:8200/v1/sys/metrics
    ```
 
 3. **Replication Lag**: Monitor follower lag
+
    ```bash
    secreton operator raft autopilot state
    ```
 
 4. **Cluster Health**:
+
    ```bash
    curl https://leader:8200/v1/sys/health
    ```
@@ -273,6 +282,7 @@ When adding/removing a node:
 **Symptoms**: New node fails to join with timeout errors
 
 **Solutions**:
+
 1. Verify network connectivity between nodes
 2. Check firewall rules allow Raft port (8201)
 3. Ensure node IDs are unique
@@ -283,6 +293,7 @@ When adding/removing a node:
 **Symptoms**: Multiple leaders elected
 
 **Solutions**:
+
 1. This should not happen with proper quorum configuration
 2. If it occurs, check network partitions
 3. Verify cluster size is odd number
@@ -293,6 +304,7 @@ When adding/removing a node:
 **Symptoms**: Followers lag behind leader
 
 **Solutions**:
+
 1. Check network bandwidth between nodes
 2. Monitor disk I/O on follower nodes
 3. Verify PostgreSQL performance
@@ -303,6 +315,7 @@ When adding/removing a node:
 **Symptoms**: Node continuously attempts to become leader
 
 **Solutions**:
+
 1. Check if node can reach majority of cluster
 2. Verify system time is synchronized (NTP)
 3. Review Raft election timeout configuration

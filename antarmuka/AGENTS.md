@@ -3,6 +3,7 @@
 > **Notice to Agents**: File ini adalah pedoman (Level 2 Archetype) untuk SELURUH Frontend Microfrontends (`antarmuka/`) di monorepo SIMPEL. Baca file ini sebelum memodifikasi kode frontend.
 
 ## 📑 Daftar Isi (Table of Contents)
+
 1. 🏛️ Frontend Architecture
 2. 🔐 Authentication Flow (Frontend Side)
 --- *Batas Truncation* ---
@@ -103,6 +104,7 @@ pub fn main() {
 - **Tree shaking**: Singkirkan *unused code*.
 
 **Konfigurasi `Trunk.toml` Standar:**
+
 ```toml
 [tools]
 wasm-bindgen = "0.2"
@@ -113,6 +115,7 @@ release = true
 ```
 
 ### Signal Reactivity Best Practices
+
 Gunakan Leptos 0.8.x *signal API* untuk reaktivitas yang efisien:
 
 ```rust
@@ -129,6 +132,7 @@ let doubled = move || *count.read() * 2;
 ```
 
 ### Debouncing untuk User Input
+
 Untuk *input* pencarian yang memicu panggilan API mahal, gunakan *debouncing*:
 
 ```rust

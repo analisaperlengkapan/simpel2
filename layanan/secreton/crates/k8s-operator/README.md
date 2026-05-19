@@ -71,6 +71,7 @@ kubectl apply -f secretsync.yaml
 ```
 
 The operator will:
+
 1. Fetch the secret from Secreton at `/secret/data/database/prod`
 2. Create a Kubernetes Secret named `database-creds` in the `production` namespace
 3. Refresh the secret every 300 seconds
@@ -110,6 +111,7 @@ kubectl get secretsync database-credentials -n production -o yaml
 ```
 
 The status section shows:
+
 - Current phase (Pending, Syncing, Synced, Failed)
 - Last sync time
 - Last successful sync time
@@ -188,16 +190,19 @@ The operator exposes metrics for monitoring:
 ### Secret Not Syncing
 
 1. Check the SecretSync status:
+
    ```bash
    kubectl describe secretsync <name> -n <namespace>
    ```
 
 2. Check operator logs:
+
    ```bash
    kubectl logs -n secreton-system -l app=secreton-operator
    ```
 
 3. Verify Secreton connectivity:
+
    ```bash
    kubectl run -it --rm debug --image=curlimages/curl --restart=Never -- \
      curl -H "X-Secret Vault-Token: $TOKEN" https://secreton.internal:8200/v1/sys/health
@@ -253,4 +258,3 @@ Validates: Requirements 5.1
 ## License
 
 Apache-2.0
-

@@ -107,6 +107,7 @@ impl HealthCheck for MetricsHealthCheck {
 ```
 
 **Overall status calculation:**
+
 - If any **critical** check is Unhealthy → overall is Unhealthy
 - If any check is Degraded → overall is Degraded
 - If a **non-critical** check is Unhealthy → overall is Degraded (not Unhealthy)
@@ -175,6 +176,7 @@ let result = HealthCheckResult::healthy()
 This health check system is designed to integrate with Kubernetes health probes:
 
 ### Liveness Probe
+
 ```rust
 // Simple check - is the process alive?
 pub async fn liveness_check() -> Result<Json<LivenessResponse>, ApiError> {
@@ -187,6 +189,7 @@ pub async fn liveness_check() -> Result<Json<LivenessResponse>, ApiError> {
 ```
 
 ### Readiness Probe
+
 ```rust
 // Comprehensive check - is the service ready to accept traffic?
 pub async fn readiness_check(registry: &HealthCheckRegistry) -> Result<Json<ReadinessResponse>, ApiError> {
@@ -208,6 +211,7 @@ pub async fn readiness_check(registry: &HealthCheckRegistry) -> Result<Json<Read
 ```
 
 ### Startup Probe
+
 ```rust
 // Check if initialization is complete
 pub async fn startup_check(registry: &HealthCheckRegistry) -> Result<Json<StartupResponse>, ApiError> {
@@ -312,6 +316,7 @@ When Secreton is sealed, the readiness probe will fail, preventing traffic from 
 #### Implementation Details
 
 The seal status health check:
+
 - Checks the seal status from Secreton's core state
 - Returns detailed information including seal status in the response
 - Is marked as a critical check (affects overall system health)
@@ -405,6 +410,7 @@ The Raft cluster health check evaluates the following conditions:
 #### Implementation Details
 
 The Raft cluster health check:
+
 - Checks leader status from Raft metrics
 - Monitors peer connectivity and replication lag
 - Returns detailed information including leader ID, peer count, and lag metrics

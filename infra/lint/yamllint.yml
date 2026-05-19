@@ -21,6 +21,11 @@ rules:
     max-spaces-inside: 1
   brackets:
     max-spaces-inside: 1
+  # Helm values gunakan alignment manual untuk readability
+  # (mis. `limits:   { cpu: "1",  memory: 1Gi }`). Disable rule yang
+  # menolak extra spaces — gaya ini sengaja dipilih.
+  colons: disable
+  commas: disable
 
 ignore: |
   node_modules/
@@ -32,3 +37,10 @@ ignore: |
   monolith/simpelv1/node_modules/
   monolith/simpelv1/public/assets/
   infra/helm/*/charts/
+  # Helm chart templates pakai sintaks `{{ .Values.foo }}` yang bukan
+  # YAML valid sebelum di-render oleh Helm. yamllint melempar "syntax
+  # error" untuk file ini; lewatkan seluruh subtree templates di tiap
+  # chart. Patterns harus relatif terhadap working-dir saat yamllint
+  # dijalankan; pakai `**` glob untuk match recursive.
+  **/infra/helm/*/templates/**
+  infra/helm/*/templates/**

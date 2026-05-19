@@ -54,6 +54,7 @@ pub async fn status(&self) -> SealStatus {
 ## Behavior After Fix
 
 ### Fresh Secret Vault (Belum Initialize)
+
 ```bash
 GET /v1/sys/seal-status
 {
@@ -66,6 +67,7 @@ GET /v1/sys/seal-status
 ```
 
 ### After Initialization
+
 ```bash
 POST /v1/sys/init
 {
@@ -86,6 +88,7 @@ GET /v1/sys/seal-status
 ```
 
 ### After Restart
+
 ```bash
 # Container restart
 docker-compose restart secreton
@@ -103,12 +106,14 @@ GET /v1/sys/seal-status
 ## Security Implications
 
 ### Before Fix (VULNERABLE)
+
 - Secret Vault menunjukkan `initialized: true` pada fresh start
 - Operator bisa bingung apakah engine sudah di-setup atau belum
 - Potensi operator skip initialization process
 - Tidak jelas apakah engine state valid atau corrupt
 
 ### After Fix (SECURE)
+
 - ✅ Fresh engine jelas menunjukkan `initialized: false`
 - ✅ Operator tahu harus melakukan init terlebih dahulu
 - ✅ Status `initialized` akurat mencerminkan engine state
@@ -117,22 +122,26 @@ GET /v1/sys/seal-status
 ## Testing
 
 ### Unit Tests
+
 ```bash
 cargo test -p secreton-core --test seal_initialized_status_test
 ```
 
 Tests yang dijalankan:
+
 1. ✅ `test_fresh_engine_not_initialized` - Fresh engine NOT initialized
 2. ✅ `test_engine_initialized_after_init` - Initialized after init
 3. ✅ `test_engine_initialized_persists_across_restarts` - State persists
 4. ✅ `test_cannot_initialize_twice` - Re-init behavior documented
 
 ### Integration Test
+
 ```bash
 ./test_initialized_status.sh
 ```
 
 Test flow:
+
 1. Fresh start → `initialized: false`
 2. POST /v1/sys/init → Generate keys
 3. Check status → `initialized: true`, `sealed: true`
@@ -174,6 +183,7 @@ Sealed: true        # ✅ Remains sealed after init
 ## Conclusion
 
 Fix ini memastikan bahwa:
+
 1. ✅ Secret Vault initialization status akurat
 2. ✅ Operator mendapat feedback yang jelas
 3. ✅ Security best practices diikuti (engine remains sealed after init)
@@ -181,4 +191,3 @@ Fix ini memastikan bahwa:
 5. ✅ State persistence bekerja dengan benar
 
 **Status**: ✅ FIXED and TESTED
-

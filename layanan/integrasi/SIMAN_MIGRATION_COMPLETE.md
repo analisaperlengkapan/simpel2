@@ -201,7 +201,7 @@ SIMAN menggunakan konvensi nama tabel khusus dengan prefix ganda "ASET\_" untuk 
 - ✅ SIMAN2*M_ASET***ASET\_**TAK_BERWUJUD
 - ✅ SIMAN2*M_ASET***ASET\_**TETAP_LAINNYA
 - ✅ SIMAN2*M_ASET***ASET\_**TETAP_RENOVASI
-- ✅ SIMAN2*M_ASET_JALAN***DAN\_**JEMBATAN (with "_DAN_")
+- ✅ SIMAN2*M_ASET_JALAN***DAN\_**JEMBATAN (with "*DAN*")
 
 Konvensi ini sudah diimplementasikan dengan benar di `src/siman/models.rs` table_name() method.
 

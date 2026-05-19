@@ -45,6 +45,7 @@ Pakai **Opsi D**: helper templates di `templates/_<area>.tpl` yang dipanggil ole
 ### Schema Validation
 
 `values.schema.json` memvalidasi:
+
 - `global.imageTag` regex `^v\d+\.\d+\.\d+(-[A-Za-z0-9.-]+)?$` (semver immutable)
 - `global.environment` enum [`staging`, `production`]
 - `mtls.mode` enum [DISABLE, PERMISSIVE, STRICT, UNSET]
@@ -65,6 +66,7 @@ Konfigurasi inline di `values.yaml` (`service.ports`, `env`, `probes`, `volumes`
 ## Konsekuensi
 
 ### Positif
+
 - **95% kompresi**: 94 baris → 5 baris per service template.
 - **Consistency**: security context, probes, strategy RollingUpdate seragam.
 - **Validation**: typo / mutable tag direject sebelum cluster impact.
@@ -73,11 +75,13 @@ Konfigurasi inline di `values.yaml` (`service.ports`, `env`, `probes`, `volumes`
 - **Schema dokumentasi**: developer paham field yang valid tanpa baca kode.
 
 ### Negatif / Risiko
+
 - Learning curve helper Helm (`include`, `dict`, `nindent`) untuk kontributor.
 - Helper bug = 9 service kena (vs 1 dengan refactor manual).
 - Beberapa service kompleks (postgres dengan 3 Service, redis dengan 2 Service alias + PVC, simpelv1 dengan init container) **tidak** bisa pakai helper umum — tetap di template existing.
 
 ### Mitigasi
+
 - Helper ditest via `helm template --debug` di kedua env (staging & production) sebelum merge.
 - Schema strict prevent typo.
 - Service kompleks (postgres/redis/simpelv1) dipertahankan template-nya hingga refactor follow-up dengan helper variant.

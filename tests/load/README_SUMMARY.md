@@ -20,6 +20,7 @@ ml            # Kubernetes Job manifests
     ├── api_YYYYMMDD_HHMMSS.log
     ├── search_YYYYMMDD_HHMMSS.log
     └── analysis_report_YYYYMMDD_HHMMSS.md
+
 ```
 
 ## 🚀 Quick Start
@@ -69,17 +70,20 @@ kubectl apply -f tests/load/k8s-load-test-job.yaml -n simpelv2-staging
 **Purpose:** Test dashboard performance with 100 concurrent users
 
 **Stages:**
+
 - Ramp up: 1-3 minutes (20 → 100 users)
 - Sustained: 5 minutes (100 users)
 - Ramp down: 2 minutes (100 → 0 users)
 
 **Endpoints Tested:**
+
 - `/api/v1/dashboard/portal`
 - `/api/v1/dashboard/perlengkapan`
 - `/api/v1/dashboard/gap-analysis`
 - `/api/v1/dashboard/workflow-metrics`
 
 **Success Criteria:**
+
 - ✅ p95 response time ≤ 5 seconds
 - ✅ Error rate < 5%
 
@@ -88,10 +92,12 @@ kubectl apply -f tests/load/k8s-load-test-job.yaml -n simpelv2-staging
 **Purpose:** Test API throughput at 100 requests/second
 
 **Scenarios:**
+
 - Constant rate: 100 req/s for 5 minutes
 - Ramping VUs: 0 → 200 users over 12 minutes
 
 **Endpoints Tested:**
+
 - `/api/v1/kebutuhan` (30% weight)
 - `/api/v1/pakaian-dinas` (15% weight)
 - `/api/v1/roadmap` (10% weight)
@@ -100,6 +106,7 @@ kubectl apply -f tests/load/k8s-load-test-job.yaml -n simpelv2-staging
 - Others (25% weight)
 
 **Success Criteria:**
+
 - ✅ p95 response time ≤ 500ms
 - ✅ Throughput ≥ 100 req/s
 - ✅ Error rate < 1%
@@ -109,6 +116,7 @@ kubectl apply -f tests/load/k8s-load-test-job.yaml -n simpelv2-staging
 **Purpose:** Test search functionality performance
 
 **Stages:**
+
 - Warm up: 1 minute (10 users)
 - Ramp up: 5 minutes (10 → 50 users)
 - Sustained: 5 minutes (50 users)
@@ -117,12 +125,14 @@ kubectl apply -f tests/load/k8s-load-test-job.yaml -n simpelv2-staging
 - Ramp down: 1 minute (50 → 0 users)
 
 **Search Types:**
+
 - Basic search
 - Search with filters
 - Search with pagination
 - Autocomplete search
 
 **Success Criteria:**
+
 - ✅ p95 response time ≤ 500ms
 - ✅ p99 response time ≤ 2 seconds
 - ✅ Error rate < 2%

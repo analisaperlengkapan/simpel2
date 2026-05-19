@@ -52,6 +52,7 @@ The `PostgresCredentialStore` implements the `CredentialStore` trait with full P
 - **Update nickname**: Updates user-assigned nickname
 
 **Key Features**:
+
 - Proper error handling with `AuthencError`
 - Comprehensive logging (info, debug, error levels)
 - Serialization/deserialization of Passkey objects to/from JSONB
@@ -171,6 +172,7 @@ All operations have optimal O(log n) complexity thanks to proper indexing.
 ## Conclusion
 
 Task 6.2 is complete. The PostgreSQL credential store implementation is production-ready with:
+
 - Full CRUD operations
 - Optimal performance indexes
 - Proper data integrity constraints

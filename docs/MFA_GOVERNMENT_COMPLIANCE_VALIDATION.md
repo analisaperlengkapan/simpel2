@@ -730,6 +730,7 @@ The MFA implementation in SIMPEL demonstrates strong compliance with Indonesian 
 **Overall Compliance Rating: A (Excellent)**
 
 The system successfully meets:
+
 - ✅ Peraturan Menteri Komunikasi dan Informatika No. 4 Tahun 2016
 - ✅ Surat Edaran Menteri PANRB No. 3 Tahun 2018
 - ✅ ISO 27001:2013 requirements

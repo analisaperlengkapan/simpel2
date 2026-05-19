@@ -34,27 +34,27 @@ topo_order = false
 sort_commits = "newest"
 
 commit_parsers = [
-    { message = "^feat", group = "Features" },
-    { message = "^fix", group = "Bug Fixes" },
-    { message = "^perf", group = "Performance" },
-    { message = "^security", group = "Security" },
-    { message = "^sec\\(", group = "Security" },
-    { body = ".*security.*", group = "Security" },
-    { message = "^refactor", group = "Refactoring" },
-    { message = "^docs", group = "Documentation" },
-    { message = "^test", group = "Testing" },
-    { message = "^build", group = "Build System" },
-    { message = "^ci", group = "CI / Internal" },
-    { message = "^chore\\(deps\\)", group = "Dependencies" },
-    { message = "^deps", group = "Dependencies" },
-    { message = "^chore", group = "Internal" },
-    { message = "^style", group = "Style" },
-    { message = "^revert", group = "Reverts" },
-    { message = "^.*", group = "Other" },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^security", group = "Security" },
+  { message = "^sec\\(", group = "Security" },
+  { body = ".*security.*", group = "Security" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Testing" },
+  { message = "^build", group = "Build System" },
+  { message = "^ci", group = "CI / Internal" },
+  { message = "^chore\\(deps\\)", group = "Dependencies" },
+  { message = "^deps", group = "Dependencies" },
+  { message = "^chore", group = "Internal" },
+  { message = "^style", group = "Style" },
+  { message = "^revert", group = "Reverts" },
+  { message = "^.*", group = "Other" },
 ]
 
 commit_preprocessors = []
 
 link_parsers = [
-    { pattern = "#(\\d+)", href = "https://github.com/analisaperlengkapan/simpel2/issues/$1" },
+  { pattern = "#(\\d+)", href = "https://github.com/analisaperlengkapan/simpel2/issues/$1" },
 ]

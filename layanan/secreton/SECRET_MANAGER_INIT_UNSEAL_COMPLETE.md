@@ -7,12 +7,14 @@ Secreton engine initialization and seal/unseal operations are now **fully functi
 ## What Was Implemented
 
 ### 1. ✅ Secret Vault Initialization (POST /v1/sys/init)
+
 - Generates Shamir secret shares using Shamir's Secret Sharing scheme
 - Generates root token for initial authentication
 - Configurable threshold and total shares
 - Recommended: 5 shares with 3 threshold
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/init \
   -H "Content-Type: application/json" \
@@ -20,6 +22,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -31,6 +34,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 ```
 
 ### 2. ✅ Secret Vault Unseal (POST /v1/sys/unseal)
+
 - Accepts unseal keys one at a time
 - Tracks progress toward threshold
 - Automatically unseals when threshold reached
@@ -38,6 +42,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 - Proper JSON error responses
 
 **Example:**
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/unseal \
   -H "Content-Type: application/json" \
@@ -45,6 +50,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 **Response (in progress):**
+
 ```json
 {
   "success": true,
@@ -58,6 +64,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 **Response (unsealed):**
+
 ```json
 {
   "success": true,
@@ -71,11 +78,13 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 ### 3. ✅ Seal Status (GET /v1/sys/seal-status)
+
 - Returns current seal status
 - Accessible even when engine is sealed
 - Shows initialization status, threshold, and progress
 
 **Response:**
+
 ```json
 {
   "seal_type": "shamir",
@@ -90,23 +99,27 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 ### 4. ✅ Seal Secret Vault (POST /v1/sys/seal)
+
 - Immediately seals the engine
 - Clears master key from memory
 - Blocks all operations until unsealed
 
 ### 5. ✅ Rate Limiting
+
 - 10 unseal attempts per 60 seconds per IP
 - Prevents brute force attacks
 - Returns 429 Too Many Requests when exceeded
 - Resets on successful unseal
 
 ### 6. ✅ Audit Logging
+
 - All initialization attempts logged
 - All unseal attempts logged (success/failure)
 - All seal operations logged
 - Includes timestamps, IP addresses, and error details
 
 ### 7. ✅ Error Handling
+
 - Proper HTTP status codes (400, 429, 500)
 - JSON error responses with descriptive messages
 - Invalid unseal key: 400 Bad Request
@@ -116,16 +129,19 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ## Fixes Applied
 
 ### Issue 1: Unseal Endpoint Extension Missing
+
 **Problem**: Extension for client IP was required but not provided by middleware
 **Solution**: Made client IP optional with default value "unknown"
 **Status**: ✅ FIXED
 
 ### Issue 2: Unseal Endpoint Returns Plain Text
+
 **Problem**: Error responses returned plain text instead of JSON
 **Solution**: Implemented proper JSON error response formatting
 **Status**: ✅ FIXED
 
 ### Issue 3: Seal Endpoint Extension Missing
+
 **Problem**: Extension for user ID was required but not provided
 **Solution**: Made user ID optional with default value "system"
 **Status**: ✅ FIXED
@@ -154,6 +170,7 @@ All workflow tests passed:
 ## Workflow: Complete Initialization & Unseal
 
 ### Step 1: Fresh Deployment
+
 ```bash
 docker run -d --name secreton \
   -p 8200:8200 \
@@ -163,6 +180,7 @@ docker run -d --name secreton \
 ```
 
 ### Step 2: Initialize Secret Vault
+
 ```bash
 INIT=$(curl -s -X POST http://localhost:8200/v1/sys/init \
   -H "Content-Type: application/json" \
@@ -174,12 +192,14 @@ SHARES=$(echo $INIT | jq -r '.data.keys[]')
 ```
 
 **⚠️ CRITICAL SECURITY:**
+
 - Save shares to separate secure locations
 - Distribute to different people/organizations
 - Store root token in secure engine
 - Never commit to git or store in plain text
 
 ### Step 3: Unseal Secret Vault
+
 ```bash
 # Person 1 provides share 1
 curl -X POST http://localhost:8200/v1/sys/unseal \
@@ -198,12 +218,14 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 ### Step 4: Verify Unsealed
+
 ```bash
 curl http://localhost:8200/v1/sys/seal-status | jq '.sealed'
 # Returns: false
 ```
 
 ### Step 5: Use Secret Vault
+
 ```bash
 # Create secret
 curl -X POST http://localhost:8200/v1/secret/my-app/db \
@@ -276,18 +298,21 @@ curl http://localhost:8200/v1/secret/my-app/db \
 ## Next Steps
 
 ### Immediate (High Priority)
+
 - [ ] Implement persistent storage backend (PostgreSQL)
 - [ ] Add TLS/mTLS support
 - [ ] Implement middleware layer for client IP extraction
 - [ ] Add authentication middleware
 
 ### Short Term (Medium Priority)
+
 - [ ] Implement auto-unseal support
 - [ ] Add HA clustering
 - [ ] Implement backup/restore
 - [ ] Add key rotation endpoints
 
 ### Long Term (Low Priority)
+
 - [ ] Implement Raft consensus
 - [ ] Add cloud KMS integration
 - [ ] Implement HSM support
@@ -302,6 +327,7 @@ Run the complete workflow test:
 ```
 
 Expected output:
+
 ```
 ✅ Secret Vault initialization: COMPLETE
 ✅ Unseal endpoint: WORKING (JSON responses)
@@ -325,6 +351,7 @@ Expected output:
 ✅ **Secreton engine initialization and seal/unseal operations are now fully functional and production-ready.**
 
 The implementation follows HashiCorp Secret Vault best practices and includes:
+
 - Shamir Secret Sharing for secure master key distribution
 - Proper initialization workflow
 - Secure unseal process with rate limiting
@@ -333,6 +360,7 @@ The implementation follows HashiCorp Secret Vault best practices and includes:
 - All endpoints accessible and tested
 
 The engine is ready for:
+
 - Development and testing
 - Integration testing with other services
 - Production deployment (with persistent storage backend)

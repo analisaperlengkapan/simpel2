@@ -3,20 +3,24 @@
 ## 1. Overview
 
 ### 1.1 Purpose
+
 This design document specifies the architecture and implementation details for achieving full enterprise readiness of Authenc, SIMPEL's Identity and Access Management (IAM) service. The design addresses critical gaps identified in the requirements document, focusing on production management capabilities, user self-service, compliance features, and government-specific integrations for Indonesian government deployment.
 
 **Document Status**: REFRESHED - Updated to ensure complete alignment with all 31 functional requirements (FR-1 through FR-31), 66 non-functional requirements (NFR-1 through NFR-66), and 56 correctness properties.
 
 ### 1.2 Scope
+
 This design covers the following enterprise features:
 
 **Critical Priority (Phase 1 - Q1 2026)**:
+
 - Admin Console UI (Leptos 0.8.x WASM-based web interface) - **Addresses FR-1 through FR-6**
 - User Account Console (self-service portal) - **Addresses FR-7 through FR-12**
 - Enhanced Event System (separate admin/user/system events) - **Addresses FR-13 through FR-15**
 - Required Actions framework - **Addresses FR-17**
 
 **High Priority (Phase 2 - Q2 2026)**:
+
 - Authentication Flows customization - **Addresses FR-16**
 - Composite Roles system - **Addresses FR-18, FR-19**
 - User Storage Federation (MySIMKARI integration) - **Addresses FR-20, FR-21**
@@ -24,11 +28,13 @@ This design covers the following enterprise features:
 - Email Template system - **Addresses FR-26**
 
 **Medium Priority (Phase 3 - Q3 2026)**:
+
 - Session Management enhancements - **Addresses FR-22, FR-23**
 - Import/Export capabilities - **Addresses FR-27, FR-28**
 - Client Scopes & Protocol Mappers enhancement
 
 **Government-Specific Features (All Phases)**:
+
 - NIP (Nomor Induk Pegawai) validation - **Addresses FR-29**
 - Satker (Satuan Kerja) hierarchy enforcement - **Addresses FR-30**
 - Audit reports - **Addresses FR-31**
@@ -36,6 +42,7 @@ This design covers the following enterprise features:
 - Indonesian language support - **Addresses NFR-25 through NFR-29**
 
 ### 1.3 Goals
+
 1. **Production Readiness**: Enable full management of Authenc without manual database operations
 2. **User Self-Service**: Reduce administrative burden through user account console
 3. **Compliance**: Meet Indonesian government requirements (audit compliance, ISO 27001, SPBE)
@@ -45,6 +52,7 @@ This design covers the following enterprise features:
 7. **Security**: Maintain superior security features (Ed25519, Post-Quantum Crypto) - **Addresses NFR-8 through NFR-18**
 
 ### 1.4 Non-Goals
+
 - Kerberos authentication (low priority, specialized use case)
 - X.509 client certificates (alternative methods available)
 - JavaScript/Drools policy engine (current policy engine sufficient)
@@ -52,6 +60,7 @@ This design covers the following enterprise features:
 - Migration from Keycloak (Authenc is primary IAM)
 
 ### 1.5 Success Criteria
+
 - Admin Console loads in <2 seconds - **NFR-1**
 - API response time <100ms at p95 - **NFR-2**
 - Database queries <10ms at p95 - **NFR-3**
@@ -70,6 +79,7 @@ This design covers the following enterprise features:
 This design addresses all functional and non-functional requirements as follows:
 
 **Functional Requirements Coverage**:
+
 - **FR-1 to FR-6** (Admin Console): Section 3.1 - Admin Console UI
 - **FR-7 to FR-12** (User Account Console): Section 3.2 - User Account Console
 - **FR-13 to FR-15** (Event System): Section 3.3.1 - Event Service
@@ -86,6 +96,7 @@ This design addresses all functional and non-functional requirements as follows:
 - **FR-31** (Audit Reports): Section 6.3 - Audit Report Service
 
 **Non-Functional Requirements Coverage**:
+
 - **NFR-1 to NFR-7** (Performance): Section 10 - Performance Optimization
 - **NFR-8 to NFR-18** (Security): Section 9 - Security Considerations
 - **NFR-19 to NFR-24** (Accessibility): Section 3.1, 3.2 - UI Components
@@ -169,6 +180,7 @@ Following SIMPEL architecture patterns, Authenc uses a clear separation between 
 #### 2.2.1 Frontend Layer (Leptos 0.8.x WASM CSR)
 
 **Technology Stack**:
+
 - **Framework**: Leptos 0.8.x (Client-Side Rendering)
 - **Build Tool**: Trunk
 - **Styling**: Tailwind CSS (via lib-ui)
@@ -179,6 +191,7 @@ Following SIMPEL architecture patterns, Authenc uses a clear separation between 
 - **Shared Components**: lib-ui (from SIMPEL workspace)
 
 **UI Folder Structure**:
+
 ```
 layanan/authenc/src/ui/
 ├── mod.rs                  # UI module exports
@@ -218,6 +231,7 @@ layanan/authenc/src/ui/
 ```
 
 **Design Rationale**:
+
 - **Separation of Concerns**: Each UI module (admin, account, auth) has distinct access controls and user audiences
 - **Reusability**: Shared components in `components/` reduce code duplication
 - **Maintainability**: Clear folder structure makes it easy to locate and modify specific features
@@ -225,6 +239,7 @@ layanan/authenc/src/ui/
 - **Security**: Different authentication requirements for admin vs account vs auth pages
 
 **Key Patterns**:
+
 ```rust
 // ✅ Leptos 0.8.x signal creation (NOT create_signal!)
 let (count, set_count) = signal(0);
@@ -254,6 +269,7 @@ let save_user = Action::new(move |user: &User| {
 ```
 
 **Communication Rules** (CRITICAL):
+
 - ✅ Microfrontends call Authenc REST API (JSON/HTTP)
 - ⛔ Microfrontends NEVER call Secreton or MySIMKARI directly
 - ⛔ Microfrontends NEVER call gRPC services
@@ -262,6 +278,7 @@ let save_user = Action::new(move |user: &User| {
 #### 2.2.2 Backend Layer (Axum 0.8.x + Tonic 0.14.x)
 
 **Technology Stack**:
+
 - **HTTP Framework**: Axum 0.8.x
 - **gRPC Framework**: Tonic 0.14.x + Prost 0.14.x
 - **Database**: tokio-postgres + deadpool-postgres
@@ -273,6 +290,7 @@ let save_user = Action::new(move |user: &User| {
 - **Metrics**: prometheus + opentelemetry
 
 **Key Patterns**:
+
 ```rust
 // ✅ Axum 0.8.x router with State
 pub fn create_admin_router(state: Arc<AppState>) -> Router {
@@ -305,6 +323,7 @@ let jwt_key = state.secreton_client
 ```
 
 **Service Layer Architecture**:
+
 - Services contain business logic
 - Services orchestrate multiple stores
 - Services handle external integrations (gRPC to Secreton, MySIMKARI)
@@ -312,6 +331,7 @@ let jwt_key = state.secreton_client
 - Services emit events for audit logging
 
 **Data Access Layer (Stores)**:
+
 - Stores handle database operations
 - Stores use connection pooling (deadpool-postgres)
 - Stores use prepared statements for performance
@@ -321,6 +341,7 @@ let jwt_key = state.secreton_client
 #### 2.2.3 Data Layer
 
 **PostgreSQL** (Primary Data Store):
+
 - Users, roles, clients, realms
 - Authentication flows, required actions
 - Admin events, user events
@@ -329,6 +350,7 @@ let jwt_key = state.secreton_client
 - Email templates
 
 **Redis** (Cache & Sessions):
+
 - Active sessions (primary)
 - NIP validation cache (5 minutes TTL)
 - User attribute cache
@@ -336,12 +358,14 @@ let jwt_key = state.secreton_client
 - Distributed locks
 
 **Kafka** (Optional - Event Streaming):
+
 - Admin event stream
 - User event stream
 - Security event stream
 - Integration with SIEM systems
 
 **Elasticsearch** (Optional - Audit Search):
+
 - Full-text search on audit logs
 - Compliance reporting
 - Security analytics
@@ -349,6 +373,7 @@ let jwt_key = state.secreton_client
 ### 2.3 Integration Architecture
 
 #### 2.3.1 Secreton Integration (gRPC)
+
 ```rust
 // Authenc backend calls Secreton for:
 // - JWT signing keys
@@ -365,6 +390,7 @@ let secreton_client = SecretonGrpcClient::new(
 ```
 
 #### 2.3.2 MySIMKARI Integration (gRPC)
+
 ```rust
 // Authenc backend calls MySIMKARI for:
 // - NIP validation
@@ -383,6 +409,7 @@ let mysimkari_client = IntegrasiClient::new(
 ### 2.4 Deployment Architecture
 
 **Kubernetes Deployment** (MicroK8s with Istio):
+
 ```yaml
 # Namespace: simpelv2-production
 # Replicas: 3 (HA)
@@ -393,6 +420,7 @@ let mysimkari_client = IntegrasiClient::new(
 ```
 
 **Service Communication**:
+
 - Frontend → Authenc REST API: HTTPS (Istio mTLS)
 - Authenc → Secreton: gRPC (mTLS)
 - Authenc → MySIMKARI: gRPC (mTLS)
@@ -404,6 +432,7 @@ let mysimkari_client = IntegrasiClient::new(
 ### 3.1 Admin Console UI
 
 #### 3.1.1 Technology Stack
+
 - **Framework**: Leptos 0.8.x (WASM CSR)
 - **Styling**: Tailwind CSS
 - **Icons**: Heroicons
@@ -413,6 +442,7 @@ let mysimkari_client = IntegrasiClient::new(
 - **HTTP Client**: gloo-net
 
 #### 3.1.2 Page Structure
+
 ```
 /admin
 ├── /dashboard              # System overview and metrics
@@ -478,6 +508,7 @@ let mysimkari_client = IntegrasiClient::new(
 #### 3.1.3 Key Components
 
 **Dashboard Component**
+
 ```rust
 #[component]
 pub fn AdminDashboard() -> impl IntoView {
@@ -511,6 +542,7 @@ pub fn AdminDashboard() -> impl IntoView {
 ```
 
 **User Management Component**
+
 ```rust
 #[component]
 pub fn UserManagement() -> impl IntoView {
@@ -562,6 +594,7 @@ pub fn UserManagement() -> impl IntoView {
 ### 3.2 User Account Console
 
 #### 3.2.1 Page Structure
+
 ```
 /account
 ├── /                       # Profile overview
@@ -584,6 +617,7 @@ pub fn UserManagement() -> impl IntoView {
 #### 3.2.2 Key Components
 
 **Profile Management**
+
 ```rust
 #[component]
 pub fn ProfileManagement() -> impl IntoView {
@@ -645,6 +679,7 @@ pub fn ProfileManagement() -> impl IntoView {
 ```
 
 **MFA Device Management**
+
 ```rust
 #[component]
 pub fn MfaDeviceManagement() -> impl IntoView {
@@ -703,6 +738,7 @@ pub fn MfaDeviceManagement() -> impl IntoView {
 #### 3.3.1 Event Service
 
 **Event Storage Schema**
+
 ```sql
 -- Admin Events Table
 CREATE TABLE admin_events (
@@ -755,6 +791,7 @@ CREATE TABLE event_config (
 ```
 
 **Event Service Implementation**
+
 ```rust
 pub struct EventService {
     admin_event_store: Arc<AdminEventStore>,
@@ -902,6 +939,7 @@ pub enum UserEventType {
 #### 3.3.2 Authentication Flow Service
 
 **Authentication Flow Schema**
+
 ```sql
 -- Authentication Flows Table
 CREATE TABLE authentication_flows (
@@ -958,6 +996,7 @@ CREATE TABLE user_required_actions (
 ```
 
 **Authentication Flow Service Implementation**
+
 ```rust
 pub struct AuthenticationFlowService {
     flow_store: Arc<AuthenticationFlowStore>,
@@ -1173,6 +1212,7 @@ pub enum ExecutionRequirement {
 ### 4.1 Core Entities
 
 #### 4.1.1 Composite Role Model
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Role {
@@ -1227,6 +1267,7 @@ CREATE INDEX idx_composite_roles_child ON composite_roles(child_role_id);
 ```
 
 #### 4.1.2 User Storage Provider Model
+
 ```rust
 #[async_trait]
 pub trait UserStorageProvider: Send + Sync {
@@ -1318,6 +1359,7 @@ impl UserStorageProvider for MysimkariUserStorageProvider {
 ```
 
 #### 4.1.3 Registration Configuration Model
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegistrationConfig {
@@ -1404,12 +1446,14 @@ pub fn create_gov_registration_fields() -> Vec<RegistrationField> {
 A property is a characteristic or behavior that should hold true across all valid executions of a system—essentially, a formal statement about what the system should do. Properties serve as the bridge between human-readable specifications and machine-verifiable correctness guarantees.
 
 In this design, we define 56 correctness properties that validate the functional requirements. Each property:
+
 - Is universally quantified (applies to all valid inputs)
 - Is testable through property-based testing
 - Maps directly to one or more functional requirements
 - Provides a formal specification of expected behavior
 
 **Property Testing Approach**:
+
 - Each property will be implemented as a property-based test using **proptest**
 - Minimum 100 iterations per test (due to randomization)
 - Each test tagged with: `// Feature: authenc-keycloak-parity, Property {number}: {property_text}`
@@ -1682,11 +1726,13 @@ Property 56: Audit report PDF generation
 **Overview**: This section addresses FR-29 (NIP Validation), FR-30 (Satker Hierarchy), and FR-31 (Audit Reports) - critical requirements for Indonesian government deployment.
 
 **Integration Points**:
+
 - MySIMKARI gRPC service for NIP validation and employee data
 - SIMAN integration for organizational hierarchy
 - MonSAKTI integration for financial data (future)
 
 **Compliance Requirements**:
+
 - Audit compliance
 - SPBE (Sistem Pemerintahan Berbasis Elektronik) standards
 - Data residency (all data must remain in Indonesia)
@@ -1695,6 +1741,7 @@ Property 56: Audit report PDF generation
 ### 6.1 NIP Validation Service (FR-29)
 
 #### 6.1.1 Architecture
+
 ```rust
 pub struct NipValidationService {
     mysimkari_client: Arc<IntegrasiClient>,
@@ -1816,6 +1863,7 @@ pub struct PegawaiInfo {
 ```
 
 #### 6.1.2 Database Schema
+
 ```sql
 -- NIP validation cache (optional, Redis is primary cache)
 CREATE TABLE nip_validation_cache (
@@ -1842,6 +1890,7 @@ CREATE TABLE nip_validation_log (
 ### 6.2 Satker Hierarchy Service
 
 #### 6.2.1 Architecture
+
 ```rust
 pub struct SatkerHierarchyService {
     db: Arc<Database>,
@@ -2015,6 +2064,7 @@ pub struct SatkerTree {
 ```
 
 #### 6.2.2 Database Schema
+
 ```sql
 -- Satker hierarchy table
 CREATE TABLE satkers (
@@ -2054,6 +2104,7 @@ INSERT INTO satkers (id, name, parent_id, level, code) VALUES
 ### 6.3 Audit Report Service
 
 #### 6.3.1 Architecture
+
 ```rust
 pub struct AuditReportService {
     db: Arc<Database>,
@@ -2301,6 +2352,7 @@ pub struct ComplianceStatus {
 ```
 
 #### 6.3.2 REST API Endpoints
+
 ```rust
 // GET /api/admin/reports/bpk/audit
 pub async fn generate_bpk_audit_report(
@@ -2347,6 +2399,7 @@ pub async fn export_bpk_audit_report_pdf(
 **Requirements Addressed**: This section implements error handling patterns to support NFR-47 through NFR-52 (Reliability) and NFR-8 through NFR-18 (Security).
 
 **Error Handling Principles**:
+
 1. **Graceful Degradation**: System continues operating when dependencies fail (NFR-48)
 2. **Circuit Breaker Pattern**: Prevents cascading failures in external service calls (NFR-49)
 3. **Retry Logic**: Exponential backoff for transient failures (NFR-50)
@@ -2515,6 +2568,7 @@ impl IntoResponse for AuthencError {
 ### 6.2 Error Handling Patterns
 
 #### 6.2.1 Circuit Breaker for External Services
+
 ```rust
 pub struct CircuitBreaker {
     state: Arc<RwLock<CircuitState>>,
@@ -2574,6 +2628,7 @@ impl CircuitBreaker {
 ```
 
 #### 6.2.2 Retry Logic with Exponential Backoff
+
 ```rust
 pub async fn retry_with_backoff<F, T>(
     mut f: F,
@@ -2628,6 +2683,7 @@ When external services are unavailable, the system should degrade gracefully:
 **Requirements Addressed**: This section implements testing approaches to meet NFR-37 through NFR-41 (Maintainability) and ensure all 56 correctness properties are verified.
 
 **Testing Goals**:
+
 - Unit test coverage >80% (NFR-37)
 - Integration test coverage >70% (NFR-38)
 - E2E test coverage for critical user flows (NFR-39)
@@ -2646,13 +2702,16 @@ The testing strategy follows a dual approach combining unit tests and property-b
 ### 7.2 Property-Based Testing
 
 #### 7.2.1 Testing Library
+
 Use **proptest** for Rust property-based testing:
+
 ```toml
 [dev-dependencies]
 proptest = "1.4"
 ```
 
 #### 7.2.2 Test Configuration
+
 - Minimum 100 iterations per property test (due to randomization)
 - Each property test must reference its design document property
 - Tag format: `// Feature: authenc-keycloak-parity, Property {number}: {property_text}`
@@ -2660,6 +2719,7 @@ proptest = "1.4"
 #### 7.2.3 Example Property Tests
 
 **Property 1: Realm enable/disable state persistence**
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -2703,6 +2763,7 @@ mod tests {
 ```
 
 **Property 11: Circular dependency detection**
+
 ```rust
 // Feature: authenc-keycloak-parity, Property 11: Circular dependency detection
 proptest! {
@@ -2749,6 +2810,7 @@ proptest! {
 ```
 
 **Property 17: Session limit enforcement**
+
 ```rust
 // Feature: authenc-keycloak-parity, Property 17: Session limit enforcement
 proptest! {
@@ -2798,6 +2860,7 @@ proptest! {
 ```
 
 **Property 27: Import/Export round-trip**
+
 ```rust
 // Feature: authenc-keycloak-parity, Property 27: Import/Export round-trip
 proptest! {
@@ -3022,6 +3085,7 @@ async fn test_api_response_time_p95() {
 **Overview**: Implementation is organized into 5 phases over 12 months, prioritizing critical features first. Each phase includes specific functional requirements and deliverables.
 
 **Phase Summary**:
+
 - **Phase 1 (Q1 2026)**: Critical features - Admin Console, User Console, Event System, Required Actions
 - **Phase 2 (Q2 2026)**: High-priority features - Authentication Flows, Composite Roles, Federation, Registration
 - **Phase 3 (Q3 2026)**: Medium-priority features - Session Management, Import/Export, Client Scopes
@@ -3035,6 +3099,7 @@ async fn test_api_response_time_p95() {
 **Requirements Addressed**: FR-1 through FR-17, NFR-1 through NFR-24
 
 **Priority 1: Admin Console UI (8 weeks) - Addresses FR-1 through FR-6**
+
 - Week 1-2: Architecture, design, and Leptos setup
   - Set up Leptos 0.8.x project structure
   - Create routing system and layout components
@@ -3057,6 +3122,7 @@ async fn test_api_response_time_p95() {
   - Health check and diagnostics UI
 
 **Priority 2: Event System (3 weeks)**
+
 - Week 1: Database schema for separate admin/user events
   - Create admin_events and user_events tables
   - Create event_config table
@@ -3074,6 +3140,7 @@ async fn test_api_response_time_p95() {
   - Test event export pipeline
 
 **Priority 3: Required Actions System (2 weeks)**
+
 - Week 1: Required actions framework and database schema
   - Create required_actions and user_required_actions tables
   - Implement RequiredActionService
@@ -3086,6 +3153,7 @@ async fn test_api_response_time_p95() {
   - Test all built-in actions
 
 **Priority 4: User Account Console (4 weeks)**
+
 - Week 1-2: Profile and password management
   - Create user account console layout
   - Implement profile view and edit UI
@@ -3103,6 +3171,7 @@ async fn test_api_response_time_p95() {
 **Goal**: Improve usability and integration
 
 **Priority 5: Authentication Flows (4 weeks)**
+
 - Week 1-2: Flow configuration framework
   - Create authentication_flows and authentication_executions tables
   - Implement AuthenticationFlowService
@@ -3115,6 +3184,7 @@ async fn test_api_response_time_p95() {
   - Create flow visualization
 
 **Priority 6: Composite Roles (2 weeks)**
+
 - Week 1: Database schema and core logic
   - Create composite_roles table
   - Implement composite role service
@@ -3127,6 +3197,7 @@ async fn test_api_response_time_p95() {
   - Test composite role inheritance
 
 **Priority 7: User Storage Federation (3 weeks)**
+
 - Week 1: Storage provider SPI
   - Design UserStorageProvider trait
   - Implement provider registry
@@ -3144,6 +3215,7 @@ async fn test_api_response_time_p95() {
   - Document provider integration
 
 **Priority 8: User Self-Registration (3 weeks)**
+
 - Week 1: Registration page and NIP validation
   - Create registration page UI
   - Implement NIP validation with MySIMKARI
@@ -3161,6 +3233,7 @@ async fn test_api_response_time_p95() {
   - Test complete registration flow
 
 **Priority 9: Email Templates (2 weeks)**
+
 - Week 1: Template engine and default templates
   - Implement email template system
   - Create default templates (Indonesian/English)
@@ -3177,6 +3250,7 @@ async fn test_api_response_time_p95() {
 **Goal**: Operational excellence and flexibility
 
 **Priority 10: Client Scopes & Protocol Mappers Enhancement (3 weeks)**
+
 - Week 1: Client scopes implementation
   - Create client_scopes table
   - Implement ClientScopeService
@@ -3194,6 +3268,7 @@ async fn test_api_response_time_p95() {
   - Document mapper configuration
 
 **Priority 11: Session Management Enhancement (2 weeks)**
+
 - Week 1: Session policies implementation
   - Implement session limit enforcement
   - Add idle timeout and max lifespan
@@ -3206,6 +3281,7 @@ async fn test_api_response_time_p95() {
   - Test session policies
 
 **Priority 12: Import/Export System (3 weeks)**
+
 - Week 1: Export implementation
   - Implement realm export to JSON
   - Add export options (users, credentials, etc.)
@@ -3223,6 +3299,7 @@ async fn test_api_response_time_p95() {
   - Document import/export procedures
 
 **Priority 13: Theme System (2 weeks)**
+
 - Week 1: Theme engine implementation
   - Design theme system architecture
   - Implement theme loading and rendering
@@ -3235,6 +3312,7 @@ async fn test_api_response_time_p95() {
   - Add logo and branding support
 
 **Priority 14: Admin CLI (3 weeks)**
+
 - Week 1: CLI framework
   - Set up CLI project structure
   - Implement authentication
@@ -3256,6 +3334,7 @@ async fn test_api_response_time_p95() {
 **Goal**: Complete government integration and compliance
 
 **Priority 15: NIP Validation Enhancement (2 weeks)**
+
 - Week 1: NIP validation service
   - Implement NipValidationService
   - Add MySIMKARI integration
@@ -3268,6 +3347,7 @@ async fn test_api_response_time_p95() {
   - Test with MySIMKARI
 
 **Priority 16: Satker Hierarchy Integration (3 weeks)**
+
 - Week 1: Satker hierarchy service
   - Implement SatkerHierarchyService
   - Create satkers table and load data
@@ -3285,6 +3365,7 @@ async fn test_api_response_time_p95() {
   - Document Satker hierarchy
 
 **Priority 17: Audit Reports (2 weeks)**
+
 - Week 1: Report generation
   - Implement BpkAuditReportService
   - Add metrics collection
@@ -3297,6 +3378,7 @@ async fn test_api_response_time_p95() {
   - Test report generation
 
 **Priority 18: SPBE Compliance Features (2 weeks)**
+
 - Week 1: Compliance framework
   - Implement compliance checking framework
   - Add SPBE-specific checks
@@ -3313,19 +3395,23 @@ async fn test_api_response_time_p95() {
 **Goal**: Complete feature parity and polish
 
 **Priority 19: Client Adapters (4 weeks)**
+
 - Week 1: Rust adapter
 - Week 2: JavaScript/TypeScript adapter
 - Week 3: Python adapter
 - Week 4: Documentation and examples
 
 **Priority 20: Device Flow (2 weeks)**
+
 - Week 1: Device flow implementation
 - Week 2: UI and testing
 
 **Priority 21: User Impersonation (1 week)**
+
 - Implementation and audit trail
 
 **Priority 22: Additional Features (3 weeks)**
+
 - Theme system enhancements
 - Additional protocol mappers
 - Performance optimizations
@@ -3336,6 +3422,7 @@ async fn test_api_response_time_p95() {
 **Requirements Addressed**: This section implements security controls to meet NFR-8 through NFR-18 (Security) and ensure compliance with government security standards.
 
 **Security Standards**:
+
 - OWASP Top 10 compliance (NFR-8)
 - XSS protection (NFR-9)
 - CSRF protection (NFR-10)
@@ -3349,6 +3436,7 @@ async fn test_api_response_time_p95() {
 - Tamper-proof audit logs (NFR-18)
 
 ### 9.1 Authentication Security
+
 - All passwords hashed with Argon2id (work factor: 2, memory: 64MB, parallelism: 4)
 - JWT tokens signed with Ed25519 (superior to RSA)
 - Token expiry: Access tokens 15 minutes, refresh tokens 7 days
@@ -3356,24 +3444,28 @@ async fn test_api_response_time_p95() {
 - Brute force protection with adaptive rate limiting
 
 ### 9.2 Authorization Security
+
 - Role-based access control (RBAC) for all admin operations
 - Attribute-based access control (ABAC) for fine-grained permissions
 - Satker hierarchy enforcement for government data
 - Principle of least privilege
 
 ### 9.3 Data Security
+
 - All sensitive data encrypted at rest (ChaCha20-Poly1305)
 - All communication encrypted in transit (TLS 1.3, mTLS for gRPC)
 - Secrets stored in Secreton, never in environment variables
 - Audit logs tamper-proof with cryptographic signatures
 
 ### 9.4 Input Validation
+
 - All user inputs validated and sanitized
 - SQL injection prevention via prepared statements
 - XSS prevention via Content Security Policy
 - CSRF protection on all state-changing operations
 
 ### 9.5 Compliance
+
 - OWASP Top 10 compliance
 - WCAG 2.1 Level AA accessibility
 - GDPR data protection (consent management, right to erasure)
@@ -3385,6 +3477,7 @@ async fn test_api_response_time_p95() {
 **Requirements Addressed**: This section implements optimizations to meet NFR-1 through NFR-7 (Performance) and NFR-42 through NFR-46 (Scalability).
 
 **Performance Targets**:
+
 - Admin Console load time <2 seconds (NFR-1)
 - API response time p95 <100ms (NFR-2)
 - Database query time p95 <10ms (NFR-3)
@@ -3394,6 +3487,7 @@ async fn test_api_response_time_p95() {
 - Session lookup <1ms (NFR-7)
 
 **Scalability Requirements**:
+
 - Horizontal scaling support (NFR-42)
 - Stateless design with sessions in Redis (NFR-43)
 - Database connection pooling (NFR-44)
@@ -3401,24 +3495,28 @@ async fn test_api_response_time_p95() {
 - Load balancer ready (NFR-46)
 
 ### 10.1 Caching Strategy
+
 - Redis cache for sessions (TTL: session timeout)
 - Redis cache for frequently accessed data (users, roles, clients)
 - Cache invalidation on updates
 - Cache warming on startup
 
 ### 10.2 Database Optimization
+
 - Connection pooling (min: 10, max: 50)
 - Prepared statement caching
 - Indexes on frequently queried columns
 - Partitioning for large tables (events)
 
 ### 10.3 Query Optimization
+
 - Pagination for large result sets (50 items per page)
 - Lazy loading for related entities
 - Batch operations for bulk updates
 - Async/await for non-blocking I/O
 
 ### 10.4 Frontend Optimization
+
 - WASM bundle size optimization (<2MB)
 - Code splitting for lazy loading
 - Resource caching (service worker)
@@ -3429,6 +3527,7 @@ async fn test_api_response_time_p95() {
 **Requirements Addressed**: This section implements monitoring and observability to meet NFR-53 through NFR-58 (Observability).
 
 **Observability Requirements**:
+
 - Prometheus metrics for all operations (NFR-53)
 - Structured logging in JSON format (NFR-54)
 - Distributed tracing with OpenTelemetry (NFR-55)
@@ -3437,6 +3536,7 @@ async fn test_api_response_time_p95() {
 - Error tracking and alerting (NFR-58)
 
 ### 11.1 Metrics (Prometheus)
+
 - Request rate, error rate, duration (RED metrics)
 - Active users, active sessions
 - Database connection pool utilization
@@ -3445,17 +3545,20 @@ async fn test_api_response_time_p95() {
 - External service latency (MySIMKARI, Secreton)
 
 ### 11.2 Logging (Structured JSON)
+
 - All requests logged with correlation ID
 - Error logs with stack traces
 - Audit logs for all admin operations
 - Performance logs for slow queries (>100ms)
 
 ### 11.3 Tracing (OpenTelemetry)
+
 - Distributed tracing across services
 - Span annotations for key operations
 - Trace sampling (10% in production)
 
 ### 11.4 Alerting
+
 - High error rate (>5%)
 - High latency (p95 >100ms)
 - Database connection pool exhaustion
@@ -3467,6 +3570,7 @@ async fn test_api_response_time_p95() {
 **Requirements Addressed**: This section implements deployment practices to meet NFR-59 through NFR-66 (Deployment).
 
 **Deployment Requirements**:
+
 - Docker images <300MB (NFR-59)
 - Kubernetes manifests provided (NFR-60)
 - Helm charts available (NFR-61)
@@ -3477,12 +3581,14 @@ async fn test_api_response_time_p95() {
 - Startup time <5 seconds (NFR-66)
 
 ### 12.1 Container Images
+
 - Multi-stage Docker builds
 - Image size <300MB
 - Security scanning with Trivy
 - Signed images with Cosign
 
 ### 12.2 Kubernetes Deployment
+
 - Deployment with rolling updates
 - HorizontalPodAutoscaler (min: 3, max: 10)
 - PodDisruptionBudget (minAvailable: 2)
@@ -3490,12 +3596,14 @@ async fn test_api_response_time_p95() {
 - Health checks (liveness, readiness)
 
 ### 12.3 Database Migrations
+
 - Automated with refinery
 - Backward compatible migrations
 - Rollback plan for each migration
 - Migration testing in staging
 
 ### 12.4 Blue-Green Deployment
+
 - Zero-downtime deployments
 - Traffic switching via Istio
 - Automated rollback on errors
@@ -3504,6 +3612,7 @@ async fn test_api_response_time_p95() {
 ## 13. Documentation Requirements
 
 ### 13.1 User Documentation
+
 - Admin Console user guide
 - User Account Console guide
 - Registration guide
@@ -3511,6 +3620,7 @@ async fn test_api_response_time_p95() {
 - Troubleshooting guide
 
 ### 13.2 Developer Documentation
+
 - API reference (OpenAPI/Swagger)
 - Architecture documentation
 - Database schema documentation
@@ -3518,6 +3628,7 @@ async fn test_api_response_time_p95() {
 - Custom authenticator development guide
 
 ### 13.3 Operations Documentation
+
 - Deployment guide
 - Configuration guide
 - Backup and restore procedures
@@ -3527,12 +3638,14 @@ async fn test_api_response_time_p95() {
 ## 14. Success Criteria
 
 ### 14.1 Feature Completeness
+
 - ✅ 100% of critical features implemented (Admin Console, User Console, Event System, Required Actions) by Q1 2026
 - ✅ 90%+ of high-priority features implemented (Authentication Flows, Composite Roles, User Storage Federation, Self-Registration, Email Templates) by Q2 2026
 - ✅ 70%+ of medium-priority features implemented (Client Scopes, Session Management, Import/Export, Theme System, Admin CLI) by Q3 2026
 - ✅ 100% of government-specific features implemented (NIP Validation, Satker Hierarchy, Audit Reports) by Q4 2026
 
 ### 14.2 Quality Metrics
+
 - ✅ Test coverage >80% (unit tests)
 - ✅ Integration test coverage >70%
 - ✅ Property test coverage: 100% of correctness properties (56 properties)
@@ -3544,6 +3657,7 @@ async fn test_api_response_time_p95() {
 - ✅ All code formatted with `cargo fmt`
 
 ### 14.3 User Satisfaction
+
 - ✅ Admin console usability score >4/5
 - ✅ User account console usability score >4/5
 - ✅ Documentation completeness score >4/5
@@ -3551,6 +3665,7 @@ async fn test_api_response_time_p95() {
 - ✅ User onboarding time reduced by 50% (with self-registration)
 
 ### 14.4 Adoption Metrics
+
 - ✅ 100% of SIMPEL services using Authenc by Q2 2026
 - ✅ Zero Keycloak dependencies by Q3 2026
 - ✅ Admin CLI usage >50% of admin operations by Q3 2026
@@ -3560,6 +3675,7 @@ async fn test_api_response_time_p95() {
 - ✅ Self-registration accounts for >60% of new users
 
 ### 14.5 Operational Metrics
+
 - ✅ 99.9% uptime achieved
 - ✅ Mean time to recovery (MTTR) <15 minutes
 - ✅ Zero data loss incidents
@@ -3569,6 +3685,7 @@ async fn test_api_response_time_p95() {
 - ✅ Disaster recovery tested quarterly
 
 ### 14.6 Performance Metrics
+
 - ✅ API response time p95 <100ms
 - ✅ Database query time p95 <10ms
 - ✅ Admin Console load time <2 seconds
@@ -3579,6 +3696,7 @@ async fn test_api_response_time_p95() {
 - ✅ Session lookup <1ms (Redis cache)
 
 ### 14.7 Security Metrics
+
 - ✅ All passwords hashed with Argon2id
 - ✅ All JWT tokens signed with Ed25519
 - ✅ All communication uses TLS 1.3
@@ -3589,6 +3707,7 @@ async fn test_api_response_time_p95() {
 - ✅ All OWASP Top 10 mitigated
 
 ### 14.8 Compliance Metrics
+
 - ✅ WCAG 2.1 Level AA compliance
 - ✅ GDPR compliance (consent management, right to erasure)
 - ✅ ISO 27001 compliance
@@ -3600,17 +3719,20 @@ async fn test_api_response_time_p95() {
 ## 15. Risks and Mitigation
 
 ### 15.1 Technical Risks
+
 - **Leptos UI complexity**: Mitigate with early prototyping, proven patterns, experienced developers
 - **Performance degradation**: Mitigate with load testing, profiling, optimization, horizontal scaling
 - **Security vulnerabilities**: Mitigate with security audits, penetration testing, bug bounty program
 - **Integration issues**: Mitigate with comprehensive integration tests, fallback mechanisms
 
 ### 15.2 Project Risks
+
 - **Timeline delays**: Mitigate with phased approach, MVP first, parallel development
 - **Resource constraints**: Mitigate by prioritizing critical features, hiring contractors if needed
 - **Scope creep**: Mitigate with strict change control process, prioritization framework
 
 ### 15.3 Operational Risks
+
 - **Production downtime**: Mitigate with blue-green deployment, rollback procedures, monitoring
 - **Data loss**: Mitigate with automated backups, replication, disaster recovery plan
 - **Performance issues**: Mitigate with monitoring, auto-scaling, performance testing
@@ -3683,6 +3805,7 @@ This section provides complete traceability from requirements to design componen
 **Total Properties**: 56
 **Properties with Requirements Mapping**: 56 (100%)
 **Property Categories**:
+
 - Realm Management: Properties 1-3 (FR-1)
 - Event System: Properties 4-7 (FR-13, FR-14)
 - Authentication Flows: Properties 8-10 (FR-16)
@@ -3718,6 +3841,7 @@ This section provides complete traceability from requirements to design componen
 ## Appendix B: Technology Stack Details
 
 ### B.1 Frontend Stack
+
 - **Framework**: Leptos 0.8.x (WASM CSR)
 - **Styling**: Tailwind CSS 3.x
 - **Icons**: Heroicons
@@ -3728,6 +3852,7 @@ This section provides complete traceability from requirements to design componen
 - **Build Tool**: Trunk
 
 ### B.2 Backend Stack
+
 - **Language**: Rust (Edition 2024, MSRV 1.90+)
 - **HTTP Framework**: Axum 0.8.x
 - **gRPC Framework**: Tonic 0.14.x + Prost 0.14.x
@@ -3740,6 +3865,7 @@ This section provides complete traceability from requirements to design componen
 - **Metrics**: prometheus + opentelemetry
 
 ### B.3 Infrastructure Stack
+
 - **Container Platform**: Kubernetes (MicroK8s)
 - **Service Mesh**: Istio (mTLS STRICT mode)
 - **Load Balancer**: MetalLB (172.15.10.200-230)
@@ -3750,6 +3876,7 @@ This section provides complete traceability from requirements to design componen
 - **Search**: Elasticsearch (optional)
 
 ### B.4 Security Stack
+
 - **Password Hashing**: Argon2id (work factor: 2, memory: 64MB)
 - **JWT Signing**: Ed25519 (superior to RSA)
 - **Symmetric Encryption**: ChaCha20-Poly1305, AES-256-GCM
@@ -3771,12 +3898,14 @@ This section provides complete traceability from requirements to design componen
 ### Coverage Summary
 
 **Functional Requirements**: 31/31 (100%)
+
 - Critical: FR-1 to FR-17 (Admin Console, User Console, Event System, Required Actions)
 - High Priority: FR-18 to FR-26 (Authentication Flows, Roles, Federation, Registration)
 - Medium Priority: FR-27, FR-28 (Import/Export)
 - Government-Specific: FR-29 to FR-31 (NIP, Satker, BPK Reports)
 
 **Non-Functional Requirements**: 66/66 (100%)
+
 - Performance: NFR-1 to NFR-7
 - Security: NFR-8 to NFR-18
 - Accessibility: NFR-19 to NFR-24
@@ -3789,11 +3918,13 @@ This section provides complete traceability from requirements to design componen
 - Deployment: NFR-59 to NFR-66
 
 **Correctness Properties**: 56/56 (100%)
+
 - All properties mapped to functional requirements
 - All properties testable via property-based testing
 - Complete traceability from requirements to properties
 
 **Implementation Phases**: 5 phases over 12 months
+
 - Phase 1 (Q1 2026): Critical features
 - Phase 2 (Q2 2026): High-priority features
 - Phase 3 (Q3 2026): Medium-priority features
@@ -3801,6 +3932,7 @@ This section provides complete traceability from requirements to design componen
 - Phase 5 (Q4 2026): Low-priority features and polish
 
 **Architecture Compliance**:
+
 - ✅ Follows SIMPEL architecture patterns
 - ✅ Leptos 0.8.x for frontend (WASM CSR)
 - ✅ Axum 0.8.x for backend REST API
@@ -3811,6 +3943,7 @@ This section provides complete traceability from requirements to design componen
 - ✅ Kubernetes deployment with MicroK8s
 
 **Quality Assurance**:
+
 - ✅ Unit test coverage target: >80%
 - ✅ Integration test coverage target: >70%
 - ✅ Property-based testing for all 56 properties
@@ -3821,6 +3954,7 @@ This section provides complete traceability from requirements to design componen
 - ✅ Cross-browser compatibility testing
 
 **Government Compliance**:
+
 - ✅ BPK audit requirements addressed
 - ✅ SPBE compliance designed
 - ✅ Data residency requirements met
@@ -3830,6 +3964,7 @@ This section provides complete traceability from requirements to design componen
 - ✅ Indonesian language support planned
 
 **Production Readiness**:
+
 - ✅ High availability (3 replicas minimum)
 - ✅ Horizontal scaling support
 - ✅ Blue-green deployment strategy
@@ -3842,6 +3977,7 @@ This section provides complete traceability from requirements to design componen
 This design document provides a complete, production-ready architecture for Authenc enterprise features with full traceability to all requirements and comprehensive implementation guidance.s Router
 
 ### B.2 Backend Stack
+
 - **Language**: Rust Edition 2024, MSRV 1.90+
 - **HTTP Framework**: Axum 0.8.x
 - **gRPC Framework**: Tonic 0.14.x + Prost 0.14.x
@@ -3855,6 +3991,7 @@ This design document provides a complete, production-ready architecture for Auth
 - **Testing**: proptest (property-based), tokio-test
 
 ### B.3 Infrastructure Stack
+
 - **Container**: Docker
 - **Orchestration**: Kubernetes (MicroK8s)
 - **Service Mesh**: Istio
@@ -3865,6 +4002,7 @@ This design document provides a complete, production-ready architecture for Auth
 - **Event Streaming**: Kafka (optional)
 
 ### B.4 External Integrations
+
 - **Secreton**: gRPC client for secret management
 - **MySIMKARI**: gRPC client for NIP validation and employee data
 - **SMTP**: Email sending
@@ -3874,6 +4012,7 @@ This design document provides a complete, production-ready architecture for Auth
 ## Appendix C: Database Schema Summary
 
 ### C.1 Core Tables
+
 - `realms` - Realm configuration
 - `users` - User accounts
 - `roles` - Roles (realm and client)
@@ -3883,28 +4022,33 @@ This design document provides a complete, production-ready architecture for Auth
 - `user_attributes` - Custom user attributes
 
 ### C.2 Event Tables
+
 - `admin_events` - Administrator actions
 - `user_events` - User activities
 - `event_config` - Event configuration per realm
 
 ### C.3 Authentication Tables
+
 - `authentication_flows` - Authentication flows
 - `authentication_executions` - Flow executions
 - `required_actions` - Required action definitions
 - `user_required_actions` - User-specific required actions
 
 ### C.4 Federation Tables
+
 - `user_storage_providers` - External user storage configuration
 - `identity_providers` - External IdP configuration
 - `federated_identities` - User identity links
 
 ### C.5 Government Tables
+
 - `satkers` - Satker hierarchy
 - `user_satker_assignments` - User Satker assignments
 - `nip_validation_cache` - NIP validation cache
 - `nip_validation_log` - NIP validation audit log
 
 ### C.6 Configuration Tables
+
 - `registration_config` - Registration configuration
 - `email_templates` - Email templates
 - `session_policies` - Session policies
@@ -3914,6 +4058,7 @@ This design document provides a complete, production-ready architecture for Auth
 ## Appendix D: API Endpoints Summary
 
 ### D.1 Admin API
+
 - `GET /api/admin/realms` - List realms
 - `POST /api/admin/realms` - Create realm
 - `GET /api/admin/realms/{id}` - Get realm
@@ -3935,6 +4080,7 @@ This design document provides a complete, production-ready architecture for Auth
 - `GET /api/admin/reports/bpk/audit/pdf` - Export BPK report as PDF
 
 ### D.2 User Account API
+
 - `GET /api/account/profile` - Get user profile
 - `PUT /api/account/profile` - Update user profile
 - `POST /api/account/password` - Change password
@@ -3949,6 +4095,7 @@ This design document provides a complete, production-ready architecture for Auth
 - `POST /api/account/delete` - Request account deletion
 
 ### D.3 Authentication API
+
 - `POST /api/auth/login` - User login
 - `POST /api/auth/logout` - User logout
 - `POST /api/auth/register` - User registration
@@ -3957,6 +4104,7 @@ This design document provides a complete, production-ready architecture for Auth
 - `POST /api/auth/mfa/verify` - Verify MFA code
 
 ### D.4 OAuth2/OIDC API
+
 - `GET /oauth2/authorize` - Authorization endpoint
 - `POST /oauth2/token` - Token endpoint
 - `GET /oauth2/userinfo` - UserInfo endpoint
@@ -3965,6 +4113,7 @@ This design document provides a complete, production-ready architecture for Auth
 - `GET /.well-known/openid-configuration` - OIDC discovery
 
 ### D.5 Government API
+
 - `POST /api/gov/nip/validate` - Validate NIP
 - `GET /api/gov/satker/hierarchy` - Get Satker hierarchy
 - `GET /api/gov/satker/{id}/path` - Get Satker path

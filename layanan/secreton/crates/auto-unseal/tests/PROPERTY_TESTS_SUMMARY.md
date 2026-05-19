@@ -18,12 +18,14 @@ This document summarizes the property-based tests implemented for the `AutoUnsea
 ## Property 1: Auto-Unseal Round Trip
 
 **Formal Specification**:
+
 ```
 ∀ plaintext ∈ Bytes, ∀ provider ∈ AutoUnsealProvider:
   decrypt(encrypt(plaintext)) = plaintext
 ```
 
 **What it validates**:
+
 1. Encryption is reversible
 2. No data is lost during encryption/decryption
 3. The provider correctly implements cryptographic operations
@@ -34,36 +36,43 @@ This document summarizes the property-based tests implemented for the `AutoUnsea
 ### 1. Round-Trip Tests (7 tests)
 
 #### 1.1 `prop_auto_unseal_round_trip`
+
 - **Input**: Random plaintext (1-1024 bytes), random key (16-64 bytes)
 - **Property**: `decrypt(encrypt(plaintext)) == plaintext`
 - **Validates**: Requirements 2.1.1, 2.1.2, 2.1.3, 2.1.4
 
 #### 1.2 `prop_auto_unseal_round_trip_empty`
+
 - **Input**: Empty plaintext, random key
 - **Property**: Empty data round-trip works correctly
 - **Edge Case**: Tests boundary condition with zero-length input
 
 #### 1.3 `prop_auto_unseal_round_trip_single_byte`
+
 - **Input**: Single byte plaintext, random key
 - **Property**: Single byte round-trip works correctly
 - **Edge Case**: Tests minimum non-empty input
 
 #### 1.4 `prop_auto_unseal_round_trip_master_key_size`
+
 - **Input**: 32-byte plaintext (typical master key size), random key
 - **Property**: Master key size round-trip works correctly
 - **Realistic Scenario**: Tests with actual master key size
 
 #### 1.5 `prop_auto_unseal_idempotent`
+
 - **Input**: Random plaintext, random key, 1-5 cycles
 - **Property**: Multiple encrypt/decrypt cycles preserve plaintext
 - **Validates**: Idempotency of operations
 
 #### 1.6 `prop_auto_unseal_different_plaintexts`
+
 - **Input**: Two different plaintexts, same key
 - **Property**: Different plaintexts produce different ciphertexts
 - **Validates**: Encryption is deterministic and unique
 
 #### 1.7 `prop_auto_unseal_ciphertext_length`
+
 - **Input**: Random plaintext, random key
 - **Property**: Ciphertext length >= plaintext length
 - **Validates**: Reasonable ciphertext size
@@ -71,16 +80,19 @@ This document summarizes the property-based tests implemented for the `AutoUnsea
 ### 2. Metadata Tests (2 tests)
 
 #### 2.1 `prop_provider_metadata_consistent`
+
 - **Property**: Provider metadata is consistent across calls
 - **Validates**: Metadata immutability
 
 #### 2.2 `prop_provider_name_consistent`
+
 - **Property**: Provider name is consistent across calls
 - **Validates**: Name immutability
 
 ### 3. Health Check Tests (1 test)
 
 #### 3.1 `prop_health_check_idempotent`
+
 - **Input**: Random key, 1-10 health checks
 - **Property**: Multiple health checks all succeed
 - **Validates**: Health check idempotency
@@ -88,18 +100,22 @@ This document summarizes the property-based tests implemented for the `AutoUnsea
 ### 4. Integration Tests (4 tests)
 
 #### 4.1 `test_master_key_encryption_scenario`
+
 - **Scenario**: Realistic 32-byte master key encryption
 - **Validates**: Real-world usage pattern
 
 #### 4.2 `test_multiple_providers_same_plaintext`
+
 - **Scenario**: Same plaintext encrypted by different providers
 - **Validates**: Provider independence
 
 #### 4.3 `test_provider_metadata`
+
 - **Scenario**: Metadata structure validation
 - **Validates**: Metadata correctness
 
 #### 4.4 `test_health_check_success`
+
 - **Scenario**: Basic health check
 - **Validates**: Health check functionality
 
@@ -114,6 +130,7 @@ struct MockProvider {
 ```
 
 **Why XOR?**
+
 - Simple and deterministic
 - Symmetric (encrypt = decrypt)
 - Allows testing trait interface without real KMS dependencies

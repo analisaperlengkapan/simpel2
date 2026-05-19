@@ -7,38 +7,47 @@ This test suite validates the integration between SIMPEL v1 (Legacy PHP) and v2 
 ## Test Coverage
 
 ### 1. Portal Navigation & Version Selection (4 tests)
+
 - ✓ Portal loads successfully
 - ✓ Portal shows v1/v2 selector in perlengkapan app
 - ✓ Portal submenu shows v1 and v2 options
 - ✓ User can expand/collapse submenu with smooth animation
 
 ### 2. SIMPEL v1 OAuth Flow (4 tests)
+
 - ✓ v1 redirects to Portal login when not authenticated
 - ✓ v1 OAuth callback accepts valid token
 - ✓ v1 creates Laravel session from JWT claims
 - ✓ v1 health check endpoint responds correctly
 
 ### 3. SIMPEL v2 Navigation (1 test)
+
 - ✓ v2 loads successfully when authenticated
 
 ### 4. Cross-Version Session Management (1 test)
+
 - ✓ Session invalidation in v1 detected in Portal (via localStorage broadcast)
 
 ### 5. gRPC Service Integration (1 test)
+
 - ✓ v1 connects to Authenc service on startup
 
 ### 6. Error Handling (2 tests)
+
 - ✓ v1 handles invalid JWT token gracefully
 - ✓ v1 shows appropriate error messages
 
 ### 7. Performance & Load (2 tests)
+
 - ✓ v1 health endpoint responds within 100ms
 - ✓ v1 dashboard loads within 3 seconds
 
 ### 8. Accessibility (1 test)
+
 - ✓ v1 login form is keyboard accessible
 
 ### 9. Security (1 test)
+
 - ✓ v1 CSRF token present in forms
 - ✓ v1 sets secure session cookie with httpOnly and secure flags
 

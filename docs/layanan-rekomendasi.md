@@ -58,7 +58,6 @@ layanan-rekomendasi/
 | POST   | `/rekomendasi/generate`       | Generate rekomendasi dari input kebutuhan |
 | GET    | `/rekomendasi/prioritas`      | Daftar prioritas kebutuhan instansi       |
 
-
 ---
 
 ## 🧠 Integrasi AI

@@ -13,6 +13,7 @@ Renew an existing lease to extend its expiration time.
 **Endpoint:** `POST /v1/sys/leases/renew`
 
 **Request Body:**
+
 ```json
 {
   "lease_id": "lease-abc123",
@@ -21,6 +22,7 @@ Renew an existing lease to extend its expiration time.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -36,6 +38,7 @@ Renew an existing lease to extend its expiration time.
 ```
 
 **Authorization:**
+
 - User can renew their own leases
 - Admin can renew any lease
 
@@ -52,6 +55,7 @@ Revoke a lease and all its child leases (cascade).
 **Endpoint:** `POST /v1/sys/leases/revoke`
 
 **Request Body:**
+
 ```json
 {
   "lease_id": "lease-abc123"
@@ -59,6 +63,7 @@ Revoke a lease and all its child leases (cascade).
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -71,6 +76,7 @@ Revoke a lease and all its child leases (cascade).
 ```
 
 **Authorization:**
+
 - User can revoke their own leases
 - Admin can revoke any lease
 
@@ -87,6 +93,7 @@ Revoke all leases under a specific resource path prefix.
 **Endpoint:** `POST /v1/sys/leases/revoke-prefix`
 
 **Request Body:**
+
 ```json
 {
   "prefix": "/secret/database/"
@@ -94,6 +101,7 @@ Revoke all leases under a specific resource path prefix.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -120,6 +128,7 @@ Get detailed information about a specific lease.
 **Endpoint:** `GET /v1/sys/leases/lookup/{lease_id}`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -149,6 +158,7 @@ Get detailed information about a specific lease.
 ```
 
 **Authorization:**
+
 - User can lookup their own leases
 - Admin can lookup any lease
 
@@ -165,6 +175,7 @@ List leases with filtering and pagination.
 **Endpoint:** `GET /v1/sys/leases`
 
 **Query Parameters:**
+
 - `user_id` (optional): Filter by user ID
 - `namespace` (optional): Filter by namespace
 - `resource_type` (optional): Filter by resource type (e.g., "database", "kv")
@@ -173,6 +184,7 @@ List leases with filtering and pagination.
 - `offset` (optional, default: 0): Pagination offset
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -210,6 +222,7 @@ List leases with filtering and pagination.
 ```
 
 **Authorization:**
+
 - User can list their own leases in their namespace
 - Admin can list all leases
 
@@ -226,6 +239,7 @@ Get aggregate statistics about leases.
 **Endpoint:** `GET /v1/sys/leases/stats`
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -249,6 +263,7 @@ Get aggregate statistics about leases.
 ```
 
 **Authorization:**
+
 - User can see stats for their namespace
 - Admin can see global stats
 
@@ -466,6 +481,7 @@ cargo test
 ### Startup
 
 The lease manager automatically:
+
 1. Loads existing leases from database
 2. Starts the expiration scheduler
 3. Begins monitoring for expired leases
@@ -483,16 +499,19 @@ Monitor these metrics in Grafana:
 ### Troubleshooting
 
 **Leases not expiring:**
+
 - Check scheduler is running: Look for "Starting lease expiration scheduler" in logs
 - Check database connectivity
 - Verify expired_at timestamps are correct
 
 **High revocation rate:**
+
 - Check if leases are being created with appropriate TTLs
 - Verify renewal logic is working
 - Check for application errors preventing renewal
 
 **Permission errors:**
+
 - Verify JWT claims include correct namespace information
 - Check admin_level is set correctly
 - Verify namespace hierarchy is configured

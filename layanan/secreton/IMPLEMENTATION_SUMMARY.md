@@ -37,6 +37,7 @@ Updated `create_storage_backend()` function to:
 - Support feature flags for optional backends
 
 **Configuration Priority**:
+
 1. Environment variable (highest)
 2. Config file
 3. Hardcoded default (lowest)
@@ -44,6 +45,7 @@ Updated `create_storage_backend()` function to:
 ### 3. Configuration Files
 
 #### `config/default.toml` (Development)
+
 ```toml
 [storage]
 backend = "raft"
@@ -59,6 +61,7 @@ data_dir = "/var/lib/secreton/raft"
 ```
 
 #### `config/production.toml` (Production)
+
 ```toml
 [storage]
 backend = "raft"
@@ -170,21 +173,25 @@ data_dir = "/var/lib/secreton/raft"
 ## Security Highlights
 
 ✅ **Data Safety**:
+
 - Raft consensus ensures all nodes have same data
 - Automatic replication across cluster
 - Persistent storage before acknowledgment
 
 ✅ **High Availability**:
+
 - Survives node failures
 - Automatic leader election
 - No single point of failure
 
 ✅ **Consistency**:
+
 - Distributed consensus algorithm
 - Atomic operations
 - Transaction support
 
 ✅ **Compliance**:
+
 - Follows HashiCorp Secret Vault best practices
 - Audit logging support
 - RBAC integration
@@ -192,6 +199,7 @@ data_dir = "/var/lib/secreton/raft"
 ## Usage Examples
 
 ### Single Node (Development)
+
 ```bash
 docker run -d \
   -p 8200:8200 \
@@ -201,6 +209,7 @@ docker run -d \
 ```
 
 ### 3-Node Cluster (Production)
+
 ```bash
 # Node 1
 docker run -d \
@@ -230,6 +239,7 @@ docker run -d \
 ## Testing
 
 ### Build Test
+
 ```bash
 cd /srv/proyek/simpelv2/layanan/secreton
 cargo build --release -p secreton-api --bin api_server
@@ -237,12 +247,14 @@ cargo build --release -p secreton-api --bin api_server
 ```
 
 ### Docker Build Test
+
 ```bash
 docker build -t secreton:latest .
 # Result: ✅ SUCCESS
 ```
 
 ### Docker Run Test
+
 ```bash
 docker run -d --name secreton-test \
   -p 8200:8200 \
@@ -258,6 +270,7 @@ docker logs secreton-test
 When starting Secreton, configuration is applied in this order:
 
 1. **Environment Variables** (highest priority)
+
    ```bash
    SECRETON_STORAGE_BACKEND=raft
    SECRETON_RAFT_NODE_ID=1
@@ -265,6 +278,7 @@ When starting Secreton, configuration is applied in this order:
    ```
 
 2. **Config File** (medium priority)
+
    ```toml
    [storage]
    backend = "raft"
@@ -332,6 +346,7 @@ When starting Secreton, configuration is applied in this order:
 ✅ **Persistent storage implementation is complete and ready for deployment.**
 
 The Secreton engine now has:
+
 - **Raft consensus as default backend** for high availability
 - **Flexible configuration** supporting multiple storage backends
 - **Production-ready Docker image** with proper configuration

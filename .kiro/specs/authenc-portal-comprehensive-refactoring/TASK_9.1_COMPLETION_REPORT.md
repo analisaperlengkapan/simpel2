@@ -100,6 +100,7 @@ Successfully migrated all 14 remaining admin handler files from `src/handlers/` 
 ## Files Updated
 
 ### New Handler Files Created (13)
+
 1. `crates/iam-api/src/handlers/jit_admin.rs`
 2. `crates/iam-api/src/handlers/groups.rs`
 3. `crates/iam-api/src/handlers/organizations.rs`
@@ -115,6 +116,7 @@ Successfully migrated all 14 remaining admin handler files from `src/handlers/` 
 13. `crates/iam-api/src/handlers/oid4vc.rs`
 
 ### Updated Files (2)
+
 1. `crates/iam-api/src/handlers/mod.rs` - Added all handler module exports
 2. `crates/iam-api/src/state.rs` - Added TODO comments for missing services
 
@@ -183,11 +185,13 @@ Added comprehensive TODO comments documenting all missing services:
 ## Compilation Status
 
 ### ✅ authenc-iam-api: SUCCESS
+
 - All handler files compile without errors
 - Only warnings (unused imports, cfg conditions)
 - No compilation errors in iam-api crate itself
 
 ### ⚠️ authenc-core: PRE-EXISTING ERRORS
+
 - 127 compilation errors in authenc-core (not related to this migration)
 - These errors existed before the handler migration
 - Do not block the iam-api handler migration

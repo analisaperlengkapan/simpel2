@@ -167,6 +167,7 @@ let audit_service = EnhancedAuditService::new(
 The migration `029_enhanced_audit_details.sql` adds the following columns:
 
 ### event_log table
+
 - `geolocation_data` (JSONB): Geographic location data
 - `request_payload` (JSONB): Sanitized request payload
 - `response_payload` (JSONB): Sanitized response payload
@@ -176,9 +177,11 @@ The migration `029_enhanced_audit_details.sql` adds the following columns:
 - `correlation_id` (UUID): Request correlation ID
 
 ### admin_audit_log table
+
 - Same enhanced fields as event_log
 
 ### comprehensive_audit_trail view
+
 Unified view combining user and admin events with all enhanced context.
 
 ## Data Sanitization
@@ -186,6 +189,7 @@ Unified view combining user and admin events with all enhanced context.
 ### Sensitive Fields (Completely Removed)
 
 The following fields are replaced with `[REDACTED]`:
+
 - password, password_hash
 - secret, secret_key, api_key
 - access_token, refresh_token, token
@@ -199,6 +203,7 @@ The following fields are replaced with `[REDACTED]`:
 ### Maskable Fields (Partially Shown)
 
 The following fields are masked to show partial data:
+
 - email: `u***@example.com`
 - phone: `+***`
 - address: `1***`
@@ -228,6 +233,7 @@ config.additional_maskable_fields.insert("employee_id".to_string());
 ```
 
 For private/local IPs:
+
 ```json
 {
   "country_code": "XX",
@@ -299,16 +305,19 @@ LIMIT 100;
 ## Compliance
 
 ### GDPR
+
 - PII is masked in audit logs
 - Right to erasure: User data can be removed while preserving audit integrity
 - Data minimization: Only necessary data is logged
 
 ### ISO 27001
+
 - Comprehensive audit trail for all security events
 - Tamper-proof logging with signatures
 - Access logging for all administrative actions
 
 ### SOC 2
+
 - Complete audit trail for compliance reporting
 - Geolocation tracking for anomaly detection
 - Session correlation for investigation
@@ -318,6 +327,7 @@ LIMIT 100;
 ### IP Address Not Captured
 
 Check that your reverse proxy is setting the correct headers:
+
 - X-Forwarded-For
 - X-Real-IP
 - CF-Connecting-IP (Cloudflare)
@@ -332,6 +342,7 @@ Check that your reverse proxy is setting the correct headers:
 ### Payloads Too Large
 
 Adjust the sanitizer config:
+
 ```rust
 config.max_payload_size = 50_000; // 50KB
 ```
@@ -397,4 +408,3 @@ audit_service.log_user_event(event, &audit_context).await?;
 ## Examples
 
 See `handlers/audit_example.rs` for complete working examples.
-

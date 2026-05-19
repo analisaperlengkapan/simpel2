@@ -49,6 +49,7 @@ Berdasarkan requirements (NFR-P001, NFR-P002, NFR-P004, NFR-P005):
 #### Dashboard Load Test
 
 **Expected Results:**
+
 ```
 Metric                          | Target    | Actual    | Status
 --------------------------------|-----------|-----------|--------
@@ -59,11 +60,13 @@ http_req_duration (p90)         | ≤ 2000ms  | ?         | ?
 ```
 
 **Bottleneck Indicators:**
+
 - p95 > 5000ms → Database query optimization needed
 - p99 > 10000ms → Severe performance issue
 - Increasing trend → Memory leak or resource exhaustion
 
 **Common Issues:**
+
 1. **Slow database queries**
    - Check: `EXPLAIN ANALYZE` on slow queries
    - Fix: Add indexes, optimize joins
@@ -79,6 +82,7 @@ http_req_duration (p90)         | ≤ 2000ms  | ?         | ?
 #### API Load Test
 
 **Expected Results:**
+
 ```
 Metric                          | Target    | Actual    | Status
 --------------------------------|-----------|-----------|--------
@@ -88,11 +92,13 @@ error_rate                      | < 1%      | ?         | ?
 ```
 
 **Bottleneck Indicators:**
+
 - Throughput < 100 req/s → Connection pool exhaustion
 - p95 > 500ms → Slow queries or external API calls
 - Error rate > 1% → Service overload
 
 **Common Issues:**
+
 1. **Connection pool exhaustion**
    - Check: Database pool size
    - Fix: Increase pool size (current: 10-50)
@@ -108,6 +114,7 @@ error_rate                      | < 1%      | ?         | ?
 #### Search Load Test
 
 **Expected Results:**
+
 ```
 Metric                          | Target    | Actual    | Status
 --------------------------------|-----------|-----------|--------
@@ -117,11 +124,13 @@ error_rate                      | < 2%      | ?         | ?
 ```
 
 **Bottleneck Indicators:**
+
 - p95 > 500ms → Missing full-text search indexes
 - High variance → Inconsistent query performance
 - Timeout errors → Query too complex
 
 **Common Issues:**
+
 1. **Missing indexes**
    - Check: `EXPLAIN` on search queries
    - Fix: Add GIN indexes for full-text search
@@ -148,21 +157,25 @@ error_rate                      | < 2%      | ?         | ?
 #### Common Error Types
 
 **HTTP 500 (Internal Server Error)**
+
 - Database connection timeout
 - Unhandled exception
 - Memory exhaustion
 
 **HTTP 503 (Service Unavailable)**
+
 - Service overload
 - Circuit breaker open
 - Pod crash/restart
 
 **HTTP 401/403 (Auth Error)**
+
 - Token expiration
 - Invalid credentials
 - Rate limiting
 
 **Connection Errors**
+
 - Network timeout
 - DNS resolution failure
 - Service not reachable
@@ -182,6 +195,7 @@ kubectl top pods -n simpelv2-staging --watch
 ```
 
 **Optimization:**
+
 - If CPU > 80%: Increase CPU limits
 - If CPU < 30%: Reduce CPU requests (save resources)
 
@@ -198,6 +212,7 @@ kubectl top pods -n simpelv2-staging
 ```
 
 **Optimization:**
+
 - If memory > 80%: Check for memory leaks
 - If memory growing: Implement connection pooling
 - If OOM kills: Increase memory limits
@@ -218,6 +233,7 @@ GROUP BY datname, max_conn;
 ```
 
 **Optimization:**
+
 - If connections > 80% of pool: Increase pool size
 - If many idle connections: Reduce connection timeout
 - If connection errors: Check pool configuration
@@ -237,6 +253,7 @@ Calculation:
 ```
 
 **Bottleneck Indicators:**
+
 - Throughput declining over time → Resource exhaustion
 - Throughput < 100 req/s → Performance bottleneck
 - High latency at low throughput → Inefficient code
@@ -246,6 +263,7 @@ Calculation:
 ### Phase 1: Quick Wins (Hours)
 
 1. **Add Missing Indexes**
+
    ```sql
    -- Foreign key indexes
    CREATE INDEX idx_kebutuhan_satker ON kebutuhan_bmn(satker_id);
@@ -257,6 +275,7 @@ Calculation:
    ```
 
 2. **Implement Caching**
+
    ```rust
    // Cache dashboard metrics (5 minutes TTL)
    let cache_key = format!("dashboard:metrics:{}", tahun);
@@ -269,6 +288,7 @@ Calculation:
    ```
 
 3. **Optimize Connection Pool**
+
    ```rust
    // Increase pool size
    DatabaseConfig {
@@ -281,6 +301,7 @@ Calculation:
 ### Phase 2: Medium-term (Days)
 
 1. **Implement Query Optimization**
+
    ```sql
    -- Before: N+1 queries
    SELECT * FROM kebutuhan_bmn WHERE satker_id = ?;
@@ -294,6 +315,7 @@ Calculation:
    ```
 
 2. **Add Materialized Views**
+
    ```sql
    CREATE MATERIALIZED VIEW mv_dashboard_metrics AS
    SELECT
@@ -314,6 +336,7 @@ Calculation:
    ```
 
 3. **Implement Rate Limiting**
+
    ```rust
    // Already implemented in rate_limiting.rs
    // Verify configuration:
@@ -326,6 +349,7 @@ Calculation:
 ### Phase 3: Long-term (Weeks)
 
 1. **Database Partitioning**
+
    ```sql
    -- Partition by year
    CREATE TABLE kebutuhan_bmn_2026 PARTITION OF kebutuhan_bmn
@@ -338,6 +362,7 @@ Calculation:
    - Keep writes on primary
 
 3. **Horizontal Scaling**
+
    ```yaml
    # Increase replicas
    spec:
@@ -443,6 +468,7 @@ After implementing optimizations:
 2. **Implement optimization**
 3. **Run comparison test** (after optimization)
 4. **Compare results**:
+
    ```
    Metric              | Before  | After   | Improvement
    --------------------|---------|---------|-------------

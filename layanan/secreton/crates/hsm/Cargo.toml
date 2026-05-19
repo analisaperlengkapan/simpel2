@@ -32,5 +32,5 @@ tempfile.workspace = true
 
 [features]
 default = []
-pkcs11 = [] # PKCS#11 support (requires external library)
+pkcs11 = []     # PKCS#11 support (requires external library)
 test-utils = []

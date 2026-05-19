@@ -11,6 +11,7 @@ This document describes how to integrate the export functionality into the Lepto
 **Endpoint:** `GET /export/excel`
 
 **Query Parameters:**
+
 - `entity_type` (required): Type of entity to export
   - `kebutuhan_bmn` - BMN requirements
   - `pakaian_dinas` - Uniform requirements
@@ -24,14 +25,17 @@ This document describes how to integrate the export functionality into the Lepto
 **Response:**
 
 For small datasets (<1000 rows) - **Synchronous**:
+
 - Status: 200 OK
 - Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - Body: Excel file binary data
 
 For large datasets (>=1000 rows) - **Asynchronous**:
+
 - Status: 202 Accepted
 - Content-Type: `application/json`
 - Body:
+
 ```json
 {
   "data": {
@@ -48,6 +52,7 @@ For large datasets (>=1000 rows) - **Asynchronous**:
 **Endpoint:** `GET /export/jobs/{job_id}/status`
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -68,6 +73,7 @@ For large datasets (>=1000 rows) - **Asynchronous**:
 **Endpoint:** `GET /export/jobs/{job_id}/download`
 
 **Response:**
+
 - Status: 200 OK
 - Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - Content-Disposition: `attachment; filename="export_kebutuhan_bmn_{job_id}.xlsx"`
@@ -410,6 +416,7 @@ Add CSS for the export button and progress indicator:
 ### Manual Testing
 
 1. **Small Dataset Export (Synchronous)**
+
    ```bash
    curl -X GET "http://localhost:8093/export/excel?entity_type=kebutuhan_bmn&limit=100" \
      -H "Authorization: Bearer YOUR_TOKEN" \
@@ -417,6 +424,7 @@ Add CSS for the export button and progress indicator:
    ```
 
 2. **Large Dataset Export (Asynchronous)**
+
    ```bash
    # Start export
    curl -X GET "http://localhost:8093/export/excel?entity_type=kebutuhan_bmn&limit=5000" \
@@ -435,6 +443,7 @@ Add CSS for the export button and progress indicator:
 ### Integration Testing
 
 Create integration tests in the frontend to verify:
+
 1. Export button renders correctly
 2. Synchronous export triggers download
 3. Asynchronous export shows progress

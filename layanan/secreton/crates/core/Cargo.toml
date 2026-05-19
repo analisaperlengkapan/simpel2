@@ -102,7 +102,11 @@ secreton-storage.workspace = true
 
 # Common library
 lib-core = { workspace = true, features = ["validation"] }
-lib-backend = { workspace = true, features = ["redis-cache", "telemetry", "db"] }
+lib-backend = { workspace = true, features = [
+  "redis-cache",
+  "telemetry",
+  "db",
+] }
 
 [dev-dependencies]
 tempfile.workspace = true

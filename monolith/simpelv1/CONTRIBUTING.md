@@ -24,6 +24,7 @@ Terima kasih telah tertarik untuk berkontribusi pada **Simpel Web** - Sistem Man
    - Clone repository fork Anda ke local
 
 2. **Setup development environment**
+
    ```bash
    git clone <your-fork-url>
    cd simpel_web
@@ -34,6 +35,7 @@ Terima kasih telah tertarik untuk berkontribusi pada **Simpel Web** - Sistem Man
    ```
 
 3. **Buat branch baru**
+
    ```bash
    git checkout -b feature/nama-fiturnya
    # atau
@@ -48,12 +50,14 @@ Terima kasih telah tertarik untuk berkontribusi pada **Simpel Web** - Sistem Man
    - Update dokumentasi
 
 5. **Commit perubahan**
+
    ```bash
    git add .
    git commit -m "feat: tambah fitur manajemen aset"
    ```
 
 6. **Push ke repository fork**
+
    ```bash
    git push origin feature/nama-fiturnya
    ```
@@ -135,6 +139,7 @@ chore:    - Maintenance tasks
 ```
 
 Contoh:
+
 ```bash
 git commit -m "feat: tambah QR code generator untuk aset"
 git commit -m "fix: perbaiki bug pada export Excel"
@@ -266,6 +271,7 @@ Closes #123
 ## 🧪 Testing
 
 ### Unit Tests
+
 ```bash
 # Jalankan semua unit tests
 php artisan test --testsuite=Unit
@@ -278,6 +284,7 @@ php artisan test --coverage
 ```
 
 ### Feature Tests
+
 ```bash
 # Jalankan feature tests
 php artisan test --testsuite=Feature
@@ -287,6 +294,7 @@ php artisan test --filter=AssetControllerTest
 ```
 
 ### Browser Tests
+
 ```bash
 # Jalankan browser tests (jika ada)
 php artisan dusk
@@ -321,7 +329,7 @@ php artisan dusk
 
 ### Reporting Security Issues
 
-Jika Anda menemukan security vulnerability, **JANGAN** buat issue publik. 
+Jika Anda menemukan security vulnerability, **JANGAN** buat issue publik.
 Kirim email ke: `security@kejaksaan.go.id`
 
 ## 🏆 Recognition
@@ -329,6 +337,7 @@ Kirim email ke: `security@kejaksaan.go.id`
 ### Contributors Hall of Fame
 
 Kontributor yang signifikan akan ditambahkan ke:
+
 - README.md contributors section
 - CHANGELOG.md contributors
 - Project documentation

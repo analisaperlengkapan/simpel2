@@ -37,6 +37,7 @@ The security code review was conducted using the following approach:
 **File:** `layanan/authenc/src/spi/credential/otp.rs`
 
 **✅ Strengths:**
+
 - Proper RFC 6238 compliance with HMAC-SHA1/SHA256/SHA512 support
 - Correct time window tolerance (±1 step) for clock skew
 - Proper dynamic truncation implementation
@@ -45,20 +46,24 @@ The security code review was conducted using the following approach:
 **⚠️ Medium Risk Issues:**
 
 1. **Insufficient Secret Entropy**
+
    ```rust
    // Current implementation
    let bytes: Vec<u8> = (0..20).map(|_| rng.gen()).collect();
    ```
+
    - **Issue**: 20 bytes (160 bits) is minimum, RFC 6238 recommends 256 bits
    - **Recommendation**: Increase to 32 bytes for enhanced security
    - **Impact**: Reduced resistance to brute force attacks
 
 2. **Missing Constant-Time Comparison**
+
    ```rust
    if expected_code == code {
        return Ok(true);
    }
    ```
+
    - **Issue**: String comparison is not constant-time, vulnerable to timing attacks
    - **Recommendation**: Use constant-time comparison for OTP verification
    - **Impact**: Potential timing attack vector
@@ -77,6 +82,7 @@ The security code review was conducted using the following approach:
 **⚠️ High Risk Issues:**
 
 4. **Plaintext Secret Transmission**
+
    ```rust
    let request = serde_json::json!({
        "path": path,
@@ -87,6 +93,7 @@ The security code review was conducted using the following approach:
        }
    });
    ```
+
    - **Issue**: TOTP secrets transmitted in plaintext to secreton
    - **Recommendation**: Encrypt secrets before transmission
    - **Impact**: Potential secret exposure in transit logs
@@ -98,10 +105,12 @@ The security code review was conducted using the following approach:
 **⚠️ Medium Risk Issues:*
 
 5. **Insufficient Input Validation**
+
    ```rust
    pub fn verify_totp(&self, secret: &str, code: &str, ...) -> Result<bool> {
        // No input length or format validation
    ```
+
    - **Issue**: Missing validation for code length and numeric format
    - **Recommendation**: Validate code is exactly 6/8
    - **Impact**: Potential DoS through malformed input
@@ -116,10 +125,12 @@ The security code review was conducted using the following approach:
 **⚠️ Medium Risk Issues:**
 
 7. **Base32 Decoding Error Handling**
+
    ```rust
    let secret_bytes = base32::decode(base32::Alphabet::RFC4648 { padding: false }, secret)
        .ok_or_else(|| Error::unauthorized("Invalid OTP secret format"))?;
    ```
+
    - **Issue**: Generic error message may leak information
    - **Recommendation**: Use consistent error messages
    - **Impact**: Information disclosure
@@ -138,11 +149,13 @@ The security code review was conducted using the following approach:
 **⚠️ High Risk Issues:**
 
 9. **Secreton Integration Security**
+
    ```rust
    async fn store_mfa_secret(&self, user_id: Uuid, secret: &str) -> Result<(), AuthencError> {
        let path = format!("mfa/totp/{}", user_id);
        // Direct HTTP call without additional encryption
    ```
+
    - **Issue**: Relies solely on HTTPS for secret protection
    - **Recommendation**: Add application-layer encryption
    - **Impact**: Secrets vulnerable if HTTPS is compromised
@@ -155,9 +168,11 @@ The security code review was conducted using the following approach:
 **⚠️ Medium Risk Issues:**
 
 11. **Path Predictability**
+
     ```rust
     let path = format!("mfa/totp/{}", user_id);
     ```
+
     - **Issue**: Predictable storage paths
     - **Recommendation**: Use HMAC-based path derivation
     - **Impact**: Potential enumeration attacks
@@ -169,9 +184,11 @@ The security code review was conducted using the following approach:
 **⚠️ High Risk Issues:**
 
 12. **Temporary Session Security**
+
     ```rust
     let temp_token = jwt::generate_temp_jwt(&user.id.to_string())
     ```
+
     - **Issue**: Temporary tokens may have excessive privileges
     - **Recommendation**: Implement minimal privilege temporary sessions
     - **Impact**: Privilege escalation risk
@@ -202,9 +219,11 @@ The security code review was conducted using the following approach:
 **⚠️ Medium Risk Issues:**
 
 16. **Backup Code Generation**
+
     ```rust
     let code = format!("{:08}", rand::random::<u32>() % 100_000_000);
     ```
+
     - **Issue**: Modulo bias in random number generation
     - **Recommendation**: Use cryptographically secure random generation
     - **Impact**: Reduced backup code entropy
@@ -212,6 +231,7 @@ The security code review was conducted using the following approach:
 ## Recommendations by Priority
 
 ### Critical Priority (Immediate Action Required)
+
 *No critical issues identified*
 
 ### High Priority (Fix within 1 week)

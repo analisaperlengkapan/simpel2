@@ -3,14 +3,17 @@
 ## Completed Actions
 
 ### 1. File Migration ✅
+
 All federation-related files have been successfully migrated to `crates/federation/src/`:
 
 #### Core Federation Files
+
 - ✅ `src/services/federation_manager.rs` → `crates/federation/src/manager.rs`
 - ✅ `src/services/federation_provider.rs` → `crates/federation/src/provider.rs`
 - ✅ `src/services/advanced_federation.rs` → `crates/federation/src/advanced.rs`
 
 #### Federation Providers
+
 - ✅ `src/services/federation/` → `crates/federation/src/providers/`
   - `providers/mod.rs`
   - `providers/oidc.rs`
@@ -18,6 +21,7 @@ All federation-related files have been successfully migrated to `crates/federati
   - `providers/saml_security.rs`
 
 #### SSO Services
+
 - ✅ `src/services/sso/` → `crates/federation/src/sso/`
   - `sso/mod.rs`
   - `sso/service.rs`
@@ -25,24 +29,30 @@ All federation-related files have been successfully migrated to `crates/federati
   - `sso/cookie.rs`
 
 #### Identity Broker
+
 - ✅ `src/services/broker/` → `crates/federation/src/broker/`
   - `broker/mod.rs`
 
 #### Social Login
+
 - ✅ `src/services/social/` → `crates/federation/src/social/`
   - `social/mod.rs`
 
 #### SAML Services
+
 - ✅ `src/services/saml.rs` → `crates/federation/src/saml/service.rs`
 - ✅ `src/services/saml_signature.rs` → `crates/federation/src/saml/signature.rs`
 - ✅ Created `crates/federation/src/saml/mod.rs`
 
 #### User Synchronization
+
 - ✅ `src/services/user_sync_service.rs` → `crates/federation/src/user_sync.rs`
 - ✅ `src/services/mysimkari_sync.rs` → `crates/federation/src/mysimkari_sync.rs`
 
 ### 2. Module Structure ✅
+
 Updated `crates/federation/src/lib.rs` with comprehensive exports:
+
 - Core federation modules (advanced, manager, provider, service)
 - Federation providers
 - SSO (Single Sign-On)
@@ -53,7 +63,9 @@ Updated `crates/federation/src/lib.rs` with comprehensive exports:
 - Re-exported key types and traits
 
 ### 3. Dependencies ✅
+
 Updated `crates/federation/Cargo.toml` with required dependencies:
+
 - authenc-types
 - authenc-core
 - authenc-storage
@@ -65,7 +77,9 @@ Updated `crates/federation/Cargo.toml` with required dependencies:
 - openidconnect
 
 ### 4. Import Updates (Partial) ⚠️
+
 Automated import updates completed:
+
 - ✅ `crate::crypto` → `authenc_core::crypto`
 - ✅ `crate::models` → `authenc_core::models`
 - ✅ `crate::database` → `authenc_storage`
@@ -75,6 +89,7 @@ Automated import updates completed:
 ## Remaining Issues
 
 ### Compilation Errors
+
 The crate currently has compilation errors due to:
 
 1. **Missing exports in authenc-core**:
@@ -96,6 +111,7 @@ The crate currently has compilation errors due to:
 ### Required Next Steps
 
 1. **Update authenc-core exports** to include:
+
    ```rust
    pub use authenc_types::error::Result;
    pub mod models {
@@ -153,6 +169,7 @@ crates/federation/src/
 ## Integration Points
 
 The federation crate integrates with:
+
 - **authenc-core**: User provisioning, authentication services
 - **authenc-storage**: Database operations, IdP configuration storage
 - **authenc-types**: Domain types, error types
@@ -175,6 +192,7 @@ All federation files have been successfully migrated to the `crates/federation/`
 However, compilation is currently blocked by missing exports in dependent crates (authenc-core, authenc-types, authenc-storage). These issues need to be resolved in the respective crates before the federation crate can compile successfully.
 
 The migration itself is complete and follows best practices:
+
 - Clear module organization
 - Proper dependency management
 - Comprehensive exports in lib.rs

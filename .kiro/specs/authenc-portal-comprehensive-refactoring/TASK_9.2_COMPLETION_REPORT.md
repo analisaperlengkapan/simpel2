@@ -20,6 +20,7 @@ Successfully created a unified IAM API router with comprehensive endpoint covera
 **File**: `crates/iam-api/src/state.rs`
 
 **Status**: Reviewed and verified. The IamApiState already exists with:
+
 - ✅ 4 implemented services:
   - `user_service: Arc<UserManagementServiceImpl>`
   - `realm_service: Arc<RealmManagementServiceImpl>`
@@ -56,12 +57,14 @@ Successfully created a unified IAM API router with comprehensive endpoint covera
 The router is organized into 20 logical sections with comprehensive endpoint coverage:
 
 ##### 1. Admin Dashboard and System Statistics (4 endpoints)
+
 - `GET /api/v1/iam/admin/stats` - System statistics
 - `GET /api/v1/iam/admin/dashboard` - Dashboard data
 - `GET /api/v1/iam/admin/security-events` - Security events
 - `GET /api/v1/iam/admin/risk-analytics` - Risk analytics
 
 ##### 2. User Management (6 endpoints)
+
 - `GET /api/v1/iam/users` - List users
 - `POST /api/v1/iam/users` - Create user
 - `GET /api/v1/iam/users/:id` - Get user
@@ -72,6 +75,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `POST /api/v1/iam/users/:id/mfa/disable` - Disable MFA
 
 ##### 3. Realm Management (5 endpoints)
+
 - `GET /api/v1/iam/realms` - List realms
 - `POST /api/v1/iam/realms` - Create realm
 - `GET /api/v1/iam/realms/:id` - Get realm
@@ -79,6 +83,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/realms/:id` - Delete realm
 
 ##### 4. OAuth2 Client Management (6 endpoints)
+
 - `GET /api/v1/iam/clients` - List clients
 - `POST /api/v1/iam/clients` - Create client
 - `GET /api/v1/iam/clients/:id` - Get client
@@ -87,6 +92,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `POST /api/v1/iam/clients/:id/secret/regenerate` - Regenerate secret
 
 ##### 5. Role Management (6 endpoints)
+
 - `GET /api/v1/iam/roles` - List roles
 - `POST /api/v1/iam/roles` - Create role
 - `GET /api/v1/iam/roles/:id` - Get role
@@ -96,6 +102,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/users/:user_id/roles/:role_id` - Remove role
 
 ##### 6. Group Management (9 endpoints)
+
 - `GET /api/v1/iam/groups` - List groups
 - `POST /api/v1/iam/groups` - Create group
 - `GET /api/v1/iam/groups/:id` - Get group
@@ -109,6 +116,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/groups/:id/subgroups/:subgroup_id` - Remove subgroup
 
 ##### 7. Organization Management (10 endpoints)
+
 - `GET /api/v1/iam/organizations` - List organizations
 - `POST /api/v1/iam/organizations` - Create organization
 - `GET /api/v1/iam/organizations/:id` - Get organization
@@ -123,6 +131,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `PUT /api/v1/iam/organizations/:id/settings` - Update settings
 
 ##### 8. Satker (Government Hierarchy) Management (6 endpoints)
+
 - `GET /api/v1/iam/satker` - List satker
 - `POST /api/v1/iam/satker` - Create satker
 - `GET /api/v1/iam/satker/:id` - Get satker
@@ -132,17 +141,20 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `GET /api/v1/iam/satker/:id/authorization` - Check authorization
 
 ##### 9. JIT Provisioning Configuration (2 endpoints)
+
 - `GET /api/v1/iam/jit/config` - Get JIT config
 - `PUT /api/v1/iam/jit/config` - Update JIT config
 - `GET /api/v1/iam/jit/stats` - Get JIT stats
 
 ##### 10. Dynamic Client Registration (DCR) - RFC 7591/7592 (4 endpoints)
+
 - `POST /api/v1/iam/dcr/register` - Register client
 - `GET /api/v1/iam/dcr/register/:client_id` - Get client configuration
 - `PUT /api/v1/iam/dcr/register/:client_id` - Update client configuration
 - `DELETE /api/v1/iam/dcr/register/:client_id` - Delete client
 
 ##### 11. DCR Admin - Initial Access Tokens and Policies (7 endpoints)
+
 - `GET /api/v1/iam/dcr/initial-access-tokens` - List tokens
 - `POST /api/v1/iam/dcr/initial-access-tokens` - Create token
 - `DELETE /api/v1/iam/dcr/initial-access-tokens/:id` - Revoke token
@@ -153,6 +165,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/dcr/policies/:id` - Delete policy
 
 ##### 12. Client Policy Management (9 endpoints)
+
 - `GET /api/v1/iam/client-policies` - List policies
 - `POST /api/v1/iam/client-policies` - Create policy
 - `GET /api/v1/iam/client-policies/:id` - Get policy
@@ -165,6 +178,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/clients/:client_id/policies/:policy_id` - Unassign policy
 
 ##### 13. Federation and SSO Configuration (5 endpoints)
+
 - `GET /api/v1/iam/identity-providers` - List IdPs
 - `POST /api/v1/iam/identity-providers` - Create IdP
 - `GET /api/v1/iam/identity-providers/:id` - Get IdP
@@ -172,10 +186,12 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/identity-providers/:id` - Delete IdP
 
 ##### 14. Federation Admin - Sync and Statistics (2 endpoints)
+
 - `POST /api/v1/iam/federation/sync` - Trigger sync
 - `GET /api/v1/iam/federation/stats` - Get stats
 
 ##### 15. SPI (Service Provider Interface) Management (6 endpoints)
+
 - `GET /api/v1/iam/spi/plugins` - List plugins
 - `POST /api/v1/iam/spi/plugins` - Install plugin
 - `GET /api/v1/iam/spi/plugins/:id` - Get plugin
@@ -185,6 +201,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `POST /api/v1/iam/spi/plugins/:id/disable` - Disable plugin
 
 ##### 16. SPI Federation - Custom Federation Providers (5 endpoints)
+
 - `GET /api/v1/iam/spi/federation-providers` - List providers
 - `POST /api/v1/iam/spi/federation-providers` - Register provider
 - `GET /api/v1/iam/spi/federation-providers/:id` - Get provider
@@ -192,6 +209,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/spi/federation-providers/:id` - Unregister provider
 
 ##### 17. UMA 2.0 (User-Managed Access) (10 endpoints)
+
 - `GET /api/v1/iam/uma/resources` - List resources
 - `POST /api/v1/iam/uma/resources` - Create resource
 - `GET /api/v1/iam/uma/resources/:id` - Get resource
@@ -207,6 +225,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/uma/permissions/:id` - Delete permission
 
 ##### 18. Zero Trust Policies (9 endpoints)
+
 - `GET /api/v1/iam/zero-trust/policies` - List policies
 - `POST /api/v1/iam/zero-trust/policies` - Create policy
 - `GET /api/v1/iam/zero-trust/policies/:id` - Get policy
@@ -219,6 +238,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `DELETE /api/v1/iam/zero-trust/device-trust/:id` - Revoke device trust
 
 ##### 19. OID4VC (OpenID for Verifiable Credentials) (5 endpoints)
+
 - `GET /api/v1/iam/oid4vc/credentials` - List credentials
 - `POST /api/v1/iam/oid4vc/credentials` - Issue credential
 - `GET /api/v1/iam/oid4vc/credentials/:id` - Get credential
@@ -226,19 +246,23 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - `POST /api/v1/iam/oid4vc/credentials/:id/verify` - Verify credential
 
 ##### 20. Audit Logs (3 endpoints)
+
 - `GET /api/v1/iam/audit-logs` - List audit logs
 - `GET /api/v1/iam/audit-logs/export` - Export audit logs
 - `POST /api/v1/iam/audit-logs/query` - Query audit logs
 
 ##### 21. Sessions Management (2 endpoints)
+
 - `GET /api/v1/iam/sessions` - List sessions
 - `DELETE /api/v1/iam/sessions/:id` - Terminate session
 
 ##### 22. Authorization Policies (2 endpoints)
+
 - `GET /api/v1/iam/policies` - List policies
 - `POST /api/v1/iam/policies` - Create policy
 
 ##### 23. Identity Providers (Admin endpoints) (6 endpoints)
+
 - `GET /api/v1/iam/admin/identity-providers` - List IdPs
 - `GET /api/v1/iam/admin/identity-providers/:id` - Get IdP
 - `POST /api/v1/iam/admin/identity-providers` - Create IdP
@@ -255,10 +279,12 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 **File**: `crates/iam-api/src/middleware/admin_auth.rs` (EXISTING)
 
 **Middleware Applied**:
+
 - ✅ `admin_auth_middleware` - JWT validation and admin role checking
 - ✅ Applied to ALL routes via `.layer(middleware::from_fn_with_state(...))`
 
 **Features**:
+
 - Extracts and validates JWT token from Authorization header
 - Checks for admin role (TODO: implement full role extraction from claims)
 - Injects `AdminUser` into request extensions for handler access
@@ -266,6 +292,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 - Returns 403 Forbidden for non-admin users
 
 **Additional Middleware Available**:
+
 - `require_permission(permission: &'static str)` - Permission-based authorization (TODO: implement full permission checking)
 
 ---
@@ -275,6 +302,7 @@ The router is organized into 20 logical sections with comprehensive endpoint cov
 **File**: `crates/iam-api/src/lib.rs` (UPDATED)
 
 **Changes**:
+
 ```rust
 pub mod router;  // NEW
 
@@ -283,6 +311,7 @@ pub use router::create_iam_router;  // NEW
 ```
 
 **Public API**:
+
 - ✅ `create_iam_router(state: Arc<IamApiState>) -> Router` - Main router creation function
 - ✅ All handler modules exported via `pub mod handlers`
 - ✅ Middleware exported via `pub mod middleware`
@@ -321,6 +350,7 @@ All 21 migrated handler modules are integrated into the router:
 ## Compilation Status
 
 ### Current Status
+
 - ✅ `authenc-iam-api` crate structure is correct
 - ✅ Router syntax is valid
 - ✅ All imports are correct
@@ -328,12 +358,15 @@ All 21 migrated handler modules are integrated into the router:
 - ⚠️ Compilation blocked by errors in `authenc-core` dependency (expected during migration)
 
 ### Dependency Errors (Not in iam-api)
+
 The following errors are in `authenc-core`, not in `authenc-iam-api`:
+
 - `RealmId` type not found (needs to be defined in authenc-types)
 - Database operations imports need fixing
 - These are expected during the migration process and will be resolved in subsequent tasks
 
 ### Verification Commands
+
 ```bash
 # Check iam-api crate (will fail due to authenc-core errors)
 cargo check --package authenc-iam-api
@@ -347,24 +380,28 @@ cargo check --package authenc-iam-api --lib
 ## Requirements Validated
 
 ✅ **REQ-API-002**: IAM Administration API
+
 - Comprehensive admin endpoints for all IAM operations
 - User, realm, client, role, group, organization management
 - Federation, SSO, and identity provider configuration
 - Advanced features: UMA, Zero Trust, OID4VC, SPI
 
 ✅ **REQ-PORTAL-010 through REQ-PORTAL-016**: Portal IAM Admin Pages
+
 - All required endpoints for Portal IAM admin pages
 - User management, realm management, client management
 - Federation configuration, audit log access
 - System statistics and dashboard data
 
 ✅ **REQ-SEC-006**: Authentication and Authorization
+
 - Admin authentication middleware applied to all routes
 - JWT token validation
 - Admin role checking
 - Permission-based authorization framework (TODO: full implementation)
 
 ✅ **REQ-ARCH-001**: Multi-crate architecture
+
 - Clean separation of concerns
 - Router in dedicated module
 - State management in separate module
@@ -375,6 +412,7 @@ cargo check --package authenc-iam-api --lib
 ## Next Steps
 
 ### Immediate (Task 9.3)
+
 1. **Integration Testing**:
    - Test authenc-iam-api → authenc-core integration
    - Test authenc-iam-api → authenc-storage integration
@@ -389,6 +427,7 @@ cargo check --package authenc-iam-api --lib
    - Run `cargo clippy --package authenc-iam-api` (must pass)
 
 ### Future Enhancements
+
 1. **Complete IamApiState**:
    - Implement missing services (role, group, organization, satker, etc.)
    - Update state.rs to include all 13 TODO services
@@ -411,17 +450,20 @@ cargo check --package authenc-iam-api --lib
 ## Files Modified
 
 ### New Files
+
 1. `crates/iam-api/src/router.rs` (450 lines)
    - Unified IAM API router with 100+ endpoints
    - Comprehensive documentation
    - Organized into 23 logical sections
 
 ### Modified Files
+
 1. `crates/iam-api/src/lib.rs`
    - Added `pub mod router`
    - Added `pub use router::create_iam_router`
 
 ### Existing Files (Verified)
+
 1. `crates/iam-api/src/state.rs` - IamApiState with 4 services + 13 TODOs
 2. `crates/iam-api/src/middleware/mod.rs` - Middleware exports
 3. `crates/iam-api/src/middleware/admin_auth.rs` - Admin authentication middleware

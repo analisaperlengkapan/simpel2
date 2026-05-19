@@ -3,6 +3,7 @@
 ## 📋 Overview
 
 Sistem audit logging dan token management yang comprehensive untuk:
+
 1. **Audit Trail** - Track semua API calls
 2. **Token Management** - Manage dan track token lifecycle
 3. **Monitoring** - Real-time monitoring dan analytics
@@ -14,9 +15,11 @@ Sistem audit logging dan token management yang comprehensive untuk:
 ### 1. API Call Logging
 
 #### Table: `api_call_log`
+
 Track semua API calls ke MonSAKTI dan MySIMKARI.
 
 **Columns:**
+
 - `module` - ADM, ANG, BEN, etc.
 - `endpoint` - refAdmin, dataAng, etc.
 - `kode_kl` - KL code
@@ -33,12 +36,14 @@ Track semua API calls ke MonSAKTI dan MySIMKARI.
 - `data_saved` - Was data saved successfully?
 
 **Indexes:**
+
 - By module, endpoint, kode_kl, kdsatker
 - By success status
 - By timestamp
 - Partial index for failed calls
 
 **Usage:**
+
 ```rust
 use monsakti_fetcher::ApiCallLog;
 
@@ -52,9 +57,11 @@ log.save(&db).await?;
 ### 2. Batch Processing Logging
 
 #### Table: `batch_processing_log`
+
 Track batch operations.
 
 **Columns:**
+
 - `batch_type` - complete, satker, global, mysimkari
 - `kode_kl` - KL code
 - `total_satker` - Total satker to process
@@ -69,6 +76,7 @@ Track batch operations.
 - `parallel_mode` - Parallel processing?
 
 **Usage:**
+
 ```rust
 use monsakti_fetcher::BatchProcessingLog;
 
@@ -85,9 +93,11 @@ BatchProcessingLog::complete(&db, batch_id, "completed", None).await?;
 ### 3. Data Sync Logging
 
 #### Table: `data_sync_log`
+
 Track data synchronization to database.
 
 **Columns:**
+
 - `table_name` - Target table
 - `module` - Module name
 - `endpoint` - Endpoint name
@@ -99,6 +109,7 @@ Track data synchronization to database.
 - `success` - Success/failure
 
 **Usage:**
+
 ```rust
 use monsakti_fetcher::DataSyncLog;
 
@@ -113,9 +124,11 @@ sync_log.save(&db, Some(batch_id), Some(api_call_id)).await?;
 ### 4. Token Management
 
 #### Table: `api_tokens`
+
 Current active tokens for each module.
 
 **Columns:**
+
 - `module` - Module name (UNIQUE)
 - `token_value` - Encrypted token
 - `token_hash` - SHA256 hash
@@ -128,14 +141,17 @@ Current active tokens for each module.
 - `refreshed_at` - Last refresh
 
 **Security:**
+
 - Token value should be encrypted at application level
 - Token hash for verification without exposing token
 - Only first 50 chars logged for tracking
 
 #### Table: `api_token_history`
+
 Complete history of token changes.
 
 **Columns:**
+
 - `token_id` - Reference to api_tokens
 - `module` - Module name
 - `event_type` - created, refreshed, expired, reset, revoked
@@ -145,13 +161,16 @@ Complete history of token changes.
 - `new_token_hash` - New token hash
 
 **Auto-logging:**
+
 - Trigger automatically logs token changes
 - No manual intervention needed
 
 #### Table: `token_reset_log`
+
 Log of token reset operations.
 
 **Columns:**
+
 - `module` - Module name
 - `kode_kl` - KL code
 - `reset_reason` - expired, failed, manual, scheduled
@@ -160,6 +179,7 @@ Log of token reset operations.
 - `new_token_received` - Got new token?
 
 **Usage:**
+
 ```rust
 use monsakti_fetcher::TokenResetLog;
 
@@ -170,9 +190,11 @@ reset_log.save(&db, Some(api_call_id)).await?;
 ```
 
 #### Table: `token_rotation_policy`
+
 Token rotation policies per module.
 
 **Columns:**
+
 - `module` - Module name (UNIQUE)
 - `rotation_enabled` - Enable rotation?
 - `rotation_interval_hours` - Rotate every N hours
@@ -182,6 +204,7 @@ Token rotation policies per module.
 - `next_rotation_at` - Next scheduled rotation
 
 **Default Policy:**
+
 - Rotation every 24 hours
 - Auto-reset after 3 consecutive failures
 - Notifications disabled by default
@@ -189,6 +212,7 @@ Token rotation policies per module.
 ## 📊 Views for Analytics
 
 ### 1. `v_api_stats_by_module`
+
 API call statistics by module and date.
 
 ```sql
@@ -198,6 +222,7 @@ ORDER BY call_date DESC, module;
 ```
 
 ### 2. `v_recent_failed_calls`
+
 Most recent 100 failed API calls.
 
 ```sql
@@ -205,6 +230,7 @@ SELECT * FROM v_recent_failed_calls;
 ```
 
 **Rust Usage:**
+
 ```rust
 use monsakti_fetcher::get_recent_failed_calls;
 
@@ -215,6 +241,7 @@ for call in failed_calls {
 ```
 
 ### 3. `v_token_health`
+
 Health status of all tokens.
 
 ```sql
@@ -223,6 +250,7 @@ WHERE health_status IN ('critical', 'warning');
 ```
 
 **Rust Usage:**
+
 ```rust
 use monsakti_fetcher::get_token_health;
 
@@ -236,6 +264,7 @@ for token in health {
 ```
 
 ### 4. `v_batch_summary`
+
 Summary of batch operations.
 
 ```sql
@@ -245,6 +274,7 @@ ORDER BY started_at DESC;
 ```
 
 ### 5. `v_daily_sync_stats`
+
 Daily synchronization statistics.
 
 ```sql
@@ -256,6 +286,7 @@ ORDER BY sync_date DESC;
 ## 🔍 Common Queries
 
 ### Find Slow API Calls
+
 ```sql
 SELECT module, endpoint, AVG(response_time_ms) as avg_time
 FROM api_call_log
@@ -266,6 +297,7 @@ ORDER BY avg_time DESC;
 ```
 
 ### Token Reset Frequency
+
 ```sql
 SELECT module, COUNT(*) as reset_count,
        SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful
@@ -276,6 +308,7 @@ ORDER BY reset_count DESC;
 ```
 
 ### Failed Satker Processing
+
 ```sql
 SELECT kdsatker, COUNT(*) as failure_count,
        MAX(started_at) as last_failure
@@ -289,6 +322,7 @@ ORDER BY failure_count DESC;
 ```
 
 ### Batch Processing Performance
+
 ```sql
 SELECT batch_type,
        AVG(duration_seconds) as avg_duration,
@@ -303,6 +337,7 @@ GROUP BY batch_type;
 ## 📈 Monitoring Dashboard Queries
 
 ### Real-time Status
+
 ```sql
 -- Active batch operations
 SELECT * FROM batch_processing_log
@@ -322,6 +357,7 @@ WHERE health_status != 'healthy';
 ```
 
 ### Daily Report
+
 ```sql
 -- Daily summary
 SELECT
@@ -340,6 +376,7 @@ ORDER BY date DESC;
 ## 🔧 Maintenance
 
 ### Cleanup Old Logs
+
 ```sql
 -- Delete logs older than 90 days
 DELETE FROM api_call_log
@@ -354,6 +391,7 @@ WHERE created_at < CURRENT_DATE - INTERVAL '1 year';
 ```
 
 ### Archive Old Data
+
 ```sql
 -- Archive to separate table
 CREATE TABLE api_call_log_archive AS
@@ -368,6 +406,7 @@ WHERE created_at < CURRENT_DATE - INTERVAL '90 days';
 ## 🚨 Alerts
 
 ### Critical Token Failures
+
 ```sql
 -- Tokens with 3+ consecutive failures
 SELECT module, consecutive_failures, last_failure_at
@@ -377,6 +416,7 @@ WHERE consecutive_failures >= 3
 ```
 
 ### High Error Rate
+
 ```sql
 -- Modules with >10% error rate today
 SELECT module,
@@ -390,6 +430,7 @@ HAVING SUM(CASE WHEN NOT success THEN 1 ELSE 0 END)::NUMERIC / COUNT(*) > 0.1;
 ```
 
 ### Stuck Batch Operations
+
 ```sql
 -- Batch operations running > 2 hours
 SELECT id, batch_type, kode_kl,
@@ -402,6 +443,7 @@ WHERE status = 'running'
 ## 📝 Best Practices
 
 ### 1. Always Log API Calls
+
 ```rust
 let start = std::time::Instant::now();
 let mut log = ApiCallLog::new("ADM", "refAdmin", &url);
@@ -425,6 +467,7 @@ log.save(&db).await?;
 ```
 
 ### 2. Track Batch Operations
+
 ```rust
 let batch = BatchProcessingLog::new("complete", Some("006"));
 let batch_id = batch.start(&db).await?;
@@ -435,6 +478,7 @@ BatchProcessingLog::complete(&db, batch_id, "completed", None).await?;
 ```
 
 ### 3. Log Token Resets
+
 ```rust
 let mut reset_log = TokenResetLog::new("ADM", "006", "expired", "auto");
 
@@ -453,6 +497,7 @@ reset_log.save(&db, None).await?;
 ```
 
 ### 4. Monitor Token Health
+
 ```rust
 // Check token health periodically
 let health = get_token_health(&db).await?;
@@ -468,24 +513,28 @@ for token in health {
 ## 🎯 Benefits
 
 ### Audit & Compliance
+
 - ✅ Complete audit trail
 - ✅ Track who, what, when
 - ✅ Meet compliance requirements
 - ✅ Easy to generate reports
 
 ### Debugging
+
 - ✅ Quick error identification
 - ✅ Performance analysis
 - ✅ Pattern detection
 - ✅ Root cause analysis
 
 ### Monitoring
+
 - ✅ Real-time status
 - ✅ Health checks
 - ✅ Performance metrics
 - ✅ Proactive alerts
 
 ### Analytics
+
 - ✅ Usage patterns
 - ✅ Performance trends
 - ✅ Capacity planning

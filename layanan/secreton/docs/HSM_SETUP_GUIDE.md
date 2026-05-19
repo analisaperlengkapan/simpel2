@@ -5,6 +5,7 @@ This guide provides comprehensive instructions for setting up Hardware Security 
 ## Overview
 
 Secreton supports HSM integration for hardware-backed cryptographic operations, providing:
+
 - Hardware-protected key storage
 - FIPS 140-2 Level 3+ compliance (hardware dependent)
 - Tamper-resistant key operations
@@ -41,6 +42,7 @@ Secreton supports multiple HSM providers:
 #### 1. Install HSM Drivers
 
 For Thales/SafeNet HSM:
+
 ```bash
 # Install HSM client software
 sudo dpkg -i safenet-client-*.deb
@@ -50,6 +52,7 @@ sudo dpkg -i safenet-client-*.deb
 ```
 
 For Gemalto HSM:
+
 ```bash
 # Install Gemalto client
 sudo rpm -i gemalto-client-*.rpm
@@ -85,17 +88,20 @@ SoftHSM provides a software-based PKCS#11 implementation for testing.
 #### 1. Install SoftHSM
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt-get update
 sudo apt-get install softhsm2
 ```
 
 **RHEL/CentOS:**
+
 ```bash
 sudo yum install softhsm
 ```
 
 **macOS:**
+
 ```bash
 brew install softhsm
 ```
@@ -163,12 +169,14 @@ retry_delay_ms = 1000
 ### 2. Set Environment Variables
 
 **For production (use secrets management):**
+
 ```bash
 export HSM_PIN="your-secure-pin"
 export SECRETON_HSM_ENABLED=true
 ```
 
 **For development (SoftHSM):**
+
 ```bash
 export HSM_PIN="5678"
 export SECRETON_HSM_ENABLED=true
@@ -197,6 +205,7 @@ tail -f /var/log/secreton/secreton.log | grep HSM
 ```
 
 Expected log output:
+
 ```
 INFO Initializing HSM backend with provider: Pkcs11
 INFO HSM backend initialized successfully
@@ -311,17 +320,21 @@ curl http://localhost:8200/health/detailed
 **Symptom:** `HSM not initialized` error
 
 **Solutions:**
+
 1. Verify PKCS#11 library path:
+
    ```bash
    ls -l /usr/lib/softhsm/libsofthsm2.so
    ```
 
 2. Check token initialization:
+
    ```bash
    softhsm2-util --show-slots
    ```
 
 3. Verify PIN is correct:
+
    ```bash
    pkcs11-tool --module /usr/lib/softhsm/libsofthsm2.so --login --pin 5678
    ```
@@ -331,6 +344,7 @@ curl http://localhost:8200/health/detailed
 **Symptom:** `HSM connection failed: timeout`
 
 **Solutions:**
+
 1. Increase connection timeout in config
 2. Check network connectivity to HSM
 3. Verify HSM is not overloaded
@@ -341,9 +355,11 @@ curl http://localhost:8200/health/detailed
 **Symptom:** `HSM authentication failed: invalid PIN`
 
 **Solutions:**
+
 1. Verify PIN environment variable is set correctly
 2. Check token is not locked (too many failed attempts)
 3. Reinitialize token if necessary:
+
    ```bash
    softhsm2-util --init-token --slot 0 --label "secreton-hsm" --so-pin 1234 --pin 5678
    ```
@@ -353,6 +369,7 @@ curl http://localhost:8200/health/detailed
 **Symptom:** `HSM operation failed: key generation error`
 
 **Solutions:**
+
 1. Check HSM has sufficient storage
 2. Verify key parameters are supported
 3. Check HSM permissions
@@ -363,6 +380,7 @@ curl http://localhost:8200/health/detailed
 **Symptom:** Slow HSM operations
 
 **Solutions:**
+
 1. Enable connection pooling
 2. Increase operation timeout
 3. Use batch operations where possible
@@ -446,10 +464,12 @@ For FIPS 140-2 compliance:
 
 1. Use FIPS-validated HSM hardware
 2. Enable FIPS mode in configuration:
+
    ```toml
    [hsm]
    fips_mode = true
    ```
+
 3. Use only FIPS-approved algorithms
 4. Maintain audit trail of all operations
 
@@ -494,26 +514,31 @@ secreton audit export --filter "operation=hsm_*" --format json > hsm_audit.json
 ### Migration Steps
 
 1. **Generate new keys in HSM:**
+
    ```bash
    secreton hsm generate-key --name master-key-v2 --algorithm RSA --size 4096
    ```
 
 2. **Re-encrypt data with new keys:**
+
    ```bash
    secreton migrate reencrypt --old-key master-key-v1 --new-key master-key-v2
    ```
 
 3. **Update key references:**
+
    ```bash
    secreton config update-key-reference --from master-key-v1 --to master-key-v2
    ```
 
 4. **Verify migration:**
+
    ```bash
    secreton verify-encryption --key master-key-v2
    ```
 
 5. **Retire old keys:**
+
    ```bash
    secreton key retire --name master-key-v1
    ```
@@ -541,4 +566,3 @@ For HSM-related issues:
 - Added SoftHSM testing instructions
 - Added security best practices
 - Added troubleshooting guide
-

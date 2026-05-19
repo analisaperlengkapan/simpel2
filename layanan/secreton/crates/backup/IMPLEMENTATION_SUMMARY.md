@@ -34,6 +34,7 @@ crates/backup/
 ### 2. Core Components
 
 #### BackupStorage Trait
+
 - **Purpose**: Pluggable storage backend abstraction
 - **Methods**:
   - `upload()` - Upload backup to storage
@@ -44,6 +45,7 @@ crates/backup/
   - `get_metadata()` - Get metadata without full download
 
 #### LocalStorage Implementation
+
 - **Purpose**: Local filesystem storage backend
 - **Features**:
   - Atomic file writes with sync
@@ -52,6 +54,7 @@ crates/backup/
   - Comprehensive error handling
 
 #### BackupManager
+
 - **Purpose**: Main orchestrator for backup operations
 - **Key Methods**:
   - `new()` - Create manager with configuration
@@ -64,6 +67,7 @@ crates/backup/
   - `stop_scheduler()` - Stop automated backups
 
 #### BackupScheduler
+
 - **Purpose**: Cron-based automated backup scheduling
 - **Features**:
   - Standard cron expression support
@@ -73,6 +77,7 @@ crates/backup/
   - Automatic error handling and logging
 
 #### Backup & BackupMetadata
+
 - **Purpose**: Data structures for backup representation
 - **Features**:
   - Unique backup IDs (UUID)
@@ -86,6 +91,7 @@ crates/backup/
 ### 3. Key Features Implemented
 
 #### Encryption
+
 - **Algorithm**: ChaCha20-Poly1305 (AEAD cipher)
 - **Key Size**: 32 bytes (256 bits)
 - **Nonce**: Random 12-byte nonce per encryption
@@ -93,12 +99,14 @@ crates/backup/
 - **Security**: Separate encryption key from master key
 
 #### Compression
+
 - **Algorithm**: Gzip (flate2)
 - **Levels**: 0-9 (configurable, default 6)
 - **Effectiveness**: 50-70% size reduction on average
 - **Optional**: Can be disabled if needed
 
 #### Backup Process
+
 1. Create Raft snapshot (placeholder for now)
 2. Dump PostgreSQL database (placeholder for now)
 3. Compress data (if enabled)
@@ -109,12 +117,14 @@ crates/backup/
 8. Clean up old backups per retention policy
 
 #### Verification
+
 - Download backup from storage
 - Decrypt and decompress
 - Verify SHA-256 checksum
 - Ensure data integrity
 
 #### Retention Policy
+
 - Configurable retention period (days)
 - Automatic cleanup of old backups
 - Runs after each backup creation
@@ -138,6 +148,7 @@ pub struct BackupConfig {
 ### 5. Error Handling
 
 Comprehensive error types covering:
+
 - Storage errors
 - Encryption/decryption errors
 - Compression/decompression errors
@@ -150,6 +161,7 @@ Comprehensive error types covering:
 ### 6. Testing
 
 Implemented 15 integration tests covering:
+
 - ✅ Complete backup lifecycle (create, verify, restore, delete)
 - ✅ Multiple backups with timestamp ordering
 - ✅ Metadata tracking and validation
@@ -169,31 +181,37 @@ All tests pass successfully.
 ## Design Decisions
 
 ### 1. Separate Encryption Key
+
 - Backups use a separate encryption key from the master key
 - Allows backup restoration even if master key is rotated
 - Key must be stored securely (e.g., in Secreton itself or KMS)
 
 ### 2. Pluggable Storage
+
 - `BackupStorage` trait allows multiple backends
 - LocalStorage implemented first
 - S3, Azure, GCS backends planned for future
 
 ### 3. Metadata Separation
+
 - Metadata stored separately from backup data
 - Enables fast listing without downloading full backups
 - Includes comprehensive information for monitoring
 
 ### 4. Compression Before Encryption
+
 - Compression applied before encryption for better ratios
 - Encrypted data is not compressible
 - Optional to support different use cases
 
 ### 5. Automatic Verification
+
 - Verification runs after each backup by default
 - Ensures backup integrity before relying on it
 - Can be disabled for performance if needed
 
 ### 6. Placeholder Implementations
+
 - Raft snapshot and PostgreSQL dump are placeholders
 - Will be implemented in subsequent tasks
 - Allows testing of backup infrastructure independently
@@ -243,9 +261,11 @@ All tests pass successfully.
 ## Next Steps
 
 ### Immediate (Task 2.2)
+
 - ✅ Already implemented! Cron-based scheduler is complete
 
 ### Short Term (Tasks 2.3-2.8)
+
 - Implement Raft snapshot creation
 - Implement PostgreSQL dump functionality
 - Add backup encryption with separate key
@@ -254,6 +274,7 @@ All tests pass successfully.
 - Implement backup restoration procedures
 
 ### Medium Term (Tasks 2.9-2.20)
+
 - Point-in-time recovery
 - Automatic backup verification
 - Backup failure alerting

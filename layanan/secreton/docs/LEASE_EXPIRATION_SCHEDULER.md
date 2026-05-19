@@ -262,12 +262,14 @@ When `enable_notifications = true`:
 ### Database Impact
 
 Each check cycle performs:
+
 - 1 query to find expired leases
 - 1 query per expired lease to revoke it
 - 1 query to find expiring-soon leases (if notifications enabled)
 - Additional queries for child lease cascade
 
 For 1000 active leases with 1% expiring per minute:
+
 - ~10 expired leases per check
 - ~10 revocation queries
 - ~20 total queries per minute (with 60s interval)
@@ -332,6 +334,7 @@ pub async fn health_check(manager: Arc<LeaseManager>) -> Result<HealthStatus> {
 **Symptom**: Expired leases are not being revoked
 
 **Solutions**:
+
 1. Check logs for scheduler startup message
 2. Verify scheduler handle is not dropped prematurely
 3. Check for database connection issues in error logs
@@ -341,6 +344,7 @@ pub async fn health_check(manager: Arc<LeaseManager>) -> Result<HealthStatus> {
 **Symptom**: Database CPU/IO usage is high
 
 **Solutions**:
+
 1. Increase `check_interval_secs` to reduce query frequency
 2. Add database indexes on `leases.status` and `leases.expired_at`
 3. Consider batch revocation for large numbers of expired leases
@@ -350,6 +354,7 @@ pub async fn health_check(manager: Arc<LeaseManager>) -> Result<HealthStatus> {
 **Symptom**: No notification logs appearing
 
 **Solutions**:
+
 1. Verify `enable_notifications = true` in configuration
 2. Check that leases are within notification threshold
 3. Implement actual notification delivery mechanism (currently logs only)
@@ -359,6 +364,7 @@ pub async fn health_check(manager: Arc<LeaseManager>) -> Result<HealthStatus> {
 **Symptom**: Application memory usage grows over time
 
 **Solutions**:
+
 1. Verify cache cleanup is working (check logs)
 2. Monitor cache size with custom metrics
 3. Reduce cache TTL if needed

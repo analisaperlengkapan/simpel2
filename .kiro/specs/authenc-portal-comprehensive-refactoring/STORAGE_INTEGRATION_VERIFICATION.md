@@ -39,6 +39,7 @@ authenc-storage v0.1.0
 ### 1.2 Cargo.toml Dependencies
 
 **authenc-storage/Cargo.toml**:
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -47,6 +48,7 @@ authenc-webauthn = { path = "../webauthn" }
 ```
 
 **authenc-core/Cargo.toml**:
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -55,6 +57,7 @@ authenc-storage = { path = "../storage" }
 ```
 
 **Result**: ✅ **PASS** - Correct dependency hierarchy:
+
 - `authenc-types` (base layer, no internal deps)
 - `authenc-storage` → depends on `authenc-types`
 - `authenc-core` → depends on `authenc-types` + `authenc-storage`
@@ -77,6 +80,7 @@ authenc-storage = { path = "../storage" }
 | `RefreshTokenStore` | ✅ | 5 methods (store, get, revoke, cleanup) |
 
 **Additional Traits**:
+
 - `CredentialStore` - Defined in `authenc-webauthn` (for WebAuthn passkeys)
 
 ### 2.2 Trait Implementations in authenc-storage
@@ -155,6 +159,7 @@ $ cargo test --package authenc-storage
 **Location**: `crates/core/tests/`
 
 **Test Files**:
+
 - `user_management_service_tests.rs` - Uses `MockUserStore`
 - `authentication_service_tests.rs` - Uses mock implementations
 - `services_tests.rs` - Uses mock implementations
@@ -219,6 +224,7 @@ async fn test_create_user_end_to_end() {
 ```
 
 **Test Scenarios to Add**:
+
 1. ✅ Create user → Store in DB → Retrieve user
 2. ✅ Create session → Store → Retrieve → Validate
 3. ✅ Create realm → Store → Retrieve → Update
@@ -298,6 +304,7 @@ warning: unexpected `cfg` condition value: `secreton`
 **Impact**: Non-blocking - Feature flag not yet defined in `authenc-crypto/Cargo.toml`
 
 **Resolution**: Add to `authenc-crypto/Cargo.toml`:
+
 ```toml
 [features]
 secreton = []
@@ -339,16 +346,19 @@ secreton = []
 ### 7.2 Testing Strategy
 
 **Unit Tests** (Current - ✅ Complete):
+
 - Test individual store methods
 - Use in-memory test database
 - Fast execution (<1s per test)
 
 **Integration Tests** (Phase 3 - ⏳ Pending):
+
 - Test service → store → database flow
 - Use real PostgreSQL (testcontainers)
 - Slower execution (~5-10s per test)
 
 **End-to-End Tests** (Phase 4 - ⏳ Future):
+
 - Test HTTP API → service → store → database
 - Use real Axum server + PostgreSQL
 - Full system validation
@@ -373,6 +383,7 @@ secreton = []
 **Progress**: 50% → **50%** (Task 3.7 complete)
 
 **Completed Tasks**:
+
 - ✅ 3.1 - Create authenc-storage crate structure
 - ✅ 3.2 - Migrate PostgresUserStore
 - ✅ 3.3 - Migrate PostgresSessionStore
@@ -386,6 +397,7 @@ secreton = []
 ### 8.3 Readiness for Phase 3
 
 **Storage Layer**: ✅ **READY**
+
 - All core stores implemented
 - Traits properly defined
 - Compilation successful
@@ -394,6 +406,7 @@ secreton = []
 **Blockers**: None
 
 **Recommendations**:
+
 1. Add `PostgresAuthorizationCodeStore` and `PostgresRefreshTokenStore` early in Phase 3
 2. Create integration test infrastructure (testcontainers setup)
 3. Gradually replace mock stores with real stores in service tests

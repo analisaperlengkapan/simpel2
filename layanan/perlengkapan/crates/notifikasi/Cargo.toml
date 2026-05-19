@@ -48,7 +48,9 @@ mockall = { workspace = true }
 dashmap = { workspace = true }
 lib-core = { workspace = true }
 lib-backend = { workspace = true, features = ["telemetry", "db", "env-config"] }
-lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = [
+  "backend",
+] }
 
 [dev-dependencies]
 tokio = { workspace = true }

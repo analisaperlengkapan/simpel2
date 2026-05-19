@@ -1,7 +1,9 @@
 # Panduan Administrator MFA SIMPEL
+
 ## Multi-Factor Authentication Management Guide
 
 ### Daftar Isi
+
 1. [Pengenalan MFA untuk Administrator](#pengenalan-mfa-untuk-administrator)
 2. [Manajemen Kebijakan MFA](#manajemen-kebijakan-mfa)
 3. [Manajemen Pengguna MFA](#manajemen-pengguna-mfa)
@@ -28,13 +30,15 @@
                         └─────────────────┘
 ```
 
-### Komponen MFA:
+### Komponen MFA
+
 - **Portal**: Interface pengguna untuk setup dan verifikasi MFA
 - **Authenc**: Service autentikasi yang mengelola TOTP dan session
 - **Secreton**: Vault service untuk penyimpanan secret terenkripsi
 - **Database**: Penyimpanan metadata MFA dan audit logs
 
-### Tanggung Jawab Administrator:
+### Tanggung Jawab Administrator
+
 1. **Kebijakan MFA**: Menentukan siapa yang wajib menggunakan MFA
 2. **User Management**: Reset, disable, dan troubleshoot MFA pengguna
 3. **Monitoring**: Memantau adopsi, keamanan, dan performa MFA
@@ -48,6 +52,7 @@
 ### Konfigurasi Kebijakan Global
 
 #### 1. Pengaturan Wajib MFA
+
 ```sql
 -- Mengatur MFA wajib untuk semua pengguna
 UPDATE system_config
@@ -66,6 +71,7 @@ WHERE config_key = 'mfa_required_satkers';
 ```
 
 #### 2. Pengaturan Timeout dan Security
+
 ```sql
 -- Session timeout setelah MFA (dalam menit)
 UPDATE system_config
@@ -91,6 +97,7 @@ WHERE config_key = 'mfa_setup_grace_period';
 ### Implementasi Kebijakan Bertahap
 
 #### Phase 1: Pilot Program (Minggu 1-2)
+
 ```sql
 -- Aktifkan MFA hanya untuk admin dan IT
 UPDATE users
@@ -99,6 +106,7 @@ WHERE role IN ('admin', 'it_support', 'system_admin');
 ```
 
 #### Phase 2: Management Level (Minggu 3-4)
+
 ```sql
 -- Aktifkan untuk level supervisor ke atas
 UPDATE users
@@ -109,6 +117,7 @@ WHERE jabatan LIKE '%kepala%'
 ```
 
 #### Phase 3: Rollout Penuh (Minggu 5-8)
+
 ```sql
 -- Aktifkan untuk semua pengguna
 UPDATE users
@@ -118,6 +127,7 @@ SET mfa_required = true;
 ### Pengecualian dan Whitelist
 
 #### Akun Service dan System
+
 ```sql
 -- Daftar akun yang dikecualikan dari MFA
 INSERT INTO mfa_exemptions (user_id, reason, approved_by, expires_at)
@@ -127,6 +137,7 @@ VALUES
 ```
 
 #### Temporary Exemptions
+
 ```sql
 -- Pengecualian sementara untuk situasi khusus
 INSERT INTO mfa_exemptions (user_id, reason, approved_by, expires_at)
@@ -141,6 +152,7 @@ VALUES
 ### Dashboard Admin MFA
 
 #### Akses Admin Panel
+
 ```
 URL: https://simipelv2.kejaksaan.go.id/admin/mfa
 Akses: Hanya untuk role 'admin' dan 'mfa_admin'
@@ -149,6 +161,7 @@ Akses: Hanya untuk role 'admin' dan 'mfa_admin'
 ### Operasi User Management
 
 #### 1. Melihat Status MFA Pengguna
+
 ```sql
 -- Query untuk melihat status MFA semua pengguna
 SELECT
@@ -177,6 +190,7 @@ ORDER BY u.satker_code, u.nama;
 ```
 
 #### 2. Reset MFA Pengguna
+
 ```bash
 # Via CLI tool
 ./scripts/cli/target/release/simipelv2-cli mfa reset --nip 12345678 --reason "Ponsel hilang"
@@ -193,6 +207,7 @@ curl -X POST https://simipelv2.kejaksaan.go.id/api/admin/mfa/reset \
 ```
 
 #### 3. Disable MFA Sementara
+
 ```sql
 -- Disable MFA untuk pengguna tertentu
 UPDATE users
@@ -213,6 +228,7 @@ VALUES (
 ```
 
 #### 4. Generate Kode Cadangan Baru
+
 ```bash
 # Generate backup codes untuk pengguna
 ./scripts/cli/target/release/simipelv2-cli mfa generate-backup-codes --nip 12345678
@@ -221,6 +237,7 @@ VALUES (
 ```
 
 #### 5. Bulk Operations
+
 ```sql
 -- Enable MFA untuk seluruh satker
 UPDATE users
@@ -237,17 +254,20 @@ WHERE role = 'guest';
 ### User Support Workflows
 
 #### Workflow 1: Pengguna Lupa/Hilang Ponsel
+
 1. **Verifikasi Identitas**:
    - Minta KTP/ID pegawai
    - Konfirmasi data personal (nama, NIP, satker)
    - Verifikasi dengan atasan jika perlu
 
 2. **Reset MFA**:
+
    ```bash
    ./scripts/cli/target/release/simipelv2-cli mfa reset --nip [NIP] --reason "Ponsel hilang"
    ```
 
 3. **Generate Temporary Access**:
+
    ```bash
    ./scripts/cli/target/release/simipelv2-cli mfa temp-disable --nip [NIP] --duration 24h
    ```
@@ -258,12 +278,14 @@ WHERE role = 'guest';
    - Re-enable MFA requirement
 
 #### Workflow 2: Masalah Teknis Authenticator
+
 1. **Diagnosis**:
    - Periksa log error di sistem
    - Test dengan kode cadangan
    - Verifikasi sinkronisasi waktu
 
 2. **Troubleshoot**:
+
    ```sql
    -- Periksa log MFA pengguna
    SELECT * FROM mfa_logs
@@ -283,6 +305,7 @@ WHERE role = 'guest';
 ### Dashboard Metrics
 
 #### Key Performance Indicators (KPIs)
+
 1. **Adoption Rate**: Persentase pengguna yang sudah setup MFA
 2. **Success Rate**: Persentase verifikasi MFA yang berhasil
 3. **Support Tickets**: Jumlah tiket terkait MFA
@@ -330,6 +353,7 @@ ORDER BY occurrence_count DESC;
 ### Automated Reports
 
 #### Daily MFA Summary Report
+
 ```bash
 #!/bin/bash
 # Script: /scripts/reports/daily_mfa_report.sh
@@ -341,6 +365,7 @@ ORDER BY occurrence_count DESC;
 ```
 
 #### Weekly Security Report
+
 ```sql
 -- Weekly security incidents related to MFA
 SELECT
@@ -357,6 +382,7 @@ WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
 ### Alerting Configuration
 
 #### Critical Alerts
+
 ```yaml
 # /config/alerts/mfa_alerts.yml
 alerts:
@@ -392,6 +418,7 @@ alerts:
 **Symptoms**: Slow MFA verification, timeouts
 
 **Diagnosis**:
+
 ```bash
 # Check service health
 curl -s https://simipelv2.kejaksaan.go.id/api/health/mfa | jq
@@ -412,6 +439,7 @@ redis-cli --latency-history -i 1
 ```
 
 **Solutions**:
+
 ```sql
 -- Add missing indexes
 CREATE INDEX CONCURRENTLY idx_mfa_logs_user_created
@@ -431,6 +459,7 @@ ANALYZE mfa_logs;
 **Symptoms**: Valid codes being rejected
 
 **Diagnosis**:
+
 ```sql
 -- Check time synchronization issues
 SELECT
@@ -445,6 +474,7 @@ HAVING COUNT(*) > 5;
 ```
 
 **Solutions**:
+
 ```bash
 # Adjust time window tolerance
 ./scripts/cli/target/release/simipelv2-cli config set mfa.time_window_tolerance 2
@@ -459,6 +489,7 @@ sudo systemctl restart ntp
 **Symptoms**: Cannot store/retrieve MFA secrets
 
 **Diagnosis**:
+
 ```bash
 # Test secreton connectivity
 curl -H "Authorization: Bearer $AUTHENC_TOKEN" \
@@ -472,6 +503,7 @@ kubectl logs -f deployment/secreton -n simipelv2
 ```
 
 **Solutions**:
+
 ```bash
 # Restart secreton connection pool
 kubectl rollout restart deployment/authenc -n simipelv2
@@ -483,6 +515,7 @@ kubectl rollout restart deployment/authenc -n simipelv2
 ### Database Maintenance
 
 #### Regular Maintenance Tasks
+
 ```sql
 -- Clean up old MFA logs (keep 1 year)
 DELETE FROM mfa_logs
@@ -501,6 +534,7 @@ REINDEX INDEX CONCURRENTLY idx_mfa_logs_created_at;
 ```
 
 #### Backup MFA Data
+
 ```bash
 #!/bin/bash
 # Backup MFA configuration and logs
@@ -527,6 +561,7 @@ pg_dump -h db-host -U backup_user -d simipelv2 \
 ### Security Best Practices
 
 #### 1. Principle of Least Privilege
+
 ```sql
 -- Create dedicated MFA admin role
 CREATE ROLE mfa_admin;
@@ -541,6 +576,7 @@ GRANT mfa_admin TO admin_user_1, admin_user_2;
 ```
 
 #### 2. Admin Action Auditing
+
 ```sql
 -- All admin actions must be logged
 CREATE TABLE admin_mfa_actions (
@@ -572,6 +608,7 @@ $$ LANGUAGE plpgsql;
 ```
 
 #### 3. Compliance Monitoring
+
 ```sql
 -- Compliance check queries
 -- 1. Ensure all required users have MFA enabled
@@ -598,6 +635,7 @@ WHERE u.mfa_enabled = true
 ### Government Compliance Requirements
 
 #### Indonesian Government Security Standards
+
 1. **Peraturan Menteri Komunikasi dan Informatika No. 4 Tahun 2016**
    - Multi-factor authentication wajib untuk sistem pemerintah
    - Audit trail lengkap untuk semua akses
@@ -607,6 +645,7 @@ WHERE u.mfa_enabled = true
    - Backup dan recovery procedures
 
 #### Compliance Checklist
+
 - [ ] MFA enabled untuk semua akun privileged
 - [ ] Audit logging untuk semua MFA events
 - [ ] Regular security assessment dan penetration testing
@@ -620,18 +659,21 @@ WHERE u.mfa_enabled = true
 #### MFA-Related Security Incidents
 
 **Level 1: Suspicious MFA Activity**
+
 ```bash
 # Automated response for suspicious activity
 ./scripts/security/mfa_incident_response.sh --level 1 --user-id $USER_ID
 ```
 
 **Level 2: Compromised MFA**
+
 ```bash
 # Immediate lockdown procedures
 ./scripts/security/mfa_incident_response.sh --level 2 --user-id $USER_ID --lockdown
 ```
 
 **Level 3: System-wide MFA Compromise**
+
 ```bash
 # Emergency MFA reset for all users
 ./scripts/security/emergency_mfa_reset.sh --confirm-emergency
@@ -644,6 +686,7 @@ WHERE u.mfa_enabled = true
 ### Daily Admin Tasks
 
 #### Morning Checklist (08:00 - 09:00)
+
 ```bash
 #!/bin/bash
 # Daily morning MFA health check
@@ -672,6 +715,7 @@ echo "5. Checking system alerts..."
 ```
 
 #### Weekly Tasks (Setiap Senin)
+
 ```bash
 #!/bin/bash
 # Weekly MFA maintenance
@@ -692,6 +736,7 @@ echo "5. Checking system alerts..."
 ```
 
 #### Monthly Tasks (Tanggal 1 setiap bulan)
+
 ```bash
 #!/bin/bash
 # Monthly MFA review
@@ -714,6 +759,7 @@ echo "5. Checking system alerts..."
 ### Emergency Procedures
 
 #### Emergency Contact List
+
 - **Primary Admin**: admin@kejaksaan.go.id / +62-812-1111-1111
 - **Security Team**: security@kejaksaan.go.id / +62-812-2222-2222
 - **On-Call Engineer**: oncall@kejaksaan.go.id / +62-812-3333-3333
@@ -722,18 +768,21 @@ echo "5. Checking system alerts..."
 #### Emergency Response Procedures
 
 **Scenario 1: MFA Service Outage**
+
 1. Activate temporary MFA bypass (max 4 hours)
 2. Notify all users via email/SMS
 3. Escalate to engineering team
 4. Document incident and resolution
 
 **Scenario 2: Mass MFA Compromise**
+
 1. Immediately disable all MFA tokens
 2. Force password reset for all affected users
 3. Activate incident response team
 4. Coordinate with security team for forensics
 
 **Scenario 3: Database Corruption**
+
 1. Stop MFA service immediately
 2. Restore from latest backup
 3. Verify data integrity
@@ -742,11 +791,13 @@ echo "5. Checking system alerts..."
 ---
 
 **Kontak Support**:
+
 - **Email**: admin-mfa@kejaksaan.go.id
 - **Telepon**: (021) 123-4567 ext. 800
 - **Emergency**: +62-812-9999-9999 (24/7)
 
 **Dokumen Terkait**:
+
 - [MFA Security Policy](./MFA_SECURITY_POLICY.md)
 - [MFA API Documentation](./MFA_API_DOCUMENTATION.md)
 - [Incident Response Playbook](./MFA_INCIDENT_RESPONSE.md)

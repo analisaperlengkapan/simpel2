@@ -61,14 +61,21 @@ default = ["file"]
 # Backend features (HashiCorp Vault-compatible)
 file = []
 consul = ["reqwest"]
-raft-consensus = ["openraft", "tonic", "prost", "slog", "slog-term", "slog-async"]
+raft-consensus = [
+  "openraft",
+  "tonic",
+  "prost",
+  "slog",
+  "slog-term",
+  "slog-async",
+]
 s3 = ["aws-sdk-s3", "aws-config"]
 postgres = [
-    "tokio-postgres",
-    "deadpool-postgres",
-    "tokio-postgres-rustls",
-    "rustls",
-    "rustls-native-certs",
+  "tokio-postgres",
+  "deadpool-postgres",
+  "tokio-postgres-rustls",
+  "rustls",
+  "rustls-native-certs",
 ]
 
 # Convenience features

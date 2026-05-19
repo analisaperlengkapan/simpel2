@@ -33,6 +33,7 @@ secreton-cli backup restore --file backup.bak --dry-run
 ```
 
 This is useful for:
+
 - Validating backup integrity
 - Previewing restore operations
 - Testing restore procedures
@@ -84,6 +85,7 @@ secreton-cli backup restore --file backup.bak --target-namespace production
 ```
 
 This is useful for:
+
 - Migrating data between environments
 - Testing with production data in staging
 - Namespace reorganization
@@ -169,16 +171,19 @@ secreton-cli backup restore \
 ### Before Restore
 
 1. **Verify Backup Integrity**
+
    ```bash
    secreton-cli backup verify --file backup.bak
    ```
 
 2. **Test with Dry Run**
+
    ```bash
    secreton-cli backup restore --file backup.bak --dry-run
    ```
 
 3. **Create Current Backup**
+
    ```bash
    secreton-cli backup create --output pre-restore-backup.bak
    ```
@@ -192,6 +197,7 @@ secreton-cli backup restore \
 ### After Restore
 
 1. **Verify Critical Secrets**
+
    ```bash
    secreton-cli secret get critical/path
    ```
@@ -205,6 +211,7 @@ secreton-cli backup restore \
    - Verify data integrity
 
 4. **Create New Backup**
+
    ```bash
    secreton-cli backup create --output post-restore-backup.bak
    ```
@@ -216,6 +223,7 @@ secreton-cli backup restore \
 **Problem:** "Decryption failed - check password"
 
 **Solution:**
+
 - Verify you're using the correct password
 - Check if backup file is corrupted
 - Ensure backup was created with same encryption algorithm
@@ -225,6 +233,7 @@ secreton-cli backup restore \
 **Problem:** "Backup integrity check failed! Checksum mismatch"
 
 **Solution:**
+
 - Backup file may be corrupted
 - Try restoring from a different backup
 - Verify backup file wasn't modified
@@ -234,6 +243,7 @@ secreton-cli backup restore \
 **Problem:** Many secrets skipped during restore
 
 **Solution:**
+
 - Use `--force` flag to overwrite existing secrets
 - Or delete existing secrets before restore
 - Or restore to different namespace with `--target-namespace`
@@ -243,6 +253,7 @@ secreton-cli backup restore \
 **Problem:** Cannot connect to engine server
 
 **Solution:**
+
 - Verify server URL: `secreton-cli status`
 - Check network connectivity
 - Ensure engine is unsealed and running
@@ -252,6 +263,7 @@ secreton-cli backup restore \
 **Problem:** Some secrets failed to restore
 
 **Solution:**
+
 - Check engine logs for errors
 - Verify permissions and quotas
 - Retry restore for failed secrets
@@ -289,6 +301,7 @@ secreton-cli backup restore \
 ## Support
 
 For issues or questions:
+
 - Check engine logs: `/var/log/secreton/`
 - Review audit logs: `secreton-cli audit logs`
 - Contact: Secreton Team

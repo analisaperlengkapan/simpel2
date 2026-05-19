@@ -1,14 +1,17 @@
 # Task 28.5.7 Implementation Summary: Pakaian Dinas Workflow Integration
 
 ## Overview
+
 Integrated Pakaian Dinas workflow with Document and Notification services to enable end-to-end business process automation.
 
 ## Implementation Details
 
 ### 1. Workflow Configuration Added
+
 **File:** `layanan/perlengkapan/crates/api/src/workflow/config.rs`
 
 Added `default_pakaian_dinas()` workflow configuration:
+
 - **States:** DRAFT → SUBMITTED → APPROVED → COMPLETED
 - **Terminal States:** COMPLETED, REJECTED, CANCELLED
 - **SLA Configuration:**
@@ -20,48 +23,59 @@ Added `default_pakaian_dinas()` workflow configuration:
   - COMPLETED: admin_pusat
 
 ### 2. Service Layer Methods Added
+
 **File:** `layanan/perlengkapan/crates/api/src/pakaian_dinas/services.rs`
 
 Added workflow transition methods:
+
 - `submit_pengajuan()` - DRAFT → SUBMITTED
 - `approve_pengajuan()` - SUBMITTED → APPROVED
 - `reject_pengajuan()` - SUBMITTED → REJECTED
 - `complete_pengajuan()` - APPROVED → COMPLETED (with document metadata)
 
 Each method:
+
 - Validates current state
 - Updates status via repository
 - Logs activity
 - Returns updated pengajuan
 
 ### 3. Repository Methods Added
+
 **File:** `layanan/perlengkapan/crates/api/src/pakaian_dinas/repository.rs`
 
 Added workflow support methods:
+
 - `update_pengajuan_status()` - Updates status and logs activity in transaction
 - `update_pengajuan_document()` - Stores document metadata (document_id, document_url)
 
 ### 4. HTTP Handlers Added
+
 **File:** `layanan/perlengkapan/crates/api/src/pakaian_dinas/handlers.rs`
 
 Added workflow transition handlers:
+
 - `submit_pengajuan_handler()` - POST /pakaian-dinas/pengajuan/:id/submit
 - `approve_pengajuan_handler()` - POST /pakaian-dinas/pengajuan/:id/approve
 - `reject_pengajuan_handler()` - POST /pakaian-dinas/pengajuan/:id/reject
 - `download_rekapitulasi_handler()` - GET /pakaian-dinas/pengajuan/:id/rekapitulasi
 
 ### 5. Database Migration Created
+
 **File:** `layanan/perlengkapan/crates/api/migrations/20260211_add_pakaian_dinas_workflow_fields.sql`
 
 Added:
+
 - `document_id` and `document_url` columns to `pengajuan_pakaian_dinas` table
 - `pengajuan_pakaian_dinas_aktivitas` table for activity logging
 - Indexes for performance (pengajuan_id, user_id, created_at)
 
 ### 6. Routes Added
+
 **File:** `layanan/perlengkapan/crates/api/src/routes.rs`
 
 Added workflow transition routes:
+
 ```rust
 .route("/pakaian-dinas/pengajuan/:id/submit", post(submit_pengajuan_handler))
 .route("/pakaian-dinas/pengajuan/:id/approve", post(approve_pengajuan_handler))
@@ -70,9 +84,11 @@ Added workflow transition routes:
 ```
 
 ### 7. Integration Tests Created
+
 **File:** `layanan/perlengkapan/crates/api/tests/pakaian_dinas_workflow_tests.rs`
 
 Test placeholders for:
+
 - Workflow submit transition
 - Workflow approve transition
 - Workflow reject transition
@@ -86,14 +102,18 @@ Test placeholders for:
 ## Integration Points
 
 ### Document Service Integration
+
 The workflow engine (already implemented in task 28.5.2) will:
+
 1. Detect APPROVED state transition
 2. Call dokumen service gRPC to generate rekapitulasi Excel
 3. Store document_id and document_url in pengajuan table
 4. Include document URL in activity log
 
 ### Notification Service Integration
+
 The workflow engine (already implemented in task 28.5.3) will:
+
 1. Send notification on SUBMITTED (to validator_pusat)
 2. Send notification on APPROVED (to requester + all satker operators with rekap link)
 3. Send notification on REJECTED (to requester with reason)
@@ -101,6 +121,7 @@ The workflow engine (already implemented in task 28.5.3) will:
 ## API Usage Examples
 
 ### Submit Pengajuan
+
 ```bash
 POST /api/v1/pakaian-dinas/pengajuan/{id}/submit
 Authorization: Bearer {jwt_token}
@@ -112,6 +133,7 @@ Content-Type: application/json
 ```
 
 ### Approve Pengajuan
+
 ```bash
 POST /api/v1/pakaian-dinas/pengajuan/{id}/approve
 Authorization: Bearer {jwt_token}
@@ -123,6 +145,7 @@ Content-Type: application/json
 ```
 
 ### Reject Pengajuan
+
 ```bash
 POST /api/v1/pakaian-dinas/pengajuan/{id}/reject
 Authorization: Bearer {jwt_token}
@@ -134,12 +157,14 @@ Content-Type: application/json
 ```
 
 ### Download Rekapitulasi
+
 ```bash
 GET /api/v1/pakaian-dinas/pengajuan/{id}/rekapitulasi
 Authorization: Bearer {jwt_token}
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -154,19 +179,23 @@ Response:
 ## Requirements Coverage
 
 ✅ **REQ-D011:** Generate rekapitulasi pakaian dinas in Excel format
+
 - Document generation triggered after APPROVED state
 - Excel template with summary data
 - Stored in object storage with URL reference
 
 ✅ **REQ-N001:** In-app notification center
+
 - Notifications sent via workflow engine integration
 - Stored in notification database
 
 ✅ **REQ-N003:** API for sending notifications
+
 - Workflow engine calls notifikasi service gRPC
 - Notifications sent on each state transition
 
 ✅ **REQ-W001:** Generic configurable workflow engine
+
 - Pakaian dinas workflow configuration added
 - State transitions validated
 - Activity logging implemented
@@ -174,6 +203,7 @@ Response:
 ## Next Steps
 
 1. **Run Database Migration:**
+
    ```bash
    psql -U simpelv2 -d perlengkapan < migrations/20260211_add_pakaian_dinas_workflow_fields.sql
    ```
@@ -202,4 +232,5 @@ Response:
 - Activity log provides complete audit trail
 
 ## Status
+
 ✅ **COMPLETE** - All code changes implemented, ready for testing and deployment

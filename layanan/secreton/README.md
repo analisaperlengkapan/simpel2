@@ -497,12 +497,14 @@ metrics_path = "/metrics"
 ```
 
 **Storage backends:**
+
 - `raft` — Integrated Raft consensus (recommended for HA). Supports multi-node cluster via `retry_join`.
 - `postgres` — PostgreSQL. Connection URL via `SECRETON_STORAGE_URL` environment variable.
 - `file` — Local filesystem (single-node only).
 - `memory` — In-memory (development/testing only).
 
 **Auto-unseal providers:**
+
 - `shamir` — Manual unseal with key shares (default).
 - `aws-kms` — AWS KMS.
 - `gcp-kms` — Google Cloud KMS.

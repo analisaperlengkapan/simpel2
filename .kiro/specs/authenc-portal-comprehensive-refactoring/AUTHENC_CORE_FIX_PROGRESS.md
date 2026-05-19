@@ -43,6 +43,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: authenc-core services depend on storage operations that don't exist yet in authenc-storage.
 
 **Missing operations**:
+
 - `authenc_storage::operations::client_registration` (1 error)
 - `authenc_storage::operations::protocol_mappers_ops` (1 error)
 
@@ -55,6 +56,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: authenc-core services use types that don't exist in authenc-types.
 
 **Missing types**:
+
 - `authenc_types::AuthorizationRequest` - OAuth2 authorization request (1 error)
 - `authenc_types::OidcClient` - OIDC client configuration (1 error)
 - `authenc_types::TokenResponse` - OAuth2 token response (1 error)
@@ -73,6 +75,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: authenc-core services depend on services that don't exist in the crate.
 
 **Missing services**:
+
 - `crate::services::mfa_service` (1 error)
 - `crate::services::social` (1 error)
 
@@ -85,6 +88,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: Cache module references implementations that don't exist.
 
 **Missing implementations**:
+
 - `super::InMemoryCache` (1 error) - Should be feature-gated with "cache"
 - `super::RedisCache` (1 error) - Should be feature-gated with "redis-cache"
 - `crate::services::cache::CacheInvalidationService` (1 error)
@@ -98,6 +102,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: Code uses dependencies not in Cargo.toml.
 
 **Missing dependencies**:
+
 - `reqwest` (1 error) - HTTP client for elasticsearch_audit_log_sink
 - `base32` (1 error) - Base32 encoding for TOTP
 
@@ -110,6 +115,7 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 **Issue**: Code references modules that don't exist.
 
 **Missing modules**:
+
 - `crate::middleware` (1 error) - Should be in authenc-api
 - `crate::handlers` (1 error) - Should be in authenc-api
 - `ldap_federation` (1 error) - Should be feature-gated with "ldap"
@@ -120,7 +126,8 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 
 ## Phase 1 Cleanup Complete ✅
 
-### Unused Imports Removed:
+### Unused Imports Removed
+
 1. ✅ `crate::utils::crypto::jwt::verify_jwt_with_validation` from token_exchange.rs
 2. ✅ `crate::stores::audit_log_store::AuditLogStore` from token_exchange.rs
 3. ✅ `crate::services::jwt_validator::JwtValidator` from token_exchange.rs
@@ -131,7 +138,8 @@ Successfully reduced authenc-core compilation errors from **199 to 16** (92% red
 8. ✅ `crate::secreton_client::secreton_client::SecretonClient` from key_rotation.rs
 9. ✅ `crate::utils::crypto::password::{...}` from spi/credential/mod.rs
 
-### Feature Gates Added:
+### Feature Gates Added
+
 1. ✅ `#[cfg(feature = "kafka")]` for kafka_audit_log_sink
 2. ✅ `#[cfg(feature = "kafka")]` for event_publisher
 3. ✅ `#[cfg(feature = "kafka")]` for kafka_event_listener

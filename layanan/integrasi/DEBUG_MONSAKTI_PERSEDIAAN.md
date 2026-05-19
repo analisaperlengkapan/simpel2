@@ -98,7 +98,7 @@ Processing satker 20/568: 005620 → 📥 0 records
 
 ## Kesimpulan
 
-### ✅ Yang Bekerja Normal:
+### ✅ Yang Bekerja Normal
 
 1. **API Connection**: Semua API calls berhasil (HTTP 200)
 2. **Token Management**: Token refresh mechanism berjalan
@@ -107,7 +107,7 @@ Processing satker 20/568: 005620 → 📥 0 records
 5. **Database Logic**: Kode insert ke database tidak error
 6. **Module Filter**: Parameter `--monsakti-module persediaan` berfungsi dengan baik
 
-### ❌ Root Cause:
+### ❌ Root Cause
 
 **API MonSAKTI mengembalikan array kosong (0 records) untuk SEMUA satker di KL006 (Kejaksaan Agung)**
 
@@ -116,7 +116,7 @@ Ini menunjukkan bahwa:
 - **Data persediaan belum diinput** ke sistem MonSAKTI untuk instansi Kejaksaan
 - **Bukan bug aplikasi**, tetapi data memang tidak ada di source (MonSAKTI API)
 
-### 📊 Status Database:
+### 📊 Status Database
 
 - Table: `integrasi.per_persedia_trx`
 - Rows: 0 (karena memang tidak ada data dari API)

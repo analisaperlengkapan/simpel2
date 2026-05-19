@@ -3,17 +3,20 @@
 ## Status: ✅ COMPLETE
 
 ## Overview
+
 This task integrated the Pemakaian BMN scheduler with the notification service to send expiry reminders and notifications for BMN usage permits. The implementation was already complete in the codebase, so this task focused on creating comprehensive integration tests.
 
 ## What Was Already Implemented
 
 ### 1. Scheduler Service (`pemakaian_bmn/scheduler.rs`)
+
 - ✅ Auto-expire job (runs daily at 00:00 WIB)
 - ✅ Expiry notification job (runs daily at 08:00 WIB)
 - ✅ Checks for permits expiring in 30, 14, 7, and 0 days
 - ✅ Calls service methods to send notifications
 
 ### 2. Service Methods (`pemakaian_bmn/services.rs`)
+
 - ✅ `send_expiry_reminder()` - Sends H-30, H-14, H-7 reminders
 - ✅ `send_expiry_notification()` - Sends expiry notification
 - ✅ Integration with notifikasi gRPC client
@@ -21,6 +24,7 @@ This task integrated the Pemakaian BMN scheduler with the notification service t
 - ✅ Metrics recording for monitoring
 
 ### 3. Metrics (`metrics.rs`)
+
 - ✅ `permit_expiry_reminders_sent_total` - Counter with labels (days_remaining, status)
 - ✅ `permit_expiry_notifications_sent_total` - Counter with label (status)
 - ✅ `permit_expiry_reminder_errors_total` - Counter with label (error_type)
@@ -93,6 +97,7 @@ Replaced placeholder tests with 10 comprehensive test cases:
 ## Technical Details
 
 ### Notification Flow
+
 ```
 Scheduler (daily at 08:00 WIB)
   ↓
@@ -110,6 +115,7 @@ Continue to next permit (even if error)
 ```
 
 ### Notification Data Structure
+
 ```rust
 WorkflowNotificationType::WorkflowTransition {
     entity_type: "pemakaian_bmn",
@@ -122,10 +128,12 @@ WorkflowNotificationType::WorkflowTransition {
 ```
 
 ### Priority Levels
+
 - **High**: H-30, H-14 reminders
 - **Urgent**: H-7 reminder, expiry notification
 
 ### Error Handling
+
 - Notification failures are logged but don't stop the scheduler
 - Metrics record both successes and errors
 - Scheduler continues processing remaining permits
@@ -133,11 +141,13 @@ WorkflowNotificationType::WorkflowTransition {
 ## Testing Strategy
 
 ### Mock-Based Testing
+
 - Used `MockNotifikasiClient` to simulate notification service
 - Recorded sent notifications for verification
 - Simulated failures for error handling tests
 
 ### Test Coverage
+
 - ✅ All notification types (H-30, H-14, H-7, expired)
 - ✅ Multiple permits with different expiry dates
 - ✅ Duplicate notification prevention
@@ -146,7 +156,9 @@ WorkflowNotificationType::WorkflowTransition {
 - ✅ Message content validation
 
 ### Integration Notes
+
 In production:
+
 1. Scheduler queries database for permits expiring in 30, 14, 7, 0 days
 2. Calls `send_expiry_reminder()` or `send_expiry_notification()` for each permit
 3. Service methods call actual notifikasi gRPC client
@@ -156,6 +168,7 @@ In production:
 ## Metrics for Monitoring
 
 ### Prometheus Metrics
+
 ```
 # Reminders sent (by days remaining and status)
 permit_expiry_reminders_sent_total{days_remaining="30",status="success"} 5
@@ -170,6 +183,7 @@ permit_expiry_reminder_errors_total{error_type="notification_failed"} 0
 ```
 
 ### Grafana Dashboard Queries
+
 ```promql
 # Total reminders sent per day
 sum(rate(permit_expiry_reminders_sent_total[1d]))

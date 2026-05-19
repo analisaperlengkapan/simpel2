@@ -7,6 +7,7 @@ This document describes the implementation of Raft snapshot management for Secre
 ## Features
 
 ### 1. Snapshot Creation
+
 - **Endpoint**: `POST /v1/sys/raft/snapshot`
 - **gRPC**: `CreateSnapshot`
 - **Security**: Admin-only access
@@ -20,6 +21,7 @@ This document describes the implementation of Raft snapshot management for Secre
   7. Automatic cleanup of old snapshots (retention: 10 snapshots)
 
 ### 2. Snapshot Download
+
 - **Endpoint**: `GET /v1/sys/raft/snapshot?snapshot_id={id}`
 - **Security**: Admin-only access
 - **Process**:
@@ -30,12 +32,14 @@ This document describes the implementation of Raft snapshot management for Secre
   5. Audit log the download operation
 
 ### 3. Snapshot Listing
+
 - **Endpoint**: `GET /v1/sys/raft/snapshots`
 - **gRPC**: `ListSnapshots`
 - **Security**: Admin-only access
 - **Returns**: List of all available snapshots with metadata
 
 ### 4. Snapshot Restore
+
 - **Endpoint**: `POST /v1/sys/raft/restore`
 - **gRPC**: `RestoreSnapshot`
 - **Security**: Admin-only access, leader-only operation
@@ -69,21 +73,25 @@ CREATE TABLE raft_snapshots (
 ## Security Features
 
 ### Encryption
+
 - All snapshots are encrypted using the CryptoEngine
 - Encryption happens after compression for efficiency
 - Encrypted data is stored in the database
 
 ### Integrity Verification
+
 - SHA-256 checksum calculated on encrypted data
 - Checksum verified before any restore operation
 - Prevents corruption and tampering
 
 ### Authenticity Verification
+
 - Ed25519 signature on encrypted data
 - Signature verified before restore
 - Ensures snapshot authenticity
 
 ### Access Control
+
 - All operations require admin-level access
 - Restore operations only allowed on leader node
 - Prevents unauthorized backup/restore
@@ -118,6 +126,7 @@ All snapshot operations are logged to the audit system:
 - **snapshot_restored**: When a snapshot is restored
 
 Each audit log includes:
+
 - Snapshot ID
 - Size information
 - Raft metadata (index, term)
@@ -127,26 +136,31 @@ Each audit log includes:
 ## Error Handling
 
 ### Checksum Mismatch
+
 - **Error**: "Snapshot integrity check failed: checksum mismatch"
 - **Metric**: `secreton_raft_restore_failures{reason="checksum_mismatch"}`
 - **Action**: Snapshot is rejected, restore aborted
 
 ### Signature Verification Failure
+
 - **Error**: "Snapshot signature verification failed"
 - **Metric**: `secreton_raft_restore_failures{reason="signature_verification"}`
 - **Action**: Snapshot is rejected, restore aborted
 
 ### Decryption Failure
+
 - **Error**: "Failed to decrypt snapshot"
 - **Metric**: `secreton_raft_restore_failures{reason="decryption_failed"}`
 - **Action**: Snapshot is rejected, restore aborted
 
 ### Decompression Failure
+
 - **Error**: "Failed to decompress snapshot"
 - **Metric**: `secreton_raft_restore_failures{reason="decompression_failed"}`
 - **Action**: Snapshot is rejected, restore aborted
 
 ### Invalid Format
+
 - **Error**: "Failed to parse snapshot data"
 - **Metric**: `secreton_raft_restore_failures{reason="invalid_format"}`
 - **Action**: Snapshot is rejected, restore aborted
@@ -161,6 +175,7 @@ curl -X POST https://secreton.example.com/v1/sys/raft/snapshot \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -190,6 +205,7 @@ curl https://secreton.example.com/v1/sys/raft/snapshots \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -230,6 +246,7 @@ curl -X POST https://secreton.example.com/v1/sys/raft/restore \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -254,18 +271,21 @@ Response:
 ## Production Considerations
 
 ### Backup Strategy
+
 1. **Automated Snapshots**: Schedule regular snapshot creation (e.g., daily)
 2. **Off-site Storage**: Download and store snapshots in external backup system
 3. **Retention Policy**: Adjust retention count based on storage capacity
 4. **Testing**: Regularly test restore procedures
 
 ### Performance Impact
+
 - Snapshot creation is CPU-intensive (compression, encryption)
 - Recommended to create snapshots during low-traffic periods
 - Snapshot size depends on cluster state size
 - Compression typically achieves 50-70% size reduction
 
 ### Security Best Practices
+
 1. **Access Control**: Restrict snapshot operations to admin users only
 2. **Encryption Keys**: Protect encryption keys used for snapshots
 3. **Audit Logging**: Monitor all snapshot operations
@@ -286,23 +306,27 @@ Response:
 ## Troubleshooting
 
 ### Snapshot Creation Fails
+
 - Check disk space on database server
 - Verify Raft cluster is healthy
 - Check encryption service is available
 - Review logs for specific error messages
 
 ### Restore Fails with Checksum Mismatch
+
 - Snapshot may be corrupted
 - Try downloading snapshot again
 - Verify snapshot was not modified
 - Check for storage corruption
 
 ### Cannot Create Snapshot on Non-Leader
+
 - Only leader node can create snapshots
 - Check cluster status to identify leader
 - Connect to leader node for snapshot operations
 
 ### Snapshot Size Too Large
+
 - Consider increasing compression level
 - Review what data is being snapshotted
 - Implement data cleanup before snapshot

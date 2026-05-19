@@ -45,13 +45,17 @@ hmac = { workspace = true }
 sha1 = "0.10"
 subtle = { workspace = true }
 bcrypt = { workspace = true }
-jsonwebtoken = { workspace = true, default-features = false, features = ["aws_lc_rs"] }
+jsonwebtoken = { workspace = true, default-features = false, features = [
+  "aws_lc_rs",
+] }
 
 # Optional dependencies (feature-gated)
 redis = { workspace = true, optional = true }
 rdkafka = { workspace = true, features = ["ssl-vendored"], optional = true }
 lru = { workspace = true, optional = true }
-webauthn-rs = { workspace = true, features = ["danger-allow-state-serialisation"], optional = true }
+webauthn-rs = { workspace = true, features = [
+  "danger-allow-state-serialisation",
+], optional = true }
 webauthn-rs-proto = { workspace = true, optional = true }
 ldap3 = { workspace = true, optional = true }
 aws-sdk-s3 = { workspace = true, optional = true }

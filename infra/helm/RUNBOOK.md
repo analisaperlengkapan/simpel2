@@ -60,6 +60,7 @@ gh run watch
 ```
 
 Workflow akan:
+
 1. Validasi format tag (rc → final dengan base version match).
 2. Re-tag image di ghcr.io via `docker buildx imagetools create` (TANPA rebuild).
 3. Verify digest source ↔ target identik per image.
@@ -351,6 +352,7 @@ kubectl -n simpelv2-<env> get events --sort-by='.lastTimestamp' | tail -50
 ```
 
 Common causes:
+
 - Image pull error → cek `ghcr-pull` secret di namespace.
 - Secret fetch error → cek Secreton sealed/unsealed status, cek SA annotation.
 - Health probe failed → cek path & port di values, lihat container log.
@@ -375,6 +377,7 @@ kubectl -n simpelv2-<env> exec secreton-0 -- secreton status
 ### 8.4 Token API rate-limit
 
 Cek log integrasi:
+
 ```bash
 kubectl -n simpelv2-production logs deploy/layanan-integrasi --tail=200 | grep -iE 'rate|429|throttle'
 ```

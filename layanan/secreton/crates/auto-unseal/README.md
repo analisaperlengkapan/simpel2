@@ -9,25 +9,33 @@ This crate provides the infrastructure and implementations for auto-unsealing Se
 ## Supported Providers
 
 ### Transit (Default)
+
 Uses another Secreton instance's Transit engine for auto-unsealing. Ideal for:
+
 - Development and testing
 - Air-gapped deployments
 - Hierarchical unsealing scenarios
 
 ### AWS KMS
+
 Uses Amazon Web Services Key Management Service. Features:
+
 - IAM role authentication (recommended for EC2/ECS/EKS)
 - Access key authentication
 - Custom endpoints support
 
 ### GCP KMS
+
 Uses Google Cloud Platform Key Management Service. Features:
+
 - Service account authentication
 - Default credentials support
 - Multi-region support
 
 ### Azure Key Vault
+
 Uses Microsoft Azure Key Vault. Features:
+
 - Managed identity authentication
 - Client credentials authentication
 - Key versioning support

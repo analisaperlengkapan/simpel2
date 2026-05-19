@@ -9,6 +9,7 @@ This document defines the complete requirements for SIMPEL (Sistem Informasi Man
 ### 1.2 Scope
 
 SIMPEL consists of ten microservices handling:
+
 1. Master data and reference management
 2. BMN requirements analysis (including pakaian dinas and roadmap)
 3. BMN usage permits (vehicles, housing, laptops)
@@ -79,6 +80,7 @@ SIMPEL consists of ten microservices handling:
 #### Implementation Priority (Based on Dependencies)
 
 **Phase 1 (Critical - Unblock Core Features):**
+
 1. Complete Integrasi Service (SIMAN/MySIMKARI API calls)
 2. Complete Workflow Engine UI and auto-escalation (core engine already 70% complete)
 3. Wire Notifikasi to Workflow events
@@ -216,12 +218,14 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
 
 **What's Working:**
+
 - ✅ Core kebutuhan BMN workflow (period creation, submission, basic approval)
 - ✅ Basic reporting and data display
 - ✅ Satker selection and filtering
 - ✅ BMN item selection
 
 **What's Missing:**
+
 - ❌ Generic workflow engine integration (currently hardcoded)
 - ❌ Pakaian dinas 3-level approval workflow (60% complete - basic structure exists)
 - ❌ Roadmap sarpras 5-year planning (30% complete - basic structure only)
@@ -297,6 +301,7 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
 
 **What's Working:**
+
 - ✅ Core pemakaian BMN workflow (permit creation, submission)
 - ✅ Pegawai selection from MySIMKARI integration
 - ✅ BMN selection from SIMAN integration
@@ -305,6 +310,7 @@ SIMPEL consists of ten microservices handling:
 - ✅ Permit status tracking
 
 **What's Missing:**
+
 - ❌ DOCX draft permit document generation (integration with dokumen service)
 - ❌ PDF upload and workflow completion
 - ❌ Auto-generated permit numbers
@@ -362,11 +368,13 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `antarmuka/perlengkapan` (frontend UI exists), backend workflow NOT IMPLEMENTED
 
 **What's Working:**
+
 - ✅ Frontend UI components for SK Penghapusan BMN
 - ✅ Basic data structure and forms
 - ✅ BMN selection interface
 
 **What's Missing (CRITICAL):**
+
 - ❌ Backend workflow implementation (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED)
 - ❌ Integration with workflow service for approval flow
 - ❌ Integration with dokumen service for SK generation
@@ -426,6 +434,7 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/api/src/workflow`
 
 **What's Working:**
+
 - ✅ Core WorkflowEngine with state machine (engine.rs - 86 lines, full implementation)
 - ✅ Workflow configurations for kebutuhan_bmn, pemakaian_bmn, penghapusan_bmn (config.rs)
 - ✅ SLA tracking and breach detection (sla.rs)
@@ -437,6 +446,7 @@ SIMPEL consists of ten microservices handling:
 - ✅ Integration with KebutuhanBmnService, PemakaianBmnService, PenghapusanBmnService
 
 **What's Missing (30%):**
+
 - ❌ Admin UI for workflow configuration management
 - ❌ SLA breach auto-escalation scheduler (detection exists, auto-escalation missing)
 - ❌ Workflow monitoring dashboard UI (backend metrics exist, frontend missing)
@@ -471,12 +481,14 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/dokumen`
 
 **What's Working:**
+
 - ✅ Basic document storage in object storage
 - ✅ SHA-256 checksum validation
 - ✅ Document retrieval API
 - ✅ Object storage integration (MinIO/S3-compatible)
 
 **What's Missing:**
+
 - ❌ Template-based document generation system
 - ❌ DOCX generation for SK Penghapusan BMN
 - ❌ DOCX generation for izin pemakaian BMN with pegawai photo and BMN table
@@ -519,12 +531,14 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/api` (backend), `antarmuka/perlengkapan` (frontend)
 
 **What's Working:**
+
 - ✅ Executive dashboard with basic national KPIs
 - ✅ Basic satker filtering
 - ✅ Simple data visualization (charts, tables)
 - ✅ Basic export to PDF and Excel
 
 **What's Missing:**
+
 - ❌ Drill-down functionality (national → wilayah → satker)
 - ❌ Roadmap vs realization visualization
 - ❌ Gap analysis per BMN type and satker
@@ -564,11 +578,13 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/integrasi`
 
 **What's Working:**
+
 - ✅ Database schema defined for BMN and pegawai caching
 - ✅ gRPC service stubs and protobuf definitions
 - ✅ Basic data transformation logic
 
 **What's Missing (CRITICAL):**
+
 - ❌ SIMAN API client implementation (BMN data sync)
 - ❌ MySIMKARI API client implementation (pegawai data sync)
 - ❌ Daily sync scheduling
@@ -584,6 +600,7 @@ SIMPEL consists of ten microservices handling:
 - ❌ API format change handling via configuration
 
 **Impact:** This is a CRITICAL BLOCKER. Without SIMAN/MySIMKARI integration:
+
 - Kebutuhan BMN cannot fetch existing BMN data for analysis
 - Kebutuhan BMN cannot fetch pegawai summary for validation
 - Pemakaian BMN cannot validate BMN availability
@@ -623,12 +640,14 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/notifikasi`
 
 **What's Working:**
+
 - ✅ Database schema for notifications
 - ✅ In-app notification center UI
 - ✅ Basic notification display in frontend
 - ✅ Notification storage and retrieval API
 
 **What's Missing:**
+
 - ❌ Integration with workflow service for workflow transition notifications
 - ❌ Email delivery channel (currently only in-app)
 - ❌ Action-required notifications with deep links
@@ -667,6 +686,7 @@ SIMPEL consists of ten microservices handling:
 **Codebase Location:** `layanan/perlengkapan/crates/bantuan`
 
 **What's Working:**
+
 - ✅ FAQ management (CRUD)
 - ✅ Helpdesk ticketing system
 - ✅ Chatbot integration
@@ -733,6 +753,7 @@ SIMPEL consists of ten microservices handling:
 **Status:** 30% complete - critical integrations missing
 
 **Current State:**
+
 - ✅ Frontend → Backend REST API communication working
 - ✅ Backend → Authenc gRPC authentication working
 - ✅ Backend → Secreton gRPC secrets management working
@@ -814,6 +835,7 @@ All requirements MUST align with the actual codebase structure:
 #### Phase 1: Unblock Core Features (Weeks 1-4)
 
 **1.1 Complete Integrasi Service (CRITICAL)**
+
 - Location: `layanan/integrasi/src/`
 - Tasks:
   - Implement SIMAN API client for BMN data sync
@@ -825,6 +847,7 @@ All requirements MUST align with the actual codebase structure:
 - Blockers Removed: Kebutuhan BMN analysis, Pemakaian BMN validation, Penghapusan BMN validation
 
 **1.2 Complete Workflow Engine UI (MEDIUM)**
+
 - Location: `layanan/perlengkapan/crates/api/src/workflow/` (ALREADY EXISTS - 70% complete)
 - Tasks:
   - Implement admin UI for workflow configuration management
@@ -835,6 +858,7 @@ All requirements MUST align with the actual codebase structure:
 - Blockers Removed: Workflow configuration management
 
 **1.3 Wire Notifikasi to Workflow Events (HIGH)**
+
 - Location: `layanan/perlengkapan/crates/notifikasi/src/`
 - Tasks:
   - Subscribe to workflow state transition events
@@ -847,6 +871,7 @@ All requirements MUST align with the actual codebase structure:
 #### Phase 2: Complete Core Modules (Weeks 5-8)
 
 **2.1 Complete Penghapusan BMN Workflow (HIGH)**
+
 - Location: `layanan/perlengkapan/crates/api/src/penghapusan/` (NEW MODULE)
 - Tasks:
   - Implement backend workflow (DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → DOCUMENT_GENERATED → COMPLETED)
@@ -859,6 +884,7 @@ All requirements MUST align with the actual codebase structure:
   - Add audit logging
 
 **2.2 Complete Dokumen Template System (HIGH)**
+
 - Location: `layanan/perlengkapan/crates/dokumen/src/`
 - Tasks:
   - Implement template-based document generation
@@ -871,6 +897,7 @@ All requirements MUST align with the actual codebase structure:
   - Implement auto-generated document numbers
 
 **2.3 Complete Pakaian Dinas Approval Workflow (HIGH)**
+
 - Location: `layanan/perlengkapan/crates/api/src/pakaian_dinas/`
 - Tasks:
   - Implement 3-level hierarchical approval workflow (Kejari→Kejati→Kejagung)
@@ -882,6 +909,7 @@ All requirements MUST align with the actual codebase structure:
   - Implement report filters (jenis pegawai, eselon, jenis_kelamin)
 
 **2.4 Implement Master Data Kodefikasi Mapping (HIGH)**
+
 - Location: `layanan/perlengkapan/crates/master/` (NEW CRATE)
 - Tasks:
   - Implement kode barang CRUD with BMN format validation
@@ -895,6 +923,7 @@ All requirements MUST align with the actual codebase structure:
 #### Phase 3: Enhanced Features (Weeks 9-12)
 
 **3.1 Complete Dashboard Drill-Down and Analytics (MEDIUM)**
+
 - Location: `layanan/perlengkapan/crates/api/src/dashboard/`, `antarmuka/perlengkapan/src/pages/dashboard/`
 - Tasks:
   - Implement drill-down functionality (national → wilayah → satker)
@@ -908,6 +937,7 @@ All requirements MUST align with the actual codebase structure:
   - Implement saved filters/bookmarks
 
 **3.2 Complete Roadmap Sarpras 5-Year Planning (MEDIUM)**
+
 - Location: `layanan/perlengkapan/crates/api/src/roadmap/`, `antarmuka/perlengkapan/src/pages/roadmap/`
 - Tasks:
   - Implement 5-year roadmap sarpras feature
@@ -918,6 +948,7 @@ All requirements MUST align with the actual codebase structure:
   - Implement differentiation between new procurement vs replacement
 
 **3.3 Implement Advanced Search and Export (MEDIUM)**
+
 - Location: `antarmuka/perlengkapan/src/components/search/`
 - Tasks:
   - Implement advanced search UI with multiple filters
@@ -928,6 +959,7 @@ All requirements MUST align with the actual codebase structure:
 #### Phase 4: Nice-to-Have Features (Weeks 13+)
 
 **4.1 Real-time WebSocket Updates (LOW)**
+
 - Location: `layanan/perlengkapan/crates/api/src/websocket/`
 - Tasks:
   - Implement WebSocket server for real-time updates
@@ -936,6 +968,7 @@ All requirements MUST align with the actual codebase structure:
   - Implement real-time dashboard updates
 
 **4.2 Advanced Analytics and Benchmarking (LOW)**
+
 - Location: `layanan/perlengkapan/crates/api/src/analytics/`
 - Tasks:
   - Implement advanced analytics algorithms
@@ -945,25 +978,30 @@ All requirements MUST align with the actual codebase structure:
 ### 6.3 Testing Strategy
 
 #### Unit Tests
+
 - Location: `layanan/perlengkapan/crates/*/tests/`
 - Target: ≥ 70% code coverage
 - Focus: Business logic, validation, data transformation
 
 #### Integration Tests
+
 - Location: `tests/integration/`
 - Focus: Service-to-service communication (gRPC), database operations, external API calls
 
 #### End-to-End Tests
+
 - Location: `tests/e2e/`
 - Focus: Complete user workflows (kebutuhan BMN submission, pemakaian BMN permit creation, penghapusan BMN SK generation)
 
 #### Load Tests
+
 - Location: `tests/load/`
 - Focus: Performance under load (500 concurrent users, 100 requests/second)
 
 ### 6.4 Deployment Strategy
 
 #### Deployment Order (Based on Dependencies)
+
 1. **authenc** - no SIMPEL dependencies (ALREADY DEPLOYED)
 2. **secreton** - no SIMPEL dependencies (ALREADY DEPLOYED)
 3. **notifikasi** - depends on authenc only
@@ -978,6 +1016,7 @@ All requirements MUST align with the actual codebase structure:
 12. **dashboard** - depends on almost all services (deploy last)
 
 #### Rollout Strategy
+
 - **Blue-Green Deployment:** Zero-downtime deployment with traffic switching
 - **Canary Deployment:** Gradual rollout to 10% → 50% → 100% of users
 - **Feature Flags:** Enable/disable features without redeployment
@@ -1074,6 +1113,7 @@ All requirements MUST align with the actual codebase structure:
 Based on dependencies and current implementation status:
 
 **Already Deployed (100% Complete):**
+
 1. **authenc** - no SIMPEL dependencies
 2. **secreton** - no SIMPEL dependencies
 3. **bantuan** - depends on authenc only
@@ -1127,13 +1167,14 @@ Based on dependencies and current implementation status:
 **Overall System Completion:** 65-70%
 
 **Critical Blockers:**
+
 1. 🔴 Integrasi Service (30%) - SIMAN/MySIMKARI API integration incomplete
 2. 🔴 Workflow Engine (0%) - Generic workflow service missing
 3. 🔴 Notifikasi Integration (60%) - Not wired to workflow transitions
 4. 🔴 Penghapusan BMN Workflow (40%) - Backend workflow incomplete
 
 **Next Steps:**
+
 - Phase 1 (Weeks 1-4): Complete Integrasi, Workflow, Notifikasi integration
 - Phase 2 (Weeks 5-8): Complete Penghapusan, Dokumen, Pakaian Dinas, Master Data
 - Phase 3 (Weeks 9-12): Complete Dashboard, Roadmap Sarpras, Advanced Features
-

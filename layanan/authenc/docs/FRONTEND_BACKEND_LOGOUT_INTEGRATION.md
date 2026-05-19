@@ -12,6 +12,7 @@
 ### ✅ Yang Sudah Ada
 
 **Backend (Authenc)**:
+
 - ✅ Endpoint `/oidc/logout` sudah diimplementasi (Task 10.7)
 - ✅ Session invalidation di server
 - ✅ SSO cookie deletion
@@ -19,6 +20,7 @@
 - ✅ Federated logout propagation
 
 **Frontend (Portal & Shared)**:
+
 - ✅ `AuthService::logout()` untuk clear localStorage
 - ✅ `AuthContext::logout()` di shared library
 - ✅ Cross-tab logout synchronization
@@ -245,6 +247,7 @@ User can login again
 ### 1. CSRF Protection
 
 Logout endpoint menggunakan GET method (sesuai OIDC spec) dan tidak memerlukan CSRF token karena:
+
 - Tidak mengubah state yang sensitif (hanya menghapus session)
 - Menggunakan SSO cookie untuk identifikasi
 - Redirect URI divalidasi di backend
@@ -252,6 +255,7 @@ Logout endpoint menggunakan GET method (sesuai OIDC spec) dan tidak memerlukan C
 ### 2. Cookie Security
 
 SSO cookie harus memiliki flags:
+
 - `HttpOnly=true` - Tidak bisa diakses JavaScript
 - `Secure=true` - Hanya dikirim via HTTPS (production)
 - `SameSite=Lax` - Proteksi CSRF
@@ -260,6 +264,7 @@ SSO cookie harus memiliki flags:
 ### 3. Redirect URI Validation
 
 Backend memvalidasi `post_logout_redirect_uri` terhadap whitelist:
+
 ```rust
 let allowed_patterns = vec![
     "http://localhost",
@@ -274,24 +279,28 @@ let allowed_patterns = vec![
 ### Manual Testing
 
 1. **Login ke Portal**
+
    ```bash
    # Navigate to http://localhost:3000/login
    # Login dengan credentials
    ```
 
 2. **Verify SSO Cookie**
+
    ```bash
    # Check browser DevTools → Application → Cookies
    # Should see AUTHENC_SSO cookie
    ```
 
 3. **Logout**
+
    ```bash
    # Click logout button
    # Should redirect to /logged-out
    ```
 
 4. **Verify Cleanup**
+
    ```bash
    # Check browser DevTools:
    # - localStorage should be empty
@@ -301,7 +310,7 @@ let allowed_patterns = vec![
 
 ### Automated Testing
 
-####ntend Test (Leptos)
+#### ntend Test (Leptos)
 
 ```rust
 #[cfg(test)]
@@ -361,12 +370,14 @@ async fn test_logout_invalidates_session() {
 ## Migration Plan
 
 ### Phase 1: Backend Ready (✅ Completed)
+
 - ✅ Implement `/oidc/logout` endpoint
 - ✅ Session invalidation
 - ✅ Event publishing
 - ✅ Cookie deletion
 
 ### Phase 2: Frontend Integration (🔨 To Do)
+
 1. Update `AuthService::logout()` di Portal
 2. Update `AuthContext::logout()` di shared library
 3. Tambahkan logged out page
@@ -374,6 +385,7 @@ async fn test_logout_invalidates_session() {
 5. Test integration
 
 ### Phase 3: Testing & Deployment
+
 1. Manual testing di development
 2. Automated tests
 3. Staging deployment
@@ -382,6 +394,7 @@ async fn test_logout_invalidates_session() {
 ## Checklist
 
 ### Backend (Authenc)
+
 - [x] Logout endpoint implemented
 - [x] Session invalidation
 - [x] SSO cookie deletion
@@ -390,6 +403,7 @@ async fn test_logout_invalidates_session() {
 - [ ] CORS configuration updated
 
 ### Frontend (Portal)
+
 - [ ] Update `AuthService::logout()` to call backend
 - [ ] Add logged out confirmation page
 - [ ] Update environment variables
@@ -397,12 +411,14 @@ async fn test_logout_invalidates_session() {
 - [ ] Test cross-tab logout synchronization
 
 ### Frontend (Shared)
+
 - [ ] Update `AuthContext::logout()` to call backend
 - [ ] Update `LogoutButton` component
 - [ ] Add loading state during logout
 - [ ] Test in all microfrontends
 
 ### Documentation
+
 - [x] Integration guide created
 - [ ] API documentation updated
 - [ ] User guide updated
@@ -422,17 +438,19 @@ Tanpa integrasi ini, logout hanya terjadi di frontend (localStorage) tetapi sess
 ## Rekomendasi Prioritas
 
 **HIGH PRIORITY** (Harus segera):
+
 1. Update frontend logout untuk panggil backend endpoint
 2. Test integrasi end-to-end
 3. Deploy ke staging untuk testing
 
 **MEDIUM PRIORITY** (Dalam 1-2 minggu):
+
 1. Tambahkan logged out confirmation page
 2. Improve error handling
 3. Add loading states
 
 **LOW PRIORITY** (Nice to have):
+
 1. Add logout analytics
 2. Add logout reason tracking
 3. Add "logout from all devices" feature
-

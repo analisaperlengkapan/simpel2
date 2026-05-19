@@ -28,6 +28,7 @@
 | Post-Quantum | pqcrypto-mldsa, mlkem, falcon | Optional |
 
 ### Feature Flags
+
 ```toml
 [features]
 default = ["axum", "grpc", "auth", "oidc", "db", "metrics"]
@@ -102,17 +103,20 @@ flowchart TD
 ## 📏 Critical Conventions
 
 ### 1. Configuration
+
 - Config hierarchy: `AppConfig` → sub-configs (`ServerConfig`, `DatabaseConfig`, `RateLimitConfig`, dll)
 - Environment variables untuk local dev, Secreton gRPC untuk production secrets
 - Key env vars: `AUTHENC_HOST`, `AUTHENC_PORT`, `AUTHENC_GRPC_PORT`, `DATABASE_URL`, `SECRETON_GRPC_URL`
 
 ### 2. Database
+
 - **Pool**: `deadpool-postgres` (default pool_size=20)
 - **Migrations**: `refinery` (SQL files di `migrations/`)
 - **Operations**: Prepared statements wajib, transaction handling untuk multi-step ops
 - **Terpisah**: Authenc memiliki database sendiri (bukan shared dengan layanan lain)
 
 ### 3. Cryptography
+
 - **Password hashing**: Argon2 (BUKAN bcrypt, BUKAN SHA-256)
 - **JWT signing**: Ed25519 (BUKAN RSA)
 - **Encryption**: ChaCha20-Poly1305 atau AES-256-GCM
@@ -120,14 +124,17 @@ flowchart TD
 - **Key rotation**: Automatic via `key_rotation.rs`
 
 ### 4. Authentication Flow
+
 ```
 Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ```
+
 - Microfrontend DILARANG akses Authenc langsung
 - JWT disimpan di `localStorage` key `auth_token`
 - Token validation wajib di setiap request via gRPC `ValidateToken()`
 
 ### 5. gRPC Service
+
 - Proto files di `proto/authenc.proto`
 - Service: `AuthService` (ValidateToken, CreateSession, RevokeToken, dll)
 - mTLS wajib untuk semua komunikasi gRPC
@@ -141,6 +148,7 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ## ⚠️ Common Pitfalls
 
 ### ❌ DON'T
+
 1. **Store passwords in plaintext** → Use `hash_password()` (Argon2)
 2. **Use short-lived refresh tokens** → `JWT_REFRESH_TOKEN_TTL=604800` (7 days)
 3. **Skip token validation** → Always `validate_jwt_token(token).await?`
@@ -148,6 +156,7 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 5. **Allow unlimited login attempts** → Use rate limiting middleware
 
 ### ✅ DO
+
 1. Use Argon2 for password hashing
 2. Validate all JWT tokens (signature, expiry, issuer)
 3. Implement rate limiting on login endpoints
@@ -162,15 +171,18 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ## 🔍 Troubleshooting
 
 ### JWT Validation Fails
+
 - Check signing key: `secreton-cli get jwt_signing_key`
 - Verify token issuer: `jwt decode $TOKEN | jq .iss`
 - Check key rotation: `SELECT * FROM signing_keys WHERE is_active = true;`
 
 ### Database Connection Pool Exhausted
+
 - Increase pool size: `DATABASE_POOL_SIZE=50`
 - Use transactions properly to release connections
 
 ### MFA TOTP Not Working
+
 - Check server time sync: `timedatectl status`
 - Verify TOTP secret encoding (base32)
 

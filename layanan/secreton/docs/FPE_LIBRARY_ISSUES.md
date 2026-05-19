@@ -13,6 +13,7 @@ The underlying `fpe` crate (FF1 implementation) used for Format-Preserving Encry
 ## Error Examples
 
 ### Numeric Alphabet (Radix 10)
+
 ```
 Input: "000000"
 Error: "The given numeral string is invalid for radix 10"
@@ -25,6 +26,7 @@ Error: "The given numeral string is invalid for radix 10"
 ```
 
 ### Alphanumeric Alphabet (Radix 36)
+
 ```
 Input: "aa0aa"
 Error: "The given numeral string is invalid for radix 36"
@@ -52,6 +54,7 @@ The `fpe` crate uses the `ff1` algorithm from the `fpe` library. The error occur
 **Issue Location**: `fpe::ff1::FF1::encrypt()` method
 
 **Code Path**:
+
 ```
 TransformEngine::encode_fpe()
   → FpeEngine::encrypt()
@@ -63,6 +66,7 @@ TransformEngine::encode_fpe()
 ## Attempted Workarounds
 
 ### 1. Input Filtering (Attempted)
+
 ```rust
 // Skip inputs that are all same character
 let first_char = plaintext.chars().next().unwrap();
@@ -70,21 +74,26 @@ if plaintext.chars().all(|c| c == first_char) {
     return Ok(());
 }
 ```
+
 **Result**: Still fails with patterns like "10000", "aa0aa"
 
 ### 2. Input Generation (Attempted)
+
 ```rust
 // Generate with variation
 first_part in "[1-9][0-9]{2,7}",
 second_part in "[0-9]{2,7}",
 ```
+
 **Result**: Still fails with certain combinations
 
 ### 3. Minimum Length Requirements (Attempted)
+
 ```rust
 // Require minimum 6 characters
 plaintext in "[0-9]{6,16}"
 ```
+
 **Result**: Still fails with patterns like "100000"
 
 ## Recommended Solutions
@@ -100,6 +109,7 @@ plaintext in "[0-9]{6,16}"
    - Documentation explains why
 
 3. **Add input validation** (Recommended)
+
    ```rust
    pub fn validate_fpe_input(input: &str, alphabet: &FpeAlphabet) -> Result<(), FpeError> {
        // Check for problematic patterns
@@ -136,6 +146,7 @@ plaintext in "[0-9]{6,16}"
 ### Long-term (3-6 months)
 
 1. **Custom FPE Implementation**
+
    ```rust
    // layanan/secreton/crates/crypto/src/fpe_custom.rs
    pub struct CustomFpeEngine {
@@ -160,12 +171,14 @@ plaintext in "[0-9]{6,16}"
 **Current Recommendation**: Use tokenization (UUID-based) instead of FPE.
 
 **Advantages**:
+
 - ✅ No input restrictions
 - ✅ Fully tested and reliable
 - ✅ Better performance
 - ✅ Simpler implementation
 
 **Trade-offs**:
+
 - ❌ Does not preserve format
 - ❌ Tokens are longer than original values
 - ✅ But: More reliable and production-ready
@@ -175,6 +188,7 @@ plaintext in "[0-9]{6,16}"
 ### Current Test Status
 
 **Passing Tests** (6/9):
+
 - ✅ Tokenization round-trip (UUID-based)
 - ✅ Credit card masking
 - ✅ Email masking
@@ -183,6 +197,7 @@ plaintext in "[0-9]{6,16}"
 - ✅ Audit statistics
 
 **Failing Tests** (3/9):
+
 - ❌ FPE format preservation (numeric)
 - ❌ FPE format preservation (alphanumeric)
 - ❌ FPE round-trip
@@ -197,16 +212,20 @@ plaintext in "[0-9]{6,16}"
 ## Code Locations
 
 **FPE Implementation**:
+
 - `layanan/secreton/crates/crypto/src/fpe.rs` (wrapper)
 - External: `fpe` crate (problematic)
 
 **Transform Engine**:
+
 - `layanan/secreton/crates/core/src/services/secrets/transform.rs`
 
 **Property Tests**:
+
 - `layanan/secreton/crates/core/tests/transform_property_tests.rs`
 
 **API Handlers**:
+
 - `layanan/secreton/crates/api/src/handlers/transform.rs`
 
 ## References

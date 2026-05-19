@@ -1,11 +1,13 @@
 # README – layanan-laporan
 
 ## 🧾 Deskripsi Singkat
+
 `layanan-laporan` adalah layanan mikro dalam platform **SIMPEL** yang bertanggung jawab atas penyusunan laporan berkala, rekapitulasi lintas layanan, dan pelaporan tematik atas aktivitas pengelolaan Barang Milik Negara (BMN). Laporan ini mendukung pengambilan keputusan strategis, pemantauan kinerja, dan kepatuhan regulasi.
 
 ---
 
 ## 🎯 Tujuan Utama
+
 - Menyediakan laporan bulanan, triwulan, semesteran, dan tahunan secara otomatis
 - Menghasilkan rekapitulasi lintas layanan dan unit kerja
 - Mendukung ekspor laporan dalam format PDF, Excel, dan CSV
@@ -14,6 +16,7 @@
 ---
 
 ## 🧱 Fitur Utama
+
 - 📄 Laporan agregat semua layanan SIMPEL
 - 🧠 Ringkasan berbasis LLM dari indikator dan kinerja
 - 📊 Ekspor laporan ke PDF, Excel, dan CSV
@@ -24,6 +27,7 @@
 ---
 
 ## ⚙️ Teknologi
+
 - Backend: Go (Gin) + sqlc
 - Database: PostgreSQL (join antar skema layanan)
 - AI: Gemma-2B, LLaMA3-3B (summarization & insight extraction)
@@ -34,6 +38,7 @@
 ---
 
 ## 📁 Struktur Direktori
+
 ```
 layanan-laporan/
 ├── api/                # Endpoint REST
@@ -51,6 +56,7 @@ layanan-laporan/
 ---
 
 ## 🔄 Contoh Endpoint
+
 | Metode | Endpoint                    | Keterangan                              |
 |--------|-----------------------------|-----------------------------------------|
 | GET    | `/laporan/ringkasan`        | Ringkasan indikator semua layanan       |
@@ -63,6 +69,7 @@ layanan-laporan/
 ---
 
 ## 📈 Tipe Laporan
+
 - **Laporan Realisasi**: Pemakaian, distribusi, pemeliharaan
 - **Laporan Perencanaan**: Usulan, roadmap, kebutuhan mendatang
 - **Laporan Kinerja**: Indikator strategis dan indikator teknis
@@ -72,6 +79,7 @@ layanan-laporan/
 ---
 
 ## 🤖 Kontribusi AI/ML
+
 | Fungsi Laporan         | Teknologi AI/ML                            |
 |------------------------|--------------------------------------------|
 | Ringkasan laporan      | LLM: Gemma-2B, LLaMA3-3B                   |
@@ -83,6 +91,7 @@ layanan-laporan/
 ---
 
 ## 🔐 Akses & Validasi
+
 - Hanya pengguna dengan role `admin`, `monitoring`, atau `pimpinan` yang dapat mengakses dan mengekspor
 - Validasi parameter periode, satker, dan format secara ketat
 - Semua aktivitas dicatat oleh `layanan-audit`
@@ -90,6 +99,7 @@ layanan-laporan/
 ---
 
 ## 🔗 Integrasi Lintas Layanan
+
 | Layanan Terkait         | Data yang Digunakan                    |
 |-------------------------|----------------------------------------|
 | `layanan-usulan`        | Jumlah dan status usulan               |
@@ -108,6 +118,7 @@ layanan-laporan/
 ---
 
 ## 🧪 Testing
+
 - Unit test untuk setiap modul generator dan exporter
 - Integration test dengan mock data dari layanan lain
 - Benchmark waktu query, proses AI, dan rendering dokumen
@@ -115,6 +126,7 @@ layanan-laporan/
 ---
 
 ## 🚀 Rencana Pengembangan
+
 - Integrasi ke `layanan-integrasi` untuk penarikan laporan eksternal
 - Auto-notifikasi laporan penting ke pengguna terkait
 - Template laporan dinamis (drag-and-drop + builder)
@@ -123,11 +135,14 @@ layanan-laporan/
 ---
 
 ## 📩 Kontak & Dukungan
+
 Jika menemukan bug, ide, atau masukan:
+
 - Gunakan GitLab Issues untuk laporan dan diskusi
 - Email tim teknis: `simpelv2-support@kejaksaan.go.id`
 
 ---
 
 ## 📝 Lisensi
+
 Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only

@@ -118,12 +118,14 @@ docker compose up -d postgres redis
 ### 3. Menjalankan Service
 
 **Frontend (WASM + hot-reload):**
+
 ```bash
 cd antarmuka/portal && trunk serve --port 8080 --open
 cd antarmuka/perlengkapan && trunk serve --port 8081 --open
 ```
 
 **Backend API:**
+
 ```bash
 cargo run --bin layanan-perlengkapan-api
 cargo run --bin authenc
@@ -144,6 +146,7 @@ cargo test --workspace                                     # Jalankan semua tes
 ## 🛡️ Kebijakan Keamanan
 
 SIMPEL mematuhi paradigma **Security-by-Design**:
+
 - Arsitektur autentikasi berbasis token modern (OAuth2/OIDC) dengan rotasi kunci via Secreton
 - Kriptografi modern: Ed25519 (signing), ChaCha20-Poly1305 (enkripsi), Argon2id (password hashing)
 - Strict `unsafe_code = "forbid"` pada level workspace

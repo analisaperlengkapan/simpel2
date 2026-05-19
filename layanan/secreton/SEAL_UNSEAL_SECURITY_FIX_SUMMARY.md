@@ -11,12 +11,14 @@ This document summarizes the critical security fixes implemented for the Seal/Un
 **Issue**: Secret Vault was not starting in sealed mode, violating security best practices.
 
 **Fix Implemented**:
+
 - `SealService::new()` initializes with `SealState::Sealed`
 - `ServiceContainer::new()` loads engine state from storage on startup
 - Startup logging clearly indicates seal status
 - Location: `crates/core/src/services/seal.rs`, `crates/api/src/services/mod.rs`
 
 **Verification**:
+
 ```rust
 // From seal.rs line 289
 pub fn new(config: SealConfig) -> Self {
@@ -36,6 +38,7 @@ pub fn new(config: SealConfig) -> Self {
 **Issue**: The `initialize()` method was automatically unsealing the engine after generating shares, which is a critical security vulnerability.
 
 **Fix Implemented**:
+
 - `initialize()` generates master key and Shamir shares
 - Master key is encrypted and stored
 - **CRITICAL**: Master key is immediately zeroized from memory
@@ -43,6 +46,7 @@ pub fn new(config: SealConfig) -> Self {
 - Operators must manually unseal with threshold shares
 
 **Code Evidence**:
+
 ```rust
 // From seal.rs lines 437-449
 pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
@@ -74,6 +78,7 @@ pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
 **Issue**: No middleware was checking seal status, allowing all operations when engine was sealed.
 
 **Fix Implemented**:
+
 - `seal_check_middleware()` added to `crates/api/src/middleware.rs`
 - Checks seal status before processing requests
 - Whitelists system endpoints: `/health`, `/version`, `/metrics`, `/v1/sys/seal-status`, `/v1/sys/unseal`, `/v1/sys/init`
@@ -81,6 +86,7 @@ pub async fn initialize(&self) -> Result<Vec<Share>, SealError> {
 - Logs blocked requests for security monitoring
 
 **Code Evidence**:
+
 ```rust
 // From middleware.rs lines 520-560
 pub async fn seal_check_middleware(
@@ -130,12 +136,14 @@ pub async fn seal_check_middleware(
 **Issue**: Health checks were not considering seal status, causing load balancers to route traffic to sealed engines.
 
 **Fix Implemented**:
+
 - `readiness_check()` now checks seal status
 - Returns 503 Service Unavailable when sealed
 - Sealed engine is NOT considered "ready"
 - Follows Kubernetes best practices for readiness probes
 
 **Code Evidence**:
+
 ```rust
 // From handlers/health.rs lines 130-165
 pub async fn readiness_check(
@@ -174,6 +182,7 @@ pub async fn readiness_check(
 ```
 
 **Code Evidence - Seal Status Check**:
+
 ```rust
 // From handlers/health.rs lines 260-285
 async fn check_seal_status(state: &AppState) -> HealthCheck {
@@ -215,12 +224,14 @@ async fn check_seal_status(state: &AppState) -> HealthCheck {
 **Issue**: SealService was not integrated into the main application state.
 
 **Fix Implemented**:
+
 - `ServiceContainer` now includes `seal: Arc<SealService>`
 - SealService initialized with storage backend adapter
 - Secret Vault state loaded from storage on startup
 - Seal status logged at startup
 
 **Code Evidence**:
+
 ```rust
 // From services/mod.rs lines 90-140
 pub struct ServiceContainer {
@@ -299,11 +310,13 @@ impl ServiceContainer {
 **Issue**: Application startup did not check or log seal status.
 
 **Fix Implemented**:
+
 - `api_server.rs` checks seal status after ServiceContainer initialization
 - Clear logging of seal status at startup
 - Operators are informed if engine is sealed
 
 **Code Evidence**:
+
 ```rust
 // From bin/api_server.rs lines 28-38
 info!("Initializing service container...");
@@ -385,26 +398,31 @@ Comprehensive integration tests verify all security fixes:
 ## Security Best Practices Followed
 
 ### 1. Defense in Depth
+
 - Multiple layers of security checks
 - Seal status checked at startup, middleware, and health checks
 - Master key never stored in plaintext
 
 ### 2. Principle of Least Privilege
+
 - Only whitelisted endpoints accessible when sealed
 - All secret operations blocked until unsealed
 - Operators must explicitly unseal with threshold shares
 
 ### 3. Secure by Default
+
 - Secret Vault starts in sealed mode
 - No auto-unseal after initialization
 - Master key zeroized immediately after use
 
 ### 4. Audit and Monitoring
+
 - All seal/unseal operations logged
 - Blocked requests logged for security monitoring
 - Seal status visible in health checks and metrics
 
 ### 5. Cryptographic Security
+
 - Shamir Secret Sharing with Feldman VSS
 - AES-256-GCM for master key encryption
 - Argon2id for key derivation
@@ -418,6 +436,7 @@ Comprehensive integration tests verify all security fixes:
 ### Initial Setup
 
 1. **Initialize Secret Vault**:
+
    ```bash
    curl -X POST https://engine.example.com/v1/sys/init \
      -d '{"secret_shares": 5, "secret_threshold": 3}'
@@ -432,6 +451,7 @@ Comprehensive integration tests verify all security fixes:
 
 3. **Unseal Secret Vault**:
    Operators provide threshold shares (3 of 5):
+
    ```bash
    # Operator 1
    curl -X POST https://engine.example.com/v1/sys/unseal \
@@ -464,6 +484,7 @@ curl https://engine.example.com/v1/sys/seal-status
 ```
 
 Response:
+
 ```json
 {
   "seal_type": "shamir",
@@ -497,6 +518,7 @@ This implementation follows HashiCorp Secret Vault security best practices:
 ## Files Modified
 
 ### Core Implementation
+
 - `crates/core/src/services/seal.rs` - SealService implementation
 - `crates/api/src/services/mod.rs` - ServiceContainer integration
 - `crates/api/src/bin/api_server.rs` - Startup sequence
@@ -505,6 +527,7 @@ This implementation follows HashiCorp Secret Vault security best practices:
 - `crates/api/src/handlers/health.rs` - Health check with seal status
 
 ### Tests
+
 - `tests/seal_startup_behavior_tests.rs` - Integration tests
 - `crates/core/src/services/seal.rs` - Unit tests
 
@@ -528,12 +551,14 @@ This implementation follows HashiCorp Secret Vault security best practices:
 ## Next Steps
 
 ### Immediate (Production Readiness)
+
 1. ✅ Fix compilation errors in other modules (not seal-related)
 2. ✅ Add seal_check_middleware to router
 3. ✅ Test end-to-end seal/unseal workflow
 4. ✅ Update deployment documentation
 
 ### Future Enhancements (Optional)
+
 1. Auto-unseal support (Transit, AWS KMS, Azure KeySecret Vault, GCP KMS)
 2. Seal migration (change threshold/shares)
 3. HSM integration for master key storage

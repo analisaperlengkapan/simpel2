@@ -13,12 +13,14 @@
 ## 🌍 Service Context
 
 Layanan Perlengkapan adalah backend service utama untuk sistem informasi perlengkapan Kejaksaan RI. Service ini menangani:
+
 - Manajemen data BMN (Barang Milik Negara)
 - Dokumentasi dan pelaporan perlengkapan
 - Notifikasi terkait perlengkapan
 - Sistem bantuan/ticket untuk perlengkapan
 
 Service ini berkomunikasi dengan:
+
 - **Authenc** (via gRPC) untuk autentikasi dan otorisasi
 - **Secreton** (via gRPC) untuk manajemen secrets
 - **Integrasi** (via gRPC) untuk integrasi dengan sistem eksternal (MySIMKARI, SIMAN)
@@ -133,29 +135,34 @@ flowchart TB
 ## 📏 Critical Conventions
 
 ### 1. Dependency Management
+
 - **ALL dependencies** MUST be defined in root `Cargo.toml` `[workspace.dependencies]`
 - Member crates MUST use `dependency_name = { workspace = true }`
 - **NEVER** specify versions in member `Cargo.toml` files
 
 ### 2. Configuration
+
 - Use environment variables with `dotenvy` for local development
 - Use Secreton gRPC for production secrets
 - Config validation at startup with clear error messages
 - Feature flags for optional functionality
 
 ### 3. Database Layer
+
 - Use `deadpool-postgres` for connection pooling
 - Each crate should have its own database schema if needed
 - Use prepared statements for frequently executed queries
 - Implement proper transaction handling
 
 ### 4. Error Handling
+
 - Use `thiserror` for error enums
 - Implement `From` conversions for common errors
 - Return structured error responses with error codes
 - Log errors with appropriate context using `tracing`
 
 ### 5. Authentication & Authorization
+
 - Validate JWT tokens via Authenc gRPC on every request
 - Implement role-based access control (RBAC)
 - Use middleware for authentication checks
@@ -242,6 +249,7 @@ pub async fn create_perlengkapan(
 ### 1. Add New API Endpoint
 
 1. Add route in `crates/api/src/lib.rs`:
+
 ```rust
 .route("/api/v1/perlengkapan", get(list_perlengkapan).post(create_perlengkapan))
 .route("/api/v1/perlengkapan/{id}", get(get_perlengkapan).put(update_perlengkapan))
@@ -254,6 +262,7 @@ pub async fn create_perlengkapan(
 ### 2. Add Validation Rule
 
 1. Add validation function in `crates/api/src/validation.rs`:
+
 ```rust
 use validator::Validate;
 
@@ -268,6 +277,7 @@ pub struct CreatePerlengkapanRequest {
 ```
 
 2. Apply validation in handler:
+
 ```rust
 request.validate().map_err(AppError::Validation)?;
 ```
@@ -284,6 +294,7 @@ request.validate().map_err(AppError::Validation)?;
 ## ⚠️ Common Pitfalls
 
 ❌ **DON'T:**
+
 - Call Authenc/Secreton directly from microfrontends
 - Store secrets in environment variables in production
 - Use raw SQL queries without prepared statements
@@ -294,6 +305,7 @@ request.validate().map_err(AppError::Validation)?;
 - Skip transaction handling for multi-step operations
 
 ✅ **DO:**
+
 - Use gRPC for inter-service communication
 - Fetch secrets from Secreton via gRPC
 - Use prepared statements with parameterized queries
@@ -308,21 +320,25 @@ request.validate().map_err(AppError::Validation)?;
 ## 🔍 Troubleshooting
 
 ### Database Connection Issues
+
 - **Symptom**: "Connection refused" or timeout errors
 - **Check**: PostgreSQL is running, connection string is correct
 - **Solution**: Verify `DATABASE_URL` and network connectivity
 
 ### gRPC Connection Failures
+
 - **Symptom**: "Failed to connect to authenc"
 - **Check**: mTLS certificates are valid, service is running
 - **Solution**: Verify certificate paths and service discovery
 
 ### Validation Errors
+
 - **Symptom**: "Validation error" without details
 - **Check**: Validation rules are properly defined
 - **Solution**: Add custom error messages to validation attributes
 
 ### Performance Issues
+
 - **Symptom**: Slow API responses
 - **Check**: Database query performance, connection pool size
 - **Solution**: Add indexes, optimize queries, increase pool size
@@ -348,16 +364,19 @@ request.validate().map_err(AppError::Validation)?;
 ## 🧪 Testing
 
 ### Unit Tests
+
 ```bash
 cargo test -p layanan-perlengkapan-api
 ```
 
 ### Integration Tests
+
 ```bash
 cargo test -p layanan-perlengkapan-api --features integration-tests
 ```
 
 ### Build
+
 ```bash
 cargo build -p layanan-perlengkapan-api --release
 ```
@@ -367,17 +386,20 @@ cargo build -p layanan-perlengkapan-api --release
 ## 🚀 Build & Run
 
 ### Development
+
 ```bash
 cd layanan/perlengkapan/crates/api
 cargo run
 ```
 
 ### Production Build
+
 ```bash
 cargo build -p layanan-perlengkapan-api --release
 ```
 
 ### Docker Build
+
 ```bash
 docker build -t layanan-perlengkapan-api:latest .
 ```
@@ -403,6 +425,7 @@ antarmuka/perlengkapan (WASM)
 
 Portal and Perlengkapan share the same `auth_token` localStorage key.
 When Portal logs out, it:
+
 1. Calls `POST /api/v1/auth/logout` to invalidate server session
 2. Clears `auth_token`, `refresh_token` from localStorage
 3. Fires `logout_event` storage event for cross-tab sync

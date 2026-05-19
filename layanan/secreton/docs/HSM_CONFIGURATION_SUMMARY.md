@@ -15,7 +15,9 @@ This task implements HSM (Hardware Security Module) configuration support for Se
 ### 1. Configuration Files
 
 #### `config/secreton.production.toml`
+
 Added HSM configuration section:
+
 ```toml
 [hsm]
 enabled = false
@@ -34,6 +36,7 @@ retry_delay_ms = 1000
 ```
 
 **Features:**
+
 - Support for multiple HSM providers (PKCS#11, AWS KMS, Azure Key Secret Vault, GCP KMS)
 - Configurable timeouts and retry logic
 - Health check configuration
@@ -42,11 +45,13 @@ retry_delay_ms = 1000
 ### 2. API Configuration Structure
 
 #### `layanan/secreton/crates/api/src/config.rs`
+
 - Added `HsmConfig` import from `secreton_core::hsm`
 - Added `DatabaseConfig` struct for database connection configuration
 - Integrated HSM and database configs into `ApiConfig`
 
 **Changes:**
+
 ```rust
 pub struct ApiConfig {
     // ... existing fields ...
@@ -60,12 +65,14 @@ pub struct ApiConfig {
 ### 3. Service Container Integration
 
 #### `layanan/secreton/crates/api/src/services/mod.rs`
+
 - Added `HsmBackend` import
 - Added optional `hsm` field to `ServiceContainer`
 - Implemented HSM initialization in `ServiceContainer::new()`
 - Added graceful fallback if HSM initialization fails
 
 **Initialization Logic:**
+
 ```rust
 let hsm = if config.hsm.enabled {
     match HsmBackend::new(config.hsm.clone()) {
@@ -89,6 +96,7 @@ let hsm = if config.hsm.enabled {
 ```
 
 **Features:**
+
 - Conditional HSM initialization based on configuration
 - Error handling with graceful degradation
 - Comprehensive logging for troubleshooting
@@ -97,11 +105,13 @@ let hsm = if config.hsm.enabled {
 ### 4. Health Check Integration
 
 #### `layanan/secreton/crates/api/src/handlers/health.rs`
+
 - Added `check_hsm_health()` function
 - Integrated HSM health check into detailed health endpoint
 - Added HSM status to health check response
 
 **HSM Health Check:**
+
 ```rust
 async fn check_hsm_health(hsm: &HsmBackend) -> HealthCheck {
     let hsm_healthy = match hsm.health_check().await {
@@ -133,6 +143,7 @@ async fn check_hsm_health(hsm: &HsmBackend) -> HealthCheck {
 ```
 
 **Features:**
+
 - Real-time HSM connectivity monitoring
 - Response time tracking
 - Detailed status information
@@ -141,9 +152,11 @@ async fn check_hsm_health(hsm: &HsmBackend) -> HealthCheck {
 ### 5. Documentation
 
 #### `layanan/secreton/docs/HSM_SETUP_GUIDE.md`
+
 Comprehensive HSM setup guide including:
 
 **Sections:**
+
 1. **Overview** - HSM benefits and supported providers
 2. **Prerequisites** - Hardware and software requirements
 3. **Installation** - Step-by-step setup for hardware HSM and SoftHSM
@@ -156,6 +169,7 @@ Comprehensive HSM setup guide including:
 10. **Migration** - Migrating from software keys to HSM
 
 **Key Features:**
+
 - Production and development setup instructions
 - SoftHSM for testing without hardware
 - Security best practices for government compliance
@@ -166,6 +180,7 @@ Comprehensive HSM setup guide including:
 ## Integration Points
 
 ### 1. Startup Sequence
+
 ```
 1. Load configuration (including HSM config)
 2. Initialize ServiceContainer
@@ -177,6 +192,7 @@ Comprehensive HSM setup guide including:
 ```
 
 ### 2. Health Monitoring
+
 ```
 GET /health/detailed
 {
@@ -196,6 +212,7 @@ GET /health/detailed
 ```
 
 ### 3. Configuration Loading
+
 ```
 Priority order:
 1. CLI flags (highest)
@@ -207,24 +224,28 @@ Priority order:
 ## Security Considerations
 
 ### 1. PIN Management
+
 - **Never hardcode PINs** in configuration files
 - Use environment variables: `export HSM_PIN="your-secure-pin"`
 - Integrate with secrets management (Secret Vault, AWS Secrets Manager)
 - Rotate PINs regularly
 
 ### 2. Access Control
+
 - Limit HSM access to Secreton service account
 - Use mTLS for network HSMs
 - Enable audit logging for all HSM operations
 - Implement RBAC for HSM operations
 
 ### 3. Key Security
+
 - Generate keys directly in HSM (never import)
 - Use non-exportable keys
 - Implement key rotation policies
 - Maintain key inventory
 
 ### 4. Network Security
+
 - Use dedicated network for HSM communication
 - Enable firewall rules
 - Use VPN for cloud HSMs
@@ -302,12 +323,14 @@ secreton_hsm_connection_errors_total 0
 ## Compliance
 
 ### FIPS 140-2
+
 - Use FIPS-validated HSM hardware
 - Enable FIPS mode in configuration
 - Use only FIPS-approved algorithms
 - Maintain audit trail
 
 ### Kejaksaan RI Requirements
+
 - Hardware-backed key storage for SANGAT RAHASIA data
 - Audit logging of all HSM operations
 - Role-based access control
@@ -316,6 +339,7 @@ secreton_hsm_connection_errors_total 0
 ## Future Enhancements
 
 ### Planned Features
+
 1. **AWS KMS Integration** - Cloud HSM support for AWS
 2. **Azure Key Secret Vault Integration** - Cloud HSM support for Azure
 3. **GCP KMS Integration** - Cloud HSM support for GCP
@@ -324,6 +348,7 @@ secreton_hsm_connection_errors_total 0
 6. **HSM Failover** - Automatic failover to backup HSM
 
 ### API Enhancements
+
 1. HSM key management endpoints
 2. HSM operation statistics
 3. HSM configuration validation

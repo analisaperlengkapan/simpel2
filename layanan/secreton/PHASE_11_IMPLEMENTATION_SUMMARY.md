@@ -11,6 +11,7 @@ Phase 11 successfully implements performance and scalability enhancements for Se
 **Implementation**: `layanan/secreton/crates/core/src/utils/cache.rs`
 
 **Features Added**:
+
 - `RedisCache` struct with async Redis operations
 - `HybridCache` combining memory L1 and Redis L2 caching
 - `SecretCacheManager` enhanced with Redis backend support
@@ -20,6 +21,7 @@ Phase 11 successfully implements performance and scalability enhancements for Se
   - **Hybrid**: Memory L1 + Redis L2 for optimal performance
 
 **Key Methods**:
+
 - `RedisCache::new()` - Initialize Redis connection
 - `RedisCache::set()` - Store value with TTL
 - `RedisCache::get()` - Retrieve cached value
@@ -29,6 +31,7 @@ Phase 11 successfully implements performance and scalability enhancements for Se
 - `HybridCache::set()` - Write to both L1 and L2
 
 **Configuration**:
+
 ```rust
 // Memory-only (default)
 let manager = SecretCacheManager::new();
@@ -76,6 +79,7 @@ let manager = SecretCacheManager::with_hybrid(
 **Implementation**: `layanan/secreton/crates/api/src/middleware/rate_limit.rs`
 
 **Features Added**:
+
 - `RateLimitMiddleware` for Axum integration
 - HTTP 429 (Too Many Requests) responses
 - `Retry-After` header with calculated wait time
@@ -86,6 +90,7 @@ let manager = SecretCacheManager::with_hybrid(
   - Connection IP address
 
 **Middleware Integration**:
+
 ```rust
 use secreton_api::middleware::rate_limit::{RateLimitMiddleware, rate_limit_middleware};
 
@@ -108,6 +113,7 @@ let app = Router::new()
 ```
 
 **Response Format**:
+
 ```json
 {
   "error": "Rate limit exceeded. Please retry after the specified duration.",
@@ -118,6 +124,7 @@ let app = Router::new()
 ```
 
 **HTTP Headers**:
+
 - `Retry-After: 60` (seconds)
 - `X-RateLimit-Limit: 100`
 - `X-RateLimit-Remaining: 0`
@@ -256,16 +263,19 @@ All requirements from Phase 11 are fully implemented and validated:
 ## Files Modified/Created
 
 ### Core Implementation
+
 - `layanan/secreton/crates/core/src/utils/cache.rs` (enhanced)
 - `layanan/secreton/crates/core/Cargo.toml` (added redis dependency)
 - `layanan/secreton/crates/api/src/middleware/rate_limit.rs` (new)
 - `layanan/secreton/crates/api/src/middleware.rs` (updated)
 
 ### Tests
+
 - `layanan/secreton/crates/core/tests/property_cache_tests.rs` (new)
 - `layanan/secreton/crates/core/tests/property_rate_limit_tests.rs` (new)
 
 ### Documentation
+
 - `layanan/secreton/docs/HORIZONTAL_SCALING_GUIDE.md` (new)
 - `layanan/secreton/PHASE_11_IMPLEMENTATION_SUMMARY.md` (this file)
 
@@ -375,6 +385,7 @@ secreton operator raft remove-peer --id=node-4
 ## Next Steps
 
 Phase 11 is complete. The implementation provides:
+
 - Production-ready distributed caching with Redis
 - Comprehensive rate limiting with proper HTTP semantics
 - Documented horizontal scaling procedures

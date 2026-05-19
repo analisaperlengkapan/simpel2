@@ -16,12 +16,14 @@ Implementasi **Priority 2 - HA Optimization** untuk meningkatkan reliability, ob
 **File:** `crates/storage/src/backends/consul.rs`
 
 **Features:**
+
 - Automatic session creation untuk distributed locking
 - Background session renewal task (renew at 50% TTL)
 - Session state tracking dan recovery
 - Health check integration dengan session status
 
 **Implementation:**
+
 ```rust
 pub struct ConsulBackend {
     config: ConsulConfig,
@@ -68,12 +70,14 @@ fn start_session_renewal(&self) {
 ```
 
 **Benefits:**
+
 - ✅ **Distributed Locking Support** - Ready untuk leader election
 - ✅ **Automatic Recovery** - Session recreation on expiry
 - ✅ **Zero Downtime** - Proactive renewal prevents expiration
 - ✅ **Health Monitoring** - Session status dalam health check
 
 **Configuration:**
+
 ```toml
 [storage.consul]
 session_ttl_secs = 15  # Session TTL (renewal at 7.5s)
@@ -86,12 +90,14 @@ session_ttl_secs = 15  # Session TTL (renewal at 7.5s)
 **File:** `crates/storage/src/backends/postgres.rs`
 
 **Features:**
+
 - Real-time pool utilization monitoring
 - Automatic exhaustion warnings (threshold: 80%)
 - Pool statistics API
 - Metrics integration untuk Prometheus/Grafana
 
 **Implementation:**
+
 ```rust
 pub struct PostgresBackend {
     pool: Pool,
@@ -160,12 +166,14 @@ pub fn get_pool_stats(&self) -> PoolStats {
 ```
 
 **Benefits:**
+
 - ✅ **Proactive Monitoring** - Detect issues before failures
 - ✅ **Capacity Planning** - Track utilization trends
 - ✅ **Alert Integration** - Metrics untuk monitoring systems
 - ✅ **Performance Insights** - Pool statistics API
 
 **Metrics Exposed:**
+
 ```
 secreton_postgres_pool_utilization{} 0.75
 secreton_postgres_pool_available{} 5.0
@@ -174,6 +182,7 @@ secreton_postgres_pool_exhausted_total{} 0
 ```
 
 **Monitoring Intervals:**
+
 - Check every **30 seconds**
 - Warning at **80% utilization**
 - Error at **0 available connections**
@@ -185,12 +194,14 @@ secreton_postgres_pool_exhausted_total{} 0
 **File:** `crates/storage/src/raft/mod.rs`
 
 **Features:**
+
 - Automatic snapshot creation (leader only)
 - Configurable intervals dan thresholds
 - Manual snapshot trigger API
 - Metrics tracking untuk snapshot operations
 
 **Implementation:**
+
 ```rust
 /// Snapshot configuration
 #[derive(Debug, Clone)]
@@ -274,12 +285,14 @@ pub async fn create_snapshot(&self) -> StorageResult<()> {
 ```
 
 **Benefits:**
+
 - ✅ **Log Compaction** - Prevents unbounded log growth
 - ✅ **Faster Recovery** - Snapshots speed up node restart
 - ✅ **Leader-Only** - Prevents duplicate snapshot work
 - ✅ **Configurable** - Tune based on workload
 
 **Configuration:**
+
 ```toml
 [storage.raft.snapshot]
 enabled = true
@@ -289,6 +302,7 @@ max_snapshots = 5           # Keep last 5 snapshots
 ```
 
 **Metrics Exposed:**
+
 ```
 secreton_raft_snapshots_created_total{} 42
 secreton_raft_last_snapshot_index{} 150000
@@ -300,6 +314,7 @@ secreton_raft_snapshot_errors_total{} 0
 ## 📊 Impact Summary
 
 ### Before Priority 2
+
 | Component | Capability | Status |
 |-----------|------------|--------|
 | Consul Sessions | Manual management | ❌ Manual |
@@ -307,6 +322,7 @@ secreton_raft_snapshot_errors_total{} 0
 | Raft Snapshots | Manual only | ❌ Manual |
 
 ### After Priority 2
+
 | Component | Capability | Status |
 |-----------|------------|--------|
 | Consul Sessions | Auto-renewal + recovery | ✅ Automated |
@@ -318,16 +334,19 @@ secreton_raft_snapshot_errors_total{} 0
 ## 🎯 Operational Benefits
 
 ### 1. Reduced Manual Intervention
+
 - **Consul Sessions**: Auto-renewal eliminates manual session management
 - **Raft Snapshots**: Automatic creation prevents manual cleanup
 - **Pool Monitoring**: Proactive alerts prevent reactive firefighting
 
 ### 2. Improved Observability
+
 - **Pool Metrics**: Track utilization trends untuk capacity planning
 - **Session Status**: Distributed lock health visibility
 - **Snapshot Metrics**: Log growth dan compaction tracking
 
 ### 3. Better Reliability
+
 - **Session Recovery**: Automatic recreation on expiry
 - **Pool Exhaustion**: Early warning prevents connection failures
 - **Snapshot Automation**: Consistent log compaction
@@ -339,6 +358,7 @@ secreton_raft_snapshot_errors_total{} 0
 ### Prometheus Queries
 
 **Pool Exhaustion Alert:**
+
 ```promql
 # Alert when pool utilization > 80%
 secreton_postgres_pool_utilization > 0.8
@@ -348,6 +368,7 @@ secreton_postgres_pool_available == 0
 ```
 
 **Raft Snapshot Health:**
+
 ```promql
 # Alert when snapshot errors increase
 rate(secreton_raft_snapshot_errors_total[5m]) > 0
@@ -357,6 +378,7 @@ rate(secreton_raft_snapshots_created_total[1h])
 ```
 
 **Consul Session Health:**
+
 ```promql
 # Monitor session renewals (via health check)
 up{job="secreton-storage"} == 0
@@ -365,6 +387,7 @@ up{job="secreton-storage"} == 0
 ### Grafana Dashboards
 
 **Recommended Panels:**
+
 1. **Pool Utilization** - Gauge (0-100%)
 2. **Available Connections** - Time series
 3. **Snapshot Timeline** - Events
@@ -375,6 +398,7 @@ up{job="secreton-storage"} == 0
 ## 🔧 Configuration Examples
 
 ### Development
+
 ```toml
 [storage.postgres]
 max_connections = 10
@@ -390,6 +414,7 @@ log_entries_threshold = 1000
 ```
 
 ### Production
+
 ```toml
 [storage.postgres]
 max_connections = 50
@@ -439,21 +464,25 @@ All enhancements integrated ke health check endpoints:
 ## 🔄 Next Steps (Priority 3 - Optional)
 
 ### 1. S3 Backend Implementation
+
 - Add `aws-sdk-s3` dependency
 - Implement full CRUD operations
 - SSE-KMS encryption support
 
 ### 2. Circuit Breaker Pattern
+
 - Prevent cascade failures
 - Automatic fallback mechanisms
 - Configurable thresholds
 
 ### 3. Advanced Metrics
+
 - Latency histograms
 - Request rate tracking
 - Error rate monitoring
 
 ### 4. Cross-Region Support
+
 - Raft multi-region replication
 - S3 cross-region backup
 - Geo-distributed deployments
@@ -472,6 +501,7 @@ All enhancements integrated ke health check endpoints:
 ## ✅ Summary
 
 **Priority 2 Enhancements Completed:**
+
 1. ✅ Consul session auto-renewal
 2. ✅ PostgreSQL pool monitoring
 3. ✅ Raft snapshot automation

@@ -13,6 +13,7 @@
 This audit reviewed the existing `perlengkapan` schema database structure across 7 migration files. The schema is **70% compliant** with naming standards, with some inconsistencies that need standardization. The database contains 40+ tables supporting kebutuhan BMN, pakaian dinas, workflow engine, roadmap planning, and integration modules.
 
 **Key Findings:**
+
 - ✅ **Good:** Consistent use of UUID primary keys, TIMESTAMPTZ timestamps, proper indexing
 - ⚠️ **Needs Improvement:** Mixed naming conventions (some tables use `ms_` prefix, others don't), inconsistent field naming
 - ❌ **Critical:** Some tables still in `public` schema (pakaian dinas tables were migrated but may have legacy references)
@@ -89,6 +90,7 @@ perlengkapan/
 ### 2.1 Standard Naming Conventions (from design.md)
 
 **Expected Standards:**
+
 - All tables: `snake_case` with service prefix (e.g., `perlengkapan_kebutuhan_bmn`)
 - Technical fields: English (`id`, `created_at`, `updated_at`)
 - Domain fields: Indonesian (`nama`, `kode`, `jumlah`)
@@ -148,6 +150,7 @@ perlengkapan/
 ### 3.1 Technical Fields (English)
 
 ✅ **Compliant:**
+
 - `id` (UUID PRIMARY KEY)
 - `created_at` (TIMESTAMPTZ)
 - `updated_at` (TIMESTAMPTZ)
@@ -158,6 +161,7 @@ perlengkapan/
 ### 3.2 Domain Fields (Indonesian)
 
 ✅ **Compliant:**
+
 - `nama` (VARCHAR)
 - `kode` (VARCHAR)
 - `jumlah` (INTEGER)
@@ -169,6 +173,7 @@ perlengkapan/
 ### 3.3 Mixed Language Fields
 
 ⚠️ **Needs Review:**
+
 - `status_kode` - Mixed (status is English, kode is Indonesian)
 - `nm_satker` - Abbreviated Indonesian
 - `jml_setuju` - Abbreviated Indonesian
@@ -183,24 +188,28 @@ perlengkapan/
 ### 4.1 Primary Keys
 
 ✅ **Compliant:**
+
 - All main tables use `UUID PRIMARY KEY DEFAULT gen_random_uuid()`
 - Audit/log tables use `BIGSERIAL PRIMARY KEY` (correct for high-volume inserts)
 
 ### 4.2 Timestamps
 
 ✅ **Compliant:**
+
 - All timestamp fields use `TIMESTAMPTZ` (not `TIMESTAMP`)
 - Default values use `NOW()` or `CURRENT_TIMESTAMP`
 
 ### 4.3 Foreign Keys
 
 ✅ **Compliant:**
+
 - All foreign keys properly defined with `REFERENCES` clause
 - Appropriate `ON DELETE` actions (CASCADE, SET NULL)
 
 ### 4.4 JSONB Usage
 
 ✅ **Appropriate:**
+
 - `id_jenis_asset JSONB DEFAULT '[]'::jsonb` (array of asset type IDs)
 - `file_pendukung JSONB DEFAULT '[]'::jsonb` (array of file metadata)
 - `metadata JSONB DEFAULT '{}'::jsonb` (flexible metadata storage)
@@ -213,6 +222,7 @@ perlengkapan/
 ### 5.1 Index Coverage
 
 ✅ **Excellent Coverage:**
+
 - Foreign key indexes: ✅ All FK columns indexed
 - Full-text search indexes: ✅ pg_trgm GIN indexes on text fields
 - Composite indexes: ✅ Common query patterns covered
@@ -225,6 +235,7 @@ perlengkapan/
 ### 5.2 Index Naming Conventions
 
 ✅ **Consistent:**
+
 - Pattern: `idx_{table}_{column(s)}` or `idx_{table}_{purpose}`
 - Examples: `idx_pkb_tahun`, `idx_pkb_satker_pengajuan_status`
 
@@ -235,6 +246,7 @@ perlengkapan/
 ### 6.1 CHECK Constraints
 
 ✅ **Good Coverage:**
+
 - Date range validation: `CHECK (tgl_selesai >= tgl_mulai)`
 - Year validation: `CHECK (tahun >= 2020 AND tahun <= 2100)`
 - Quantity validation: `CHECK (jumlah > 0)`
@@ -244,6 +256,7 @@ perlengkapan/
 ### 6.2 UNIQUE Constraints
 
 ✅ **Appropriate:**
+
 - `UNIQUE (pengajuan_id, ms_satker_id)` - Prevent duplicate satker per request
 - `UNIQUE (pegawai_id, pakaian_id)` - Prevent duplicate size entries
 - `UNIQUE (parallel_approval_id, approver_user_id)` - One vote per approver
@@ -255,6 +268,7 @@ perlengkapan/
 ### 7.1 Master Data Tables
 
 ❌ **Missing:**
+
 1. `ms_barang` - Referenced in `mapping_kodefikasi.kode_barang_baru_id`
 2. `ms_jenis_asset` - Referenced in `pengajuan_kebutuhan_bmn_asset.ms_jenis_asset_id`
 
@@ -271,6 +285,7 @@ perlengkapan/
 The following tables are referenced in views but created in separate migrations:
 
 ✅ **Expected to exist:**
+
 - `integrasi.siman_aset_tanah`
 - `integrasi.siman_aset_gedung_bangunan`
 - `integrasi.siman_aset_alat_besar`
@@ -371,6 +386,7 @@ ALTER VIEW perlengkapan.vw_kebutuhan_bmn_summary RENAME TO v_kebutuhan_bmn_summa
 **Action:** Create data dictionary documenting all abbreviations
 
 **Abbreviations to document:**
+
 - `nm_` = nama (name)
 - `jml_` = jumlah (quantity)
 - `tgl_` = tanggal (date)
@@ -388,11 +404,13 @@ ALTER VIEW perlengkapan.vw_kebutuhan_bmn_summary RENAME TO v_kebutuhan_bmn_summa
 **Action:** Consider adding `perlengkapan_` prefix to all tables for clarity
 
 **Pros:**
+
 - Clear ownership of tables
 - Prevents naming conflicts
 - Easier to identify tables in logs
 
 **Cons:**
+
 - Longer table names
 - Requires updating all application code
 - Migration complexity
@@ -404,10 +422,12 @@ ALTER VIEW perlengkapan.vw_kebutuhan_bmn_summary RENAME TO v_kebutuhan_bmn_summa
 **Action:** Consider renaming `status_kode` to `workflow_status_id` for clarity
 
 **Pros:**
+
 - Clearer field name
 - Consistent with other ID fields
 
 **Cons:**
+
 - Requires updating all application code
 - Migration complexity
 
@@ -422,6 +442,7 @@ ALTER VIEW perlengkapan.vw_kebutuhan_bmn_summary RENAME TO v_kebutuhan_bmn_summa
 **Approach:** Incremental migration with backward compatibility
 
 **Phases:**
+
 1. **Phase 1 (Week 1):** Create missing tables, verify FK constraints
 2. **Phase 2 (Week 1-2):** Standardize view naming, document abbreviations
 3. **Phase 3 (Week 2):** Optional improvements (if approved)
@@ -494,6 +515,7 @@ END $;
 **Rollback Strategy:** Each migration includes rollback script
 
 **Example Rollback:**
+
 ```sql
 -- Rollback Migration 1
 DROP TABLE IF EXISTS perlengkapan.ms_barang CASCADE;
@@ -555,6 +577,7 @@ ALTER VIEW perlengkapan.v_kebutuhan_bmn_summary RENAME TO vw_kebutuhan_bmn_summa
 ### 12.2 Recommendations
 
 #### ✅ **Keep As-Is:**
+
 1. UUID primary keys
 2. TIMESTAMPTZ timestamps
 3. Schema separation (perlengkapan vs integrasi)
@@ -563,12 +586,14 @@ ALTER VIEW perlengkapan.v_kebutuhan_bmn_summary RENAME TO vw_kebutuhan_bmn_summa
 6. Workflow engine design
 
 #### ⚠️ **Improve:**
+
 1. Create missing master tables (`ms_barang`, `ms_jenis_asset`)
 2. Standardize view naming (`v_` prefix)
 3. Document abbreviations in data dictionary
 4. Verify all FK constraints
 
 #### ❌ **Do Not Change:**
+
 1. Table prefixes (schema separation is sufficient)
 2. Field naming (`status_kode` is acceptable)
 3. Existing table names (too risky to rename)

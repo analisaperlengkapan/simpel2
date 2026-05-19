@@ -45,40 +45,50 @@ Successfully implemented a cron-based scheduler that periodically checks for SLA
 ## Key Features
 
 ### 1. Configurable Scheduling
+
 - **Default interval**: Every 15 minutes (`"0 */15 * * * *"`)
 - **Environment variables**:
   - `SLA_CHECK_INTERVAL_CRON`: Custom cron expression
   - `SLA_SCHEDULER_ENABLED`: Enable/disable scheduler
 
 ### 2. Multi-Workflow Support
+
 The scheduler checks SLA for all workflow types:
+
 - Kebutuhan BMN (BMN Requirements)
 - Pemakaian BMN (BMN Usage Permits)
 - Penghapusan BMN (BMN Deletion)
 
 ### 3. Automatic Escalation
+
 For each SLA breach detected:
+
 - Sends escalation notification to approver (Urgent priority)
 - Sends informational notification to requester (Normal priority)
 - Logs escalation activity in database
 - Records metrics for monitoring
 
 ### 4. Idempotency
+
 - Uses existing SLA detection logic from `sla.rs`
 - Leverages workflow activity logging to prevent duplicate escalations
 - Each escalation is recorded with timestamp and user context
 
 ### 5. Monitoring & Metrics
+
 New Prometheus metrics:
+
 - `workflow_sla_check_duration_seconds{workflow_type}`: Check duration
 - `workflow_sla_check_total{status}`: Total checks performed
 
 Existing metrics used:
+
 - `workflow_sla_breaches_total{entity_type, state}`: Breach count
 - `workflow_sla_breach_duration_minutes{entity_type, state}`: Breach duration
 - `workflow_escalations_total{entity_type, state, status}`: Escalation count
 
 ### 6. Error Handling
+
 - Graceful handling of database errors
 - Non-blocking notification failures
 - Comprehensive error logging
@@ -130,21 +140,25 @@ Existing metrics used:
 ## Integration Points
 
 ### 1. Existing Workflow Engine
+
 - Uses `WorkflowConfig` for SLA limits
 - Leverages `SlaMonitor` for breach detection
 - Integrates with workflow activity logging
 
 ### 2. Notifikasi Service (Optional)
+
 - Sends escalation notifications when client is configured
 - Falls back to logging when client is unavailable
 - Supports multiple notification channels
 
 ### 3. Database
+
 - Queries workflow entities from PostgreSQL
 - Logs escalation activities
 - Tracks SLA breach history
 
 ### 4. Metrics System
+
 - Records check duration and count
 - Tracks breach and escalation metrics
 - Enables monitoring and alerting
@@ -152,20 +166,24 @@ Existing metrics used:
 ## Testing
 
 ### Unit Tests (2 tests)
+
 ```bash
 cargo test -p layanan-perlengkapan-api --lib workflow::sla_scheduler
 ```
 
 Tests:
+
 - ✅ `test_sla_scheduler_config_default`: Default configuration
 - ✅ `test_sla_scheduler_config_from_env`: Environment variable configuration
 
 ### Integration Tests (4 tests)
+
 ```bash
 cargo test -p layanan-perlengkapan-api --test sla_scheduler_test
 ```
 
 Tests:
+
 - ✅ `test_sla_scheduler_creation`: Scheduler creation
 - ✅ `test_sla_scheduler_config_default`: Default config
 - ✅ `test_sla_scheduler_config_from_env`: Environment config
@@ -176,6 +194,7 @@ All tests pass successfully.
 ## Configuration Examples
 
 ### Development (.env)
+
 ```bash
 # Check every 5 minutes for testing
 SLA_CHECK_INTERVAL_CRON="0 */5 * * * *"
@@ -183,6 +202,7 @@ SLA_SCHEDULER_ENABLED=true
 ```
 
 ### Production (.env)
+
 ```bash
 # Check every 15 minutes (default)
 SLA_CHECK_INTERVAL_CRON="0 */15 * * * *"
@@ -190,6 +210,7 @@ SLA_SCHEDULER_ENABLED=true
 ```
 
 ### Staging (.env)
+
 ```bash
 # Check every 30 minutes to reduce load
 SLA_CHECK_INTERVAL_CRON="0 */30 * * * *"
@@ -197,6 +218,7 @@ SLA_SCHEDULER_ENABLED=true
 ```
 
 ### Disable Scheduler (.env)
+
 ```bash
 # Disable for maintenance or testing
 SLA_SCHEDULER_ENABLED=false
@@ -205,21 +227,25 @@ SLA_SCHEDULER_ENABLED=false
 ## Deployment Considerations
 
 ### 1. Resource Usage
+
 - Minimal CPU usage (runs every 15 minutes)
 - Database queries are optimized with indexes
 - No memory leaks (uses Arc and proper cleanup)
 
 ### 2. Scalability
+
 - Scheduler runs in single instance (no distributed locking needed)
 - Can handle thousands of workflow entities
 - Efficient batch processing
 
 ### 3. Monitoring
+
 - Prometheus metrics for observability
 - Structured logging for debugging
 - Error tracking for alerting
 
 ### 4. High Availability
+
 - Scheduler restarts automatically with application
 - No state persistence required
 - Idempotent operations
@@ -227,16 +253,19 @@ SLA_SCHEDULER_ENABLED=false
 ## Requirements Fulfilled
 
 ✅ **REQ-W003**: SLA monitoring and escalation
+
 - Periodic SLA breach detection
 - Automatic escalation notifications
 - Configurable SLA limits per workflow state
 
 ✅ **REQ-N008**: SLA breach notifications
+
 - Escalation notifications to approvers
 - Informational notifications to requesters
 - Urgent priority for escalations
 
 ✅ **NFR-M004**: Metrics and monitoring
+
 - Prometheus metrics for SLA checks
 - Duration and count tracking
 - Breach and escalation metrics
@@ -269,6 +298,7 @@ SLA_SCHEDULER_ENABLED=false
 ## Conclusion
 
 The SLA breach auto-escalation scheduler has been successfully implemented with:
+
 - ✅ Cron-based periodic execution (every 15 minutes)
 - ✅ Integration with existing SLA detection logic
 - ✅ Automatic escalation notifications

@@ -1,11 +1,13 @@
 # README – layanan-integrasi
 
 ## 🔗 Deskripsi Singkat
+
 `layanan-integrasi` merupakan layanan mikro SIMPEL yang bertugas menjembatani pertukaran data antara SIMPEL dan sistem eksternal pemerintah seperti SIMAN, MONSAKTI, MySimkari, dan SIPEDE. Layanan ini dirancang untuk menjaga integritas, keamanan, dan keteraturan proses sinkronisasi data.
 
 ---
 
 ## 🎯 Tujuan Utama
+
 - Menyediakan konektivitas aman dengan sistem eksternal
 - Menarik dan menyimpan data secara periodik dan on-demand
 - Menyediakan API internal yang distandarisasi untuk data eksternal
@@ -15,6 +17,7 @@
 ---
 
 ## 🔌 Sistem Terintegrasi
+
 | Sistem Eksternal | Frekuensi       | Jenis Data yang Ditarik                    |
 |------------------|-----------------|--------------------------------------------|
 | SIMAN            | Mingguan        | Aset, pemanfaatan, penghapusan BMN         |
@@ -25,6 +28,7 @@
 ---
 
 ## 🧱 Fitur Utama
+
 - 🔄 Sinkronisasi otomatis berbasis cron dan manual trigger
 - 🔒 Dukungan API Key, OAuth2, dan whitelist IP
 - 🔁 Normalisasi struktur & mapping antar format JSON/XML/CSV
@@ -34,6 +38,7 @@
 ---
 
 ## ⚙️ Teknologi
+
 - Backend: Go (Gin) + SQLC
 - Database: PostgreSQL (skema `integrasi`)
 - Scheduler: Cron job internal & queue-based worker
@@ -44,6 +49,7 @@
 ---
 
 ## 📁 Struktur Direktori
+
 ```
 layanan-integrasi/
 ├── api/                # Handler endpoint & routing internal
@@ -61,6 +67,7 @@ layanan-integrasi/
 ---
 
 ## 🔄 Contoh Endpoint Internal
+
 | Metode | Endpoint                        | Fungsi                                     |
 |--------|----------------------------------|--------------------------------------------|
 | POST   | `/sinkron/siman`                | Tarik data aset dari SIMAN                 |
@@ -72,6 +79,7 @@ layanan-integrasi/
 ---
 
 ## 🔐 Keamanan & Validasi
+
 - Koneksi terenkripsi (HTTPS, SFTP, VPN bila diperlukan)
 - API Key unik per sistem eksternal
 - Validasi format JSON/XML dengan schema
@@ -81,6 +89,7 @@ layanan-integrasi/
 ---
 
 ## 📦 Contoh .env Konfigurasi
+
 ```env
 SIMAN_API_URL=https://siman.kemenkeu.go.id/api
 SIMAN_API_KEY=secretsiman
@@ -95,6 +104,7 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 ---
 
 ## 📌 Integrasi Terkait Layanan SIMPEL
+
 | Layanan               | Fungsi Integrasi                            |
 |------------------------|---------------------------------------------|
 | `layanan-aset`         | Pembaruan aset dari SIMAN                   |
@@ -106,6 +116,7 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 ---
 
 ## 🚦 Standar Implementasi
+
 - Struktur response mengikuti format OpenAPI
 - Semua konfigurasi dikelola via YAML dan `.env`
 - Cron disesuaikan dengan tingkat sensitivitas data
@@ -115,6 +126,7 @@ SIPEDE_ENDPOINT=https://sipede.setjen.kemendagri.go.id/api
 ---
 
 ## 📝 Lisensi
+
 Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only
 
 > Layanan Integrasi adalah penghubung krusial yang memastikan bahwa SIMPEL tetap selaras dengan sistem nasional dalam pengelolaan Barang Milik Negara.

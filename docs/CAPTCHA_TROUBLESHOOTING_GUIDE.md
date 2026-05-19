@@ -30,6 +30,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 1. CAPTCHA Not Loading
 
 #### Symptoms
+
 - CAPTCHA component doesn't appear on login page
 - JavaScript errors in browser console
 - Blank space where CAPTCHA should be
@@ -37,18 +38,21 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Check Browser Console**:
+
    ```javascript
    // Open browser dev tools (F12)
    // Look for errors in Console tab
    ```
 
 2. **Verify Component Integration**:
+
    ```bash
    # Check if CAPTCHA component is properly imported
    grep -r "shared_microfrontend::components::captcha" antarmuka/portal/src/
    ```
 
 3. **Check Network Requests**:
+
    ```bash
    # Monitor network tab in browser dev tools
    # Look for failed API calls to /api/v1/captcha/
@@ -57,18 +61,21 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Component Import Issue**:
+
    ```rust
    // Ensure proper import in login.rs
    use lib_ui::components::captcha::Captcha;
    ```
 
 2. **API Endpoint Issue**:
+
    ```bash
    # Check if CAPTCHA endpoints are registered
    curl -v http://localhost:8088/api/v1/captcha/challenge
    ```
 
 3. **CORS Issue**:
+
    ```toml
    # Check CORS configuration in authenc
    [cors]
@@ -78,6 +85,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 2. High Failure Rate
 
 #### Symptoms
+
 - CAPTCHA failure rate > 70%
 - Users complaining about difficulty
 - Increased support tickets
@@ -85,6 +93,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Check Current Difficulty**:
+
    ```sql
    SELECT
        AVG(difficulty_level) as avg_difficulty,
@@ -95,6 +104,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Analyze Failure Patterns**:
+
    ```sql
    SELECT
        challenge_type,
@@ -110,6 +120,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Check Bot Detection**:
+
    ```sql
    SELECT
        classification,
@@ -123,6 +134,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Reduce Difficulty Temporarily**:
+
    ```sql
    -- Reduce global difficulty
    UPDATE captcha_difficulty_adjustments
@@ -138,6 +150,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Adjust Challenge Types**:
+
    ```toml
    # Disable difficult challenge types temporarily
    [captcha.challenge_types]
@@ -149,6 +162,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Review Bot Detection Accuracy**:
+
    ```bash
    # Check if legitimate users are being flagged as bots
    curl http://localhost:8088/api/v1/captcha/metrics | grep bot_detection_accuracy
@@ -157,6 +171,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 3. Slow Response Times
 
 #### Symptoms
+
 - CAPTCHA takes > 2 seconds to load
 - Validation responses are slow
 - Users experiencing timeouts
@@ -164,6 +179,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Check Service Performance**:
+
    ```bash
    # Monitor resource usage
    docker stats simpelv2-authenc
@@ -173,6 +189,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Database Performance**:
+
    ```sql
    -- Check active connections
    SELECT count(*) FROM pg_stat_activity WHERE state = 'active';
@@ -195,6 +212,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Cache Performance**:
+
    ```bash
    # Check Redis performance
    redis-cli info stats | grep -E "(keyspace_hits|keyspace_misses|used_memory)"
@@ -206,6 +224,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Database Optimization**:
+
    ```sql
    -- Vacuum and analyze tables
    VACUUM ANALYZE captcha_challenges;
@@ -220,12 +239,14 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Increase Cache TTL**:
+
    ```toml
    [captcha.performance]
    cache_ttl = 7200  # Increase from 3600 to 7200 seconds
    ```
 
 3. **Scale Services**:
+
    ```bash
    # Scale authenc service
    docker-compose up -d --scale authenc=3
@@ -237,6 +258,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 4. Bot Detection Issues
 
 #### Symptoms
+
 - High false positive rate (legitimate users flagged as bots)
 - High false negative rate (bots passing through)
 - Inconsistent bot detection accuracy
@@ -244,6 +266,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Check Detection Accuracy**:
+
    ```sql
    SELECT
        DATE(created_at) as date,
@@ -257,6 +280,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Analyze Behavioral Patterns**:
+
    ```sql
    -- Check mouse movement patterns
    SELECT
@@ -278,6 +302,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Review Risk Scoring**:
+
    ```bash
    # Check risk score distribution
    curl http://localhost:8088/api/v1/captcha/analytics/risk-distribution
@@ -286,6 +311,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Adjust Risk Thresholds**:
+
    ```toml
    [captcha.behavioral_analysis]
    # Make thresholds more lenient
@@ -295,12 +321,14 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Retrain Models**:
+
    ```bash
    # Trigger model retraining with recent data
    curl -X POST http://localhost:8088/api/v1/captcha/admin/retrain-models
    ```
 
 3. **Disable Problematic Features**:
+
    ```toml
    [captcha.behavioral_analysis]
    mouse_tracking = true
@@ -313,6 +341,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 5. Integration Issues
 
 #### Symptoms
+
 - Secreton connection errors
 - Authenc authentication failures
 - Database connection issues
@@ -320,6 +349,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Check Service Connectivity**:
+
    ```bash
    # Test Secreton connection
    curl -f http://secreton:8200/v1/sys/health
@@ -332,6 +362,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Check Authentication**:
+
    ```bash
    # Verify Secreton token
    curl -H "X-Vault-Token: $SECRETON_TOKEN" http://secreton:8200/v1/auth/token/lookup-self
@@ -342,6 +373,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Review Configuration**:
+
    ```bash
    # Check environment variables
    env | grep -E "(SECRETON|AUTHENC|CAPTCHA_DB)"
@@ -353,6 +385,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Secreton Issues**:
+
    ```bash
    # Renew Secreton token
    secreton auth -method=userpass username=captcha-service
@@ -365,6 +398,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Authenc Issues**:
+
    ```bash
    # Refresh client credentials
    # Contact Authenc admin to regenerate client secret
@@ -374,6 +408,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Database Issues**:
+
    ```bash
    # Check database logs
    docker logs captcha-analytics-db
@@ -388,6 +423,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ### 6. Memory and Resource Issues
 
 #### Symptoms
+
 - Out of memory errors
 - High CPU usage
 - Container restarts
@@ -395,6 +431,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Diagnostic Steps
 
 1. **Monitor Resource Usage**:
+
    ```bash
    # Check container resources
    docker stats --no-stream
@@ -406,6 +443,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Analyze Memory Usage**:
+
    ```bash
    # Check Java heap (if applicable)
    jstat -gc $(pgrep java)
@@ -420,6 +458,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 #### Solutions
 
 1. **Increase Container Limits**:
+
    ```yaml
    # In docker-compose.captcha.yml
    services:
@@ -432,6 +471,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 2. **Optimize Memory Usage**:
+
    ```toml
    [captcha.performance]
    connection_pool_size = 5     # Reduce from 10
@@ -439,6 +479,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
    ```
 
 3. **Clean Up Resources**:
+
    ```sql
    -- Clean up old data more frequently
    SELECT cleanup_expired_captcha_challenges();
@@ -485,21 +526,25 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ## Escalation Procedures
 
 ### Level 1: Operations Team
+
 - **Response Time**: 15 minutes
 - **Scope**: Performance issues, minor configuration problems
 - **Actions**: Restart services, adjust configuration, basic troubleshooting
 
 ### Level 2: Security Team
+
 - **Response Time**: 30 minutes
 - **Scope**: Security incidents, bot detection issues, attack patterns
 - **Actions**: Block IPs, adjust security settings, investigate threats
 
 ### Level 3: Development Team
+
 - **Response Time**: 1 hour
 - **Scope**: Code issues, integration problems, complex bugs
 - **Actions**: Code fixes, deployment updates, architectural changes
 
 ### Level 4: Management
+
 - **Response Time**: 2 hours
 - **Scope**: Business impact, major outages, security breaches
 - **Actions**: Business decisions, external communication, resource allocation
@@ -507,6 +552,7 @@ Access Grafana dashboard: http://captcha-grafana:3000/d/captcha-overview
 ## Useful Commands and Scripts
 
 ### Health Check Script
+
 ```bash
 #!/bin/bash
 # health-check.sh
@@ -537,6 +583,7 @@ echo "=== Health Check Complete ==="
 ```
 
 ### Performance Analysis Script
+
 ```bash
 #!/bin/bash
 # performance-analysis.sh
@@ -559,6 +606,7 @@ echo "=== Performance Analysis Complete ==="
 ```
 
 ### Emergency Response Script
+
 ```bash
 #!/bin/bash
 # emergency-response.sh
@@ -597,11 +645,13 @@ esac
 ## Contact Information
 
 ### Emergency Contacts
+
 - **Security Team**: security@kejaksaan.go.id, +62-xxx-xxx-xxxx
 - **Operations Team**: ops@kejaksaan.go.id, +62-xxx-xxx-xxxx
 - **On-Call Engineer**: oncall@kejaksaan.go.id, +62-xxx-xxx-xxxx
 
 ### Support Channels
+
 - **Slack**: #captcha-support, #security-alerts
 - **Email**: support@kejaksaan.go.id
 - **Ticketing**: https://helpdesk.kejaksaan.go.id

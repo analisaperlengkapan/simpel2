@@ -9,6 +9,7 @@
 ## Overview
 
 Client Management adalah fitur CRITICAL yang memungkinkan:
+
 1. **Client CRUD** - Create, Read, Update, Delete OAuth2/OIDC clients
 2. **Dynamic Client Registration (DCR)** - RFC 7591/7592 compliance
 3. **Client Policies** - Authorization policies untuk client registration
@@ -21,6 +22,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
 ### OLD Architecture (`src/`)
 
 **Files Found**:
+
 1. `src/handlers/oidc_client.rs` - Client CRUD endpoints (Actix-web)
 2. `src/handlers/client_registration.rs` - DCR endpoints (Axum) ✅
 3. `src/handlers/dcr_admin.rs` - DCR admin operations
@@ -30,6 +32,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
 7. `src/models/client_registration.rs` - DCR request/response models
 
 **Status**:
+
 - ✅ DCR handlers already use Axum (modern)
 - ❌ OIDC client handlers use Actix-web (legacy)
 - ✅ Business logic exists in services
@@ -38,6 +41,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
 ### NEW Architecture (`crates/`)
 
 **Current State**:
+
 - ✅ `crates/core/src/services/client_registration.rs` - EXISTS (needs storage ops)
 - ✅ `crates/storage/src/operations/client_registration_ops.rs` - EXISTS (commented out)
 - ❌ `crates/api/src/handlers/client.rs` - MISSING
@@ -75,6 +79,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
    - Export `client_registration` module
 
 **Source Files** (to copy from):
+
 - `src/models/oidc_client.rs`
 - `src/models/client_registration.rs`
 
@@ -101,6 +106,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
    - Update `ProtocolMapper` references
 
 **Operations Needed**:
+
 - `create_client()`
 - `get_client_by_id()`
 - `get_client_by_client_id()`
@@ -143,6 +149,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
 **Files to Create**:
 
 1. **`crates/api/src/handlers/client.rs`**
+
    ```rust
    // Client CRUD endpoints
    GET    /api/v1/clients          - List all clients
@@ -155,6 +162,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
    ```
 
 2. **`crates/api/src/handlers/client_registration.rs`**
+
    ```rust
    // DCR endpoints (RFC 7591/7592)
    POST   /register                - Register new client (RFC 7591)
@@ -172,6 +180,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
    - Add authentication middleware
 
 **Source Files** (to migrate from):
+
 - `src/handlers/oidc_client.rs` → `crates/api/src/handlers/client.rs`
 - `src/handlers/client_registration.rs` → `crates/api/src/handlers/client_registration.rs`
 
@@ -182,6 +191,7 @@ Client Management adalah fitur CRITICAL yang memungkinkan:
 **Goal**: Ensure everything compiles and integrates properly
 
 **Tasks**:
+
 1. ✅ Verify `cargo check -p authenc-types` passes
 2. ✅ Verify `cargo check -p authenc-storage` passes
 3. ✅ Verify `cargo check -p authenc-core` passes

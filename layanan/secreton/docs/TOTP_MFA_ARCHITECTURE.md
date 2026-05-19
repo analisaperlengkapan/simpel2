@@ -7,10 +7,12 @@ Secreton implements a clear separation between TOTP secrets management and MFA a
 ## Architecture Components
 
 ### 1. TotpEngine (Secrets Engine)
+
 **Location**: `crates/core/src/services/secrets/totp.rs`  
 **API Endpoints**: `/v1/sys/totp/*`
 
 **Responsibilities:**
+
 - RFC 6238 compliant TOTP key generation and storage
 - Cryptographically secure secret generation (20 bytes = 160 bits)
 - Multiple algorithm support (SHA1, SHA256, SHA512)
@@ -23,12 +25,14 @@ Secreton implements a clear separation between TOTP secrets management and MFA a
 - Time window adjustment for clock skew (±1 period default)
 
 **Use Cases:**
+
 - Centralized TOTP key storage for all applications
 - Authenc MFA secret storage
 - Multi-application TOTP management
 - Direct TOTP operations via API
 
 **API Endpoints:**
+
 ```
 POST   /v1/sys/totp/keys              - Create TOTP key
 GET    /v1/sys/totp/keys/:key_name    - Get TOTP key details
@@ -39,10 +43,12 @@ POST   /v1/sys/totp/validate/:key_name - Validate TOTP code
 ```
 
 ### 2. MfaService (Authentication Service)
+
 **Location**: `crates/core/src/services/mfa.rs`  
 **API Endpoints**: `/v1/auth/mfa/*`
 
 **Responsibilities:**
+
 - User MFA configuration management
 - Recovery codes generation and validation
 - MFA method management (TOTP, Email, SMS, Push)
@@ -52,12 +58,14 @@ POST   /v1/sys/totp/validate/:key_name - Validate TOTP code
 - Delegates TOTP operations to TotpEngine
 
 **Use Cases:**
+
 - User authentication with MFA
 - MFA enrollment and setup
 - Recovery code management
 - Multi-method MFA support
 
 **Integration with TotpEngine:**
+
 ```rust
 // MfaService delegates TOTP operations to TotpEngine
 pub struct MfaService {
@@ -94,6 +102,7 @@ pub async fn verify_totp(&self, user_id: &str, code: &str)
 ## Data Flow
 
 ### MFA Setup Flow
+
 ```
 User Request → MfaService.enable_totp()
     ↓
@@ -109,6 +118,7 @@ Returns TotpSetupResponse with secret, QR code, recovery codes
 ```
 
 ### TOTP Validation Flow
+
 ```
 User Login → MfaService.verify_totp()
     ↓
@@ -141,7 +151,9 @@ MfaService updates last_used_at
 ## Removed Duplication
 
 ### Before Refactoring
+
 **Problem**: MfaService had its own simplified TOTP implementation:
+
 ```rust
 // OLD: Simplified, non-RFC compliant
 impl TotpConfig {
@@ -154,7 +166,9 @@ impl TotpConfig {
 ```
 
 ### After Refactoring
+
 **Solution**: MfaService delegates to TotpEngine:
+
 ```rust
 // NEW: Delegates to RFC 6238 compliant TotpEngine
 impl MfaService {
@@ -198,6 +212,7 @@ ServiceContainer {
 ## Testing
 
 ### TotpEngine Tests
+
 ```rust
 // Test RFC 6238 compliance
 #[tokio::test]
@@ -208,6 +223,7 @@ async fn test_replay_prevention() { /* ... */ }
 ```
 
 ### MfaService Tests
+
 ```rust
 // Test MFA flow integration
 #[tokio::test]
@@ -220,7 +236,9 @@ async fn test_recovery_codes() { /* ... */ }
 ## Migration Notes
 
 ### For Existing Code
+
 If you have code using the old `TotpConfig`:
+
 ```rust
 // OLD
 let totp_config = TotpConfig::new(issuer, account);
@@ -233,7 +251,9 @@ let code_response = totp_engine.generate_code(&key_name).await?;
 ```
 
 ### For Authentication Flow
+
 Use MfaService for user authentication:
+
 ```rust
 // Enable TOTP for user
 let response = mfa_service.enable_totp(user_id, issuer, account).await?;
@@ -245,6 +265,7 @@ let valid = mfa_service.verify_totp(user_id, code).await?;
 ## Conclusion
 
 The refactored architecture provides:
+
 - ✅ No duplication of TOTP functionality
 - ✅ RFC 6238 compliant implementation
 - ✅ Clear separation of concerns

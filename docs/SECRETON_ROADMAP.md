@@ -249,6 +249,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/pki.rs` (if exists)
 
 **Use Cases**:
+
 - Internal service-to-service mTLS certificates
 - Auto-expiring dev/staging certificates
 - Zero-trust architecture support
@@ -273,6 +274,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/totp.rs`
 
 **Use Cases**:
+
 - Authenc MFA secret storage
 - User TOTP secret management
 - Centralized OTP validation
@@ -299,6 +301,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/aws.rs`
 
 **Use Cases**:
+
 - Dynamic AWS access untuk backup S3
 - Temporary credentials untuk monitoring tools
 - Cross-account access untuk disaster recovery
@@ -324,6 +327,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/gcp.rs`
 
 **Use Cases**:
+
 - Dynamic GCP access untuk cloud resources
 - Temporary credentials untuk CI/CD pipelines
 - Multi-project service account management
@@ -348,6 +352,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/azure.rs`
 
 **Use Cases**:
+
 - Dynamic Azure access untuk cloud resources
 - Temporary credentials untuk deployment pipelines
 - Multi-subscription management
@@ -374,6 +379,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/identity.rs`
 
 **Use Cases**:
+
 - Single Sign-On (SSO) untuk semua microfrontends
 - Federated identity dengan external IdPs
 - Service identity untuk microservices
@@ -401,6 +407,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/rotation.rs`
 
 **Use Cases**:
+
 - Automatic database password rotation (every 90 days)
 - API key rotation
 - Certificate renewal before expiry
@@ -427,6 +434,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/ldap.rs`
 
 **Use Cases**:
+
 - Dynamic LDAP credentials untuk legacy applications
 - Temporary user accounts
 - Service account rotation
@@ -450,6 +458,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/rabbitmq.rs`
 
 **Use Cases**:
+
 - Dynamic RabbitMQ access untuk microservices
 - Temporary queue access
 - Message broker credential rotation
@@ -473,6 +482,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **API Handler**: `layanan/secreton/crates/api/src/handlers/kafka.rs`
 
 **Use Cases**:
+
 - Dynamic Kafka access untuk event streaming
 - Temporary topic access
 - Stream processing credential rotation
@@ -491,14 +501,14 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **Prioritas**: **HIGH** (Required untuk multi-region HA)
 **Kompleksitas**: Very High (4-6 minggu development)
 
-#### Fitur yang Sudah Ada (via Raft):
+#### Fitur yang Sudah Ada (via Raft)
 
 - ✅ Raft consensus untuk HA dalam single region
 - ✅ Leader election
 - ✅ Log replication
 - ✅ Distributed state management
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Cross-region replication (Jakarta → Surabaya + Medan)
 - ❌ Performance replication (read replicas)
@@ -508,7 +518,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ❌ Replication stream encryption
 - ❌ Geo-distributed disaster recovery
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ Jakarta (primary) → Surabaya + Medan (secondaries)
@@ -529,11 +539,11 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 **Prioritas**: **MEDIUM** (Extensibility)
 **Kompleksitas**: High (3-4 minggu development)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ Plugin model definition (`PluginCatalogEntry`)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ WASM plugin support (sandboxed execution)
 - ❌ Native plugin support (dynamic libraries)
@@ -545,7 +555,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 - ❌ Version management
 - ❌ Plugin marketplace/catalog
 
-#### Use Cases:
+#### Use Cases
 
 ```
 ✅ Custom secrets engines tanpa modify core
@@ -554,7 +564,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 ✅ Extend functionality without recompilation
 ```
 
-#### Architecture:
+#### Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -580,7 +590,7 @@ Secreton sudah memiliki **implementasi lengkap** untuk hampir semua fitur HashiC
 └─────────────────────────────────────────────┘
 ```
 
-#### Dependencies:
+#### Dependencies
 
 ```toml
 [dependencies]
@@ -599,7 +609,7 @@ semver = "1.0"           # Version management
 **Prioritas**: **MEDIUM** (Compliance)
 **Kompleksitas**: High (3 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Multi-step approval workflows
 - ❌ Approval policies (4-eyes principle, N-of-M approval)
@@ -611,7 +621,7 @@ semver = "1.0"           # Version management
 - ❌ Approval delegation
 - ❌ Approval history and analytics
 
-#### Use Cases:
+#### Use Cases
 
 ```
 ✅ Production secret access requires 2 approvals
@@ -620,7 +630,7 @@ semver = "1.0"           # Version management
 ✅ Compliance dengan SOC 2, ISO 27001
 ```
 
-#### Architecture:
+#### Architecture
 
 ```
 ┌────────────────────────────────────────────┐
@@ -646,7 +656,7 @@ semver = "1.0"           # Version management
 └────────────────────────────────────────────┘
 ```
 
-#### API Endpoints:
+#### API Endpoints
 
 ```bash
 # Approval policies
@@ -677,12 +687,12 @@ POST   /v1/sys/approval/break-glass
 **Prioritas**: **LOW** (Observability)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ Basic Prometheus metrics
 - ✅ Audit logging
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Real-time dashboards (Grafana integration)
 - ❌ Secret usage analytics
@@ -694,7 +704,7 @@ POST   /v1/sys/approval/break-glass
 - ❌ Cost attribution per namespace
 - ❌ Secret lifecycle analytics
 
-#### Use Cases:
+#### Use Cases
 
 ```
 ✅ Detect unusual secret access patterns
@@ -764,16 +774,16 @@ POST   /v1/sys/approval/break-glass
 
 ## 🎯 Rekomendasi Prioritas (Updated)
 
-### Immediate (Next Sprint - Q1 2026):
+### Immediate (Next Sprint - Q1 2026)
 
 1. **Multi-Region Replication** - Critical untuk disaster recovery
 
-### Short-term (Q2 2026):
+### Short-term (Q2 2026)
 
 2. **Plugin Architecture** - Extensibility untuk custom use cases
 3. **Approval Workflows** - Compliance requirements
 
-### Long-term (Q3 2026):
+### Long-term (Q3 2026)
 
 4. **Advanced Monitoring** - Enhanced observability
 

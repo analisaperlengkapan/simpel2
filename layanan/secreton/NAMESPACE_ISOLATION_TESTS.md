@@ -15,6 +15,7 @@ This document summarizes the namespace isolation tests added to verify proper mu
 **Purpose**: Verify that users from one satker cannot access secrets from another satker.
 
 **Test Scenario**:
+
 - Creates two wilayah (Sumatera Utara and Jawa Timur)
 - Creates two satkers (Medan under Sumut, Surabaya under Jatim)
 - Creates JWT claims for a Satker-level user from Medan
@@ -33,12 +34,14 @@ This document summarizes the namespace isolation tests added to verify proper mu
 **Purpose**: Verify that namespace quotas are properly enforced and prevent resource exhaustion.
 
 **Test Scenarios**:
+
 - **Secrets Quota**: Tests that operations are rejected when max_secrets limit is reached
 - **Storage Quota**: Tests that operations are rejected when max_storage_bytes limit is reached
 - **Leases Quota**: Tests that operations are rejected when max_leases limit is reached
 - **Policies Quota**: Tests that operations are rejected when max_policies limit is reached
 
 **Test Flow**:
+
 1. Creates a satker with low quotas for testing
 2. Verifies quota is not exceeded initially
 3. Increases usage to exactly the limit
@@ -54,11 +57,13 @@ This document summarizes the namespace isolation tests added to verify proper mu
 **Purpose**: Verify that namespace creation fails when parent doesn't exist or ID format is invalid.
 
 **Test Scenarios**:
+
 - **Non-existent Parent**: Attempts to create satker under non-existent wilayah
 - **Invalid Wilayah ID**: Attempts to create wilayah without "wilayah-" prefix
 - **Invalid Satker ID**: Attempts to create satker without "satker-" prefix
 
 **Expected Behavior**:
+
 - All invalid creation attempts should return errors
 - Error messages should clearly indicate the validation failure
 
@@ -71,6 +76,7 @@ This document summarizes the namespace isolation tests added to verify proper mu
 **Purpose**: Verify that JWT claims are properly structured and validated for different admin levels.
 
 **Test Scenarios**:
+
 - **Pusat Claims**: Validates structure for central admin (no satker_code, no wilayah_code)
 - **Wilayah Claims**: Validates structure for regional admin (no satker_code, has wilayah_code)
 - **Satker Claims**: Validates structure for unit admin (has both satker_code and wilayah_code)
@@ -79,6 +85,7 @@ This document summarizes the namespace isolation tests added to verify proper mu
 - **Metadata Extraction**: Verifies custom metadata fields are preserved
 
 **Claims Structure Validated**:
+
 ```rust
 pub struct JwtClaims {
     pub sub: String,              // Subject (user ID)
@@ -105,12 +112,14 @@ pub struct JwtClaims {
 **Purpose**: Verify that quota usage percentage is calculated correctly.
 
 **Test Scenarios**:
+
 - **0% Usage**: No resources used
 - **50% Usage**: Half of quota used
 - **100% Usage**: Quota fully used
 - **Over 100% Usage**: Quota exceeded
 
 **Calculation Method**:
+
 - Averages percentage across all quota types (secrets, storage)
 - Returns 0.0 if no quotas are set
 
@@ -123,14 +132,17 @@ pub struct JwtClaims {
 The following requirements were already covered by existing tests:
 
 ### ✅ Test hierarchical access (Wilayah can access child satkers)
+
 - `test_namespace_access_control_wilayah`
 - Verifies Wilayah admin can access their wilayah and all child satkers
 
 ### ✅ Test Pusat admin access to all namespaces
+
 - `test_namespace_access_control_pusat`
 - Verifies Pusat admin can access all namespaces in the hierarchy
 
 ### ✅ Test namespace deletion with children (should fail)
+
 - `test_namespace_delete_with_children`
 - Verifies that deleting a namespace with children fails
 - Verifies that deleting a namespace without children succeeds
@@ -140,11 +152,13 @@ The following requirements were already covered by existing tests:
 ## Test Execution
 
 ### Run All Namespace Tests
+
 ```bash
 cargo test --manifest-path layanan/secreton/Cargo.toml --package secreton-core --lib namespace
 ```
 
 ### Run Integration Tests (when API compiles)
+
 ```bash
 cargo test --manifest-path layanan/secreton/Cargo.toml --package secreton-api --test namespace_integration_test
 ```
@@ -180,4 +194,3 @@ cargo test --manifest-path layanan/secreton/Cargo.toml --package secreton-api --
 Once the API crate compilation errors are resolved, these integration tests will run as part of the test suite and provide comprehensive validation of namespace isolation functionality.
 
 The tests are ready and will execute successfully once the codebase compiles.
-

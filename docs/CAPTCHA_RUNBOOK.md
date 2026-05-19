@@ -3,6 +3,7 @@
 ## Quick Reference
 
 ### Emergency Procedures
+
 ```bash
 # Disable CAPTCHA system (emergency)
 redis-cli set "captcha_disabled" "true" EX 1800
@@ -18,6 +19,7 @@ curl -f http://localhost:8088/api/v1/captcha/health
 ```
 
 ### Key Contacts
+
 - **On-Call Engineer**: +62-xxx-xxx-xxxx
 - **Security Team**: security@kejaksaan.go.id
 - **Operations Team**: ops@kejaksaan.go.id
@@ -31,6 +33,7 @@ curl -f http://localhost:8088/api/v1/captcha/health
 **Owner**: Operations Team
 
 #### Checklist
+
 - [ ] Check service status
 - [ ] Verify key metrics
 - [ ] Reviewnight alerts
@@ -38,6 +41,7 @@ curl -f http://localhost:8088/api/v1/captcha/health
 - [ ] Validate integrations
 
 #### Procedure
+
 ```bash
 #!/bin/bash
 # Daily health check script
@@ -88,6 +92,7 @@ echo "=== Health Check Complete ==="
 ```
 
 #### Success Criteria
+
 - All services running (Up status)
 - Health endpoints responding (HTTP 200)
 - Success rate > 80%
@@ -97,7 +102,9 @@ echo "=== Health Check Complete ==="
 - No critical alerts
 
 #### Escalation
+
 If any check fails:
+
 1. **Minor Issues**: Create ticket, investigate within 2 hours
 2. **Major Issues**: Page on-call engineer immediately
 3. **Critical Issues**: Activate incident response
@@ -109,6 +116,7 @@ If any check fails:
 **Owner**: Operations Team
 
 #### Checklist
+
 - [ ] Review performance trends
 - [ ] Analyze security metrics
 - [ ] Check capacity utilization
@@ -116,6 +124,7 @@ If any check fails:
 - [ ] Update documentation
 
 #### Procedure
+
 ```bash
 #!/bin/bash
 # Weekly performance review script
@@ -155,7 +164,9 @@ echo "=== Weekly Review Complete ==="
 ```
 
 #### Action Items
+
 Based on review results:
+
 - **Performance < 80%**: Investigate and optimize
 - **Security incidents**: Review and update defenses
 - **Capacity > 80%**: Plan scaling
@@ -168,6 +179,7 @@ Based on review results:
 **Owner**: Security Team
 
 #### Checklist
+
 - [ ] Review bot detection accuracy
 - [ ] Analyze attack patterns
 - [ ] Update threat intelligence
@@ -175,6 +187,7 @@ Based on review results:
 - [ ] Test security controls
 
 #### Procedure
+
 ```sql
 -- Monthly security analysis queries
 
@@ -218,6 +231,7 @@ LIMIT 20;
 ```
 
 #### Security Actions
+
 1. **Update IP blocklist** based on analysis
 2. **Adjust bot detection thresholds** if needed
 3. **Review and update security rules**
@@ -228,21 +242,25 @@ LIMIT 20;
 #### Severity Levels
 
 **P1 - Critical (Response: 15 minutes)**
+
 - CAPTCHA system completely down
 - Security breach detected
 - Data loss or corruption
 
 **P2 - High (Response: 1 hour)**
+
 - Significant performance degradation
 - High bot detection failure rate
 - Integration failures
 
 **P3 - Medium (Response: 4 hours)**
+
 - Minor performance issues
 - Configuration problems
 - Non-criticalilures
 
 **P4 - Low (Response: 24 hours)**
+
 - Enhancement requests
 - Documentation updates
 - Minor bugs
@@ -250,6 +268,7 @@ LIMIT 20;
 #### P1 Critical Incident Response
 
 **Step 1: Immediate Response (0-5 minutes)**
+
 ```bash
 # 1. Assess situation
 curl -f http://localhost:8088/api/v1/captcha/health
@@ -266,6 +285,7 @@ pg_isready -h captcha-analytics-db -p 5432
 ```
 
 **Step 2: Triage and Containment (5-15 minutes)**
+
 ```bash
 # 1. If security breach suspected
 redis-cli set "captcha_disabled" "true" EX 3600  # Disable for 1 hour
@@ -281,18 +301,21 @@ psql -h captcha-analytics-db -U captcha_user -d captcha_analytics -c "SELECT cou
 ```
 
 **Step 3: Investigation (15-60 minutes)**
+
 - Analyze logs and metrics
 - Identify root cause
 - Develop fix plan
 - Communicate status updates
 
 **Step 4: Resolution (1-4 hours)**
+
 - Implement fix
 - Test thoroughly
 - Monitor for stability
 - Document incident
 
 **Step 5: Post-Incident (24-48 hours)**
+
 - Conduct post-mortem
 - Update procedures
 - Implement preventive measures

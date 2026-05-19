@@ -7,7 +7,7 @@ scrape_configs:
     static_configs:
       - targets: ['secreton:8200']
     metrics_path: /metrics
-    
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

@@ -14,11 +14,11 @@ SIMPEL adalah proyek Kejaksaan yang terbuka untuk pegawai Kejaksaan dalam kontri
 * 🏛️ **Dampak Nyata**: Sistem yang digunakan pada skala instansi Kejaksaan
 
 Mulai langkah kecil Anda hari ini — dari:
-- 🎨 Mengembangkan UI microfrontend dengan Leptos
-- 🔧 Menulis microservice dengan Rust
-- 📚 Memperbaiki dokumentasi dan guides
-- 🧪 Menambahkan test coverage dan quality assurance
-- 🔐 Implementasi security features dan compliance
+* 🎨 Mengembangkan UI microfrontend dengan Leptos
+* 🔧 Menulis microservice dengan Rust
+* 📚 Memperbaiki dokumentasi dan guides
+* 🧪 Menambahkan test coverage dan quality assurance
+* 🔐 Implementasi security features dan compliance
 
 ---
 
@@ -44,6 +44,7 @@ Mulai langkah kecil Anda hari ini — dari:
 #### **🖥️ Setup Development Environment**
 
 1. **Install Rust & Toolchain**
+
    ```bash
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    rustup component add clippy rustfmt
@@ -51,17 +52,20 @@ Mulai langkah kecil Anda hari ini — dari:
    ```
 
 2. **Install Frontend Tools**
+
    ```bash
    cargo install trunk
    # atau: cargo binstall trunk
    ```
 
 3. **Install Development Tools**
+
    ```bash
    cargo install cargo-audit cargo-watch
    ```
 
 4. **Clone & Setup Project**
+
    ```bash
    git clone <URL_REPOSITORY> simpel
    cd simpel
@@ -69,6 +73,7 @@ Mulai langkah kecil Anda hari ini — dari:
    ```
 
 5. **Start Development Environment**
+
    ```bash
    # Start database dan cache
    docker compose up -d postgres redis
@@ -81,10 +86,12 @@ Mulai langkah kecil Anda hari ini — dari:
    ```
 
 ### ⚠️ Batasan Arsitektural Penting (Wajib Dibaca)
-1. **Dilarang menggunakan SQLx**: Ekosistem SIMPEL mewajibkan penggunaan `tokio-postgres`, `deadpool-postgres`, dan `refinery` murni untuk operasi *database*. 
+
+1. **Dilarang menggunakan SQLx**: Ekosistem SIMPEL mewajibkan penggunaan `tokio-postgres`, `deadpool-postgres`, dan `refinery` murni untuk operasi *database*.
 2. **Batas Shared Libraries**: `lib/common/` telah dipecah menjadi `lib/core/` (tipe WASM-safe), `lib/backend/` (infrastruktur backend: DB, middleware, gRPC), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async/backend ke `lib-core` untuk menjaga kompatibilitas WASM. Jika butuh shared logic baru yang tidak cocok di tiga crate tersebut, buat *shared crate* terpisah di folder `lib/` (misalnya `lib-telemetry` atau `lib-auth-client`) dan daftarkan pada root `Cargo.toml`.
 
 #### **🪟 Windows Setup (WSL2)**
+
 1. **Install WSL2**: Windows Subsystem for Linux
 2. **Install VS Code**: Dengan WSL extension
 3. **Setup Git**: Configure `user.name` dan `user.email`
@@ -96,18 +103,20 @@ Mulai langkah kecil Anda hari ini — dari:
 1. **🍴 Fork Repository** → Clone → Checkout ke `main`
 2. **🌿 Buat Feature Branch** (`feature/nama-fitur` atau `fix/deskripsi`)
 3. **💻 Development**:
-   - Frontend: Edit microfrontend dengan Leptos
-   - Backend: Develop microservice dengan Rust
-   - Documentation: Update README, API docs
+   * Frontend: Edit microfrontend dengan Leptos
+   * Backend: Develop microservice dengan Rust
+   * Documentation: Update README, API docs
 4. **🧪 Testing & Validation**:
-   - **Unit Tests**: Wajib ditambahkan secara *inline* (`#[cfg(test)]`) pada file yang sama dengan logika yang dibuat.
-   - **Integration Tests**: Tambahkan pengujian yang lebih kompleks (seperti API endpoints & DB) di folder `tests/`.
-   - **E2E Tests**: Khusus kontribusi UI (Microfrontend), buat skenario tes menggunakan Playwright bila memungkinkan.
+   * **Unit Tests**: Wajib ditambahkan secara *inline* (`#[cfg(test)]`) pada file yang sama dengan logika yang dibuat.
+   * **Integration Tests**: Tambahkan pengujian yang lebih kompleks (seperti API endpoints & DB) di folder `tests/`.
+   * **E2E Tests**: Khusus kontribusi UI (Microfrontend), buat skenario tes menggunakan Playwright bila memungkinkan.
+
    ```bash
    cargo test --workspace                                    # Semua tes
    cargo clippy --workspace --all-targets -- -D warnings     # Linter
    cargo audit                                               # Vulnerability check
    ```
+
 5. **📝 Commit** dengan format baku → Push → Buat **Merge Request**
 
 > ⚠️ **Important**: Semua merge request ke `main` branch. Feature branches dari `main` untuk consistency.
@@ -129,10 +138,11 @@ main ← production (stable releases)
 ---
 
 ## 📝 Konvensi Penamaan (Naming Conventions)
+
 Untuk menghindari *warning* dari *linter* dan mematuhi idiom Rust, gunakan standar berikut:
-- `snake_case` untuk nama variabel, fungsi, atribut objek, nama modul, dan nama *file*.
-- `PascalCase` untuk nama `struct`, `enum`, `trait`, dan *type alias*.
-- `SCREAMING_SNAKE_CASE` untuk penamaan variabel konstanta dan *static global*.
+* `snake_case` untuk nama variabel, fungsi, atribut objek, nama modul, dan nama *file*.
+* `PascalCase` untuk nama `struct`, `enum`, `trait`, dan *type alias*.
+* `SCREAMING_SNAKE_CASE` untuk penamaan variabel konstanta dan *static global*.
 
 ---
 
@@ -152,15 +162,15 @@ ci: update deployment pipeline untuk K8s
 ```
 
 **Commit Types:**
-- `feat`: New features atau enhancements
-- `fix`: Bug fixes dan error resolution
-- `docs`: Documentation changes
-- `perf`: Performance improvements
-- `security`: Security-related changes
-- `test`: Test additions atau improvements
-- `refactor`: Code refactoring tanpa functional changes
-- `ci`: CI/CD pipeline changes
-- `infra`: Infrastructure dan deployment changes
+* `feat`: New features atau enhancements
+* `fix`: Bug fixes dan error resolution
+* `docs`: Documentation changes
+* `perf`: Performance improvements
+* `security`: Security-related changes
+* `test`: Test additions atau improvements
+* `refactor`: Code refactoring tanpa functional changes
+* `ci`: CI/CD pipeline changes
+* `infra`: Infrastructure dan deployment changes
 
 ---
 
@@ -210,34 +220,40 @@ Closes #[issue-number]
 **Semua level welcome — dari pemula hingga expert:**
 
 #### **🎨 Frontend Developer**
-- **Tech Stack**: Leptos 0.8.x, WebAssembly, Trunk, CSS
-- **Responsibilities**: Microfrontend development, UI/UX, responsive design
-- **Projects**: Portal dashboard, modular interfaces, component library
+
+* **Tech Stack**: Leptos 0.8.x, WebAssembly, Trunk, CSS
+* **Responsibilities**: Microfrontend development, UI/UX, responsive design
+* **Projects**: Portal dashboard, modular interfaces, component library
 
 #### **⚙️ Backend Developer**
-- **Tech Stack**: Rust, Axum 0.8.x, Tonic (gRPC), PostgreSQL, Docker
-- **Responsibilities**: Microservices, APIs, database design, performance
-- **Projects**: Perlengkapan API, Authenc identity services, Secreton vault
+
+* **Tech Stack**: Rust, Axum 0.8.x, Tonic (gRPC), PostgreSQL, Docker
+* **Responsibilities**: Microservices, APIs, database design, performance
+* **Projects**: Perlengkapan API, Authenc identity services, Secreton vault
 
 #### **🔐 Security Specialist**
-- **Tech Stack**: Authenc, Secreton, Ed25519, RBAC, mTLS
-- **Responsibilities**: Authentication, authorization, compliance, audit
-- **Projects**: Zero-trust implementation, MFA, WebAuthn, SAML federation
+
+* **Tech Stack**: Authenc, Secreton, Ed25519, RBAC, mTLS
+* **Responsibilities**: Authentication, authorization, compliance, audit
+* **Projects**: Zero-trust implementation, MFA, WebAuthn, SAML federation
 
 #### **🧪 QA Engineer**
-- **Tech Stack**: Rust testing framework, integration tests
-- **Responsibilities**: Test automation, performance testing, security testing
-- **Projects**: CI/CD testing, quality gates, monitoring
+
+* **Tech Stack**: Rust testing framework, integration tests
+* **Responsibilities**: Test automation, performance testing, security testing
+* **Projects**: CI/CD testing, quality gates, monitoring
 
 #### **🏗️ DevOps/Infrastructure**
-- **Tech Stack**: Kubernetes, Docker, Nginx, Prometheus, Grafana
-- **Responsibilities**: Infrastructure, deployment, monitoring, scaling
-- **Projects**: K8s deployment, CI/CD pipelines, observability stack
+
+* **Tech Stack**: Kubernetes, Docker, Nginx, Prometheus, Grafana
+* **Responsibilities**: Infrastructure, deployment, monitoring, scaling
+* **Projects**: K8s deployment, CI/CD pipelines, observability stack
 
 #### **📖 Technical Writer**
-- **Tech Stack**: Markdown, API documentation, Mermaid diagrams
-- **Responsibilities**: Documentation, guides, API specs, tutorials
-- **Projects**: Developer guides, API documentation, architecture docs
+
+* **Tech Stack**: Markdown, API documentation, Mermaid diagrams
+* **Responsibilities**: Documentation, guides, API specs, tutorials
+* **Projects**: Developer guides, API documentation, architecture docs
 
 ---
 
@@ -252,6 +268,7 @@ Manfaatkan alat bantu AI untuk meningkatkan efisiensi:
 > Tetap lakukan validasi manual. AI adalah alat bantu, bukan pengganti tanggung jawab kontribusi.
 
 ### 🧰 **Development Tools**
+
 ```bash
 # VS Code extensions yang recommended
 code --install-extension rust-lang.rust-analyzer
@@ -264,18 +281,22 @@ code --install-extension GitLab.gitlab-workflow
 ## 🧩 Memaksimalkan Fitur GitLab
 
 ### 🐞 **GitLab Issues**
-- Gunakan untuk pelaporan bug & diskusi
-- Gunakan label: `bug`, `enhancement`, `good first issue`, `security`
+
+* Gunakan untuk pelaporan bug & diskusi
+* Gunakan label: `bug`, `enhancement`, `good first issue`, `security`
 
 ### 🎯 **Milestone**
-- Kaitkan issue & MR ke milestone (mis. `v1.0.0`, `Sprint-Q1`)
+
+* Kaitkan issue & MR ke milestone (mis. `v1.0.0`, `Sprint-Q1`)
 
 ### ✅ **Merge Request (MR)**
-- Gunakan template MR di atas
-- Tambahkan reviewer sesuai `CODEOWNERS`
-- Tambahkan label status (`ready`, `needs review`)
+
+* Gunakan template MR di atas
+* Tambahkan reviewer sesuai `CODEOWNERS`
+* Tambahkan label status (`ready`, `needs review`)
 
 ### 🔄 **GitLab CI/CD**
+
 ```yaml
 # .gitlab-ci.yml stages
 stages:
@@ -287,6 +308,7 @@ stages:
 ```
 
 ### 👥 **Code Review (CODEOWNERS)**
+
 ```
 # Automatic reviewers
 /antarmuka/              @frontend-team
@@ -303,15 +325,17 @@ stages:
 ## 🔒 Kerahasiaan & Security Guidelines
 
 ### 🔐 **Information Security**
-- **Classified Data**: Semua kode dan data internal bersifat rahasia
-- **Access Control**: Gunakan principle of least privilege
-- **Secure Development**: Follow OWASP security guidelines
-- **Data Protection**: Implement proper data encryption dan masking
+
+* **Classified Data**: Semua kode dan data internal bersifat rahasia
+* **Access Control**: Gunakan principle of least privilege
+* **Secure Development**: Follow OWASP security guidelines
+* **Data Protection**: Implement proper data encryption dan masking
 
 ### ⚖️ **Compliance Requirements**
-- **Internal Use Only**: Kode tidak boleh disebarkan tanpa izin resmi
-- **Audit Trail**: Semua aktivitas development ter-log dan traceable
-- **Legal Compliance**: Mengikuti regulasi pemerintah dan hukum negara
+
+* **Internal Use Only**: Kode tidak boleh disebarkan tanpa izin resmi
+* **Audit Trail**: Semua aktivitas development ter-log dan traceable
+* **Legal Compliance**: Mengikuti regulasi pemerintah dan hukum negara
 
 ---
 
@@ -328,24 +352,25 @@ stages:
 ### 🆘 **Getting Help & Support**
 
 **📚 Documentation:**
-- [🏗️ Architecture Guide](docs/README.md)
-- [🤖 AI Agent Guide](AGENTS.md)
-- [📦 Perlengkapan Service](layanan/perlengkapan/AGENTS.md)
-- [🔗 Integrasi Service](layanan/integrasi/AGENTS.md)
-- [🔐 Authenc Details](layanan/authenc/AGENTS.md)
-- [🔒 Secreton Details](layanan/secreton/AGENTS.md)
+* [🏗️ Architecture Guide](docs/README.md)
+* [🤖 AI Agent Guide](AGENTS.md)
+* [📦 Perlengkapan Service](layanan/perlengkapan/AGENTS.md)
+* [🔗 Integrasi Service](layanan/integrasi/AGENTS.md)
+* [🔐 Authenc Details](layanan/authenc/AGENTS.md)
+* [🔒 Secreton Details](layanan/secreton/AGENTS.md)
 
 **💬 Communication Channels:**
-- **GitLab Issues**: Technical questions, bug reports
-- **GitLab Discussions**: Architecture discussions, RFC proposals
-- **Internal Slack**: `#simpel-dev` untuk daily discussions
+* **GitLab Issues**: Technical questions, bug reports
+* **GitLab Discussions**: Architecture discussions, RFC proposals
+* **Internal Slack**: `#simpel-dev` untuk daily discussions
 
 **🏢 Contact Information:**
-- **Project Lead**: Biro Perlengkapan Kejaksaan RI
-- **Technical Lead**: SIMPEL Architecture Team
-- **Email**: `biro.perlengkapan@kejaksaan.go.id`
+* **Project Lead**: Biro Perlengkapan Kejaksaan RI
+* **Technical Lead**: SIMPEL Architecture Team
+* **Email**: `biro.perlengkapan@kejaksaan.go.id`
 
 ### 🎯 **Escalation Path**
+
 ```
 Developer Question → GitLab Issue → Team Lead → Division Head
 Security Issue → Security Team → CISO → Executive Level
@@ -357,12 +382,12 @@ Security Issue → Security Team → CISO → Executive Level
 
 Terima kasih kepada semua kontributor yang telah membantu membangun **SIMPEL**:
 
-- 🏛️ **Kejaksaan RI**: Institutional support dan vision
-- 👥 **Development Team**: Dedication dalam building modern architecture
-- 🔐 **Security Team**: Ensuring enterprise-grade security
-- 📚 **Documentation Team**: Creating comprehensive guides
-- 🧪 **QA Team**: Maintaining quality standards
-- 🏗️ **DevOps Team**: Reliable infrastructure dan deployment
+* 🏛️ **Kejaksaan RI**: Institutional support dan vision
+* 👥 **Development Team**: Dedication dalam building modern architecture
+* 🔐 **Security Team**: Ensuring enterprise-grade security
+* 📚 **Documentation Team**: Creating comprehensive guides
+* 🧪 **QA Team**: Maintaining quality standards
+* 🏗️ **DevOps Team**: Reliable infrastructure dan deployment
 
 **Mari bersama-sama membangun sistem manajemen BMN yang lebih efisien, aman, dan cerdas untuk kemajuan bangsa Indonesia** 🇮🇩
 

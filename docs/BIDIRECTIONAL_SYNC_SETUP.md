@@ -80,7 +80,7 @@ Tambahkan variables berikut di **GitLab** (Settings → CI/CD → Variables):
 | `GITHUB_TOKEN` | GitHub Fine-grained PAT         | `github_pat_xxxx...`          | ✅ Yes    | ✅ Yes |
 | `GITHUB_REPO`  | Repository format: `owner/repo` | `analisaperlengkapan/simpel2` | ❌ No     | ❌ No  |
 
-#### Cara Membuat GITHUB_TOKEN:
+#### Cara Membuat GITHUB_TOKEN
 
 1. Buka https://github.com/settings/tokens?type=beta (Fine-grained tokens)
 2. Klik **"Generate new token"**
@@ -96,7 +96,7 @@ Tambahkan variables berikut di **GitLab** (Settings → CI/CD → Variables):
 5. **Copy token** (hanya ditampilkan sekali!)
 6. Simpan di GitLab CI/CD Variables sebagai `GITHUB_TOKEN`
 
-#### Nilai GITHUB_REPO:
+#### Nilai GITHUB_REPO
 
 ```
 analisaperlengkapan/simpel2
@@ -234,12 +234,14 @@ curl -H "PRIVATE-TOKEN: <GITLAB_API_TOKEN>" \
 
 1. Baca issue yang dibuat otomatis
 2. Manual fetch dan compare:
+
    ```bash
    git fetch origin main
    git fetch gitlab main
    git log origin/main..gitlab/main --oneline
    git log gitlab/main..origin/main --oneline
    ```
+
 3. Pilih strategi merge/rebase
 4. Push dengan `[skip sync]` marker
 

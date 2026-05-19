@@ -70,6 +70,7 @@ GET /archive/documents/search?date_from=2024-01-01&date_to=2024-12-31&document_t
 ```
 
 **Query Parameters**:
+
 - `date_from` (optional): Start date (ISO 8601)
 - `date_to` (optional): End date (ISO 8601)
 - `document_type` (optional): Document type filter
@@ -79,6 +80,7 @@ GET /archive/documents/search?date_from=2024-01-01&date_to=2024-12-31&document_t
 - `offset` (optional): Pagination offset (default: 0)
 
 **Response**:
+
 ```json
 [
   {
@@ -114,6 +116,7 @@ DELETE /archive/documents/expired
 Manually trigger deletion of expired documents.
 
 **Response**:
+
 ```json
 {
   "deleted_count": 42,

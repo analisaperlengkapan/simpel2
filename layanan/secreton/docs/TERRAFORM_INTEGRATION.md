@@ -5,6 +5,7 @@ This document describes how to integrate Secreton with Terraform for infrastruct
 ## Overview
 
 The Secreton Terraform provider enables you to:
+
 - Read secrets from Secreton as Terraform data sources
 - Manage secrets, policies, and authentication methods as Terraform resources
 - Inject secrets into other Terraform resources securely
@@ -93,6 +94,7 @@ resource "aws_db_instance" "main" {
 **API Endpoint**: `GET /v1/{mount}/data/{name}`
 
 **Response Format**:
+
 ```json
 {
   "data": {
@@ -127,6 +129,7 @@ output "encrypted_data" {
 **API Endpoint**: `POST /v1/transit/encrypt/{key}`
 
 **Request**:
+
 ```json
 {
   "plaintext": "base64-encoded-data"
@@ -134,6 +137,7 @@ output "encrypted_data" {
 ```
 
 **Response**:
+
 ```json
 {
   "data": {
@@ -190,6 +194,7 @@ resource "secreton_kv_secret_v2" "database" {
 ```
 
 **API Endpoints**:
+
 - Create/Update: `POST /v1/{mount}/data/{name}`
 - Read: `GET /v1/{mount}/data/{name}`
 - Delete: `DELETE /v1/{mount}/data/{name}`
@@ -215,6 +220,7 @@ EOT
 ```
 
 **API Endpoints**:
+
 - Create/Update: `PUT /v1/sys/policies/acl/{name}`
 - Read: `GET /v1/sys/policies/acl/{name}`
 - Delete: `DELETE /v1/sys/policies/acl/{name}`
@@ -233,6 +239,7 @@ resource "secreton_auth_backend" "kubernetes" {
 ```
 
 **API Endpoints**:
+
 - Enable: `POST /v1/sys/auth/{path}`
 - Read: `GET /v1/sys/auth/{path}`
 - Disable: `DELETE /v1/sys/auth/{path}`
@@ -254,6 +261,7 @@ resource "secreton_transit_key" "app_key" {
 ```
 
 **API Endpoints**:
+
 - Create: `POST /v1/transit/keys/{name}`
 - Read: `GET /v1/transit/keys/{name}`
 - Delete: `DELETE /v1/transit/keys/{name}`
@@ -605,6 +613,7 @@ terraform-provider-secreton/
 ### Client Implementation
 
 The Go client should implement:
+
 - HTTP client with retry logic
 - Token-based authentication
 - TLS configuration

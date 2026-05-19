@@ -82,13 +82,13 @@ mount_path = "authenc"
 key_rotation_interval = 86400
 
 secrets_to_load = [
-    "jwt_secret",
-    "ed25519_private_key",
-    "ecdsa_p256_private_key",
-    "ecdsa_p384_private_key",
-    "ecdsa_p521_private_key",
-    "smtp_password",
-    "encryption_key"
+  "jwt_secret",
+  "ed25519_private_key",
+  "ecdsa_p256_private_key",
+  "ecdsa_p384_private_key",
+  "ecdsa_p521_private_key",
+  "smtp_password",
+  "encryption_key",
 ]
 
 # ============================================================================

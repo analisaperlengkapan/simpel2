@@ -53,6 +53,7 @@ PUSAT (Kejaksaan Agung RI)
 ### Tables
 
 #### `satkers`
+
 Stores organizational units with hierarchical relationships.
 
 ```sql
@@ -72,6 +73,7 @@ CREATE TABLE satkers (
 ```
 
 #### `satker_permissions`
+
 Explicit satker-level permissions for users.
 
 ```sql
@@ -92,6 +94,7 @@ CREATE TABLE satker_permissions (
 ```
 
 #### `satker_admin_roles`
+
 Satker-scoped administrative role assignments.
 
 ```sql
@@ -113,16 +116,19 @@ CREATE TABLE satker_admin_roles (
 ### Satker Management
 
 #### List Satkers
+
 ```http
 GET /api/v1/satkers?parent_code=PUSAT&level=1&search=Jakarta
 ```
 
 #### Get Satker
+
 ```http
 GET /api/v1/satkers/{code}
 ```
 
 #### Create Satker
+
 ```http
 POST /api/v1/satkers
 Content-Type: application/json
@@ -138,6 +144,7 @@ Content-Type: application/json
 ```
 
 #### Update Satker
+
 ```http
 PUT /api/v1/satkers/{code}
 Content-Type: application/json
@@ -151,11 +158,13 @@ Content-Type: application/json
 ### Hierarchy Queries
 
 #### Get Satker Hierarchy
+
 ```http
 GET /api/v1/satkers/{code}/hierarchy
 ```
 
 Response:
+
 ```json
 {
   "satker": { "code": "KN-JAKPUS", "name": "...", ... },
@@ -171,6 +180,7 @@ Response:
 ```
 
 #### Get Root Satkers
+
 ```http
 GET /api/v1/satkers/roots
 ```
@@ -178,6 +188,7 @@ GET /api/v1/satkers/roots
 ### Authorization Checks
 
 #### Check Satker Access
+
 ```http
 POST /api/v1/satkers/check-access
 Content-Type: application/json
@@ -189,6 +200,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "allowed": true,
@@ -197,6 +209,7 @@ Response:
 ```
 
 #### Validate Cross-Satker Operation
+
 ```http
 POST /api/v1/satkers/validate-cross-operation
 Content-Type: application/json
@@ -211,6 +224,7 @@ Content-Type: application/json
 ```
 
 Response:
+
 ```json
 {
   "allowed": true,
@@ -221,21 +235,25 @@ Response:
 ```
 
 #### Get Accessible Satkers for User
+
 ```http
 GET /api/v1/satkers/users/{user_id}/accessible
 ```
 
 Response:
+
 ```json
 ["KN-JAKPUS", "KN-JAKSEL", "KT-DKI", "PUSAT"]
 ```
 
 #### Check Management Permission
+
 ```http
 GET /api/v1/satkers/users/{user_id}/can-manage/{satker_code}
 ```
 
 Response:
+
 ```json
 {
   "allowed": true,
@@ -340,10 +358,12 @@ let resources = db
 ### Caching
 
 The authorization service implements caching for:
+
 - Authorization decisions (keyed by user_id, satker codes, operation, resource type)
 - Hierarchy traversal results
 
 Cache is automatically invalidated when:
+
 - Satker hierarchy is updated
 - User permissions change
 - Explicit cache clear is requested
@@ -351,6 +371,7 @@ Cache is automatically invalidated when:
 ### Database Indexes
 
 Efficient indexes are created for:
+
 - Satker code lookups
 - Parent-child relationships
 - Hierarchy traversal
@@ -479,4 +500,3 @@ tracing::debug!(
 3. **Temporary Access**: Time-limited cross-satker access grants
 4. **Access Requests**: Workflow for requesting cross-satker access
 5. **Analytics**: Dashboard for satker access patterns and usage
-

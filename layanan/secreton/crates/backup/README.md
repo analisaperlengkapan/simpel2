@@ -129,6 +129,7 @@ The backup schedule uses standard cron syntax:
 ```
 
 Examples:
+
 - `0 2 * * *` - Daily at 2:00 AM
 - `0 */6 * * *` - Every 6 hours
 - `0 0 * * 0` - Weekly on Sunday at midnight
@@ -179,11 +180,13 @@ StorageConfig::S3(S3StorageConfig {
 Backups are encrypted with ChaCha20-Poly1305 using a 32-byte encryption key. You can either:
 
 1. **Provide your own key** (recommended for production):
+
    ```rust
    config.encryption_key = Some(your_32_byte_key);
    ```
 
 2. **Let the manager generate a key** (for testing):
+
    ```rust
    config.encryption_key = None; // Will generate and log a warning
    ```
@@ -200,6 +203,7 @@ config.compression_level = 6; // 0-9, where 9 is maximum compression
 ```
 
 Compression levels:
+
 - `0`: No compression (fastest)
 - `1-3`: Fast compression, lower ratio
 - `4-6`: Balanced (recommended)
@@ -214,6 +218,7 @@ Each backup consists of:
 3. **Metadata**: Backup information and checksums
 
 The backup process:
+
 1. Create Raft snapshot
 2. Dump PostgreSQL database
 3. Compress data (if enabled)

@@ -11,6 +11,7 @@ If you discover a security vulnerability, please follow these steps:
 ### 1. **Private Reporting (Preferred)**
 
 Use GitHub's private vulnerability reporting feature:
+
 1. Go to the [Security tab](https://github.com/analisaperlengkapan/simpel2/security)
 2. Click "Report a vulnerability"
 3. Fill out the form with details
@@ -20,6 +21,7 @@ Use GitHub's private vulnerability reporting feature:
 Send details to: **security@kejaksaan.go.id**
 
 Include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact

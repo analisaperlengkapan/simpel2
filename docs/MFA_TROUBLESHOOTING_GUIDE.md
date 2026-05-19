@@ -1,6 +1,7 @@
 # Panduan Troubleshooting MFA SIMPEL
 
 ## Daftar Isi
+
 1. [Masalah Setup MFA](#masalah-setup-mfa)
 2. [Masalah Login dengan MFA](#masalah-login-dengan-mfa)
 3. [Masalah Aplikasi Authenticator](#masalah-aplikasi-authenticator)
@@ -18,12 +19,14 @@
 **Gejala**: Halaman setup MFA kosong atau QR code tidak tampil
 
 **Penyebab Umum**:
+
 - Koneksi internet lambat
 - Browser tidak mendukung
 - JavaScript diblokir
 - Cache browser bermasalah
 
 **Solusi**:
+
 1. **Refresh Halaman**:
    - Tekan Ctrl+F5 (Windows) atau Cmd+Shift+R (Mac)
    - Tunggu beberapa detik untuk loading
@@ -48,12 +51,14 @@
 **Gejala**: Aplikasi authenticator tidak bisa membaca QR code
 
 **Penyebab Umum**:
+
 - Kualitas kamera buruk
 - Pencahayaan kurang
 - Jarak terlalu dekat/jauh
 - QR code terpotong di layar
 
 **Solusi**:
+
 1. **Optimasi Scanning**:
    - Bersihkan lensa kamera ponsel
    - Atur jarak 10-15 cm dari layar
@@ -75,12 +80,14 @@
 **Gejala**: Kode 6 digit dari authenticator ditolak saat setup
 
 **Penyebab Umum**:
+
 - Waktu ponsel tidak sinkron
 - Zona waktu salah
 - Kode sudah expired
 - Setup authenticator salah
 
 **Solusi**:
+
 1. **Sinkronisasi Waktu**:
    - **Android**: Settings → Date & time → Automatic date & time (ON)
    - **iOS**: Settings → General → Date & Time → Set Automatically (ON)
@@ -109,11 +116,13 @@
 **Gejala**: Setelah input password, langsung masuk dashboard (bypass MFA)
 
 **Penyebab Umum**:
+
 - MFA belum diaktifkan untuk akun
 - Session lama masih aktif
 - Browser cache masalah
 
 **Solusi**:
+
 1. **Logout Lengkap**:
    - Klik logout di dashboard
    - Clear cookies browser
@@ -133,12 +142,14 @@
 **Gejala**: Kode dari authenticator selalu salah saat verifikasi login
 
 **Penyebab Umum**:
+
 - Waktu tidak sinkron
 - Menggunakan kode lama
 - Akun authenticator salah
 - Rate limiting aktif
 
 **Solusi**:
+
 1. **Periksa Waktu dan Zona**:
    - Sinkronkan waktu otomatis di ponsel
    - Pastikan zona waktu Indonesia
@@ -165,6 +176,7 @@
 **Penyebab**: Lebih dari 5 kali input kode MFA salah
 
 **Solusi**:
+
 1. **Tunggu Unlock Otomatis**:
    - Akun akan unlock otomatis setelah 15 menit
    - Jangan coba login selama masa tunggu
@@ -189,6 +201,7 @@
 **Gejala**: App authenticator tidak bisa dibuka atau hang
 
 **Solusi**:
+
 1. **Force Close dan Restart**:
    - **Android**: Recent apps → Swipe up aplikasi
    - **iOS**: Double tap home → Swipe up aplikasi
@@ -214,11 +227,13 @@
 **Gejala**: Akun SIMPEL tidak muncul di daftar authenticator
 
 **Penyebab Umum**:
+
 - Aplikasi di-reinstall tanpa backup
 - Akun terhapus tidak sengaja
 - Restore backup gagal
 
 **Solusi**:
+
 1. **Periksa Backup/Sync**:
    - **Google Auth**: Periksa Google Account sync
    - **Microsoft Auth**: Login ulang dengan akun Microsoft
@@ -238,6 +253,7 @@
 **Gejala**: Kode 6 digit tidak berubah setelah 30 detik
 
 **Solusi**:
+
 1. **Refresh Manual**:
    - **FreeOTP**: Tap pada akun untuk refresh
    - **Lainnya**: Pull down untuk refresh atau restart app
@@ -261,11 +277,13 @@
 **Gejala**: Kode cadangan 8 digit ditolak sistem
 
 **Penyebab Umum**:
+
 - Kode sudah pernah digunakan
 - Salah ketik kode
 - Kode sudah expired/regenerated
 
 **Solusi**:
+
 1. **Periksa Kode yang Belum Digunakan**:
    - Setiap kode hanya bisa digunakan sekali
    - Coba kode cadangan lain yang belum dipakai
@@ -286,6 +304,7 @@
 **Gejala**: Tidak ingat atau tidak punya kode cadangan
 
 **Solusi**:
+
 1. **Cari di Tempat Penyimpanan**:
    - Periksa email saat setup MFA
    - Cari di password manager
@@ -311,6 +330,7 @@
 **Gejala**: Pesan error koneksi saat verifikasi MFA
 
 **Solusi**:
+
 1. **Periksa Koneksi Internet**:
    - Test buka website lain
    - Coba ganti jaringan WiFi/mobile data
@@ -329,6 +349,7 @@
 **Gejala**: Halaman verifikasi MFA kosong atau tidak muncul
 
 **Solusi**:
+
 1. **Refresh dan Clear Cache**:
    - Hard refresh: Ctrl+F5
    - Clear browser cache dan cookies
@@ -349,6 +370,7 @@
 **Gejala**: Harus login ulang setiap beberapa menit
 
 **Solusi**:
+
 1. **Periksa Pengaturan Browser**:
    - Pastikan cookies enabled
    - Jangan gunakan mode private/incognito untuk kerja
@@ -371,6 +393,7 @@
 **Situasi Darurat**: Ponsel hilang, rusak, atau dicuri
 
 **Langkah Darurat**:
+
 1. **Gunakan Kode Cadangan**:
    - Ambil kode cadangan yang disimpan
    - Login dengan kode cadangan
@@ -389,11 +412,13 @@
 ### 🔴 Reset MFA Lengkap
 
 **Kapan Diperlukan**:
+
 - Semua kode cadangan habis
 - Tidak bisa akses authenticator sama sekali
 - Akun authenticator corrupt/hilang
 
 **Proses Reset**:
+
 1. **Hubungi Helpdesk**:
    - Email detail masalah ke helpdesk
    - Sertakan screenshot error jika ada
@@ -412,6 +437,7 @@
 ### 🔴 Migrasi ke Ponsel Baru
 
 **Langkah Aman Migrasi**:
+
 1. **Sebelum Ganti Ponsel**:
    - Backup authenticator app jika mendukung
    - Catat kode cadangan yang tersisa
@@ -432,12 +458,14 @@
 ## Kontak Darurat
 
 ### Helpdesk SIMPEL
+
 - **Email**: helpdesk-simipelv2@kejaksaan.go.id
 - **Telepon**: (021) 123-4567 ext. 890
 - **WhatsApp**: +62-812-3456-7890 (hanya darurat)
 - **Jam Kerja**: Senin-Jumat, 08:00-16:00 WIB
 
-### Informasi yang Perlu Disiapkan Saat Hubungi Helpdesk:
+### Informasi yang Perlu Disiapkan Saat Hubungi Helpdesk
+
 1. **Data Pribadi**:
    - NIP (Nomor Induk Pegawai)
    - Nama lengkap
@@ -456,23 +484,27 @@
    - Aplikasi authenticator yang digunakan
    - Versi aplikasi jika tahu
 
-### Tingkat Prioritas Masalah:
+### Tingkat Prioritas Masalah
 
 **🔴 URGENT (Response < 2 jam)**:
+
 - Tidak bisa login sama sekali
 - Ponsel hilang/dicuri dengan akses sistem penting
 - Suspek akun di-hack
 
 **🟡 HIGH (Response < 4 jam)**:
+
 - MFA tidak berfungsi tapi masih bisa akses dengan kode cadangan
 - Masalah setup MFA untuk user baru
 
 **🟢 NORMAL (Response < 24 jam)**:
+
 - Pertanyaan umum tentang MFA
 - Request regenerasi kode cadangan
 - Masalah minor aplikasi authenticator
 
-### Self-Service Resources:
+### Self-Service Resources
+
 - **Knowledge Base**: https://simipelv2.kejaksaan.go.id/help
 - **Video Tutorial**: https://simipelv2.kejaksaan.go.id/video-mfa
 - **FAQ**: https://simipelv2.kejaksaan.go.id/faq-mfa
@@ -480,6 +512,7 @@
 ---
 
 **Tips Pencegahan**:
+
 - Selalu backup kode cadangan di tempat aman
 - Setup MFA di 2 device jika memungkinkan
 - Update aplikasi authenticator secara berkala

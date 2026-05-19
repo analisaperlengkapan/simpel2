@@ -20,12 +20,14 @@ Successfully fixed all Database API usage errors in Client Management storage op
 **File**: `crates/storage/src/operations/client_registration_ops.rs`
 
 **Problem**: Storage operations used OLD Database API pattern with generic type parameters:
+
 ```rust
 // ❌ OLD (incorrect)
 db.query_one::<ClientRegistrationToken>(query, params).await?
 ```
 
 **Solution**: Changed to NEW Database API pattern with `.try_into()` conversion:
+
 ```rust
 // ✅ NEW (correct)
 let row = db.query_one(query, params).await?;
@@ -33,6 +35,7 @@ row.try_into()?
 ```
 
 **Functions Fixed** (11 functions):
+
 1. ✅ `create_registration_token` - Changed `query_one::<ClientRegistrationToken>` to `query_one().await?.try_into()`
 2. ✅ `create_initial_access_token` - Changed `query_one::<InitialAccessToken>` to `query_one().await?.try_into()`
 3. ✅ `list_initial_access_tokens` - Changed `query::<InitialAccessToken>` to `query().await?` + `.into_iter().map(|r| r.try_into()).collect()`
@@ -60,12 +63,14 @@ row.try_into()?
 **File**: `crates/storage/src/operations/mod.rs`
 
 **Problem**: `protocol_mappers` exported in both legacy and new operations:
+
 ```rust
 pub use protocol_mappers_ops as protocol_mappers;  // NEW
 pub use legacy::protocol_mappers;                   // OLD (conflict!)
 ```
 
 **Solution**: Commented out legacy export:
+
 ```rust
 pub use protocol_mappers_ops as protocol_mappers;  // NEW (active)
 // protocol_mappers,  // OLD (disabled - conflicts with new)
@@ -76,10 +81,12 @@ pub use protocol_mappers_ops as protocol_mappers;  // NEW (active)
 ## Compilation Status
 
 ### Before Phase 3
+
 - authenc-storage: 20 errors (Database API usage, duplicate export, AuthencError field)
 - authenc-core: 20 errors (same as storage, plus type inference)
 
 ### After Phase 3
+
 - authenc-storage: ✅ 0 errors (COMPILES SUCCESSFULLY!)
 - authenc-core: 14 errors (UNRELATED to Client Management)
 
@@ -149,6 +156,7 @@ cargo check --package authenc-core
 **Result**: 14 errors (UNRELATED to Client Management)
 
 **Error Categories**:
+
 1. Missing imports (reqwest, base32, ldap_federation)
 2. Unresolved modules (middleware, handlers, social)
 3. Missing types (UserId, RoleId, RealmId, Role, User)
@@ -169,6 +177,7 @@ cargo check --package authenc-core 2>&1 | grep -E "client_registration|protocol_
 ## Files Modified
 
 ### Storage Operations
+
 1. ✅ `crates/storage/src/operations/client_registration_ops.rs` (11 functions fixed)
 2. ✅ `crates/storage/src/operations/mod.rs` (duplicate export fixed)
 
@@ -210,25 +219,30 @@ Now that storage operations compile successfully, we can create the API handlers
 ## Migration Progress
 
 ### ✅ Phase 1: Types Migration (COMPLETE)
+
 - All types exist in `authenc-types::domain`
 - OAuth2Client, ClientRegistrationToken, InitialAccessToken, etc.
 
 ### ✅ Phase 2: Storage Operations (COMPLETE)
+
 - Fixed imports from OLD to NEW architecture
 - Enabled storage operations in build
 
 ### ✅ Phase 3: Database API Fixes (COMPLETE)
+
 - Fixed all Database API usage patterns
 - Fixed AuthencError usage
 - Fixed duplicate exports
 - Storage operations compile successfully
 
 ### 🔄 Phase 4: API Handlers (NEXT)
+
 - Create client CRUD handlers
 - Create DCR handlers
 - Add routes to router
 
 ### ⏳ Phase 5: Integration Testing (PENDING)
+
 - Test endpoints
 - Update documentation
 

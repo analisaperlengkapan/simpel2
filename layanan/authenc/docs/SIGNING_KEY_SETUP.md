@@ -172,11 +172,13 @@ export SECRETON_TOKEN="<token>"
 
 1. **Generate new key** (using tool or manual method)
 2. **Deploy with both old and new keys**:
+
    ```bash
    # Keep old key for grace period
    export ED25519_PRIVATE_KEY_BASE64="<new-key>"
    export ED25519_PRIVATE_KEY_OLD_BASE64="<old-key>"  # Optional
    ```
+
 3. **Wait for grace period** (default: 7 days)
 4. **Remove old key** after all tokens issued with old key expire
 

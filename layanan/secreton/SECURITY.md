@@ -11,17 +11,20 @@
 **CVE**: Marvin Attack - timing side-channel key recovery
 
 **Impact**:
+
 - Non-constant-time RSA implementation
 - Private key information leaked through timing
 - Observable over the network
 
 **Mitigation Strategy**:
+
 1. ✅ **Implemented**: Ed25519 is the default and recommended key type
 2. ✅ **Documented**: SSH key generation prefers Ed25519 over RSA
 3. ⏳ **Monitoring**: Tracking RustCrypto/RSA#19 for constant-time implementation
 4. ✅ **Risk Assessment**: SSH key generation is non-critical feature
 
 **Production Recommendation**:
+
 - Use Ed25519 keys exclusively
 - Avoid RSA key generation in production
 - If RSA required for compatibility, use in trusted network only
@@ -37,12 +40,14 @@
 **Impact**: Crate archived, no longer maintained
 
 **Mitigation Strategy**:
+
 1. ✅ **Assessed**: Procedural macro, low attack surface
 2. ✅ **Prioritized**: Post-quantum crypto more critical
 3. ⏳ **Monitoring**: Waiting for `pqcrypto-mldsa` update
 4. ✅ **Contingency**: Can fork and replace with `pastey` if needed
 
 **Production Recommendation**:
+
 - Continue monitoring `pqcrypto-mldsa` releases
 - Post-quantum cryptography capability prioritized over proc-macro updates
 - No immediate action required
@@ -57,6 +62,7 @@
 
 **Email**: security@cipherce.io
 **Response Time**:
+
 - Critical: 24 hours
 - High: 72 hours
 - Medium/Low: 1 week
@@ -177,6 +183,7 @@
 ### Audit Trail
 
 Security audits conducted:
+
 - 2025-11-25: Initial production readiness audit
 - Next scheduled: 2026-02-25 (quarterly)
 

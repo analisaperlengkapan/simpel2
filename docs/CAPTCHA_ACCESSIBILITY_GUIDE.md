@@ -43,6 +43,7 @@ The CAPTCHA system follows WCAG 2.1 AA guidelines and implements:
 ### For Users with Blindness
 
 #### Audio Challenges
+
 When a visual challenge appears, you can request an audio alternative:
 
 1. **Automatic Detection**: The system detects screen reader usage and offers audio challenges
@@ -51,6 +52,7 @@ When a visual challenge appears, you can request an audio alternative:
 4. **Audio Feedback**: Immediate audio feedback on answer submission
 
 #### Screen Reader Instructions
+
 ```
 1. Navigate to the CAPTCHA region using your screen reader
 2. The challenge will be announced automatically
@@ -61,6 +63,7 @@ When a visual challenge appears, you can request an audio alternative:
 ```
 
 #### Keyboard Shortcuts
+
 - `Alt + A`: Switch to audio challenge
 - `Alt + R`: Refresh challenge
 - `Alt + H`: Get help information
@@ -70,6 +73,7 @@ When a visual challenge appears, you can request an audio alternative:
 ### For Users with Low Vision
 
 #### High Contrast Mode
+
 The system automatically detects high contrast preferences and adjusts:
 
 1. **Automatic Detection**: Respects system high contrast settings
@@ -78,6 +82,7 @@ The system automatically detects high contrast preferences and adjusts:
 4. **Larger Text**: Scalable text and interface elements
 
 #### Visual Enhancements
+
 - **Zoom Support**: Compatible with browser zoom up to 400%
 - **Custom Colors**: Respects user color preferences
 - **Clear Fonts**: High-legibility font choices
@@ -86,6 +91,7 @@ The system automatically detects high contrast preferences and adjusts:
 ### For Users with Color Blindness
 
 #### Color-Independent Design
+
 - **No Color-Only Information**: Information is not conveyed by color alone
 - **Pattern and Shape**: Uses patterns, shapes, and text labels
 - **High Contrast**: Sufficient contrast between elements
@@ -96,6 +102,7 @@ The system automatically detects high contrast preferences and adjusts:
 ### For Users with Deafness or Hearing Loss
 
 #### Visual Alternatives
+
 All audio content has visual alternatives:
 
 1. **Visual Challenges**: Primary challenge type for hearing-impaired users
@@ -104,6 +111,7 @@ All audio content has visual alternatives:
 4. **Captions**: Any audio content includes text captions
 
 #### Communication Support
+
 - **Text-Based Help**: All support available via text chat or email
 - **Visual Alerts**: Important notifications shown visually
 - **Sign Language**: Video instructions available in sign language (where applicable)
@@ -113,6 +121,7 @@ All audio content has visual alternatives:
 ### For Users with Limited Mobility
 
 #### Keyboard-Only Navigation
+
 Complete functionality available via keyboard:
 
 ```
@@ -125,12 +134,14 @@ Navigation Flow:
 ```
 
 #### Alternative Input Methods
+
 1. **Voice Input**: Compatible with speech recognition software
 2. **Switch Navigation**: Support for switch-based input devices
 3. **Eye Tracking**: Compatible with eye-tracking systems
 4. **Head Mouse**: Support for head-controlled mouse alternatives
 
 #### Timing Accommodations
+
 - **Extended Time**: Automatic time extensions for users who need them
 - **Pause Function**: Ability to pause challenges when needed
 - **No Time Pressure**: Option to disable time limits entirely
@@ -138,6 +149,7 @@ Navigation Flow:
 ### For Users with Tremors or Precision Issues
 
 #### Forgiving Interface
+
 - **Large Click Targets**: Buttons and interactive elements are adequately sized
 - **Error Tolerance**: Accepts approximate answers where appropriate
 - **Undo Function**: Ability to correct mistakes easily
@@ -148,12 +160,14 @@ Navigation Flow:
 ### For Users with Learning Disabilities
 
 #### Clear Instructions
+
 - **Simple Language**: Instructions use clear, simple language
 - **Step-by-Step**: Challenges broken into manageable steps
 - **Visual Cues**: Icons and visual indicators support text
 - **Consistent Layout**: Predictable interface layout
 
 #### Memory Support
+
 - **Persistent Instructions**: Instructions remain visible during challenges
 - **Progress Indicators**: Clear indication of progress and remaining steps
 - **Contextual Help**: Help information available at each step
@@ -161,6 +175,7 @@ Navigation Flow:
 ### For Users with Attention Disorders
 
 #### Distraction Management
+
 - **Minimal Interface**: Clean, uncluttered design
 - **Focus Indicators**: Clear visual focus indicators
 - **Reduced Animation**: Minimal or optional animations
@@ -171,6 +186,7 @@ Navigation Flow:
 ### Supported Screen Readers
 
 The CAPTCHA system is tested with:
+
 - **JAWS** (Windows)
 - **NVDA** (Windows)
 - **VoiceOver** (macOS/iOS)
@@ -180,12 +196,14 @@ The CAPTCHA system is tested with:
 ### Screen Reader Instructions
 
 #### Initial Setup
+
 1. Ensure your screen reader is running
 2. Navigate to the login page
 3. The CAPTCHA will be announced when it appears
 4. Use standard screen reader navigation commands
 
 #### Challenge Navigation
+
 ```
 Screen Reader Commands:
 - H: Navigate by headings to find CAPTCHA section
@@ -195,6 +213,7 @@ Screen Reader Commands:
 ```
 
 #### Audio Challenge Process
+
 1. Screen reader announces: "Security verification required"
 2. Navigate to "Audio Challenge" button
 3. Activate button (Enter or Space)
@@ -233,6 +252,7 @@ The system uses comprehensive ARIA labels:
 ### Navigation Flow
 
 #### Standard Tab Order
+
 1. **Challenge Area**: Focus moves to challenge description
 2. **Challenge Content**: Interactive elements within challenge
 3. **Answer Input**: Text input field for answer
@@ -253,6 +273,7 @@ The system uses comprehensive ARIA labels:
 | `Escape` | Close dialogs or cancel actions |
 
 #### Focus Management
+
 - **Visible Focus**: Clear visual focus indicators
 - **Logical Order**: Tab order follows visual layout
 - **Focus Trapping**: Focus stays within CAPTCHA during interaction
@@ -263,11 +284,13 @@ The system uses comprehensive ARIA labels:
 ### Voice Input
 
 #### Speech Recognition Setup
+
 1. **Enable Voice Input**: Ensure speech recognition is enabled in your browser or OS
 2. **Microphone Access**: Grant microphone permissions when prompted
 3. **Voice Commands**: Use standard voice commands for navigation and input
 
 #### Voice Commands
+
 ```
 Voice Commands:
 - "Click Audio Challenge" - Switch to audio challenge
@@ -279,11 +302,13 @@ Voice Commands:
 ### Switch Input
 
 #### Switch Navigation Setup
+
 1. **Configure Switches**: Set up your switch input device
 2. **Browser Compatibility**: Ensure browser supports switch navigation
 3. **Scanning Mode**: Enable scanning mode if available
 
 #### Switch Commands
+
 - **Primary Switch**: Advance to next element
 - **Secondary Switch**: Activate current element
 - **Long Press**: Access context menu or additional options
@@ -291,6 +316,7 @@ Voice Commands:
 ### Eye Tracking
 
 #### Eye Tracking Setup
+
 1. **Calibrate Device**: Ensure eye tracking device is properly calibrated
 2. **Dwell Settings**: Configure appropriate dwell time for activation
 3. **Gaze Indicators**: Enable visual feedback for gaze position
@@ -300,18 +326,22 @@ Voice Commands:
 ### Common Accessibility Issues
 
 #### Screen Reader Not Announcing CAPTCHA
+
 **Problem**: Screen reader doesn't announce CAPTCHA content
 
 **Solutions**:
+
 1. Refresh the page and try again
 2. Use heading navigation (H key) to find CAPTCHA section
 3. Use region navigation (R key) to locate CAPTCHA area
 4. Check if JavaScript is enabled in your browser
 
 #### Audio Challenge Not Playing
+
 **Problem**: Audio challenge button doesn't produce sound
 
 **Solutions**:
+
 1. Check browser audio permissions
 2. Verify system volume settings
 3. Try using headphones
@@ -319,18 +349,22 @@ Voice Commands:
 5. Contsupport if issue persists
 
 #### Keyboard Navigation Not Working
+
 **Problem**: Tab key doesn't move through CAPTCHA elements
 
 **Solutions**:
+
 1. Click once in the CAPTCHA area to set focus
 2. Check if browser has focus on the page
 3. Disable browser extensions that might interfere
 4. Try using a different browser
 
 #### High Contrast Mode Issues
+
 **Problem**: High contrast mode not activating or working properly
 
 **Solutions**:
+
 1. Check system high contrast settings
 2. Try manual toggle with Ctrl+Shift+H
 3. Clear browser cache and cookies
@@ -339,6 +373,7 @@ Voice Commands:
 ### Getting Help
 
 #### Immediate Assistance
+
 If you encounter accessibility issues:
 
 1. **Try Alternative Method**: Switch to audio challenge or different input method
@@ -346,6 +381,7 @@ If you encounter accessibility issues:
 3. **Contact Support**: Use accessible contact methods below
 
 #### Accessibility Support Contacts
+
 - **Email**: accessibility@kejaksaan.go.id
 - **Phone**: +62-21-xxx-xxxx (TTY available)
 - **Text Chat**: Available on website
@@ -358,10 +394,12 @@ If you encounter accessibility issues:
 We continuously improve our accessibility features based on user feedback:
 
 #### How to Provide Feedback
+
 1. **Email**: accessibility@kejaksaan.go.id
 2. **Feedback Form**: Accessible web form available
 3. **Phone**: +62-21-xxx-xxxx
 4. **Mail**:
+
    ```
    Accessibility Team
    Kejaksaan Agung RI
@@ -370,6 +408,7 @@ We continuously improve our accessibility features based on user feedback:
    ```
 
 #### What to Include in Feedback
+
 - **Assistive Technology**: What screen reader, browser, or device you're using
 - **Specific Issue**: Detailed description of the problem
 - **Steps to Reproduce**: What you were trying to do when the issue occurred
@@ -378,12 +417,15 @@ We continuously improve our accessibility features based on user feedback:
 ### Training and Resources
 
 #### User Training
+
 Free accessibility training available:
+
 - **Screen Reader Training**: How to use CAPTCHA with screen readers
 - **Keyboard Navigation**: Efficient keyboard navigation techniques
 - **Voice Input**: Setting up and using voice input effectively
 
 #### Additional Resources
+
 - **Video Tutorials**: Step-by-step video guides (with captions)
 - **Documentation**: Comprehensive written guides
 - **Webinars**: Regular accessibility webinars and Q&A sessions
@@ -391,19 +433,23 @@ Free accessibility training available:
 ### Legal Compliance
 
 #### Standards Compliance
+
 Our CAPTCHA system complies with:
+
 - **WCAG 2.1 AA**: Web Content Accessibility Guidelines
 - **Section 508**: US Federal accessibility requirements
 - **EN 301 549**: European accessibility standard
 - **Indonesian Accessibility Law**: Local accessibility requirements
 
 #### Accessibility Statement
+
 A detailed accessibility statement is available at:
 https://portal.kejaksaan.go.id/accessibility-statement
 
 ### Emergency Accessibility Support
 
 #### 24/7 Support
+
 For urgent accessibility issues preventing access to critical services:
 
 - **Emergency Phone**: +62-21-xxx-xxxx (available 24/7)
@@ -411,7 +457,9 @@ For urgent accessibility issues preventing access to critical services:
 - **Alternative Access**: Manual verification process available
 
 #### Alternative Verification
+
 If CAPTCHA is completely inaccessible, alternative verification methods are available:
+
 1. **Phone Verification**: Call for manual verification
 2. **Email Verification**: Email-ed verification process
 3. **In-Person Verification**: Visit office for manual verification

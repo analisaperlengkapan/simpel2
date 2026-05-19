@@ -93,6 +93,7 @@ Scheduler menggunakan format cron expression standar dengan 5 field:
 ### Skenario Konfigurasi
 
 #### Skenario 1: Penarikan Harian (Jam Kerja)
+
 ```bash
 MONSAKTI_SCHEDULE=0 8 * * *      # Jam 08:00 setiap hari
 MYSIMKARI_SCHEDULE=0 9 * * *     # Jam 09:00 setiap hari
@@ -100,6 +101,7 @@ SIMAN_SCHEDULE=0 10 * * 1        # Jam 10:00 setiap Senin
 ```
 
 #### Skenario 2: Penarikan Malam (Load Rendah)
+
 ```bash
 MONSAKTI_SCHEDULE=0 2 * * *      # Jam 02:00 setiap hari
 MYSIMKARI_SCHEDULE=0 2 * * *     # Jam 02:00 setiap hari
@@ -107,6 +109,7 @@ SIMAN_SCHEDULE=0 3 * * 0         # Jam 03:00 setiap Minggu
 ```
 
 #### Skenario 3: Penarikan Berkala (Setiap 6 Jam)
+
 ```bash
 MONSAKTI_SCHEDULE=0 0 */6 * *    # Setiap 6 jam
 MYSIMKARI_SCHEDULE=0 0 */6 * *   # Setiap 6 jam
@@ -140,17 +143,20 @@ INFO ✅ MonSAKTI data fetch completed successfully
 ### Scheduler Tidak Berjalan
 
 1. **Periksa SCHEDULER_ENABLED**
+
    ```bash
    SCHEDULER_ENABLED=true  # Harus true
    ```
 
 2. **Periksa Cron Expression**
+
    ```bash
    # Pastikan format cron expression valid
    # Gunakan https://crontab.guru untuk validasi
    ```
 
 3. **Periksa Log Level**
+
    ```bash
    LOG_LEVEL=info
    RUST_LOG=info
@@ -167,6 +173,7 @@ Jika token MonSAKTI expired, scheduler akan mencoba reset otomatis. Jika gagal:
 ### Storage Error
 
 **Database Connection Failed:**
+
 ```bash
 # Periksa DATABASE_URL
 DATABASE_URL=postgres://user:password@localhost:5432/simpelv2
@@ -222,6 +229,7 @@ services:
 ## 📝 API Coverage
 
 ### MonSAKTI
+
 - ✅ ADM (Administrasi)
 - ✅ ANG (Anggaran)
 - ✅ AST (Aset)
@@ -232,10 +240,12 @@ services:
 - ✅ PER (Perbendaharaan)
 
 ### MySIMKARI
+
 - ✅ Satker Data
 - ✅ Pegawai Data
 
 ### SIMAN
+
 - ✅ All Categories (via getRowCount endpoints)
 
 ## 🤝 Contributing

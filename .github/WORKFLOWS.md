@@ -37,6 +37,7 @@ concurrency:
 ## Shared Setup
 
 All Rust jobs use the composite action `.github/actions/setup-rust` which handles:
+
 - Workspace permission fixes (self-hosted runner cleanup)
 - System dependency installation (clang, libssl, protobuf, etc.)
 - Rust toolchain installation via `dtolnay/rust-toolchain`
@@ -46,6 +47,7 @@ All Rust jobs use the composite action `.github/actions/setup-rust` which handle
 ## Dependabot
 
 Configuration in `.github/dependabot.yml` manages:
+
 - **Cargo** dependencies (weekly, Monday 02:00 WIB)
 - **GitHub Actions** versions (weekly, Tuesday 02:00 WIB)
 - **Docker** base images (weekly, Wednesday 02:00 WIB)

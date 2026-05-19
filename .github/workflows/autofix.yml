@@ -1,5 +1,10 @@
 # autofix.yml — Auto-fix di pull_request ke main (rename dari autofix-pr.yml).
-# Apply cargo fmt + cargo fix + clippy --fix + Cargo versioning normalize.
+# Apply yang bisa di-autofix:
+#   - cargo fmt + cargo fix + clippy --fix
+#   - Cargo versioning normalize (lockstep dengan workspace.package.version)
+#   - taplo fmt (TOML)
+#   - markdownlint-cli2 --fix (Markdown)
+#   - trim trailing whitespace di YAML/sh/md/json/toml
 # Untuk PR dari fork yang punya read-only token, patch di-upload sebagai artifact.
 
 name: Autofix PR
@@ -23,7 +28,7 @@ env:
 
 jobs:
   autofix:
-    name: Auto-fix Workspace (cargo fmt + cargo fix)
+    name: Auto-fix Workspace (Rust + TOML + Markdown + whitespace)
     runs-on: self-hosted
     steps:
       - name: Checkout PR branch
@@ -66,8 +71,12 @@ jobs:
       - name: Apply fmt + fix + clippy --fix
         shell: bash
         run: |
-          # fmt/fix/clippy boleh gagal (lint yang tidak bisa di-autofix),
-          # tapi kita catat exit code untuk visibility di log.
+          # By design ini job adalah best-effort autofixer, BUKAN gate.
+          # fmt/fix/clippy boleh gagal (lint yang tidak bisa di-autofix).
+          # Gate enforcement ada di `lint-rust` job di ci.yml; di sini
+          # hanya commit perubahan yang berhasil di-autofix dan tampilkan
+          # warning jika ada yang tidak bisa di-fix supaya visible di
+          # PR sidebar (bukan tersembunyi seperti pakai `|| true` polos).
           fmt_exit=0; fix_exit=0; clippy_exit=0
 
           cargo fmt --all || fmt_exit=$?
@@ -84,11 +93,69 @@ jobs:
             -- -W clippy::all || clippy_exit=$?
           [ $clippy_exit -ne 0 ] && echo "::warning::cargo clippy --fix exit code: $clippy_exit"
 
-          # Final fmt pass untuk memformat hasil fix/clippy
-          cargo fmt --all || true
+          # Final fmt pass untuk memformat hasil fix/clippy. Emit warning
+          # daripada `|| true` polos supaya status di log eksplisit.
+          final_fmt_exit=0
+          cargo fmt --all || final_fmt_exit=$?
+          [ $final_fmt_exit -ne 0 ] && echo "::warning::final cargo fmt exit code: $final_fmt_exit"
 
       - name: Normalize Cargo versioning
         run: python3 ./infra/scripts/check-cargo-versioning.py fix
+
+      - name: Apply taplo fmt (TOML)
+        shell: bash
+        run: |
+          # taplo auto-format semua .toml di workspace. Idempotent;
+          # tidak fail kalau tidak ada perubahan.
+          if ! command -v taplo &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL "https://github.com/tamasfe/taplo/releases/latest/download/taplo-full-linux-x86_64.gz" \
+              | gunzip - > "$HOME/.local/bin/taplo"
+            chmod +x "$HOME/.local/bin/taplo"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          taplo_exit=0
+          taplo fmt || taplo_exit=$?
+          [ $taplo_exit -ne 0 ] && echo "::warning::taplo fmt exit code: $taplo_exit"
+
+      - name: Apply markdownlint --fix (Markdown)
+        shell: bash
+        run: |
+          # markdownlint-cli2 --fix mengoreksi blanks-around-headings,
+          # heading whitespace, list indent, dst. Stylistic-only;
+          # konten teknis tidak diubah.
+          md_exit=0
+          docker run --rm \
+            -v "$PWD":/workdir \
+            davidanson/markdownlint-cli2:v0.13.0 \
+            --fix --config /workdir/infra/lint/.markdownlint.jsonc '**/*.md' \
+            || md_exit=$?
+          [ $md_exit -ne 0 ] && echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"
+
+      - name: Strip trailing whitespace (YAML / shell / misc)
+        shell: bash
+        run: |
+          # YAML, shell, dan script lainnya — buang trailing whitespace.
+          # Lewatkan Helm templates (`{{- }}` Go syntax bisa rusak kalau
+          # ada spasi yang berarti), node_modules, vendor, dan vendored
+          # JS libs di simpelv1.
+          find . \
+            \( -name '*.yml' -o -name '*.yaml' \
+               -o -name '*.sh' -o -name '*.md' \
+               -o -name '*.toml' -o -name '*.json' \) \
+            -not -path './node_modules/*' \
+            -not -path './*/node_modules/*' \
+            -not -path './target/*' \
+            -not -path './vendor/*' \
+            -not -path './*/vendor/*' \
+            -not -path './infra/helm/*/templates/*' \
+            -not -path './monolith/simpelv1/public/assets/libs/*' \
+            -not -path './monolith/simpelv1/vendor/*' \
+            -not -path './monolith/simpelv1/storage/*' \
+            -not -path './.git/*' \
+            -print0 \
+          | xargs -0 -r sed -i 's/[[:space:]]\+$//'
+          echo "Trailing whitespace stripped where applicable."
 
       - name: Detect changes
         id: changes
@@ -112,7 +179,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix
+          git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix + taplo + markdownlint + trim trailing whitespace
 
           Auto-applied by autofix.yml di PR #${PR_NUMBER}."
           git push origin "HEAD:${PR_HEAD_REF}"

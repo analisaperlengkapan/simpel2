@@ -75,6 +75,7 @@ Jika AI diaktifkan, layanan ini mendukung:
 ## 🧪 Testing
 
 Jalankan unit test:
+
 ```bash
 make test
 ```
@@ -84,6 +85,7 @@ make test
 ## 📄 Environment
 
 Variabel penting:
+
 - `DB_URL` – URL koneksi database PostgreSQL
 - `JWT_SECRET` – secret key untuk validasi token
 - `AI_SERVICE_URL` – (opsional) endpoint layanan-ai untuk klasifikasi

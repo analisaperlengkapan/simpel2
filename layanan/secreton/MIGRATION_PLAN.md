@@ -3,17 +3,20 @@
 ## Status: IN PROGRESS
 
 ## Overview
+
 Migrate from legacy config system (`config/default.toml`, `config/production.toml`) to secure two-layer config system (`secreton.toml` + encrypted ApplicationConfig).
 
 ## Current State
 
 ### Legacy System (TO BE REMOVED)
+
 - `config/default.toml` - All config including secrets
 - `config/production.toml` - All config including secrets
 - Used by: `ApiConfig::load()` in `crates/api/src/config.rs`
 - Copied in: `Dockerfile`
 
 ### New System (IMPLEMENTED BUT NOT USED)
+
 - `secreton.toml.example` - Bootstrap config template
 - `BootstrapConfig` - Infrastructure only (storage, listener, seal)
 - `ApplicationConfig` - Encrypted config in storage (auth, database, MFA)
@@ -22,6 +25,7 @@ Migrate from legacy config system (`config/default.toml`, `config/production.tom
 ## Migration Steps
 
 ### Phase 1: Integration ✅
+
 - [x] Create migration plan
 - [ ] Create config adapter to bridge ApiConfig ↔ BootstrapConfig + ApplicationConfig
 - [ ] Update ServiceContainer to use BootstrapConfig
@@ -29,6 +33,7 @@ Migrate from legacy config system (`config/default.toml`, `config/production.tom
 - [ ] Add migration command to CLI
 
 ### Phase 2: Testing
+
 - [ ] Test with file backend (development)
 - [ ] Test with Raft backend (production)
 - [ ] Test seal/unseal workflow
@@ -36,6 +41,7 @@ Migrate from legacy config system (`config/default.toml`, `config/production.tom
 - [ ] Verify all secrets encrypted in storage
 
 ### Phase 3: Cleanup
+
 - [ ] Remove `config/` directory
 - [ ] Remove legacy ApiConfig::load() method
 - [ ] Update Dockerfile to only copy secreton.toml.example
@@ -44,6 +50,7 @@ Migrate from legacy config system (`config/default.toml`, `config/production.tom
 - [ ] Update all documentation
 
 ### Phase 4: Validation
+
 - [ ] Run full test suite
 - [ ] Test Docker build
 - [ ] Test Kubernetes deployment
@@ -119,6 +126,7 @@ Migrate from legacy config system (`config/default.toml`, `config/production.tom
 ## Backward Compatibility
 
 During migration, support both systems:
+
 - If `secreton.toml` exists → Use new system
 - If `config/default.toml` exists → Use legacy system (with deprecation warning)
 - After migration complete → Remove legacy support
@@ -126,11 +134,13 @@ During migration, support both systems:
 ## Security Improvements
 
 ✅ **Before (Legacy)**
+
 - All secrets in plain text TOML files
 - JWT secrets, database passwords visible
 - Config files must be protected with file permissions
 
 ✅ **After (New System)**
+
 - Only infrastructure config in secreton.toml (NO SECRETS)
 - All secrets encrypted with AES-256-GCM
 - Master key protected by Shamir Secret Sharing
@@ -140,12 +150,14 @@ During migration, support both systems:
 ## Rollback Plan
 
 If migration fails:
+
 1. Restore `config/` directory from backup
 2. Revert code changes
 3. Rebuild Docker image
 4. Redeploy
 
 Backup created automatically by migration command:
+
 - `config_backup_YYYYMMDD_HHMMSS/`
 
 ## Timeline

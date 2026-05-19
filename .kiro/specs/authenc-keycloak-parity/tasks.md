@@ -617,6 +617,7 @@ This task list implements the Authenc Enterprise Features specification to achie
 ## Success Criteria
 
 ### Feature Completeness
+
 - [ ] All 31 functional requirements (FR-1 through FR-31) implemented
 - [ ] All 66 non-functional requirements (NFR-1 through NFR-66) met
 - [ ] All 56 correctness properties validated through property-based tests
@@ -624,6 +625,7 @@ This task list implements the Authenc Enterprise Features specification to achie
 - [ ] User Account Console fully functional with all self-service features
 
 ### Quality Metrics
+
 - [ ] Test coverage >80% (unit tests)
 - [ ] Test coverage >70% (integration tests)
 - [ ] Zero critical security vulnerabilities
@@ -632,6 +634,7 @@ This task list implements the Authenc Enterprise Features specification to achie
 - [ ] WCAG 2.1 Level AA compliance achieved
 
 ### Operational Readiness
+
 - [ ] 99.9% uptime achieved in staging
 - [ ] Successful deployment in 1+ government agency (Satker)
 - [ ] Documentation complete and translated
@@ -644,6 +647,7 @@ This task list implements the Authenc Enterprise Features specification to achie
 
 **UI Architecture Decision**:
 UI Authenc digabung ke `antarmuka/portal/` untuk efektivitas, efisiensi, dan optimalisasi:
+
 - **Location**: `antarmuka/portal/src/pages/authenc/`
   - `admin/` - Admin Console (realm, user, client, role management)
   - `account/` - User Account Console (profile, password, MFA, sessions)
@@ -656,17 +660,20 @@ UI Authenc digabung ke `antarmuka/portal/` untuk efektivitas, efisiensi, dan opt
   - Simplified deployment (satu portal untuk semua UI)
 
 **Communication Pattern**:
+
 - Portal UI → Authenc REST API (JSON/HTTP) → Authenc backend (Axum)
 - Authenc backend → Secreton gRPC (untuk secrets)
 - Authenc backend → MySIMKARI gRPC (untuk NIP validation)
 
 **Security Considerations**:
+
 - Admin Console routes protected dengan role-based access control
 - User Account Console accessible untuk authenticated users
 - Auth pages (login, register) public accessible
 - All API calls dari portal ke Authenc backend menggunakan JWT authentication
 
 **Coding Standards**:
+
 - All tasks should follow SIMPEL coding standards (see AGENTS.md)
 - Use Leptos 0.8.x for all UI components (signal(), not create_signal!)
 - All REST API endpoints use Axum 0.8.x patterns

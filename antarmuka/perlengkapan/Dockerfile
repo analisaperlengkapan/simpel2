@@ -69,18 +69,12 @@ COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html
 # /perlengkapan/simpel/, browser dapat meta-refresh ke canonical
 # /perlengkapan/simpel/v2/. Redirect dilakukan di HTML (BUKAN di Istio)
 # supaya tetap di sisi frontend dan tidak menimbulkan loop/error di
-# gateway.
-RUN cat > /usr/share/nginx/html/perlengkapan/index.html <<'EOF'
-<!DOCTYPE html>
-<html lang="id"><head>
-<meta charset="UTF-8">
-<title>SIMPEL — Kejaksaan RI</title>
-<meta http-equiv="refresh" content="0; url=/perlengkapan/simpel/v2/">
-<link rel="canonical" href="/perlengkapan/simpel/v2/">
-<script>window.location.replace('/perlengkapan/simpel/v2/');</script>
-</head><body><p>Memuat aplikasi SIMPEL v2&hellip; <a href="/perlengkapan/simpel/v2/">Klik di sini bila tidak otomatis diarahkan</a>.</p></body></html>
-EOF
-RUN cp /usr/share/nginx/html/perlengkapan/index.html /usr/share/nginx/html/perlengkapan/simpel/index.html
+# gateway. Konten redirect statik dipertahankan di repo
+# (`antarmuka/perlengkapan/redirect-to-v2.html`) — sebelumnya inline
+# heredoc, di-extract supaya hadolint <=2.12 yang belum support heredoc
+# syntax tidak gagal parse Dockerfile.
+COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/index.html
+COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/simpel/index.html
 
 # Change ownership so entrypoint can write to config.json
 RUN chown -R nginx:nginx /usr/share/nginx/html

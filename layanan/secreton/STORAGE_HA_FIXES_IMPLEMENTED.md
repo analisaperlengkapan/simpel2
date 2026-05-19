@@ -16,12 +16,14 @@ Implementasi perbaikan critical issues untuk Database HA dan Storage HA di `laya
 **File:** `crates/storage/src/backends/consul.rs`
 
 **Changes:**
+
 - Implemented `execute_with_retry()` helper method dengan exponential backoff + jitter
 - Retry mechanism untuk semua operasi: `get()`, `put()`, `delete()`, `list()`
 - Exponential backoff formula: `base_delay * 2^attempt + random(0-100ms)`
 - Respects `max_retries` configuration (default: 3)
 
 **Code:**
+
 ```rust
 async fn execute_with_retry<F, Fut, T>(
     &self,
@@ -64,6 +66,7 @@ where
 ```
 
 **Benefits:**
+
 - ✅ Network resilience - automatic retry pada transient failures
 - ✅ Prevents thundering herd dengan jitter
 - ✅ Configurable retry policy
@@ -76,12 +79,14 @@ where
 **File:** `crates/storage/src/backends/consul.rs`
 
 **Changes:**
+
 - Changed default scheme dari `"http"` ke `"https"`
 - Added `validate_security_config()` untuk production validation
 - Fail-fast jika production mode menggunakan HTTP atau `tls_skip_verify=true`
 - Warning jika ACL token tidak dikonfigurasi di production
 
 **Code:**
+
 ```rust
 impl Default for ConsulConfig {
     fn default() -> Self {
@@ -127,6 +132,7 @@ fn validate_security_config(config: &ConsulConfig) -> StorageResult<()> {
 ```
 
 **Benefits:**
+
 - ✅ Secure by default - HTTPS enforced
 - ✅ Production validation - prevents insecure deployments
 - ✅ Clear error messages untuk misconfiguration
@@ -139,12 +145,14 @@ fn validate_security_config(config: &ConsulConfig) -> StorageResult<()> {
 **File:** `crates/storage/src/backends/postgres.rs`
 
 **Changes:**
+
 - Replaced hardcoded metrics dengan actual pool status
 - Real response time measurement dengan `Instant::now()`
 - Proper error handling dengan health status reporting
 - Uses `pool.status()` untuk connection metrics
 
 **Code:**
+
 ```rust
 async fn health_check(&self) -> StorageResult<HealthStatus> {
     use std::time::Instant;
@@ -187,6 +195,7 @@ async fn health_check(&self) -> StorageResult<HealthStatus> {
 ```
 
 **Benefits:**
+
 - ✅ Real metrics - tidak lagi hardcoded
 - ✅ Accurate monitoring - actual pool state
 - ✅ Response time tracking untuk SLA monitoring
@@ -199,12 +208,14 @@ async fn health_check(&self) -> StorageResult<HealthStatus> {
 **File:** `crates/storage/src/backends/postgres.rs`
 
 **Changes:**
+
 - Implemented actual `tokio_postgres::Transaction` usage
 - Proper `begin_transaction()` dengan connection pooling
 - Full ACID support: `store()`, `update()`, `delete()`, `commit()`, `rollback()`
 - Transaction state tracking untuk prevent double-commit/rollback
 
 **Code:**
+
 ```rust
 pub struct PostgresTransaction {
     transaction: Option<tokio_postgres::Transaction<'static>>,
@@ -249,6 +260,7 @@ async fn commit(mut self: Box<Self>) -> StorageResult<()> {
 ```
 
 **Benefits:**
+
 - ✅ ACID guarantees - proper transactional semantics
 - ✅ Data consistency - no more placeholder implementations
 - ✅ Rollback support - error recovery
@@ -259,6 +271,7 @@ async fn commit(mut self: Box<Self>) -> StorageResult<()> {
 ## 📊 Impact Summary
 
 ### Before Fixes
+
 | Component | Issue | Risk Level |
 |-----------|-------|------------|
 | Consul Backend | No retry mechanism | 🔴 HIGH |
@@ -267,6 +280,7 @@ async fn commit(mut self: Box<Self>) -> StorageResult<()> {
 | Postgres Transactions | Placeholder only | 🔴 HIGH |
 
 ### After Fixes
+
 | Component | Status | Production Ready |
 |-----------|--------|------------------|
 | Consul Backend | ✅ Retry + Backoff | ✅ YES |
@@ -281,6 +295,7 @@ async fn commit(mut self: Box<Self>) -> StorageResult<()> {
 ### Environment Variables
 
 **Production:**
+
 ```bash
 # Consul Backend
 SECRETON_ENV=production
@@ -298,6 +313,7 @@ DATABASE_URL=postgresql://user:pass@postgres.internal:5432/secreton?sslmode=requ
 ```
 
 **Development:**
+
 ```bash
 SECRETON_ENV=development
 SECRETON_CONSUL_ADDRESS=localhost:8500
@@ -307,6 +323,7 @@ SECRETON_STORAGE_TLS_MODE=disable
 ### Configuration Validation
 
 Service akan **fail-fast** jika:
+
 - Production mode + Consul HTTP scheme
 - Production mode + `tls_skip_verify=true`
 - Invalid retry configuration
@@ -314,6 +331,7 @@ Service akan **fail-fast** jika:
 ### Monitoring
 
 Health check endpoints sekarang menampilkan:
+
 - ✅ Real response time
 - ✅ Actual connection pool metrics
 - ✅ Error details untuk troubleshooting
@@ -323,6 +341,7 @@ Health check endpoints sekarang menampilkan:
 ## 🔄 Next Steps (Optional Enhancements)
 
 ### Priority 2 - HA Optimization
+
 1. **Raft Snapshot Automation**
    - Scheduled snapshot creation
    - Retention policy
@@ -336,6 +355,7 @@ Health check endpoints sekarang menampilkan:
    - Lock acquisition metrics
 
 ### Priority 3 - Future Work
+
 1. **S3 Backend Implementation**
    - Add `aws-sdk-s3` dependency
    - Implement get/put/delete/list
@@ -350,6 +370,7 @@ Health check endpoints sekarang menampilkan:
 ## 📝 Testing Recommendations
 
 ### Unit Tests
+
 ```bash
 cd layanan/secreton
 cargo test --package secreton-storage --lib backends::consul
@@ -357,6 +378,7 @@ cargo test --package secreton-storage --lib backends::postgres
 ```
 
 ### Integration Tests
+
 ```bash
 # Requires running Consul + Postgres
 docker-compose -f docker-compose.dev.yml up -d
@@ -364,6 +386,7 @@ cargo test --package secreton-storage --test '*'
 ```
 
 ### Load Testing
+
 - Test retry mechanism dengan network failures
 - Test transaction rollback scenarios
 - Monitor pool exhaustion behavior
@@ -373,12 +396,14 @@ cargo test --package secreton-storage --test '*'
 ## 🔐 Security Considerations
 
 ### ✅ Implemented
+
 - HTTPS default untuk Consul
 - TLS enforcement di production
 - Production config validation
 - ACL token warnings
 
 ### ⚠️ Recommendations
+
 1. **Rotate Consul ACL tokens** regularly
 2. **Use mTLS** untuk Consul communication
 3. **Enable audit logging** untuk all storage operations

@@ -276,11 +276,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.1.0
-        continue-on-error: true
         with:
           recursive: true
           config: infra/lint/hadolint.yaml
-          ignore: DL3008,DL3015,DL3018
+          failure-threshold: warning
 
   lint-yaml:
     name: Lint YAML & Actions
@@ -289,17 +288,39 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
+      # Self-hosted runner tidak punya pipx / yamllint / actionlint pre-
+      # installed, dan Python 3 di Ubuntu 24.04 sengaja tidak ship `pip`
+      # (PEP 668 + externally-managed). Action `raven-actions/actionlint`
+      # gagal di `Unable to locate executable file: pipx`; action
+      # `ibiqlik/action-yamllint` gagal di `yamllint: command not found`.
+      # Fix: pasang actionlint sebagai standalone binary (no Python deps)
+      # dan run yamllint via docker (pipelinecomponents/yamllint) yang
+      # bundle Python + yamllint sendiri. Tanpa `continue-on-error` lagi —
+      # exit code asli propagates ke job conclusion.
+      - name: Install actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          if ! command -v actionlint &>/dev/null; then
+            ACTIONLINT_VERSION="1.7.7"
+            curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+              | tar -xzf- -C "$HOME/.local/bin/" actionlint
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/actionlint" --version
       - name: actionlint
-        uses: raven-actions/actionlint@v2
-        continue-on-error: true
-        with:
-          fail-on-error: true
-      - name: yamllint
-        uses: ibiqlik/action-yamllint@v3
-        continue-on-error: true
-        with:
-          config_file: infra/lint/yamllint.yml
-          strict: false
+        shell: bash
+        run: actionlint -color
+      - name: yamllint (via docker)
+        shell: bash
+        run: |
+          # cytopia/yamllint bundles yamllint + python + busybox.
+          # Pin major tag; alpine variant is minimal.
+          docker run --rm \
+            -v "$PWD":/code \
+            cytopia/yamllint:alpine-1 \
+            -c infra/lint/yamllint.yml .
 
   lint-markdown:
     name: Lint Markdown
@@ -311,14 +332,17 @@ jobs:
       - name: markdownlint
         uses: DavidAnson/markdownlint-cli2-action@v18
         with:
-          config: infra/lint/markdownlint.jsonc
+          # markdownlint-cli2 hanya kenal nama file `.markdownlint.jsonc`,
+          # `.markdownlint-cli2.jsonc`, `.markdownlint.json`, dst. Nama
+          # `markdownlint.jsonc` (tanpa leading dot) ditolak dengan
+          # "File name should be (or end with) one of the supported types".
+          config: infra/lint/.markdownlint.jsonc
           globs: '**/*.md'
-        continue-on-error: true
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
           args: --no-progress --max-concurrency 8 --exclude-mail '**/*.md'
-          fail: false
+          fail: true
 
   lint-shell:
     name: Lint Shell Scripts
@@ -329,7 +353,6 @@ jobs:
       - uses: actions/checkout@v6
       - name: shellcheck
         uses: ludeeus/action-shellcheck@2.0.0
-        continue-on-error: true
         with:
           severity: error
           ignore_paths: monolith/simpelv1/vendor monolith/simpelv1/node_modules
@@ -353,7 +376,6 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: taplo fmt --check
         shell: bash
-        continue-on-error: true
         run: taplo fmt --check
 
   # ─────────────────────────────────────────────────────
@@ -714,7 +736,6 @@ jobs:
       - lint-rust
       - lint-php
       - lint-blade
-      - lint-typescript
       - lint-dockerfile
       - lint-yaml
       - lint-markdown

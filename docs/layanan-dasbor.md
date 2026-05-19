@@ -1,11 +1,13 @@
 # README – layanan-dasbor
 
 ## 🧾 Deskripsi Singkat
+
 `layanan-dasbor` adalah layanan mikro dalam platform **SIMPEL** yang bertanggung jawab atas penyajian data secara visual, ringkas, dan interaktif dari berbagai layanan terkait pengelolaan Barang Milik Negara (BMN). Dasbor ini menjadi titik sentral monitoring dan pengambilan keputusan oleh pimpinan maupun operator teknis.
 
 ---
 
 ## 🎯 Tujuan
+
 - Memberikan tampilan real-time kondisi pengelolaan BMN secara menyeluruh
 - Mendukung pengambilan keputusan berbasis data
 - Mendeteksi anomali dan progres layanan
@@ -14,6 +16,7 @@
 ---
 
 ## 🧱 Fitur Utama
+
 - 📊 Ringkasan jumlah dan status aset, usulan, distribusi, pemakaian, dan roadmap
 - 🧠 Ringkasan otomatis berbasis AI dari narasi dan laporan
 - 📈 Visualisasi tren kebutuhan dan pemanfaatan BMN
@@ -24,6 +27,7 @@
 ---
 
 ## ⚙️ Teknologi
+
 - Backend: Go (Gin) + sqlc
 - Database: PostgreSQL (skema `dasbor`), read-only dari layanan lain
 - Frontend: Komponen React Vite (`antarmuka/`) + Recharts/D3
@@ -33,6 +37,7 @@
 ---
 
 ## 📁 Struktur Direktori
+
 ```
 layanan-dasbor/
 ├── api/             # Endpoint REST
@@ -51,6 +56,7 @@ layanan-dasbor/
 ---
 
 ## 🔄 Contoh Endpoint
+
 | Metode | Endpoint                    | Keterangan                            |
 |--------|-----------------------------|---------------------------------------|
 | GET    | `/dasbor`                  | Agregasi data dari semua layanan      |
@@ -63,6 +69,7 @@ layanan-dasbor/
 ---
 
 ## 📈 Visualisasi yang Didukung
+
 - Line chart, bar chart, pie chart
 - KPI widget dengan indikator warna
 - Heatmap dan distribusi spasial
@@ -71,6 +78,7 @@ layanan-dasbor/
 ---
 
 ## 🤖 Kontribusi AI (Opsional)
+
 - **Summarization**: ringkasan otomatis laporan satker
 - **Trend prediction**: identifikasi tren kebutuhan
 - **Anomaly detection**: deteksi progres abnormal
@@ -79,6 +87,7 @@ layanan-dasbor/
 ---
 
 ## 🔐 Akses & Validasi
+
 - Hanya pengguna role `admin`, `monitoring`, atau `pimpinan` yang dapat mengakses
 - Semua akses dicatat dalam `layanan-audit`
 - Query dibatasi ke data yang diotorisasi oleh `authenc`
@@ -86,6 +95,7 @@ layanan-dasbor/
 ---
 
 ## 🔗 Integrasi Layanan
+
 | Layanan Terkait        | Data yang Diambil                         |
 |------------------------|-------------------------------------------|
 | `layanan-aset`         | Status, lokasi, nilai aset                |
@@ -99,6 +109,7 @@ layanan-dasbor/
 ---
 
 ## 📦 Konfigurasi `.env`
+
 ```env
 SUMMARIZER_API=http://layanan-ai:8080/summarize
 CACHE_REDIS_URL=redis://redis:6379
@@ -108,6 +119,7 @@ SINKRONISASI_CRON=*/15 * * * *
 ---
 
 ## 📚 Tips Pengembangan
+
 - Gunakan view SQL untuk agregasi kompleks
 - Gunakan cache untuk menurunkan latency beban tinggi
 - Format visualisasi disimpan sebagai JSON layout agar dinamis
@@ -116,4 +128,5 @@ SINKRONISASI_CRON=*/15 * * * *
 ---
 
 ## 📝 Lisensi
+
 Hak Cipta © 2025 Kejaksaan Republik Indonesia – SIMPEL Internal Use Only

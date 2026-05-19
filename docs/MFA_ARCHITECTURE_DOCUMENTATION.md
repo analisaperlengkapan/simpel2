@@ -1,6 +1,7 @@
 # MFA Architecture Documentation - SIMPEL
 
 ## Table of Contents
+
 1. [System Overview](#system-overview)
 2. [Component Architecture](#component-architecture)
 3. [Data Flow](#data-flow)
@@ -67,6 +68,7 @@ graph TB
 ### Core Components
 
 #### 1. Portal Frontend (Leptos 0.8.x)
+
 - **Purpose**: User interface for MFA setup and verification
 - **Technology**: Rust + Leptos framework, WebAssembly
 - **Responsibilities**:
@@ -76,6 +78,7 @@ graph TB
   - Responsive design for mobile/desktop
 
 #### 2. Authenc Service (Authentication & Authorization)
+
 - **Purpose**: Core authentication service with MFA capabilities
 - **Technology**: Rust +m web framework
 - **Responsibilities**:
@@ -85,6 +88,7 @@ graph TB
   - Integration with Secreton for secret storage
 
 #### 3. Secreton Vault (Security Vault)
+
 - **Purpose**: Secure storage and management of cryptographic secrets
 - **Technology**: Rust with enterprise-grade encryption
 - **Responsibilities**:
@@ -177,6 +181,7 @@ impl MfaService {
     pub async fn get_mfa_status(&self, user_id: Uuid) -> Result<MfaStatus>;
 }
 ```
+
 ### Secreton Integration Architecture
 
 ```mermaid
@@ -421,6 +426,7 @@ graph TB
     SECRETS --> MONITOR
     MONITOR --> INCIDENT
 ```
+
 ### Cryptographic Architecture
 
 ```rust
@@ -671,6 +677,7 @@ graph TB
     A2 --> S2
     A3 --> S3
 ```
+
 ### Performance Optimization Strategies
 
 ```rust

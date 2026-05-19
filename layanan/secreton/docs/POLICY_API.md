@@ -23,6 +23,7 @@ List all policies with optional filtering and pagination.
 **Endpoint:** `GET /v1/sys/policies`
 
 **Query Parameters:**
+
 - `namespace` (optional): Filter by namespace (default: all namespaces)
 - `is_active` (optional): Filter by active status (true/false)
 - `search` (optional): Search by name or description
@@ -30,12 +31,14 @@ List all policies with optional filtering and pagination.
 - `offset` (optional): Offset for pagination (default: 0)
 
 **Example Request:**
+
 ```bash
 curl -X GET "https://secreton.example.com/v1/sys/policies?namespace=default&is_active=true&limit=10" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -84,9 +87,11 @@ Create a new policy with validation.
 **Endpoint:** `POST /v1/sys/policies/{name}`
 
 **Path Parameters:**
+
 - `name`: Policy name (alphanumeric with hyphens or underscores)
 
 **Request Body:**
+
 ```json
 {
   "description": "Policy description",
@@ -105,6 +110,7 @@ Create a new policy with validation.
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy" \
   -H "Authorization: Bearer <token>" \
@@ -123,6 +129,7 @@ curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy" \
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -158,15 +165,18 @@ Get a policy by name with evaluation statistics.
 **Endpoint:** `GET /v1/sys/policies/{name}`
 
 **Path Parameters:**
+
 - `name`: Policy name
 
 **Example Request:**
+
 ```bash
 curl -X GET "https://secreton.example.com/v1/sys/policies/my-policy" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -194,9 +204,11 @@ Update an existing policy with version control.
 **Endpoint:** `PUT /v1/sys/policies/{name}`
 
 **Path Parameters:**
+
 - `name`: Policy name
 
 **Request Body:**
+
 ```json
 {
   "description": "Updated description",
@@ -217,6 +229,7 @@ Update an existing policy with version control.
 ```
 
 **Example Request:**
+
 ```bash
 curl -X PUT "https://secreton.example.com/v1/sys/policies/my-policy" \
   -H "Authorization: Bearer <token>" \
@@ -228,6 +241,7 @@ curl -X PUT "https://secreton.example.com/v1/sys/policies/my-policy" \
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -256,15 +270,18 @@ Delete a policy with dependency checking.
 **Endpoint:** `DELETE /v1/sys/policies/{name}`
 
 **Path Parameters:**
+
 - `name`: Policy name
 
 **Example Request:**
+
 ```bash
 curl -X DELETE "https://secreton.example.com/v1/sys/policies/my-policy" \
   -H "Authorization: Bearer <token>"
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -274,6 +291,7 @@ curl -X DELETE "https://secreton.example.com/v1/sys/policies/my-policy" \
 ```
 
 **Error Response (if dependencies exist):**
+
 ```json
 {
   "success": false,
@@ -291,9 +309,11 @@ Test policy evaluation without applying it.
 **Endpoint:** `POST /v1/sys/policies/{name}/test`
 
 **Path Parameters:**
+
 - `name`: Policy name
 
 **Request Body:**
+
 ```json
 {
   "user": "user123",
@@ -308,6 +328,7 @@ Test policy evaluation without applying it.
 ```
 
 **Example Request:**
+
 ```bash
 curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy/test" \
   -H "Authorization: Bearer <token>" \
@@ -323,6 +344,7 @@ curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy/test" \
 ```
 
 **Example Response:**
+
 ```json
 {
   "success": true,
@@ -409,6 +431,7 @@ curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy/test" \
 ```
 
 **Supported operators:**
+
 - `==`, `eq` - Equality
 - `!=`, `ne` - Inequality
 - `>`, `gt` - Greater than
@@ -623,6 +646,7 @@ curl -X POST "https://secreton.example.com/v1/sys/policies/my-policy/test" \
 The same functionality is available via gRPC. See `infra/proto/secreton.proto` for message definitions.
 
 Example gRPC call:
+
 ```go
 client := secreton.NewSecretonServiceClient(conn)
 resp, err := client.ListPolicies(ctx, &secreton.ListPoliciesRequest{
@@ -643,6 +667,7 @@ Policy operations emit the following metrics:
 - `secreton_policy_operations_total{operation}` - Policy CRUD operations
 
 All policy operations are logged to the audit log with the following fields:
+
 - `operation` - create_policy, update_policy, delete_policy, test_policy
 - `policy_name` - Name of the policy
 - `user` - User who performed the operation
@@ -661,6 +686,7 @@ Policies are scoped to namespaces. Users can only manage policies in their own n
 ## Caching
 
 Policy evaluations are cached for 60 seconds to improve performance. The cache is automatically invalidated when:
+
 - Policy is updated
 - Policy is deleted
 - Policy is deactivated

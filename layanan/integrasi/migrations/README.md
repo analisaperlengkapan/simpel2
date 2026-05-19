@@ -1,6 +1,7 @@
 # Database Migrations - Layanan Integrasi
 
 Struktur database **optimal** dan **efisien** untuk integrasi dengan:
+
 - **MonSAKTI v1.4** (8 modules)
 - **MySIMKARI** API
 - **SIMAN v2.0** API (Sistem Informasi Manajemen Aset Negara)
@@ -8,6 +9,7 @@ Struktur database **optimal** dan **efisien** untuk integrasi dengan:
 ## 🎯 Filosofi Desain
 
 **Simplified & Purpose-Driven:**
+
 - ✅ Hanya tabel yang **benar-benar digunakan** di kodebase
 - ✅ Audit & logging tables untuk compliance dan monitoring
 - ✅ Core reference tables untuk data utama
@@ -15,6 +17,7 @@ Struktur database **optimal** dan **efisien** untuk integrasi dengan:
 - ✅ Indexes optimal untuk query performance
 
 **Menghindari:**
+
 - ❌ Tabel kosong yang tidak pernah diisi
 - ❌ Schema rigid untuk setiap field API
 - ❌ Duplikasi struktur untuk semua endpoint

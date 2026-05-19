@@ -175,6 +175,7 @@ Note: Some tests are marked with `#[ignore]` until mock services are implemented
 ## Requirements
 
 Implements requirements:
+
 - REQ-API-003 (gRPC service)
 - REQ-SEC-004 (mTLS enforcement)
 - REQ-TEST-002 (Integration tests)

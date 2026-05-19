@@ -82,6 +82,7 @@ See `examples/user_store_example.rs` for a complete example.
 ## Requirements
 
 Implements requirements:
+
 - REQ-ARCH-005 (Storage layer)
 - REQ-PERF-004 (Database query latency <10ms p95)
 - REQ-SCALE-001 (Connection pooling for horizontal scaling)

@@ -1,11 +1,13 @@
 # Task 9.1: Admin Handlers Migration Plan
 
 ## Overview
+
 Migrating 15 admin handler files from `src/handlers/` to `crates/iam-api/src/handlers/`
 
 ## Migration Status
 
 ### ✅ Completed (1/15)
+
 1. **admin.rs** - Migrated with IamApiState integration
    - Location: `crates/iam-api/src/handlers/admin.rs`
    - Status: Skeleton implementation with proper state management
@@ -100,7 +102,9 @@ Migrating 15 admin handler files from `src/handlers/` to `crates/iam-api/src/han
 ## Migration Strategy
 
 ### Phase 1: Simple Migrations (Handlers 6-10)
+
 These handlers have straightforward dependencies and can be migrated quickly:
+
 - jit_admin_service.rs
 - group.rs
 - organization.rs
@@ -108,6 +112,7 @@ These handlers have straightforward dependencies and can be migrated quickly:
 - audit.rs (update existing)
 
 **Approach:**
+
 1. Copy handler file to target location
 2. Update imports: `crate::` → `authenc_types::`, `authenc_core::`, `authenc_storage::`
 3. Replace `State<Arc<Database>>` with `State<Arc<IamApiState>>`
@@ -115,7 +120,9 @@ These handlers have straightforward dependencies and can be migrated quickly:
 5. Add to `handlers/mod.rs`
 
 ### Phase 2: Complex Migrations (Handlers 2-5, 11-15)
+
 These handlers have complex dependencies or require service implementations:
+
 - client_registration.rs (needs client_service methods)
 - dcr_admin.rs (needs client_service methods)
 - client_policy.rs (needs policy_service)
@@ -127,6 +134,7 @@ These handlers have complex dependencies or require service implementations:
 - oid4vc.rs (needs OID4VC service)
 
 **Approach:**
+
 1. Identify missing services in IamApiState
 2. Add service fields to IamApiState (with TODO comments if not implemented)
 3. Migrate handler with service calls
@@ -135,6 +143,7 @@ These handlers have complex dependencies or require service implementations:
 ## Import Mapping
 
 ### Old Imports → New Imports
+
 ```rust
 // Old
 use crate::database::Database;
@@ -153,6 +162,7 @@ use authenc_core::services::UserManagementServiceImpl;
 ## State Mapping
 
 ### Old State → New State
+
 ```rust
 // Old
 State(db): State<Arc<Database>>
@@ -163,6 +173,7 @@ State(state): State<Arc<IamApiState>>
 ```
 
 ### Service Access
+
 ```rust
 // Old
 let user = db.query_one("SELECT * FROM users WHERE id = $1", &[&id]).await?;
@@ -223,11 +234,13 @@ pub use zero_trust::*;
 ## Compilation Verification
 
 After each handler migration:
+
 ```bash
 cargo check --package authenc-iam-api
 ```
 
 After all migrations:
+
 ```bash
 cargo build --package authenc-iam-api
 cargo test --package authenc-iam-api

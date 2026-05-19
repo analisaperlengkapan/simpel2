@@ -19,6 +19,7 @@ proto/
 Shared types yang digunakan oleh semua services:
 
 **Types**:
+
 - `HealthCheckRequest/Response` - Health check standard
 - `Pagination` - Pagination untuk list operations
 - `ErrorDetail` - Error details structure
@@ -33,9 +34,11 @@ Shared types yang digunakan oleh semua services:
 Secreton Vault service untuk secret management:
 
 **Services**:
+
 - `SecretonService` - Main vault service
 
 **Operations**:
+
 - Secret Management: `StoreSecret`, `GetSecret`, `DeleteSecret`, `ListSecrets`
 - Transit Engine: `Encrypt`, `Decrypt`, `Sign`, `Verify`
 - Key Management: `CreateKey`, `RotateKey`
@@ -43,6 +46,7 @@ Secreton Vault service untuk secret management:
 - Health: `HealthCheck`, `GetMetrics`
 
 **Key Types**:
+
 - `SecurityLevel` enum - PUBLIC, INTERNAL, CONFIDENTIAL, SECRET, TOP_SECRET
 - `KeyType` enum - AES256_GCM, CHACHA20_POLY1305, ED25519, etc.
 
@@ -51,9 +55,11 @@ Secreton Vault service untuk secret management:
 Authenc IAM service untuk authentication & authorization:
 
 **Services**:
+
 - `AuthencService` - Main IAM service
 
 **Operations**:
+
 - Authentication: `Authenticate`, `ValidateToken`, `RefreshToken`, `RevokeToken`
 - User Management: `CreateUser`, `GetUser`, `UpdateUser`, `DeleteUser`, `ListUsers`
 - MFA: `EnableMFA`, `VerifyMFA`, `DisableMFA`
@@ -63,6 +69,7 @@ Authenc IAM service untuk authentication & authorization:
 - Audit: `GetAuditLogs`, `GetComplianceReport`
 
 **Key Types**:
+
 - `TokenType` enum - ACCESS_TOKEN, REFRESH_TOKEN, ID_TOKEN
 - `MFAMethod` enum - TOTP, SMS, EMAIL, WEBAUTHN, HARDWARE_KEY
 

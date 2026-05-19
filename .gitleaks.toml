@@ -45,4 +45,5 @@ regexes = [
   '''^[A-Za-z0-9+/]{1,15}={0,2}$''',
 ]
 
-commits = []  # Hash specific commits to ignore (jika ada false positive historis)
+commits = [
+] # Hash specific commits to ignore (jika ada false positive historis)

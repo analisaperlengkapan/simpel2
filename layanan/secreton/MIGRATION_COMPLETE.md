@@ -3,17 +3,20 @@
 ## Status: ✅ COMPLETED
 
 ## Summary
+
 Successfully migrated from legacy config system to secure two-layer config system.
 Since Secreton has never been used in production, we performed a clean removal of legacy files.
 
 ## Changes Made
 
 ### 1. Removed Legacy Config System ✅
+
 - ✅ Deleted `config/default.toml`
 - ✅ Deleted `config/production.toml`
 - ✅ Deleted entire `config/` directory
 
 ### 2. Updated Configuration Loading ✅
+
 - ✅ Removed legacy `ApiConfig::load()`, `from_file()`, `merge()` methods
 - ✅ Created `config_adapter.rs` with simplified `from_bootstrap_and_application()` method
 - ✅ Updated `api_server.rs` to load BootstrapConfig first
@@ -22,6 +25,7 @@ Since Secreton has never been used in production, we performed a clean removal o
 - ✅ Added `ServiceContainer::new_from_bootstrap()` method
 
 ### 3. Updated Deployment Files ✅
+
 - ✅ `Dockerfile` - Removed legacy config copies
 - ✅ `docker-compose.yml` - Updated volume mounts and environment variables
 - ✅ `deploy/kubernetes/01-secrets.yaml` - Updated to bootstrap config format
@@ -29,12 +33,14 @@ Since Secreton has never been used in production, we performed a clean removal o
 - ✅ `deploy/kubernetes/04-secreton-statefulset.yaml` - Updated volume mounts
 
 ### 4. Created Development Config ✅
+
 - ✅ Created `secreton.toml` from example for local development
 - ✅ Updated `.gitignore` to exclude `secreton.toml` (already correct)
 
 ## New Configuration System
 
 ### Bootstrap Config (`secreton.toml`)
+
 ```toml
 [storage]
 backend = "raft"
@@ -60,6 +66,7 @@ threshold = 3
 ```
 
 ### Application Config (Encrypted in Storage)
+
 - Auth settings (JWT secrets)
 - Database credentials
 - MFA policies
@@ -75,13 +82,14 @@ threshold = 3
 4. Test with development setup
 5. Update documentation
 
-
 ## Testing
 
 ### Compilation Status
+
 ✅ `cargo check --package secreton-api --bin api_server` - **PASSED**
 
 ### Next Steps for Testing
+
 1. Build Docker image: `docker build -t secreton:latest .`
 2. Test with docker-compose: `docker-compose up -d`
 3. Initialize engine: `curl -X POST http://localhost:8200/v1/sys/init`
@@ -139,6 +147,7 @@ threshold = 3
 ## Security Improvements
 
 ### Before (Legacy System)
+
 ❌ All secrets in plain text TOML files
 ❌ JWT secrets visible in `config/default.toml`
 ❌ Database passwords visible in `config/production.toml`
@@ -146,6 +155,7 @@ threshold = 3
 ❌ Secrets in version control risk
 
 ### After (New System)
+
 ✅ Only infrastructure config in `secreton.toml` (NO SECRETS)
 ✅ All secrets encrypted with AES-256-GCM in storage
 ✅ Master key protected by Shamir Secret Sharing (5 shares, 3 threshold)
@@ -156,6 +166,7 @@ threshold = 3
 ## Files Modified
 
 ### Core Code
+
 - `crates/api/src/config.rs` - Removed legacy methods
 - `crates/api/src/config_adapter.rs` - **NEW** - Simplified config adapter
 - `crates/api/src/bin/api_server.rs` - Updated to use new config system
@@ -163,6 +174,7 @@ threshold = 3
 - `crates/api/src/services/mod.rs` - Added `new_from_bootstrap()` method
 
 ### Deployment
+
 - `Dockerfile` - Removed legacy config copies
 - `docker-compose.yml` - Updated volumes and env vars
 - `deploy/kubernetes/01-secrets.yaml` - Bootstrap config format
@@ -170,6 +182,7 @@ threshold = 3
 - `deploy/kubernetes/04-secreton-statefulset.yaml` - Updated mounts
 
 ### Configuration
+
 - `secreton.toml` - **NEW** - Development bootstrap config
 - `config/` - **DELETED** - Legacy config directory
 
@@ -183,6 +196,7 @@ threshold = 3
 ## Rollback Plan
 
 If issues are found:
+
 1. Restore from git: `git checkout HEAD~1 -- config/`
 2. Revert code changes: `git revert <commit-hash>`
 3. Rebuild: `cargo build --release`
@@ -192,6 +206,7 @@ Note: Since secreton was never in production, rollback is unlikely to be needed.
 ## Conclusion
 
 Migration completed successfully. The new secure config system is now in place:
+
 - Bootstrap config (`secreton.toml`) contains only infrastructure settings
 - Application config is encrypted in storage backend
 - All secrets are protected by Shamir Secret Sharing

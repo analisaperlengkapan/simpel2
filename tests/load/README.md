@@ -30,11 +30,13 @@ choco install k6
 Tests dashboard performance with 100 concurrent users.
 
 **Performance Targets:**
+
 - Dashboard load time: ≤ 5 seconds (NFR-P004)
 - API response time (95th percentile): ≤ 500ms (NFR-P002)
 - Error rate: < 5%
 
 **Usage:**
+
 ```bash
 # Basic run
 k6 run tests/load/dashboard-load-test.js
@@ -54,11 +56,13 @@ k6 run -e BASE_URL=http://staging.simpel.internal:3020 \
 Tests API performance at 100 requests/second.
 
 **Performance Targets:**
+
 - API response time (95th percentile): ≤ 500ms (NFR-P002)
 - API throughput: ≥ 100 requests/second (NFR-P005)
 - Error rate: < 1%
 
 **Usage:**
+
 ```bash
 # Basic run
 k6 run tests/load/api-load-test.js
@@ -78,11 +82,13 @@ k6 run -e BASE_URL=http://staging.simpel.internal:3020 \
 Tests search functionality performance.
 
 **Performance Targets:**
+
 - Search response time (95th percentile): ≤ 500ms (NFR-P002)
 - Web page response time (90th percentile): ≤ 2 seconds (NFR-P001)
 - Error rate: < 2%
 
 **Usage:**
+
 ```bash
 # Basic run
 k6 run tests/load/search-load-test.js
@@ -112,21 +118,25 @@ BASE_URL=http://staging.simpel.internal:3020 ./tests/load/run-all-tests.sh
 ## Output Formats
 
 ### Console Output (default)
+
 ```bash
 k6 run tests/load/dashboard-load-test.js
 ```
 
 ### JSON Output
+
 ```bash
 k6 run --out json=results.json tests/load/dashboard-load-test.js
 ```
 
 ### InfluxDB Output (for Grafana visualization)
+
 ```bash
 k6 run --out influxdb=http://localhost:8086/k6 tests/load/dashboard-load-test.js
 ```
 
 ### Cloud Output (k6 Cloud)
+
 ```bash
 k6 cloud tests/load/dashboard-load-test.js
 ```
@@ -156,17 +166,20 @@ k6 cloud tests/load/dashboard-load-test.js
 ### Interpreting Results
 
 **Success Criteria:**
+
 - ✅ All thresholds pass
 - ✅ Error rate < 5%
 - ✅ p(95) response time meets targets
 - ✅ Throughput meets targets
 
 **Warning Signs:**
+
 - ⚠️ Increasing response times over test duration
 - ⚠️ Error rate > 1%
 - ⚠️ Throughput declining under load
 
 **Failure Indicators:**
+
 - ❌ Thresholds fail
 - ❌ Error rate > 5%
 - ❌ Response times exceed targets

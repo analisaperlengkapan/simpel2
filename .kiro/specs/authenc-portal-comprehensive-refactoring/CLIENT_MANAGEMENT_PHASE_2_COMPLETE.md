@@ -20,6 +20,7 @@ Successfully migrated storage operations for Client Management from OLD architec
 **File**: `crates/storage/src/operations/client_registration_ops.rs`
 
 **Changes**:
+
 - ✅ Changed imports from `crate::models::` to `authenc_types::domain::`
 - ✅ Fixed all type references:
   - `OAuth2Client`
@@ -35,6 +36,7 @@ Successfully migrated storage operations for Client Management from OLD architec
 **File**: `crates/storage/src/operations/protocol_mappers_ops.rs`
 
 **Changes**:
+
 - ✅ Changed imports from `authenc_core::models::protocol_mapper::` to `authenc_types::domain::`
 - ✅ Fixed all type references:
   - `ProtocolMapper`
@@ -48,6 +50,7 @@ Successfully migrated storage operations for Client Management from OLD architec
 **File**: `crates/storage/src/operations/mod.rs`
 
 **Changes**:
+
 - ✅ Uncommented `pub mod client_registration_ops;`
 - ✅ Uncommented `pub mod protocol_mappers_ops;`
 - ✅ Uncommented `pub use client_registration_ops as client_registration;`
@@ -56,10 +59,12 @@ Successfully migrated storage operations for Client Management from OLD architec
 ### 4. Enabled Core Services
 
 **Files**:
+
 - `crates/core/src/services/client_registration.rs`
 - `crates/core/src/services/protocol_mapper_service.rs`
 
 **Changes**:
+
 - ✅ Uncommented `use authenc_storage::operations::client_registration as db_ops;`
 - ✅ Uncommented `use authenc_storage::operations::protocol_mappers_ops;`
 
@@ -68,14 +73,17 @@ Successfully migrated storage operations for Client Management from OLD architec
 ## Compilation Status
 
 ### Before Phase 2
+
 - authenc-core: 16 errors
 - Storage operations: Commented out (circular dependency)
 
 ### After Phase 2
+
 - authenc-core: 20 errors (4 new errors from uncommenting code)
 - Storage operations: ENABLED ✅
 
 **Error Breakdown** (20 errors):
+
 1. **Database API usage** (12 errors) - Methods return `Row`, need `.try_into()` conversion
 2. **Duplicate export** (1 error) - `protocol_mappers` exported in both legacy and new
 3. **AuthencError field** (1 error) - `ValidationError` field name mismatch
@@ -90,6 +98,7 @@ Successfully migrated storage operations for Client Management from OLD architec
 **Discovery**: Database methods return `Row` directly, not generic types.
 
 **Pattern**:
+
 ```rust
 // ❌ OLD (incorrect)
 db.query_one::<OAuth2Client>(query, params).await?
@@ -104,6 +113,7 @@ let client: OAuth2Client = row.try_into()?;
 ### 2. Type Migration Complete
 
 **Achievement**: All Client Management types now use `authenc-types::domain`:
+
 - ✅ OAuth2Client
 - ✅ ClientRegistrationToken
 - ✅ InitialAccessToken
@@ -119,6 +129,7 @@ let client: OAuth2Client = row.try_into()?;
 ### 3. Storage Operations Enabled
 
 **Achievement**: Storage operations are now part of the build:
+
 - ✅ `client_registration_ops` module enabled
 - ✅ `protocol_mappers_ops` module enabled
 - ✅ Exports available for core services
@@ -134,6 +145,7 @@ let client: OAuth2Client = row.try_into()?;
 **Issue**: Storage operations use incorrect Database API pattern.
 
 **Example**:
+
 ```rust
 // Current (incorrect)
 db.query_one::<ClientRegistrationToken>(query, params).await?
@@ -144,6 +156,7 @@ row.try_into()?
 ```
 
 **Files Affected**:
+
 - `client_registration_ops.rs` (8 occurrences)
 - `protocol_mappers_ops.rs` (4 occurrences)
 
@@ -220,11 +233,13 @@ After storage operations compile successfully:
 ## Files Modified
 
 ### Storage Operations
+
 1. ✅ `crates/storage/src/operations/client_registration_ops.rs`
 2. ✅ `crates/storage/src/operations/protocol_mappers_ops.rs`
 3. ✅ `crates/storage/src/operations/mod.rs`
 
 ### Core Services
+
 4. ✅ `crates/core/src/services/client_registration.rs`
 5. ✅ `crates/core/src/services/protocol_mapper_service.rs`
 

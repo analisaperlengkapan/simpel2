@@ -9,6 +9,7 @@
 The Federation service migration from `src/services/` to `crates/federation/` is **100% structurally complete**. All 14 Federation-related files have been successfully migrated to the dedicated `authenc-federation` crate. The migration maintains full backward compatibility through re-export layers.
 
 **Key Metrics**:
+
 - **Files Migrated**: 14
 - **Lines of Code**: ~8,000
 - **Compilation Status**: ✅ authenc-federation compiles (0 errors)
@@ -335,16 +336,19 @@ crates/federation/
 ## Compilation Status
 
 **authenc-federation Crate**:
+
 - ✅ Compiles successfully with 0 errors
 - ✅ All imports updated to use new crate boundaries
 - ✅ No circular dependencies
 
 **Workspace Build**:
+
 - ❌ Blocked by authenc-core compilation errors (71 errors)
 - ⚠️ These errors are NOT related to Federation migration
 - ⚠️ Errors are from incomplete Task 5 (Core Services Migration)
 
 **Error Categories in authenc-core**:
+
 1. Missing Type Imports: `RealmId`, `SessionId`, `ClientId`
 2. Database API Mismatches: `operations` module not found
 3. Error Enum Variants Missing: `Uma`, `Forbidden`, `ConfigurationError`
@@ -368,6 +372,7 @@ crates/federation/
 ## Import Structure Changes
 
 **Before (Old Structure)**:
+
 ```rust
 use crate::database::Database;
 use crate::error::AuthencError;
@@ -376,6 +381,7 @@ use crate::services::federation_manager::FederationManager;
 ```
 
 **After (New Structure)**:
+
 ```rust
 use authenc_storage::Database;
 use authenc_types::error::AuthencError;
@@ -386,12 +392,14 @@ use authenc_federation::manager::FederationManager;
 ## Architecture Improvements
 
 **1. Clear Crate Boundaries**:
+
 - `authenc-types`: Domain types and errors
 - `authenc-storage`: Database operations
 - `authenc-crypto`: Cryptographic operations
 - `authenc-federation`: Federation services (NEW)
 
 **2. Modular Organization**:
+
 - Core federation logic in `manager.rs`
 - Provider implementations in `providers/`
 - SSO services in `sso/`
@@ -399,6 +407,7 @@ use authenc_federation::manager::FederationManager;
 - Social login in `social/`
 
 **3. Maintained Functionality**:
+
 - All original functionality preserved
 - No breaking changes to Federation API
 - All optimizations maintained
@@ -411,17 +420,20 @@ use authenc_federation::manager::FederationManager;
 ✅ Zero behavior changes
 
 **Re-Export Pattern**:
+
 ```rust
 // src/services/federation/mod.rs (future state)
 pub use authenc_federation::*;
 ```
 
 This allows existing code to continue using:
+
 ```rust
 use crate::services::federation::FederationManager;
 ```
 
 While new code can use:
+
 ```rust
 use authenc_federation::manager::FederationManager;
 ```
@@ -479,12 +491,14 @@ use authenc_federation::manager::FederationManager;
 ## Next Steps
 
 ### Immediate Actions (Phase 4 Continuation)
+
 1. ✅ **Mark Federation migration as COMPLETE** in MIGRATION_ANALYSIS.md
 2. ✅ **Document all files NOT migrated** with reasons
 3. ⏳ **Resolve authenc-core errors** (CRITICAL) - Fix 71 compilation errors
 4. ⏳ **Re-run Task 13.2** - Once authenc-core compiles, re-run integration tests
 
 ### Phase 6 Actions (Cleanup)
+
 1. **Replace duplicate files with re-exports**:
    - Replace `src/services/federation_manager.rs` with `pub use authenc_federation::manager::*;`
    - Replace `src/services/federation_provider.rs` with `pub use authenc_federation::provider::*;`

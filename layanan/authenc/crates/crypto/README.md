@@ -146,10 +146,12 @@ let high_security = Argon2PasswordHasher::with_params(
 ### Performance
 
 Default parameters (64 MB, 3 iterations, 4 threads):
+
 - Hashing time: ~150ms on modern CPU
 - Memory usage: 64 MB per hash operation
 
 High security parameters (128 MB, 4 iterations, 8 threads):
+
 - Hashing time: ~400ms on modern CPU
 - Memory usage: 128 MB per hash operation
 
@@ -170,6 +172,7 @@ $argon2id$v=19$m=65536,t=3,p=4$<salt>$<hash>
 ```
 
 Where:
+
 - `argon2id`: Algorithm identifier
 - `v=19`: Version (0x13 in hex = 19 in decimal)
 - `m=65536`: Memory cost in KiB (64 MB)
@@ -212,6 +215,7 @@ All cryptographic operations follow industry best practices:
 ## Requirements
 
 Implements requirements:
+
 - REQ-TOKEN-001, REQ-TOKEN-003 (JWT operations)
 - REQ-PASS-003, REQ-SEC-001 (Password hashing)
 - REQ-SEC-002 (JWT signing)

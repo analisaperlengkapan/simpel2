@@ -24,6 +24,7 @@ Operations are fully audited and monitored with metrics.
 Get comprehensive cluster status information.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -59,6 +60,7 @@ Get comprehensive cluster status information.
 ```
 
 **Health Status Values:**
+
 - `healthy` - Node is operational
 - `degraded` - Node is operational but experiencing issues
 - `failed` - Node has failed
@@ -68,6 +70,7 @@ Get comprehensive cluster status information.
 List all peers in the cluster.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -97,6 +100,7 @@ List all peers in the cluster.
 Add a new peer to the cluster.
 
 **Request:**
+
 ```json
 {
   "node_id": 3,
@@ -105,12 +109,14 @@ Add a new peer to the cluster.
 ```
 
 **Validation:**
+
 - Address must be in `host:port` format
 - Address must be resolvable via DNS
 - Node ID must not already exist in cluster
 - TLS certificates are validated (if mTLS is enabled)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -148,6 +154,7 @@ Add a new peer to the cluster.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` - Invalid address format or node already exists
 - `403 Forbidden` - Insufficient permissions (admin required)
 - `500 Internal Server Error` - Failed to add node
@@ -157,11 +164,13 @@ Add a new peer to the cluster.
 Remove a peer from the cluster.
 
 **Safety Checks:**
+
 - Cannot remove if it would break quorum (minimum 2 nodes required)
 - Cannot remove the leader node (must transfer leadership first)
 - Validates node exists in cluster
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -191,6 +200,7 @@ Remove a peer from the cluster.
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` - Would break quorum, node doesn't exist, or attempting to remove leader
 - `403 Forbidden` - Insufficient permissions (admin required)
 - `500 Internal Server Error` - Failed to remove node
@@ -293,6 +303,7 @@ The following Prometheus metrics are exposed:
 ## Audit Logging
 
 All peer management operations are logged with:
+
 - Operation type (add_peer, remove_peer)
 - Node ID
 - Address (for add operations)
@@ -326,6 +337,7 @@ All peer management operations are logged with:
 ### High Availability
 
 For production deployments:
+
 - Use at least 3 nodes for fault tolerance
 - Distribute nodes across availability zones
 - Monitor replication lag and health status

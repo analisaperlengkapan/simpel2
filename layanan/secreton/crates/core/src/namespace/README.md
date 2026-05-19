@@ -5,6 +5,7 @@ This module provides hierarchical namespace management for SIMKARI multi-tenancy
 ## Overview
 
 The namespace system supports the Kejaksaan RI organizational hierarchy:
+
 - **Pusat** (Central) - National level (Kejaksaan Agung)
 - **Wilayah** (Regional) - Provincial level (Kejaksaan Tinggi)
 - **Satker** (Work Unit) - Individual units (Kejaksaan Negeri, etc.)
@@ -19,6 +20,7 @@ The namespace system supports the Kejaksaan RI organizational hierarchy:
 ## Secret Path Format
 
 All secrets are scoped to namespaces using the format:
+
 ```
 {namespace_id}/path/to/secret
 ```
@@ -41,14 +43,17 @@ All secrets are scoped to namespaces using the format:
 Access is enforced based on the `admin_level` field in JWT claims:
 
 ### AdminLevel::Pusat
+
 - **Access**: All namespaces
 - **Use Case**: National administrators at Kejaksaan Agung
 
 ### AdminLevel::EselonI
+
 - **Access**: Directorate-specific namespaces (currently all, can be refined)
 - **Use Case**: Directorate-level administrators
 
 ### AdminLevel::Wilayah
+
 - **Access**: Own wilayah and all child satker namespaces
 - **Requires**: `wilayah_code` in JWT claims (e.g., "SUMUT")
 - **Use Case**: Regional administrators at Kejaksaan Tinggi
@@ -58,6 +63,7 @@ Access is enforced based on the `admin_level` field in JWT claims:
   - `satker-kja002/*` (Binjai)
 
 ### AdminLevel::Satker
+
 - **Access**: Only own satker namespace
 - **Requires**: `satker_code` in JWT claims (e.g., "KJA001")
 - **Use Case**: Unit-level administrators at Kejaksaan Negeri
@@ -220,6 +226,7 @@ pub struct JwtClaims {
 ## Audit Logging
 
 All namespace operations are automatically logged with:
+
 - **Action**: Operation performed (read, write, delete, list)
 - **Actor**: User identity (from JWT claims)
 - **Namespace**: Namespace ID
@@ -229,6 +236,7 @@ All namespace operations are automatically logged with:
 - **Timestamp**: When the operation occurred
 
 Example audit log entry:
+
 ```json
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -249,6 +257,7 @@ Example audit log entry:
 ## Quota Management
 
 Namespaces have configurable quotas:
+
 - **max_secrets**: Maximum number of secrets (default: 10,000)
 - **max_storage_bytes**: Maximum storage size (default: 10 GB)
 - **max_leases**: Maximum number of leases (default: 1,000)
@@ -363,6 +372,7 @@ cargo test --package secreton-core namespace
 ```
 
 Tests cover:
+
 - Path parsing with valid and invalid formats
 - Namespace validation against hierarchy
 - Access control for all admin levels
@@ -390,6 +400,7 @@ JWT claims are extracted from Authenc tokens in the auth middleware:
 - **Path Filtering**: O(m) where m is number of paths to filter
 
 For high-performance scenarios, consider:
+
 - Caching parsed paths
 - Caching access control decisions (with TTL)
 - Batch validation for multiple paths
@@ -406,4 +417,3 @@ For high-performance scenarios, consider:
 - [ ] Metrics for namespace access patterns
 - [ ] Path-based policy evaluation
 - [ ] Namespace templates for quick setup
-

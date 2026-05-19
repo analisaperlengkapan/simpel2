@@ -62,7 +62,12 @@ bigdecimal = { workspace = true }
 
 # Shared libraries
 lib-core = { workspace = true }
-lib-backend = { workspace = true, features = ["jwt", "telemetry", "db", "axum"] }
+lib-backend = { workspace = true, features = [
+  "jwt",
+  "telemetry",
+  "db",
+  "axum",
+] }
 lib-perlengkapan = { workspace = true, features = ["backend"] }
 
 # Internal perlengkapan crates

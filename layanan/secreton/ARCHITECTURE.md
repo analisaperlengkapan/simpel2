@@ -197,14 +197,14 @@ Multiple implementations of common interfaces:
 
 ## Module Guidelines
 
-### When to extract a new crate:
+### When to extract a new crate
 
 1. Module is self-contained (minimal dependencies on core)
 2. Module is large (>2,000 lines)
 3. Module has clear interface boundary
 4. Module could be reused independently
 
-### Candidates for extraction (future):
+### Candidates for extraction (future)
 
 - `secreton-policy`: RBAC policy engine (~2K lines)
 - `secreton-seal`: Seal/unseal operations (~2K lines)
@@ -212,7 +212,7 @@ Multiple implementations of common interfaces:
 - `secreton-engines`: Dynamic secrets engines (~4K lines)
 - `secreton-grpc`: gRPC server separate from HTTP API (~6K lines)
 
-### NOT candidates:
+### NOT candidates
 
 - Small modules (<500 lines)
 - Tightly coupled to core business logic
@@ -250,14 +250,14 @@ Multiple implementations of common interfaces:
 
 ## Future Improvements
 
-### Potential optimizations:
+### Potential optimizations
 
 1. Split gRPC into separate crate (reduce API crate compilation time)
 2. Extract large services (policy, seal, lease) into focused crates
 3. Create shared models crate to reduce duplication
 4. Implement lazy compilation for optional features
 
-### Not recommended:
+### Not recommended
 
 - Over-splitting into too many small crates (increases complexity)
 - Moving trait implementations out of core (breaks cohesion)

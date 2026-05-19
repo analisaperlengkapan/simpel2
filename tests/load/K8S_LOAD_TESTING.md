@@ -260,16 +260,19 @@ kubectl run test-curl --rm -it --restart=Never --image=curlimages/curl -- \
 ### High Error Rates
 
 1. **Check service logs**:
+
    ```bash
    kubectl logs -l app.kubernetes.io/name=layanan-perlengkapan -n simpelv2-staging
    ```
 
 2. **Check database**:
+
    ```bash
    kubectl get pods -l app.kubernetes.io/name=postgres -n simpelv2-staging
    ```
 
 3. **Check resource usage**:
+
    ```bash
    kubectl top pods -n simpelv2-staging
    kubectl top nodes
@@ -279,9 +282,11 @@ kubectl run test-curl --rm -it --restart=Never --image=curlimages/curl -- \
 
 1. **Test di staging dulu** sebelum production
 2. **Monitor resource usage** selama test:
+
    ```bash
    watch kubectl top pods -n simpelv2-staging
    ```
+
 3. **Backup database** sebelum load test besar
 4. **Jalankan saat off-peak hours**
 5. **Start dengan load kecil** dan tingkatkan bertahap

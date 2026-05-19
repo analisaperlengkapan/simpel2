@@ -11,11 +11,13 @@ Successfully implemented CRUD UI for workflow definitions, allowing Admin Pusat 
 Added CRUD API functions:
 
 **New Types:**
+
 - `CreateWorkflowRequest` - Request body for creating workflows
 - `UpdateWorkflowRequest` - Request body for updating workflows
 - `UpsertStepRequest` - Request body for creating/updating workflow steps
 
 **New Functions:**
+
 - `create_workflow_definition()` - POST /api/v1/workflow/definitions
 - `update_workflow_definition()` - PUT /api/v1/workflow/definitions/{name}
 - `delete_workflow_definition()` - DELETE /api/v1/workflow/definitions/{name}
@@ -59,6 +61,7 @@ Extended the read-only view with full CRUD capabilities:
 ## Features Implemented
 
 ### ✅ Create Workflow
+
 - Modal form with all required fields
 - Name validation (required, unique)
 - Description validation (required)
@@ -68,6 +71,7 @@ Extended the read-only view with full CRUD capabilities:
 - Success feedback with automatic list refresh
 
 ### ✅ Edit Workflow
+
 - Pre-populated form with existing values
 - Name field disabled (immutable after creation)
 - All other fields editable
@@ -75,12 +79,14 @@ Extended the read-only view with full CRUD capabilities:
 - Success feedback with automatic list refresh
 
 ### ✅ Delete Workflow
+
 - Confirmation dialog with workflow name
 - Warning about irreversible action
 - Error handling for failed deletions
 - Success feedback with automatic list refresh
 
 ### ✅ View Workflow Details
+
 - Existing read-only detail modal (from task 4.2.1)
 - Shows workflow steps, transitions, SLA, roles
 
@@ -113,6 +119,7 @@ Extended the read-only view with full CRUD capabilities:
 ## Validation Logic
 
 ### Client-Side Validation
+
 - Name: required, non-empty
 - Description: required, non-empty
 - Version: required, non-empty
@@ -120,6 +127,7 @@ Extended the read-only view with full CRUD capabilities:
 - Parallel approval: boolean
 
 ### Server-Side Validation (Expected)
+
 - Name uniqueness check
 - Name format validation (no spaces, lowercase)
 - Version format validation
@@ -141,18 +149,21 @@ Extended the read-only view with full CRUD capabilities:
 ## Technical Implementation Details
 
 ### State Management
+
 - Uses Leptos 0.8.x `signal()` for reactive state
 - Separate signals for each modal type
 - Resource refetching after mutations
 - Callback-based event handling
 
 ### Async Operations
+
 - Uses `spawn_local` for async API calls
 - Loading states during operations
 - Error handling with user-friendly messages
 - Automatic cleanup on success
 
 ### Component Architecture
+
 - Modular component design
 - Reusable modal components
 - Callback props for parent-child communication
@@ -161,6 +172,7 @@ Extended the read-only view with full CRUD capabilities:
 ## Testing Recommendations
 
 ### Manual Testing Checklist
+
 - [ ] Create new workflow with valid data
 - [ ] Create workflow with missing required fields (should show validation)
 - [ ] Edit existing workflow
@@ -173,6 +185,7 @@ Extended the read-only view with full CRUD capabilities:
 - [ ] Test loading states
 
 ### Integration Testing
+
 - [ ] Verify API endpoints are called correctly
 - [ ] Verify request/response formats
 - [ ] Verify error responses are handled
@@ -238,6 +251,7 @@ Extended the read-only view with full CRUD capabilities:
 ✅ 6. Add confirmation dialogs
 
 **Not in Scope (Deferred to Task 4.2.3):**
+
 - Workflow step editor component
 - Step-level CRUD operations
 - Advanced workflow validation

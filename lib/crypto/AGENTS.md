@@ -31,6 +31,7 @@ lib-core (types) ◄──depends── lib-crypto (crypto primitives)
 ## 🔑 Penggunaan
 
 ### Password Hashing
+
 ```rust
 use lib_crypto::password::{hash_password, verify_password};
 let hash = hash_password("my_password")?;
@@ -38,6 +39,7 @@ let valid = verify_password(&hash, "my_password")?;
 ```
 
 ### Shamir Secret Sharing
+
 ```rust
 use lib_crypto::shamir::{ShamirConfig, generate_shares_with_commitments};
 let config = ShamirConfig::new(3, 5)?; // threshold=3, total=5
@@ -45,6 +47,7 @@ let (shares, commitments) = generate_shares_with_commitments(&secret, &config)?;
 ```
 
 ### AES-GCM (requires `encryption` feature)
+
 ```rust
 use lib_crypto::aes::{aes_gcm_encrypt, aes_gcm_decrypt, generate_key};
 let key = generate_key();

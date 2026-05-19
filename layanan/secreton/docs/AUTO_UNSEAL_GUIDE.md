@@ -92,24 +92,28 @@ Auto-unseal is a critical feature that allows Secreton to automatically unseal i
 ### Provider-Specific Requirements
 
 #### Transit Provider
+
 - Another Secreton instance (unsealed and operational)
 - Transit engine enabled on the remote Secreton
 - Transit key created for auto-unseal
 - Valid authentication token with encrypt/decrypt permissions
 
 #### AWS KMS Provider
+
 - AWS account with KMS access
 - KMS key created in target region
 - IAM role or access keys with `kms:Encrypt` and `kms:Decrypt` permissions
 - Network access to AWS KMS endpoints
 
 #### GCP KMS Provider
+
 - GCP project with Cloud KMS API enabled
 - KMS key ring and crypto key created
 - Service account with `cloudkms.cryptoKeyVersions.useToEncrypt` and `cloudkms.cryptoKeyVersions.useToDecrypt` permissions
 - Service account key file or Workload Identity
 
 #### Azure Key Vault Provider
+
 - Azure subscription with Key Vault created
 - Key created in Key Vault
 - Managed identity or service principal with `encrypt` and `decrypt` permissions
@@ -122,6 +126,7 @@ Auto-unseal is a critical feature that allows Secreton to automatically unseal i
 ### Transit Provider
 
 The Transit provider uses another Secreton instance as the KMS. This is useful for:
+
 - Multi-tier deployments (production Secreton unseals staging Secreton)
 - Air-gapped environments (no external KMS access)
 - Testing and development
@@ -761,6 +766,7 @@ secreton-cli auto-unseal test
 ```
 
 Expected output:
+
 ```
 🧪 Testing Auto-Unseal Configuration
 
@@ -780,6 +786,7 @@ secreton-cli auto-unseal status
 ```
 
 Expected output:
+
 ```
 🔍 Auto-Unseal Status
 
@@ -798,6 +805,7 @@ curl -s http://localhost:8200/v1/sys/health | jq '.auto_unseal'
 ```
 
 Expected output:
+
 ```json
 {
   "enabled": true,
@@ -832,6 +840,7 @@ secreton-cli status
 ```
 
 Expected output:
+
 ```
 Seal Status: unsealed
 Seal Type: auto-unseal (aws-kms)
@@ -848,6 +857,7 @@ secreton-cli audit list --filter "operation=auto-unseal"
 ```
 
 Expected output:
+
 ```
 Timestamp: 2026-02-18T10:35:12Z
 Operation: auto-unseal
@@ -865,12 +875,14 @@ Duration: 234ms
 #### Issue 1: "Provider connectivity failed"
 
 **Symptoms:**
+
 ```
 ❌ Test failed: Provider connectivity failed
 Error: Failed to connect to KMS provider
 ```
 
 **Possible Causes:**
+
 - Network connectivity issues
 - Incorrect endpoint URL
 - Firewall blocking access
@@ -878,6 +890,7 @@ Error: Failed to connect to KMS provider
 **Solutions:**
 
 1. **Check network connectivity:**
+
    ```bash
    # For AWS KMS
    curl -v https://kms.us-east-1.amazonaws.com
@@ -893,11 +906,13 @@ Error: Failed to connect to KMS provider
    ```
 
 2. **Verify DNS resolution:**
+
    ```bash
    nslookup kms.us-east-1.amazonaws.com
    ```
 
 3. **Check firewall rules:**
+
    ```bash
    # Ensure outbound HTTPS (443) is allowed
    # For Transit, ensure gRPC port (50052) is allowed
@@ -906,12 +921,14 @@ Error: Failed to connect to KMS provider
 #### Issue 2: "Permission denied" or "Access denied"
 
 **Symptoms:**
+
 ```
 ❌ Test failed: Permission denied
 Error: User is not authorized to perform: kms:Decrypt
 ```
 
 **Possible Causes:**
+
 - Insufficient IAM/RBAC permissions
 - Incorrect service account/role
 - Key policy restrictions
@@ -919,6 +936,7 @@ Error: User is not authorized to perform: kms:Decrypt
 **Solutions:**
 
 1. **AWS KMS - Verify IAM permissions:**
+
    ```bash
    # Check current IAM role/user
    aws sts get-caller-identity
@@ -935,6 +953,7 @@ Error: User is not authorized to perform: kms:Decrypt
    ```
 
 2. **GCP KMS - Verify service account permissions:**
+
    ```bash
    # Check current service account
    gcloud auth list
@@ -954,6 +973,7 @@ Error: User is not authorized to perform: kms:Decrypt
    ```
 
 3. **Azure Key Vault - Verify access policies:**
+
    ```bash
    # Check current identity
    az account show
@@ -966,6 +986,7 @@ Error: User is not authorized to perform: kms:Decrypt
    ```
 
 4. **Transit - Verify token permissions:**
+
    ```bash
    # Check token capabilities
    secreton-cli token capabilities transit/encrypt/auto-unseal-key
@@ -975,11 +996,13 @@ Error: User is not authorized to perform: kms:Decrypt
 #### Issue 3: "Encrypted master key not found"
 
 **Symptoms:**
+
 ```
 ❌ Auto-unseal failed: Encrypted master key not found in storage
 ```
 
 **Possible Causes:**
+
 - First-time setup not completed
 - Database migration not run
 - Master key not encrypted with KMS
@@ -987,11 +1010,13 @@ Error: User is not authorized to perform: kms:Decrypt
 **Solutions:**
 
 1. **Check if Secreton is initialized:**
+
    ```bash
    secreton-cli status
    ```
 
 2. **If not initialized, initialize with auto-unseal:**
+
    ```bash
    # This will encrypt the master key with the configured KMS
    secreton-cli init
@@ -1003,11 +1028,13 @@ Error: User is not authorized to perform: kms:Decrypt
 #### Issue 4: "Auto-unseal timeout"
 
 **Symptoms:**
+
 ```
 ❌ Auto-unseal failed: Operation timed out after 30s
 ```
 
 **Possible Causes:**
+
 - KMS provider slow to respond
 - Network latency issues
 - KMS provider rate limiting
@@ -1015,12 +1042,14 @@ Error: User is not authorized to perform: kms:Decrypt
 **Solutions:**
 
 1. **Increase timeout in configuration:**
+
    ```toml
    [auto_unseal.aws_kms]
    timeout_secs = 60  # Increase from default 30s
    ```
 
 2. **Check KMS provider status:**
+
    ```bash
    # AWS
    aws health describe-events --filter eventTypeCategories=issue
@@ -1033,6 +1062,7 @@ Error: User is not authorized to perform: kms:Decrypt
    ```
 
 3. **Monitor network latency:**
+
    ```bash
    # Measure latency to KMS endpoint
    time curl -s https://kms.us-east-1.amazonaws.com > /dev/null
@@ -1041,11 +1071,13 @@ Error: User is not authorized to perform: kms:Decrypt
 #### Issue 5: "Fallback to manual unseal triggered"
 
 **Symptoms:**
+
 ```
 ⚠️  Auto-unseal failed after 3 retries, falling back to manual unseal
 ```
 
 **Possible Causes:**
+
 - Temporary KMS provider outage
 - Network issues
 - Configuration error
@@ -1053,22 +1085,26 @@ Error: User is not authorized to perform: kms:Decrypt
 **Solutions:**
 
 1. **Check auto-unseal logs:**
+
    ```bash
    journalctl -u secreton -n 100 | grep auto-unseal
    ```
 
 2. **Manually unseal to restore service:**
+
    ```bash
    secreton-cli seal unseal
    # Enter unseal keys when prompted
    ```
 
 3. **Fix the underlying issue and test:**
+
    ```bash
    secreton-cli auto-unseal test
    ```
 
 4. **Restart to retry auto-unseal:**
+
    ```bash
    systemctl restart secreton
    ```
@@ -1076,6 +1112,7 @@ Error: User is not authorized to perform: kms:Decrypt
 #### Issue 6: "Invalid credentials" (AWS/GCP/Azure)
 
 **Symptoms:**
+
 ```
 ❌ Test failed: Invalid credentials
 Error: The security token included in the request is invalid
@@ -1084,6 +1121,7 @@ Error: The security token included in the request is invalid
 **Solutions:**
 
 1. **AWS - Refresh credentials:**
+
    ```bash
    # If using temporary credentials, refresh them
    aws sts get-session-token
@@ -1093,6 +1131,7 @@ Error: The security token included in the request is invalid
    ```
 
 2. **GCP - Refresh service account key:**
+
    ```bash
    # Generate new service account key
    gcloud iam service-accounts keys create new-key.json \
@@ -1103,6 +1142,7 @@ Error: The security token included in the request is invalid
    ```
 
 3. **Azure - Refresh service principal secret:**
+
    ```bash
    # Create new client secret
    az ad sp credential reset --id <client-id>
@@ -1120,6 +1160,7 @@ level = "debug"
 ```
 
 Or via environment variable:
+
 ```bash
 export RUST_LOG=secreton=debug
 ```
@@ -1140,6 +1181,7 @@ docker logs -f secreton
 #### Test KMS Provider Manually
 
 **AWS KMS:**
+
 ```bash
 # Encrypt test data
 echo "test" | base64 > plaintext.txt
@@ -1157,6 +1199,7 @@ aws kms decrypt \
 ```
 
 **GCP KMS:**
+
 ```bash
 # Encrypt test data
 echo "test" > plaintext.txt
@@ -1177,6 +1220,7 @@ gcloud kms decrypt \
 ```
 
 **Azure Key Vault:**
+
 ```bash
 # Encrypt test data
 echo "test" | base64 > plaintext.txt
@@ -1201,11 +1245,13 @@ az keyvault key decrypt \
 ### 1. Use Managed Identities/IAM Roles
 
 **✅ DO:**
+
 - Use IAM roles for EC2/EKS (AWS)
 - Use Workload Identity for GKE (GCP)
 - Use Managed Identity for AKS/VMs (Azure)
 
 **❌ DON'T:**
+
 - Store access keys in configuration files
 - Commit credentials to version control
 - Share credentials across environments
@@ -1215,6 +1261,7 @@ az keyvault key decrypt \
 Grant only the minimum required permissions:
 
 **AWS KMS Policy:**
+
 ```json
 {
   "Version": "2012-10-17",
@@ -1233,6 +1280,7 @@ Grant only the minimum required permissions:
 ```
 
 **GCP KMS Role:**
+
 ```bash
 # Use predefined role with minimal permissions
 gcloud kms keys add-iam-policy-binding auto-unseal-key \
@@ -1247,6 +1295,7 @@ gcloud kms keys add-iam-policy-binding auto-unseal-key \
 Ensure all KMS operations are logged:
 
 **AWS CloudTrail:**
+
 ```bash
 # Enable CloudTrail for KMS events
 aws cloudtrail create-trail \
@@ -1257,12 +1306,14 @@ aws cloudtrail start-logging --name secreton-kms-audit
 ```
 
 **GCP Cloud Audit Logs:**
+
 ```bash
 # Audit logs are enabled by default for Cloud KMS
 # Verify in Cloud Console: IAM & Admin > Audit Logs
 ```
 
 **Azure Monitor:**
+
 ```bash
 # Enable diagnostic settings for Key Vault
 az monitor diagnostic-settings create \
@@ -1275,12 +1326,14 @@ az monitor diagnostic-settings create \
 ### 4. Rotate KMS Keys Regularly
 
 **AWS KMS:**
+
 ```bash
 # Enable automatic key rotation (yearly)
 aws kms enable-key-rotation --key-id alias/secreton-auto-unseal
 ```
 
 **GCP KMS:**
+
 ```bash
 # Set rotation period (90 days)
 gcloud kms keys update auto-unseal-key \
@@ -1291,6 +1344,7 @@ gcloud kms keys update auto-unseal-key \
 ```
 
 **Azure Key Vault:**
+
 ```bash
 # Azure doesn't support automatic rotation, rotate manually:
 az keyvault key create \
@@ -1302,6 +1356,7 @@ az keyvault key create \
 ### 5. Use Separate Keys per Environment
 
 **✅ DO:**
+
 ```
 Production:   alias/secreton-auto-unseal-prod
 Staging:      alias/secreton-auto-unseal-staging
@@ -1309,6 +1364,7 @@ Development:  alias/secreton-auto-unseal-dev
 ```
 
 **❌ DON'T:**
+
 ```
 All environments: alias/secreton-auto-unseal
 ```
@@ -1452,6 +1508,7 @@ secreton-cli seal migrate-to-auto-unseal
 ```
 
 Expected output:
+
 ```
 🔄 Migrating to Auto-Unseal
 
@@ -1660,16 +1717,19 @@ When auto-unseal fails, check:
 ### E. Support and Resources
 
 **Documentation:**
+
 - [Secreton AGENTS.md](../AGENTS.md) - Main developer guide
 - [Seal/Unseal Security](../SEAL_UNSEAL_SECURITY_FIX_SUMMARY.md) - Security architecture
 - [Production Readiness](../PRODUCTION_READINESS_REPORT.md) - Deployment guide
 
 **Provider Documentation:**
+
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/)
 - [GCP Cloud KMS Documentation](https://cloud.google.com/kms/docs)
 - [Azure Key Vault Documentation](https://docs.microsoft.com/en-us/azure/key-vault/)
 
 **Community:**
+
 - GitHub Issues: [github.com/kejaksaan-ri/simpelv2/issues](https://github.com/kejaksaan-ri/simpelv2/issues)
 - Internal Wiki: [wiki.kejaksaan.go.id/secreton](https://wiki.kejaksaan.go.id/secreton)
 

@@ -7,17 +7,20 @@ Migrasi dari sistem konfigurasi legacy ke sistem konfigurasi secure berhasil dis
 ## Hasil
 
 ### 1. Kode
+
 - ✅ Legacy config system dihapus (`config/` directory)
 - ✅ New config adapter implemented (`config_adapter.rs`)
 - ✅ API server updated untuk menggunakan BootstrapConfig
 - ✅ Kompilasi berhasil: `cargo build --release`
 
 ### 2. Docker
+
 - ✅ Docker image berhasil dibuild
 - ✅ Container berhasil running
 - ✅ API endpoints accessible
 
 ### 3. Testing
+
 ```bash
 # Health check
 curl http://localhost:8200/health
@@ -35,6 +38,7 @@ curl http://localhost:8200/v1/sys/seal-status
 ## Sistem Baru
 
 ### Bootstrap Config (`secreton.toml`)
+
 ```toml
 [storage]
 backend = "raft"
@@ -56,11 +60,13 @@ threshold = 3
 ```
 
 ### Application Config
+
 - Disimpan terenkripsi di storage backend
 - Hanya accessible setelah engine unsealed
 - Berisi: auth, database, MFA, rate limiting, CORS
 
 ## Files Changed
+
 - `crates/api/src/config.rs` - Removed legacy methods
 - `crates/api/src/config_adapter.rs` - NEW
 - `crates/api/src/bin/api_server.rs` - Updated
@@ -70,6 +76,7 @@ threshold = 3
 - `deploy/kubernetes/*.yaml` - Updated
 
 ## Next Steps
+
 - [ ] Enable raft-consensus feature untuk production
 - [ ] Setup TLS certificates
 - [ ] Configure multi-node Raft cluster

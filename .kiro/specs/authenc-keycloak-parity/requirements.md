@@ -3,10 +3,13 @@
 ## 1. Problem Statement
 
 ### 1.1 Current Situation
+
 Authenc is SIMPEL's custom Identity and Access Management (IAM) service with 90%+ feature parity with industry-standard solutions like Keycloak. While core authentication protocols (OAuth2, OIDC, SAML, WebAuthn) are fully implemented and security features exceed industry standards (Ed25519, Post-Quantum Crypto), several enterprise features and UI components are incomplete or missing.
 
 ### 1.2 Business Impact
+
 Without these enterprise features, Authenc cannot:
+
 - Be effectively managed in production environments (no Admin Console UI)
 - Support user self-service operations (no User Account Console)
 - Meet government compliance requirements (incomplete audit logging)
@@ -15,6 +18,7 @@ Without these enterprise features, Authenc cannot:
 - Support complex organizational structures (Satker hierarchy)
 
 ### 1.3 Goals
+
 1. Complete Admin Console UI for production management
 2. Implement User Account Console for self-service
 3. Enhance event system for compliance and audit requirements
@@ -23,6 +27,7 @@ Without these enterprise features, Authenc cannot:
 6. Achieve full enterprise readiness for Indonesian government deployment
 
 ### 1.4 Success Criteria
+
 - 100% of critical features implemented within 3 months
 - Production deployment in 5+ government agencies (Satker) within 6 months
 - Zero Keycloak dependencies by Q3 2026
@@ -189,12 +194,14 @@ Without these enterprise features, Authenc cannot:
 ### 4.1 Admin Console UI (CRITICAL)
 
 **FR-1: Realm Management**
+
 - System shall provide web interface for realm CRUD operations
 - System shall support realm enable/disable toggle
 - System shall validate realm names (alphanumeric, no spaces)
 - System shall prevent deletion of realms with active users
 
 **FR-2: User Management**
+
 - System shall provide user CRUD operations via web interface
 - System shall support user search by username, email, NIP
 - System shall support bulk user operations (import CSV, bulk enable/disable)
@@ -202,6 +209,7 @@ Without these enterprise features, Authenc cannot:
 - System shall support password reset by admin
 
 **FR-3: Client Management**
+
 - System shall provide client CRUD operations
 - System shall generate client secrets securely
 - System shall validate redirect URIs
@@ -209,6 +217,7 @@ Without these enterprise features, Authenc cannot:
 - System shall support client secret rotation
 
 **FR-4: Role Management**
+
 - System shall support realm roles and client roles
 - System shall support composite roles (roles containing other roles)
 - System shall detect circular role dependencies
@@ -216,6 +225,7 @@ Without these enterprise features, Authenc cannot:
 - System shall support role assignment to users and groups
 
 **FR-5: Audit Log Viewer**
+
 - System shall display admin events and user events separately
 - System shall support event filtering by type, user, date, IP
 - System shall support event export to CSV/JSON
@@ -223,6 +233,7 @@ Without these enterprise features, Authenc cannot:
 - System shall highlight security-relevant events
 
 **FR-6: System Monitoring**
+
 - System shall display real-time metrics (active users, sessions, requests/sec)
 - System shall display database connection pool status
 - System shall display Redis cache statistics
@@ -232,6 +243,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.2 User Account Console (CRITICAL)
 
 **FR-7: Profile Management**
+
 - System shall allow users to view their profile
 - System shall allow users to update editable fields (name, phone)
 - System shall prevent users from modifying system fields (username, NIP)
@@ -239,6 +251,7 @@ Without these enterprise features, Authenc cannot:
 - System shall send confirmation email after profile changes
 
 **FR-8: Password Management**
+
 - System shall require current password for password change
 - System shall enforce password complexity requirements
 - System shall terminate other sessions after password change
@@ -246,6 +259,7 @@ Without these enterprise features, Authenc cannot:
 - System shall prevent password reuse (last 5 passwords)
 
 **FR-9: MFA Device Management**
+
 - System shall display list of registered MFA devices
 - System shall support TOTP device registration via QR code
 - System shall support WebAuthn device registration
@@ -254,6 +268,7 @@ Without these enterprise features, Authenc cannot:
 - System shall generate and display backup codes
 
 **FR-10: Session Management**
+
 - System shall display active sessions with device and location
 - System shall mark current session clearly
 - System shall allow termination of individual sessions
@@ -261,6 +276,7 @@ Without these enterprise features, Authenc cannot:
 - System shall send notification when session is terminated remotely
 
 **FR-11: Activity Log**
+
 - System shall display user's login history
 - System shall display password changes
 - System shall display MFA device changes
@@ -269,6 +285,7 @@ Without these enterprise features, Authenc cannot:
 - System shall paginate activity log (50 events per page)
 
 **FR-12: Data Export & Deletion**
+
 - System shall allow users to export personal data in JSON format
 - System shall send download link via email
 - System shall expire export links after 7 days
@@ -279,6 +296,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.3 Event System (CRITICAL)
 
 **FR-13: Event Separation**
+
 - System shall store admin events separately from user events
 - System shall store system events separately
 - Admin events shall include: operation type, resource type, resource path, representation, admin user ID
@@ -286,6 +304,7 @@ Without these enterprise features, Authenc cannot:
 - System events shall include: startup, shutdown, configuration changes
 
 **FR-14: Event Retention**
+
 - System shall support configurable retention policies per realm
 - System shall support different retention for admin vs user events
 - System shall automatically delete expired events
@@ -293,6 +312,7 @@ Without these enterprise features, Authenc cannot:
 - System shall notify admin before bulk event deletion
 
 **FR-15: Event Export**
+
 - System shall export events to Kafka topics
 - System shall export events to Elasticsearch
 - System shall support event filtering in export configuration
@@ -302,6 +322,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.4 Authentication Flows (HIGH)
 
 **FR-16: Flow Configuration**
+
 - System shall support custom authentication flow creation
 - System shall support authentication execution types: username-password, OTP, WebAuthn, CAPTCHA
 - System shall support execution requirements: REQUIRED, ALTERNATIVE, CONDITIONAL, DISABLED
@@ -310,6 +331,7 @@ Without these enterprise features, Authenc cannot:
 - System shall prevent deletion of built-in flows
 
 **FR-17: Required Actions**
+
 - System shall support required action types: verify email, update password, configure MFA, accept terms
 - System shall allow enabling/disabling required actions
 - System shall support setting default actions for new users
@@ -320,6 +342,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.5 Role Management Enhancement (HIGH)
 
 **FR-18: Composite Roles**
+
 - System shall support composite role creation
 - System shall allow adding/removing child roles
 - System shall automatically grant child roles when composite role is assigned
@@ -327,6 +350,7 @@ Without these enterprise features, Authenc cannot:
 - System shall visualize role hierarchy in admin console
 
 **FR-19: Role Scoping**
+
 - System shall distinguish between realm roles and client roles
 - Realm roles shall be available to all clients
 - Client roles shall be scoped to specific clients
@@ -336,6 +360,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.6 User Storage Federation (HIGH)
 
 **FR-20: Storage Provider Interface**
+
 - System shall support custom user storage providers via SPI
 - System shall support read-only and read-write providers
 - System shall support user import vs federation modes
@@ -344,6 +369,7 @@ Without these enterprise features, Authenc cannot:
 - System shall cache federated user data
 
 **FR-21: MySIMKARI Integration**
+
 - System shall integrate with MySIMKARI as user storage provider
 - System shall validate NIP against MySIMKARI
 - System shall auto-populate user attributes from MySIMKARI
@@ -353,6 +379,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.7 Session Management Enhancement (MEDIUM)
 
 **FR-22: Session Policies**
+
 - System shall support maximum sessions per user limit
 - System shall revoke oldest session when limit is reached
 - System shall support configurable session idle timeout
@@ -361,6 +388,7 @@ Without these enterprise features, Authenc cannot:
 - System shall support offline sessions for mobile apps
 
 **FR-23: Session Cleanup**
+
 - System shall automatically delete expired sessions hourly
 - System shall delete idle sessions beyond timeout
 - System shall delete sessions beyond maximum lifespan
@@ -370,6 +398,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.8 User Registration (HIGH)
 
 **FR-24: Self-Registration**
+
 - System shall provide public registration page
 - System shall validate NIP against MySIMKARI during registration
 - System shall require email verification before login
@@ -379,6 +408,7 @@ Without these enterprise features, Authenc cannot:
 - System shall notify admin of new registrations
 
 **FR-25: Registration Customization**
+
 - System shall support custom registration fields
 - System shall support field types: text, email, select, checkbox
 - System shall support required/optional field configuration
@@ -389,6 +419,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.9 Email Templates (HIGH)
 
 **FR-26: Template Management**
+
 - System shall provide email templates for: verification, password reset, password changed, account updated, MFA enabled, login alert
 - System shall support template variables: user name, NIP, Satker, links, IP address, timestamp
 - System shall support multiple languages (Indonesian, English)
@@ -400,6 +431,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.10 Import/Export (MEDIUM)
 
 **FR-27: Realm Export**
+
 - System shall export realm configuration to JSON
 - System shall support including/excluding users in export
 - System shall support including/excluding credentials in export
@@ -407,6 +439,7 @@ Without these enterprise features, Authenc cannot:
 - System shall export clients, roles, groups, identity providers, flows, scopes
 
 **FR-28: Realm Import**
+
 - System shall import realm configuration from JSON
 - System shall support overwrite or create new realm
 - System shall validate import before applying changes
@@ -417,6 +450,7 @@ Without these enterprise features, Authenc cannot:
 ### 4.11 Government-Specific Features (HIGH)
 
 **FR-29: NIP Validation**
+
 - System shall validate NIP format (18 digits)
 - System shall verify NIP against MySIMKARI via gRPC
 - System shall auto-populate employee data from MySIMKARI
@@ -424,6 +458,7 @@ Without these enterprise features, Authenc cannot:
 - System shall reject invalid NIPs with clear error messages
 
 **FR-30: Satker Hierarchy**
+
 - System shall store user's Satker assignment
 - System shall load Satker hierarchy from database
 - System shall enforce hierarchical access control
@@ -432,6 +467,7 @@ Without these enterprise features, Authenc cannot:
 - System shall include Satker path in JWT tokens
 
 **FR-31: Audit Reports**
+
 - System shall generate audit reports for specified date ranges
 - Reports shall include: total users, logins, failed logins, MFA adoption rate, admin actions, security incidents, compliance status
 - System shall export reports to PDF format
@@ -442,6 +478,7 @@ Without these enterprise features, Authenc cannot:
 ## 5. Non-Functional Requirements
 
 ### 5.1 Performance
+
 - **NFR-1**: Admin Console shall load in <2 seconds on standard broadband connection
 - **NFR-2**: API response time shall be <100ms at 95th percentile
 - **NFR-3**: Database queries shall complete in <10ms at 95th percentile
@@ -451,6 +488,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-7**: Session lookup shall complete in <1ms (Redis cache)
 
 ### 5.2 Security
+
 - **NFR-8**: All UI components shall follow OWASP Top 10 guidelines
 - **NFR-9**: XSS protection shall be enabled on all pages
 - **NFR-10**: CSRF protection shall be enabled on all state-changing operations
@@ -464,6 +502,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-18**: Audit logs shall be tamper-proof (cryptographic signatures)
 
 ### 5.3 Accessibility
+
 - **NFR-19**: UI shall comply with WCAG 2.1 Level AA
 - **NFR-20**: All interactive elements shall be keyboard accessible
 - **NFR-21**: UI shall be compatible with screen readers
@@ -472,6 +511,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-24**: Form fields shall have proper ARIA labels
 
 ### 5.4 Internationalization
+
 - **NFR-25**: UI shall support Indonesian and English languages
 - **NFR-26**: UI shall support RTL (Right-to-Left) languages for future expansion
 - **NFR-27**: Date/time shall be localized based on user preference
@@ -479,6 +519,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-29**: All user-facing text shall be externalized for translation
 
 ### 5.5 Browser Compatibility
+
 - **NFR-30**: UI shall work on Chrome/Edge (latest 2 versions)
 - **NFR-31**: UI shall work on Firefox (latest 2 versions)
 - **NFR-32**: UI shall work on Safari (latest 2 versions)
@@ -486,6 +527,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-34**: UI shall be responsive (desktop, tablet, mobile)
 
 ### 5.6 Maintainability
+
 - **NFR-35**: Code shall follow Rust best practices and idioms
 - **NFR-36**: All public APIs shall be documented
 - **NFR-37**: Unit test coverage shall be >80%
@@ -495,6 +537,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-41**: Code shall be formatted with `cargo fmt`
 
 ### 5.7 Scalability
+
 - **NFR-42**: System shall support horizontal scaling
 - **NFR-43**: System shall be stateless (sessions in Redis)
 - **NFR-44**: Database connection pooling shall be used
@@ -502,6 +545,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-46**: System shall be load balancer ready
 
 ### 5.8 Reliability
+
 - **NFR-47**: System shall target 99.9% uptime
 - **NFR-48**: System shall gracefully degrade when dependencies are unavailable
 - **NFR-49**: Circuit breaker pattern shall be implemented for external calls
@@ -510,6 +554,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-52**: System shall recover automatically from crashes
 
 ### 5.9 Observability
+
 - **NFR-53**: Prometheus metrics shall be exposed for all operations
 - **NFR-54**: Structured logging (JSON) shall be used
 - **NFR-55**: Distributed tracing (OpenTelemetry) shall be implemented
@@ -518,6 +563,7 @@ Without these enterprise features, Authenc cannot:
 - **NFR-58**: Error tracking and alerting shall be configured
 
 ### 5.10 Deployment
+
 - **NFR-59**: Docker images shall be <300MB
 - **NFR-60**: Kubernetes manifests shall be provided
 - **NFR-61**: Helm charts shall be available
@@ -530,6 +576,7 @@ Without these enterprise features, Authenc cannot:
 ## 6. Constraints and Assumptions
 
 ### 6.1 Technical Constraints
+
 - **C-1**: Must use Rust 1.90+ (Edition 2024)
 - **C-2**: Must use PostgreSQL 13+ as database
 - **C-3**: Must use Redis 6+ for caching and sessions
@@ -542,6 +589,7 @@ Without these enterprise features, Authenc cannot:
 - **C-10**: Must use existing infrastructure (PostgreSQL, Redis, Kubernetes)
 
 ### 6.2 Integration Constraints
+
 - **C-11**: Must integrate with Secreton for secret management
 - **C-12**: Must integrate with MySIMKARI for user provisioning
 - **C-13**: Must integrate with Kafka for event streaming
@@ -550,6 +598,7 @@ Without these enterprise features, Authenc cannot:
 - **C-16**: Must integrate with Grafana for dashboards
 
 ### 6.3 Operational Constraints
+
 - **C-17**: Must support deployment on MicroK8s cluster
 - **C-18**: Must support deployment with Istio service mesh
 - **C-19**: Must support MetalLB for load balancing
@@ -558,6 +607,7 @@ Without these enterprise features, Authenc cannot:
 - **C-22**: Must comply with data residency requirements (data in Indonesia)
 
 ### 6.4 Assumptions
+
 - **A-1**: PostgreSQL database is available and properly configured
 - **A-2**: Redis cache is available and properly configured
 - **A-3**: MySIMKARI gRPC service is available for NIP validation
@@ -572,6 +622,7 @@ Without these enterprise features, Authenc cannot:
 ## 7. Dependencies
 
 ### 7.1 Internal Dependencies
+
 - **Secreton**: For storing JWT signing keys, client secrets, and sensitive configuration
 - **MySIMKARI Integration Service**: For NIP validation and employee data
 - **PostgreSQL Database**: For persistent data storage
@@ -580,6 +631,7 @@ Without these enterprise features, Authenc cannot:
 - **Elasticsearch**: For audit log storage and search (optional)
 
 ### 7.2 External Dependencies
+
 - **Rust Toolchain**: 1.90+ with Edition 2024 support
 - **Leptos**: 0.8.x for WASM-based UI
 - **Axum**: 0.8.x for HTTP server
@@ -593,6 +645,7 @@ Without these enterprise features, Authenc cannot:
 - **webauthn-rs**: For WebAuthn/FIDO2
 
 ### 7.3 Infrastructure Dependencies
+
 - **Kubernetes**: For container orchestration
 - **Istio**: For service mesh and mTLS
 - **MetalLB**: For load balancing
@@ -603,11 +656,13 @@ Without these enterprise features, Authenc cannot:
 ## 8. Success Metrics
 
 ### 8.1 Feature Completeness
+
 - **M-1**: 100% of critical features (Admin Console, User Console, Event System) implemented by Q1 2026
 - **M-2**: 90%+ of high-priority features implemented by Q2 2026
 - **M-3**: 70%+ of medium-priority features implemented by Q3 2026
 
 ### 8.2 Quality Metrics
+
 - **M-4**: Test coverage >80%
 - **M-5**: Zero critical security vulnerabilities
 - **M-6**: <5 high-priority bugs in production
@@ -615,12 +670,14 @@ Without these enterprise features, Authenc cannot:
 - **M-8**: All accessibility requirements met (WCAG 2.1 AA)
 
 ### 8.3 User Satisfaction
+
 - **M-9**: Admin console usability score >4/5
 - **M-10**: User account console usability score >4/5
 - **M-11**: Documentation completeness score >4/5
 - **M-12**: Support ticket reduction by 30%
 
 ### 8.4 Adoption Metrics
+
 - **M-13**: 100% of SIMPEL services using Authenc by Q2 2026
 - **M-14**: Zero Keycloak dependencies by Q3 2026
 - **M-15**: Admin CLI usage >50% of admin operations by Q3 2026
@@ -628,6 +685,7 @@ Without these enterprise features, Authenc cannot:
 - **M-17**: 1000+ active users by Q4 2026
 
 ### 8.5 Operational Metrics
+
 - **M-18**: 99.9% uptime achieved
 - **M-19**: Mean time to recovery (MTTR) <15 minutes
 - **M-20**: Zero data loss incidents
@@ -669,53 +727,65 @@ Without these enterprise features, Authenc cannot:
 ## 10. Implementation Roadmap
 
 ### Phase 1: Critical Features (Q1 2026 - 3 months)
+
 **Goal**: Make Authenc production-ready with full management capabilities
 
 **Priority 1: Admin Console UI** (8 weeks)
+
 - Week 1-2: Architecture, design, and Leptos setup
 - Week 3-4: Realm and user management
 - Week 5-6: Client and role management
 - Week 7-8: Security settings, audit logs, and monitoring dashboard
 
 **Priority 2: Event System** (3 weeks)
+
 - Week 1: Database schema for separate admin/user events
 - Week 2: Event storage and retrieval implementation
 - Week 3: Event export to Kafka/Elasticsearch
 
 **Priority 3: Required Actions** (2 weeks)
+
 - Week 1: Required actions framework and database schema
 - Week 2: UI integration and testing
 
 **Priority 4: User Account Console** (4 weeks)
+
 - Week 1-2: Profile and password management
 - Week 3-4: MFA device management and session management
 
 ### Phase 2: High-Priority Features (Q2 2026 - 3 months)
+
 **Goal**: Improve usability and integration
 
 **Priority 5: Authentication Flows** (4 weeks)
+
 - Week 1-2: Flow configuration framework
 - Week 3-4: UI for flow management and testing
 
 **Priority 6: Composite Roles** (2 weeks)
+
 - Week 1: Database schema and core logic
 - Week 2: UI integration and hierarchy visualization
 
 **Priority 7: User Storage Federation** (3 weeks)
+
 - Week 1: Storage provider SPI
 - Week 2: MySIMKARI integration
 - Week 3: Testing and caching
 
 **Priority 8: User Self-Registration** (3 weeks)
+
 - Week 1: Registration page and NIP validation
 - Week 2: Email verification and CAPTCHA
 - Week 3: Custom fields and testing
 
 **Priority 9: Email Templates** (2 weeks)
+
 - Week 1: Template engine and default templates
 - Week 2: Admin UI for template customization
 
 ### Phase 3: Medium-Priority Features (Q3 2026 - 3 months)
+
 **Goal**: Operational excellence and flexibility
 
 **Priority 10: Client Scopes & Protocol Mappers** (3 weeks)
@@ -725,6 +795,7 @@ Without these enterprise features, Authenc cannot:
 **Priority 14: Admin CLI** (3 weeks)
 
 ### Phase 4: Low-Priority Features (Q4 2026 - 3 months)
+
 **Goal**: Complete feature parity and polish
 
 **Priority 15: Client Adapters** (4 weeks)
@@ -735,6 +806,7 @@ Without these enterprise features, Authenc cannot:
 ## 11. Appendix
 
 ### 11.1 Glossary
+
 - **Authenc**: SIMPEL's custom Identity and Access Management service
 - **Audit Report**: Comprehensive system audit and compliance reporting
 - **MySIMKARI**: Government employee management system
@@ -745,6 +817,7 @@ Without these enterprise features, Authenc cannot:
 - **SPBE**: Sistem Pemerintahan Berbasis Elektronik (Electronic-Based Government System)
 
 ### 11.2 References
+
 - [Keycloak Documentation](https://www.keycloak.org/documentation)
 - [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
@@ -755,6 +828,7 @@ Without these enterprise features, Authenc cannot:
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
 
 ### 11.3 Document History
+
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-02-12 | AI Analysis (Kiro) | Initial feature parity analysis |
@@ -768,11 +842,13 @@ Without these enterprise features, Authenc cannot:
 **Next Step**: Create design.md based on these requirements
 
 #### 2.1.1 Admin Console UI
+
 **Status**: ⚠️ Partially implemented (feature-gated)
 **Impact**: CRITICAL - Without a full admin console, Authenc cannot be managed effectively in production
 **Location**: `layanan/authenc/src/ui/admin/`
 
 **Requirements**:
+
 - Complete Leptos-based admin console implementation
 - Realm management interface
 - User management interface (CRUD, search, bulk operations)
@@ -785,11 +861,13 @@ Without these enterprise features, Authenc cannot:
 - System monitoring dashboard
 
 #### 2.1.2 User Account Management Console
+
 **Status**: ❌ Not implemented
 **Impact**: CRITICAL - Users cannot self-manage their accounts
 **Location**: `layanan/authenc/src/ui/account/`
 
 **Requirements**:
+
 - User profile management
 - Password change interface
 - MFA device management
@@ -801,11 +879,13 @@ Without these enterprise features, Authenc cannot:
 - Account deletion request
 
 #### 2.1.3 Login & Registration Pages
+
 **Status**: ⚠️ Basic implementation exists
 **Impact**: HIGH - Cannot customize login pages for branding
 **Location**: `layanan/authenc/src/ui/auth/`
 
 **Requirements**:
+
 - Login page with customizable branding
 - Registration page with custom fields
 - Forgot password flow
@@ -822,10 +902,12 @@ Without these enterprise features, Authenc cannot:
 ### 2.2 MEDIUM PRIORITY (Should Implement)
 
 #### 2.2.1 Admin CLI Tool
+
 **Status**: ❌ Not implemented
 **Impact**: MEDIUM - Automation and scripting difficult
 
 **Requirements**:
+
 - Command-line interface for all admin operations
 - Batch operations support
 - Configuration import/export
@@ -833,20 +915,24 @@ Without these enterprise features, Authenc cannot:
 - CI/CD integration
 
 #### 2.2.2 Client Adapters
+
 **Status**: ❌ Not implemented
 **Impact**: MEDIUM - Integration requires manual implementation
 
 **Requirements**:
+
 - Rust client adapter (for Rust applications)
 - JavaScript/TypeScript adapter (for frontend apps)
 - Python adapter (for Python services)
 - Documentation and examples
 
 #### 2.2.3 Enhanced User Groups
+
 **Status**: ⚠️ Basic implementation
 **Impact**: MEDIUM - Complex organizational structures difficult to model
 
 **Requirements**:
+
 - Hierarchical group structure
 - Group inheritance
 - Group attributes
@@ -854,10 +940,12 @@ Without these enterprise features, Authenc cannot:
 - Subgroup management
 
 #### 2.2.4 User Impersonation
+
 **Status**: ❌ Not implemented
 **Impact**: MEDIUM - Support and debugging difficult
 
 **Requirements**:
+
 - Admin can impersonate users
 - Audit trail for impersonation
 - Permission checks
@@ -865,10 +953,12 @@ Without these enterprise features, Authenc cannot:
 - Impersonation banner
 
 #### 2.2.5 Device Flow (RFC 8628)
+
 **Status**: ❌ Not implemented
 **Impact**: MEDIUM - IoT and device authentication limited
 
 **Requirements**:
+
 - Device authorization endpoint
 - User code verification
 - Device polling
@@ -877,37 +967,45 @@ Without these enterprise features, Authenc cannot:
 ### 2.3 LOW PRIORITY (Nice to Have)
 
 #### 2.3.1 Kerberos Support
+
 **Status**: ❌ Not implemented
 **Impact**: LOW - Only needed for legacy Windows environments
 
 **Requirements**:
+
 - SPNEGO/Kerberos authentication
 - Active Directory integration
 - Ticket validation
 
 #### 2.3.2 X.509 Client Certificates
+
 **Status**: ❌ Not implemented
 **Impact**: LOW - Alternative authentication methods available
 
 **Requirements**:
+
 - Client certificate authentication
 - Certificate validation
 - Certificate-to-user mapping
 
 #### 2.3.3 JavaScript/Drools Policy Engine
+
 **Status**: ❌ Not implemented
 **Impact**: LOW - Current policy engine sufficient for most use cases
 
 **Requirements**:
+
 - JavaScript policy evaluation
 - Drools rule engine integration
 - Policy testing framework
 
 #### 2.3.4 CIBA (Client Initiated Backchannel Authentication)
+
 **Status**: ❌ Not implemented
 **Impact**: LOW - Specialized use case
 
 **Requirements**:
+
 - Backchannel authentication endpoint
 - Push notification support
 - Polling support
@@ -915,24 +1013,28 @@ Without these enterprise features, Authenc cannot:
 ## 3. Authenc Advantages Over Keycloak
 
 ### 3.1 Modern Cryptography ✅
+
 - **Ed25519 Signatures**: Timing-attack resistant, faster than RSA
 - **Post-Quantum Cryptography**: ML-KEM, ML-DSA, Falcon support
 - **ChaCha20-Poly1305**: Modern AEAD cipher
 - **Blake3 Hashing**: Faster than SHA-256
 
 ### 3.2 Advanced Security ✅
+
 - **AI-Based Anomaly Detection**: Machine learning for threat detection
 - **Risk-Based Authentication**: Dynamic risk scoring
 - **AI-Resistant CAPTCHA**: Behavioral analysis
 - **Tamper-Proof Audit Logs**: Cryptographic signatures
 
 ### 3.3 Performance ✅
+
 - **Rust Implementation**: Memory-safe, zero-cost abstractions
 - **Async-First Architecture**: Non-blocking I/O
 - **Efficient Connection Pooling**: Better resource utilization
 - **Redis Caching**: High-performance caching
 
 ### 3.4 Cloud-Native ✅
+
 - **Lightweight**: Smaller Docker images (~200MB vs ~500MB)
 - **Fast Startup**: Seconds vs minutes
 - **Low Memory Footprint**: ~100MB vs ~500MB
@@ -941,79 +1043,98 @@ Without these enterprise features, Authenc cannot:
 ## 4. Recommended Implementation Roadmap
 
 ### Phase 1: Critical UI Components (3-4 months)
+
 **Priority**: CRITICAL
 **Goal**: Make Authenc production-ready with full management capabilities
 
 #### 4.1 Admin Console (8 weeks)
+
 - Week 1-2: Architecture and design
 - Week 3-4: Realm and user management
 - Week 5-6: Client and role management
 - Week 7-8: Security settings and monitoring
 
 #### 4.2 User Account Console (4 weeks)
+
 - Week 1-2: Profile and password management
 - Week 3-4: MFA and session management
 
 #### 4.3 Theme System (2 weeks)
+
 - Week 1: Theme engine implementation
 - Week 2: Default themes and documentation
 
 ### Phase 2: Enhanced Features (2-3 months)
+
 **Priority**: HIGH
 **Goal**: Improve usability and integration
 
 #### 4.4 Admin CLI (3 weeks)
+
 - Week 1: Core CLI framework
 - Week 2: Admin operations
 - Week 3: Import/export and scripting
 
 #### 4.5 Client Adapters (4 weeks)
+
 - Week 1: Rust adapter
 - Week 2: JavaScript/TypeScript adapter
 - Week 3: Python adapter
 - Week 4: Documentation and examples
 
 #### 4.6 Enhanced User Groups (2 weeks)
+
 - Week 1: Hierarchical structure
 - Week 2: Group inheritance and attributes
 
 #### 4.7 User Impersonation (1 week)
+
 - Implementation and audit trail
 
 ### Phase 3: Advanced Features (2-3 months)
+
 **Priority**: MEDIUM
 **Goal**: Feature completeness
 
 #### 4.8 Device Flow (2 weeks)
+
 - OAuth2 Device Authorization Grant
 
 #### 4.9 Enhanced Kubernetes Operator (3 weeks)
+
 - Complete CRD implementation
 - Automated deployment and scaling
 
 #### 4.10 Backup & Restore (2 weeks)
+
 - Automated backup system
 - Point-in-time recovery
 
 ### Phase 4: Optional Features (1-2 months)
+
 **Priority**: LOW
 **Goal**: Complete feature parity
 
 #### 4.11 Kerberos Support (2 weeks)
+
 - SPNEGO/Kerberos authentication
 
 #### 4.12 X.509 Client Certificates (1 week)
+
 - Client certificate authentication
 
 #### 4.13 JavaScript/Drools Policies (2 weeks)
+
 - Advanced policy engine
 
 #### 4.14 CIBA (2 weeks)
+
 - Backchannel authentication
 
 ## 5. Acceptance Criteria
 
 ### 5.1 Admin Console
+
 - [ ] AC-1.1: Admin can manage realms (create, update, delete, configure)
 - [ ] AC-1.2: Admin can manage users (CRUD, search, bulk operations)
 - [ ] AC-1.3: Admin can manage clients (CRUD, configure protocols)
@@ -1026,6 +1147,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-1.10: All operations have proper error handling
 
 ### 5.2 User Account Console
+
 - [ ] AC-2.1: User can view and edit profile
 - [ ] AC-2.2: User can change password
 - [ ] AC-2.3: User can manage MFA devices (add, remove, verify)
@@ -1038,6 +1160,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-2.10: UI is responsive and accessible
 
 ### 5.3 Theme System
+
 - [ ] AC-3.1: Themes can be created and customized
 - [ ] AC-3.2: Themes support custom CSS and JavaScript
 - [ ] AC-3.3: Themes support logo and branding
@@ -1047,6 +1170,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-3.7: Default themes provided (light, dark)
 
 ### 5.4 Admin CLI
+
 - [ ] AC-4.1: CLI can perform all admin operations
 - [ ] AC-4.2: CLI supports batch operations
 - [ ] AC-4.3: CLI can import/export configurations
@@ -1055,6 +1179,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-4.6: CLI integrates with CI/CD pipelines
 
 ### 5.5 Client Adapters
+
 - [ ] AC-5.1: Rust adapter available and documented
 - [ ] AC-5.2: JavaScript/TypeScript adapter available
 - [ ] AC-5.3: Python adapter available
@@ -1063,6 +1188,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-5.6: Examples and tutorials provided
 
 ### 5.6 Enhanced User Groups
+
 - [ ] AC-6.1: Groups can be nested hierarchically
 - [ ] AC-6.2: Group inheritance works correctly
 - [ ] AC-6.3: Groups can have custom attributes
@@ -1070,6 +1196,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-6.5: Subgroup management available
 
 ### 5.7 User Impersonation
+
 - [ ] AC-7.1: Admin can impersonate users
 - [ ] AC-7.2: Impersonation is audited
 - [ ] AC-7.3: Permissions are checked before impersonation
@@ -1077,6 +1204,7 @@ Without these enterprise features, Authenc cannot:
 - [ ] AC-7.5: Impersonation banner is displayed
 
 ### 5.8 Device Flow
+
 - [ ] AC-8.1: Device authorization endpoint works
 - [ ] AC-8.2: User code verification works
 - [ ] AC-8.3: Device polling works correctly
@@ -1086,6 +1214,7 @@ Without these enterprise features, Authenc cannot:
 ## 6. Technical Requirements
 
 ### 6.1 Performance
+
 - Admin Console loads in <2 seconds
 - API response time <100ms (p95)
 - Database queries <10ms (p95)
@@ -1093,6 +1222,7 @@ Without these enterprise features, Authenc cannot:
 - Memory usage <500MB per instance
 
 ### 6.2 Security
+
 - All UI components follow OWASP Top 10 guidelines
 - XSS protection enabled
 - CSRF protection enabled
@@ -1102,6 +1232,7 @@ Without these enterprise features, Authenc cannot:
 - Rate limiting on all endpoints
 
 ### 6.3 Accessibility
+
 - WCAG 2.1 Level AA compliance
 - Keyboard navigation support
 - Screen reader compatibility
@@ -1109,6 +1240,7 @@ Without these enterprise features, Authenc cannot:
 - Proper ARIA labels
 
 ### 6.4 Internationalization
+
 - Support for multiple languages
 - RTL (Right-to-Left) language support
 - Date/time localization
@@ -1116,6 +1248,7 @@ Without these enterprise features, Authenc cannot:
 - Currency formatting
 
 ### 6.5 Browser Compatibility
+
 - Chrome/Edge (latest 2 versions)
 - Firefox (latest 2 versions)
 - Safari (latest 2 versions)
@@ -1124,6 +1257,7 @@ Without these enterprise features, Authenc cannot:
 ## 7. Non-Functional Requirements
 
 ### 7.1 Maintainability
+
 - Code follows Rust best practices
 - Comprehensive documentation
 - Unit test coverage >80%
@@ -1131,6 +1265,7 @@ Without these enterprise features, Authenc cannot:
 - E2E test coverage for critical flows
 
 ### 7.2 Scalability
+
 - Horizontal scaling support
 - Stateless design (session in Redis)
 - Database connection pooling
@@ -1138,6 +1273,7 @@ Without these enterprise features, Authenc cannot:
 - Load balancing ready
 
 ### 7.3 Reliability
+
 - 99.9% uptime target
 - Graceful degradation
 - Circuit breaker pattern
@@ -1145,6 +1281,7 @@ Without these enterprise features, Authenc cannot:
 - Health checks and readiness probes
 
 ### 7.4 Observability
+
 - Prometheus metrics for all operations
 - Structured logging (JSON)
 - Distributed tracing (OpenTelemetry)
@@ -1153,6 +1290,7 @@ Without these enterprise features, Authenc cannot:
 - Error tracking and alerting
 
 ### 7.5 Deployment
+
 - Docker images <300MB
 - Kubernetes manifests provided
 - Helm charts available
@@ -1163,6 +1301,7 @@ Without these enterprise features, Authenc cannot:
 ## 8. Dependencies and Constraints
 
 ### 8.1 Technical Dependencies
+
 - Rust 1.90+ (Edition 2024)
 - PostgreSQL 13+
 - Redis 6+
@@ -1171,6 +1310,7 @@ Without these enterprise features, Authenc cannot:
 - Tonic 0.14.x (for gRPC)
 
 ### 8.2 Integration Points
+
 - Secreton (for secret management)
 - MySIMKARI (for user provisioning)
 - Kafka (for event streaming)
@@ -1179,6 +1319,7 @@ Without these enterprise features, Authenc cannot:
 - Grafana (for dashboards)
 
 ### 8.3 Constraints
+
 - Must maintain backward compatibility with existing APIs
 - Must not break existing integrations
 - Must follow SIMPEL coding standards
@@ -1188,23 +1329,27 @@ Without these enterprise features, Authenc cannot:
 ## 9. Success Metrics
 
 ### 9.1 Feature Completeness
+
 - 100% of critical features implemented
 - 90%+ of high-priority features implemented
 - 70%+ of medium-priority features implemented
 
 ### 9.2 Quality Metrics
+
 - Test coverage >80%
 - Zero critical security vulnerabilities
 - <5 high-priority bugs in production
 - Performance targets met (p95 <100ms)
 
 ### 9.3 User Satisfaction
+
 - Admin console usability score >4/5
 - User account console usability score >4/5
 - Documentation completeness score >4/5
 - Support ticket reduction by 30%
 
 ### 9.4 Adoption Metrics
+
 - 100% of SIMPEL services using Authenc
 - Zero Keycloak dependencies
 - Admin CLI usage >50% of admin operations
@@ -1243,9 +1388,11 @@ Without these enterprise features, Authenc cannot:
 ## 11. Conclusion
 
 ### 11.1 Summary
+
 Authenc is a **production-ready, feature-rich IAM service** with 90%+ feature parity with Keycloak. The main gaps are in UI components (Admin Console, User Account Console) and some enterprise features (themes, client adapters).
 
 ### 11.2 Key Strengths
+
 - ✅ Modern cryptography (Ed25519, Post-Quantum)
 - ✅ Advanced security (AI-based anomaly detection, risk-based auth)
 - ✅ High performance (Rust, async-first)
@@ -1254,6 +1401,7 @@ Authenc is a **production-ready, feature-rich IAM service** with 90%+ feature pa
 - ✅ Comprehensive audit logging
 
 ### 11.3 Critical Gaps to Address
+
 1. **Admin Console UI** - CRITICAL for production management
 2. **User Account Console** - CRITICAL for user self-service
 3. **Theme System** - HIGH for branding and customization
@@ -1263,24 +1411,29 @@ Authenc is a **production-ready, feature-rich IAM service** with 90%+ feature pa
 ### 11.4 Recommendations
 
 #### Immediate Actions (Next 3 months)
+
 1. **Complete Admin Console** - Focus on core management features
 2. **Implement User Account Console** - Enable user self-service
 3. **Build Theme System** - Allow branding customization
 
 #### Short-term Actions (3-6 months)
+
 4. **Develop Admin CLI** - Enable automation and scripting
 5. **Create Client Adapters** - Simplify integration
 6. **Enhance User Groups** - Support complex hierarchies
 
 #### Long-term Actions (6-12 months)
+
 7. **Implement Device Flow** - Support IoT devices
 8. **Complete Kubernetes Operator** - Improve deployment
 9. **Add Optional Features** - Kerberos, X.509, CIBA
 
 ### 11.5 Strategic Decision
+
 **Recommendation**: Continue with Authenc development rather than migrating to Keycloak
 
 **Rationale**:
+
 - Authenc already has 90%+ feature parity
 - Superior security features (Ed25519, Post-Quantum)
 - Better performance (Rust vs Java)
@@ -1296,7 +1449,9 @@ Authenc is a **production-ready, feature-rich IAM service** with 90%+ feature pa
 ## 12. Appendix
 
 ### 12.1 Keycloak Features Reference
+
 Based on Keycloak 26.0.0 (latest stable as of 2024):
+
 - OAuth 2.0 / OpenID Connect
 - SAML 2.0
 - User Federation (LDAP, Active Directory, Custom)
@@ -1314,6 +1469,7 @@ Based on Keycloak 26.0.0 (latest stable as of 2024):
 - Extensibility (SPI)
 
 ### 12.2 Authenc Current Implementation Status
+
 **Version**: 0.1.0
 **Status**: Production-ready (core features)
 **Lines of Code**: ~50,000+ (Rust)
@@ -1339,6 +1495,7 @@ Based on Keycloak 26.0.0 (latest stable as of 2024):
 | Startup Time | <5s | ~30s |
 
 ### 12.4 References
+
 - [Keycloak Documentation](https://www.keycloak.org/documentation)
 - [OAuth 2.0 RFC 6749](https://tools.ietf.org/html/rfc6749)
 - [OpenID Connect Core 1.0](https://openid.net/specs/openid-connect-core-1_0.html)
@@ -1353,7 +1510,6 @@ Based on Keycloak 26.0.0 (latest stable as of 2024):
 **Author**: AI Analysis (Kiro)
 **Status**: APPROVED FOR IMPLEMENTATION
 
-
 ---
 
 ## 13. Analisis Mendalam: Fitur Keycloak yang Belum Diimplementasikan di Authenc
@@ -1361,10 +1517,12 @@ Based on Keycloak 26.0.0 (latest stable as of 2024):
 ### 13.1 Event System & Audit Logging (CRITICAL untuk Compliance)
 
 #### 13.1.1 Admin Events vs User Events
+
 **Status di Keycloak**: ✅ Terpisah dan lengkap
 **Status di Authenc**: ⚠️ Digabung dalam satu audit log
 
 **Keycloak Implementation**:
+
 - **Admin Events**: Semua aksi administrator (create user, update role, change config)
 - **User Events**: Semua aksi user (login, logout, register, update profile, MFA)
 - Event filtering berdasarkan tipe, user, client, IP address
@@ -1372,6 +1530,7 @@ Based on Keycloak 26.0.0 (latest stable as of 2024):
 - Event export ke external systems (SIEM, Elasticsearch, Kafka)
 
 **Gap di Authenc**:
+
 ```rust
 // Authenc saat ini: Satu tabel audit_logs untuk semua event
 // Keycloak: Dua tabel terpisah - admin_events & user_events
@@ -1403,6 +1562,7 @@ pub struct UserEvent {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.1.1: Admin events dan user events terpisah dalam database
 - [ ] AC-13.1.2: Admin dapat filter events berdasarkan kategori
 - [ ] AC-13.1.3: Event expiration policy dapat dikonfigurasi per realm
@@ -1413,10 +1573,12 @@ pub struct UserEvent {
 ### 13.2 Authentication Flows & Required Actions (CRITICAL untuk Flexibility)
 
 #### 13.2.1 Customizable Authentication Flows
+
 **Status di Keycloak**: ✅ Fully customizable via UI
 **Status di Authenc**: ⚠️ Hardcoded flows
 
 **Keycloak Implementation**:
+
 - **Browser Flow**: Login dengan username/password, MFA, remember me
 - **Direct Grant Flow**: Direct access grant (username/password API)
 - **Registration Flow**: User self-registration dengan custom fields
@@ -1425,6 +1587,7 @@ pub struct UserEvent {
 - **First Broker Login Flow**: Flow saat pertama kali login via external IdP
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct AuthenticationFlow {
@@ -1455,6 +1618,7 @@ pub enum ExecutionRequirement {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.2.1: Admin dapat create custom authentication flows
 - [ ] AC-13.2.2: Admin dapat add/remove/reorder executions dalam flow
 - [ ] AC-13.2.3: Admin dapat set requirement (REQUIRED, ALTERNATIVE, etc.)
@@ -1463,10 +1627,12 @@ pub enum ExecutionRequirement {
 - [ ] AC-13.2.6: Client dapat override default flow
 
 #### 13.2.2 Required Actions
+
 **Status di Keycloak**: ✅ Extensible system
 **Status di Authenc**: ⚠️ Limited implementation
 
 **Keycloak Required Actions**:
+
 - **Verify Email**: User must verify email before access
 - **Update Password**: Force password change
 - **Update Profile**: Force profile update
@@ -1477,6 +1643,7 @@ pub enum ExecutionRequirement {
 - **WebAuthn Register**: Register security key
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct RequiredAction {
@@ -1510,6 +1677,7 @@ pub enum GovRequiredAction {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.2.7: Admin dapat enable/disable required actions
 - [ ] AC-13.2.8: Admin dapat set default actions untuk new users
 - [ ] AC-13.2.9: Admin dapat set priority/order required actions
@@ -1520,16 +1688,19 @@ pub enum GovRequiredAction {
 ### 13.3 Role Management Enhancement (HIGH untuk Organizational Structure)
 
 #### 13.3.1 Composite Roles
+
 **Status di Keycloak**: ✅ Full support
 **Status di Authenc**: ❌ Not implemented
 
 **Keycloak Implementation**:
+
 - Role dapat contain other roles (composite)
 - Composite role inheritance
 - Realm roles vs Client roles
 - Role hierarchy
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct CompositeRole {
@@ -1554,6 +1725,7 @@ impl RoleStore {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.3.1: Admin dapat create composite roles
 - [ ] AC-13.3.2: Admin dapat add/remove child roles dari composite
 - [ ] AC-13.3.3: User dengan composite role mendapat semua child roles
@@ -1561,15 +1733,18 @@ impl RoleStore {
 - [ ] AC-13.3.5: Role hierarchy visualization di Admin Console
 
 #### 13.3.2 Client Roles vs Realm Roles
+
 **Status di Keycloak**: ✅ Clear separation
 **Status di Authenc**: ⚠️ Mixed implementation
 
 **Keycloak Implementation**:
+
 - **Realm Roles**: Global roles untuk seluruh realm
 - **Client Roles**: Specific untuk satu client/application
 - Role scope mapping per client
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub enum RoleType {
@@ -1594,6 +1769,7 @@ pub struct Role {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.3.6: Realm roles dapat digunakan di semua clients
 - [ ] AC-13.3.7: Client roles hanya berlaku untuk client tertentu
 - [ ] AC-13.3.8: Admin dapat map realm roles ke client roles
@@ -1602,10 +1778,12 @@ pub struct Role {
 ### 13.4 User Storage Federation Enhancement (HIGH untuk Integration)
 
 #### 13.4.1 Custom User Storage Provider
+
 **Status di Keycloak**: ✅ Full SPI support
 **Status di Authenc**: ⚠️ Basic LDAP only
 
 **Keycloak Implementation**:
+
 - Custom User Storage SPI
 - Read-only vs Read-Write providers
 - Import users vs Federated users
@@ -1613,6 +1791,7 @@ pub struct Role {
 - User attribute mapping
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 #[async_trait]
@@ -1669,6 +1848,7 @@ impl UserStorageProvider for MysimkariUserStorageProvider {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.4.1: Admin dapat configure multiple user storage providers
 - [ ] AC-13.4.2: User storage providers dapat di-prioritize
 - [ ] AC-13.4.3: Credential validation dapat di-delegate ke provider
@@ -1679,10 +1859,12 @@ impl UserStorageProvider for MysimkariUserStorageProvider {
 ### 13.5 Client Scope & Protocol Mappers (MEDIUM untuk Token Customization)
 
 #### 13.5.1 Client Scopes
+
 **Status di Keycloak**: ✅ Full support
 **Status di Authenc**: ⚠️ Basic implementation
 
 **Keycloak Implementation**:
+
 - Default scopes (auto-included in tokens)
 - Optional scopes (included if requested)
 - Scope consent (user must approve)
@@ -1690,6 +1872,7 @@ impl UserStorageProvider for MysimkariUserStorageProvider {
 - Full Scope Allowed toggle
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct ClientScope {
@@ -1715,6 +1898,7 @@ pub struct ClientScopeMapping {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.5.1: Admin dapat create client scopes
 - [ ] AC-13.5.2: Admin dapat assign scopes to clients (default/optional)
 - [ ] AC-13.5.3: User dapat consent to optional scopes
@@ -1722,10 +1906,12 @@ pub struct ClientScopeMapping {
 - [ ] AC-13.5.5: Full Scope Allowed dapat di-toggle per client
 
 #### 13.5.2 Protocol Mappers Enhancement
+
 **Status di Keycloak**: ✅ Rich mapper types
 **Status di Authenc**: ⚠️ Basic mappers
 
 **Keycloak Protocol Mappers**:
+
 - User Attribute Mapper
 - User Property Mapper
 - Role Name Mapper
@@ -1735,6 +1921,7 @@ pub struct ClientScopeMapping {
 - Script Mapper (JavaScript)
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub enum ProtocolMapperType {
@@ -1764,6 +1951,7 @@ pub struct ProtocolMapper {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.5.6: Admin dapat create protocol mappers
 - [ ] AC-13.5.7: Mappers dapat map user attributes to claims
 - [ ] AC-13.5.8: Mappers dapat transform values (uppercase, lowercase)
@@ -1773,10 +1961,12 @@ pub struct ProtocolMapper {
 ### 13.6 User Registration & Self-Service (HIGH untuk User Experience)
 
 #### 13.6.1 User Self-Registration
+
 **Status di Keycloak**: ✅ Full support with customization
 **Status di Authenc**: ❌ Not implemented
 
 **Keycloak Implementation**:
+
 - Registration form customization
 - Custom registration fields
 - Email verification
@@ -1785,6 +1975,7 @@ pub struct ProtocolMapper {
 - Registration flow per client
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct RegistrationConfig {
@@ -1841,6 +2032,7 @@ pub fn create_gov_registration_fields() -> Vec<RegistrationField> {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.6.1: User dapat self-register via registration page
 - [ ] AC-13.6.2: Admin dapat enable/disable registration per realm
 - [ ] AC-13.6.3: Admin dapat customize registration fields
@@ -1853,10 +2045,12 @@ pub fn create_gov_registration_fields() -> Vec<RegistrationField> {
 ### 13.7 Session Management Enhancement (MEDIUM untuk Security)
 
 #### 13.7.1 Session Limits & Policies
+
 **Status di Keycloak**: ✅ Comprehensive
 **Status di Authenc**: ⚠️ Basic
 
 **Keycloak Implementation**:
+
 - Max sessions per user
 - Session idle timeout
 - Session max lifespan
@@ -1865,6 +2059,7 @@ pub fn create_gov_registration_fields() -> Vec<RegistrationField> {
 - Session revocation
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct SessionPolicy {
@@ -1914,6 +2109,7 @@ impl SessionStore {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.7.1: Admin dapat set max sessions per user
 - [ ] AC-13.7.2: Oldest session auto-revoked saat limit reached
 - [ ] AC-13.7.3: Session idle timeout configurable
@@ -1925,10 +2121,12 @@ impl SessionStore {
 ### 13.8 Import/Export & Backup (HIGH untuk Operations)
 
 #### 13.8.1 Realm Import/Export
+
 **Status di Keycloak**: ✅ Full JSON export/import
 **Status di Authenc**: ⚠️ Database backup only
 
 **Keycloak Implementation**:
+
 - Export entire realm to JSON
 - Import realm from JSON
 - Partial export (users, clients, roles)
@@ -1936,6 +2134,7 @@ impl SessionStore {
 - Export with/without credentials
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct RealmExport {
@@ -2012,6 +2211,7 @@ impl RealmService {
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.8.1: Admin dapat export realm ke JSON file
 - [ ] AC-13.8.2: Admin dapat import realm dari JSON file
 - [ ] AC-13.8.3: Export dapat include/exclude users
@@ -2024,10 +2224,12 @@ impl RealmService {
 ### 13.9 Email Templates & Notifications (MEDIUM untuk Communication)
 
 #### 13.9.1 Email Template System
+
 **Status di Keycloak**: ✅ Full template system
 **Status di Authenc**: ⚠️ Hardcoded emails
 
 **Keycloak Implementation**:
+
 - Email verification template
 - Password reset template
 - Account update notification
@@ -2037,6 +2239,7 @@ impl RealmService {
 - HTML + Plain text versions
 
 **Gap di Authenc**:
+
 ```rust
 // Yang perlu ditambahkan:
 pub struct EmailTemplate {
@@ -2086,6 +2289,7 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ```
 
 **Acceptance Criteria**:
+
 - [ ] AC-13.9.1: Admin dapat customize email templates
 - [ ] AC-13.9.2: Email templates support variables
 - [ ] AC-13.9.3: Multi-language email templates
@@ -2100,24 +2304,28 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ### 14.1 CRITICAL (Harus Segera - 0-3 bulan)
 
 #### Priority 1: Admin Console UI
+
 **Alasan**: Tanpa Admin Console, management Authenc sangat sulit
 **Estimasi**: 8 minggu
 **Dependencies**: Leptos 0.8.x
 **Impact**: Blocking untuk production deployment
 
 #### Priority 2: Event System (Admin Events + User Events)
+
 **Alasan**: Compliance requirement untuk audit pemerintah
 **Estimasi**: 3 minggu
 **Dependencies**: Database migration
 **Impact**: Critical untuk compliance (ISO 27001, audit requirements)
 
 #### Priority 3: Required Actions System
+
 **Alasan**: Enforce security policies (MFA, password change, T&C)
 **Estimasi**: 2 minggu
 **Dependencies**: Authentication flow
 **Impact**: Security compliance
 
 #### Priority 4: User Account Console
+
 **Alasan**: User self-service mengurangi beban admin
 **Estimasi**: 4 minggu
 **Dependencies**: Leptos UI
@@ -2126,30 +2334,35 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ### 14.2 HIGH (Penting - 3-6 bulan)
 
 #### Priority 5: Authentication Flows Customization
+
 **Alasan**: Flexibility untuk custom authentication requirements
 **Estimasi**: 4 minggu
 **Dependencies**: Database schema
 **Impact**: Enables custom flows per client
 
 #### Priority 6: Composite Roles
+
 **Alasan**: Simplify role management untuk struktur organisasi kompleks
 **Estimasi**: 2 minggu
 **Dependencies**: Role store enhancement
 **Impact**: Organizational structure support
 
 #### Priority 7: User Storage Federation (MySIMKARI)
+
 **Alasan**: Integration dengan MySIMKARI untuk auto-provisioning
 **Estimasi**: 3 minggu
 **Dependencies**: Integrasi gRPC client
 **Impact**: Seamless integration dengan sistem pemerintah
 
 #### Priority 8: User Self-Registration
+
 **Alasan**: Reduce admin workload untuk user onboarding
 **Estimasi**: 3 minggu
 **Dependencies**: Email templates, CAPTCHA
 **Impact**: Operational efficiency
 
 #### Priority 9: Email Template System
+
 **Alasan**: Professional communication dengan users
 **Estimasi**: 2 minggu
 **Dependencies**: Email service
@@ -2158,30 +2371,35 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ### 14.3 MEDIUM (Berguna - 6-9 bulan)
 
 #### Priority 10: Client Scopes & Protocol Mappers Enhancement
+
 **Alasan**: Fine-grained token customization
 **Estimasi**: 3 minggu
 **Dependencies**: Token generation
 **Impact**: Token optimization
 
 #### Priority 11: Session Management Enhancement
+
 **Alasan**: Better session control dan security
 **Estimasi**: 2 minggu
 **Dependencies**: Redis cache
 **Impact**: Security improvement
 
 #### Priority 12: Import/Export System
+
 **Alasan**: Backup, disaster recovery, migration
 **Estimasi**: 3 minggu
 **Dependencies**: JSON serialization
 **Impact**: Operational resilience
 
 #### Priority 13: Theme System
+
 **Alasan**: Branding customization per realm
 **Estimasi**: 2 minggu
 **Dependencies**: Template engine
 **Impact**: Branding flexibility
 
 #### Priority 14: Admin CLI
+
 **Alasan**: Automation dan scripting
 **Estimasi**: 3 minggu
 **Dependencies**: REST API
@@ -2190,18 +2408,21 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ### 14.4 LOW (Optional - 9-12 bulan)
 
 #### Priority 15: Client Adapters
+
 **Alasan**: Easier integration untuk developers
 **Estimasi**: 4 minggu
 **Dependencies**: None
 **Impact**: Developer experience
 
 #### Priority 16: Device Flow
+
 **Alasan**: IoT device authentication
 **Estimasi**: 2 minggu
 **Dependencies**: OAuth2 implementation
 **Impact**: IoT support
 
 #### Priority 17: User Impersonation
+
 **Alasan**: Support dan debugging
 **Estimasi**: 1 minggu
 **Dependencies**: Session management
@@ -2210,12 +2431,14 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ## 15. Estimasi Total Effort
 
 ### Timeline Summary
+
 - **Phase 1 (Critical)**: 3 bulan - 4 developers
 - **Phase 2 (High)**: 3 bulan - 3 developers
 - **Phase 3 (Medium)**: 3 bulan - 2 developers
 - **Phase 4 (Low)**: 3 bulan - 2 developers
 
 ### Total Effort
+
 - **Total Duration**: 12 bulan (dengan parallel development)
 - **Total Person-Months**: ~36 person-months
 - **Team Size**: 3-4 developers (full-time)
@@ -2225,6 +2448,7 @@ pub const EMAIL_VERIFICATION_ID: &str = r#"
 ### 16.1 Fitur Spesifik yang Harus Ditambahkan
 
 #### 16.1.1 NIP (Nomor Induk Pegawai) Integration
+
 ```rust
 pub struct NipValidator {
     mysimkari_client: Arc<IntegrasiClient>,
@@ -2247,6 +2471,7 @@ impl NipValidator {
 ```
 
 #### 16.1.2 Satker Hierarchy Integration
+
 ```rust
 pub struct SatkerHierarchyService {
     db: Arc<Database>,
@@ -2278,6 +2503,7 @@ impl SatkerHierarchyService {
 ```
 
 #### 16.1.3 Compliance Reporting untuk Audit
+
 ```rust
 pub struct ComplianceReportService {
     audit_store: Arc<PgAuditLogStore>,
@@ -2319,7 +2545,9 @@ impl ComplianceReportService {
 ## 17. Kesimpulan dan Rekomendasi Final
 
 ### 17.1 Status Saat Ini
+
 Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authentication/authorization. Yang kurang adalah:
+
 1. **UI Components** (Admin Console, User Account Console)
 2. **Advanced Features** (Authentication Flows, Required Actions, Composite Roles)
 3. **Operational Tools** (Import/Export, Admin CLI)
@@ -2328,6 +2556,7 @@ Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authen
 ### 17.2 Rekomendasi Strategis
 
 **LANJUTKAN DENGAN AUTHENC** dengan alasan:
+
 1. ✅ Sudah 90% complete
 2. ✅ Superior security (Ed25519, Post-Quantum)
 3. ✅ Better performance (Rust vs Java)
@@ -2337,6 +2566,7 @@ Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authen
 7. ✅ Alignment dengan SIMPEL tech stack (Rust)
 
 **JANGAN MIGRATE KE KEYCLOAK** karena:
+
 1. ❌ Effort migrasi lebih besar dari complete Authenc
 2. ❌ Kehilangan custom features (Satker, MySIMKARI)
 3. ❌ Higher resource usage (500MB vs 200MB)
@@ -2346,6 +2576,7 @@ Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authen
 ### 17.3 Action Plan
 
 **Immediate (Q1 2026)**:
+
 1. Complete Admin Console UI
 2. Implement Event System (Admin + User Events)
 3. Add Required Actions System
@@ -2372,6 +2603,7 @@ Authenc sudah memiliki **90%+ feature parity** dengan Keycloak untuk core authen
 18. Complete government-specific features
 
 ### 17.4 Success Metrics
+
 - ✅ 100% critical features implemented (Q1 2026)
 - ✅ 90% high-priority features implemented (Q2 2026)
 - ✅ Production deployment di 5+ satker (Q2 2026)

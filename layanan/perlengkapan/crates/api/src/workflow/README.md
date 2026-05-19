@@ -5,6 +5,7 @@ This module provides a comprehensive workflow engine for managing approval proce
 ## Components
 
 ### Core Engine (`engine.rs`)
+
 - **WorkflowEngine**: Core state machine for workflow transitions
 - Validates state transitions based on workflow configuration
 - Integrates with Authenc for role-based access control
@@ -13,6 +14,7 @@ This module provides a comprehensive workflow engine for managing approval proce
 - Records metrics for monitoring
 
 ### Configuration (`config.rs`)
+
 - **WorkflowConfig**: Defines workflow states, transitions, and SLA limits
 - Pre-configured workflows for:
   - Kebutuhan BMN (BMN Requirements)
@@ -20,12 +22,14 @@ This module provides a comprehensive workflow engine for managing approval proce
   - Penghapusan BMN (BMN Deletion)
 
 ### SLA Monitoring (`sla.rs`)
+
 - **SlaMonitor**: Monitors Service Level Agreement compliance
 - Detects SLA breaches based on configured time limits
 - Sends escalation notifications when SLA is breached
 - Records SLA metrics for monitoring
 
 ### SLA Escalation Scheduler (`sla_scheduler.rs`)
+
 - **SlaEscalationScheduler**: Automated periodic SLA breach detection and escalation
 - Runs on a configurable cron schedule (default: every 15 minutes)
 - Checks all workflow types for SLA breaches
@@ -33,18 +37,22 @@ This module provides a comprehensive workflow engine for managing approval proce
 - Records metrics for monitoring
 
 ### Delegation (`delegation.rs`)
+
 - Workflow delegation support
 - Allows users to delegate approval authority
 
 ### Parallel Approval (`parallel.rs`)
+
 - Support for parallel approval workflows
 - Multiple approvers can approve simultaneously
 
 ### Monitoring (`monitoring.rs`)
+
 - Workflow metrics and monitoring
 - Integration with Prometheus
 
 ### Handlers (`handlers.rs`)
+
 - REST API endpoints for workflow operations
 - Transition endpoints
 - Status query endpoints
@@ -76,6 +84,7 @@ The scheduler can be configured via environment variables:
 - `SLA_SCHEDULER_ENABLED`: Enable/disable the scheduler (default: `true`)
 
 Example `.env`:
+
 ```bash
 # Run SLA checks every 30 minutes
 SLA_CHECK_INTERVAL_CRON="0 */30 * * * *"
@@ -87,6 +96,7 @@ SLA_SCHEDULER_ENABLED=true
 ### Cron Expression Format
 
 The cron expression uses 6 fields:
+
 ```
 ┌───────────── second (0-59)
 │ ┌───────────── minute (0-59)
@@ -100,6 +110,7 @@ The cron expression uses 6 fields:
 ```
 
 Examples:
+
 - `"0 */15 * * * *"` - Every 15 minutes
 - `"0 0 * * * *"` - Every hour
 - `"0 0 */6 * * *"` - Every 6 hours
@@ -127,22 +138,28 @@ if let Some(breach) = monitor.check_sla(entity_id).await? {
 ## Workflow Types
 
 ### Kebutuhan BMN (BMN Requirements)
+
 States: DRAFT → INPUT_BARANG → SUBMITTED → REVIEWED → APPROVED/REJECTED
 
 SLA Limits:
+
 - SUBMITTED: 2 days (2880 minutes)
 - REVIEWED: 3 days (4320 minutes)
 
 ### Pemakaian BMN (BMN Usage Permits)
+
 States: DRAFT → SUBMITTED → APPROVED/REJECTED
 
 SLA Limits:
+
 - SUBMITTED: 1 day (1440 minutes)
 
 ### Penghapusan BMN (BMN Deletion)
+
 States: DRAFT → SUBMITTED → REVIEWED → APPROVED/REJECTED
 
 SLA Limits:
+
 - SUBMITTED: 3 days (4320 minutes)
 - REVIEWED: 5 days (7200 minutes)
 
@@ -151,11 +168,13 @@ SLA Limits:
 The workflow engine and SLA scheduler expose the following Prometheus metrics:
 
 ### Workflow Metrics
+
 - `workflow_transitions_total{entity_type, from_state, to_state, status}` - Total workflow transitions
 - `workflow_transition_duration_seconds{entity_type, from_state, to_state}` - Transition duration
 - `workflow_items_by_state{entity_type, state}` - Current items in each state
 
 ### SLA Metrics
+
 - `workflow_sla_breaches_total{entity_type, state}` - Total SLA breaches
 - `workflow_sla_breach_duration_minutes{entity_type, state}` - Breach duration
 - `workflow_escalations_total{entity_type, state, status}` - Total escalations
@@ -165,19 +184,25 @@ The workflow engine and SLA scheduler expose the following Prometheus metrics:
 ## Integration
 
 ### Authenc Integration
+
 The workflow engine integrates with Authenc for:
+
 - User role validation
 - Approver identification
 - Permission checks
 
 ### Dokumen Integration
+
 The workflow engine integrates with Dokumen service for:
+
 - Automatic document generation on approval
 - SK (Surat Keputusan) generation
 - Permit document generation
 
 ### Notifikasi Integration
+
 The workflow engine integrates with Notifikasi service for:
+
 - Approval request notifications
 - Approval completion notifications
 - Rejection notifications

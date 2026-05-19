@@ -7,15 +7,17 @@
 
 ---
 
-## 🎯 CRITICAL DISCOVERY: Migration Context Changes Everything!
+## 🎯 CRITICAL DISCOVERY: Migration Context Changes Everything
 
 ### The Real Situation
 
 This is NOT a simple "cleanup vs implement" decision. This is a **MIGRATION IN PROGRESS** from:
+
 - **OLD Architecture** (`src/`): Monolithic, uses `OidcClientStore`, `OidcCodeStore`, etc.
 - **NEW Architecture** (`crates/`): Multi-crate, uses `OAuth2ServiceImpl` (trait-based)
 
 **Current Status**:
+
 - ✅ Phase 1 (Foundation): 100% complete
 - 🔄 Phase 2 (Core Migration): 90% complete (Tasks 2.1-5.15 done, 5.16-5.18 remaining)
 - ⬜ Phase 3 (API Migration): 0% complete (NOT STARTED)
@@ -27,7 +29,7 @@ This is NOT a simple "cleanup vs implement" decision. This is a **MIGRATION IN P
 
 ## 📊 Revised Understanding
 
-### What I Found:
+### What I Found
 
 1. **OidcClientStore IS USED** - but in the OLD architecture (`src/app.rs`)
 2. **OAuth2ServiceImpl IS USED** - in the NEW architecture (`crates/api/src/state.rs`)
@@ -41,6 +43,7 @@ This is NOT a simple "cleanup vs implement" decision. This is a **MIGRATION IN P
 ### Investigation 1: OidcClientStore Usage
 
 **OLD Architecture (`src/app.rs`)**: ✅ ACTIVELY USED
+
 ```rust
 pub struct AppState {
     // ... 100+ fields
@@ -51,6 +54,7 @@ pub struct AppState {
 ```
 
 **Usage Locations**:
+
 - `src/app.rs` - AppState initialization (line 225)
 - `src/handlers/oidc_provider.rs` - OIDC authorization/token handlers
 - `src/handlers/api/account.rs` - Account management (15+ handler functions)
@@ -65,6 +69,7 @@ pub struct AppState {
 ### Investigation 2: OAuth2ServiceImpl Usage
 
 **NEW Architecture (`crates/api/src/state.rs`)**: ✅ ACTIVELY USED
+
 ```rust
 pub struct ApiState {
     pub jwt_service: Arc<JwtService>,
@@ -77,6 +82,7 @@ pub struct ApiState {
 ```
 
 **Usage Locations**:
+
 - `crates/api/src/state.rs` - NEW ApiState
 - `crates/grpc/src/service.rs` - gRPC service
 - `crates/iam-api/src/state.rs` - IAM API state
@@ -88,12 +94,14 @@ pub struct ApiState {
 ### Investigation 3: Error-Causing Services in crates/core
 
 **Files with Errors**:
+
 1. `crates/core/src/services/oidc_client_store.rs` (6 errors)
 2. `crates/core/src/services/oidc_code_store.rs` (2 errors)
 3. `crates/core/src/services/device.rs` (4 errors)
 4. `crates/core/src/services/client_scope_service.rs` (4 errors)
 
 **Key Discovery**: These files were **COPIED from src/ to crates/core/** during migration but:
+
 - ❌ They depend on `authenc_storage::operations::oauth2` which is DISABLED
 - ❌ They are NOT used in the NEW architecture (`crates/api/src/state.rs`)
 - ✅ They ARE still used in the OLD architecture (`src/app.rs`)
@@ -118,6 +126,7 @@ The question is NOT "cleanup vs implement". The question is:
 **NEW Location**: `crates/core/src/services/oidc_client_store.rs` ❌ BROKEN (6 errors)
 
 **OLD Implementation**:
+
 ```rust
 // src/services/oidc_client_store.rs
 use crate::database::operations::legacy::oauth2;  // ✅ Works in OLD architecture
@@ -131,6 +140,7 @@ impl OidcClientStore {
 ```
 
 **NEW Implementation (BROKEN)**:
+
 ```rust
 // crates/core/src/services/oidc_client_store.rs
 use authenc_storage::operations::oauth2;  // ❌ This module is DISABLED
@@ -144,10 +154,12 @@ impl OidcClientStore {
 ```
 
 **Usage in NEW Architecture**: ❌ NOT USED
+
 - `crates/api/src/state.rs` uses `OAuth2ServiceImpl` instead
 - `crates/grpc/src/service.rs` uses `OAuth2ServiceImpl` instead
 
 **Conclusion**:
+
 - ✅ Keep in `src/` for OLD architecture (still needed)
 - ❌ Delete from `crates/core/` (not used in NEW architecture)
 - ✅ Use `OAuth2ServiceImpl` in NEW architecture
@@ -160,6 +172,7 @@ impl OidcClientStore {
 **NEW Location**: `crates/core/src/services/client_scope_service.rs` ❌ BROKEN (4 errors)
 
 **Usage in OLD Architecture**: ✅ USED
+
 ```rust
 // src/app.rs
 pub struct AppState {
@@ -168,10 +181,12 @@ pub struct AppState {
 ```
 
 **Usage in NEW Architecture**: ❌ NOT USED
+
 - `crates/api/src/state.rs` does NOT reference ClientScopeService
 - OAuth2ServiceImpl handles scopes via `validate_scopes()` method
 
 **Conclusion**:
+
 - ✅ Keep in `src/` for OLD architecture
 - ❌ Delete from `crates/core/` (not used in NEW architecture)
 - ✅ OAuth2ServiceImpl already handles scope validation
@@ -184,6 +199,7 @@ pub struct AppState {
 **NEW Location**: `crates/core/src/services/device.rs` ❌ BROKEN (4 errors)
 
 **Usage Check**:
+
 ```bash
 grep -r "DeviceService" src/
 grep -r "device" src/handlers/
@@ -191,6 +207,7 @@ grep -r "device" src/handlers/
 ```
 
 **Conclusion**:
+
 - ❌ NOT USED in OLD architecture
 - ❌ NOT USED in NEW architecture
 - ✅ Safe to DELETE from `crates/core/`
@@ -206,9 +223,11 @@ grep -r "device" src/handlers/
 **Analysis**: Similar to OidcClientStore - wrapper around storage operations.
 
 **Usage in NEW Architecture**: ❌ NOT USED
+
 - OAuth2ServiceImpl uses `code_store: Arc<dyn AuthorizationCodeStore>` (trait-based)
 
 **Conclusion**:
+
 - ✅ Keep in `src/` if used in OLD architecture
 - ❌ Delete from `crates/core/` (not used in NEW architecture)
 
@@ -219,15 +238,17 @@ grep -r "device" src/handlers/
 ### Strategy: **MIGRATION-AWARE CLEANUP**
 
 **Principle**:
+
 - ✅ Keep OLD architecture working (`src/`) until Phase 6 (Cleanup)
 - ✅ Build NEW architecture correctly (`crates/`) using best practices
 - ❌ Don't duplicate services between OLD and NEW
 
-### Action Plan:
+### Action Plan
 
 #### Phase 1: Delete Incomplete Migration Artifacts from crates/core (30 minutes)
 
 **Files to DELETE from crates/core/**:
+
 ```bash
 rm crates/core/src/services/oidc_client_store.rs
 rm crates/core/src/services/oidc_code_store.rs
@@ -236,6 +257,7 @@ rm crates/core/src/services/client_scope_service.rs
 ```
 
 **Update crates/core/src/services/mod.rs**:
+
 ```rust
 // Remove these exports:
 // pub use oidc_client_store::OidcClientStore;
@@ -245,6 +267,7 @@ rm crates/core/src/services/client_scope_service.rs
 ```
 
 **Rationale**:
+
 - These services are NOT used in NEW architecture
 - They are incomplete migration artifacts (depend on disabled storage operations)
 - NEW architecture uses OAuth2ServiceImpl instead (better design)
@@ -259,6 +282,7 @@ rm crates/core/src/services/client_scope_service.rs
 **Types to ADD** (these are needed by BOTH architectures):
 
 1. **Domain Types** (`crates/types/src/domain_types.rs`):
+
 ```rust
 pub type UserId = Uuid;
 pub type RoleId = Uuid;
@@ -266,10 +290,12 @@ pub type RealmId = Uuid;
 ```
 
 2. **User and Role** (`crates/types/src/domain/`):
+
 - Verify `user.rs` and `role.rs` exist and are complete
 - These are used by both OLD and NEW architectures
 
 3. **ComplianceMetrics** (`crates/types/src/domain/compliance.rs`):
+
 ```rust
 pub struct ComplianceMetrics {
     pub total_logins: u64,
@@ -280,6 +306,7 @@ pub struct ComplianceMetrics {
 ```
 
 4. **SsoCookieConfig** (`crates/types/src/config.rs`):
+
 ```rust
 pub struct SsoCookieConfig {
     pub name: String,
@@ -300,6 +327,7 @@ pub struct SsoCookieConfig {
 **Modules to CREATE** (needed for NEW architecture):
 
 1. **Utils Module** (`crates/core/src/utils/mod.rs`):
+
 ```rust
 pub mod crypto_utils;
 pub mod validation;
@@ -307,6 +335,7 @@ pub mod time_utils;
 ```
 
 2. **Events Module** (`crates/core/src/events/mod.rs`):
+
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum EventError {
@@ -323,6 +352,7 @@ pub trait EventListener: Send + Sync {
 ```
 
 3. **Audit Log Store** (`crates/core/src/stores/audit_log_store.rs`):
+
 ```rust
 pub struct AuditLogStore {
     database: Arc<Database>,
@@ -343,6 +373,7 @@ impl AuditLogStore {
 #### Phase 4: Remove Wrong References (15 minutes)
 
 **References to REMOVE**:
+
 - `crate::handlers` → Handlers are in `crates/api`, not `crates/core`
 - `crate::middleware` → Middleware is in `crates/api`, not `crates/core`
 - `crate::secreton_client` → Not needed yet (Phase 4)
@@ -354,6 +385,7 @@ impl AuditLogStore {
 #### Phase 5: Fix Feature-Gated Exports (5 minutes)
 
 **Update `crates/core/src/services/mod.rs`**:
+
 ```rust
 #[cfg(feature = "redis-cache")]
 pub mod redis_cache;
@@ -408,6 +440,7 @@ pub mod redis_cache;
 ### Insight 2: Incomplete Migration Artifacts
 
 The 46 errors are from **INCOMPLETE MIGRATION ARTIFACTS** - services that were:
+
 1. Copied from `src/` to `crates/core/`
 2. But NOT fully migrated (still depend on OLD storage operations)
 3. And NOT used in NEW architecture (which uses OAuth2ServiceImpl)
@@ -419,11 +452,13 @@ The 46 errors are from **INCOMPLETE MIGRATION ARTIFACTS** - services that were:
 ### Insight 3: Two Architectures, Two Approaches
 
 **OLD Architecture** (`src/`):
+
 - Direct storage operations
 - Tight coupling to database
 - Works but not ideal
 
 **NEW Architecture** (`crates/`):
+
 - Trait-based design (SOLID principles)
 - Dependency inversion
 - Better testability and extensibility
@@ -435,6 +470,7 @@ The 46 errors are from **INCOMPLETE MIGRATION ARTIFACTS** - services that were:
 ### Insight 4: OAuth2ServiceImpl is the Future
 
 **Evidence**:
+
 - ✅ Used in `crates/api/src/state.rs` (NEW public API)
 - ✅ Used in `crates/grpc/src/service.rs` (NEW gRPC API)
 - ✅ Used in `crates/iam-api/src/state.rs` (NEW IAM API)
@@ -467,6 +503,7 @@ The 46 errors are from **INCOMPLETE MIGRATION ARTIFACTS** - services that were:
 **MIGRATION-AWARE CLEANUP APPROACH**
 
 **Strategy**:
+
 1. ✅ Delete incomplete migration artifacts from `crates/core/`
 2. ✅ Keep OLD architecture working in `src/` (until Phase 6)
 3. ✅ Build NEW architecture correctly with OAuth2ServiceImpl
@@ -474,6 +511,7 @@ The 46 errors are from **INCOMPLETE MIGRATION ARTIFACTS** - services that were:
 5. ✅ Complete Phase 2 (Core Migration) → proceed to Phase 3 (API Migration)
 
 **Rationale**:
+
 - ✅ Respects migration strategy (OLD and NEW coexist)
 - ✅ Uses best practices in NEW architecture (OAuth2ServiceImpl)
 - ✅ Doesn't break OLD architecture (keeps src/ intact)
@@ -492,6 +530,7 @@ When Phase 3 starts (Task 8 - Migrate authenc-api):
 1. **DO NOT migrate** `src/handlers/oidc_provider.rs` to use OidcClientStore
 2. **DO migrate** to use OAuth2ServiceImpl instead
 3. **Pattern**:
+
    ```rust
    // OLD (src/handlers/oidc_provider.rs)
    client_store: web::Data<OidcClientStore>

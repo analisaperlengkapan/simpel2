@@ -145,6 +145,7 @@ fn check_threat_level(limiter: &AdaptiveRateLimiter) {
 ### Background Tasks
 
 The adaptive rate limiter spawns background tasks for:
+
 - **Cleanup**: Removes old rate limit entries every 60 seconds
 - **Threat Decay**: Automatically reduces threat level when no recent suspicious activity
 
@@ -205,6 +206,7 @@ config.adaptive_rate_limit = AdaptiveRateLimitConfig {
 ### Metrics
 
 The adaptive rate limiter can be monitored through:
+
 - Current threat level
 - Failed attempts per IP
 - Rate limit violations
@@ -213,6 +215,7 @@ The adaptive rate limiter can be monitored through:
 ### Logging
 
 The middleware logs important events:
+
 - Failed authentication attempts
 - Threat level changes
 - Rate limit violations
@@ -252,6 +255,7 @@ WARN authenc::middleware::adaptive_rate_limit: Rate limit exceeded
 ### High False Positive Rate
 
 If legitimate users are being rate limited:
+
 - Increase `failed_attempts_threshold`
 - Increase rate limits for each threat level
 - Reduce `threat_level_decay_secs` for faster recovery
@@ -259,6 +263,7 @@ If legitimate users are being rate limited:
 ### Threat Level Not Increasing
 
 If the threat level isn't increasing despite attacks:
+
 - Verify `failed_attempts_threshold` is not too high
 - Check that failed attempts are being recorded correctly
 - Ensure the middleware is properly integrated with authentication handlers
@@ -266,6 +271,7 @@ If the threat level isn't increasing despite attacks:
 ### Performance Issues
 
 If the rate limiter is causing performance problems:
+
 - Reduce the size of the rate limit cache
 - Increase cleanup interval
 - Consider using a distributed cache for multi-instance deployments
@@ -279,6 +285,7 @@ If the rate limiter is causing performance problems:
 ## Future Enhancements
 
 Potential improvements for future versions:
+
 - Per-IP threat levels (in addition to global)
 - Integration with external threat intelligence
 - Machine learning-based anomaly detection

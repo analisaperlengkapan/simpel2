@@ -21,6 +21,7 @@ Create a new transformation configuration.
 **Endpoint**: `POST /transformation`
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -34,6 +35,7 @@ Create a new transformation configuration.
 ```
 
 **Example - Tokenization**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/transformation \
   -H "Content-Type: application/json" \
@@ -45,6 +47,7 @@ curl -X POST http://localhost:8200/v1/transform/transformation \
 ```
 
 **Example - Credit Card Masking**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/transformation \
   -H "Content-Type: application/json" \
@@ -58,6 +61,7 @@ curl -X POST http://localhost:8200/v1/transform/transformation \
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -81,12 +85,14 @@ Retrieve transformation configuration.
 **Endpoint**: `GET /transformation/:name`
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/transform/transformation/ssn-protection \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -105,12 +111,14 @@ List all transformation names.
 **Endpoint**: `GET /transformation`
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/transform/transformation \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -125,12 +133,14 @@ Delete a transformation configuration.
 **Endpoint**: `DELETE /transformation/:name`
 
 **Example**:
+
 ```bash
 curl -X DELETE http://localhost:8200/v1/transform/transformation/old-transform \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -147,6 +157,7 @@ Create a role with access to specific transformations.
 **Endpoint**: `POST /role`
 
 **Request Body**:
+
 ```json
 {
   "name": "string (required)",
@@ -155,6 +166,7 @@ Create a role with access to specific transformations.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/role \
   -H "Content-Type: application/json" \
@@ -166,6 +178,7 @@ curl -X POST http://localhost:8200/v1/transform/role \
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -184,12 +197,14 @@ Retrieve role configuration.
 **Endpoint**: `GET /role/:name`
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/transform/role/application-role \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -208,12 +223,14 @@ List all role names.
 **Endpoint**: `GET /role`
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/transform/role \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -230,6 +247,7 @@ Transform a single value (tokenize, encrypt, or mask).
 **Endpoint**: `POST /encode/:role/:transformation`
 
 **Request Body**:
+
 ```json
 {
   "value": "string (required)",
@@ -238,6 +256,7 @@ Transform a single value (tokenize, encrypt, or mask).
 ```
 
 **Example - Tokenization**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/encode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
@@ -248,6 +267,7 @@ curl -X POST http://localhost:8200/v1/transform/encode/application-role/ssn-prot
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -258,6 +278,7 @@ curl -X POST http://localhost:8200/v1/transform/encode/application-role/ssn-prot
 ```
 
 **Example - Masking**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/encode/application-role/card-masking \
   -H "Content-Type: application/json" \
@@ -268,6 +289,7 @@ curl -X POST http://localhost:8200/v1/transform/encode/application-role/card-mas
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -284,6 +306,7 @@ Reverse transformation (only for tokenization and FPE, not masking).
 **Endpoint**: `POST /decode/:role/:transformation`
 
 **Request Body**:
+
 ```json
 {
   "value": "string (required)",
@@ -292,6 +315,7 @@ Reverse transformation (only for tokenization and FPE, not masking).
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/decode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
@@ -302,6 +326,7 @@ curl -X POST http://localhost:8200/v1/transform/decode/application-role/ssn-prot
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -320,6 +345,7 @@ Transform multiple values in a single request.
 **Endpoint**: `POST /batch/encode/:role/:transformation`
 
 **Request Body**:
+
 ```json
 {
   "values": ["string"] (required, array of values),
@@ -328,6 +354,7 @@ Transform multiple values in a single request.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/batch/encode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
@@ -338,6 +365,7 @@ curl -X POST http://localhost:8200/v1/transform/batch/encode/application-role/ss
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -358,6 +386,7 @@ Reverse transformation for multiple values.
 **Endpoint**: `POST /batch/decode/:role/:transformation`
 
 **Request Body**:
+
 ```json
 {
   "values": ["string"] (required, array of tokens),
@@ -366,6 +395,7 @@ Reverse transformation for multiple values.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/transform/batch/decode/application-role/ssn-protection \
   -H "Content-Type: application/json" \
@@ -379,6 +409,7 @@ curl -X POST http://localhost:8200/v1/transform/batch/decode/application-role/ss
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -397,12 +428,14 @@ Retrieve tokenization usage statistics without exposing original values.
 **Endpoint**: `GET /audit`
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/transform/audit \
   -H "X-Secret Vault-Token: $TOKEN"
 ```
 
 **Response**: `200 OK`
+
 ```json
 {
   "success": true,
@@ -494,6 +527,7 @@ Server-side error (e.g., FPE library issues).
 ### Credit Card Pattern
 
 **Configuration**:
+
 ```json
 {
   "masking_pattern": "credit_card",
@@ -502,17 +536,20 @@ Server-side error (e.g., FPE library issues).
 ```
 
 **Behavior**:
+
 - Validates 13-19 digit card numbers
 - Shows last 4 digits
 - Formats with dashes for 16-digit cards
 
 **Examples**:
+
 - Input: `4111111111111111` → Output: `****-****-****-1111`
 - Input: `378282246310005` → Output: `***********0005`
 
 ### Email Pattern
 
 **Configuration**:
+
 ```json
 {
   "masking_pattern": "email",
@@ -521,17 +558,20 @@ Server-side error (e.g., FPE library issues).
 ```
 
 **Behavior**:
+
 - Shows first character of local part
 - Shows complete domain
 - Masks remaining local part characters
 
 **Examples**:
+
 - Input: `john.doe@example.com` → Output: `j*******@example.com`
 - Input: `admin@company.org` → Output: `a****@company.org`
 
 ### Phone Pattern
 
 **Configuration**:
+
 ```json
 {
   "masking_pattern": "phone",
@@ -540,17 +580,20 @@ Server-side error (e.g., FPE library issues).
 ```
 
 **Behavior**:
+
 - Validates minimum 7 digits
 - Shows last 4 digits
 - Formats with dashes for 10-digit US numbers
 
 **Examples**:
+
 - Input: `5551234567` → Output: `***-***-4567`
 - Input: `12345678901` → Output: `*******8901`
 
 ### Custom Pattern
 
 **Configuration**:
+
 ```json
 {
   "masking_pattern": "custom",
@@ -560,11 +603,13 @@ Server-side error (e.g., FPE library issues).
 ```
 
 **Template Syntax**:
+
 - `#` = Show character from input
 - `*` = Mask character
 - Other characters = Literal (e.g., `-`)
 
 **Examples**:
+
 - Template: `###-**-####`, Input: `123456789` → Output: `123-**-6789`
 - Template: `****-####`, Input: `12345678` → Output: `****-5678`
 
@@ -603,4 +648,3 @@ Currently no rate limiting is enforced. Future versions may implement per-client
 API version is included in the URL path: `/v1/transform`
 
 Breaking changes will result in a new version: `/v2/transform`
-

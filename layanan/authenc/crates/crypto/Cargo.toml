@@ -34,14 +34,14 @@ base64ct = { workspace = true }
 once_cell = { workspace = true }
 
 # Advanced cryptography dependencies
-axum = { workspace = true }  # For mTLS middleware
+axum = { workspace = true }        # For mTLS middleware
 openssl = { version = "0.10.74" }  # For xmldsig
-quick-xml = { workspace = true }  # For xmldsig
-anyhow = { workspace = true }  # For error handling in advanced modules
-sha2 = { workspace = true }  # For hashing in mtls and other modules
-hex = { workspace = true }  # For hex encoding in mtls
-x509-parser = { workspace = true }  # For xmldsig certificate parsing
-reqwest = { workspace = true }  # For xmldsig OCSP/CRL fetching
+quick-xml = { workspace = true }   # For xmldsig
+anyhow = { workspace = true }      # For error handling in advanced modules
+sha2 = { workspace = true }        # For hashing in mtls and other modules
+hex = { workspace = true }         # For hex encoding in mtls
+x509-parser = { workspace = true } # For xmldsig certificate parsing
+reqwest = { workspace = true }     # For xmldsig OCSP/CRL fetching
 
 # Shared library dependencies
 lib-crypto = { workspace = true }
@@ -57,7 +57,7 @@ secreton = []
 [lints.rust.unexpected_cfgs]
 level = "allow"
 check-cfg = [
-    'cfg(feature, values("quantum", "secreton", "test", "dev", "default"))',
+  'cfg(feature, values("quantum", "secreton", "test", "dev", "default"))',
 ]
 
 [dev-dependencies]

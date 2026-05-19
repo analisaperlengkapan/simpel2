@@ -3,19 +3,19 @@
 [licenses]
 # List of explicitly allowed licenses
 allow = [
-    "MIT",
-    "Apache-2.0",
-    "Apache-2.0 WITH LLVM-exception",
-    "BSD-2-Clause",
-    "BSD-3-Clause",
-    "ISC",
-    "Unicode-DFS-2016",
-    "Unicode-3.0",
-    "CC0-1.0",
-    "Zlib",
-    "BSL-1.0",
-    "CDLA-Permissive-2.0",
-    "OpenSSL",
+  "MIT",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "ISC",
+  "Unicode-DFS-2016",
+  "Unicode-3.0",
+  "CC0-1.0",
+  "Zlib",
+  "BSL-1.0",
+  "CDLA-Permissive-2.0",
+  "OpenSSL",
 ]
 
 # List of explicitly disallowed licenses
@@ -35,8 +35,8 @@ confidence-threshold = 0.8
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
 # aren't accepted for every possible crate as with the normal allow list
 exceptions = [
-    # Each entry is the crate and version constraint, and its the license
-    { allow = ["OpenSSL"], name = "ring", version = "*" },
+  # Each entry is the crate and version constraint, and its the license
+  { allow = ["OpenSSL"], name = "ring", version = "*" },
 ]
 
 [bans]
@@ -53,29 +53,29 @@ highlight = "all"
 
 # List of crates that are allowed. Use with care!
 allow = [
-    #{ name = "ansi_term", version = "=0.11.0" },
+  #{ name = "ansi_term", version = "=0.11.0" },
 ]
 
 # List of crates to deny
 deny = [
-    # Each entry the name of a crate and a version range. If version is
-    # not specified, all versions will be matched.
-    #{ name = "ansi_term", version = "=0.11.0" },
-    
-    # Wrapper crates can optionally be specified to allow the crate when it
-    # is a direct dependency of the otherwise banned crate
-    #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
+  # Each entry the name of a crate and a version range. If version is
+  # not specified, all versions will be matched.
+  #{ name = "ansi_term", version = "=0.11.0" },
+
+  # Wrapper crates can optionally be specified to allow the crate when it
+  # is a direct dependency of the otherwise banned crate
+  #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
 ]
 
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
-    #{ name = "ansi_term", version = "=0.11.0" },
+  #{ name = "ansi_term", version = "=0.11.0" },
 ]
 
 # Similarly to `skip` allows you to skip certain crates from being checked. Unlike
 # `skip`, a tree-skipped crate is also skipped for all of its dependencies.
 skip-tree = [
-    #{ name = "ansi_term", version = "=0.11.0" },
+  #{ name = "ansi_term", version = "=0.11.0" },
 ]
 
 [advisories]
@@ -96,9 +96,9 @@ yanked = "deny"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    # RSA timing attack - mitigated by network isolation and monitoring
-    # Will be fixed when patched version becomes available
-    "RUSTSEC-2023-0071",
+  # RSA timing attack - mitigated by network isolation and monitoring
+  # Will be fixed when patched version becomes available
+  "RUSTSEC-2023-0071",
 ]
 
 [sources]
