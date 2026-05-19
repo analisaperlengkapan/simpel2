@@ -11,8 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class BmnSatkerAktifitas extends Model
 {
-    use HasFactory, Blameable;
+    use Blameable, HasFactory;
+
     protected $table = 'pengajuan_kebutuhan_bmn_satker_aktifitas';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -34,13 +36,14 @@ class BmnSatkerAktifitas extends Model
         'updated_by',
     ];
 
-    static function getDetail($pengajuan_id)
+    public static function getDetail($pengajuan_id)
     {
         $query = DB::table('pengajuan_kebutuhan_bmn_satker_aktifitas as a');
         $query->select('a.*', 'b.nama as nama_aktifitas');
         $query->join('ms_aktifitas_user as b', 'a.ms_aktifitas_id', '=', 'b.id');
         $query->where('a.pengajuan_kebutuhan_bmn_satker_id', $pengajuan_id);
         $query->orderBy('a.created_at', 'desc');
+
         return $query->get()->toArray();
     }
 }

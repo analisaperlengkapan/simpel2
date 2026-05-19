@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Sdm;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Sdm\Sdmpengelola;
 use App\Models\Master;
 use App\Models\Master\MsSatker;
+use App\Models\Sdm\Sdmpengelola;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -17,25 +17,30 @@ class SdmpengelolaController extends Controller
      * Display a listing of the resource.
      */
     protected $controller = '/sdm/sdmpengelola';
+
     protected $breadcums = ['SDM', 'Monitoring SDM Pengelolaan BMN'];
+
     protected $columns = ['Nama Satker', 'NIP', 'Nama Pegawai', 'Jabatan', 'Golongan Pangkat'];
-    protected $defColumns = [0,1,2,3,4,5];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
 
     public function index()
     {
         // echo "<pre>";
         // print_r(session('userData.current_role'));exit;
-        
+
         $data = ['tableId' => 'dt-sdmpengelola', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller];
+
         return view('sdm.sdmpengelola.sdmpengelolaV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Sdmpengelola();
+        $model = new Sdmpengelola;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -43,7 +48,7 @@ class SdmpengelolaController extends Controller
         ]);
     }
 
-    function getData($nip = null, $readOnly = false)
+    public function getData($nip = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -51,7 +56,7 @@ class SdmpengelolaController extends Controller
         if ($nip) {
             $breadcum = 'Ubah';
             $model = Sdmpengelola::where('peg_nip_baru', $nip)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -59,13 +64,12 @@ class SdmpengelolaController extends Controller
             $isNew = false;
 
             $ms_satker_id = $model['inst_satkerkd'];
-        }else{
+        } else {
             $currentRole = session('userData.current_role');
             $ms_satker_id = $currentRole['ms_satker_id'] ?? $model['kdsatker'];
         }
 
-
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
 
@@ -86,6 +90,7 @@ class SdmpengelolaController extends Controller
                 'selected' => $model['kdsatker_keu'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -95,6 +100,7 @@ class SdmpengelolaController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('sdm.sdmpengelola.sdmpengelolaFormV', $data);
     }
 
@@ -117,7 +123,7 @@ class SdmpengelolaController extends Controller
             'tgl_sertifikat' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_pengelola_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sertifikat'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_sertifikat.required'] = 'File SK harus diupload';
         }
@@ -140,12 +146,14 @@ class SdmpengelolaController extends Controller
                 $data['file_sertifikat'] = $filesave;
             }
             Sdmpengelola::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -156,13 +164,13 @@ class SdmpengelolaController extends Controller
      */
     public function show(string $nip)
     {
-        $model = new Sdmpengelola();
+        $model = new Sdmpengelola;
 
         $data = $this->getData($nip, true);
 
         $datapengadaan = $model->getdatapengadaan($nip);
-        //echo "<pre>"; print_r($datapengadaan); exit;
-        if($datapengadaan){
+        // echo "<pre>"; print_r($datapengadaan); exit;
+        if ($datapengadaan) {
             $data['tgl_sertifikat_pengadaan'] = $datapengadaan[0]['tgl_sertifikat'];
             $data['file_sertifikat_pengadaan'] = $datapengadaan[0]['file_sertifikat'];
         }
@@ -176,6 +184,7 @@ class SdmpengelolaController extends Controller
     public function edit(string $nip)
     {
         $data = $this->getData($nip);
+
         return view('sdm.sdmpengelola.sdmpengelolaFormV', $data);
     }
 
@@ -196,6 +205,7 @@ class SdmpengelolaController extends Controller
             DB::beginTransaction();
             Sdmpengelola::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -207,7 +217,7 @@ class SdmpengelolaController extends Controller
         $data = Hakcipta::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

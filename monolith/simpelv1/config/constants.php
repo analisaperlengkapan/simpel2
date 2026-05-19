@@ -1,4 +1,5 @@
 <?php
+
 return [
     'user_type' => ['PELAKSANA', 'VALIDATOR'],
     'superadmin_role_id' => 3,
@@ -13,5 +14,5 @@ return [
     'buat_survey' => [3, 22, 27],
     'buku_panduan_path' => 'assets/buku_panduan.pdf',
     'platforms' => ['WEB', 'ANDROID', 'IOS'],
-    'mysimkari_foto' => 'https://media-mysimkari.kejaksaan.go.id/app-storage/pegawai/images/'
+    'mysimkari_foto' => 'https://media-mysimkari.kejaksaan.go.id/app-storage/pegawai/images/',
 ];

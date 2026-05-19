@@ -123,14 +123,54 @@ jobs:
         run: |
           # markdownlint-cli2 --fix mengoreksi blanks-around-headings,
           # heading whitespace, list indent, dst. Stylistic-only;
-          # konten teknis tidak diubah.
+          # konten teknis tidak diubah. Pakai v0.18 supaya match versi
+          # yang dipakai oleh DavidAnson/markdownlint-cli2-action@v18 di
+          # ci.yml.
           md_exit=0
           docker run --rm \
             -v "$PWD":/workdir \
-            davidanson/markdownlint-cli2:v0.13.0 \
-            --fix --config /workdir/infra/lint/.markdownlint.jsonc '**/*.md' \
+            davidanson/markdownlint-cli2:v0.18.0 \
+            --fix --config /workdir/infra/lint/.markdownlint.jsonc \
+            '**/*.md' \
+            '!**/node_modules/**' \
+            '!**/vendor/**' \
+            '!**/target/**' \
+            '!**/dist/**' \
+            '!monolith/simpelv1/storage/**' \
+            '!monolith/simpelv1/public/assets/libs/**' \
+            '!**/CHANGELOG.md' \
             || md_exit=$?
           [ $md_exit -ne 0 ] && echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"
+
+      - name: Apply Laravel Pint (PHP)
+        shell: bash
+        run: |
+          # Pint auto-format style PHP di simpelv1 (PSR-12 + Laravel preset).
+          # Pakai serversideup/php image yang sama dengan ci.yml.
+          if [ -d monolith/simpelv1 ]; then
+            cd monolith/simpelv1
+            # composer install dulu kalau vendor/bin/pint belum ada
+            if [ ! -f vendor/bin/pint ]; then
+              docker run --rm \
+                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+                -e COMPOSER_HOME=/tmp/composer \
+                --entrypoint composer \
+                serversideup/php:8.2-cli \
+                install --prefer-dist --no-progress --no-interaction \
+                --ignore-platform-req=ext-gd \
+                || echo "::warning::composer install failed; skipping pint"
+            fi
+            if [ -f vendor/bin/pint ]; then
+              pint_exit=0
+              docker run --rm \
+                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+                --entrypoint vendor/bin/pint \
+                serversideup/php:8.2-cli \
+                || pint_exit=$?
+              [ $pint_exit -ne 0 ] && echo "::warning::pint exit code: $pint_exit"
+            fi
+            cd "$GITHUB_WORKSPACE"
+          fi
 
       - name: Strip trailing whitespace (YAML / shell / misc)
         shell: bash

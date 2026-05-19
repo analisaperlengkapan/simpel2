@@ -5,35 +5,37 @@ namespace App\Http\Controllers\Bmn;
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Bmn\ApprovalBmn as Approval;
+use App\Models\Bmn\BmnIjin as Model;
+use App\Models\Bmn\BmnIjinAktifitas as Aktifitas;
+use App\Models\Bmn\BmnIjinAset as Aset;
+use App\Models\Bmn\BmnIjinFile as File;
+use App\Models\Bmn\BmnIjinPegawai as Pegawai;
 use App\Models\Master\MsSatker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use App\Models\Bmn\BmnIjin as Model;
-use App\Models\Bmn\BmnIjinAktifitas as Aktifitas;
-use App\Models\Bmn\BmnIjinPegawai as Pegawai;
-use App\Models\Bmn\BmnIjinAset as Aset;
-use App\Models\Bmn\BmnIjinFile as File;
 use Illuminate\Support\Facades\File as FileManager;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
-
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class IjinMonitorController extends Controller
 {
     protected $kategoriJudul = 'Monitoring Pemakaian BMN - PEGAWAI';
+
     protected $kategori = 'ijinmonitor';
+
     protected $breadcums = ['Bmn'];
+
     private $controller = '/bmn/ijinmonitor';
 
     public function __construct(Request $request)
     {
         $segment = $request->segment(2);
-        if($segment == 'bmnijinmonitor'){
+        if ($segment == 'bmnijinmonitor') {
             $this->kategoriJudul = 'Monitoring Pemakaian BMN';
             $this->kategori = 'ijinmonitor';
             $this->controller = '/bmn/ijinmonitor';
         }
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>$this->kategoriJudul]]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => $this->kategoriJudul]]);
     }
 
     public function index()
@@ -45,6 +47,7 @@ class IjinMonitorController extends Controller
             'Aksi',
         ];
         $defColumns = [0, 1, 2, 3];
+
         return view('bmn.ijinmonitorV', [
             'tableId' => 'dt-pengajuan',
             'breadcums' => $this->breadcums,
@@ -53,7 +56,7 @@ class IjinMonitorController extends Controller
             'kategoriJudul' => $this->kategoriJudul,
             'canCreate' => $this->canCreatePermintaan(),
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ]);
     }
 
@@ -65,10 +68,11 @@ class IjinMonitorController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $user->getDataGridMonitor($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -78,8 +82,9 @@ class IjinMonitorController extends Controller
 
     public function gridDataPegawai($pengajuan_id)
     {
-        $model = new Pegawai();
+        $model = new Pegawai;
         $data = $model->getDetailMonitor($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -87,26 +92,28 @@ class IjinMonitorController extends Controller
 
     public function gridDataMsPegawai($pengajuan_id)
     {
-        $model = new Pegawai();
+        $model = new Pegawai;
         $currentRole = session('userData.current_role');
         $data = $model->getMsPegawai($currentRole['ms_satker_id'], $pengajuan_id);
-        return response()->json([
-            'data' => $data,
-        ]);
-    }
-	
-	public function gridDataAset($pengajuan_id)
-    {
-        $model = new Aset();
-        $currentRole = session('userData.current_role');
-        $data = $model->getAset($currentRole['ms_satker_id'], $pengajuan_id);
-        //$data = $model->getAset( $pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function gridDataAset($pengajuan_id)
+    {
+        $model = new Aset;
+        $currentRole = session('userData.current_role');
+        $data = $model->getAset($currentRole['ms_satker_id'], $pengajuan_id);
+
+        // $data = $model->getAset( $pengajuan_id);
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -115,7 +122,7 @@ class IjinMonitorController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -126,18 +133,16 @@ class IjinMonitorController extends Controller
             'model' => $model,
             'isNew' => $isNew,
             'controller' => $this->controller,
-            'breadcums' => array_merge($this->breadcums, [$breadcum])
+            'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -168,16 +173,19 @@ class IjinMonitorController extends Controller
             }
             Model::updateOrCreate(['id' => $id], $inputan);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function savePegawai(Request $request){
+    public function savePegawai(Request $request)
+    {
         $customMessages = [
             'nip.required' => 'Pegawai harus dipilih',
         ];
@@ -193,8 +201,8 @@ class IjinMonitorController extends Controller
         try {
             DB::beginTransaction();
             $id = $request->input('pengajuan_pegawai_id');
-            $pegawai = Pegawai::updateOrCreate(['id' => $id], $request->only(['nip','nama','pangkat','jabatan','pengajuan_id']));
-			$aset = Aset::updateOrCreate(['id' => $id], $request->only(['pengajuan_id','kode_barang','nama_barang','keterangan','nup','nip']));
+            $pegawai = Pegawai::updateOrCreate(['id' => $id], $request->only(['nip', 'nama', 'pangkat', 'jabatan', 'pengajuan_id']));
+            $aset = Aset::updateOrCreate(['id' => $id], $request->only(['pengajuan_id', 'kode_barang', 'nama_barang', 'keterangan', 'nup', 'nip']));
             File::where(['pengajuan_pegawai_id' => $id])->delete();
             $msFile = File::getMasterFile($this->kategori);
             foreach ($msFile as $file) {
@@ -207,25 +215,28 @@ class IjinMonitorController extends Controller
                     $filesave = $filepath.'/'.$fileName;
                     $file->move($filepath, $fileName);
 
-                    $file = new File();
+                    $file = new File;
                     $file->pengajuan_pegawai_id = $pegawaiId;
                     $file->jenis = $jenis;
                     $file->url = $filesave;
                     $file->save();
                 }
             }
-			
+
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveUserPegawai(Request $request){
+    public function saveUserPegawai(Request $request)
+    {
         $customMessages = [
             'username.required' => 'Username harus diisi',
             'password.required' => 'Password harus diisi',
@@ -241,11 +252,13 @@ class IjinMonitorController extends Controller
             $id = $request->input('id');
             Pegawai::where(['id' => $id])->update($request->only(['username', 'password']));
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -257,33 +270,33 @@ class IjinMonitorController extends Controller
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $model->ms_aktifitas_id;
         $whereAct = ['ms_aktifitas_id' => $msAktifitasId];
         $aktifitasHistories = Aktifitas::getDetail($model->id);
         $aktifitasOptions = Approval::getAktifitas($whereAct);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
 
-        //file
+        // file
         $msFile = File::getMasterFile($this->kategori);
 
         $data = [
@@ -297,15 +310,13 @@ class IjinMonitorController extends Controller
             'isNew' => $isNew,
             'kategoriJudul' => $this->kategoriJudul,
             'msFile' => $msFile,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ];
+
         return view('bmn.ijinMonitorFormSatkerIsiV', $data);
     }
 
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     public function savePengajuan(Request $request)
     {
@@ -324,13 +335,15 @@ class IjinMonitorController extends Controller
 
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
 
-        //cek pegawai harus ada dan apabila 2009(selesai) cek username password
+        // cek pegawai harus ada dan apabila 2009(selesai) cek username password
         $pegawai = Pegawai::where(['pengajuan_id' => $id])->get();
-        if ($pegawai->isEmpty()) return $this->resError('Pegawai harus diisi');
-        if($ms_aktifitas_id == 2009){
+        if ($pegawai->isEmpty()) {
+            return $this->resError('Pegawai harus diisi');
+        }
+        if ($ms_aktifitas_id == 2009) {
             foreach ($pegawai as $data) {
-                if(empty($data->username) || empty($data->password)){
-                    //return $this->resError('Username dan Password masing-masing pegawai harus diisi');
+                if (empty($data->username) || empty($data->password)) {
+                    // return $this->resError('Username dan Password masing-masing pegawai harus diisi');
                 }
             }
         }
@@ -344,30 +357,32 @@ class IjinMonitorController extends Controller
                 'pengajuan_id' => $id,
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => $ms_aktifitas_id == 2000 ? false : true
+                'to_satker_induk' => $ms_aktifitas_id == 2000 ? false : true,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             Aktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [2003])) { //revisi
+                if (in_array($newAct, [2003])) { // revisi
                     $newAct = 2000;
                 }
                 Model::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
             }
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/bmn/ijinmonitor')
+                    'url' => \URL::to('/bmn/ijinmonitor'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -397,9 +412,11 @@ class IjinMonitorController extends Controller
             }
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -418,24 +435,27 @@ class IjinMonitorController extends Controller
             }
             Pegawai::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
-	public function cetak(string $id)
+
+    public function cetak(string $id)
     {
-        $model = new Model();
+        $model = new Model;
         $data = $model->getDataCetak($id);
-        $pengajuan = Model::where('id',$id)->first();
+        $pengajuan = Model::where('id', $id)->first();
         $currentOrder = [];
         foreach ($data as $row) {
             $orderId = $row->id;
-            if (!array_key_exists($orderId, $currentOrder)) {
+            if (! array_key_exists($orderId, $currentOrder)) {
                 $currentOrder[$orderId] = [
-                    'satker' =>  $row->inst_satkerkd,
-                    'nama_satker' =>  $row->inst_nama,
+                    'satker' => $row->inst_satkerkd,
+                    'nama_satker' => $row->inst_nama,
                 ];
             }
             $currentOrder[$orderId]['items'][] = [
@@ -445,17 +465,18 @@ class IjinMonitorController extends Controller
                 'nama_barang' => $row->nama_barang,
                 'keterangan' => $row->keterangan,
                 'nup' => $row->nup,
-               
+
             ];
         }
         $judul = '';
         $pdf = LaravelMpdf::loadView('bmn.cetak', [
             'data' => $currentOrder,
             'judul' => $judul,
-            'model' => $pengajuan
+            'model' => $pengajuan,
         ], [], [
             'title' => $judul,
         ]);
+
         return $pdf->stream('cetak.pdf');
     }
 }

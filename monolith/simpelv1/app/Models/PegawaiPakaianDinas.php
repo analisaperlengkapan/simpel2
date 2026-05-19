@@ -10,8 +10,11 @@ use Illuminate\Database\Eloquent\Model;
 class PegawaiPakaianDinas extends Model
 {
     use LogTrait;
+
     protected $table = 'pegawai_pakaian_dinas';
-    const tableKet = "Ukuran Pakaian Pegawai";
+
+    const tableKet = 'Ukuran Pakaian Pegawai';
+
     /**
      * The attributes that are mass assignable.
      *

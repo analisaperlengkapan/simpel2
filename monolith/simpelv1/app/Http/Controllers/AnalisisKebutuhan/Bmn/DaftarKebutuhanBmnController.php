@@ -4,8 +4,8 @@ namespace App\Http\Controllers\AnalisisKebutuhan\Bmn;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\AnalisisKebutuhan\Bmn as Model;
 use App\Models\AnalisisKebutuhan\Bmn;
+use App\Models\AnalisisKebutuhan\Bmn as Model;
 use App\Models\AnalisisKebutuhan\BmnSatker;
 use App\Models\AnalisisKebutuhan\BmnSatkerAktifitas;
 use App\Models\AnalisisKebutuhan\BmnSatkerBarang;
@@ -20,11 +20,12 @@ use Illuminate\Support\Facades\File as FileManager;
 class DaftarKebutuhanBmnController extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Kebutuhan BMN'];
+
     private $controller = '/analisis-kebutuhan/bmn/daftar-kebutuhan-bmn';
 
     public function __construct(Request $request)
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Daftar Kebutuhan BMN']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Daftar Kebutuhan BMN']]);
     }
 
     public function index()
@@ -35,6 +36,7 @@ class DaftarKebutuhanBmnController extends Controller
             'controller' => $this->controller,
             'operasi' => $this->userOperation(),
         ];
+
         return view('analisis_kebutuhan.bmn.daftar_kebutuhan.gridV', $data);
     }
 
@@ -59,11 +61,12 @@ class DaftarKebutuhanBmnController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
 
         $data = $user->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -73,10 +76,11 @@ class DaftarKebutuhanBmnController extends Controller
 
     public function gridDataSatker(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getGridDataSatker($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -86,7 +90,8 @@ class DaftarKebutuhanBmnController extends Controller
 
     public function gridDataBarang($id)
     {
-        $data = BmnSatkerBarang::where('pengajuan_kebutuhan_bmn_satker_id',$id)->get()->toArray();
+        $data = BmnSatkerBarang::where('pengajuan_kebutuhan_bmn_satker_id', $id)->get()->toArray();
+
         return response()->json([
             'data' => $data,
         ]);
@@ -95,16 +100,12 @@ class DaftarKebutuhanBmnController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-    }
+    public function store(Request $request) {}
 
     public function show(string $id)
     {
@@ -115,6 +116,7 @@ class DaftarKebutuhanBmnController extends Controller
             'operasi' => $this->userOperation(),
             'id' => $id,
         ];
+
         return view('analisis_kebutuhan.bmn.daftar_kebutuhan.gridSatkerV', $data);
     }
 
@@ -123,17 +125,17 @@ class DaftarKebutuhanBmnController extends Controller
      */
     public function edit(string $id)
     {
-        $pengajuanSatker = BmnSatker::where('id',$id)->first();
-        $pengajuan = Bmn::where('id',$pengajuanSatker['pengajuan_kebutuhan_bmn_id'])->first();
-        $satker = MasterMsSatker::where('inst_satkerkd',$pengajuanSatker['ms_satker_id'])->first();
+        $pengajuanSatker = BmnSatker::where('id', $id)->first();
+        $pengajuan = Bmn::where('id', $pengajuanSatker['pengajuan_kebutuhan_bmn_id'])->first();
+        $satker = MasterMsSatker::where('inst_satkerkd', $pengajuanSatker['ms_satker_id'])->first();
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $pengajuanSatker->ms_aktifitas_id ?? 3000;
-        $whereAct = ['ms_aktifitas_id' => $msAktifitasId,'group'=>'BMN'];
+        $whereAct = ['ms_aktifitas_id' => $msAktifitasId, 'group' => 'BMN'];
         $aktifitasHistories = BmnSatkerAktifitas::getDetail($pengajuanSatker['id']);
         $aktifitasOptions = ApprovalUserSpseSirup::getAktifitas($whereAct);
         $currentAktifitas = ApprovalUserSpseSirup::getCurrentAktifitas($msAktifitasId);
-        $id_jenis_asset = $pengajuan && $pengajuan['id_jenis_asset'] ? json_decode($pengajuan['id_jenis_asset']):null;
+        $id_jenis_asset = $pengajuan && $pengajuan['id_jenis_asset'] ? json_decode($pengajuan['id_jenis_asset']) : null;
         $kodeBarang = Master::getBarangAset($id_jenis_asset);
         $data = [
             'model' => $pengajuan,
@@ -150,14 +152,16 @@ class DaftarKebutuhanBmnController extends Controller
                 'text' => 'nama_barang',
                 'textkode' => 'kode_barang',
                 'value' => 'kode_barang',
-                'selected' => $id_jenis_asset
+                'selected' => $id_jenis_asset,
             ]),
             'kdBarangOptions' => $kodeBarang,
         ];
+
         return view('analisis_kebutuhan.bmn.daftar_kebutuhan.daftarKebutuhanBmnFormV', $data);
     }
 
-    public function saveBarang(Request $request){
+    public function saveBarang(Request $request)
+    {
         $customMessages = [
             'nama.required' => 'Nama Barang harus diisi',
             'jumlah.required' => 'Jumlah Barang harus diisi',
@@ -171,13 +175,13 @@ class DaftarKebutuhanBmnController extends Controller
             DB::beginTransaction();
             $id = $request->input('id');
             $data = [
-                'nama'=>$request->input('nama'),
-                'kode_barang'=>$request->input('kode'),
-                'jumlah'=>$request->input('jumlah'),
-                'alasan'=>$request->input('alasan'),
-                'keterangan'=>$request->input('keterangan'),
-                'jml_setuju'=>$request->input('jml_setuju'),
-                'pengajuan_kebutuhan_bmn_satker_id'=>$request->input('pengajuan_kebutuhan_bmn_satker_id'),
+                'nama' => $request->input('nama'),
+                'kode_barang' => $request->input('kode'),
+                'jumlah' => $request->input('jumlah'),
+                'alasan' => $request->input('alasan'),
+                'keterangan' => $request->input('keterangan'),
+                'jml_setuju' => $request->input('jml_setuju'),
+                'pengajuan_kebutuhan_bmn_satker_id' => $request->input('pengajuan_kebutuhan_bmn_satker_id'),
             ];
             $idbarang = BmnSatkerBarang::updateOrCreate(['id' => $id], $data);
             if ($request->hasFile('file_pendukung')) {
@@ -186,7 +190,7 @@ class DaftarKebutuhanBmnController extends Controller
                 $fileName = $idbarang['id'].'_file_pendukung.'.$file->getClientOriginalExtension();
                 $filesave = $filepath.'/'.$fileName;
                 $file->move($filepath, $fileName);
-                BmnSatkerBarang::updateOrCreate(['id' => $idbarang['id']], ['file_pendukung'=>$filesave]);
+                BmnSatkerBarang::updateOrCreate(['id' => $idbarang['id']], ['file_pendukung' => $filesave]);
                 $newFile = [
                     'filename' => $file->getClientOriginalName(),
                     'path' => $filesave,
@@ -201,11 +205,13 @@ class DaftarKebutuhanBmnController extends Controller
                 Files::insert($insertedFiles);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -215,7 +221,7 @@ class DaftarKebutuhanBmnController extends Controller
         try {
             DB::beginTransaction();
             $barang = BmnSatkerBarang::find($id);
-            if($barang->file_pendukung){
+            if ($barang->file_pendukung) {
                 $filePath = public_path($barang->file_pendukung);
                 if (FileManager::exists($filePath)) {
                     FileManager::delete($filePath);
@@ -223,9 +229,11 @@ class DaftarKebutuhanBmnController extends Controller
             }
             $barang->delete();
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -246,13 +254,15 @@ class DaftarKebutuhanBmnController extends Controller
         }
         $pengajuan_kebutuhan_bmn_satker_id = $request->input('pengajuan_kebutuhan_bmn_satker_id');
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
-        $type = $request->input('type')??'';
-        //cek barang harus ada
+        $type = $request->input('type') ?? '';
+        // cek barang harus ada
         $barang = BmnSatkerBarang::where(['pengajuan_kebutuhan_bmn_satker_id' => $pengajuan_kebutuhan_bmn_satker_id])->get();
-        if ($barang->isEmpty()) return $this->resError('Barang harus diisi');
-        if($ms_aktifitas_id == 3006 || $type=='selesai'){
+        if ($barang->isEmpty()) {
+            return $this->resError('Barang harus diisi');
+        }
+        if ($ms_aktifitas_id == 3006 || $type == 'selesai') {
             foreach ($barang as $data) {
-                if($data->jml_setuju == '' || is_null($data->jml_setuju)){
+                if ($data->jml_setuju == '' || is_null($data->jml_setuju)) {
                     return $this->resError('Jumlah disetujui masing-masing barang harus diisi');
                 }
             }
@@ -267,30 +277,32 @@ class DaftarKebutuhanBmnController extends Controller
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
                 'to_satker_induk' => $ms_aktifitas_id == 3000 ? false : true,
-                'group'=>'BMN'
+                'group' => 'BMN',
             ];
             $acts = ApprovalUserSpseSirup::roleCheck($dataAktifitas);
             BmnSatkerAktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [3003, 3005, 3007, 3014])) { //revisi
+                if (in_array($newAct, [3003, 3005, 3007, 3014])) { // revisi
                     $newAct = 3000;
                 }
                 BmnSatker::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
             }
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/analisis-kebutuhan/bmn/daftar-kebutuhan-bmn')
+                    'url' => \URL::to('/analisis-kebutuhan/bmn/daftar-kebutuhan-bmn'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -312,9 +324,11 @@ class DaftarKebutuhanBmnController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

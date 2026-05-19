@@ -25,18 +25,23 @@ class FAQService
                 $expandedFaqs[] = ['keyword' => 'aset negara', 'answer' => $item['answer']];
             }
         }
-        usort($expandedFaqs, function($a, $b) {
+        usort($expandedFaqs, function ($a, $b) {
             $aCount = count(explode(' ', $a['keyword']));
             $bCount = count(explode(' ', $b['keyword']));
-            if ($aCount > 1 && $bCount <= 1) return -1;
-            if ($bCount > 1 && $aCount <= 1) return 1;
+            if ($aCount > 1 && $bCount <= 1) {
+                return -1;
+            }
+            if ($bCount > 1 && $aCount <= 1) {
+                return 1;
+            }
+
             return strlen($b['keyword']) <=> strlen($a['keyword']);
         });
         $lowerQuery = Str::lower($query);
         // 1. Pencocokan tepat
         foreach ($expandedFaqs as $item) {
             $lowerKeyword = Str::lower($item['keyword']);
-            $pattern = '/\\b' . preg_quote($lowerKeyword, '/') . '\\b/';
+            $pattern = '/\\b'.preg_quote($lowerKeyword, '/').'\\b/';
             if (preg_match($pattern, $lowerQuery)) {
                 return $item;
             }
@@ -53,11 +58,12 @@ class FAQService
         // 3. Cari dengan query yang sudah dipetakan
         foreach ($expandedFaqs as $item) {
             $lowerKeyword = Str::lower($item['keyword']);
-            $pattern = '/\\b' . preg_quote($lowerKeyword, '/') . '\\b/';
+            $pattern = '/\\b'.preg_quote($lowerKeyword, '/').'\\b/';
             if (preg_match($pattern, $mappedQuery)) {
                 return $item;
             }
         }
+
         return null;
     }
-} 
+}

@@ -16,6 +16,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Master', 'Pakaian Dinas', 'Sub Spesifikasi Pakaian Dinas'];
+
     public function index()
     {
         return view('master.pakaian-dinas.subspesifikasi-pakaian-dinas.gridV', ['tableId' => 'dt-jenis', 'breadcums' => $this->breadcums]);
@@ -23,10 +24,11 @@ class SubSpesifikasiPakaianDinasController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -34,7 +36,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -42,7 +44,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -68,7 +70,8 @@ class SubSpesifikasiPakaianDinasController extends Controller
                 'selected' => $model['id_spesifikasi'] ?? null,
             ]),
         ];
-        //dd($data['satkerOptions']);
+
+        // dd($data['satkerOptions']);
         return $data;
     }
 
@@ -78,6 +81,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.pakaian-dinas.subspesifikasi-pakaian-dinas.formV', $data);
     }
 
@@ -96,6 +100,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'ms_subspesifikasi_pakaian_dinas_seq');
         Model::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -105,15 +110,14 @@ class SubSpesifikasiPakaianDinasController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.pakaian-dinas.subspesifikasi-pakaian-dinas.formV', $data);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -132,6 +136,7 @@ class SubSpesifikasiPakaianDinasController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

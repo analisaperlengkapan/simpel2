@@ -22,15 +22,15 @@ class GrpcServiceProvider extends ServiceProvider
     public function register()
     {
         $this->app->singleton(AuthencGrpcClient::class, function ($app) {
-            return new AuthencGrpcClient();
+            return new AuthencGrpcClient;
         });
 
         $this->app->singleton(IntegrasiGrpcClient::class, function ($app) {
-            return new IntegrasiGrpcClient();
+            return new IntegrasiGrpcClient;
         });
 
         $this->app->singleton(SecrethonGrpcClient::class, function ($app) {
-            return new SecrethonGrpcClient();
+            return new SecrethonGrpcClient;
         });
 
         // Alias for easy access. Laravel's alias() signature is

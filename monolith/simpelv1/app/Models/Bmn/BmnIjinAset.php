@@ -6,12 +6,11 @@ use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Query\Builder;
 
 class BmnIjinAset extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'bmn_ijin_pemakaian_satker_pegawai_aset';
 
@@ -29,11 +28,11 @@ class BmnIjinAset extends Model
         'nip',
     ];
 
-    static function getAset($pengajuan_id)
+    public static function getAset($pengajuan_id)
     {
-        $sql = "select * from vw_asset_bmn";
+        $sql = 'select * from vw_asset_bmn';
         $result = DB::select($sql);
+
         return $result;
     }
-
 }

@@ -13,22 +13,25 @@ use Illuminate\Http\Request;
 class CetakDaftar extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Pakaian Dinas', 'Laporan', 'Cetak Daftar'];
+
     private $controller = '/analisis-kebutuhan/pakaian-dinas/laporan/cetak-daftar';
+
     public function index()
     {
         return view('analisis_kebutuhan.pakaian_dinas.laporan.cetakDaftarV', [
             'tableId' => 'dt-user',
             'breadcums' => $this->breadcums,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -42,17 +45,18 @@ class CetakDaftar extends Controller
             'tableId' => 'dt-user',
             'pengajuanId' => $pengajuanId,
             'breadcums' => array_merge($this->breadcums, ['List Satker']),
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridDataSatker(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pengajuanId = $_GET['pengajuanId'];
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getGridDataSatker($pagingParams, $searchParams, $pengajuanId);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -73,7 +77,7 @@ class CetakDaftar extends Controller
         $content = view('analisis_kebutuhan.pakaian_dinas.laporan.cetakDaftarTemplateV', $data)->render();
         $pdf = Pdf::loadHTML($content);
         $pdf->setPaper('A4', 'potrait');
+
         return $pdf->stream("{$data['header']->nama} - {$data['satker']->inst_nama}.pdf");
     }
-
 }

@@ -2,7 +2,6 @@
 
 namespace App\Models\Bmn;
 
-
 use App\Helpers\MyHelper;
 use ErrorException;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class Approval extends Model
 {
-    static function roleCheck($data)
+    public static function roleCheck($data)
     {
         $currentRole = session('userData.current_role');
         $msAct = DB::table('ms_aktifitas_user')->where(['id' => $data['ms_aktifitas_id']])->first();
@@ -42,34 +41,36 @@ class Approval extends Model
             ];
             $act = [$currentAct, $nextAct];
         }
+
         return $act;
     }
 
-    static function getSatkerInduk($currentSatkerId)
+    public static function getSatkerInduk($currentSatkerId)
     {
         if ($currentSatkerId == '00') {
             return null;
         }
 
         $satker = DB::table('ms_satker')->where(['inst_satkerkd' => $currentSatkerId])->first();
+
         return $satker->inst_satkerinduk;
     }
 
-    static function getAktifitas($data)
+    public static function getAktifitas($data)
     {
         $msAktifitasId = $data['ms_aktifitas_id'] ?? 0;
         $group = $data['group'] ?? 'BASIC';
         $role = session('userData.current_role.ms_role_id');
+
         return DB::table('ms_aktifitas_user')->where(['role_id' => $role, 'jawaban_dari_aktifitas' => $msAktifitasId, 'group' => $group])->get()->toArray();
     }
 
-    static function getCurrentAktifitas($msAktifitasId)
+    public static function getCurrentAktifitas($msAktifitasId)
     {
-        if (!$msAktifitasId)
+        if (! $msAktifitasId) {
             return [];
+        }
+
         return DB::table('ms_aktifitas_user')->where(['id' => $msAktifitasId])->first();
     }
-
-
-
 }

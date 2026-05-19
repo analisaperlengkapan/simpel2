@@ -16,18 +16,21 @@ class PencabutanController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Pengajuan Pencabutan Pemakaian'];
+
     public function index()
     {
         $data = ['tableId' => 'dt-pencabutan', 'breadcums' => $this->breadcums];
+
         return view('bmn.pencabutan.pencabutanV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Pencabutan();
+        $model = new Pencabutan;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -35,7 +38,7 @@ class PencabutanController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -43,14 +46,14 @@ class PencabutanController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Pencabutan::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -75,6 +78,7 @@ class PencabutanController extends Controller
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -84,6 +88,7 @@ class PencabutanController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.pencabutan.pencabutanFormV', $data);
     }
 
@@ -106,11 +111,11 @@ class PencabutanController extends Controller
             'tgl_surat' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SK harus diupload';
-        }else{
-           
+        } else {
+
         }
         $request->validate($validate, $customMessages);
         try {
@@ -131,12 +136,14 @@ class PencabutanController extends Controller
                 $data['file_sk'] = $filesave;
             }
             Pencabutan::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -148,6 +155,7 @@ class PencabutanController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.pencabutan.pencabutanFormV', $data);
     }
 
@@ -157,6 +165,7 @@ class PencabutanController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.pencabutan.pencabutanFormV', $data);
     }
 
@@ -177,20 +186,19 @@ class PencabutanController extends Controller
             DB::beginTransaction();
             Pencabutan::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-	
-	
 
     public function cetakLabel($id)
     {
         $data = Pencabutan::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

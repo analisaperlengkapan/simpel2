@@ -2,16 +2,15 @@
 
 namespace App\Models\Master;
 
-use App\Blameable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class MsSatker extends Model
 {
     protected $table = 'ms_satker';
-    //protected $primaryKey = 'inst_satkerkd';
+
+    // protected $primaryKey = 'inst_satkerkd';
     /**
      * The attributes that are mass assignable.
      *
@@ -27,20 +26,21 @@ class MsSatker extends Model
         'inst_telepon',
         'inst_fax',
         'inst_jenis',
-        'inst_level'
+        'inst_level',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*');
-        if (!empty($select))
+        if (! empty($select)) {
             $query->select($select);
-        if (!empty($search)) {
-            //$searchVal = strtolower($search['search']['value']);
+        }
+        if (! empty($search)) {
+            // $searchVal = strtolower($search['search']['value']);
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
+            // if (isset($search['filterBy'])) {
             //    $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //        $q->orWhere(DB::raw('lower(inst_satkerkd)'), "like", "%{$searchVal}%")
             //            ->orWhere(DB::raw("lower(inst_satkerinduk)"), 'like', "%{$searchVal}%")
@@ -48,7 +48,7 @@ class MsSatker extends Model
             //            ->orWhere(DB::raw("lower(inst_akronim)"), 'like', "%{$searchVal}%")
             //            ->orWhere(DB::raw("lower(inst_alamat)"), 'like', "%{$searchVal}%");
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
@@ -72,6 +72,7 @@ class MsSatker extends Model
         $query->orderBy('inst_satkerkd');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

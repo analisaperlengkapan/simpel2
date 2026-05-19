@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class PenetapanSkAktifitas extends Model
 {
     protected $table = 'bmn_penetapan_aktifitas';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -42,34 +43,36 @@ class PenetapanSkAktifitas extends Model
     //     'password' => 'hashed',
     // ];
 
-    function getGridData($paging, $search = [])
+    public function getGridData($paging, $search = [])
     {
         $query = DB::table($this->table)->orderBy('created_at', 'desc');
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function ($q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(nama)'), "like", "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(deskripsi)"), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(nama)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(deskripsi)'), 'like', "%{$searchVal}%");
                 });
             }
         }
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function getDetail($pengajuanId)
+    public static function getDetail($pengajuanId)
     {
         $query = DB::table('bmn_penetapan_aktifitas as a')
             ->select(['a.*', 'b.nama as nama_aktifitas'])
             ->join('ms_aktifitas as b', 'a.ms_aktifitas_id', '=', 'b.id')
             ->where(['a.bmn_penetapan_id' => $pengajuanId])
             ->orderBy('a.created_at', 'desc')->get()->toArray();
+
         return $query;
     }
 }

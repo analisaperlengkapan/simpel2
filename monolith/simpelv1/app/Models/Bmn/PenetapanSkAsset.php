@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PenetapanSkAsset extends Model
 {
-
     protected $table = 'bmn_penetapan_asset';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -19,8 +19,6 @@ class PenetapanSkAsset extends Model
         'barang_nama',
         'barang_kode',
         'bmn_penetapan_id',
-        'vw_aset_psp_id'
+        'vw_aset_psp_id',
     ];
-
-
 }

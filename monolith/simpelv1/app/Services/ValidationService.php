@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ValidationService
 {
@@ -34,7 +34,7 @@ class ValidationService
             $explanationValid = strlen(trim($explanation)) > 30 && $explanationSentenceCount >= 2;
         }
         $faqValidation = ['passed' => true, 'missing' => []];
-        if (!empty($faqAnswer)) {
+        if (! empty($faqAnswer)) {
             $keywords = $this->extractKeywords($faqAnswer);
             $foundCount = 0;
             $foundKeywords = [];
@@ -52,13 +52,23 @@ class ValidationService
         }
         $disclaimerPattern = '/tidak tahu|tidak dapat membantu|maaf, saya belum punya data|tidak tersedia|tidak ditemukan/i';
         $hasDisclaimer = preg_match($disclaimerPattern, $aiAnswer);
-        $valid = $hasDefinitionContent && $hasExplanationContent && $explanationValid && $faqValidation['passed'] && !$hasDisclaimer;
+        $valid = $hasDefinitionContent && $hasExplanationContent && $explanationValid && $faqValidation['passed'] && ! $hasDisclaimer;
         $reasons = [];
-        if (!$hasDefinitionContent) $reasons[] = 'format_definisi_tidak_ada';
-        if (!$hasExplanationContent) $reasons[] = 'format_penjelasan_tidak_ada';
-        if (!$explanationValid) $reasons[] = 'penjelasan_tidak_cukup (min 2 kalimat, >30 char)';
-        if (!$faqValidation['passed']) $reasons[] = 'kata_kunci_faq_hilang';
-        if ($hasDisclaimer) $reasons[] = 'jawaban_mengandung_disclaimer';
+        if (! $hasDefinitionContent) {
+            $reasons[] = 'format_definisi_tidak_ada';
+        }
+        if (! $hasExplanationContent) {
+            $reasons[] = 'format_penjelasan_tidak_ada';
+        }
+        if (! $explanationValid) {
+            $reasons[] = 'penjelasan_tidak_cukup (min 2 kalimat, >30 char)';
+        }
+        if (! $faqValidation['passed']) {
+            $reasons[] = 'kata_kunci_faq_hilang';
+        }
+        if ($hasDisclaimer) {
+            $reasons[] = 'jawaban_mengandung_disclaimer';
+        }
         $result = [
             'valid' => $valid,
             'reason' => implode(',', $reasons),
@@ -69,10 +79,11 @@ class ValidationService
                 'penjelasan_sentence_count' => $explanationSentenceCount,
                 'panjang_penjelasan' => $explanationValid ? strlen($explanation) : 0,
                 'validasi_faq' => $faqValidation,
-                'ada_disclaimer' => $hasDisclaimer
-            ]
+                'ada_disclaimer' => $hasDisclaimer,
+            ],
         ];
         Log::debug('[ValidationService] Validasi Jawaban', $result);
+
         return $result;
     }
 
@@ -83,23 +94,26 @@ class ValidationService
         foreach ($rules as $rule) {
             $term = $rule['term'] ?? '';
             $correct = $rule['correct'] ?? $term;
-            if (empty($term)) continue;
+            if (empty($term)) {
+                continue;
+            }
             foreach ($rule['incorrect'] as $incorrect) {
                 if (stripos($text, $incorrect) !== false) {
                     $errors[] = [
                         'kesalahan' => "Akronim salah: '$incorrect'",
                         'koreksi' => "Harus: '$correct'",
-                        'aturan' => $rule
+                        'aturan' => $rule,
                     ];
                 }
             }
             if (stripos($text, $term) === false && stripos($text, $correct) === false) {
                 $errors[] = [
                     'kesalahan' => "Akronim resmi '$term' tidak digunakan",
-                    'aturan' => $rule
+                    'aturan' => $rule,
                 ];
             }
         }
+
         return $errors;
     }
 
@@ -117,6 +131,7 @@ class ValidationService
         if ($original !== $answer) {
             Log::debug('[ValidationService] Perbaikan Akronim', ['sebelum' => Str::limit($original, 100), 'sesudah' => Str::limit($answer, 100)]);
         }
+
         return $answer;
     }
 
@@ -124,10 +139,12 @@ class ValidationService
     {
         $words = preg_split('/\s+/', $text);
         $stopwords = ['adalah', 'dari', 'yang', 'dengan', 'untuk', 'pada', 'sebagai', 'dalam', 'oleh', 'yaitu'];
-        $keywords = array_filter($words, function($word) use ($stopwords) {
+        $keywords = array_filter($words, function ($word) use ($stopwords) {
             $clean = trim($word, " .,;:!?\"'()[]{}");
-            return strlen($clean) > 3 && !in_array(Str::lower($clean), $stopwords);
+
+            return strlen($clean) > 3 && ! in_array(Str::lower($clean), $stopwords);
         });
+
         return array_values(array_unique($keywords));
     }
 
@@ -135,7 +152,7 @@ class ValidationService
     {
         $definition = '';
         $explanation = '';
-        if (!empty($faqAnswer)) {
+        if (! empty($faqAnswer)) {
             $definition = $faqAnswer;
             $explanation = $this->findExplanationInContext($context, $prompt) ?: 'Penjelasan tidak ditemukan';
         } else {
@@ -143,7 +160,7 @@ class ValidationService
             $explanation = $this->findExplanationInContext($context, $prompt);
         }
         $definitionPatterns = $this->aiDataService->getContextPatterns()['definition_patterns'] ?? [];
-        if (!$definition && $context && !empty($definitionPatterns)) {
+        if (! $definition && $context && ! empty($definitionPatterns)) {
             foreach ($definitionPatterns as $pattern) {
                 if (preg_match("/{$pattern}/i", $context, $matches)) {
                     $definition = trim($matches[0]);
@@ -151,13 +168,16 @@ class ValidationService
                 }
             }
         }
-        return "DEFINISI: " . ($definition ?: 'Informasi tidak ditemukan') . "\n" .
-               "PENJELASAN: " . ($explanation ?: 'Silakan merujuk ke dokumen resmi terkait');
+
+        return 'DEFINISI: '.($definition ?: 'Informasi tidak ditemukan')."\n".
+               'PENJELASAN: '.($explanation ?: 'Silakan merujuk ke dokumen resmi terkait');
     }
 
     private function findDefinitionInContext(string $context, string $prompt): string
     {
-        if (empty($context)) return '';
+        if (empty($context)) {
+            return '';
+        }
         $keywords = $this->extractKeywords($prompt);
         $sentences = preg_split('/(?<=[.?!])\s+/', $context, -1, PREG_SPLIT_NO_EMPTY);
         foreach ($sentences as $sentence) {
@@ -167,12 +187,15 @@ class ValidationService
                 }
             }
         }
+
         return '';
     }
 
     private function findExplanationInContext(string $context, string $prompt): string
     {
-        if (empty($context)) return '';
+        if (empty($context)) {
+            return '';
+        }
         $sentences = preg_split('/(?<=[.!?])\s+/', $context, -1, PREG_SPLIT_NO_EMPTY);
         $keywords = $this->extractKeywords($prompt);
         $explanation = '';
@@ -186,11 +209,14 @@ class ValidationService
                 }
             }
             if ($hasKeyword) {
-                $explanation .= $sentence . ' ';
+                $explanation .= $sentence.' ';
                 $count++;
-                if ($count >= 2) break;
+                if ($count >= 2) {
+                    break;
+                }
             }
         }
+
         return trim($explanation) ?: 'Penjelasan lebih lanjut tersedia di dokumen resmi';
     }
-} 
+}

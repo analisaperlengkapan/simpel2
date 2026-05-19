@@ -9,7 +9,6 @@ use App\Models\Bmn\Asuransi;
 use App\Models\Bmn\AsuransiImport;
 use App\Models\Bmn\AsuransiTransaksi;
 use App\Models\Bmn\AsuransiTransaksiKlaim as Model;
-use App\Models\Master;
 use App\Models\Files;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +21,9 @@ class AsuransiKlaimController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Klaim Asuransi'];
+
     protected $controller = '/bmn/asuransi/klaim';
+
     public function index()
     {
         $columns = ['Nama Satker', 'Kode Barang', 'NUP', 'Nama Aset', 'No Polis', 'Tgl Polis', 'Premi'];
@@ -32,17 +33,19 @@ class AsuransiKlaimController extends Controller
             'breadcums' => $this->breadcums,
             'columns' => $columns,
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ];
+
         return view('bmn.asuransi.claim.gridV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -50,7 +53,7 @@ class AsuransiKlaimController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -58,7 +61,7 @@ class AsuransiKlaimController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -79,6 +82,7 @@ class AsuransiKlaimController extends Controller
                 'selected' => $model['asuransi_transaksi_id'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -88,6 +92,7 @@ class AsuransiKlaimController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.asuransi.claim.formV', $data);
     }
 
@@ -112,7 +117,7 @@ class AsuransiKlaimController extends Controller
                 'dir' => 'bmn/asuransi-klaim',
                 'fileKey' => 'filename',
                 'required' => $isNew,
-                'pkey' => $id
+                'pkey' => $id,
             ];
             $file = Files::upload($request, $params);
             $inputan = $request->input();
@@ -122,10 +127,12 @@ class AsuransiKlaimController extends Controller
             $inputan['ms_satker_id'] = session('userData.current_role.ms_satker_id');
             $inputan = Model::updateOrCreate(['id' => $id], $inputan);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -137,6 +144,7 @@ class AsuransiKlaimController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.asuransi.claim.formV', $data);
     }
 
@@ -146,21 +154,18 @@ class AsuransiKlaimController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.asuransi.claim.formV', $data);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Asuransi $hakcipta)
-    {
-
-    }
+    public function update(Request $request, Asuransi $hakcipta) {}
 
     /**
      * Remove the specified resource from storage.
      */
-
     public function importExcel(Request $request)
     {
         $request->validate([
@@ -168,12 +173,13 @@ class AsuransiKlaimController extends Controller
         ]);
         $file = $request->file('excel_file');
         Excel::import(new AsuransiImport, $file);
+
         return $this->resSuccess('Berhasil Dismpan', ['type' => 'redirect', 'url' => $this->controller]);
     }
 
     public function exportExcel(Request $request)
     {
-        $model = new AsuransiTransaksi();
+        $model = new AsuransiTransaksi;
         $params = [
             'length' => -1,
             'start' => 0,
@@ -183,6 +189,7 @@ class AsuransiKlaimController extends Controller
         $data = $grid['data']->toArray();
         $columns = array_keys((array) $data[0]);
         $fileName = 'Objek Asuransi';
+
         return Excel::download(new ExportExcel($data, $columns, $fileName), "{$fileName}.xlsx", \Maatwebsite\Excel\Excel::XLSX);
     }
 }

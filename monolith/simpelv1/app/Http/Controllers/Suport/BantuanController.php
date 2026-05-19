@@ -15,6 +15,7 @@ class BantuanController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Suport', 'Panduan'];
+
     public function index()
     {
         return view('suport.bantuan.bantuanV', ['tableId' => 'dt-bantuan', 'breadcums' => $this->breadcums]);
@@ -22,7 +23,7 @@ class BantuanController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new bantuan();
+        $model = new bantuan;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
@@ -34,7 +35,7 @@ class BantuanController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -42,7 +43,7 @@ class BantuanController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = bantuan::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -59,12 +60,14 @@ class BantuanController extends Controller
             'judul' => $breadcum,
             'readOnly' => $readOnly,
         ];
+
         return $data;
     }
 
     public function create()
     {
         $data = $this->getData();
+
         return view('suport.bantuan.bantuanFormV', $data);
     }
 
@@ -96,20 +99,21 @@ class BantuanController extends Controller
             if ($request->hasFile('file_panduan')) {
                 $filepath = 'uploads/suport/panduan';
                 $file = $request->file('file_panduan');
-                $fileName = $id . '_panduan' . '.' . $file->getClientOriginalExtension();
-                $filesave = $filepath . '/' . $fileName;
+                $fileName = $id.'_panduan'.'.'.$file->getClientOriginalExtension();
+                $filesave = $filepath.'/'.$fileName;
                 $file->move($filepath, $fileName);
                 $data['file_panduan'] = $filesave;
             }
 
-
             bantuan::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -118,12 +122,14 @@ class BantuanController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('suport.bantuan.bantuanFormV', $data);
     }
 
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('suport.bantuan.bantuanFormV', $data);
     }
 
@@ -138,6 +144,7 @@ class BantuanController extends Controller
             DB::beginTransaction();
             bantuan::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -148,9 +155,10 @@ class BantuanController extends Controller
     {
         $path = config('constants.buku_panduan_path');
         $exist = \File::exists($path);
-        if (!$exist)
-            throw new NotFoundHttpException();
+        if (! $exist) {
+            throw new NotFoundHttpException;
+        }
+
         return response()->file($path);
     }
-
 }

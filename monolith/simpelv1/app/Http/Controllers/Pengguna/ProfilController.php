@@ -10,11 +10,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-
 class ProfilController extends Controller
 {
     protected $breadcums = ['Pengaturan', 'Profil'];
+
     protected $controller = '/pengguna/profil';
+
     /**
      * Display a listing of the resource.
      */
@@ -24,17 +25,19 @@ class ProfilController extends Controller
             'tableId' => 'dt-role',
             'model' => (array) Pengguna::getMyInfo(),
             'controller' => $this->controller,
-            'breadcums' => $this->breadcums
+            'breadcums' => $this->breadcums,
         ];
+
         return view('pengguna.profil.profilV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Pengguna();
+        $model = new Pengguna;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -42,18 +45,18 @@ class ProfilController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
         $breadcum = 'Tambah';
 
-        $role = new Level();
+        $role = new Level;
 
         if ($id) {
             $breadcum = 'Ubah';
             $model = Level::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -67,8 +70,10 @@ class ProfilController extends Controller
             'isNew' => $isNew,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -76,6 +81,7 @@ class ProfilController extends Controller
     {
         //
         $data = $this->getData();
+
         return view('pengguna.level.levelFormV', $data);
     }
 
@@ -91,7 +97,6 @@ class ProfilController extends Controller
             'menu_id' => 'array|min:1',
         ]);
 
-
         try {
             DB::beginTransaction();
             $role = Level::updateOrCreate(['id' => $request->input('id')], $request->only(['id', 'name', 'description']));
@@ -99,14 +104,16 @@ class ProfilController extends Controller
             foreach ($request->input('menu_id') as $key => $value) {
                 $menus[] = [
                     'role_id' => $role->id,
-                    'menu_id' => $value
+                    'menu_id' => $value,
                 ];
             }
             DB::table('ms_role_menu')->insert($menus);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -117,6 +124,7 @@ class ProfilController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengguna.level.levelFormV', $data);
     }
 
@@ -145,6 +153,7 @@ class ProfilController extends Controller
             DB::beginTransaction();
             Level::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -164,6 +173,7 @@ class ProfilController extends Controller
         $fotos = Files::upload($request, $params);
         Pengguna::where(['username' => session('userData.username')])->update(['foto' => $fotos['path']]);
         session()->put('userData.foto', $fotos['path']);
+
         return $this->resSuccess('Ok', ['type' => 'redirect', 'url' => '/pengguna/profil']);
     }
 }

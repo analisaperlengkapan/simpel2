@@ -5,13 +5,13 @@ namespace App\Models\Asset;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Senjata extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'asset_alat_persenjataan';
 
@@ -44,30 +44,30 @@ class Senjata extends Model
         'status_pengelolaan',
         'no_psp',
         'tgl_psp',
-        'jml_kib'
+        'jml_kib',
     ];
 
-    function getDataGrid($paging, $search = [], $select = [])
+    public function getDataGrid($paging, $search = [], $select = [])
     {
         $query = DB::table($this->table.' as a');
-        if(!empty($select)){
+        if (! empty($select)) {
             $query->select($select);
-        }else{
-            $query->select("a.*");
+        } else {
+            $query->select('a.*');
         }
         $roleSatker = session('userData.current_role.ms_satker_id');
         if ($roleSatker != '00') {
-            $query->leftJoin('ms_satker as b','a.id_satker','=','b.kdsatker_keu');
+            $query->leftJoin('ms_satker as b', 'a.id_satker', '=', 'b.kdsatker_keu');
             $query->where('b.inst_satkerkd', 'like', "{$roleSatker}%");
         }
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -85,33 +85,36 @@ class Senjata extends Model
         $query->orderByDesc('tgl_perolehan');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    function getDataExport($search = [],$defColumn = null)
+    public function getDataExport($search = [], $defColumn = null)
     {
-        $select = array(DB::raw("CONCAT(b.kode_unit,'.',b.kdsatker,'.',RIGHT(b.kode_uappbw,6)) as kdsatker_keu"), 'b.deskripsi as inst_nama', 'a.kode_barang', 'a.nm_barang', 'a.nup', 'a.kondisi','a.merk', 'a.tgl_rekam_pertama','a.tgl_perolehan',
-        'a.nilai_perolehan_pertama','a.nilai_mutasi','a.nilai_perolehan','a.nilai_penyusutan','a.nilai_buku','a.kuantitas','a.jml_foto','a.status_penggunaan',
-        'a.status_pengelolaan','a.no_psp', 'a.tgl_psp','a.jml_kib');
-        if($defColumn) $select = array_intersect_key($select, array_flip($defColumn));
+        $select = [DB::raw("CONCAT(b.kode_unit,'.',b.kdsatker,'.',RIGHT(b.kode_uappbw,6)) as kdsatker_keu"), 'b.deskripsi as inst_nama', 'a.kode_barang', 'a.nm_barang', 'a.nup', 'a.kondisi', 'a.merk', 'a.tgl_rekam_pertama', 'a.tgl_perolehan',
+            'a.nilai_perolehan_pertama', 'a.nilai_mutasi', 'a.nilai_perolehan', 'a.nilai_penyusutan', 'a.nilai_buku', 'a.kuantitas', 'a.jml_foto', 'a.status_penggunaan',
+            'a.status_pengelolaan', 'a.no_psp', 'a.tgl_psp', 'a.jml_kib'];
+        if ($defColumn) {
+            $select = array_intersect_key($select, array_flip($defColumn));
+        }
         $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker_sakti as b', 'a.kdsatker_keu', '=', 'b.kdsatker');
         $query->select($select);
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
-                    if($columnName=='inst_nama'){
+                    if ($columnName == 'inst_nama') {
                         $kolom = 'b.deskripsi';
-                    }else if($columnName=='kdsatker'){
+                    } elseif ($columnName == 'kdsatker') {
                         $kolom = "(b.kode_unit||'.'||b.kdsatker||'.'||RIGHT(b.kode_uappbw,6))";
-                    }else{
+                    } else {
                         $kolom = 'a.'.$columnName;
                     }
-                    $tableName = $columnName=='kdsatker'||$columnName=='inst_nama'?'ms_satker_sakti':$this->table;
-                    if($value){
+                    $tableName = $columnName == 'kdsatker' || $columnName == 'inst_nama' ? 'ms_satker_sakti' : $this->table;
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($kolom, '=', $value);
@@ -128,14 +131,17 @@ class Senjata extends Model
         }
         $query->orderByDesc('a.created_at');
         $data = $query->get();
+
         return ['data' => $data];
     }
 
-    static function findOne($id){
+    public static function findOne($id)
+    {
         $query = DB::table('asset_alat_persenjataan as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $query->where('a.id', '=', $id);
+
         return $query->first();
     }
 }

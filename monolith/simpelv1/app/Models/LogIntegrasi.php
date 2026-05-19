@@ -4,15 +4,14 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
-use App\Helpers\MyHelper;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LogIntegrasi extends Model
 {
     protected $table = 'log_integrasi';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -25,18 +24,19 @@ class LogIntegrasi extends Model
         'app',
         'duration',
     ];
-    function getDataGrid($paging, $search = [], $isRaw = false)
+
+    public function getDataGrid($paging, $search = [], $isRaw = false)
     {
         $query = DB::table("{$this->table} as a");
         // dd($query->paginate());
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -56,6 +56,7 @@ class LogIntegrasi extends Model
         $query->orderByDesc('a.created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'] ?? 10)->skip($paging['start'] ?? 0)->get();
+
         return ['total' => $total, 'data' => $data];
     }
     // select count(*) as unread from vw_notifikasi where ms_satker_id = '10.05' or username = 'superadmin' ;

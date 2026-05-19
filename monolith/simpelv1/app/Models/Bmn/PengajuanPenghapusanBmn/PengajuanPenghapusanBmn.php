@@ -8,13 +8,13 @@ use App\Traits\LogTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class PengajuanPenghapusanBmn extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
 
     protected $table = 'pengajuan_penghapusan_bmn';
@@ -32,12 +32,12 @@ class PengajuanPenghapusanBmn extends Model
         'deskripsi',
         'inst_satkerkd',
         'ms_aktifitas_id',
-        'tgl_pengajuan'
+        'tgl_pengajuan',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
-        $query = DB::table($this->table . ' as a');
+        $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
         $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
         $query->select('a.*', 'b.inst_nama', 'c.nama as aktifitas');
@@ -50,7 +50,7 @@ class PengajuanPenghapusanBmn extends Model
             $query->where('a.ms_aktifitas_id', '!=', 3000);
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -59,7 +59,7 @@ class PengajuanPenghapusanBmn extends Model
                     $columnName = $v['data'] == 'nama' ? 'a.nama' : $v['data'];
                     if (strtotime($value)) {
                         $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                    } else if ($value) {
+                    } elseif ($value) {
                         $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
                     }
                 }
@@ -68,12 +68,13 @@ class PengajuanPenghapusanBmn extends Model
         $query->orderByDesc('updated_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    function getDataGridDetail($paging, $search = [])
+    public function getDataGridDetail($paging, $search = [])
     {
-        $query = DB::table($this->table . ' as a');
+        $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
         $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
         $query->leftJoin('pengajuan_penghapusan_bmn_asset as d', 'a.id', '=', 'd.pengajuan_id');
@@ -84,10 +85,10 @@ class PengajuanPenghapusanBmn extends Model
             $query->where('a.inst_satkerkd', $ms_satker_id);
         }
         if (MyHelper::isValidatorWilayah()) {
-            $query->where('a.inst_satkerkd',  'like', "{$ms_satker_id}%");
+            $query->where('a.inst_satkerkd', 'like', "{$ms_satker_id}%");
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -96,7 +97,7 @@ class PengajuanPenghapusanBmn extends Model
                     $columnName = $v['data'] == 'nama' ? 'a.nama' : $v['data'];
                     if (strtotime($value)) {
                         $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                    } else if ($value) {
+                    } elseif ($value) {
                         $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
                     }
                 }
@@ -105,6 +106,7 @@ class PengajuanPenghapusanBmn extends Model
         $query->orderByDesc('updated_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 

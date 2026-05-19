@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 class PakaianDinasSatkerAktifitas extends Model
 {
     protected $table = 'pengajuan_pakaian_dinas_satker_aktifitas';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -42,34 +43,36 @@ class PakaianDinasSatkerAktifitas extends Model
     //     'password' => 'hashed',
     // ];
 
-    function getGridData($paging, $search = [])
+    public function getGridData($paging, $search = [])
     {
         $query = DB::table($this->table)->orderBy('created_at', 'desc');
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function ($q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(nama)'), "like", "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(deskripsi)"), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(nama)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(deskripsi)'), 'like', "%{$searchVal}%");
                 });
             }
         }
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function getDetail($pengajuanId)
+    public static function getDetail($pengajuanId)
     {
         $query = DB::table('pengajuan_pakaian_dinas_satker_aktifitas')
             ->select(['pengajuan_pakaian_dinas_satker_aktifitas.*', 'ms_aktifitas.nama as nama_aktifitas'])
             ->join('ms_aktifitas', 'pengajuan_pakaian_dinas_satker_aktifitas.ms_aktifitas_id', '=', 'ms_aktifitas.id')
             ->where(['pengajuan_pakaian_dinas_satker_id' => $pengajuanId])
             ->orderBy('pengajuan_pakaian_dinas_satker_aktifitas.created_at', 'desc')->get()->toArray();
+
         return $query;
     }
 }

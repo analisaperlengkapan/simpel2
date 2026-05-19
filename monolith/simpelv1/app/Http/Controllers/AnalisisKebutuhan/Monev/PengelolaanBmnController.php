@@ -11,15 +11,18 @@ use Illuminate\Support\Facades\DB;
 class PengelolaanBmnController extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Monitoring dan Evaluasi', 'Pengelolaan BMN'];
+
     private $controller = '/analisis-kebutuhan/monev/pengelolaan-bmn';
+
     public function index()
     {
         $data = [
             'tableId' => 'dt-pengajuan',
             'breadcums' => $this->breadcums,
             'controller' => $this->controller,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ];
+
         return view('analisis_kebutuhan.monev.pengelolaanBmnV', $data);
     }
 
@@ -31,10 +34,11 @@ class PengelolaanBmnController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams = $request->only(['columns','id']);
+        $searchParams = $request->only(['columns', 'id']);
         $data = $user->getGridDataRusak($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -44,11 +48,12 @@ class PengelolaanBmnController extends Controller
 
     public function gridDataSatker(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $msSatkerId = $_GET['satkerId'] ?? null;
         $data = $user->getGridData($pagingParams, $searchParams, $msSatkerId);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -108,15 +113,14 @@ class PengelolaanBmnController extends Controller
             'satker' => MsSatker::where(['inst_satkerkd' => $id])->first(),
             'controller' => $this->controller,
         ];
+
         return view('analisis_kebutuhan.monev.pengelolaanBmnSatkerV', $data);
     }
 
     /**
      * pelaksana ngisi /  validator ngeliat
      */
-    public function edit(string $id)
-    {
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -135,9 +139,11 @@ class PengelolaanBmnController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

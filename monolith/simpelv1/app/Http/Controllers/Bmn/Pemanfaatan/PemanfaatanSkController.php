@@ -17,28 +17,32 @@ class PemanfaatanSkController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Pengajuan SK Pemanfaatan'];
+    // protected $breadcums = ['BMN', 'Pengajuan SK Pemanfaatan'];
     protected $breadcums = ['BMN', 'Pengajuan SK Pemanfaatan'];
-    protected $columns = ['Nama Satker', 'Nama Barang','Tgl. Mulai', 'Tgl. Berakhir'];
-    protected $defColumns = [0,1,2,3];
+
+    protected $columns = ['Nama Satker', 'Nama Barang', 'Tgl. Mulai', 'Tgl. Berakhir'];
+
+    protected $defColumns = [0, 1, 2, 3];
+
     public function index()
     {
-        //$data = ['tableId' => 'dt-pemanfaatan', 'breadcums' => $this->breadcums];
-       // return view('bmn.pemanfaatansk.pemanfaatanV', $data);
-       return view('bmn.pemanfaatansk.pemanfaatanmonitorV', [
-        'tableId' => 'dt-pemanfaatan',
-        'breadcums' => $this->breadcums,
-        'columns' => $this->columns,
-        'defColumns' => $this->defColumns
-    ]);  
+        // $data = ['tableId' => 'dt-pemanfaatan', 'breadcums' => $this->breadcums];
+        // return view('bmn.pemanfaatansk.pemanfaatanV', $data);
+        return view('bmn.pemanfaatansk.pemanfaatanmonitorV', [
+            'tableId' => 'dt-pemanfaatan',
+            'breadcums' => $this->breadcums,
+            'columns' => $this->columns,
+            'defColumns' => $this->defColumns,
+        ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new PemanfaatanSk();
+        $model = new PemanfaatanSk;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -46,7 +50,7 @@ class PemanfaatanSkController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $modelSk = [];
@@ -55,7 +59,7 @@ class PemanfaatanSkController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = PemanfaatanSk::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -64,12 +68,12 @@ class PemanfaatanSkController extends Controller
             $modelSk = PemanfaatanSkFile::where('id_pemanfaatan', $id)->get();
             $modelSk = $modelSk->toArray();
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
-        //$satker= session('userData.current_role.ms_satker_id_keu');
+        // $satker= session('userData.current_role.ms_satker_id_keu');
         $satkers = Master::getSatkersKeu();
-        $jenis = ['Sewa Bangunan','Pinjam-Pakai Bangunan', 'Pinjam-Pakai Kendaraan'];
+        $jenis = ['Sewa Bangunan', 'Pinjam-Pakai Bangunan', 'Pinjam-Pakai Kendaraan'];
         $data = [
             'model' => $model,
             'modelSk' => $modelSk,
@@ -97,8 +101,9 @@ class PemanfaatanSkController extends Controller
                 'value' => 'kode_barang',
                 'selected' => $model['kode_barang'] ?? null,
             ]),
-           // 'listBarang' => Master::getBarangAset(),
+            // 'listBarang' => Master::getBarangAset(),
         ];
+
         return $data;
     }
 
@@ -108,6 +113,7 @@ class PemanfaatanSkController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.pemanfaatansk.pemanfaatanFormV', $data);
     }
 
@@ -146,23 +152,23 @@ class PemanfaatanSkController extends Controller
         // }else{
 
         // }
-        if($isNew){
+        if ($isNew) {
             $validate['file_mohon'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_mohon.required'] = 'File SK harus diupload';
-        }else{
+        } else {
 
         }
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
-            $kode_barang = explode("-",$request->input('kode_barang'));
-            $barang = DB::table('vw_asset_barang')->where('kode_barang',$kode_barang[0])->first();
+            $kode_barang = explode('-', $request->input('kode_barang'));
+            $barang = DB::table('vw_asset_barang')->where('kode_barang', $kode_barang[0])->first();
             $data = [
                 'kdsatker_keu' => session('userData.current_role.ms_satker_id_keu'),
                 'jenis_sk' => $request->input('jenis_sk'),
                 // 'no_surat' => $request->input('no_surat'),
                 // 'tgl_surat' => $request->input('tgl_surat'),
-                //'dikeluarkan_di' => $request->input('dikeluarkan_di'),
+                // 'dikeluarkan_di' => $request->input('dikeluarkan_di'),
                 'kode_barang' => $request->input('kode_barang'),
                 'nm_barang' => $barang->nm_barang,
                 'ms_jenis_asset_id' => $barang->ms_jenis_asset_id,
@@ -189,10 +195,10 @@ class PemanfaatanSkController extends Controller
             })->toArray();
             $id_sk = $request->input('id_sk') ?? [];
             $idsToDelete = array_diff($fileIds, $id_sk);
-            if (!empty($idsToDelete)) {
-                foreach($idsToDelete as $idDelete){
-                    $delHibah = PemanfaatanSkFile::where('id',$idDelete)->first();
-                    if(!empty($delHibah)){
+            if (! empty($idsToDelete)) {
+                foreach ($idsToDelete as $idDelete) {
+                    $delHibah = PemanfaatanSkFile::where('id', $idDelete)->first();
+                    if (! empty($delHibah)) {
                         $filePath = public_path($delHibah->file_sk);
                         if (File::exists($filePath)) {
                             File::delete($filePath);
@@ -202,8 +208,8 @@ class PemanfaatanSkController extends Controller
                 }
             }
 
-            if(count($id_sk)>0){
-                foreach($id_sk as $key => $idsk){
+            if (count($id_sk) > 0) {
+                foreach ($id_sk as $key => $idsk) {
                     $dataSk = [
                         'id_pemanfaatan' => $id,
                         'no_sk' => $request->input('no_sk')[$key],
@@ -221,17 +227,19 @@ class PemanfaatanSkController extends Controller
                 }
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/bmn/pemanfaatan/pemanfaatansk')
+                    'url' => \URL::to('/bmn/pemanfaatan/pemanfaatansk'),
                 ]
             );
         } catch (\Throwable $th) {
             dd($th);
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -243,6 +251,7 @@ class PemanfaatanSkController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.pemanfaatansk.pemanfaatanFormV', $data);
     }
 
@@ -252,6 +261,7 @@ class PemanfaatanSkController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.pemanfaatansk.pemanfaatanFormV', $data);
     }
 
@@ -284,20 +294,19 @@ class PemanfaatanSkController extends Controller
             }
             $model->delete();
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
 
-
-
     public function cetakLabel($id)
     {
         $data = PemanfaatanSk::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

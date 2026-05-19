@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Pengadaan;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Sdm\Rencanapengadaanlangsung;
-use App\Models\Master;
 use App\Models\Master\MsSatker;
 use App\Models\Monsakti\KontrakHeader;
+use App\Models\Sdm\Rencanapengadaanlangsung;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -19,12 +18,13 @@ class RencanapengadaanlangsungController extends Controller
      * Display a listing of the resource.
      */
     private $controller = '/pengadaan/rencanapengadaanlangsung';
+
     protected $breadcums = ['Pengadaan'];
 
     public function __construct(Request $request)
     {
 
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Rencana Pengadaan Langsung']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Rencana Pengadaan Langsung']]);
     }
 
     protected function canCreate()
@@ -43,8 +43,8 @@ class RencanapengadaanlangsungController extends Controller
             ->where('a.inst_level', '!=', '4')->get()->toArray();
 
         $data = [
-            'tableId' => 'dt-rencanapengadaanlangsung', 
-            'breadcums' => $this->breadcums, 
+            'tableId' => 'dt-rencanapengadaanlangsung',
+            'breadcums' => $this->breadcums,
             'canCreate' => $this->canCreate(),
             'satkerAllOptions' => MyHelper::generateSelectOptions([
                 'data' => $satkers,
@@ -53,16 +53,17 @@ class RencanapengadaanlangsungController extends Controller
                 'selected' => null,
             ]),
         ];
-        
+
         return view('pengadaan.rencanapengadaanlangsung.rencanapengadaanlangsungV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new KontrakHeader();
+        $model = new KontrakHeader;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -70,7 +71,7 @@ class RencanapengadaanlangsungController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -78,24 +79,24 @@ class RencanapengadaanlangsungController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = KontrakHeader::where('id_kontrak', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
             $ms_satker_id = $model['kdsatker'];
-        }else{
+        } else {
             $currentRole = session('userData.current_role');
             $ms_satker_id = $currentRole['ms_satker_id'] ?? $model['inst_satkerkd'];
         }
         $breadcum = 'Detail Kontrak';
         $model['inst_nama'] = MsSatker::where('kdsatker_keu', $ms_satker_id)->first()['inst_nama'];
-        $kontrak = new KontrakHeader();
+        $kontrak = new KontrakHeader;
         $dataLine = $kontrak->getDataLine($model['id_kontrak']);
         $dataTermin = $kontrak->getDataTermin($model['id_kontrak']);
         $dataBast = $kontrak->getDataBast($model['no_kontrak']);
-        $dataBastDetail = $kontrak->getDataBastDetail($dataBast['id_bast']??'');
+        $dataBastDetail = $kontrak->getDataBastDetail($dataBast['id_bast'] ?? '');
         $data = [
             'model' => $model,
             'isNew' => $isNew,
@@ -109,7 +110,7 @@ class RencanapengadaanlangsungController extends Controller
             'dataBastDetail' => $dataBastDetail,
         ];
 
-        //echo "<pre>"; print_r($data);exit;
+        // echo "<pre>"; print_r($data);exit;
 
         return $data;
     }
@@ -119,10 +120,11 @@ class RencanapengadaanlangsungController extends Controller
      */
     public function create()
     {
-        if (!$this->canCreate()) {
+        if (! $this->canCreate()) {
             throw new UnauthorizedHttpException('Tidak Punya Akses');
         }
         $data = $this->getData();
+
         return view('pengadaan.rencanapengadaanlangsung.rencanapengadaanlangsungFormV', $data);
     }
 
@@ -131,7 +133,7 @@ class RencanapengadaanlangsungController extends Controller
      */
     public function store(Request $request)
     {
-        //echo $request->input('nilai_kontrak');exit;
+        // echo $request->input('nilai_kontrak');exit;
 
         $isNew = $request->input('isNew');
         $customMessages = [
@@ -149,10 +151,10 @@ class RencanapengadaanlangsungController extends Controller
             'tgl_kontrak' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'pengadaan_rencana_langsung_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_kontrak'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_kontrak.required'] = 'File Kontrak harus diupload';
-        }else{
+        } else {
 
         }
         $request->validate($validate, $customMessages);
@@ -166,14 +168,22 @@ class RencanapengadaanlangsungController extends Controller
                 'kdsatker_keu' => $ms_satker_id_keu,
                 'jenis_kontrak' => $request->input('jenis_kontrak'),
                 'no_kontrak' => $request->input('no_kontrak'),
-                'nilai_kontrak' => str_replace('.', '', $request->input('nilai_kontrak')), //,
+                'nilai_kontrak' => str_replace('.', '', $request->input('nilai_kontrak')), // ,
                 'tgl_kontrak' => $request->input('tgl_kontrak'),
                 'jenis_pengadaan' => $request->input('jenis_pengadaan'),
             ];
-            if($request->input('no_spk')) $data['no_spk'] = $request->input('no_spk');
-            if($request->input('tgl_spk')) $data['tgl_spk'] = $request->input('tgl_spk');
-            if($request->input('jangka_waktu_pelaksanaan')) $data['jangka_waktu_pelaksanaan'] = $request->input('jangka_waktu_pelaksanaan');
-            if($request->input('jangka_waktu_pelaksanaan')) $data['jangka_waktu_pelaksanaan'] = $request->input('jangka_waktu_pelaksanaan');
+            if ($request->input('no_spk')) {
+                $data['no_spk'] = $request->input('no_spk');
+            }
+            if ($request->input('tgl_spk')) {
+                $data['tgl_spk'] = $request->input('tgl_spk');
+            }
+            if ($request->input('jangka_waktu_pelaksanaan')) {
+                $data['jangka_waktu_pelaksanaan'] = $request->input('jangka_waktu_pelaksanaan');
+            }
+            if ($request->input('jangka_waktu_pelaksanaan')) {
+                $data['jangka_waktu_pelaksanaan'] = $request->input('jangka_waktu_pelaksanaan');
+            }
             $filepath = 'uploads/pengadaan/rencanapengadaanlangsung';
             if ($request->hasFile('file_kontrak')) {
                 $file = $request->file('file_kontrak');
@@ -219,15 +229,17 @@ class RencanapengadaanlangsungController extends Controller
             }
             Rencanapengadaanlangsung::updateOrCreate(['id' => $id], $data);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/rencanapengadaanlangsung')
+                    'url' => \URL::to('/pengadaan/rencanapengadaanlangsung'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -239,6 +251,7 @@ class RencanapengadaanlangsungController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('pengadaan.rencanapengadaanlangsung.rencanapengadaanlangsungViewV', $data);
     }
 
@@ -247,10 +260,11 @@ class RencanapengadaanlangsungController extends Controller
      */
     public function edit(string $id)
     {
-        if (!$this->canCreate()) {
+        if (! $this->canCreate()) {
             throw new UnauthorizedHttpException('Tidak Punya Akses');
         }
         $data = $this->getData($id);
+
         return view('pengadaan.rencanapengadaanlangsung.rencanapengadaanlangsungFormV', $data);
     }
 
@@ -271,6 +285,7 @@ class RencanapengadaanlangsungController extends Controller
             DB::beginTransaction();
             Rencanapengadaanlangsung::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -282,7 +297,7 @@ class RencanapengadaanlangsungController extends Controller
         $data = Hakcipta::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

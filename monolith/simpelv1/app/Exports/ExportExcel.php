@@ -2,9 +2,7 @@
 
 namespace App\Exports;
 
-use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -13,10 +11,12 @@ use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 
-class ExportExcel extends DefaultValueBinder implements FromArray, WithHeadings, ShouldAutoSize, WithTitle, WithCustomValueBinder
+class ExportExcel extends DefaultValueBinder implements FromArray, ShouldAutoSize, WithCustomValueBinder, WithHeadings, WithTitle
 {
     private $setData;
+
     private $setHeadings;
+
     private $setSheetTitle;
 
     public function __construct($data = [], $headings = [], $title = null)
@@ -40,11 +40,13 @@ class ExportExcel extends DefaultValueBinder implements FromArray, WithHeadings,
     {
         return is_null($this->setSheetTitle) ? 'Main' : $this->setSheetTitle;
     }
+
     public function bindValue(Cell $cell, $value)
     {
         // Fix the bug: is_numeric($value) == 'id' should be is_numeric($value) && $cell->getColumn() == 'A'
         if (is_numeric($value) && $cell->getColumn() == 'A') {
             $cell->setValueExplicit($value, DataType::TYPE_STRING);
+
             return true;
         }
 

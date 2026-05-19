@@ -15,7 +15,9 @@ class SuperadminController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengguna', 'Superadmin'];
+
     private $controller = '/pengguna/superadmin';
+
     public function index()
     {
         $columns = [
@@ -24,21 +26,23 @@ class SuperadminController extends Controller
             'Email',
         ];
         $defColumns = [0, 1, 2];
+
         return view('pengguna.superadmin.superadminV', [
             'tableId' => 'dt-user',
             'columns' => $columns,
             'defColumns' => $defColumns,
             'breadcums' => $this->breadcums,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $user = new Pengguna();
+        $user = new Pengguna;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getUserGrid($pagingParams, $searchParams, true);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -46,7 +50,7 @@ class SuperadminController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -55,7 +59,7 @@ class SuperadminController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Pengguna::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -67,12 +71,14 @@ class SuperadminController extends Controller
             'model' => $model,
             'tableId' => 'dt-user',
             'isNew' => $isNew,
-            'canChangePassword' => !$isNew && session('id') == $model['id'] ? true : false,
+            'canChangePassword' => ! $isNew && session('id') == $model['id'] ? true : false,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
             'controller' => $this->controller,
         ];
+
         return $data;
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -80,6 +86,7 @@ class SuperadminController extends Controller
     {
         //
         $data = $this->getData();
+
         return view('pengguna.superadmin.superadminFormV', $data);
     }
 
@@ -109,14 +116,16 @@ class SuperadminController extends Controller
             DB::beginTransaction();
             $user = Pengguna::updateOrCreate(['id' => $request->input('id')], $inputan);
 
-            $roleModel = new Level();
+            $roleModel = new Level;
             $roleModel->delInsertUserRole($user->id, ['user_id' => $user->id, 'ms_role_id' => config('constants.superadmin_role_id')]);
 
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             dd($th);
             DB::rollBack();
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -127,6 +136,7 @@ class SuperadminController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengguna.superadmin.superadminFormV', $data);
     }
 
@@ -155,6 +165,7 @@ class SuperadminController extends Controller
             DB::beginTransaction();
             Pengguna::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

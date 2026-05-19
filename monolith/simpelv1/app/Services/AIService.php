@@ -7,10 +7,15 @@ use Illuminate\Support\Facades\Log;
 class AIService
 {
     protected $aiDataService;
+
     protected $faqService;
+
     protected $contextService;
+
     protected $promptService;
+
     protected $validationService;
+
     protected $llmProvider;
 
     public function __construct(
@@ -31,15 +36,15 @@ class AIService
 
     /**
      * Entry point utama untuk menjawab pertanyaan user.
-     * @param string $question
-     * @param array $options (opsional: user_id, session, dsb)
+     *
+     * @param  array  $options  (opsional: user_id, session, dsb)
      * @return array ['answer' => string, 'source' => string, 'log' => array]
      */
     public function answerQuestion(string $question, array $options = []): array
     {
         $log = [
             'question' => $question,
-            'steps' => []
+            'steps' => [],
         ];
         try {
             Log::debug('[AIService] Mulai answerQuestion', ['question' => $question, 'options' => $options]);
@@ -66,7 +71,7 @@ class AIService
             // 6. Fallback jika perlu
             $finalAnswer = $aiAnswer;
             $source = 'ai';
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 $fallback = $this->validationService->generateDirectAnswer($question, $faq['answer'] ?? '', $context);
                 Log::debug('[AIService] Fallback digunakan', ['fallback' => $fallback]);
                 $log['steps'][] = ['fallback' => $fallback];
@@ -75,7 +80,7 @@ class AIService
             }
             // 7. Validasi akronim dan perbaiki jika perlu
             $acronymErrors = $this->validationService->validateAcronyms($finalAnswer);
-            if (!empty($acronymErrors)) {
+            if (! empty($acronymErrors)) {
                 $fixed = $this->validationService->regenerateAnswerWithAcronymCheck($finalAnswer);
                 Log::debug('[AIService] Akronim diperbaiki', ['fixed' => $fixed, 'acronym_errors' => $acronymErrors]);
                 $log['steps'][] = ['acronym_fix' => $fixed, 'acronym_errors' => $acronymErrors];
@@ -86,25 +91,27 @@ class AIService
                 'question' => $question,
                 'answer' => $finalAnswer,
                 'source' => $source,
-                'log' => $log
+                'log' => $log,
             ]);
+
             return [
                 'answer' => $finalAnswer,
                 'source' => $source,
-                'log' => $log
+                'log' => $log,
             ];
         } catch (\Throwable $e) {
             Log::error('[AIService] ERROR', [
                 'question' => $question,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return [
                 'answer' => '',
                 'source' => 'error',
                 'log' => $log,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
-} 
+}

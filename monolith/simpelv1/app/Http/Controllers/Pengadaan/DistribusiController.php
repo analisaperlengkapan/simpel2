@@ -21,10 +21,12 @@ class DistribusiController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengadaan', 'Penyimpanan dan Distribusi'];
+
     public function index()
     {
         $breadcum = array_merge($this->breadcums, ['Pengisian Data Pengadaan']);
         $judul = 'Daftar Data Pengadaan';
+
         return view('pengadaan.distribusi.distribusiV', ['judul' => $judul, 'tableId' => 'dt-distribusi', 'breadcums' => $breadcum]);
     }
 
@@ -32,6 +34,7 @@ class DistribusiController extends Controller
     {
         $breadcum = array_merge($this->breadcums, ['Barang Masuk Gudang']);
         $judul = 'Daftar Barang Masuk Gudang';
+
         return view('pengadaan.distribusi.distribusiV', ['judul' => $judul, 'tableId' => 'dt-distribusi', 'breadcums' => $breadcum]);
     }
 
@@ -39,6 +42,7 @@ class DistribusiController extends Controller
     {
         $breadcum = array_merge($this->breadcums, ['Barang Keluar Gudang']);
         $judul = 'Daftar Barang Keluar Gudang';
+
         return view('pengadaan.distribusi.distribusiV', ['judul' => $judul, 'tableId' => 'dt-distribusi', 'breadcums' => $breadcum]);
     }
 
@@ -46,15 +50,17 @@ class DistribusiController extends Controller
     {
         $breadcum = array_merge($this->breadcums, ['Konfirmasi Penerimaan Barang']);
         $judul = 'Daftar Konfirmasi Penerimaan Barang';
+
         return view('pengadaan.distribusi.distribusiV', ['judul' => $judul, 'tableId' => 'dt-distribusi', 'breadcums' => $breadcum]);
     }
 
-    public function gridData(Request $request, $jenis = "")
+    public function gridData(Request $request, $jenis = '')
     {
-        $model = new Distribusi();
+        $model = new Distribusi;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams, $jenis);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -62,12 +68,13 @@ class DistribusiController extends Controller
         ]);
     }
 
-    public function gridDataAdd(Request $request, $jenis = "")
+    public function gridDataAdd(Request $request, $jenis = '')
     {
-        $model = new Distribusi();
+        $model = new Distribusi;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGridAdd($pagingParams, $searchParams, $jenis);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -77,8 +84,9 @@ class DistribusiController extends Controller
 
     public function histData($id_penyimpanan)
     {
-        $model = new Distribusi();
+        $model = new Distribusi;
         $data = $model->getDataHist($id_penyimpanan);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -86,7 +94,7 @@ class DistribusiController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -94,14 +102,14 @@ class DistribusiController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Distribusi::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -119,14 +127,16 @@ class DistribusiController extends Controller
                 'selected' => $model['kdsatker_tujuan'] ?? null,
             ]),
         ];
-        //dd($data['satkerOptions']);
+
+        // dd($data['satkerOptions']);
         return $data;
     }
 
     public function gridDataKontrak()
     {
-        $model = new KontrakHeader();
+        $model = new KontrakHeader;
         $data = $model->getAll();
+
         return response()->json([
             'data' => $data,
         ]);
@@ -138,6 +148,7 @@ class DistribusiController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('pengadaan.distribusi.distribusiFormV', $data);
     }
 
@@ -165,10 +176,10 @@ class DistribusiController extends Controller
             'kdsatker_tujuan' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'penyimpanan_distribusi_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_spk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SPK harus diupload';
-        }else{
+        } else {
             $validate['no_kontrak'] = 'required|unique:penyimpanan_distribusi,no_kontrak,'.$id;
         }
         $request->validate($validate, $customMessages);
@@ -196,40 +207,43 @@ class DistribusiController extends Controller
                 $data['file_spk'] = $filesave;
             }
             Distribusi::updateOrCreate(['id' => $id], $data);
-            if($isNew){
+            if ($isNew) {
                 DistribusiHist::create([
                     'id_penyimpanan' => $id,
                     'id_status' => 1,
                 ]);
             }
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function pilihData(Request $request){
+    public function pilihData(Request $request)
+    {
         $jenis = $request->input('jenis');
         $id = $request->input('id');
         try {
             DB::beginTransaction();
             $model = Distribusi::find($id);
-            if($jenis == 'masuk-gudang'){
+            if ($jenis == 'masuk-gudang') {
                 $model->id_status = 2;
                 $hist = [
                     'id_penyimpanan' => $id,
                     'id_status' => 2,
                 ];
-            }else if($jenis == 'keluar-gudang'){
+            } elseif ($jenis == 'keluar-gudang') {
                 $model->id_status = 5;
                 $hist = [
                     'id_penyimpanan' => $id,
                     'id_status' => 5,
                 ];
-            }else if($jenis == 'konfirmasi-penerimaan'){
+            } elseif ($jenis == 'konfirmasi-penerimaan') {
                 $model->id_status = 8;
                 $hist = [
                     'id_penyimpanan' => $id,
@@ -239,10 +253,12 @@ class DistribusiController extends Controller
             $model->save();
             DistribusiHist::create($hist);
             DB::commit();
+
             return $this->resSuccess();
-        }catch (\Throwable $th) {
+        } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -253,12 +269,14 @@ class DistribusiController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengadaan.distribusi.distribusiFormV', $data);
     }
 
     public function showKonfirmasi(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengadaan.distribusi.konfirmasiFormV', $data);
     }
 
@@ -283,10 +301,12 @@ class DistribusiController extends Controller
                 $record->delete();
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -295,12 +315,12 @@ class DistribusiController extends Controller
     {
         $data = Distribusi::findOne($id);
         $model = (array) $data;
-        $data = 'Nomor Kontrak : '.$model['no_kontrak']."\n".'Nama Barang : '.$model['nm_barang']."\n"."Satker Tujuan : ".$model['inst_nama'];
+        $data = 'Nomor Kontrak : '.$model['no_kontrak']."\n".'Nama Barang : '.$model['nm_barang']."\n".'Satker Tujuan : '.$model['inst_nama'];
         $qrCodeImage = MyHelper::generateQrCode($data);
         $pdfContent = '<html><style> table { margin-left: auto; margin-right: auto; } </style><body>';
         $pdfContent .= '<table><tbody>';
         $pdfContent .= '<tr><td>';
-        $pdfContent .= '<center><img src="data:image/png;base64,' . base64_encode($qrCodeImage) . '" /></center><br/><br/>';
+        $pdfContent .= '<center><img src="data:image/png;base64,'.base64_encode($qrCodeImage).'" /></center><br/><br/>';
         $pdfContent .= '</td>';
         $pdfContent .= '<td>';
         $pdfContent .= '<table><tbody>';
@@ -312,10 +332,11 @@ class DistribusiController extends Controller
         $pdfContent .= '</tbody></table>';
         $pdfContent .= '</body></html>';
         $pdf = LaravelMpdf::loadHTML($pdfContent, [
-            'title' => "Label",
+            'title' => 'Label',
             'format' => 'A5-L',
-            'orientation' => 'L'
+            'orientation' => 'L',
         ]);
+
         return $pdf->stream('label-barang-gudang.pdf');
     }
 
@@ -323,18 +344,20 @@ class DistribusiController extends Controller
     {
         $jenis = $request->input('jenis');
         $in = [];
-        if($jenis == 'masuk-gudang'){
-            $in = [3,4];
-        }else if($jenis == 'keluar-gudang'){
-            $in = [6,7];
-        }else if($jenis == 'konfirmasi-penerimaan'){
+        if ($jenis == 'masuk-gudang') {
+            $in = [3, 4];
+        } elseif ($jenis == 'keluar-gudang') {
+            $in = [6, 7];
+        } elseif ($jenis == 'konfirmasi-penerimaan') {
             $in = [9];
         }
         $options = MsDistribusiStatus::whereIn('id', $in)->get();
+
         return response()->json($options);
     }
 
-    public function simpanUbahStatus(Request $request){
+    public function simpanUbahStatus(Request $request)
+    {
         $id = $request->input('id');
         $id_status = $request->input('id_status');
         $ket = $request->input('ket');
@@ -349,10 +372,12 @@ class DistribusiController extends Controller
                 'ket' => $ket,
             ]);
             DB::commit();
+
             return $this->resSuccess();
-        }catch (\Throwable $th) {
+        } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -391,10 +416,12 @@ class DistribusiController extends Controller
             }
             Distribusi::updateOrCreate(['id' => $id], $data);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }

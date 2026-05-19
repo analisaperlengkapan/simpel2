@@ -1,10 +1,9 @@
 <?php
+
 namespace App\Traits;
 
 use App\Helpers\MyHelper;
 use App\Models\Pengguna\Aktifitas;
-
-
 
 trait LogTrait
 {
@@ -22,7 +21,7 @@ trait LogTrait
         // });
 
         self::updating(function ($model) {
-            $log = MyHelper::generateLogData("UBAH", $model);
+            $log = MyHelper::generateLogData('UBAH', $model);
             Aktifitas::create($log);
         });
 
@@ -35,9 +34,8 @@ trait LogTrait
         // });
 
         self::deleted(function ($model) {
-            $log = MyHelper::generateLogData("HAPUS", $model);
+            $log = MyHelper::generateLogData('HAPUS', $model);
             Aktifitas::create($log);
         });
     }
-
 }

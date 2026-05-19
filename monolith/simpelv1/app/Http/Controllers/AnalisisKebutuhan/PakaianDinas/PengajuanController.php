@@ -29,7 +29,9 @@ use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 class PengajuanController extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Pakaian Dinas', 'Pengajuan'];
+
     private $controller = '/analisis-kebutuhan/pakaian-dinas/pengajuan';
+
     public function index()
     {
 
@@ -41,8 +43,9 @@ class PengajuanController extends Controller
             'controller' => $this->controller,
             'operasi' => $this->userOperation(),
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ];
+
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanV', $data);
     }
 
@@ -67,7 +70,7 @@ class PengajuanController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $filter['is_reguler'] = 1;
@@ -76,6 +79,7 @@ class PengajuanController extends Controller
         }
 
         $data = $user->getGridData($pagingParams, $searchParams, $filter);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -84,25 +88,25 @@ class PengajuanController extends Controller
     }
     // http://localhost:8000/analisis-kebutuhan/pakaian-dinas/pengajuan/20240109116/list-satker?id_wilayah=00
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
         $breadcum = 'Tambah';
         $selectedSatker = [];
-        $specs = new SpesifikasiPakaianDinas();
+        $specs = new SpesifikasiPakaianDinas;
         $selectedSpecs = [];
 
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $satkerTerpilih = PakaianDinasSatkerTerpilih::where(['pengajuan_pakaian_dinas_id' => $id, 'is_show_in_form' => 1])->get()->toArray();
             $pakaianTerpilih = PakaianDinasPakaian::where(['pengajuan_pakaian_dinas_id' => $id])->get();
             $selectedSpecs = Arr::pluck($pakaianTerpilih, 'spesifikasi_id');
-            if (!empty($satkerTerpilih)) {
+            if (! empty($satkerTerpilih)) {
                 $selectedSatker = Arr::pluck($satkerTerpilih, 'ms_satker_id');
             }
             $model = $model->toArray();
@@ -117,7 +121,7 @@ class PengajuanController extends Controller
                 'text' => "{$spec->nama} - {$spec->gender}",
                 'value' => $spec->id,
                 'ms_jenis_pakaian_id' => $spec->ms_jenis_pakaian_dinas_id,
-                'checked' => in_array($spec->id, $selectedSpecs)
+                'checked' => in_array($spec->id, $selectedSpecs),
             ];
         }
         $tahuns = MyHelper::generateTahun();
@@ -135,9 +139,10 @@ class PengajuanController extends Controller
                 'data' => JenisPakaianDinas::all(),
                 'text' => 'nama',
                 'value' => 'id',
-                'selected' => $model['ms_jenis_pakaian_dinas_id'] ?? null
+                'selected' => $model['ms_jenis_pakaian_dinas_id'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -147,10 +152,11 @@ class PengajuanController extends Controller
     public function create()
     {
 
-        if (!$this->userOperation() == 'CREATE') {
+        if (! $this->userOperation() == 'CREATE') {
             throw new UnauthorizedHttpException('Tidak Punya Akses');
         }
         $data = $this->getData();
+
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanFormV', $data);
     }
 
@@ -196,7 +202,7 @@ class PengajuanController extends Controller
                         if ($kdSatker == '00') {
                             $q->orWhere('inst_satkerkd', '00')->orWhere('is_pusat', 1);
                         } else {
-                            $q->orWhere('inst_satkerkd', "like", "{$kdSatker}%");
+                            $q->orWhere('inst_satkerkd', 'like', "{$kdSatker}%");
                         }
                     }
                 });
@@ -214,7 +220,7 @@ class PengajuanController extends Controller
                     'ms_satker_id' => $value->inst_satkerkd,
                     'pengajuan_pakaian_dinas_id' => $id,
                     'ms_satker_pusat_id' => null,
-                    'is_show_in_form' => in_array($value->inst_satkerkd, $request->input('satkers', [])) ? 1 : 0
+                    'is_show_in_form' => in_array($value->inst_satkerkd, $request->input('satkers', [])) ? 1 : 0,
                 ];
                 if ($isNew) {
                     $satkerId = $value->inst_satkerkd;
@@ -228,13 +234,13 @@ class PengajuanController extends Controller
                         $targetSatkerPusat[] = $pusatId;
                     }
 
-                    if (!$isReguler) {
+                    if (! $isReguler) {
                         $pakainDinasSatkerData[] = [
                             'pengajuan_pakaian_dinas_id' => $id,
                             'ms_aktifitas_id' => 1008,
-                            //selesai
+                            // selesai
                             'ms_satker_id' => $value->inst_satkerkd,
-                            'ms_satker_pusat_id' => $satkerId
+                            'ms_satker_pusat_id' => $satkerId,
                         ];
                     }
                 }
@@ -272,18 +278,20 @@ class PengajuanController extends Controller
             }
             // PakaianDinasPakaian::where(['pengajuan_pakaian_dinas_id' => $id])->delete();
 
-            if ($isNew && !$isReguler) {
-                //create pakaian_dinas_satker
+            if ($isNew && ! $isReguler) {
+                // create pakaian_dinas_satker
                 // PakaianDinasSatker::insert($pakainDinasSatkerData);
-                //create pakaian_dinas_satker_pegawai
-                //ambil nip dari mw_curr sesuai satker join ke pegawai_pakain_dinas
-                //looping pakaian, ambil ukuranya sesuai sama ukuran_group
-                //create pakaian_dinas_satker_pegawai_ukuran
+                // create pakaian_dinas_satker_pegawai
+                // ambil nip dari mw_curr sesuai satker join ke pegawai_pakain_dinas
+                // looping pakaian, ambil ukuranya sesuai sama ukuran_group
+                // create pakaian_dinas_satker_pegawai_ukuran
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -293,10 +301,11 @@ class PengajuanController extends Controller
      */
     public function show(string $id)
     {
-        if (!$this->userOperation() == 'CREATE') {
+        if (! $this->userOperation() == 'CREATE') {
             throw new UnauthorizedHttpException('Tidak Punya Akses');
         }
         $data = $this->getData($id);
+
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanFormV', $data);
     }
 
@@ -307,7 +316,7 @@ class PengajuanController extends Controller
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
 
@@ -316,13 +325,13 @@ class PengajuanController extends Controller
         $selectedSatker = $_GET['satker'] ?? $currentRole['ms_satker_id'];
         if (MyHelper::isPelaksanaSatker() && $currentRole['ms_satker_id'] == '00') {
             $isPusatSelected = $_GET['isPusat'] ?? 0;
-            //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+            // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
             $whereData = ['ms_satker_id' => '00', 'ms_satker_pusat_id' => $currentRole['ms_satker_pusat_id'], 'pengajuan_pakaian_dinas_id' => $pengajuan->id];
             $whereSatker = ['inst_satkerkd' => $selectedSatker];
         } else {
             $selectedSatker = isset($_GET['satker']) ? $_GET['satker'] : $currentRole['ms_satker_id'];
             $isPusatSelected = $_GET['isPusat'] ?? 0;
-            //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+            // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
             $whereData = ['ms_satker_id' => $selectedSatker, 'pengajuan_pakaian_dinas_id' => $pengajuan->id];
             $whereSatker = ['inst_satkerkd' => $selectedSatker];
         }
@@ -393,8 +402,9 @@ class PengajuanController extends Controller
             'aktifitas' => $currentAktifitas,
             'aktifitasHistories' => $aktifitasHistories,
             'breadcums' => array_merge($this->breadcums, ['Pengisian']),
-            'isNew' => $isNew
+            'isNew' => $isNew,
         ];
+
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanFormSatkerIsiV', $data);
     }
 
@@ -436,7 +446,6 @@ class PengajuanController extends Controller
                 PakaianDinasSatker::where(['id' => $id])->update(['ms_aktifitas_id' => $request->input('ms_aktifitas_id')]);
             }
 
-
             PakaianDinasSatkerPegawai::where(['pengajuan_pakaian_dinas_satker_id' => $id])->delete();
             PakaianDinasSatkerPegawaiUkuran::where(['pengajuan_pakaian_dinas_satker_id' => $id])->delete();
             foreach ($request->input('pegawais') as $value) {
@@ -457,24 +466,23 @@ class PengajuanController extends Controller
             PakaianDinasSatkerPegawai::insert($pegawais);
             PakaianDinasSatkerPegawaiUkuran::insert($pegawaiDetails);
 
-
             $dataAktifitas = [
                 'idKey' => 'pengajuan_pakaian_dinas_satker_id',
                 'idValue' => $id,
                 'ms_aktifitas_id' => $request->input('ms_aktifitas_id'),
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => $request->input('ms_aktifitas_id') == 1000 ? false : true
+                'to_satker_induk' => $request->input('ms_aktifitas_id') == 1000 ? false : true,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             PakaianDinasSatkerAktifitas::insert($acts['act']);
             // dd($acts);
             $this->sendNotif($pengajuanId, $acts['msAct'], $id);
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($acts['msAct']->id, [1003, 1005, 1007])) { //revisi
+                if (in_array($acts['msAct']->id, [1003, 1005, 1007])) { // revisi
                     $model = PakaianDinasSatker::where(['id' => $id])->first();
                     $satkerLv = MyHelper::getSatkerLevel($model->ms_satker_id);
-                    //balikin ke awal approval
+                    // balikin ke awal approval
                     if ($satkerLv == 'KEJAGUNG') {
                         $newAct = 1009;
                     } else {
@@ -482,14 +490,14 @@ class PengajuanController extends Controller
                     }
                 }
 
-                if ($newAct == 1008) { //selesai
+                if ($newAct == 1008) { // selesai
                     $pegawais = PakaianDinasSatkerPegawai::where('pengajuan_pakaian_dinas_satker_id', $id)->get();
-                    $ukuranPegawais = DB::select("SELECT a.*
+                    $ukuranPegawais = DB::select('SELECT a.*
                     , c.spesifikasi_ukuran_group
                     from pengajuan_pakaian_dinas_satker_pegawai_ukuran a
                     join pengajuan_pakaian_dinas_pakaian c on a.pengajuan_pakaian_dinas_pakaian_id = c.id
                     where pengajuan_pakaian_dinas_satker_id = ? ;
-                    ", [$id]);
+                    ', [$id]);
                     $mappedUkurans = [];
                     foreach ($ukuranPegawais as $ukuran) {
                         $mappedUkurans[$ukuran->pengajuan_pakaian_dinas_satker_pegawai_id][$ukuran->spesifikasi_ukuran_group] = $ukuran->ukuran;
@@ -503,7 +511,7 @@ class PengajuanController extends Controller
                             'with_hijab' => $pegawai->with_hijab,
                             'pangkat' => $pegawai->pangkat,
                             'jabatan' => $pegawai->jabatan,
-                            'last_pengajuan_pakaian_dinas_satker_pegawai_id' => $pegawai->id
+                            'last_pengajuan_pakaian_dinas_satker_pegawai_id' => $pegawai->id,
                         ];
 
                         if (isset($mappedUkurans[$pegawai->id]['BAJU'])) {
@@ -531,23 +539,26 @@ class PengajuanController extends Controller
             }
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => URL::to('/analisis-kebutuhan/pakaian-dinas/pengajuan')
+                    'url' => URL::to('/analisis-kebutuhan/pakaian-dinas/pengajuan'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th);
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
+
     public function listSatker(int $pengajuanId)
     {
         $pengajuan = Model::where('id', $pengajuanId)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
 
@@ -574,13 +585,13 @@ class PengajuanController extends Controller
         }
     }
 
-    function lisSatkerPusat($data)
+    public function lisSatkerPusat($data)
     {
 
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanSatkerListPusatV', $data);
     }
 
-    function listSatkerWilayah($data)
+    public function listSatkerWilayah($data)
     {
 
         $enableCheckOn = [];
@@ -596,12 +607,13 @@ class PengajuanController extends Controller
             $enableCheckOn = [1001, 1012];
         }
         $data['enableCheckOn'] = $enableCheckOn;
+
         return view('analisis_kebutuhan.pakaian_dinas.pengajuanSatkerListV', $data);
     }
 
     public function gridDataSatker(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
 
@@ -630,6 +642,7 @@ class PengajuanController extends Controller
         array_push($filters, $newF);
 
         $data = $user->getGridDataSatker($pagingParams, $searchParams, $request->input('pengajuanId'), $filters, $isPusat);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -639,10 +652,11 @@ class PengajuanController extends Controller
 
     public function gridDataSatkerPusat(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy', 'unitKerja']);
         $data = $user->getGridDataSatkerPusat($pagingParams, $searchParams, $request->input('pengajuanId'));
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -667,9 +681,11 @@ class PengajuanController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -680,14 +696,14 @@ class PengajuanController extends Controller
 
         if ($ms_aktifitas_id == 1008) {
             return $this->setSelesai($request);
-        } else if (in_array($ms_aktifitas_id, [1005, 1007])) {
+        } elseif (in_array($ms_aktifitas_id, [1005, 1007])) {
             return $this->setRevisi($request);
-        } else if ($ms_aktifitas_id == 1010) {
+        } elseif ($ms_aktifitas_id == 1010) {
             return $this->setNext($request);
         }
     }
 
-    function setNext(Request $request)
+    public function setNext(Request $request)
     {
         $pengajuanId = $request->input('pengajuanId');
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
@@ -699,7 +715,7 @@ class PengajuanController extends Controller
                     'idKey' => 'pengajuan_pakaian_dinas_satker_id',
                     'idValue' => $id,
                     'ms_aktifitas_id' => $ms_aktifitas_id,
-                    'komentar' => "OK",
+                    'komentar' => 'OK',
                     'to_satker_induk' => false,
                 ];
                 $acts = Approval::roleCheck($dataAktifitas);
@@ -708,15 +724,17 @@ class PengajuanController extends Controller
             }
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th);
+
             return $this->resError();
         }
     }
 
-    function setSelesai(Request $request)
+    public function setSelesai(Request $request)
     {
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
         $pengajuanId = $request->input('pengajuanId');
@@ -729,14 +747,13 @@ class PengajuanController extends Controller
                     'idKey' => 'pengajuan_pakaian_dinas_satker_id',
                     'idValue' => $id,
                     'ms_aktifitas_id' => $ms_aktifitas_id,
-                    'komentar' => "Selesai",
+                    'komentar' => 'Selesai',
                     'to_satker_induk' => false,
                 ];
                 $acts = Approval::roleCheck($dataAktifitas);
                 PakaianDinasSatkerAktifitas::insert($acts['act']);
                 PakaianDinasSatker::where(['id' => $id])->update(['ms_aktifitas_id' => $ms_aktifitas_id]);
-                //selesai
-
+                // selesai
 
             }
             $pegawais = PakaianDinasSatkerPegawai::whereIn('pengajuan_pakaian_dinas_satker_id', $pengajuanSatkerIds)->get();
@@ -757,7 +774,7 @@ class PengajuanController extends Controller
                     'pangkat' => $pegawai->pangkat,
                     'jabatan' => $pegawai->jabatan,
                     'gol_kd' => $pegawai->gol_kd,
-                    'last_pengajuan_pakaian_dinas_satker_pegawai_id' => $pegawai->id
+                    'last_pengajuan_pakaian_dinas_satker_pegawai_id' => $pegawai->id,
                 ];
                 foreach ($pakaians as $key => $pakaian) {
                     $ukuranGroup = $pakaian->spesifikasi_ukuran_group;
@@ -770,15 +787,17 @@ class PengajuanController extends Controller
             PegawaiPakaianDinas::whereIn('nip', $nips)->delete();
             DB::table('pegawai_pakaian_dinas')->insert($data);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th);
+
             return $this->resError();
         }
     }
 
-    function setRevisi(Request $request)
+    public function setRevisi(Request $request)
     {
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
         $pengajuanId = $request->input('pengajuanId');
@@ -788,12 +807,12 @@ class PengajuanController extends Controller
         try {
             DB::beginTransaction();
             foreach ($satkers as $key => $model) {
-                # code...
+                // code...
                 $satkerLv = MyHelper::getSatkerLevel($model->ms_satker_id);
-                //balikin ke awal approval
+                // balikin ke awal approval
                 if ($satkerLv == 'KEJAGUNG') {
                     $newAct = 1009;
-                } else if ($satkerLv == 'KEJAGUNG') {
+                } elseif ($satkerLv == 'KEJAGUNG') {
                     $newAct = 1011;
                 } else {
                     $newAct = 1000;
@@ -803,7 +822,7 @@ class PengajuanController extends Controller
                     'idKey' => 'pengajuan_pakaian_dinas_satker_id',
                     'idValue' => $model->id,
                     'ms_aktifitas_id' => $ms_aktifitas_id,
-                    'komentar' => "Revisi",
+                    'komentar' => 'Revisi',
                     'to_satker_induk' => false,
                 ];
                 $acts = Approval::roleCheck($dataAktifitas);
@@ -811,14 +830,17 @@ class PengajuanController extends Controller
                 PakaianDinasSatker::where(['id' => $model->id])->update(['ms_aktifitas_id' => $newAct]);
             }
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th);
+
             return $this->resError();
         }
     }
-    function sendNotif($pengajuanId, $msAct, $pengajuanSatkerId)
+
+    public function sendNotif($pengajuanId, $msAct, $pengajuanSatkerId)
     {
         $satkerId = session('userData.current_role.ms_satker_id');
         $satkerParent = explode('.', $satkerId)[0];
@@ -850,7 +872,7 @@ class PengajuanController extends Controller
             $notifParams['judul'] = 'Verifikasi Pakaian Dinas Ke Validator Pusat';
             $notifParams['targetValue'] = config('constants.validator_pusat_role_id');
 
-            if ($msAct->id == 1003) { //kirim ke pelaksana satker saat revisi
+            if ($msAct->id == 1003) { // kirim ke pelaksana satker saat revisi
                 $pengajuanSatker = PakaianDinasSatker::where(['id' => $pengajuanSatkerId])->first();
                 $targetSatker = $pengajuanSatker['ms_satker_id'] == '00' ? $pengajuanSatker['ms_satker_pusat_id'] : $pengajuanSatker['ms_satker_id'];
                 $notifParams['url'] = "analisis-kebutuhan/pakaian-dinas/pengajuan/{$pengajuanId}/edit";

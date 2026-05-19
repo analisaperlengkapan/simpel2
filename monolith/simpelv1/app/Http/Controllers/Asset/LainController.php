@@ -18,13 +18,16 @@ class LainController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Aset'];
-    protected $columns = ['Kode Satker', 'Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama' ,'Nilai Mutasi' ,'Nilai Perolehan' ,'Nilai Penyusutan' ,'Nilai Buku' ,'Kuantitas','Jml Foto','Status Penggunaan','Status Pengelolaan','No. PSP','Tgl PSP'];
-    protected $defColumns = [0,1,2,3,4,5];
+
+    protected $columns = ['Kode Satker', 'Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama', 'Nilai Mutasi', 'Nilai Perolehan', 'Nilai Penyusutan', 'Nilai Buku', 'Kuantitas', 'Jml Foto', 'Status Penggunaan', 'Status Pengelolaan', 'No. PSP', 'Tgl PSP'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
+
     protected $controller = '/asset/lain';
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Aset Tetap Lainnya']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Aset Tetap Lainnya']]);
     }
 
     public function index()
@@ -34,10 +37,11 @@ class LainController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Lain();
+        $model = new Lain;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -45,7 +49,7 @@ class LainController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -53,14 +57,14 @@ class LainController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Lain::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $kondisi = ['Baik', 'Rusak Ringan', 'Rusak Berat'];
@@ -85,6 +89,7 @@ class LainController extends Controller
                 'selected' => $model['kdsatker_keu'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -94,6 +99,7 @@ class LainController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('asset.lain.lainFormV', $data);
     }
 
@@ -108,10 +114,11 @@ class LainController extends Controller
         $request->validate([
             'kdsatker_keu' => 'required',
             'kode_barang' => 'required',
-            'nm_barang' => 'required'
+            'nm_barang' => 'required',
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'asset_tetap_lainnya_seq');
-        Lain::updateOrCreate(['id' => $id],$request->input());
+        Lain::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -121,6 +128,7 @@ class LainController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('asset.lain.lainFormV', $data);
     }
 
@@ -130,6 +138,7 @@ class LainController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('asset.lain.lainFormV', $data);
     }
 
@@ -150,6 +159,7 @@ class LainController extends Controller
             DB::beginTransaction();
             Lain::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -161,41 +171,46 @@ class LainController extends Controller
         $data = Lain::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tanah.pdf');
     }
 
-    public function cetakExcel(Request $request){
-        $model = new Lain();
-        $searchParams =  $request->only(['columns']);
+    public function cetakExcel(Request $request)
+    {
+        $model = new Lain;
+        $searchParams = $request->only(['columns']);
         $paging['length'] = -1;
         $paging['start'] = 1;
-        $isKolom =  $request->input('isKolom');
-        $select = array();
-        $selectView = array();
-        if($isKolom=='all'){
-            $columns = \DB::getSchemaBuilder()->getColumnListing((new Lain())->getTable());
-        }else{
+        $isKolom = $request->input('isKolom');
+        $select = [];
+        $selectView = [];
+        if ($isKolom == 'all') {
+            $columns = \DB::getSchemaBuilder()->getColumnListing((new Lain)->getTable());
+        } else {
             $visible = explode(',', $request->input('visible'));
             foreach ($visible as $key) {
-                if (isset($searchParams["columns"][$key]["data"])) {
-                    $kolomSelect = 'a.'.$searchParams["columns"][$key]["data"];
-                    $kolomView = $searchParams["columns"][$key]["data"];
-                    array_push($select,$kolomSelect);
-                    array_push($selectView,$kolomView);
+                if (isset($searchParams['columns'][$key]['data'])) {
+                    $kolomSelect = 'a.'.$searchParams['columns'][$key]['data'];
+                    $kolomView = $searchParams['columns'][$key]['data'];
+                    array_push($select, $kolomSelect);
+                    array_push($selectView, $kolomView);
                 }
             }
             $columns = $selectView;
         }
         $data = $model->getDataGrid($paging, $searchParams, $select);
-        return Excel::download(new ExportExcel($data['data']->toArray(),$columns,'Daftar Aset Tetap Lainnya'), 'aset_tetap_lainnya.xlsx', \Maatwebsite\Excel\Excel::XLSX);
+
+        return Excel::download(new ExportExcel($data['data']->toArray(), $columns, 'Daftar Aset Tetap Lainnya'), 'aset_tetap_lainnya.xlsx', \Maatwebsite\Excel\Excel::XLSX);
     }
 
-    public function cetakPdf(Request $request){
-        $model = new Lain();
-        $searchParams =  $request->only(['columns']);
-        $data = $model->getDataExport($searchParams,$this->defColumns);
+    public function cetakPdf(Request $request)
+    {
+        $model = new Lain;
+        $searchParams = $request->only(['columns']);
+        $data = $model->getDataExport($searchParams, $this->defColumns);
         $selectedColumns = array_intersect_key($this->columns, array_flip($this->defColumns));
-        $pdf = MyHelper::generateAssetpdf('exports.asset',$selectedColumns,$data,$this->defColumns,'Daftar Aset Tetap Lainnya');
+        $pdf = MyHelper::generateAssetpdf('exports.asset', $selectedColumns, $data, $this->defColumns, 'Daftar Aset Tetap Lainnya');
+
         return $pdf;
     }
 }

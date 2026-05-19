@@ -7,7 +7,6 @@ use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Asset\AlatBesar;
 use App\Models\Master;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -19,13 +18,16 @@ class AlatBesarController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Aset'];
-    protected $columns = ['Kode Satker', 'Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama' ,'Nilai Mutasi' ,'Nilai Perolehan' ,'Nilai Penyusutan' ,'Nilai Buku' ,'Kuantitas','Jml Foto','Status Penggunaan','Status Pengelolaan','No. PSP','Tgl PSP','Jumlah KIB'];
-    protected $defColumns = [0,1,2,3,4,5];
+
+    protected $columns = ['Kode Satker', 'Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama', 'Nilai Mutasi', 'Nilai Perolehan', 'Nilai Penyusutan', 'Nilai Buku', 'Kuantitas', 'Jml Foto', 'Status Penggunaan', 'Status Pengelolaan', 'No. PSP', 'Tgl PSP', 'Jumlah KIB'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
+
     protected $controller = '/asset/alat_besar';
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Alat Besar']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Alat Besar']]);
     }
 
     public function index()
@@ -35,10 +37,11 @@ class AlatBesarController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new AlatBesar();
+        $model = new AlatBesar;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -46,7 +49,7 @@ class AlatBesarController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -55,14 +58,14 @@ class AlatBesarController extends Controller
             $breadcum = 'Ubah';
             $model = AlatBesar::where('id', $id)->first();
 
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $kondisi = ['Baik', 'Rusak Ringan', 'Rusak Berat'];
@@ -87,6 +90,7 @@ class AlatBesarController extends Controller
                 'selected' => $model['kdsatker_keu'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -96,6 +100,7 @@ class AlatBesarController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('asset.alat_besar.alat_besarFormV', $data);
     }
 
@@ -110,10 +115,11 @@ class AlatBesarController extends Controller
         $request->validate([
             'kdsatker_keu' => 'required',
             'kode_barang' => 'required',
-            'nm_barang' => 'required'
+            'nm_barang' => 'required',
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'asset_alat_besar_seq');
-        AlatBesar::updateOrCreate(['id' => $id],$request->input());
+        AlatBesar::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -123,6 +129,7 @@ class AlatBesarController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('asset.alat_besar.alat_besarFormV', $data);
     }
 
@@ -132,6 +139,7 @@ class AlatBesarController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('asset.alat_besar.alat_besarFormV', $data);
     }
 
@@ -152,6 +160,7 @@ class AlatBesarController extends Controller
             DB::beginTransaction();
             AlatBesar::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -163,41 +172,46 @@ class AlatBesarController extends Controller
         $data = AlatBesar::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-alat-besar.pdf');
     }
 
-    public function cetakExcel(Request $request){
-        $model = new AlatBesar();
-        $searchParams =  $request->only(['columns']);
+    public function cetakExcel(Request $request)
+    {
+        $model = new AlatBesar;
+        $searchParams = $request->only(['columns']);
         $paging['length'] = -1;
         $paging['start'] = 1;
-        $isKolom =  $request->input('isKolom');
-        $select = array();
-        $selectView = array();
-        if($isKolom=='all'){
-            $columns = \DB::getSchemaBuilder()->getColumnListing((new AlatBesar())->getTable());
-        }else{
+        $isKolom = $request->input('isKolom');
+        $select = [];
+        $selectView = [];
+        if ($isKolom == 'all') {
+            $columns = \DB::getSchemaBuilder()->getColumnListing((new AlatBesar)->getTable());
+        } else {
             $visible = explode(',', $request->input('visible'));
             foreach ($visible as $key) {
-                if (isset($searchParams["columns"][$key]["data"])) {
-                    $kolomSelect = 'a.'.$searchParams["columns"][$key]["data"];
-                    $kolomView = $searchParams["columns"][$key]["data"];
-                    array_push($select,$kolomSelect);
-                    array_push($selectView,$kolomView);
+                if (isset($searchParams['columns'][$key]['data'])) {
+                    $kolomSelect = 'a.'.$searchParams['columns'][$key]['data'];
+                    $kolomView = $searchParams['columns'][$key]['data'];
+                    array_push($select, $kolomSelect);
+                    array_push($selectView, $kolomView);
                 }
             }
             $columns = $selectView;
         }
         $data = $model->getDataGrid($paging, $searchParams, $select);
-        return Excel::download(new ExportExcel($data['data']->toArray(),$columns,'Daftar Aset Alat Besar'), 'aset_alat_besar.xlsx', \Maatwebsite\Excel\Excel::XLSX);
+
+        return Excel::download(new ExportExcel($data['data']->toArray(), $columns, 'Daftar Aset Alat Besar'), 'aset_alat_besar.xlsx', \Maatwebsite\Excel\Excel::XLSX);
     }
 
-    public function cetakPdf(Request $request){
-        $model = new AlatBesar();
-        $searchParams =  $request->only(['columns']);
-        $data = $model->getDataExport($searchParams,$this->defColumns);
+    public function cetakPdf(Request $request)
+    {
+        $model = new AlatBesar;
+        $searchParams = $request->only(['columns']);
+        $data = $model->getDataExport($searchParams, $this->defColumns);
         $selectedColumns = array_intersect_key($this->columns, array_flip($this->defColumns));
-        $pdf = MyHelper::generateAssetpdf('exports.asset',$selectedColumns,$data,$this->defColumns,'Daftar Aset Alat Besar');
+        $pdf = MyHelper::generateAssetpdf('exports.asset', $selectedColumns, $data, $this->defColumns, 'Daftar Aset Alat Besar');
+
         return $pdf;
     }
 }

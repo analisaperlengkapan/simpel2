@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Master;
 use App\Http\Controllers\Controller;
 use App\Models\Master\MsSatker;
 use Illuminate\Http\Request;
-use App\Helpers\MyHelper;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -14,11 +13,15 @@ class SatkerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['Master', 'Satker'];
+    // protected $breadcums = ['Master', 'Satker'];
     protected $kategoriJudul = 'Satker';
+
     protected $controller = 'master/satker';
+
     protected $breadcums = ['Master'];
+
     protected $columns = ['Kode Wilayah', 'Kode Satker', 'Nama Satker', 'Kode Monsakti', 'Kode MySimkari', 'Alamat', 'Telepon', 'Fax', 'Jenis', 'Level', 'Kepala'];
+
     protected $defColumns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
     public function __construct()
@@ -43,23 +46,25 @@ class SatkerController extends Controller
             'Kepala',
         ];
         $defColumns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
         return view('master.satker.satkerV', [
             'tableId' => 'dt-satker',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $columns,
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new MsSatker();
+        $model = new MsSatker;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -67,14 +72,14 @@ class SatkerController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
 
         if ($id) {
             $model = MsSatker::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -86,6 +91,7 @@ class SatkerController extends Controller
             'model' => $model,
             'isNew' => $isNew,
         ];
+
         return $data;
     }
 
@@ -95,6 +101,7 @@ class SatkerController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.satker.satkerFormV', $data);
     }
 
@@ -104,20 +111,20 @@ class SatkerController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            //'inst_satkerinduk' => 'required',
-            //'inst_satkerkd' => 'required',
-            //'inst_nama' => 'required',
-            //'inst_jenis' => 'required'
+            // 'inst_satkerinduk' => 'required',
+            // 'inst_satkerkd' => 'required',
+            // 'inst_nama' => 'required',
+            // 'inst_jenis' => 'required'
         ]);
 
-
-        $data = new MsSatker();
+        $data = new MsSatker;
         $id = isset($request->input()['id']) ? $request->input()['id'] : null;
         if ($id) {
             $data = MsSatker::find($id);
         }
         $data->fill($request->input());
         $data->save();
+
         return $this->resSuccess();
     }
 
@@ -127,6 +134,7 @@ class SatkerController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.satker.satkerFormV', $data);
     }
 
@@ -155,6 +163,7 @@ class SatkerController extends Controller
             DB::beginTransaction();
             MsSatker::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

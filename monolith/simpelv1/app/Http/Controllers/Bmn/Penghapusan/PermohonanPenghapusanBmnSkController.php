@@ -6,38 +6,42 @@ use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalUserSpseSirup as Approval;
 use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmn;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFile;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFoto;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFotocopy;
+use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSk as Model;
+use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSkAktifitas as Aktifitas;
 use App\Models\Files;
+use App\Models\Master;
 use App\Models\Master\MsSatker;
 use App\Models\Notifikasi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSk as Model;
-use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSkAktifitas as Aktifitas;
-use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFile;
-use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFoto;
-use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFotocopy;
-use App\Models\Master;
 use Illuminate\Support\Facades\File as FileManager;
-use ZipArchive;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PermohonanPenghapusanBmnSkController extends Controller
 {
     protected $kategoriJudul = 'Permohonan Penerbitan Surat Keputusan Penghapusan BMN';
-    protected $kategori = ['1'=>'Persetujuan Penghapusan oleh Jaksa Agung Muda Pembinaan','2'=>'Persetujuan Penghapusan oleh Pengelola Barang'];
-    protected $jenis = ['1'=>'Penyerahan kepada Pengelola Barang','2'=>'Pengalihan Status Penggunaan BMN kepada Pengguna Barang Lain','3'=>'Pemindahtanganan','4'=>'Adanya Putusan Pengadilan yang Telah memperoleh Kekuatan Hukum Tetap dan Sudah Tidak ada Upaya Hukum Lainnya','5'=>'Menjalankan Ketentuan Peraturan Perundang-undangan','6'=>'Pemusnahan','7'=>'Sebab-sebab Lain'];
-    protected $breadcums = ['Pengelolaan BMN','Penghapusan BMN'];
+
+    protected $kategori = ['1' => 'Persetujuan Penghapusan oleh Jaksa Agung Muda Pembinaan', '2' => 'Persetujuan Penghapusan oleh Pengelola Barang'];
+
+    protected $jenis = ['1' => 'Penyerahan kepada Pengelola Barang', '2' => 'Pengalihan Status Penggunaan BMN kepada Pengguna Barang Lain', '3' => 'Pemindahtanganan', '4' => 'Adanya Putusan Pengadilan yang Telah memperoleh Kekuatan Hukum Tetap dan Sudah Tidak ada Upaya Hukum Lainnya', '5' => 'Menjalankan Ketentuan Peraturan Perundang-undangan', '6' => 'Pemusnahan', '7' => 'Sebab-sebab Lain'];
+
+    protected $breadcums = ['Pengelolaan BMN', 'Penghapusan BMN'];
+
     private $controller = '/bmn/penghapusan/penghapusansk';
+
     private $url = 'bmn/penghapusan/penghapusansk';
+
     private $whereKategori = [];
 
     public function __construct(Request $request)
     {
         $segment = $request->segment(3);
         $this->whereKategori = [];
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>$this->kategoriJudul]]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => $this->kategoriJudul]]);
     }
-
 
     public function index()
     {
@@ -48,7 +52,7 @@ class PermohonanPenghapusanBmnSkController extends Controller
             'kategori' => $this->kategori,
             'kategoriJudul' => $this->kategoriJudul,
             'jenis' => $this->jenis,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ]);
     }
 
@@ -79,10 +83,11 @@ class PermohonanPenghapusanBmnSkController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
-        $data = $user->getDataGrid($pagingParams, $searchParams,  $this->whereKategori);
+        $data = $user->getDataGrid($pagingParams, $searchParams, $this->whereKategori);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -92,8 +97,9 @@ class PermohonanPenghapusanBmnSkController extends Controller
 
     public function gridDataFotoCopy($pengajuan_id)
     {
-        $model = new PermohonanPenghapusanBmnFotocopy();
+        $model = new PermohonanPenghapusanBmnFotocopy;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -101,8 +107,9 @@ class PermohonanPenghapusanBmnSkController extends Controller
 
     public function gridDataFoto($pengajuan_id)
     {
-        $model = new PermohonanPenghapusanBmnFoto();
+        $model = new PermohonanPenghapusanBmnFoto;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -110,14 +117,15 @@ class PermohonanPenghapusanBmnSkController extends Controller
 
     public function gridDataPermohonan()
     {
-        $model = new Model();
+        $model = new Model;
         $data = $model->getDataPermohonan();
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -126,7 +134,7 @@ class PermohonanPenghapusanBmnSkController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -139,15 +147,14 @@ class PermohonanPenghapusanBmnSkController extends Controller
             'controller' => $this->controller,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -166,7 +173,7 @@ class PermohonanPenghapusanBmnSkController extends Controller
             'kategori' => 'required',
             'no_surat_permohonan' => 'required',
             'tgl_surat_permohonan' => 'required',
-            'file_surat_permohonan' => 'required'
+            'file_surat_permohonan' => 'required',
         ];
 
         $request->validate($validasi, $customMessages);
@@ -205,24 +212,27 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 ];
                 $insertedFiles[] = $newFile;
                 Files::insert($insertedFiles);
-                Model::updateOrCreate(['id' => $id], ['file_surat_permohonan'=>$filesave]);
+                Model::updateOrCreate(['id' => $id], ['file_surat_permohonan' => $filesave]);
 
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveFotocopy(Request $request){
+    public function saveFotocopy(Request $request)
+    {
         $customMessages = [
             'nomor.required' => 'Nomor harus diisi',
             'tanggal.required' => 'Tanggal harus diisi',
@@ -242,9 +252,9 @@ class PermohonanPenghapusanBmnSkController extends Controller
             $nomor = $request->input('nomor');
             $tanggal = $request->input('tanggal');
             $inputan = [
-                'pengajuan_id'=>$pengajuan_id,
-                'nomor'=>$nomor,
-                'tanggal'=>$tanggal,
+                'pengajuan_id' => $pengajuan_id,
+                'nomor' => $nomor,
+                'tanggal' => $tanggal,
             ];
             $model = PermohonanPenghapusanBmnFotocopy::updateOrCreate(['id' => $id], $inputan);
             $insertedId = $model->id;
@@ -266,19 +276,22 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 ];
                 $insertedFiles[] = $newFile;
                 Files::insert($insertedFiles);
-                PermohonanPenghapusanBmnFotocopy::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                PermohonanPenghapusanBmnFotocopy::updateOrCreate(['id' => $insertedId], ['file' => $filesave]);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveFoto(Request $request){
+    public function saveFoto(Request $request)
+    {
         $customMessages = [
             'ket.required' => 'Nomor harus diisi',
             'file.required' => 'Tanggal harus diisi',
@@ -295,8 +308,8 @@ class PermohonanPenghapusanBmnSkController extends Controller
             $pengajuan_id = $request->input('pengajuan_id');
             $ket = $request->input('ket');
             $inputan = [
-                'pengajuan_id'=>$pengajuan_id,
-                'ket'=>$ket,
+                'pengajuan_id' => $pengajuan_id,
+                'ket' => $ket,
             ];
             $model = PermohonanPenghapusanBmnFoto::updateOrCreate(['id' => $id], $inputan);
             $insertedId = $model->id;
@@ -318,14 +331,16 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 ];
                 $insertedFiles[] = $newFile;
                 Files::insert($insertedFiles);
-                PermohonanPenghapusanBmnFoto::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                PermohonanPenghapusanBmnFoto::updateOrCreate(['id' => $insertedId], ['file' => $filesave]);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -333,60 +348,60 @@ class PermohonanPenghapusanBmnSkController extends Controller
     /**
      * edit admin perlengkapan
      */
-    public function show(Request $request,string $id)
+    public function show(Request $request, string $id)
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
-        $permohonan = PermohonanPenghapusanBmn::where('id',$model->pengajuan_id)->first();
+        $permohonan = PermohonanPenghapusanBmn::where('id', $model->pengajuan_id)->first();
         $subkategori = $permohonan->kategori ?? '';
-        if($subkategori == 'hibah' || $subkategori == 'tukar' || $subkategori == 'penjualan'){
+        if ($subkategori == 'hibah' || $subkategori == 'tukar' || $subkategori == 'penjualan') {
             $kategori = 'pemindahtanganan';
-        }else{
+        } else {
             $kategori = $subkategori;
         }
-        //ms file
+        // ms file
         $pengajuanId = $pengajuan->pengajuan_id;
         $ms_file = DB::table('ms_penghapusan_file as a')
-                ->select('a.id as ms_penghapusan_file_id','a.nm_file','a.is_nomor','b.id','b.nomor','b.tanggal','b.file','a.jenis_file','a.is_validator','a.kategori','a.sub_kategori')
-                ->leftJoin('permohonan_penghapusan_bmn_file as b', function($join) use ($pengajuanId)  {
-                    $join->on('a.id', '=', 'b.ms_penghapusan_file_id')
-                         ->where('b.pengajuan_id', '=', $pengajuanId);
-                })
-                ->where('sub_kategori',$subkategori)
-                ->where(function($q) use ($kategori){
-                    $q->where('kategori',$kategori)->orWhere('kategori','sk');
-                })
-                ->orderBy('a.id')->get()->toArray();
+            ->select('a.id as ms_penghapusan_file_id', 'a.nm_file', 'a.is_nomor', 'b.id', 'b.nomor', 'b.tanggal', 'b.file', 'a.jenis_file', 'a.is_validator', 'a.kategori', 'a.sub_kategori')
+            ->leftJoin('permohonan_penghapusan_bmn_file as b', function ($join) use ($pengajuanId) {
+                $join->on('a.id', '=', 'b.ms_penghapusan_file_id')
+                    ->where('b.pengajuan_id', '=', $pengajuanId);
+            })
+            ->where('sub_kategori', $subkategori)
+            ->where(function ($q) use ($kategori) {
+                $q->where('kategori', $kategori)->orWhere('kategori', 'sk');
+            })
+            ->orderBy('a.id')->get()->toArray();
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $model->ms_aktifitas_id;
-        $whereAct = ['ms_aktifitas_id' => $msAktifitasId,'group'=>'BMN'];
+        $whereAct = ['ms_aktifitas_id' => $msAktifitasId, 'group' => 'BMN'];
         $aktifitasHistories = Aktifitas::getDetail($model->id);
         $aktifitasOptions = Approval::getAktifitas($whereAct);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
-        if($msAktifitasId==3000){
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3004,3005])->get()->toArray();
+        if ($msAktifitasId == 3000) {
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3004, 3005])->get()->toArray();
         }
-        if($msAktifitasId==3002 && $model->kategori == 'tidak_memiliki_dokumen'){
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3006,3007])->get()->toArray();
+        if ($msAktifitasId == 3002 && $model->kategori == 'tidak_memiliki_dokumen') {
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3006, 3007])->get()->toArray();
         }
 
         $data = [
@@ -409,7 +424,8 @@ class PermohonanPenghapusanBmnSkController extends Controller
         if ($request->wantsJson()) {
             return response()->json($data);
         } else {
-            $form = $pengajuan->kategori==2?'bmn.permohonan-sk.pengajuanFormPengelolaV':'bmn.permohonan-sk.pengajuanFormV';
+            $form = $pengajuan->kategori == 2 ? 'bmn.permohonan-sk.pengajuanFormPengelolaV' : 'bmn.permohonan-sk.pengajuanFormV';
+
             return view($form, $data);
         }
     }
@@ -417,10 +433,7 @@ class PermohonanPenghapusanBmnSkController extends Controller
     /**
      * pelaksana ngisi /  validator ngeliat
      */
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     public function savePengajuan(Request $request)
     {
@@ -442,29 +455,31 @@ class PermohonanPenghapusanBmnSkController extends Controller
             DB::beginTransaction();
             $currentRole = session('userData.current_role');
             Model::where(['id' => $id])->update(['ms_aktifitas_id' => $ms_aktifitas_id]);
-            $model =  Model::where(['id' => $id])->first();
+            $model = Model::where(['id' => $id])->first();
             $dataAktifitas = [
                 'pengajuan_id' => $id,
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => in_array($ms_aktifitas_id, [3000, 3003, 3005, 3007]) ? false : true
+                'to_satker_induk' => in_array($ms_aktifitas_id, [3000, 3003, 3005, 3007]) ? false : true,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             Aktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [3003, 3005, 3007])) { //revisi
+                if (in_array($newAct, [3003, 3005, 3007])) { // revisi
                     $newAct = 3000;
                 }
                 Model::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
             }
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['id'=>$ms_aktifitas_id])->first();
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['id' => $ms_aktifitas_id])->first();
             $bmnSatker = Model::where(['id' => $id])->first();
-            if($ms_aktifitas_id == 3004) $acts['act']['ms_satker_id'] = '00';
+            if ($ms_aktifitas_id == 3004) {
+                $acts['act']['ms_satker_id'] = '00';
+            }
             $notifParams = [
-                'url' => $this->url."/".$id,
-                'judul' => 'Pengajuan SK Penghapusan ('.($aktifitasOptions->nama=='Draft'?'Revisi':$aktifitasOptions->nama).')',
+                'url' => $this->url.'/'.$id,
+                'judul' => 'Pengajuan SK Penghapusan ('.($aktifitasOptions->nama == 'Draft' ? 'Revisi' : $aktifitasOptions->nama).')',
                 'isi' => $dataAktifitas['komentar'],
                 'target' => 'role',
                 'targetValue' => $aktifitasOptions->can_change ?? config('constants.pelaksana_satker_role_id'),
@@ -472,13 +487,13 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 'targetSatkerPusat' => [$acts['act']['ms_satker_id'] ?? $bmnSatker->inst_satkerkd],
             ];
             Notifikasi::sendNotif($notifParams);
-            if(!empty($request->input('ms_penghapusan_file_id'))){
-                foreach($request->input('ms_penghapusan_file_id') as $key => $ms_penghapusan_file_id){
+            if (! empty($request->input('ms_penghapusan_file_id'))) {
+                foreach ($request->input('ms_penghapusan_file_id') as $key => $ms_penghapusan_file_id) {
                     $data = [
-                        'pengajuan_id'=>$model->pengajuan_id,
-                        'ms_penghapusan_file_id'=>$ms_penghapusan_file_id,
-                        'nomor'=>$request->input('file_nomor')[$key],
-                        'tanggal'=>$request->input('file_tanggal')[$key],
+                        'pengajuan_id' => $model->pengajuan_id,
+                        'ms_penghapusan_file_id' => $ms_penghapusan_file_id,
+                        'nomor' => $request->input('file_nomor')[$key],
+                        'tanggal' => $request->input('file_tanggal')[$key],
                     ];
                     $modelFile = PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $request->input('file_id')[$key]], $data);
                     $insertedId = $modelFile->id;
@@ -500,22 +515,24 @@ class PermohonanPenghapusanBmnSkController extends Controller
                         ];
                         $insertedFiles[] = $newFile;
                         Files::insert($insertedFiles);
-                        PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                        PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $insertedId], ['file' => $filesave]);
                     }
                 }
             }
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -535,13 +552,15 @@ class PermohonanPenghapusanBmnSkController extends Controller
     {
         try {
             DB::beginTransaction();
-            $model = Model::where('id',$id)->first();
+            $model = Model::where('id', $id)->first();
             $model->delete();
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             dd($th->getMessage());
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -551,8 +570,8 @@ class PermohonanPenghapusanBmnSkController extends Controller
         try {
             DB::beginTransaction();
             $fc = PermohonanPenghapusanBmnFotocopy::where('id', $id)->first();
-            if(!empty($fc)){
-                if($fc->file){
+            if (! empty($fc)) {
+                if ($fc->file) {
                     $filePath = public_path($fc->file);
                     // Delete the physical file from public directory
                     if (FileManager::exists($filePath)) {
@@ -562,9 +581,11 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 $fc->delete();
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -574,8 +595,8 @@ class PermohonanPenghapusanBmnSkController extends Controller
         try {
             DB::beginTransaction();
             $fc = PermohonanPenghapusanBmnFoto::where('id', $id)->first();
-            if(!empty($fc)){
-                if($fc->file){
+            if (! empty($fc)) {
+                if ($fc->file) {
                     $filePath = public_path($fc->file);
                     // Delete the physical file from public directory
                     if (FileManager::exists($filePath)) {
@@ -585,9 +606,11 @@ class PermohonanPenghapusanBmnSkController extends Controller
                 $fc->delete();
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

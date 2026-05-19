@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-
 use App\Helpers\MyHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class ApprovalUserSpseSirup extends Model
 {
-    static function roleCheck($data)
+    public static function roleCheck($data)
     {
         $currentRole = session('userData.current_role');
         $msAct = DB::table('ms_aktifitas_user')->where(['id' => $data['ms_aktifitas_id']])->first();
@@ -17,7 +16,7 @@ class ApprovalUserSpseSirup extends Model
         $toSatkerInduk = $data['to_satker_induk'] ?? false;
         $nextSatker = ApprovalUserSpseSirup::getSatkerInduk($currentRole['ms_satker_id']);
         $group = $data['group'] ?? 'BASIC';
-        if($group=='BASIC'){
+        if ($group == 'BASIC') {
             $currentAct = [
                 'ms_aktifitas_id' => $data['ms_aktifitas_id'],
                 'pengajuan_id' => $data['pengajuan_id'],
@@ -27,10 +26,10 @@ class ApprovalUserSpseSirup extends Model
                 'nama' => session('userData.name'),
                 'pangkat' => session('userData.pangkat'),
                 'jabatan' => session('userData.jabatan'),
-                'role' => $currentRole['name'] . MyHelper::getTingkatRole($currentRole['ms_satker_id']),
+                'role' => $currentRole['name'].MyHelper::getTingkatRole($currentRole['ms_satker_id']),
                 'created_at' => now(),
             ];
-        }else if($group=='BMN'){
+        } elseif ($group == 'BMN') {
             $currentAct = [
                 'ms_aktifitas_id' => $data['ms_aktifitas_id'],
                 'pengajuan_kebutuhan_bmn_satker_id' => $data['pengajuan_id'],
@@ -40,35 +39,38 @@ class ApprovalUserSpseSirup extends Model
                 'nama' => session('userData.name'),
                 'pangkat' => session('userData.pangkat'),
                 'jabatan' => session('userData.jabatan'),
-                'role' => $currentRole['name'] . MyHelper::getTingkatRole($currentRole['ms_satker_id']),
+                'role' => $currentRole['name'].MyHelper::getTingkatRole($currentRole['ms_satker_id']),
                 'created_at' => now(),
             ];
         }
 
         $act = $currentAct;
+
         return ['act' => $act, 'nextAct' => $msAct->next_aktifitas];
     }
 
-    static function getSatkerInduk($currentSatkerId)
+    public static function getSatkerInduk($currentSatkerId)
     {
         if ($currentSatkerId == '00') {
             return '00';
         }
 
         $satker = DB::table('ms_satker')->where(['inst_satkerkd' => $currentSatkerId])->first();
-        $satkernya = $satker ? $satker->inst_satkerinduk:'00';
+        $satkernya = $satker ? $satker->inst_satkerinduk : '00';
+
         return $satkernya;
     }
 
-    static function getAktifitas($data)
+    public static function getAktifitas($data)
     {
         $currentRole = session('userData.current_role');
         $msAktifitasId = $data['ms_aktifitas_id'] ?? 0;
         $group = $data['group'] ?? 'BASIC';
+
         return DB::table('ms_aktifitas_user')->where(['jawaban_dari_aktifitas' => $msAktifitasId, 'group' => $group])->get()->toArray();
     }
 
-    static function getCurrentAktifitas($msAktifitasId)
+    public static function getCurrentAktifitas($msAktifitasId)
     {
         $currentRole = session('userData.current_role');
         $role = $currentRole['ms_role_id'];
@@ -83,9 +85,15 @@ class ApprovalUserSpseSirup extends Model
 
         $canChange = in_array($role, $changes);
 
-        if($msAktifitasId == 1002) $canChange = in_array($role, $changes) && session('userData.jabatan') == 'Kepala Sub Bagian LAYANAN PENGADAAN';
-        if($msAktifitasId == 1004) $canChange = in_array($role, $changes) && session('userData.jabatan') == 'Kepala Biro PERLENGKAPAN';
-        if($msAktifitasId == 3008) $canChange = in_array($role, $changes) && session('userData.current_role.ms_satker_pusat_id') == '1.12';
+        if ($msAktifitasId == 1002) {
+            $canChange = in_array($role, $changes) && session('userData.jabatan') == 'Kepala Sub Bagian LAYANAN PENGADAAN';
+        }
+        if ($msAktifitasId == 1004) {
+            $canChange = in_array($role, $changes) && session('userData.jabatan') == 'Kepala Biro PERLENGKAPAN';
+        }
+        if ($msAktifitasId == 3008) {
+            $canChange = in_array($role, $changes) && session('userData.current_role.ms_satker_pusat_id') == '1.12';
+        }
 
         $canView = in_array($role, $views);
 

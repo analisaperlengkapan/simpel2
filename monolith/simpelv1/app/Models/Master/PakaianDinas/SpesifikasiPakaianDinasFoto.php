@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class SpesifikasiPakaianDinasFoto extends Model
 {
-
-
     protected $table = 'ms_spesifikasi_pakaian_dinas_foto';
 
     /**
@@ -21,7 +19,4 @@ class SpesifikasiPakaianDinasFoto extends Model
         'path',
         'filename',
     ];
-
-
-
 }

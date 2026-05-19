@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use App\Services\AIService;
 use App\Services\AIDataService;
-use App\Services\FAQService;
+use App\Services\AIService;
 use App\Services\ContextService;
+use App\Services\FAQService;
+use App\Services\LLMProvider;
 use App\Services\PromptService;
 use App\Services\ValidationService;
-use App\Services\LLMProvider;
+use Tests\TestCase;
 
 class AIServiceTest extends TestCase
 {
-    private function getMockedService(array $faq = null, $context = null, $aiAnswer = null, $valid = true, $fallback = null, $acronymErrors = [], $acronymFix = null)
+    private function getMockedService(?array $faq = null, $context = null, $aiAnswer = null, $valid = true, $fallback = null, $acronymErrors = [], $acronymFix = null)
     {
         $aiDataService = $this->createMock(AIDataService::class);
         $faqService = $this->createMock(FAQService::class);
@@ -31,7 +31,7 @@ class AIServiceTest extends TestCase
         $validationService->method('validateAnswer')->willReturn([
             'valid' => $valid,
             'reason' => $valid ? '' : 'invalid',
-            'details' => []
+            'details' => [],
         ]);
         $validationService->method('generateDirectAnswer')->willReturn($fallback ?? 'FALLBACK');
         $validationService->method('validateAcronyms')->willReturn($acronymErrors);
@@ -47,7 +47,7 @@ class AIServiceTest extends TestCase
         );
     }
 
-    public function testAnswerQuestion_validAIAnswer()
+    public function test_answer_question_valid_ai_answer()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara'];
         $context = 'BMN adalah aset negara.';
@@ -58,7 +58,7 @@ class AIServiceTest extends TestCase
         $this->assertEquals('ai', $result['source']);
     }
 
-    public function testAnswerQuestion_invalidAIAnswer_fallback()
+    public function test_answer_question_invalid_ai_answer_fallback()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara'];
         $context = 'BMN adalah aset negara.';
@@ -70,7 +70,7 @@ class AIServiceTest extends TestCase
         $this->assertEquals('fallback', $result['source']);
     }
 
-    public function testAnswerQuestion_acronymFixApplied()
+    public function test_answer_question_acronym_fix_applied()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara'];
         $context = 'BMN adalah aset negara.';
@@ -82,14 +82,14 @@ class AIServiceTest extends TestCase
         $this->assertEquals($acronymFix, $result['answer']);
     }
 
-    public function testAnswerQuestion_noFAQ_noContext()
+    public function test_answer_question_no_fa_q_no_context()
     {
         $service = $this->getMockedService(null, null, 'AI', true);
         $result = $service->answerQuestion('Pertanyaan tidak dikenal');
         $this->assertEquals('AI', $result['answer']);
     }
 
-    public function testAnswerQuestion_containsDefinitionAndExplanation()
+    public function test_answer_question_contains_definition_and_explanation()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -100,7 +100,7 @@ class AIServiceTest extends TestCase
         $this->assertStringContainsString('PENJELASAN', $result['answer']);
     }
 
-    public function testAnswerQuestion_containsFaqKeyword()
+    public function test_answer_question_contains_faq_keyword()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -111,7 +111,7 @@ class AIServiceTest extends TestCase
         $this->assertStringContainsString('BMN', $result['answer']);
     }
 
-    public function testAnswerQuestion_fallbackIfAIAnswerEmpty()
+    public function test_answer_question_fallback_if_ai_answer_empty()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -122,7 +122,7 @@ class AIServiceTest extends TestCase
         $this->assertEquals($fallback, $result['answer']);
     }
 
-    public function testAnswerQuestion_noDisclaimerIfDataExists()
+    public function test_answer_question_no_disclaimer_if_data_exists()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -133,7 +133,7 @@ class AIServiceTest extends TestCase
         $this->assertStringNotContainsString('tidak dapat membantu', strtolower($result['answer']));
     }
 
-    public function testAnswerQuestion_acronymIsCorrect()
+    public function test_answer_question_acronym_is_correct()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -145,7 +145,7 @@ class AIServiceTest extends TestCase
         $this->assertStringContainsString('BMN benar', $result['answer']);
     }
 
-    public function testAnswerQuestion_formatAlwaysCorrect()
+    public function test_answer_question_format_always_correct()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -155,7 +155,7 @@ class AIServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/^DEFINISI:.*PENJELASAN:/s', $result['answer']);
     }
 
-    public function testAnswerQuestion_explanationLength()
+    public function test_answer_question_explanation_length()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -166,7 +166,7 @@ class AIServiceTest extends TestCase
         $this->assertGreaterThanOrEqual(30, strlen(trim($matches[1] ?? '')));
     }
 
-    public function testAnswerQuestion_containsAtLeastOneKeyword()
+    public function test_answer_question_contains_at_least_one_keyword()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -184,7 +184,7 @@ class AIServiceTest extends TestCase
         $this->assertTrue($found, 'Jawaban tidak mengandung keyword penting.');
     }
 
-    public function testAnswerQuestion_fallbackIsRelevant()
+    public function test_answer_question_fallback_is_relevant()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -196,7 +196,7 @@ class AIServiceTest extends TestCase
         $this->assertStringContainsString('pengelolaan aset negara', $result['answer']);
     }
 
-    public function testAnswerQuestion_acronymIsConsistent()
+    public function test_answer_question_acronym_is_consistent()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -208,7 +208,7 @@ class AIServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/DEFINISI: BMN.*PENJELASAN: BMN benar\./s', $result['answer']);
     }
 
-    public function testAnswerQuestion_ambiguousQuestionStillStructured()
+    public function test_answer_question_ambiguous_question_still_structured()
     {
         $faq = null;
         $context = '';
@@ -218,7 +218,7 @@ class AIServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/^DEFINISI:.*PENJELASAN:/s', $result['answer']);
     }
 
-    public function testAnswerQuestion_repeatQuestionNotIdentical()
+    public function test_answer_question_repeat_question_not_identical()
     {
         $faq = ['keyword' => 'BMN', 'answer' => 'Barang Milik Negara adalah aset milik pemerintah.'];
         $context = 'BMN digunakan untuk pengelolaan aset negara.';
@@ -230,4 +230,4 @@ class AIServiceTest extends TestCase
         $result2 = $service2->answerQuestion('Apa itu BMN?');
         $this->assertNotEquals($result1['answer'], $result2['answer']);
     }
-} 
+}

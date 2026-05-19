@@ -26,11 +26,12 @@ class PengadaanBarangJasaController extends Controller
      * Display a listing of the resource.
      */
     private $controller = '/pengadaan/barang-jasa';
+
     protected $breadcums = ['Pengadaan'];
 
     public function __construct(Request $request)
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Data Pengadaan Barang dan Jasa']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Data Pengadaan Barang dan Jasa']]);
     }
 
     protected function canCreate()
@@ -42,15 +43,17 @@ class PengadaanBarangJasaController extends Controller
     public function index()
     {
         $data = ['tableId' => 'dt-rencanapengadaanlangsung', 'breadcums' => $this->breadcums, 'canCreate' => $this->canCreate()];
+
         return view('pengadaan.barang_jasa.indexV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new PengadaanBarangJasa();
+        $model = new PengadaanBarangJasa;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -58,18 +61,20 @@ class PengadaanBarangJasaController extends Controller
         ]);
     }
 
-    public function gridDataAnggaran(Request $request){
+    public function gridDataAnggaran(Request $request)
+    {
         $sql = "
             select a.*, concat( a.kode_kegiatan,'.',a.kode_output,'.',a.kode_suboutput,'.',a.kode_komponen,'.',a.kode_subkomponen,'.',a.kode_akun ) as kode_anggaran
             from monsakti_anggaran a
         ";
         $query = DB::select($sql);
+
         return response()->json([
             'data' => $query,
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -77,34 +82,34 @@ class PengadaanBarangJasaController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = PengadaanBarangJasa::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
-            $ms_satker_id = ""; //$model['inst_satkerkd'];
-        }else{
+            $ms_satker_id = ''; // $model['inst_satkerkd'];
+        } else {
             $currentRole = session('userData.current_role');
-            $ms_satker_id = ""; //$currentRole['ms_satker_id'] ?? $model['inst_satkerkd'];
+            $ms_satker_id = ''; // $currentRole['ms_satker_id'] ?? $model['inst_satkerkd'];
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $jenis = ['Diumumkan di SIRUP', 'Tidak Diumumkan di SIRUP'];
-        $jenisPengadaan = (object) array(
-            (object) array('id'=>1,'text'=>'Pengadaan lebih dari 200jt'),
-            (object) array('id'=>2,'text'=>'Pengadaan s.d 200jt'),
-        );
-        //$model['inst_nama'] = MsSatker::where('inst_satkerkd', $ms_satker_id)->first()['inst_nama'];
+        $jenisPengadaan = (object) [
+            (object) ['id' => 1, 'text' => 'Pengadaan lebih dari 200jt'],
+            (object) ['id' => 2, 'text' => 'Pengadaan s.d 200jt'],
+        ];
+        // $model['inst_nama'] = MsSatker::where('inst_satkerkd', $ms_satker_id)->first()['inst_nama'];
         $satkerTerpilih = Master::getSatkers();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first();
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first();
-        $kontrak = PengadaanBarangJasaKontrak::where('id',$id)->first();
-        $bast = PengadaanBarangJasaBast::where('id',$id)->first();
-        $nodis = PengadaanBarangJasanNodis::where('id',$id)->first();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first();
+        $kontrak = PengadaanBarangJasaKontrak::where('id', $id)->first();
+        $bast = PengadaanBarangJasaBast::where('id', $id)->first();
+        $nodis = PengadaanBarangJasanNodis::where('id', $id)->first();
         $data = [
             'model' => $model,
             'isNew' => $isNew,
@@ -147,6 +152,7 @@ class PengadaanBarangJasaController extends Controller
         //     throw new UnauthorizedHttpException('Tidak Punya Akses');
         // }
         $data = $this->getData();
+
         return view('pengadaan.barang_jasa.formV', $data);
     }
 
@@ -155,8 +161,8 @@ class PengadaanBarangJasaController extends Controller
      */
     public function store(Request $request)
     {
-        //return $request->input('nama_pengadaan');exit;
-        //print_r($request);exit;
+        // return $request->input('nama_pengadaan');exit;
+        // print_r($request);exit;
 
         $isNew = $request->input('isNew');
         $customMessages = [
@@ -172,10 +178,10 @@ class PengadaanBarangJasaController extends Controller
             'nilai' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'pengadaan_barang_jasa_seq');
-        if($isNew){
-            //$validate['file_kontrak'] = 'required|mimes:jpeg,png,pdf|max:2048';
-            //$customMessages['file_kontrak.required'] = 'File Kontrak harus diupload';
-        }else{
+        if ($isNew) {
+            // $validate['file_kontrak'] = 'required|mimes:jpeg,png,pdf|max:2048';
+            // $customMessages['file_kontrak.required'] = 'File Kontrak harus diupload';
+        } else {
 
         }
         $request->validate($validate, $customMessages);
@@ -192,20 +198,22 @@ class PengadaanBarangJasaController extends Controller
                 'jenis_pengadaan' => $request->input('jenis_pengadaan'),
                 'kode_barang' => $request->input('kode_barang'),
                 'kode_anggaran' => $request->input('anggaran_text'),
-                'nilai' => str_replace('.', '', $request->input('nilai')), //,
+                'nilai' => str_replace('.', '', $request->input('nilai')), // ,
             ];
-            //return print_r($data);exit;
+            // return print_r($data);exit;
             PengadaanBarangJasa::updateOrCreate(['id' => $id], $data);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa')
+                    'url' => \URL::to('/pengadaan/barang-jasa'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -217,6 +225,7 @@ class PengadaanBarangJasaController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('pengadaan.barang_jasa.viewV', $data);
     }
 
@@ -229,6 +238,7 @@ class PengadaanBarangJasaController extends Controller
         //     throw new UnauthorizedHttpException('Tidak Punya Akses');
         // }
         $data = $this->getData($id);
+
         return view('pengadaan.barang_jasa.formV', $data);
     }
 
@@ -249,13 +259,15 @@ class PengadaanBarangJasaController extends Controller
             DB::beginTransaction();
             PengadaanBarangJasa::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
 
-    public function saveHps(Request $request) {
+    public function saveHps(Request $request)
+    {
         $customMessages = [
             'no_hps.required' => 'No HPS harus diisi',
             'tgl_hps.required' => 'Tanggal HPS harus dipilih',
@@ -286,20 +298,23 @@ class PengadaanBarangJasaController extends Controller
             ];
             PengadaanBarangJasaHps::updateOrCreate(['id' => $request->input('id')], $data);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveSkppbj(Request $request) {
+    public function saveSkppbj(Request $request)
+    {
         $customMessages = [
             'nama_penandatangan.required' => 'Nama harus diisi',
             'nip_penandatangan.required' => 'Nip harus diisi',
@@ -332,20 +347,23 @@ class PengadaanBarangJasaController extends Controller
             ];
             PengadaanBarangJasaSkppbj::updateOrCreate(['id' => $request->input('id')], $data);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveSpk(Request $request) {
+    public function saveSpk(Request $request)
+    {
         $customMessages = [
             'no_spk.required' => 'Nomor SPK harus diisi',
             'no_permintaan.required' => 'Nomor Surat Permintaan Penawaran harus diisi',
@@ -377,20 +395,23 @@ class PengadaanBarangJasaController extends Controller
             DB::beginTransaction();
             PengadaanBarangJasaSpk::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveRingkasan(Request $request) {
+    public function saveRingkasan(Request $request)
+    {
         $customMessages = [
             'no_dipa.required' => 'Nomor DIPA harus diisi',
             'tgl_dipa.required' => 'Tanggal DIPA harus diisi',
@@ -400,7 +421,7 @@ class PengadaanBarangJasaController extends Controller
             'kantor_bank.required' => 'Kantor Cabang Bank harus diisi',
             'no_rek.required' => 'No Rekening harus diisi',
             'npwp.required' => 'NPWP harus diisi',
-            'sanksi.required' => 'Ketentuan Sanksi harus diisi'
+            'sanksi.required' => 'Ketentuan Sanksi harus diisi',
         ];
         $validate = [
             'no_dipa' => 'required',
@@ -411,30 +432,33 @@ class PengadaanBarangJasaController extends Controller
             'kantor_bank' => 'required',
             'no_rek' => 'required',
             'npwp' => 'required',
-            'sanksi' => 'required'
+            'sanksi' => 'required',
         ];
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
             PengadaanBarangJasaRingkasan::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveKontrak(Request $request) {
+    public function saveKontrak(Request $request)
+    {
         $customMessages = [
             'no_kontrak.required' => 'Nomor Kontrak harus diisi',
-            'tgl_kontrak.required' => 'Tanggal Kontrak harus diisi'
+            'tgl_kontrak.required' => 'Tanggal Kontrak harus diisi',
         ];
         $validate = [
             'no_kontrak' => 'required',
@@ -445,20 +469,23 @@ class PengadaanBarangJasaController extends Controller
             DB::beginTransaction();
             PengadaanBarangJasaKontrak::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveBast(Request $request) {
+    public function saveBast(Request $request)
+    {
         $customMessages = [
             'no_bast.required' => 'Nomor BAST harus diisi',
             'tgl_bast.required' => 'Tanggal BAST harus diisi',
@@ -480,51 +507,57 @@ class PengadaanBarangJasaController extends Controller
             DB::beginTransaction();
             PengadaanBarangJasaBast::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveBapp(Request $request) {
+    public function saveBapp(Request $request)
+    {
         $customMessages = [
             'no_bapp.required' => 'Nomor BAPP harus diisi',
             'tgl_bapp.required' => 'Tanggal BAPP harus diisi',
             'no_kepja.required' => 'Nomor Kepja harus diisi',
-            'tgl_kepja.required' => 'Tanggal Kepja harus diisi'
+            'tgl_kepja.required' => 'Tanggal Kepja harus diisi',
         ];
         $validate = [
             'no_bapp' => 'required',
             'tgl_bapp' => 'required',
             'no_kepja' => 'required',
-            'tgl_kepja' => 'required'
+            'tgl_kepja' => 'required',
         ];
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
             PengadaanBarangJasaBast::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
-    public function saveNodis(Request $request) {
+    public function saveNodis(Request $request)
+    {
         $customMessages = [
             'no_nodis.required' => 'Nomor Nodis harus diisi',
             'tgl_nodis.required' => 'Tanggal Nodis harus diisi',
@@ -538,274 +571,284 @@ class PengadaanBarangJasaController extends Controller
             DB::beginTransaction();
             PengadaanBarangJasanNodis::updateOrCreate(['id' => $request->input('id')], $request->input());
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit')
+                    'url' => \URL::to('/pengadaan/barang-jasa/'.$request->input('id').'/edit'),
                 ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
 
     public function cetakHps(string $id)
     {
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $data = [
-            'hps'=>$hps,
-            'model'=>$model,
+            'hps' => $hps,
+            'model' => $model,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakHps',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakHps', $data);
+
         return $pdf->stream('hps.pdf');
     }
 
     public function cetakSkppbj(string $id)
     {
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $data = [
-            'skppbj'=>$skppbj,
-            'model'=>$model,
+            'skppbj' => $skppbj,
+            'model' => $model,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakSkppbj',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakSkppbj', $data);
+
         return $pdf->stream('skppbj.pdf');
     }
 
     public function cetakSpk(string $id)
     {
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $data = [
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakSpk',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakSpk', $data);
+
         return $pdf->stream('spk.pdf');
     }
 
     public function cetakRingkasan(string $id)
     {
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first()->toArray();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $pemenang = '';
         $subtotal = 0;
         $nilai_spk = 0;
         $decodedData = json_decode($skppbj['penyedia'], true);
-        if(!empty($decodedData)){
-            foreach($decodedData as $key => $value){
-                if($value['pemenang_skppbj'] == 1){
+        if (! empty($decodedData)) {
+            foreach ($decodedData as $key => $value) {
+                if ($value['pemenang_skppbj'] == 1) {
                     $pemenang = $value['penyedia_skppbj'];
                 }
             }
         }
         $decodedDataHps = json_decode($hps['barang'], true);
-        if(!empty($decodedDataHps)){
-            foreach($decodedDataHps as $key => $value){
+        if (! empty($decodedDataHps)) {
+            foreach ($decodedDataHps as $key => $value) {
                 $subtotal += $value['harga_total'];
             }
-            $nilai_spk = ($subtotal*0.11)+$subtotal;
+            $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
         $data = [
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
-            'ringkasan'=>$ringkasan,
-            'pemenang'=>$pemenang,
-            'nilai_spk'=>$nilai_spk,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
+            'ringkasan' => $ringkasan,
+            'pemenang' => $pemenang,
+            'nilai_spk' => $nilai_spk,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakRingkasan',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakRingkasan', $data);
+
         return $pdf->stream('ringkasan.pdf');
     }
 
     public function cetakKontrak(string $id)
     {
-        $kontrak = PengadaanBarangJasaKontrak::where('id',$id)->first()->toArray();
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first()->toArray();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $kontrak = PengadaanBarangJasaKontrak::where('id', $id)->first()->toArray();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $pemenang = '';
         $subtotal = 0;
         $nilai_spk = 0;
         $decodedData = json_decode($skppbj['penyedia'], true);
-        if(!empty($decodedData)){
-            foreach($decodedData as $key => $value){
-                if($value['pemenang_skppbj'] == 1){
+        if (! empty($decodedData)) {
+            foreach ($decodedData as $key => $value) {
+                if ($value['pemenang_skppbj'] == 1) {
                     $pemenang = $value['penyedia_skppbj'];
                 }
             }
         }
         $decodedDataHps = json_decode($hps['barang'], true);
-        if(!empty($decodedDataHps)){
-            foreach($decodedDataHps as $key => $value){
+        if (! empty($decodedDataHps)) {
+            foreach ($decodedDataHps as $key => $value) {
                 $subtotal += $value['harga_total'];
             }
-            $nilai_spk = ($subtotal*0.11)+$subtotal;
+            $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
         $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
-            'ringkasan'=>$ringkasan,
-            'pemenang'=>$pemenang,
-            'nilai_spk'=>$nilai_spk,
-            'kontrak'=>$kontrak,
-            'year'=>$year,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
+            'ringkasan' => $ringkasan,
+            'pemenang' => $pemenang,
+            'nilai_spk' => $nilai_spk,
+            'kontrak' => $kontrak,
+            'year' => $year,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakKontrak',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakKontrak', $data);
+
         return $pdf->stream('ringkasan.pdf');
     }
 
     public function cetakBast(string $id)
     {
-        $bast = PengadaanBarangJasaBast::where('id',$id)->first()->toArray();
-        $kontrak = PengadaanBarangJasaKontrak::where('id',$id)->first()->toArray();
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first()->toArray();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $bast = PengadaanBarangJasaBast::where('id', $id)->first()->toArray();
+        $kontrak = PengadaanBarangJasaKontrak::where('id', $id)->first()->toArray();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $pemenang = '';
         $subtotal = 0;
         $nilai_spk = 0;
         $decodedData = json_decode($skppbj['penyedia'], true);
-        if(!empty($decodedData)){
-            foreach($decodedData as $key => $value){
-                if($value['pemenang_skppbj'] == 1){
+        if (! empty($decodedData)) {
+            foreach ($decodedData as $key => $value) {
+                if ($value['pemenang_skppbj'] == 1) {
                     $pemenang = $value['penyedia_skppbj'];
                 }
             }
         }
         $decodedDataHps = json_decode($hps['barang'], true);
-        if(!empty($decodedDataHps)){
-            foreach($decodedDataHps as $key => $value){
+        if (! empty($decodedDataHps)) {
+            foreach ($decodedDataHps as $key => $value) {
                 $subtotal += $value['harga_total'];
             }
-            $nilai_spk = ($subtotal*0.11)+$subtotal;
+            $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
         $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
-            'bast'=>$bast,
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
-            'ringkasan'=>$ringkasan,
-            'pemenang'=>$pemenang,
-            'nilai_spk'=>$nilai_spk,
-            'kontrak'=>$kontrak,
-            'year'=>$year,
+            'bast' => $bast,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
+            'ringkasan' => $ringkasan,
+            'pemenang' => $pemenang,
+            'nilai_spk' => $nilai_spk,
+            'kontrak' => $kontrak,
+            'year' => $year,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakBast',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakBast', $data);
+
         return $pdf->stream('bast.pdf');
     }
 
     public function cetakBapp(string $id)
     {
-        $bast = PengadaanBarangJasaBast::where('id',$id)->first()->toArray();
-        $kontrak = PengadaanBarangJasaKontrak::where('id',$id)->first()->toArray();
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first()->toArray();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $bast = PengadaanBarangJasaBast::where('id', $id)->first()->toArray();
+        $kontrak = PengadaanBarangJasaKontrak::where('id', $id)->first()->toArray();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $pemenang = '';
         $subtotal = 0;
         $nilai_spk = 0;
         $decodedData = json_decode($skppbj['penyedia'], true);
-        if(!empty($decodedData)){
-            foreach($decodedData as $key => $value){
-                if($value['pemenang_skppbj'] == 1){
+        if (! empty($decodedData)) {
+            foreach ($decodedData as $key => $value) {
+                if ($value['pemenang_skppbj'] == 1) {
                     $pemenang = $value['penyedia_skppbj'];
                 }
             }
         }
         $decodedDataHps = json_decode($hps['barang'], true);
-        if(!empty($decodedDataHps)){
-            foreach($decodedDataHps as $key => $value){
+        if (! empty($decodedDataHps)) {
+            foreach ($decodedDataHps as $key => $value) {
                 $subtotal += $value['harga_total'];
             }
-            $nilai_spk = ($subtotal*0.11)+$subtotal;
+            $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
         $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
-            'bast'=>$bast,
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
-            'ringkasan'=>$ringkasan,
-            'pemenang'=>$pemenang,
-            'nilai_spk'=>$nilai_spk,
-            'kontrak'=>$kontrak,
-            'year'=>$year,
+            'bast' => $bast,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
+            'ringkasan' => $ringkasan,
+            'pemenang' => $pemenang,
+            'nilai_spk' => $nilai_spk,
+            'kontrak' => $kontrak,
+            'year' => $year,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakBapp',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakBapp', $data);
+
         return $pdf->stream('bapp.pdf');
     }
 
     public function cetakNodis(string $id)
     {
-        $nodis = PengadaanBarangJasanNodis::where('id',$id)->first()->toArray();
-        $bast = PengadaanBarangJasaBast::where('id',$id)->first();
-        $kontrak = PengadaanBarangJasaKontrak::where('id',$id)->first()->toArray();
-        $ringkasan = PengadaanBarangJasaRingkasan::where('id',$id)->first()->toArray();
-        $hps = PengadaanBarangJasaHps::where('id',$id)->first()->toArray();
-        $skppbj = PengadaanBarangJasaSkppbj::where('id',$id)->first()->toArray();
-        $spk = PengadaanBarangJasaSpk::where('id',$id)->first()->toArray();
-        $model = PengadaanBarangJasa::where('id',$id)->first()->toArray();
+        $nodis = PengadaanBarangJasanNodis::where('id', $id)->first()->toArray();
+        $bast = PengadaanBarangJasaBast::where('id', $id)->first();
+        $kontrak = PengadaanBarangJasaKontrak::where('id', $id)->first()->toArray();
+        $ringkasan = PengadaanBarangJasaRingkasan::where('id', $id)->first()->toArray();
+        $hps = PengadaanBarangJasaHps::where('id', $id)->first()->toArray();
+        $skppbj = PengadaanBarangJasaSkppbj::where('id', $id)->first()->toArray();
+        $spk = PengadaanBarangJasaSpk::where('id', $id)->first()->toArray();
+        $model = PengadaanBarangJasa::where('id', $id)->first()->toArray();
         $pemenang = '';
         $subtotal = 0;
         $nilai_spk = 0;
         $decodedData = json_decode($skppbj['penyedia'], true);
-        if(!empty($decodedData)){
-            foreach($decodedData as $key => $value){
-                if($value['pemenang_skppbj'] == 1){
+        if (! empty($decodedData)) {
+            foreach ($decodedData as $key => $value) {
+                if ($value['pemenang_skppbj'] == 1) {
                     $pemenang = $value['penyedia_skppbj'];
                 }
             }
         }
         $decodedDataHps = json_decode($hps['barang'], true);
-        if(!empty($decodedDataHps)){
-            foreach($decodedDataHps as $key => $value){
+        if (! empty($decodedDataHps)) {
+            foreach ($decodedDataHps as $key => $value) {
                 $subtotal += $value['harga_total'];
             }
-            $nilai_spk = ($subtotal*0.11)+$subtotal;
+            $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
         $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
-            'nodis'=>$nodis,
-            'bast'=>$bast,
-            'spk'=>$spk,
-            'hps'=>$hps,
-            'model'=>$model,
-            'skppbj'=>$skppbj,
-            'ringkasan'=>$ringkasan,
-            'pemenang'=>$pemenang,
-            'nilai_spk'=>$nilai_spk,
-            'kontrak'=>$kontrak,
-            'year'=>$year,
+            'nodis' => $nodis,
+            'bast' => $bast,
+            'spk' => $spk,
+            'hps' => $hps,
+            'model' => $model,
+            'skppbj' => $skppbj,
+            'ringkasan' => $ringkasan,
+            'pemenang' => $pemenang,
+            'nilai_spk' => $nilai_spk,
+            'kontrak' => $kontrak,
+            'year' => $year,
         ];
-        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakNodis',$data);
+        $pdf = LaravelMpdf::loadView('pengadaan.barang_jasa.cetakNodis', $data);
+
         return $pdf->stream('nodis.pdf');
     }
 
@@ -859,6 +902,5 @@ class PengadaanBarangJasaController extends Controller
             }
 
     */
-
 
 }

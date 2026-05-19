@@ -20,7 +20,6 @@ class MainController extends Controller
         return view('dashboard');
     }
 
-
     /**
      * Show the form for creating a new resource.
      */
@@ -77,8 +76,10 @@ class MainController extends Controller
     public function searchPegawai(string $nip)
     {
         $pegawai = Master::getPegawaiByNip($nip);
-        if ($pegawai)
+        if ($pegawai) {
             return $this->resSuccess('ok', null, $pegawai);
+        }
+
         return $this->resError('Pegawai Tidak ditemukan');
     }
 }

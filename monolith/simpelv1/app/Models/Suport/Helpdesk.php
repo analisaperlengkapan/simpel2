@@ -2,19 +2,21 @@
 
 namespace App\Models\Suport;
 
-use App\Traits\LogTrait;
 use App\Blameable;
+use App\Traits\LogTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Helpdesk extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'suport_helpdesk';
+
     const tableKet = 'Pengajuan Tiket Helpdesk';
 
     /**
@@ -22,7 +24,7 @@ class Helpdesk extends Model
      *
      * @var array<int, string>
      */
-    protected $fillable = [ 
+    protected $fillable = [
         'id',
         'kode_tiket',
         'kode_satker',
@@ -33,27 +35,29 @@ class Helpdesk extends Model
         'image',
         'status',
         'catatan',
-		'tgl_pengajuan',
+        'tgl_pengajuan',
         'topik',
-        'tujuan'
+        'tujuan',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
-        
+
         $query = DB::table($this->table)->select('*');
-        if(!empty($select)) $query->select($select);
-        if (!empty($search)) {
+        if (! empty($select)) {
+            $query->select($select);
+        }
+        if (! empty($search)) {
             $searchVal = $search['columns'];
-            //$searchVal = strtolower($search['search']['value']);
-            //if (isset($search['filterBy'])) {
+            // $searchVal = strtolower($search['search']['value']);
+            // if (isset($search['filterBy'])) {
             //    if($search['filterBy']=='kode_tiket'){
             //        if(is_numeric($searchVal))
             //            $query->where(DB::raw($search['filterBy']), '=', "{$searchVal}");
             //    }else{
             //        $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             //    }
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //        $q->orWhere(DB::raw("lower(judul)"), 'like', "%{$searchVal}%")
             //            ->orWhere(DB::raw("lower(tipe_tiket)"), 'like', "%{$searchVal}%")
@@ -61,13 +65,13 @@ class Helpdesk extends Model
             //        if($searchVal && is_numeric($searchVal))
             //            $q->orWhere('kode_tiket', "=", $searchVal);
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -86,23 +90,24 @@ class Helpdesk extends Model
         // echo "<pre>";
         // print_r(session('userData'));exit;
 
-        if(session('userData.current_role.ms_role_id') == 1){
+        if (session('userData.current_role.ms_role_id') == 1) {
             $kode_satker = session('userData.current_role.ms_satker_id_keu');
-            if (!empty($kode_satker)) {
-                $query->where('kode_satker','=',$kode_satker);
+            if (! empty($kode_satker)) {
+                $query->where('kode_satker', '=', $kode_satker);
             }
-        }elseif(session('userData.current_role.ms_role_id') == 20){
+        } elseif (session('userData.current_role.ms_role_id') == 20) {
             $kode_satker = session('userData.current_role.ms_satker_id_keu');
-            if (!empty($kode_satker)) {
-                $query->where('kode_satker','=',$kode_satker);
+            if (! empty($kode_satker)) {
+                $query->where('kode_satker', '=', $kode_satker);
             }
-        }elseif(session('userData.current_role.ms_role_id') == 21){
-            $query->where('tujuan','=',session('userData.current_role.ms_role_id'));
+        } elseif (session('userData.current_role.ms_role_id') == 21) {
+            $query->where('tujuan', '=', session('userData.current_role.ms_role_id'));
         }
-        
+
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

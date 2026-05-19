@@ -22,6 +22,7 @@ use Throwable;
 class AuthencGrpcClient
 {
     private string $baseUrl;
+
     private float $timeout;
 
     public function __construct()
@@ -55,13 +56,16 @@ class AuthencGrpcClient
                 Log::warning('Authenc gateway rejected token', [
                     'status' => $response->status(),
                 ]);
+
                 return null;
             }
 
             $claims = $response->json('claims');
+
             return is_array($claims) ? $claims : null;
         } catch (Throwable $th) {
             Log::warning("Authenc verifyToken failed: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -74,16 +78,18 @@ class AuthencGrpcClient
         try {
             $response = Http::timeout($this->timeout)
                 ->acceptJson()
-                ->get("{$this->baseUrl}/v1/users/" . rawurlencode($username));
+                ->get("{$this->baseUrl}/v1/users/".rawurlencode($username));
 
             if (! $response->successful()) {
                 return null;
             }
 
             $user = $response->json();
+
             return is_array($user) ? $user : null;
         } catch (Throwable $th) {
             Log::warning("Authenc getUserDetails failed: {$th->getMessage()}");
+
             return null;
         }
     }

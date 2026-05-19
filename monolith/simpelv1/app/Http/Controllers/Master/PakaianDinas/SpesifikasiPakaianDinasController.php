@@ -18,11 +18,15 @@ class SpesifikasiPakaianDinasController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['Master', 'Pakaian Dinas', 'Spesifikasi Pakaian Dinas'];
+    // protected $breadcums = ['Master', 'Pakaian Dinas', 'Spesifikasi Pakaian Dinas'];
     protected $kategoriJudul = 'Spesifikasi Pakaian Dinas';
+
     protected $controller = 'master/pakaian-dinas/spesifikasi-pakaian-dinas';
+
     protected $breadcums = ['Master'];
+
     protected $columns = ['No', 'Pakaian Dinas', 'Spesifikasi', 'Subspesifikasi'];
+
     protected $defColumns = [0, 1, 2, 3];
 
     public function __construct()
@@ -33,24 +37,25 @@ class SpesifikasiPakaianDinasController extends Controller
 
     public function index()
     {
-        //return view('master.pakaian-dinas.spesifikasi-pakaian-dinas.gridV', ['tableId' => 'dt-jenis', 'breadcums' => $this->breadcums]);
+        // return view('master.pakaian-dinas.spesifikasi-pakaian-dinas.gridV', ['tableId' => 'dt-jenis', 'breadcums' => $this->breadcums]);
         return view('master.pakaian-dinas.spesifikasi-pakaian-dinas.gridV', [
             'tableId' => 'dt-spesifikasi',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $this->columns,
             'defColumns' => $this->defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams = $request->only(['search', 'filterBy']);
+        // $searchParams = $request->only(['search', 'filterBy']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -58,7 +63,7 @@ class SpesifikasiPakaianDinasController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -67,7 +72,7 @@ class SpesifikasiPakaianDinasController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $fotos = SpesifikasiPakaianDinasFoto::where(['ms_spesifikasi_pakaian_dinas_id' => $model->id])->get();
@@ -87,7 +92,7 @@ class SpesifikasiPakaianDinasController extends Controller
                 'data' => Master::getMsUkuranGroup(true),
                 'text' => 'group',
                 'value' => 'group',
-                'selected' => $model['ms_ukuran_group'] ?? null
+                'selected' => $model['ms_ukuran_group'] ?? null,
             ]),
             'fotos' => $fotos,
             'genderOptions' => MyHelper::generateSelectOptions(['data' => $genders, 'selected' => 'SEMUA']),
@@ -95,7 +100,8 @@ class SpesifikasiPakaianDinasController extends Controller
             'judul' => $breadcum,
             'readOnly' => $readOnly,
         ];
-        //dd($data['satkerOptions']);
+
+        // dd($data['satkerOptions']);
         return $data;
     }
 
@@ -105,6 +111,7 @@ class SpesifikasiPakaianDinasController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.pakaian-dinas.spesifikasi-pakaian-dinas.formV', $data);
     }
 
@@ -149,13 +156,12 @@ class SpesifikasiPakaianDinasController extends Controller
             //     }
             // }
 
-
             $deleted = $request->input('deleted');
-            if (!empty($deleted)) {
+            if (! empty($deleted)) {
                 SpesifikasiPakaianDinasFoto::whereIn('id', $deleted)->delete();
             }
 
-            if (!empty($fotos)) {
+            if (! empty($fotos)) {
                 foreach ($fotos as $foto) {
                     $newFotos[] = [
                         'ms_spesifikasi_pakaian_dinas_id' => $params['pkey'],
@@ -166,10 +172,12 @@ class SpesifikasiPakaianDinasController extends Controller
                 SpesifikasiPakaianDinasFoto::insert($newFotos);
             }
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             dd($th);
             DB::rollBack();
+
             return $this->resError($th->getMessage());
         }
     }
@@ -180,15 +188,14 @@ class SpesifikasiPakaianDinasController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.pakaian-dinas.spesifikasi-pakaian-dinas.formV', $data);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -207,6 +214,7 @@ class SpesifikasiPakaianDinasController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

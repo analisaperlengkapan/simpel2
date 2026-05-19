@@ -14,11 +14,15 @@ class FaqController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['Suport', 'FAQ'];
+    // protected $breadcums = ['Suport', 'FAQ'];
     protected $kategoriJudul = 'FAQ';
+
     protected $controller = '/suport/faq';
+
     protected $breadcums = ['FAQ'];
+
     protected $columns = ['Create By', 'Pertanyaan', 'Jawaban', 'Platform', 'Status'];
+
     protected $defColumns = [0, 1, 2, 3, 4];
 
     public function __construct()
@@ -37,21 +41,22 @@ class FaqController extends Controller
             'Status',
         ];
         $defColumns = [0, 1, 2, 3, 4];
+
         return view('suport.faq.faqV', [
             'tableId' => 'dt-kritik',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $columns,
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Faq();
+        $model = new Faq;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
 
@@ -62,7 +67,7 @@ class FaqController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -70,7 +75,7 @@ class FaqController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Faq::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -102,12 +107,14 @@ class FaqController extends Controller
                 'selected' => $model['status'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
     public function create()
     {
         $data = $this->getData();
+
         return view('suport.faq.faqFormV', $data);
     }
 
@@ -115,10 +122,10 @@ class FaqController extends Controller
     {
         $request->validate([
             'pertanyaan' => 'required',
-            'jawaban' => 'required'
+            'jawaban' => 'required',
         ]);
 
-        //dd($request->all());
+        // dd($request->all());
 
         $data['pertanyaan'] = $request->pertanyaan;
         $data['jawaban'] = $request->jawaban;
@@ -131,18 +138,21 @@ class FaqController extends Controller
 
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'suport_kritik_seq');
         Faq::updateOrCreate(['id' => $id], $data);
+
         return $this->resSuccess();
     }
 
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('suport.faq.faqFormV', $data);
     }
 
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('suport.faq.faqFormV', $data);
     }
 
@@ -157,10 +167,10 @@ class FaqController extends Controller
             DB::beginTransaction();
             Faq::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
 }

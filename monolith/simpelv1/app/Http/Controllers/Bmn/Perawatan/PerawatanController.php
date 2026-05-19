@@ -10,47 +10,51 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-
 class PerawatanController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Pengajuan Pemeliharaan BMN'];
+    // protected $breadcums = ['BMN', 'Pengajuan Pemeliharaan BMN'];
     protected $kategoriJudul = 'Pengajuan Pemeliharaan BMN';
+
     protected $controller = 'bmn/perawatan/perawatan';
+
     protected $breadcums = ['BMN'];
-    protected $columns = ['Nama Satker', 'Nomor', 'Tgl Perawatan', 'Kode Barang', 'Jenis','Pelaksana','Biaya','Status'];
-    protected $defColumns = [0,1,2,3,4,5,6,7];
+
+    protected $columns = ['Nama Satker', 'Nomor', 'Tgl Perawatan', 'Kode Barang', 'Jenis', 'Pelaksana', 'Biaya', 'Status'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5, 6, 7];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Pengajuan Pemeliharaan BMN']]);
-        
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Pengajuan Pemeliharaan BMN']]);
+
     }
 
     public function index()
     {
-        //$data = ['tableId' => 'dt-pemeliharaan', 'breadcums' => $this->breadcums];
-        //return view('bmn.perawatan.perawatanV', $data);
+        // $data = ['tableId' => 'dt-pemeliharaan', 'breadcums' => $this->breadcums];
+        // return view('bmn.perawatan.perawatanV', $data);
         return view('bmn.perawatan.perawatanV', [
             'tableId' => 'dt-pemeliharaan',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $this->columns,
             'defColumns' => $this->defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new perawatan();
+        $model = new perawatan;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
-        //dd($data);
+
+        // dd($data);
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -58,7 +62,7 @@ class PerawatanController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -66,14 +70,14 @@ class PerawatanController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = perawatan::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -105,6 +109,7 @@ class PerawatanController extends Controller
                 'selected' => $model['kode_barang'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -114,6 +119,7 @@ class PerawatanController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.perawatan.perawatanFormV', $data);
     }
 
@@ -142,7 +148,7 @@ class PerawatanController extends Controller
             'spesifikasi' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'bmn_pemeliharaan_seq');
-        
+
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
@@ -154,23 +160,23 @@ class PerawatanController extends Controller
                 'pelaksana' => $request->input('pelaksana'),
                 'biaya' => $request->input('biaya'),
                 'spesifikasi' => $request->input('spesifikasi'),
-                'no_perawatan' =>$id,
+                'no_perawatan' => $id,
             ];
-            if($request->status){
-                $data['status'] =$request->status;
-            }else{
-                $data['status'] ='On Proses';
+            if ($request->status) {
+                $data['status'] = $request->status;
+            } else {
+                $data['status'] = 'On Proses';
             }
-            
-
 
             perawatan::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -182,6 +188,7 @@ class PerawatanController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.perawatan.perawatanFormV', $data);
     }
 
@@ -191,6 +198,7 @@ class PerawatanController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.perawatan.perawatanFormV', $data);
     }
 
@@ -211,13 +219,10 @@ class PerawatanController extends Controller
             DB::beginTransaction();
             perawatan::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-	
-	
-
-    
 }

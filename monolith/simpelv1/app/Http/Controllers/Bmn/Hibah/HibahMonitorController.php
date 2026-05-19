@@ -15,41 +15,45 @@ class HibahMonitorController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Monitoring Penerimaan Hibah'];
+    // protected $breadcums = ['BMN', 'Monitoring Penerimaan Hibah'];
     protected $kategoriJudul = 'Monitoring Penerimaan Hibah';
+
     protected $controller = '/bmn/hibah/hibah';
+
     protected $breadcums = ['BMN'];
-    protected $columns = ['Nama Satker', 'Jenis Hibah','Bentuk Hibah', 'Tanggal', 'Hibah Dari','nilai'];
-    protected $defColumns = [0,1,2,3,4,5];
+
+    protected $columns = ['Nama Satker', 'Jenis Hibah', 'Bentuk Hibah', 'Tanggal', 'Hibah Dari', 'nilai'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Monitoring Penerimaan Hibah']]);
-        
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Monitoring Penerimaan Hibah']]);
+
     }
 
     public function index()
     {
-        //$data = ['tableId' => 'dt-hibah', 'breadcums' => $this->breadcums];
-        //return view('bmn.hibah.hibahMonitoringV', $data);
+        // $data = ['tableId' => 'dt-hibah', 'breadcums' => $this->breadcums];
+        // return view('bmn.hibah.hibahMonitoringV', $data);
         return view('bmn.hibah.hibahMonitoringV', [
             'tableId' => 'dt-hibah',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $this->columns,
             'defColumns' => $this->defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
-
     public function gridData(Request $request)
     {
-        $model = new hibah();
+        $model = new hibah;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -57,7 +61,7 @@ class HibahMonitorController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -65,14 +69,14 @@ class HibahMonitorController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = hibah::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -97,6 +101,7 @@ class HibahMonitorController extends Controller
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -106,6 +111,7 @@ class HibahMonitorController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.hibah.hibahFormV', $data);
     }
 
@@ -128,11 +134,11 @@ class HibahMonitorController extends Controller
             'tgl_register' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SK harus diupload';
-        }else{
-           
+        } else {
+
         }
         $request->validate($validate, $customMessages);
         try {
@@ -153,12 +159,14 @@ class HibahMonitorController extends Controller
                 $data['file_sk'] = $filesave;
             }
             hibah::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -170,6 +178,7 @@ class HibahMonitorController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.hibah.hibahFormV', $data);
     }
 
@@ -179,7 +188,7 @@ class HibahMonitorController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.hibah.hibahFormV', $data);
     }
-
 }

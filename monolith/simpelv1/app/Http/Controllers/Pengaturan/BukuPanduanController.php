@@ -16,7 +16,9 @@ class BukuPanduanController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengaturan', 'Buku Panduan'];
+
     private $controller = '/pengaturan/buku-panduan';
+
     public function index()
     {
 
@@ -28,23 +30,26 @@ class BukuPanduanController extends Controller
             'controller' => $this->controller,
             'title' => 'Buku Panduan',
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ];
+
         return view('pengaturan.buku-panduan.gridV', $data);
     }
 
-    function isPelaksanaSatker()
+    public function isPelaksanaSatker()
     {
         $currentRole = session('userData.current_role');
+
         return $currentRole['ms_role_id'] == config('constants.pelaksana_satker_role_id') ? 1 : 0;
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -52,7 +57,7 @@ class BukuPanduanController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -61,7 +66,7 @@ class BukuPanduanController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -69,19 +74,19 @@ class BukuPanduanController extends Controller
             $isNew = false;
         }
 
-
         $kategories = Model::getKategori();
         $data = [
             'model' => $model,
             'isNew' => $isNew,
             'controller' => $this->controller,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
-            'title' => $breadcum . ' Buku Panduan',
+            'title' => $breadcum.' Buku Panduan',
             'readOnly' => $readOnly,
             'kategoriOptions' => MyHelper::generateSelectOptions(['data' => $kategories, 'selected' => $model['kategori'] ?? null]),
-            'platformOptions' => MyHelper::generateSelectOptions(['data' => config('constants.platforms'), 'selected' => $model['platform'] ?? null])
+            'platformOptions' => MyHelper::generateSelectOptions(['data' => config('constants.platforms'), 'selected' => $model['platform'] ?? null]),
 
         ];
+
         return $data;
     }
 
@@ -91,13 +96,13 @@ class BukuPanduanController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('pengaturan.buku-panduan.formV', $data);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-
     public function store(Request $request)
     {
         $validate = [
@@ -105,7 +110,7 @@ class BukuPanduanController extends Controller
             'kategori' => 'required',
         ];
 
-        $isNew = !$request->has('id') ? true : false;
+        $isNew = ! $request->has('id') ? true : false;
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
         $request->validate($validate);
 
@@ -119,7 +124,7 @@ class BukuPanduanController extends Controller
                     'dir' => 'buku-panduan',
                     'isRequired' => $isNew,
                     'fileKey' => 'file',
-                    'pkey' => $id
+                    'pkey' => $id,
                 ];
                 $file = Files::upload($request, $params);
                 $inputan['path'] = $file['path'];
@@ -127,10 +132,12 @@ class BukuPanduanController extends Controller
             Model::updateOrCreate(['id' => $id], $inputan);
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -142,11 +149,10 @@ class BukuPanduanController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         // return view('bmn.penetapansk.penetapanValidatorFormV', $data);
         return view('pengaturan.buku-panduan.formV', $data);
     }
-
-
 
     /**
      * Update the specified resource in storage.
@@ -165,6 +171,7 @@ class BukuPanduanController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

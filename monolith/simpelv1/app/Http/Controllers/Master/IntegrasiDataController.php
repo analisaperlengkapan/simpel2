@@ -15,6 +15,7 @@ class IntegrasiDataController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Master', 'Integrasi Data'];
+
     public function index()
     {
         return view('master.integrasi-data.gridV', ['tableId' => 'dt-interasi', 'breadcums' => $this->breadcums]);
@@ -22,10 +23,11 @@ class IntegrasiDataController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -33,7 +35,7 @@ class IntegrasiDataController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -41,14 +43,14 @@ class IntegrasiDataController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $data = [
@@ -58,7 +60,8 @@ class IntegrasiDataController extends Controller
             'judul' => $breadcum,
             'readOnly' => $readOnly,
         ];
-        //dd($data['satkerOptions']);
+
+        // dd($data['satkerOptions']);
         return $data;
     }
 
@@ -68,6 +71,7 @@ class IntegrasiDataController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.integrasi-data.formV', $data);
     }
 
@@ -86,10 +90,11 @@ class IntegrasiDataController extends Controller
             'host' => 'required',
             'username' => 'required',
             'password' => 'required',
-            'nama_aplikasi' => 'required'
+            'nama_aplikasi' => 'required',
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'ms_integrasi_data_seq');
-        Model::updateOrCreate(['id' => $id],$request->input());
+        Model::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -99,15 +104,14 @@ class IntegrasiDataController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.integrasi-data.formV', $data);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -126,6 +130,7 @@ class IntegrasiDataController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

@@ -6,12 +6,11 @@ use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Query\Builder;
 
 class PermohonanPenghapusanBmnMonitorFile extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'permohonan_penghapusan_bmn_sk_file_lain';
 
@@ -28,10 +27,11 @@ class PermohonanPenghapusanBmnMonitorFile extends Model
         'ket',
     ];
 
-    static function getDetail($pengajuan_id)
+    public static function getDetail($pengajuan_id)
     {
-        $sql = "SELECT a.* FROM permohonan_penghapusan_bmn_sk_file_lain a WHERE a.pengajuan_id = ? ";
+        $sql = 'SELECT a.* FROM permohonan_penghapusan_bmn_sk_file_lain a WHERE a.pengajuan_id = ? ';
         $result = DB::select($sql, [$pengajuan_id]);
+
         return $result;
     }
 }

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AskAIRequest;
 use App\Services\AIService;
-use Illuminate\Support\Facades\Log;
 
 class AIController extends Controller
 {
@@ -17,7 +16,8 @@ class AIController extends Controller
 
     /**
      * Endpoint utama untuk chat/ask AI
-     * @param Request $request
+     *
+     * @param  Request  $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function ask(AskAIRequest $request)
@@ -25,6 +25,7 @@ class AIController extends Controller
         $question = $request->input('question');
         $options = $request->only(['user_id', 'session']);
         $result = $this->aiService->answerQuestion($question, $options);
+
         return response()->json([
             'success' => true,
             'answer' => $result['answer'],
@@ -48,6 +49,7 @@ class AIController extends Controller
             $result = $this->aiService->answerQuestion($question, $options);
             if (isset($result['error'])) {
                 \Log::error('[AIController] chat error', ['error' => $result['error'], 'result' => $result]);
+
                 return response()->json([
                     'message' => $result['error'],
                     'response' => $result['answer'] ?? '',
@@ -56,6 +58,7 @@ class AIController extends Controller
                 ], 500);
             }
             \Log::debug('[AIController] chat response', ['result' => $result]);
+
             return response()->json([
                 'response' => $result['answer'],
                 'source' => $result['source'],
@@ -65,8 +68,9 @@ class AIController extends Controller
             \Log::error('[AIController] chat exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'input' => $request->all()
+                'input' => $request->all(),
             ]);
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'response' => '',

@@ -15,8 +15,11 @@ use Illuminate\Support\Facades\DB;
 class PakaianDinas extends Model
 {
     use LogTrait;
+
     protected $table = 'pengajuan_pakaian_dinas';
+
     const tableKet = 'Pengajuan Kebutuhan Pakaian Dinas';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -53,7 +56,7 @@ class PakaianDinas extends Model
     //     'password' => 'hashed',
     // ];
 
-    function getGridData($paging, $search = [], $filter = [])
+    public function getGridData($paging, $search = [], $filter = [])
     {
         $query = DB::table("{$this->table} as a")->select(['a.*']);
         $currentRole = session('userData.current_role');
@@ -68,7 +71,7 @@ class PakaianDinas extends Model
             });
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -95,9 +98,11 @@ class PakaianDinas extends Model
         $query->orderBy('created_at', 'desc');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
-    function getGridDataSatker($paging, $search = [], $pengajuanId, $filters = [], $isPusat = false)
+
+    public function getGridDataSatker($paging, $search, $pengajuanId, $filters = [], $isPusat = false)
     {
         // dd($filters);
         $query = DB::table('ms_satker')
@@ -108,16 +113,16 @@ class PakaianDinas extends Model
                     'pengajuan_pakaian_dinas_satker.ms_aktifitas_id',
                     'pengajuan_pakaian_dinas_satker.id',
                     'ms_satker.inst_satkerkd',
-                    DB::raw($pengajuanId . ' as pengajuan_pakaian_dinas_id'),
-                    'ms_satker.is_pusat'
+                    DB::raw($pengajuanId.' as pengajuan_pakaian_dinas_id'),
+                    'ms_satker.is_pusat',
                 ]
             )
-            ->join('pengajuan_pakaian_dinas_satker_terpilih', function ($join) use ($pengajuanId, $search, $isPusat) {
+            ->join('pengajuan_pakaian_dinas_satker_terpilih', function ($join) use ($pengajuanId, $isPusat) {
                 $joinField = $isPusat ? 'ms_satker_pusat_id' : 'ms_satker_id';
                 $join->on('ms_satker.inst_satkerkd', '=', "pengajuan_pakaian_dinas_satker_terpilih.{$joinField}");
                 $join->where('pengajuan_pakaian_dinas_satker_terpilih.pengajuan_pakaian_dinas_id', '=', $pengajuanId);
             })
-            ->leftJoin('pengajuan_pakaian_dinas_satker', function ($join) use ($pengajuanId, $search, $isPusat) {
+            ->leftJoin('pengajuan_pakaian_dinas_satker', function ($join) use ($pengajuanId, $isPusat) {
                 $joinField = $isPusat ? 'ms_satker_pusat_id' : 'ms_satker_id';
                 $join->on('ms_satker.inst_satkerkd', '=', "pengajuan_pakaian_dinas_satker.{$joinField}");
                 $join->where('pengajuan_pakaian_dinas_satker.pengajuan_pakaian_dinas_id', '=', $pengajuanId);
@@ -129,24 +134,26 @@ class PakaianDinas extends Model
             $query->where($value[0], $value[1], $value[2]);
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function ($q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(ms_satker.inst_nama)'), "like", "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(ms_satker.inst_satkerkd)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(ms_aktifitas.nama)"), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(ms_satker.inst_nama)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(ms_satker.inst_satkerkd)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(ms_aktifitas.nama)'), 'like', "%{$searchVal}%");
                 });
             }
         }
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         // ddd($data);
         return ['total' => $total, 'data' => $data];
     }
-    function getGridDataSatkerPusat($paging, $search = [], $pengajuanId)
+
+    public function getGridDataSatkerPusat($paging, $search, $pengajuanId)
     {
         $query = DB::table('ms_satker')
             ->select(['ms_satker.inst_nama as satker', DB::raw("coalesce(ms_aktifitas.nama, 'Belum Input') as status"), 'pengajuan_pakaian_dinas_satker.id'])
@@ -157,27 +164,26 @@ class PakaianDinas extends Model
             ->leftJoin('ms_aktifitas', 'ms_aktifitas.id', '=', 'pengajuan_pakaian_dinas_satker.ms_aktifitas_id')
             ->where('ms_satker.inst_satkerkd', '<>', '00')->orderBy('ms_satker.inst_satkerkd');
 
-
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function ($q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(ms_satker.inst_nama)'), "like", "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(ms_satker.inst_satkerkd)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(ms_aktifitas.nama)"), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(ms_satker.inst_nama)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(ms_satker.inst_satkerkd)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(ms_aktifitas.nama)'), 'like', "%{$searchVal}%");
                 });
             }
         }
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-
-    function sqlPerpakaian($satkerSudahInputIds, $filterSql)
+    public function sqlPerpakaian($satkerSudahInputIds, $filterSql)
     {
         $sqlPerPakaian = "WITH
         ukuran_l as (SELECT count(*) as jumlah, ukuran, b.ms_satker_id, b.ms_satker_pusat_id
@@ -216,10 +222,11 @@ class PakaianDinas extends Model
         From ukuran a
         left join ukuran_l l on a.ukuran = l.ukuran and a.ms_satker_id = l.ms_satker_id
         left join ukuran_p p on a.ukuran = p.ukuran and a.ms_satker_id = p.ms_satker_id ";
+
         return $sqlPerPakaian;
     }
 
-    function sqlPerpakaianPusat($satkerSudahInputIds, $filterSql)
+    public function sqlPerpakaianPusat($satkerSudahInputIds, $filterSql)
     {
         $sqlPerPakaian = "WITH
         ukuran_l as (SELECT count(*) as jumlah, ukuran, b.ms_satker_id, d.eselon1 as ms_satker_pusat_id
@@ -264,7 +271,8 @@ class PakaianDinas extends Model
 
         return $sqlPerPakaian;
     }
-    function sqlSummaryPerPakaian($satkerSudahInputIds, $filterSql)
+
+    public function sqlSummaryPerPakaian($satkerSudahInputIds, $filterSql)
     {
         $summary = "WITH
         ukuran_l as (SELECT count(*) as jumlah, ukuran
@@ -306,7 +314,7 @@ class PakaianDinas extends Model
         return $summary;
     }
 
-    function sqlSummaryPerPakaianPusat($satkerSudahInputIds, $filterSql)
+    public function sqlSummaryPerPakaianPusat($satkerSudahInputIds, $filterSql)
     {
 
         $summary = "WITH
@@ -348,9 +356,11 @@ class PakaianDinas extends Model
         from ukuran a
         left join ukuran_l l on a.ukuran = l.ukuran
         left join ukuran_p p on a.ukuran = p.ukuran ";
+
         return $summary;
     }
-    function dataRekap($params)
+
+    public function dataRekap($params)
     {
 
         $header = self::where(['id' => $params['pengajuan_id']])->first();
@@ -358,7 +368,7 @@ class PakaianDinas extends Model
             $isPusat = true;
             [$header, $listSatker, $satkerSudahInput] = $this->getDataRekapPusat($params);
             $eselon1s = implode(',', Arr::map($satkerSudahInput->toArray(), function ($xx) {
-                return $xx['eselon1'] . '::text';
+                return $xx['eselon1'].'::text';
             }));
         } else {
             $isPusat = false;
@@ -367,11 +377,11 @@ class PakaianDinas extends Model
 
         // dd($listSatker, $satkerSudahInput);
 
-        if (count($satkerSudahInput) == 0)
-            throw new \Exception("Satker Belum Input", 1);
+        if (count($satkerSudahInput) == 0) {
+            throw new \Exception('Satker Belum Input', 1);
+        }
 
         $satkerSudahInputIds = implode(',', Arr::pluck($satkerSudahInput, 'id'));
-
 
         // $pakaians = PakaianDinasPakaian::where(['pengajuan_pakaian_dinas_id' => $params['pengajuan_id']])->get();
 
@@ -385,11 +395,12 @@ class PakaianDinas extends Model
             [$params['pengajuan_id']]
         );
 
-        $filterSql = "";
+        $filterSql = '';
 
         foreach ($params['filter'] ?? [] as $field => $value) {
-            if ($value == '' || $field == 'jenis_kelamin')
+            if ($value == '' || $field == 'jenis_kelamin') {
                 continue;
+            }
 
             if ($field == 'eselon') {
                 if ($value == 'non') {
@@ -401,9 +412,6 @@ class PakaianDinas extends Model
                 $filterSql .= " AND  c.{$field} = '{$value}'";
             }
         }
-
-
-
 
         $dataSummaryPakaian = [];
         foreach ($pakaians as $key => $pakaian) {
@@ -426,10 +434,11 @@ class PakaianDinas extends Model
             //     ->join('ms_satker as c', 'c.inst_satkerkd', '=', $inputanSatker->ms_satker_id, 'inner', true)
             //     ->where('a.pengajuan_pakaian_dinas_satker_id', $inputanSatker['id'])->get();
         }
+
         return [$header, $pakaians, $dataUkuran, $listSatker, $dataSummaryPakaian];
     }
 
-    function getDataRekapPusat($params)
+    public function getDataRekapPusat($params)
     {
         $header = self::where(['id' => $params['pengajuan_id']])->first();
         $satkerSudahInputQ = PakaianDinasSatker::where(['pengajuan_pakaian_dinas_id' => $params['pengajuan_id'], 'ms_satker_id' => '00'])
@@ -443,7 +452,7 @@ class PakaianDinas extends Model
                 ->join('unit_kerja as c', 'b.eselon1', '=', 'c.id')
                 ->where('a.ms_satker_id', '=', '00')->orderBy('c.id')->get();
             $satkerInfo = MsSatker::where(['inst_satkerkd' => '00'])->first();
-            $header['inst_nama'] = 'WILAYAH ' . $satkerInfo->inst_nama;
+            $header['inst_nama'] = 'WILAYAH '.$satkerInfo->inst_nama;
         } else {
             $listSatker = DB::table('ms_satker')->where(['is_pusat' => 1, 'inst_satkerkd' => $params['ms_satker_id']])->orderBy('inst_satkerkd')->get();
             $satkerInfo = $listSatker[0];
@@ -451,13 +460,14 @@ class PakaianDinas extends Model
             $satkerSudahInputQ->where(['ms_satker_pusat_id' => $satkerInfo->inst_satkerkd]);
         }
         $satkerSudahInput = $satkerSudahInputQ->get();
+
         // $eselon = DB::table('unit_kerja')
         //     ->select('id', 'nama')->whereIn('id', $satkerSudahInputQ->pluck('eselon1'))->get();
         // dd($eselon);
         return [$header, $listSatker, $satkerSudahInput];
     }
 
-    function getDataRekap($params)
+    public function getDataRekap($params)
     {
         $header = self::where(['id' => $params['pengajuan_id']])->first();
         if ($params['ms_satker_id'] == 'all') {
@@ -465,7 +475,7 @@ class PakaianDinas extends Model
             $listSatker = DB::table('ms_satker')->where('inst_satkerkd', 'like', "{$filterSatker}%")->orderBy('inst_satkerkd')->get();
             $satkerInfo = MsSatker::where(['inst_satkerkd' => $filterSatker])->first();
             $satkerSudahInputQ = PakaianDinasSatker::where(['pengajuan_pakaian_dinas_id' => $params['pengajuan_id']])->where('ms_satker_id', 'like', "{$filterSatker}%");
-            $header['inst_nama'] = 'WILAYAH ' . $satkerInfo->inst_nama;
+            $header['inst_nama'] = 'WILAYAH '.$satkerInfo->inst_nama;
         } else {
             $filterSatker = $params['ms_satker_id'];
             $satkerInfo = MsSatker::where(['inst_satkerkd' => $filterSatker])->first();
@@ -475,28 +485,31 @@ class PakaianDinas extends Model
         }
 
         $satkerSudahInput = $satkerSudahInputQ->get();
+
         return [$header, $listSatker, $satkerSudahInput];
     }
 
-
-    function mapSatker($data, $isPusat)
+    public function mapSatker($data, $isPusat)
     {
         foreach ($data as $key => $value) {
             $satkerId = $isPusat ? $value->ms_satker_pusat_id : $value->ms_satker_id;
             $ukuran = $value->ukuran;
             $dataPerSatker[$satkerId][$ukuran] = (array) $value;
         }
+
         return $dataPerSatker ?? [];
     }
-    function mapSummary($data)
+
+    public function mapSummary($data)
     {
         foreach ($data as $key => $value) {
             $dataSummary[$value->ukuran] = (array) $value;
         }
+
         return $dataSummary ?? [];
     }
 
-    function getDataDaftar($params)
+    public function getDataDaftar($params)
     {
         $header = self::where(['id' => $params['pengajuan_id']])->first();
         if ($params['kejati_id'] == '00') {
@@ -507,9 +520,9 @@ class PakaianDinas extends Model
             [$header, $listSatker, $satkerSudahInput] = $this->getDataRekap($params);
         }
 
-
-        if (count($satkerSudahInput) == 0)
-            throw new \Exception("Satker Belum Input", 1);
+        if (count($satkerSudahInput) == 0) {
+            throw new \Exception('Satker Belum Input', 1);
+        }
 
         $satkerSudahInputIds = Arr::pluck($satkerSudahInput, 'id');
 
@@ -524,8 +537,9 @@ class PakaianDinas extends Model
                 ->join('ms_satker as c', 'c.inst_satkerkd', '=', $satkerId, 'inner', true)
                 ->where('a.pengajuan_pakaian_dinas_satker_id', $inputanSatker['id'])->orderBy('b.eselon')->orderByDesc('b.gol_kd');
             foreach ($params['filter'] ?? [] as $field => $value) {
-                if ($value == '')
+                if ($value == '') {
                     continue;
+                }
 
                 // if ($field == 'eselon') {
                 //     $value = "{$value}/%";
@@ -549,7 +563,6 @@ class PakaianDinas extends Model
 
             $dataPerSatker[$satkerId] = $que->get();
         }
-
 
         return [$header, $pakaians, $ukuranPegawais, $listSatker, $dataPerSatker, $isPusat];
     }

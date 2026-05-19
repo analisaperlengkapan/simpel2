@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Master;
 use App\Http\Controllers\Controller;
 use App\Models\Master\MsWilayah;
 use Illuminate\Http\Request;
-use App\Helpers\MyHelper;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -15,8 +14,11 @@ class WilayahController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Master', 'Satker'];
+
     protected $columns = ['Kode Satker', 'Nama Satker', 'Kode Monsakti', 'Kode MySimkari', 'Alamat', 'Telepon', 'Fax', 'Jenis', 'Level', 'Kepala'];
+
     protected $defColumns = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
     public function index()
     {
         return view('master.wilayah.wilayahV', [
@@ -29,10 +31,11 @@ class WilayahController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new MsWilayah();
+        $model = new MsWilayah;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -40,14 +43,14 @@ class WilayahController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
 
         if ($id) {
             $model = MsWilayah::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -59,6 +62,7 @@ class WilayahController extends Controller
             'model' => $model,
             'isNew' => $isNew,
         ];
+
         return $data;
     }
 
@@ -68,6 +72,7 @@ class WilayahController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.wilayah.wilayahFormV', $data);
     }
 
@@ -77,20 +82,20 @@ class WilayahController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            //'inst_wilayahinduk' => 'required',
-            //'inst_wilayahkd' => 'required',
-            //'inst_nama' => 'required',
-            //'inst_jenis' => 'required'
+            // 'inst_wilayahinduk' => 'required',
+            // 'inst_wilayahkd' => 'required',
+            // 'inst_nama' => 'required',
+            // 'inst_jenis' => 'required'
         ]);
 
-
-        $data = new MsWilayah();
+        $data = new MsWilayah;
         $id = isset($request->input()['id']) ? $request->input()['id'] : null;
         if ($id) {
             $data = MsWilayah::find($id);
         }
         $data->fill($request->input());
         $data->save();
+
         return $this->resSuccess();
     }
 
@@ -100,6 +105,7 @@ class WilayahController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.wilayah.wilayahFormV', $data);
     }
 
@@ -128,6 +134,7 @@ class WilayahController extends Controller
             DB::beginTransaction();
             MsWilayah::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

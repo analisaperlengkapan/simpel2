@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 class PakaianDinasPakaian extends Model
 {
     protected $table = 'pengajuan_pakaian_dinas_pakaian';
+
     /**
      * The attributes that are mass assignable.
      *

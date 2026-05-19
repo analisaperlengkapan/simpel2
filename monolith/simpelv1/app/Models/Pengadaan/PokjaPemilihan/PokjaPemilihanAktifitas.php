@@ -6,12 +6,11 @@ use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Query\Builder;
 
 class PokjaPemilihanAktifitas extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'pengajuan_pokja_pemilihan_aktifitas';
 
@@ -33,13 +32,14 @@ class PokjaPemilihanAktifitas extends Model
         'nama',
     ];
 
-    static function getDetail($pengajuan_id)
+    public static function getDetail($pengajuan_id)
     {
         $query = DB::table('pengajuan_pokja_pemilihan_aktifitas as a');
         $query->select('a.*', DB::raw("CASE WHEN a.ms_aktifitas_id = 1008 THEN 'Terbit SK Penetapan Pokja Pemilihan' ELSE  b.nama END as nama_aktifitas"));
         $query->join('ms_aktifitas_user as b', 'a.ms_aktifitas_id', '=', 'b.id');
         $query->where('a.pengajuan_id', $pengajuan_id);
         $query->orderBy('a.created_at', 'desc');
+
         return $query->get()->toArray();
     }
 }

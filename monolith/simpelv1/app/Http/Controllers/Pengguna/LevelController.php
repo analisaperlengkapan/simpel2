@@ -8,11 +8,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-
 class LevelController extends Controller
 {
     protected $breadcums = ['Pengaturan', 'Pengaturan Level Pengguna'];
+
     protected $controller = '/pengguna/level';
+
     /**
      * Display a listing of the resource.
      */
@@ -20,21 +21,23 @@ class LevelController extends Controller
     {
         $columns = ['Nama', 'Deskripsi'];
         $defColumns = [0, 1];
+
         return view('pengguna.level.levelV', [
             'tableId' => 'dt-role',
             'columns' => $columns,
             'defColumns' => $defColumns,
             'controller' => $this->controller,
-            'breadcums' => $this->breadcums
+            'breadcums' => $this->breadcums,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Level();
+        $model = new Level;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -42,18 +45,18 @@ class LevelController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
         $breadcum = 'Tambah';
 
-        $role = new Level();
+        $role = new Level;
 
         if ($id) {
             $breadcum = 'Ubah';
             $model = Level::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -67,8 +70,10 @@ class LevelController extends Controller
             'isNew' => $isNew,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -76,6 +81,7 @@ class LevelController extends Controller
     {
         //
         $data = $this->getData();
+
         return view('pengguna.level.levelFormV', $data);
     }
 
@@ -91,7 +97,6 @@ class LevelController extends Controller
             'menu_id' => 'array|min:1',
         ]);
 
-
         try {
             DB::beginTransaction();
             $role = Level::updateOrCreate(['id' => $request->input('id')], $request->only(['id', 'name', 'description']));
@@ -99,14 +104,16 @@ class LevelController extends Controller
             foreach ($request->input('menu_id') as $key => $value) {
                 $menus[] = [
                     'role_id' => $role->id,
-                    'menu_id' => $value
+                    'menu_id' => $value,
                 ];
             }
             DB::table('ms_role_menu')->insert($menus);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -117,6 +124,7 @@ class LevelController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengguna.level.levelFormV', $data);
     }
 
@@ -145,6 +153,7 @@ class LevelController extends Controller
             DB::beginTransaction();
             Level::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

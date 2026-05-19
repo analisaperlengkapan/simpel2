@@ -217,17 +217,18 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
-      - name: Validate target/ cache integrity
+      - name: cargo clean before clippy
         shell: bash
         run: |
-          # Self-hosted runner kadang restore stale `target/debug/deps/*.d`
-          # files yang bikin clippy gagal `could not parse/generate dep
-          # info at: …: No such file or directory`. Probe canary build;
-          # kalau gagal, wipe target dan re-build (slow tapi reliable).
-          if ! cargo check -p lib-core --quiet 2>/dev/null; then
-            echo "::warning::target/ cache appears corrupt — running cargo clean"
-            cargo clean
-          fi
+          # Self-hosted runner persistently restores stale
+          # `target/debug/deps/*.d` files yang bikin clippy fail dengan
+          # `could not parse/generate dep info at: …: No such file or
+          # directory`. Canary check `cargo check -p lib-core` tidak
+          # cukup deteksi karena lib-core hanya pakai sebagian dep tree.
+          # Force-rebuild secara unconditional. Trade-off ~5 menit
+          # tambahan vs reliable lint. rust-cache tetap restore for
+          # registry + git crates (~30s), hanya target/debug yang clean.
+          cargo clean
       - name: cargo clippy --workspace
         run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -385,17 +386,21 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           # Hanya check HTTP/HTTPS links. file:// link check terlalu
-          # noise untuk in-repo docs (catches outdated relative paths
-          # yang sebenarnya cosmetic) — relative links MD diserahkan ke
-          # markdownlint MD051 (yang kita allow false-positives). Mail
-          # link skipped default. Exclude github issues/PRs untuk
-          # cegah rate-limit.
+          # noise untuk in-repo docs. Exclude internal hosts yang tidak
+          # reachable dari CI runner (docs.simpel.kejaksaan.go.id,
+          # captcha-*:port references di runbook), plus github
+          # issues/PRs yang rate-limit. Mail links skipped default.
           args: |
             --no-progress
             --max-concurrency 8
             --scheme http
             --scheme https
             --exclude 'github\.com/.*/(issues|pull)/'
+            --exclude 'docs\.simpel\.kejaksaan\.go\.id'
+            --exclude '^https?://captcha-[a-z]+:'
+            --exclude '^https?://[a-z]+\.simpel\.kejaksaan\.go\.id'
+            --exclude 'localhost'
+            --exclude '127\.0\.0\.1'
             './**/*.md'
           fail: true
 

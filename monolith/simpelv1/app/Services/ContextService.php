@@ -3,11 +3,11 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Http;
-use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpSpreadsheet\IOFactory as ExcelIOFactory;
+use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use Smalot\PdfParser\Parser as PdfParser;
 
 class ContextService
@@ -23,7 +23,9 @@ class ContextService
     {
         Log::debug('[ContextService] Ambil Konteks', ['query' => $query]);
         $dir = storage_path('app/data');
-        if (!is_dir($dir)) return '';
+        if (! is_dir($dir)) {
+            return '';
+        }
         $context = '';
         $fileCount = 0;
         $matchCount = 0;
@@ -34,9 +36,13 @@ class ContextService
         $allKeywords = array_unique(array_merge($queryKeywords, $priorityKeywords));
         $files = array_slice(scandir($dir), 0, 20);
         foreach ($files as $file) {
-            if ($file === 'ai_data.json' || $file === '.' || $file === '..') continue;
+            if ($file === 'ai_data.json' || $file === '.' || $file === '..') {
+                continue;
+            }
             $path = "$dir/$file";
-            if (!is_file($path)) continue;
+            if (! is_file($path)) {
+                continue;
+            }
             $fileCount++;
             $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
             $text = '';
@@ -48,15 +54,20 @@ class ContextService
                     case 'csv':
                         $rows = array_map('str_getcsv', file($path));
                         $header = array_shift($rows);
-                        $limit = 50; $count = 0;
+                        $limit = 50;
+                        $count = 0;
                         foreach ($rows as $row) {
-                            if (count($header) !== count($row)) continue;
-                            $text .= implode(' ', array_combine($header, $row)) . "\n";
-                            if (++$count >= $limit) break;
+                            if (count($header) !== count($row)) {
+                                continue;
+                            }
+                            $text .= implode(' ', array_combine($header, $row))."\n";
+                            if (++$count >= $limit) {
+                                break;
+                            }
                         }
                         break;
                     case 'pdf':
-                        $parser = new PdfParser();
+                        $parser = new PdfParser;
                         $pdf = $parser->parseFile($path);
                         $text = $pdf->getText();
                         break;
@@ -65,7 +76,7 @@ class ContextService
                         foreach ($phpWord->getSections() as $sec) {
                             foreach ($sec->getElements() as $el) {
                                 if (method_exists($el, 'getText')) {
-                                    $text .= $el->getText() . "\n";
+                                    $text .= $el->getText()."\n";
                                 }
                             }
                         }
@@ -79,10 +90,13 @@ class ContextService
                         $spreadsheet = $reader->load($path);
                         $sheet = $spreadsheet->getActiveSheet();
                         $rows = $sheet->toArray();
-                        $limit = 50; $count = 0;
+                        $limit = 50;
+                        $count = 0;
                         foreach ($rows as $row) {
-                            $text .= implode(' ', $row) . "\n";
-                            if (++$count >= $limit) break;
+                            $text .= implode(' ', $row)."\n";
+                            if (++$count >= $limit) {
+                                break;
+                            }
                         }
                         $spreadsheet->disconnectWorksheets();
                         unset($spreadsheet);
@@ -99,10 +113,12 @@ class ContextService
                             break;
                         }
                     }
-                    if (count($matchedSentences) >= 2) break;
+                    if (count($matchedSentences) >= 2) {
+                        break;
+                    }
                 }
-                if (!empty($matchedSentences)) {
-                    $context .= "\n---\n" . implode(" ", $matchedSentences);
+                if (! empty($matchedSentences)) {
+                    $context .= "\n---\n".implode(' ', $matchedSentences);
                     $matchCount++;
                 }
             } catch (\Throwable $e) {
@@ -111,6 +127,7 @@ class ContextService
         }
         $result = trim(Str::limit($context, 500));
         Log::debug('[ContextService] Selesai', ['file_diproses' => $fileCount, 'file_cocok' => $matchCount, 'panjang_konteks' => strlen($result)]);
+
         return $result;
     }
 
@@ -120,27 +137,33 @@ class ContextService
         $cseId = config('app.google_cse_id');
         if (empty($apiKey) || empty($cseId)) {
             Log::warning('[ContextService] Google API tidak dikonfigurasi');
+
             return '';
         }
-        $cacheKey = 'google_search_' . md5($query);
+        $cacheKey = 'google_search_'.md5($query);
+
         return Cache::remember($cacheKey, now()->addHours(24), function () use ($apiKey, $cseId, $query) {
             try {
                 $response = Http::timeout(10)->get('https://www.googleapis.com/customsearch/v1', [
                     'key' => $apiKey,
                     'cx' => $cseId,
                     'q' => $query,
-                    'num' => 2
+                    'num' => 2,
                 ]);
                 $data = $response->json();
                 $items = $data['items'] ?? [];
-                if (empty($items)) return '';
+                if (empty($items)) {
+                    return '';
+                }
                 $context = '';
                 foreach ($items as $item) {
                     $context .= "### {$item['title']}\n{$item['snippet']}\n\n";
                 }
+
                 return trim(Str::limit($context, 300));
             } catch (\Throwable $e) {
                 Log::error('[ContextService] Error Google Search', ['error' => $e->getMessage()]);
+
                 return '';
             }
         });
@@ -149,17 +172,18 @@ class ContextService
     public function mergeContexts($localContext, $onlineContext)
     {
         $maxContextLength = 500;
-        $merged = trim($localContext . "\n\n[Sumber Online]\n" . $onlineContext);
+        $merged = trim($localContext."\n\n[Sumber Online]\n".$onlineContext);
         if (strlen($merged) > $maxContextLength) {
             $localLength = strlen($localContext);
             $allowedOnlineLength = $maxContextLength - $localLength - 50;
             if ($allowedOnlineLength > 0) {
                 $onlineContext = Str::limit($onlineContext, $allowedOnlineLength, ' [...]');
-                $merged = trim($localContext . "\n\n[Sumber Online]\n" . $onlineContext);
+                $merged = trim($localContext."\n\n[Sumber Online]\n".$onlineContext);
             } else {
                 $merged = Str::limit($localContext, $maxContextLength, ' [...]');
             }
         }
+
         return $merged;
     }
-} 
+}

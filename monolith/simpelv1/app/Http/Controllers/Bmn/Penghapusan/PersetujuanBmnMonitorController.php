@@ -5,40 +5,40 @@ namespace App\Http\Controllers\Bmn\Penghapusan;
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalUserSpseSirup as Approval;
-use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmn;
-use App\Models\Files;
-use App\Models\Master\MsSatker;
-use App\Models\Notifikasi;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Models\Bmn\PermohonanMonitor\PermohonanPenghapusanBmnMonitor as Model;
-use App\Models\Bmn\PermohonanMonitor\PermohonanPenghapusanBmnMonitorFile;
 use App\Models\Bmn\PermohonanMonitor\PersetujuanPenghapusanBmnMonitorFile;
+use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmn;
 use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnAktifitas as Aktifitas;
 use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFile;
 use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFoto;
 use App\Models\Bmn\PermohonanPenghapusan\PermohonanPenghapusanBmnFotocopy;
-use App\Models\Bmn\PermohonanSk\PermohonanPenghapusanBmnSk;
+use App\Models\Files;
 use App\Models\Master;
+use App\Models\Master\MsSatker;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File as FileManager;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PersetujuanBmnMonitorController extends Controller
 {
     protected $kategoriJudul = 'Monitoring Persetujuan Penghapusan BMN';
+
     protected $kategori = [];
-    protected $breadcums = ['Pengelolaan BMN','Persetujuan Penghapusan BMN'];
+
+    protected $breadcums = ['Pengelolaan BMN', 'Persetujuan Penghapusan BMN'];
+
     private $controller = '/bmn/penghapusan/persetujuanmonitor';
+
     private $whereKategori = [];
 
     public function __construct(Request $request)
     {
         $segment = $request->segment(3);
         $this->whereKategori = [];
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>$this->kategoriJudul]]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => $this->kategoriJudul]]);
     }
-
 
     public function index()
     {
@@ -48,7 +48,7 @@ class PersetujuanBmnMonitorController extends Controller
             'controller' => $this->controller,
             'kategori' => $this->kategori,
             'kategoriJudul' => $this->kategoriJudul,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ]);
     }
 
@@ -79,10 +79,11 @@ class PersetujuanBmnMonitorController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new PermohonanPenghapusanBmn();
+        $user = new PermohonanPenghapusanBmn;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -92,8 +93,9 @@ class PersetujuanBmnMonitorController extends Controller
 
     public function gridDataFotoCopy($pengajuan_id)
     {
-        $model = new PermohonanPenghapusanBmnFotocopy();
+        $model = new PermohonanPenghapusanBmnFotocopy;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -101,8 +103,9 @@ class PersetujuanBmnMonitorController extends Controller
 
     public function gridDataFilelain($pengajuan_id)
     {
-        $model = new PersetujuanPenghapusanBmnMonitorFile();
+        $model = new PersetujuanPenghapusanBmnMonitorFile;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -110,8 +113,9 @@ class PersetujuanBmnMonitorController extends Controller
 
     public function gridDataFoto($pengajuan_id)
     {
-        $model = new PermohonanPenghapusanBmnFoto();
+        $model = new PermohonanPenghapusanBmnFoto;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -119,14 +123,15 @@ class PersetujuanBmnMonitorController extends Controller
 
     public function gridDataPermohonan()
     {
-        $model = new Model();
+        $model = new Model;
         $data = $model->getDataPermohonan();
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -135,7 +140,7 @@ class PersetujuanBmnMonitorController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -148,15 +153,14 @@ class PersetujuanBmnMonitorController extends Controller
             'controller' => $this->controller,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -199,24 +203,27 @@ class PersetujuanBmnMonitorController extends Controller
                 ];
                 $insertedFiles[] = $newFile;
                 Files::insert($insertedFiles);
-                Model::updateOrCreate(['id' => $id], ['file_surat_permohonan'=>$filesave]);
+                Model::updateOrCreate(['id' => $id], ['file_surat_permohonan' => $filesave]);
 
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveLain(Request $request){
+    public function saveLain(Request $request)
+    {
         $customMessages = [
             'ket.required' => 'Keterangan harus diisi',
         ];
@@ -234,10 +241,10 @@ class PersetujuanBmnMonitorController extends Controller
             $ket = $request->input('ket');
 
             $inputan = [
-                'nomor'=>$nomor,
-                'tanggal'=>$tanggal,
-                'pengajuan_id'=>$pengajuan_id,
-                'ket'=>$ket,
+                'nomor' => $nomor,
+                'tanggal' => $tanggal,
+                'pengajuan_id' => $pengajuan_id,
+                'ket' => $ket,
             ];
             $model = PersetujuanPenghapusanBmnMonitorFile::updateOrCreate(['id' => $id], $inputan);
             $insertedId = $model->id;
@@ -260,14 +267,16 @@ class PersetujuanBmnMonitorController extends Controller
                 ];
                 $insertedFiles[] = $newFile;
                 Files::insert($insertedFiles);
-                PersetujuanPenghapusanBmnMonitorFile::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                PersetujuanPenghapusanBmnMonitorFile::updateOrCreate(['id' => $insertedId], ['file' => $filesave]);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -275,39 +284,39 @@ class PersetujuanBmnMonitorController extends Controller
     /**
      * edit admin perlengkapan
      */
-    public function show(Request $request,string $id)
+    public function show(Request $request, string $id)
     {
         $pengajuan = PermohonanPenghapusanBmn::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
         $permohonan = $pengajuan;
-        //ms file
+        // ms file
         $ms_file = DB::table('ms_penghapusan_file as a')
-                ->select('a.id as ms_penghapusan_file_id','a.nm_file','a.is_nomor','b.id','b.nomor','b.tanggal','b.file','a.jenis_file','a.is_validator','a.kategori','a.sub_kategori')
-                ->leftJoin('permohonan_penghapusan_bmn_file as b','a.id','b.ms_penghapusan_file_id')
-                ->where('sub_kategori',$permohonan->kategori)
-                ->orderBy('a.id')->get()->toArray();
+            ->select('a.id as ms_penghapusan_file_id', 'a.nm_file', 'a.is_nomor', 'b.id', 'b.nomor', 'b.tanggal', 'b.file', 'a.jenis_file', 'a.is_validator', 'a.kategori', 'a.sub_kategori')
+            ->leftJoin('permohonan_penghapusan_bmn_file as b', 'a.id', 'b.ms_penghapusan_file_id')
+            ->where('sub_kategori', $permohonan->kategori)
+            ->orderBy('a.id')->get()->toArray();
 
-        //aktifitas
+        // aktifitas
         $aktifitasHistories = Aktifitas::getDetail($model->id);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
-        $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3000,3002,3004,3006,3007])->get()->toArray();
+        $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3000, 3002, 3004, 3006, 3007])->get()->toArray();
 
         $data = [
             'model' => $model,
@@ -335,10 +344,7 @@ class PersetujuanBmnMonitorController extends Controller
     /**
      * pelaksana ngisi /  validator ngeliat
      */
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     public function savePengajuan(Request $request)
     {
@@ -353,28 +359,28 @@ class PersetujuanBmnMonitorController extends Controller
         try {
             DB::beginTransaction();
             $currentRole = session('userData.current_role');
-            //$model =  Model::where(['id' => $id])->first();
+            // $model =  Model::where(['id' => $id])->first();
             $ms_aktifitas_id = $request->input('ms_aktifitas_id');
-            if($ms_aktifitas_id){
+            if ($ms_aktifitas_id) {
                 PermohonanPenghapusanBmn::where(['id' => $id])->update(['ms_aktifitas_id' => $ms_aktifitas_id]);
                 $dataAktifitas = [
                     'pengajuan_id' => $id,
                     'ms_aktifitas_id' => $ms_aktifitas_id,
                     'komentar' => $request->input('komentar'),
-                    'to_satker_induk' => $ms_aktifitas_id == 3000 ? false : true
+                    'to_satker_induk' => $ms_aktifitas_id == 3000 ? false : true,
                 ];
                 $acts = Approval::roleCheck($dataAktifitas);
                 Aktifitas::insert($acts['act']);
             }
 
-            $permohonansk = PermohonanPenghapusanBmn::where('id',$id)->first();
-            if(1 == 1){
-                foreach($request->input('ms_penghapusan_file_id') as $key => $ms_penghapusan_file_id){
+            $permohonansk = PermohonanPenghapusanBmn::where('id', $id)->first();
+            if (1 == 1) {
+                foreach ($request->input('ms_penghapusan_file_id') as $key => $ms_penghapusan_file_id) {
                     $data = [
-                        'pengajuan_id'=>$permohonansk->pengajuan_id,
-                        'ms_penghapusan_file_id'=>$ms_penghapusan_file_id,
-                        'nomor'=>$request->input('file_nomor')[$key],
-                        'tanggal'=>$request->input('file_tanggal')[$key],
+                        'pengajuan_id' => $permohonansk->pengajuan_id,
+                        'ms_penghapusan_file_id' => $ms_penghapusan_file_id,
+                        'nomor' => $request->input('file_nomor')[$key],
+                        'tanggal' => $request->input('file_tanggal')[$key],
                     ];
                     $modelFile = PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $request->input('file_id')[$key]], $data);
                     $insertedId = $modelFile->id;
@@ -396,22 +402,24 @@ class PersetujuanBmnMonitorController extends Controller
                         ];
                         $insertedFiles[] = $newFile;
                         Files::insert($insertedFiles);
-                        PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $insertedId], ['file'=>$filesave]);
+                        PermohonanPenghapusanBmnFile::updateOrCreate(['id' => $insertedId], ['file' => $filesave]);
                     }
                 }
             }
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -431,13 +439,15 @@ class PersetujuanBmnMonitorController extends Controller
     {
         try {
             DB::beginTransaction();
-            $model = Model::where('id',$id)->first();
+            $model = Model::where('id', $id)->first();
             $model->delete();
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             dd($th->getMessage());
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -447,8 +457,8 @@ class PersetujuanBmnMonitorController extends Controller
         try {
             DB::beginTransaction();
             $fc = PersetujuanPenghapusanBmnMonitorFile::where('id', $id)->first();
-            if(!empty($fc)){
-                if($fc->file){
+            if (! empty($fc)) {
+                if ($fc->file) {
                     $filePath = public_path($fc->file);
                     // Delete the physical file from public directory
                     if (FileManager::exists($filePath)) {
@@ -458,9 +468,11 @@ class PersetujuanBmnMonitorController extends Controller
                 $fc->delete();
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

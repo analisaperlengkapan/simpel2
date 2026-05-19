@@ -12,7 +12,8 @@ class JenisPakaianDinas extends Model
     use LogTrait;
 
     protected $table = 'ms_jenis_pakaian_dinas';
-    const tableKet = "Referensi Jenis Pakaian Dinas";
+
+    const tableKet = 'Referensi Jenis Pakaian Dinas';
 
     /**
      * The attributes that are mass assignable.
@@ -21,30 +22,32 @@ class JenisPakaianDinas extends Model
      */
     protected $fillable = [
         'id',
-        'nama'
+        'nama',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table);
         $query->select('*');
-        if(!empty($select)) $query->select($select);
-        if (!empty($search)) {
-            //$searchVal = strtolower($search['search']['value']);
+        if (! empty($select)) {
+            $query->select($select);
+        }
+        if (! empty($search)) {
+            // $searchVal = strtolower($search['search']['value']);
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
+            // if (isset($search['filterBy'])) {
             //    $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //        $q->orWhere(DB::raw('lower(nama)'), "like", "%{$searchVal}%");
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -62,6 +65,7 @@ class JenisPakaianDinas extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

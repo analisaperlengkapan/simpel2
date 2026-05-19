@@ -8,8 +8,8 @@ use App\Traits\LogTrait;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class PermohonanPenghapusanBmnSk extends Model
 {
@@ -43,9 +43,9 @@ class PermohonanPenghapusanBmnSk extends Model
         'jenis',
     ];
 
-    function getDataGrid($paging, $search = [], $kategori = [])
+    public function getDataGrid($paging, $search = [], $kategori = [])
     {
-        $query = DB::table($this->table . ' as a');
+        $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
         $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
         $query->leftJoin('permohonan_penghapusan_bmn_monitor as e', 'a.pengajuan_id', '=', 'e.pengajuan_id');
@@ -63,28 +63,40 @@ class PermohonanPenghapusanBmnSk extends Model
             $query->where('a.inst_satkerkd', $ms_satker_id);
         }
         if (MyHelper::isValidatorWilayah()) {
-            $query->where('a.inst_satkerkd',  'like', "{$ms_satker_id}%");
+            $query->where('a.inst_satkerkd', 'like', "{$ms_satker_id}%");
         }
         if (session('userData.current_role.ms_role_id') != 1) {
             $query->where('a.ms_aktifitas_id', '!=', 3000);
         }
-        if (!empty($kategori)) $query->whereIn('kategori', $kategori);
+        if (! empty($kategori)) {
+            $query->whereIn('kategori', $kategori);
+        }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
-                    if($columnName == 'aktifitas') $columnName = 'c.nama';
-                    if($columnName == 'nama') $columnName = 'a.nama';
-                    if($columnName == 'no_surat_permohonan') $columnName = 'a.no_surat_permohonan';
-                    if($columnName == 'tgl_surat_permohonan') $columnName = 'a.tgl_surat_permohonan';
-                    if($columnName == 'kategori') $columnName = 'a.kategori';
+                    if ($columnName == 'aktifitas') {
+                        $columnName = 'c.nama';
+                    }
+                    if ($columnName == 'nama') {
+                        $columnName = 'a.nama';
+                    }
+                    if ($columnName == 'no_surat_permohonan') {
+                        $columnName = 'a.no_surat_permohonan';
+                    }
+                    if ($columnName == 'tgl_surat_permohonan') {
+                        $columnName = 'a.tgl_surat_permohonan';
+                    }
+                    if ($columnName == 'kategori') {
+                        $columnName = 'a.kategori';
+                    }
 
                     if ($columnName == 'a.tgl_surat_permohonan' && strtotime($value)) {
                         $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                    } else if ($value) {
+                    } elseif ($value) {
                         $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
                     }
                 }
@@ -93,12 +105,13 @@ class PermohonanPenghapusanBmnSk extends Model
         $query->orderByDesc('updated_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    function getDataGridDetail($paging, $search = [])
+    public function getDataGridDetail($paging, $search = [])
     {
-        $query = DB::table($this->table . ' as a');
+        $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.inst_satkerkd', '=', 'b.inst_satkerkd');
         $query->leftJoin('ms_aktifitas_user as c', 'a.ms_aktifitas_id', '=', 'c.id');
         $query->leftJoin('pengajuan_penghapusan_bmn_asset as d', 'a.id', '=', 'd.pengajuan_id');
@@ -109,7 +122,7 @@ class PermohonanPenghapusanBmnSk extends Model
             $query->where('a.inst_satkerkd', $ms_satker_id);
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -118,7 +131,7 @@ class PermohonanPenghapusanBmnSk extends Model
                     $columnName = $v['data'] == 'nama' ? 'a.nama' : $v['data'];
                     if (strtotime($value)) {
                         $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                    } else if ($value) {
+                    } elseif ($value) {
                         $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
                     }
                 }
@@ -127,6 +140,7 @@ class PermohonanPenghapusanBmnSk extends Model
         $query->orderByDesc('updated_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
@@ -135,14 +149,15 @@ class PermohonanPenghapusanBmnSk extends Model
         return Carbon::parse($this->attributes['tgl_surat_permohonan'])->translatedFormat('d-F-Y');
     }
 
-    static function getDataPermohonan()
+    public static function getDataPermohonan()
     {
         $ms_satker_id = session('userData.current_role.ms_satker_id');
         $sql = "SELECT a.*
         FROM permohonan_penghapusan_bmn a
         LEFT JOIN permohonan_penghapusan_bmn_sk b on a.id = b.pengajuan_id
-        WHERE b.pengajuan_id is null and a.ms_aktifitas_id = 3006 and a.inst_satkerkd = '" . $ms_satker_id . "'";
+        WHERE b.pengajuan_id is null and a.ms_aktifitas_id = 3006 and a.inst_satkerkd = '".$ms_satker_id."'";
         $result = DB::select($sql);
+
         return $result;
     }
 }

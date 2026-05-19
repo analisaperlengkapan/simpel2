@@ -2,16 +2,15 @@
 
 namespace App\Models\Master;
 
-use App\Blameable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class MsWilayah extends Model
 {
     protected $table = 'ms_satker';
-    //protected $primaryKey = 'inst_satkerkd';
+
+    // protected $primaryKey = 'inst_satkerkd';
     /**
      * The attributes that are mass assignable.
      *
@@ -27,13 +26,13 @@ class MsWilayah extends Model
         'inst_telepon',
         'inst_fax',
         'inst_jenis',
-        'inst_level'
+        'inst_level',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*')->where(DB::raw('length(inst_satkerkd)'), '=', '2');
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -58,6 +57,7 @@ class MsWilayah extends Model
         $query->orderBy('inst_satkerkd');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

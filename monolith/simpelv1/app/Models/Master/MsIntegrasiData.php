@@ -5,13 +5,13 @@ namespace App\Models\Master;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class MsIntegrasiData extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'ms_integrasi_data';
 
@@ -28,25 +28,26 @@ class MsIntegrasiData extends Model
         'nama_aplikasi',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table);
         $query->select('*');
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function (Builder $q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(host)'), "like", "%{$searchVal}%");
-                    $q->orWhere(DB::raw('lower(username)'), "like", "%{$searchVal}%");
-                    $q->orWhere(DB::raw('lower(nama_aplikasi)'), "like", "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(host)'), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(username)'), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(nama_aplikasi)'), 'like', "%{$searchVal}%");
                 });
             }
         }
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }
