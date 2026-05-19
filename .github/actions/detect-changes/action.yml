@@ -29,9 +29,6 @@ outputs:
   monolith-any:
     description: 'true jika ada file apapun di monolith berubah'
     value: ${{ steps.filter.outputs.monolith-any }}
-  e2e-tests:
-    description: 'true jika tests/e2e berubah'
-    value: ${{ steps.filter.outputs.e2e-tests }}
   typescript:
     description: 'true jika file TS/JS berubah'
     value: ${{ steps.filter.outputs.typescript }}
@@ -127,8 +124,6 @@ runs:
             - 'monolith/simpelv1/public/assets/**'
           monolith-any:
             - 'monolith/**'
-          e2e-tests:
-            - 'tests/e2e/**'
           typescript:
             - '**/*.ts'
             - '**/*.tsx'

@@ -52,7 +52,12 @@ credentials.json
 *.key
 *.cert
 *.crt
+# Secreton runtime config — exclude any stray secreton.toml accidentally
+# created at root or elsewhere. The canonical bundled config at
+# layanan/secreton/secreton.toml IS required at image build time
+# (Dockerfile COPYs it into /app/config), so explicitly un-ignore it.
 secreton.toml
+!layanan/secreton/secreton.toml
 
 # Temp files
 tmp

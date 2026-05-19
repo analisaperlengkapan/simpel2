@@ -177,41 +177,6 @@ updates:
           - "minor"
           - "patch"
 
-  # ─────────────────────────────────────────────────────
-  # NPM — Playwright e2e tests
-  # ─────────────────────────────────────────────────────
-  - package-ecosystem: "npm"
-    directory: "/tests/e2e"
-    schedule:
-      interval: "weekly"
-      day: "thursday"
-      time: "02:00"
-      timezone: "Asia/Jakarta"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "lang:typescript"
-      - "tests:e2e"
-    commit-message:
-      prefix: "test"
-    groups:
-      playwright:
-        patterns:
-          - "@playwright/*"
-          - "playwright*"
-        update-types:
-          - "minor"
-          - "patch"
-      typescript:
-        patterns:
-          - "typescript"
-          - "@types/*"
-        update-types:
-          - "minor"
-          - "patch"
-    ignore:
-      - dependency-name: "*"
-        update-types: ["version-update:semver-major"]
 
   # ─────────────────────────────────────────────────────
   # NPM — Monolith Laravel assets (Vite)

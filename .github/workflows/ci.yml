@@ -38,7 +38,6 @@ jobs:
       monolith-blade: ${{ steps.changes.outputs.monolith-blade }}
       monolith-assets: ${{ steps.changes.outputs.monolith-assets }}
       monolith-any: ${{ steps.changes.outputs.monolith-any }}
-      e2e-tests: ${{ steps.changes.outputs.e2e-tests }}
       typescript: ${{ steps.changes.outputs.typescript }}
       docker: ${{ steps.changes.outputs.docker }}
       yaml: ${{ steps.changes.outputs.yaml }}
@@ -78,8 +77,15 @@ jobs:
             [layanan-authenc]="layanan/authenc/Dockerfile|.|$AUTHENC"
             [layanan-perlengkapan]="layanan/perlengkapan/Dockerfile|.|$PERLENGKAPAN_API"
             [layanan-integrasi]="layanan/integrasi/Dockerfile|.|$INTEGRASI"
-            [layanan-secreton]="layanan/secreton/Dockerfile|layanan/secreton|$SECRETON"
-            [simpelv1]="monolith/simpelv1/Dockerfile|monolith/simpelv1|$MONOLITH"
+            # Context MUST be repo root: simpelv1's Dockerfile does
+            # `COPY monolith/simpelv1/nginx.conf …` and secreton's does
+            # `COPY layanan/secreton/secreton.toml …`, both relative to
+            # the workspace root. Earlier these used sub-dir contexts and
+            # buildx failed with `…/nginx.conf: not found` /
+            # `…/secreton.toml: not found`. Keep this in sync with the
+            # release.yml matrix, which already uses `.` for every image.
+            [layanan-secreton]="layanan/secreton/Dockerfile|.|$SECRETON"
+            [simpelv1]="monolith/simpelv1/Dockerfile|.|$MONOLITH"
           )
           entries=()
           for name in "${!IMAGES[@]}"; do
@@ -117,8 +123,13 @@ jobs:
             "antarmuka/portal" "antarmuka/perlengkapan"
             "layanan/authenc" "layanan/perlengkapan" "layanan/integrasi" "layanan/secreton"
             "lib/ui" "lib/core" "lib/backend" "lib/crypto" "lib/perlengkapan"
-            "monolith/simpelv1" "tests/e2e" "infra/scripts" "infra/lint"
+            "monolith/simpelv1" "infra/scripts" "infra/lint"
           )
+          # NOTE: tests/e2e tidak required. Playwright e2e ada di
+          # antarmuka/{portal,perlengkapan}/tests/e2e/ dan di-run oleh job
+          # `playwright-e2e` di workflow ini sebagai matrix per-microfrontend.
+          # Enforce Structure tidak perlu mensyaratkan eksistensi-nya karena
+          # microfrontend baru bisa saja belum punya e2e suite.
           for p in "${required_paths[@]}"; do
             if [[ ! -e "$p" ]]; then
               echo "::error::Required path missing: $p"
@@ -255,30 +266,6 @@ jobs:
       - name: Prettier check (Blade)
         working-directory: monolith/simpelv1
         run: npx prettier --check 'resources/views/**/*.blade.php'
-
-  lint-typescript:
-    name: Lint TypeScript / JS
-    needs: detect
-    if: needs.detect.outputs.typescript == 'true' || needs.detect.outputs.e2e-tests == 'true'
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: tests/e2e
-      - name: TypeScript type-check
-        working-directory: tests/e2e
-        continue-on-error: true
-        run: npx tsc --noEmit
-      - name: Biome check
-        working-directory: tests/e2e
-        continue-on-error: true
-        run: |
-          if [ -f biome.json ] || [ -f biome.jsonc ]; then
-            npx --yes @biomejs/biome@1.9.4 check .
-          else
-            echo "::warning::biome.json missing - skipping biome check"
-          fi
 
   lint-dockerfile:
     name: Lint Dockerfile

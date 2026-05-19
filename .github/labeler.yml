@@ -72,8 +72,6 @@ monolith:
   - changed-files: [{ any-glob-to-any-file: ['infra/scripts/**'] }]
 
 # ─── Tests ─────────────────────────────────────────────
-"tests:e2e":
-  - changed-files: [{ any-glob-to-any-file: [tests/e2e/**] }]
 "tests:load":
   - changed-files: [{ any-glob-to-any-file: [tests/load/**] }]
 "tests:verification":
