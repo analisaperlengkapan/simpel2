@@ -44,9 +44,12 @@ jobs:
       - name: Resolve version
         id: version
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$INPUT_VERSION"
           else
             VERSION="${GITHUB_REF#refs/tags/v}"
           fi
@@ -60,9 +63,11 @@ jobs:
       - name: Find previous tag
         id: previous
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
-          CURRENT_TAG="v${{ steps.version.outputs.version }}"
+          CURRENT_TAG="v$VERSION"
           PREV_TAG=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+' | grep -v "^${CURRENT_TAG}$" | head -n 1 || echo "")
           echo "tag=${PREV_TAG}" >> "$GITHUB_OUTPUT"
 
@@ -79,11 +84,13 @@ jobs:
       - name: Fallback if git-cliff failed
         if: steps.cliff.outcome == 'failure'
         shell: bash
+        env:
+          PREV_TAG: ${{ steps.previous.outputs.tag }}
         run: |
           {
-            echo "### Changes since ${{ steps.previous.outputs.tag }}"
+            echo "### Changes since $PREV_TAG"
             echo ""
-            git log "${{ steps.previous.outputs.tag }}..HEAD" --pretty=format:'- %s (`%h`)' || echo "- Initial release"
+            git log "$PREV_TAG..HEAD" --pretty=format:'- %s (`%h`)' || echo "- Initial release"
             echo ""
           } > CHANGELOG_RELEASE.md
           # Pakai random delimiter agar isi changelog (yang bisa berisi literal "EOF")
