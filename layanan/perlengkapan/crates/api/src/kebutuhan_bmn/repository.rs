@@ -242,7 +242,11 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             )
             .await
             .map_err(|e| {
-                error!("Failed to create pengajuan: {}", e);
+                if let Some(db_err) = e.as_db_error() {
+                    error!("Failed to create pengajuan: {} - {}", db_err.message(), db_err.detail().unwrap_or(""));
+                } else {
+                    error!("Failed to create pengajuan: {}", e);
+                }
                 AppError::Internal(format!("Database error: {}", e))
             })?;
 

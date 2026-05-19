@@ -1,116 +1,133 @@
 //! Integration test for complete Penghapusan BMN workflow
 
-#[cfg(test)]
-mod penghapusan_bmn_workflow_integration_test {
-    use uuid::Uuid;
+use axum_test::TestServer;
+use serde_json::json;
+use crate::common::{setup_test_app, teardown_test_db};
 
-    /// Test complete workflow: DRAFT → SUBMITTED → REVIEWED_WILAYAH → REVIEWED_PUSAT → SK_GENERATED → COMPLETED
-    #[tokio::test]
-    async fn test_complete_penghapusan_bmn_workflow() {
-        // Phase 1: Create penghapusan request
-        let request_id = create_penghapusan_request().await;
-        assert!(request_id.is_some());
+/// Helper to generate auth headers
+fn auth_headers(role: &str, user_id: &str, satker_id: &str) -> Vec<(reqwest::header::HeaderName, reqwest::header::HeaderValue)> {
+    vec![
+        (reqwest::header::HeaderName::from_static("x-user-id"), reqwest::header::HeaderValue::from_str(user_id).unwrap()),
+        (reqwest::header::HeaderName::from_static("x-user-role"), reqwest::header::HeaderValue::from_str(role).unwrap()),
+        (reqwest::header::HeaderName::from_static("x-satker-id"), reqwest::header::HeaderValue::from_str(satker_id).unwrap()),
+        (reqwest::header::HeaderName::from_static("authorization"), reqwest::header::HeaderValue::from_str(&format!("Bearer mock::{}::{}::{}", role, user_id, satker_id)).unwrap()),
+    ]
+}
 
-        // Phase 2: Add BMN items
-        let add_bmn_result = add_bmn_to_request(request_id.unwrap(), "123456").await;
-        assert!(add_bmn_result.is_ok());
+#[tokio::test]
+async fn test_complete_penghapusan_bmn_workflow() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
 
-        // Phase 3: Submit to Validator Wilayah
-        let submit_result = submit_to_wilayah(request_id.unwrap()).await;
-        assert!(submit_result.is_ok());
+    let validator_pusat_id = "00000000-0000-0000-0000-000000000003";
+    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
+    let validator_wilayah_id = "00000000-0000-0000-0000-000000000002";
+    let satker_id = "SKR001";
+    let wilayah_id = "WIL001";
 
-        // Phase 4: Validator Wilayah forwards to Pusat
-        let forward_result = validator_wilayah_forward(request_id.unwrap()).await;
-        assert!(forward_result.is_ok());
+    // 1. Create usulan penghapusan
+    let mut req = server.post("/penghapusan-bmn")
+        .json(&json!({
+            "satker_id": "00000000-0000-0000-0000-000000000001",
+            "asset_id": "00000000-0000-0000-0000-000000000001",
+            "kode_barang": "3.06.02.01.003",
+            "nama_barang": "Laptop Dell Latitude 5520",
+            "nup": "015",
+            "tanggal_penghapusan": "2026-01-01",
+            "alasan": "Rusak berat dan sudah usang, tidak ekonomis untuk diperbaiki",
+            "metode_penghapusan": "Pemusnahan",
+            "nilai_residu": 0,
+            "lampiran_persyaratan": "https://storage.example.com/lampiran-persyaratan.pdf"
+        }));
+    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) { req = req.add_header(k, v); }
+    let res = req.await;
+    let body = res.json::<serde_json::Value>();
+    println!("CREATE PENGHAPUSAN RESPONSE (status={}): {:?}", res.status_code(), body);
+    assert_eq!(res.status_code(), 201);
+    let usulan_id = body["data"]["id"].as_str().unwrap().to_string();
 
-        // Phase 5: Validator Pusat generates SK
-        let sk_result = generate_sk(request_id.unwrap()).await;
-        assert!(sk_result.is_ok());
+    // 2. Submit to Wilayah
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/submit-wilayah", usulan_id))
+        .json(&json!({"catatan": "Mohon verifikasi"}));
+    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) { req = req.add_header(k, v); }
+    let res = req.await;
+    println!("SUBMIT WILAYAH RESPONSE (status={}): {:?}", res.status_code(), res.json::<serde_json::Value>());
+    assert_eq!(res.status_code(), 200);
 
-        // Phase 6: Upload signed SK
-        let upload_result = upload_signed_sk(request_id.unwrap()).await;
-        assert!(upload_result.is_ok());
+    // 3. Wilayah forwards to Pusat
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
+        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+    for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) { req = req.add_header(k, v); }
+    let res = req.await;
+    println!("FORWARD PUSAT RESPONSE (status={}): {:?}", res.status_code(), res.json::<serde_json::Value>());
+    assert_eq!(res.status_code(), 200);
 
-        // Verify final status
-        let status = get_request_status(request_id.unwrap()).await;
-        assert_eq!(status, "COMPLETED");
-    }
+    // 4. Generate Konsep SK
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/generate-konsep-sk", usulan_id));
+    for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") { req = req.add_header(k, v); }
+    let res = req.await;
+    println!("GENERATE SK RESPONSE (status={}): {:?}", res.status_code(), res.json::<serde_json::Value>());
+    assert_eq!(res.status_code(), 200);
 
-    #[tokio::test]
-    async fn test_penghapusan_bmn_validation() {
-        let request_id = create_penghapusan_request().await.unwrap();
+    // 5. Upload Signed SK
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/upload-signed-sk", usulan_id))
+        .json(&json!({"signed_sk_pdf_url": "https://storage.example.com/sk-signed.pdf"}));
+    for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") { req = req.add_header(k, v); }
+    let res = req.await;
+    println!("UPLOAD SK RESPONSE (status={}): {:?}", res.status_code(), res.json::<serde_json::Value>());
+    assert_eq!(res.status_code(), 200);
 
-        // Try to add BMN that's currently in use
-        let bmn_nup = "123456";
-        mark_bmn_as_in_use(bmn_nup).await;
+    teardown_test_db(&db_name).await;
+}
 
-        let result = add_bmn_to_request(request_id, bmn_nup).await;
-        assert!(result.is_err(), "Should fail when BMN is in active use");
-    }
+#[tokio::test]
+async fn test_penghapusan_bmn_rejection_workflow() {
+    let (app, _db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
 
-    #[tokio::test]
-    async fn test_penghapusan_bmn_revision_workflow() {
-        let request_id = create_penghapusan_request().await.unwrap();
-        add_bmn_to_request(request_id, "123456").await.ok();
-        submit_to_wilayah(request_id).await.ok();
+    let validator_pusat_id = "00000000-0000-0000-0000-000000000003";
+    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
+    let validator_wilayah_id = "00000000-0000-0000-0000-000000000002";
+    let satker_id = "SKR001";
+    let wilayah_id = "WIL001";
 
-        // Validator Wilayah returns for revision
-        let return_result = validator_wilayah_return(request_id, "Dokumen tidak lengkap").await;
-        assert!(return_result.is_ok());
+    // Create
+    let mut req = server.post("/penghapusan-bmn")
+        .json(&json!({
+            "satker_id": "00000000-0000-0000-0000-000000000001",
+            "asset_id": "00000000-0000-0000-0000-000000000002",
+            "kode_barang": "3.06.02.01.004",
+            "nama_barang": "Printer HP LaserJet",
+            "nup": "016",
+            "tanggal_penghapusan": "2026-01-01",
+            "alasan": "Rusak berat dan tidak dapat diperbaiki lagi",
+            "metode_penghapusan": "Pemusnahan",
+            "nilai_residu": 0,
+            "lampiran_persyaratan": "https://storage.example.com/lampiran.pdf"
+        }));
+    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) { req = req.add_header(k, v); }
+    let res = req.await;
+    let usulan_id = res.json::<serde_json::Value>()["data"]["id"].as_str().unwrap().to_string();
 
-        // Verify status
-        let status = get_request_status(request_id).await;
-        assert_eq!(status, "REVISI");
-    }
+    // Submit to wilayah
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/submit-wilayah", usulan_id))
+        .json(&json!({"catatan": "Mohon verifikasi"}));
+    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) { req = req.add_header(k, v); }
+    req.await;
 
-    #[tokio::test]
-    async fn test_sk_number_generation() {
-        let request_id = create_penghapusan_request().await.unwrap();
-        add_bmn_to_request(request_id, "123456").await.ok();
-        submit_to_wilayah(request_id).await.ok();
-        validator_wilayah_forward(request_id).await.ok();
+    // Forward to pusat
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
+        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+    for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) { req = req.add_header(k, v); }
+    req.await;
 
-        // Generate SK
-        let sk_number = generate_sk(request_id).await.unwrap();
+    // Reject via transition (target_status is i32: 4008 = Rejected)
+    let mut req = server.post(&format!("/penghapusan-bmn/{}/transition", usulan_id))
+        .json(&json!({"target_status": 4008, "catatan": "Tidak disetujui karena aset masih layak pakai"}));
+    for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") { req = req.add_header(k, v); }
+    let res = req.await;
+    println!("REJECT RESPONSE (status={}): {:?}", res.status_code(), res.json::<serde_json::Value>());
+    assert_eq!(res.status_code(), 200);
 
-        // Verify format: SK/YEAR/SEQUENCE
-        assert!(sk_number.starts_with("SK/2024/"));
-    }
-
-    // Mock helper functions
-    async fn create_penghapusan_request() -> Option<Uuid> {
-        Some(Uuid::new_v4())
-    }
-
-    async fn add_bmn_to_request(_request_id: Uuid, _bmn_nup: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn submit_to_wilayah(_request_id: Uuid) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn validator_wilayah_forward(_request_id: Uuid) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn validator_wilayah_return(_request_id: Uuid, _notes: &str) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn generate_sk(_request_id: Uuid) -> Result<String, String> {
-        Ok("SK/2024/001".to_string())
-    }
-
-    async fn upload_signed_sk(_request_id: Uuid) -> Result<(), String> {
-        Ok(())
-    }
-
-    async fn get_request_status(_request_id: Uuid) -> String {
-        "COMPLETED".to_string()
-    }
-
-    async fn mark_bmn_as_in_use(_bmn_nup: &str) {
-        // Mock implementation
-    }
+    teardown_test_db(&db_name).await;
 }

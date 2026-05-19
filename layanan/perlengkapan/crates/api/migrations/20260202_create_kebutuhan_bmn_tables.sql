@@ -242,12 +242,12 @@ GROUP BY p.id, p.nama, p.tahun, p.status_kode, m.nama, p.created_at, p.updated_a
 -- Trigger for Updated At
 -- ============================================================================
 CREATE OR REPLACE FUNCTION perlengkapan.update_kebutuhan_bmn_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $BODY$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$ LANGUAGE plpgsql;
 
 -- Apply triggers to main tables
 CREATE TRIGGER trg_pkb_updated_at

@@ -17,8 +17,8 @@ CREATE SCHEMA IF NOT EXISTS perlengkapan;
 CREATE OR REPLACE VIEW perlengkapan.v_gap_analysis AS
 SELECT
     -- Satker Information
-    k.satker_id,
-    k.satker_nama,
+    k.ms_satker_id,
+    k.nm_satker,
 
     -- Asset Information
     kb.kode_barang,
@@ -31,28 +31,28 @@ SELECT
     COALESCE((
         SELECT COUNT(*)
         FROM integrasi.siman_aset_tanah sa
-        WHERE sa.satker_id = k.satker_id::TEXT
+        WHERE sa.satker_code = k.ms_satker_id::TEXT
         AND sa.kode_barang = kb.kode_barang
         AND sa.kondisi = 'BAIK'
     ), 0) +
     COALESCE((
         SELECT COUNT(*)
         FROM integrasi.siman_aset_gedung_bangunan sa
-        WHERE sa.satker_id = k.satker_id::TEXT
+        WHERE sa.satker_code = k.ms_satker_id::TEXT
         AND sa.kode_barang = kb.kode_barang
         AND sa.kondisi = 'BAIK'
     ), 0) +
     COALESCE((
         SELECT COUNT(*)
         FROM integrasi.siman_aset_alat_besar sa
-        WHERE sa.satker_id = k.satker_id::TEXT
+        WHERE sa.satker_code = k.ms_satker_id::TEXT
         AND sa.kode_barang = kb.kode_barang
         AND sa.kondisi = 'BAIK'
     ), 0) +
     COALESCE((
         SELECT COUNT(*)
         FROM integrasi.siman_aset_angkutan_bermotor sa
-        WHERE sa.satker_id = k.satker_id::TEXT
+        WHERE sa.satker_code = k.ms_satker_id::TEXT
         AND sa.kode_barang = kb.kode_barang
         AND sa.kondisi = 'BAIK'
     ), 0) as existing_good_quantity,
@@ -60,10 +60,10 @@ SELECT
     -- Gap Calculation
     GREATEST(
         COALESCE(SUM(kb.jumlah), 0) - (
-            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_gedung_bangunan sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_alat_besar sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_angkutan_bermotor sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0)
+            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_gedung_bangunan sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_alat_besar sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+            COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_angkutan_bermotor sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0)
         ),
         0
     ) as gap,
@@ -79,13 +79,13 @@ FROM perlengkapan.pengajuan_kebutuhan_bmn p
 JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker k ON p.id = k.pengajuan_id
 JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker_barang kb ON k.id = kb.pengajuan_satker_id
 WHERE p.status_kode >= 2004  -- Only approved/analyzed requests
-GROUP BY k.satker_id, k.satker_nama, kb.kode_barang, kb.nama_barang, p.tahun
+GROUP BY k.ms_satker_id, k.nm_satker, kb.kode_barang, kb.nama_barang, p.tahun
 HAVING GREATEST(
     COALESCE(SUM(kb.jumlah), 0) - (
-        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_gedung_bangunan sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_alat_besar sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
-        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_angkutan_bermotor sa WHERE sa.satker_id = k.satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0)
+        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_gedung_bangunan sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_alat_besar sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0) +
+        COALESCE((SELECT COUNT(*) FROM integrasi.siman_aset_angkutan_bermotor sa WHERE sa.satker_code = k.ms_satker_id::TEXT AND sa.kode_barang = kb.kode_barang AND sa.kondisi = 'BAIK'), 0)
     ),
     0
 ) > 0  -- Only show items with gap
@@ -238,14 +238,14 @@ COMMENT ON MATERIALIZED VIEW perlengkapan.mv_dashboard_metrics IS 'Materialized 
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION perlengkapan.refresh_dashboard_metrics()
-RETURNS void AS $
+RETURNS void AS $$
 BEGIN
     -- Refresh materialized view concurrently (non-blocking)
     REFRESH MATERIALIZED VIEW CONCURRENTLY perlengkapan.mv_dashboard_metrics;
 
     RAISE NOTICE 'Dashboard metrics refreshed at %', NOW();
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION perlengkapan.refresh_dashboard_metrics() IS 'Refresh dashboard metrics materialized view (call every 5 minutes via cron)';
 
@@ -256,8 +256,8 @@ COMMENT ON FUNCTION perlengkapan.refresh_dashboard_metrics() IS 'Refresh dashboa
 -- View: Kebutuhan BMN Summary by Satker
 CREATE OR REPLACE VIEW perlengkapan.v_kebutuhan_summary_by_satker AS
 SELECT
-    k.satker_id,
-    k.satker_nama,
+    k.ms_satker_id,
+    k.nm_satker,
     p.tahun,
     COUNT(DISTINCT k.id) as total_pengajuan,
     COUNT(DISTINCT kb.id) as total_barang_items,
@@ -269,8 +269,8 @@ SELECT
 FROM perlengkapan.pengajuan_kebutuhan_bmn p
 JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker k ON p.id = k.pengajuan_id
 LEFT JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker_barang kb ON k.id = kb.pengajuan_satker_id
-GROUP BY k.satker_id, k.satker_nama, p.tahun
-ORDER BY p.tahun DESC, k.satker_nama;
+GROUP BY k.ms_satker_id, k.nm_satker, p.tahun
+ORDER BY p.tahun DESC, k.nm_satker;
 
 COMMENT ON VIEW perlengkapan.v_kebutuhan_summary_by_satker IS 'Summary of kebutuhan BMN by satker and year';
 
@@ -296,8 +296,8 @@ COMMENT ON VIEW perlengkapan.v_pakaian_summary_by_satker IS 'Summary of pakaian 
 CREATE OR REPLACE VIEW perlengkapan.v_workflow_performance AS
 SELECT
     'kebutuhan_bmn' as module,
-    k.satker_id,
-    k.satker_nama,
+    k.ms_satker_id,
+    k.nm_satker,
     m.nama as current_status,
     COUNT(*) as count,
     AVG(EXTRACT(EPOCH FROM (NOW() - k.created_at)) / 86400) as avg_days_in_status,
@@ -306,7 +306,7 @@ SELECT
 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker k
 JOIN perlengkapan.ms_aktivitas_bmn m ON k.status_kode = m.kode
 WHERE k.status_kode NOT IN (2006, 2007, 2008, 2009)  -- Exclude completed statuses
-GROUP BY k.satker_id, k.satker_nama, m.nama
+GROUP BY k.ms_satker_id, k.nm_satker, m.nama
 
 UNION ALL
 
@@ -393,7 +393,7 @@ CREATE OR REPLACE VIEW perlengkapan.v_trend_analysis_yoy AS
 SELECT
     tahun,
     COUNT(DISTINCT p.id) as total_pengajuan,
-    COUNT(DISTINCT k.satker_id) as total_satker,
+    COUNT(DISTINCT k.ms_satker_id) as total_satker,
     COUNT(DISTINCT kb.id) as total_barang_items,
     COALESCE(SUM(kb.jumlah), 0) as total_jumlah_diminta,
     COALESCE(SUM(kb.jml_setuju), 0) as total_jumlah_disetujui,
@@ -454,7 +454,7 @@ REFRESH MATERIALIZED VIEW perlengkapan.mv_dashboard_metrics;
 -- COMPLETION MESSAGE
 -- ============================================================================
 
-DO $
+DO $$
 BEGIN
     RAISE NOTICE '✅ Dashboard views created successfully';
     RAISE NOTICE '📊 Created: 1 materialized view (mv_dashboard_metrics)';
@@ -468,4 +468,4 @@ BEGIN
     RAISE NOTICE '🔧 Created: 1 refresh function';
     RAISE NOTICE '⏰ Setup cron job to refresh every 5 minutes (see instructions in migration file)';
     RAISE NOTICE '🔍 Schema: perlengkapan';
-END $;
+END $$;

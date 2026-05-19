@@ -92,9 +92,23 @@ impl AuthencClient {
         } else {
             // In dev mode without Authenc, accept all tokens
             tracing::warn!("Authenc not connected - accepting token in dev mode");
+            
+            let mut user_id = Some("00000000-0000-0000-0000-000000000001".to_string());
+            let mut role = "admin".to_string();
+            let mut satker_code = None;
+            
+            if token.starts_with("mock::") {
+                let parts: Vec<&str> = token.split("::").collect();
+                if parts.len() >= 4 {
+                    role = parts[1].to_string();
+                    user_id = Some(parts[2].to_string());
+                    satker_code = Some(parts[3].to_string());
+                }
+            }
+
             Ok(authenc::v1::ValidateTokenResponse {
                 valid: true,
-                user_id: None,
+                user_id,
                 scopes: vec![],
                 expires_at: None,
                 error: None,
@@ -102,8 +116,8 @@ impl AuthencClient {
                 name: None,
                 nip: None,
                 jabatan: None,
-                satker_code: None,
-                realm_roles: vec![],
+                satker_code,
+                realm_roles: vec![role],
             })
         }
     }

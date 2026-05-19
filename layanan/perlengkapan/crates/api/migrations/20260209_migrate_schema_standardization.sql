@@ -14,7 +14,7 @@
 -- PRE-MIGRATION CHECKS
 -- ============================================================================
 
-DO $
+DO $$
 DECLARE
     table_count INTEGER;
     pakaian_count INTEGER;
@@ -37,7 +37,7 @@ BEGIN
         SELECT COUNT(*) INTO pakaian_count FROM pengajuan_pakaian_dinas;
         RAISE NOTICE 'Found % records in pengajuan_pakaian_dinas', pakaian_count;
     END IF;
-END $;
+END $$;
 
 -- ============================================================================
 -- STEP 1: MOVE TABLES TO PERLENGKAPAN SCHEMA
@@ -48,110 +48,110 @@ BEGIN;
 RAISE NOTICE 'Starting schema migration...';
 
 -- Move master tables
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'ms_jenis_pakaian_dinas') THEN
         ALTER TABLE public.ms_jenis_pakaian_dinas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved ms_jenis_pakaian_dinas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'ms_spesifikasi_pakaian_dinas') THEN
         ALTER TABLE public.ms_spesifikasi_pakaian_dinas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved ms_spesifikasi_pakaian_dinas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'ms_spesifikasi_pakaian_dinas_foto') THEN
         ALTER TABLE public.ms_spesifikasi_pakaian_dinas_foto SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved ms_spesifikasi_pakaian_dinas_foto to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'ms_subspesifikasi_pakaian_dinas') THEN
         ALTER TABLE public.ms_subspesifikasi_pakaian_dinas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved ms_subspesifikasi_pakaian_dinas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'ms_ukuran') THEN
         ALTER TABLE public.ms_ukuran SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved ms_ukuran to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
 -- Move transaction tables
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_satker_terpilih') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_satker_terpilih SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_satker_terpilih to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_pakaian') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_pakaian SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_pakaian to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_satker') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_satker SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_satker to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_satker_pegawai') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_satker_pegawai SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_satker_pegawai to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_satker_pegawai_ukuran') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_satker_pegawai_ukuran SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_satker_pegawai_ukuran to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pengajuan_pakaian_dinas_satker_aktivitas') THEN
         ALTER TABLE public.pengajuan_pakaian_dinas_satker_aktivitas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pengajuan_pakaian_dinas_satker_aktivitas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pegawai_pakaian_dinas') THEN
         ALTER TABLE public.pegawai_pakaian_dinas SET SCHEMA perlengkapan;
         RAISE NOTICE 'Moved pegawai_pakaian_dinas to perlengkapan schema';
     END IF;
-END $;
+END $$;
 
 COMMIT;
 
@@ -166,7 +166,7 @@ BEGIN;
 RAISE NOTICE 'Standardizing workflow status field names...';
 
 -- Rename aktivitas_id to status_kode in pengajuan_pakaian_dinas
-DO $
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -178,10 +178,10 @@ BEGIN
         RENAME COLUMN aktivitas_id TO status_kode;
         RAISE NOTICE 'Renamed aktivitas_id to status_kode in pengajuan_pakaian_dinas';
     END IF;
-END $;
+END $$;
 
 -- Rename aktivitas_id to status_kode in pengajuan_pakaian_dinas_satker
-DO $
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -193,10 +193,10 @@ BEGIN
         RENAME COLUMN aktivitas_id TO status_kode;
         RAISE NOTICE 'Renamed aktivitas_id to status_kode in pengajuan_pakaian_dinas_satker';
     END IF;
-END $;
+END $$;
 
 -- Rename aktivitas_id to status_kode in pengajuan_pakaian_dinas_satker_aktivitas
-DO $
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM information_schema.columns
@@ -208,7 +208,7 @@ BEGIN
         RENAME COLUMN aktivitas_id TO status_kode;
         RAISE NOTICE 'Renamed aktivitas_id to status_kode in pengajuan_pakaian_dinas_satker_aktivitas';
     END IF;
-END $;
+END $$;
 
 COMMIT;
 
@@ -221,7 +221,7 @@ BEGIN;
 RAISE NOTICE 'Adding foreign key constraints...';
 
 -- Add FK constraint to pengajuan_pakaian_dinas
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
@@ -232,10 +232,10 @@ BEGIN
         FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
         RAISE NOTICE 'Added FK constraint fk_ppd_status_kode';
     END IF;
-END $;
+END $$;
 
 -- Add FK constraint to pengajuan_pakaian_dinas_satker
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
@@ -246,10 +246,10 @@ BEGIN
         FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
         RAISE NOTICE 'Added FK constraint fk_ppd_satker_status_kode';
     END IF;
-END $;
+END $$;
 
 -- Add FK constraint to pengajuan_pakaian_dinas_satker_aktivitas
-DO $
+DO $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint
@@ -260,7 +260,7 @@ BEGIN
         FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
         RAISE NOTICE 'Added FK constraint fk_ppd_aktivitas_status_kode';
     END IF;
-END $;
+END $$;
 
 COMMIT;
 
@@ -290,7 +290,7 @@ COMMIT;
 -- STEP 5: DATA INTEGRITY VERIFICATION
 -- ============================================================================
 
-DO $
+DO $$
 DECLARE
     jenis_count INTEGER;
     spesifikasi_count INTEGER;
@@ -338,7 +338,7 @@ BEGIN
     END IF;
 
     RAISE NOTICE 'Data integrity verification completed';
-END $;
+END $$;
 
 -- ============================================================================
 -- STEP 6: UPDATE APPLICATION SEARCH PATH (Optional)
@@ -401,7 +401,7 @@ END $;
 -- COMPLETION MESSAGE
 -- ============================================================================
 
-DO $
+DO $$
 DECLARE
     total_tables INTEGER;
     perlengkapan_tables INTEGER;
@@ -435,4 +435,4 @@ BEGIN
     RAISE NOTICE '  - Monitor query performance after migration';
     RAISE NOTICE '';
     RAISE NOTICE '═══════════════════════════════════════════════════════════';
-END $;
+END $$;
