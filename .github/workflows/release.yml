@@ -173,10 +173,19 @@ jobs:
         shell: bash
         run: |
           # Trunk butuh wasm-bindgen-cli untuk post-process .wasm.
-          # Pin ke versi yang match Cargo.lock biar tidak ada mismatch
-          # warning yang bisa fail build pada strict mode.
-          WBG_VERSION=$(grep -oP '(?<=^wasm-bindgen = ")[^"]+' Cargo.toml || echo "0.2.118")
-          if ! command -v wasm-bindgen &>/dev/null || ! wasm-bindgen --version 2>/dev/null | grep -q "$WBG_VERSION"; then
+          # Versi WAJIB sama persis dengan yang dipakai cargo build (di-bake ke
+          # .wasm). Cargo.toml hanya menyatakan constraint (`= "0.2.118"`) —
+          # resolver bisa pilih versi patch lebih baru di Cargo.lock. CLI yang
+          # mismatch akan gagal post-process dengan error samar:
+          #   "error spawning cargo build artifacts task: No such file or directory"
+          # Ambil exact version dari Cargo.lock.
+          WBG_VERSION=$(awk '/^name = "wasm-bindgen"$/{getline; print}' Cargo.lock | grep -oP '"\K[0-9.]+(?=")' | head -1)
+          if [ -z "$WBG_VERSION" ]; then
+            echo "::error::Failed to extract wasm-bindgen version from Cargo.lock"
+            exit 1
+          fi
+          echo "Cargo.lock resolved wasm-bindgen = $WBG_VERSION"
+          if ! command -v wasm-bindgen &>/dev/null || ! wasm-bindgen --version 2>/dev/null | grep -q "^wasm-bindgen $WBG_VERSION$"; then
             cargo install wasm-bindgen-cli --version "$WBG_VERSION" --locked
           fi
           wasm-bindgen --version
@@ -292,7 +301,17 @@ jobs:
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
           IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
-        run: cosign sign --yes "$IMAGE@$DIGEST"
+          # Self-hosted runner: cosign tidak selalu baca ~/.docker/config.json
+          # (credential-helper / path mismatch). Pass kredensial registry
+          # secara eksplisit supaya cosign bisa fetch manifest sebelum sign.
+          # Sebelumnya gagal: `signing ...: ... GET .../token?scope=...:pull ...:
+          # UNAUTHORIZED: authentication required`.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cosign sign --yes \
+            --registry-username "$GITHUB_ACTOR" \
+            --registry-password "$GITHUB_TOKEN" \
+            "$IMAGE@$DIGEST"
 
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
@@ -302,7 +321,13 @@ jobs:
           output-file: sbom-${{ matrix.image.name }}.cdx.json
           upload-artifact: false
 
+      # Attestation API butuh repo public ATAU org plan dengan attestations
+      # enabled. analisaperlengkapan/simpel2 = private, jadi step ini di-skip
+      # untuk hindari fake-failure (`build-push-action` provenance: true sudah
+      # menyisipkan SLSA provenance ke image manifest; attest-build-provenance
+      # tambahan adalah signed attestation di GitHub yang opsional).
       - name: Attest build provenance
+        if: github.event.repository.visibility == 'public'
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
