@@ -10,12 +10,15 @@ ignore = [
     "RUSTSEC-2023-0071", # rsa (Marvin Attack) - No fixed version available
     "RUSTSEC-2024-0384", # instant (unmaintained) - transitive dep of azure_security_keyvault
     "RUSTSEC-2024-0436", # paste (unmaintained)
-    "RUSTSEC-2025-0066", # google-apis-common (unmaintained) - transitive dep of google-cloudkms1
     "RUSTSEC-2025-0134", # rustls-pemfile (unmaintained)
     "RUSTSEC-2025-0141", # bincode (unmaintained)
-    "RUSTSEC-2026-0097", # rustls-webpki - transitive dep via older rustls
     "RUSTSEC-2026-0098", # rustls-webpki - URI name constraints
     "RUSTSEC-2026-0099", # rustls-webpki - wildcard name constraints
+    # RUSTSEC-2025-0066 (google-apis-common) and RUSTSEC-2026-0097
+    # (rustls-webpki) removed: cargo-deny reported "no crate matched
+    # advisory criteria" — the affected crate is no longer in the
+    # dependency tree (likely upgraded out via rustls update), so the
+    # ignore entry is dead weight and now triggers a deny-action warning.
 ]
 
 [licenses]

@@ -45,11 +45,11 @@ jobs:
       - name: Parse & validate tag format
         id: parse
         shell: bash
+        env:
+          SOURCE: ${{ inputs.source_tag }}
+          TARGET: ${{ inputs.target_tag }}
         run: |
           set -e
-          SOURCE="${{ inputs.source_tag }}"
-          TARGET="${{ inputs.target_tag }}"
-
           if ! echo "$SOURCE" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-[A-Za-z0-9.-]+$'; then
             echo "::error::source_tag harus SemVer pre-release (mis. v0.1.0-rc1). Got: $SOURCE"
             exit 1
@@ -100,31 +100,34 @@ jobs:
 
       - name: Verify source image exists
         shell: bash
-        run: |
-          docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+        env:
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+        run: docker manifest inspect "$SOURCE_IMAGE"
 
       - name: Re-tag image (no rebuild)
         shell: bash
+        env:
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
         run: |
-          docker buildx imagetools create \
-            --tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }} \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+          docker buildx imagetools create --tag "$TARGET_IMAGE" "$SOURCE_IMAGE"
 
       - name: Verify digest identik
         shell: bash
+        env:
+          SOURCE_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }}
+          TARGET_IMAGE: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }}
+          IMAGE_NAME: ${{ matrix.image }}
         run: |
-          SOURCE_DIGEST=$(docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.source_tag }} \
+          SOURCE_DIGEST=$(docker manifest inspect "$SOURCE_IMAGE" \
             | jq -r '.config.digest // .manifests[0].digest')
-          TARGET_DIGEST=$(docker manifest inspect \
-            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image }}:${{ inputs.target_tag }} \
+          TARGET_DIGEST=$(docker manifest inspect "$TARGET_IMAGE" \
             | jq -r '.config.digest // .manifests[0].digest')
           if [ "$SOURCE_DIGEST" != "$TARGET_DIGEST" ]; then
             echo "::error::Digest mismatch! source=$SOURCE_DIGEST target=$TARGET_DIGEST"
             exit 1
           fi
-          echo "OK ${{ matrix.image }}: digest identik ($SOURCE_DIGEST)"
+          echo "OK $IMAGE_NAME: digest identik ($SOURCE_DIGEST)"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -151,30 +154,40 @@ jobs:
       - name: Find commit dari source tag
         id: src
         shell: bash
+        env:
+          SOURCE: ${{ inputs.source_tag }}
         run: |
-          COMMIT=$(git rev-list -n 1 "${{ inputs.source_tag }}")
+          COMMIT=$(git rev-list -n 1 "$SOURCE")
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
-          echo "Source tag ${{ inputs.source_tag }} -> commit $COMMIT"
+          echo "Source tag $SOURCE -> commit $COMMIT"
 
       - name: Create & push final tag
         shell: bash
+        env:
+          SOURCE: ${{ inputs.source_tag }}
+          TARGET: ${{ inputs.target_tag }}
+          COMMIT: ${{ steps.src.outputs.commit }}
         run: |
-          git tag -a "${{ inputs.target_tag }}" "${{ steps.src.outputs.commit }}" \
-            -m "Release ${{ inputs.target_tag }}
+          git tag -a "$TARGET" "$COMMIT" \
+            -m "Release $TARGET
 
-          Promoted from ${{ inputs.source_tag }} setelah lulus QA staging.
-          Image digest identik dengan ${{ inputs.source_tag }} di ghcr.io."
-          git push origin "${{ inputs.target_tag }}"
+          Promoted from $SOURCE setelah lulus QA staging.
+          Image digest identik dengan $SOURCE di ghcr.io."
+          git push origin "$TARGET"
 
       - name: Summary
         shell: bash
+        env:
+          SOURCE: ${{ inputs.source_tag }}
+          TARGET: ${{ inputs.target_tag }}
+          COMMIT: ${{ steps.src.outputs.commit }}
         run: |
           {
             echo "## Promote Summary"
             echo
-            echo "- Source: \`${{ inputs.source_tag }}\`"
-            echo "- Target: \`${{ inputs.target_tag }}\`"
-            echo "- Commit: \`${{ steps.src.outputs.commit }}\`"
+            echo "- Source: \`$SOURCE\`"
+            echo "- Target: \`$TARGET\`"
+            echo "- Commit: \`$COMMIT\`"
             echo
-            echo "Note: GitHub Release untuk \`${{ inputs.target_tag }}\` akan dibuat oleh \`release.yml\` ketika tag dibuat (sudah ditrigger di atas)."
+            echo "Note: GitHub Release untuk \`$TARGET\` akan dibuat oleh \`release.yml\` ketika tag dibuat (sudah ditrigger di atas)."
           } >> "$GITHUB_STEP_SUMMARY"

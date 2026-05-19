@@ -24,19 +24,23 @@ runs:
   steps:
     - name: Fix workspace permissions
       shell: bash
+      env:
+        WORKSPACE: ${{ github.workspace }}
       run: |
-        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace alpine \
-          chown -R $(id -u):$(id -g) . 2>/dev/null || true
+        docker run --rm -v "$WORKSPACE":/workspace -w /workspace alpine \
+          chown -R "$(id -u):$(id -g)" . 2>/dev/null || true
 
     - name: Check for lock file
       id: lockfile
       shell: bash
+      env:
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
-        if [ -f "${{ inputs.working-directory }}/package-lock.json" ]; then
+        if [ -f "$WORKING_DIR/package-lock.json" ]; then
           echo "exists=true" >> "$GITHUB_OUTPUT"
         else
           echo "exists=false" >> "$GITHUB_OUTPUT"
-          echo "::warning::No package-lock.json in ${{ inputs.working-directory }}, npm cache disabled"
+          echo "::warning::No package-lock.json in $WORKING_DIR, npm cache disabled"
         fi
 
     - name: Setup Node.js
@@ -50,10 +54,12 @@ runs:
       if: inputs.install == 'true'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        WORKING_DIR: ${{ inputs.working-directory }}
       run: |
         if [ -f package-lock.json ]; then
           npm ci --no-audit --no-fund
         else
-          echo "::warning::No package-lock.json in ${{ inputs.working-directory }}, falling back to npm install"
+          echo "::warning::No package-lock.json in $WORKING_DIR, falling back to npm install"
           npm install --no-audit --no-fund
         fi

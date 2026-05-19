@@ -40,6 +40,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
+          # Default action uploads the SARIF report as a GitHub Actions
+          # artifact. The org account's artifact storage quota was hit
+          # ("Failed to CreateArtifact: Artifact storage quota has been
+          # hit"), masking the actual scan result with an upload failure.
+          # The job summary still shows findings; artifact upload is
+          # redundant and disabled.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
 
   # ── Advisory checks ─────────────────────────────────
   # Temuan adalah informational; step TIDAK pakai continue-on-error
@@ -60,8 +67,16 @@ jobs:
           if ! command -v cargo-audit &>/dev/null; then
             AUDIT_VERSION="0.22.1"
             URL="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${AUDIT_VERSION}/cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}.tgz"
-            if curl -LsSf "$URL" | tar -xzf- -C "$HOME/.cargo/bin/" 2>/dev/null; then
+            # Tarball contains a top-level
+            # `cargo-audit-x86_64-unknown-linux-gnu-vX.Y.Z/` directory;
+            # `--strip-components=1` flattens it so the binary lands at
+            # `$HOME/.cargo/bin/cargo-audit` (in PATH) rather than buried
+            # in a subdirectory. Previous extract produced
+            # "error: no such command: 'audit'" because the binary was
+            # never on PATH.
+            if curl -LsSf "$URL" | tar -xzf- --strip-components=1 -C "$HOME/.cargo/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
               echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
+              cargo-audit --version
             else
               echo "::warning::Pre-built binary unavailable, compiling from source"
               cargo install cargo-audit --locked
