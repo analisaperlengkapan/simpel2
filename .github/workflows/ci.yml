@@ -149,7 +149,7 @@ jobs:
           done < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort)
 
           # ── 3. Root files whitelist (dot-files exempt, docker-compose.*.yml pattern) ──
-          allowed_files="README.md CONTRIBUTING.md AGENTS.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPEL.code-workspace"
+          allowed_files="README.md CONTRIBUTING.md AGENTS.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPelv2.code-workspace"
           while IFS= read -r f; do
             [[ "$f" == .* ]] && continue
             # Allow any docker-compose.*.yml variant
@@ -227,28 +227,36 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-php
-        with:
-          working-directory: monolith/simpelv1
-          tools: 'composer:v2, pint, phpstan'
+      # shivammathur/setup-php@v2 butuh sudo NOPASSWD untuk install PHP +
+      # extensions di self-hosted runner; tanpa itu prompt password dan
+      # job hang ~2 jam sampai timeout. Replace dengan docker-based PHP
+      # 8.2 image yang bundle php + composer pre-installed. Tidak ada
+      # apt install needed di runner.
+      - name: composer install (PHP 8.2 docker)
+        working-directory: monolith/simpelv1
+        run: |
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            composer:2 install --prefer-dist --no-progress --no-interaction --optimize-autoloader
       - name: Laravel Pint (style check)
         working-directory: monolith/simpelv1
         run: |
-          if [ -f vendor/bin/pint ]; then
-            vendor/bin/pint --test
-          else
-            pint --test
-          fi
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            php:8.2-cli vendor/bin/pint --test
       - name: Larastan / PHPStan
         working-directory: monolith/simpelv1
-        continue-on-error: true
         run: |
           if [ -f phpstan.neon ] || [ -f phpstan.neon.dist ]; then
-            if [ -f vendor/bin/phpstan ]; then
-              vendor/bin/phpstan analyse --no-progress --memory-limit=2G
-            else
-              phpstan analyse --no-progress --memory-limit=2G
-            fi
+            docker run --rm \
+              -v "$PWD":/app \
+              -w /app \
+              -u "$(id -u):$(id -g)" \
+              php:8.2-cli vendor/bin/phpstan analyse --no-progress --memory-limit=2G
           else
             echo "::warning::No phpstan config found, skipping static analysis"
           fi
@@ -316,11 +324,13 @@ jobs:
         shell: bash
         run: |
           # cytopia/yamllint bundles yamllint + python + busybox.
-          # Pin major tag; alpine variant is minimal.
+          # Pin major tag; alpine variant is minimal. Pakai absolute path
+          # ke config (`-c /data/...`) — entrypoint container tidak set
+          # workdir, jadi relative path gagal `FileNotFoundError`.
           docker run --rm \
-            -v "$PWD":/code \
+            -v "$PWD":/data \
             cytopia/yamllint:alpine-1 \
-            -c infra/lint/yamllint.yml .
+            -c /data/infra/lint/yamllint.yml /data
 
   lint-markdown:
     name: Lint Markdown
@@ -337,7 +347,18 @@ jobs:
           # `markdownlint.jsonc` (tanpa leading dot) ditolak dengan
           # "File name should be (or end with) one of the supported types".
           config: infra/lint/.markdownlint.jsonc
-          globs: '**/*.md'
+          # Negation globs lebih reliable daripada `ignores` di config
+          # untuk markdownlint-cli2 v0.18 (action v18). Skip vendored libs,
+          # node_modules, dan storage Laravel.
+          globs: |
+            **/*.md
+            !**/node_modules/**
+            !**/vendor/**
+            !**/target/**
+            !**/dist/**
+            !monolith/simpelv1/storage/**
+            !monolith/simpelv1/public/assets/libs/**
+            !**/CHANGELOG.md
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2
         with:
@@ -648,22 +669,33 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-php
-        with:
-          working-directory: monolith/simpelv1
+      # Sama seperti lint-php — pakai docker image, bukan setup-php@v2
+      # (yang butuh sudo dan bikin job hang di runner self-hosted).
+      - name: composer install (PHP 8.2 docker)
+        working-directory: monolith/simpelv1
+        run: |
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            composer:2 install --prefer-dist --no-progress --no-interaction --optimize-autoloader
       - name: Prepare test environment
         working-directory: monolith/simpelv1
         run: |
           [ -f .env ] || cp .env.example .env
-          php artisan key:generate --force
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            php:8.2-cli php artisan key:generate --force
       - name: PHPUnit
         working-directory: monolith/simpelv1
         run: |
-          if [ -f vendor/bin/phpunit ]; then
-            vendor/bin/phpunit --no-coverage
-          else
-            php artisan test --no-coverage
-          fi
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            php:8.2-cli vendor/bin/phpunit --no-coverage
 
   e2e-playwright:
     name: E2E Playwright (${{ matrix.project }})

@@ -217,6 +217,13 @@ antarmuka/*/Cargo.lock
 # Cargo Chef auto-generated
 recipe.json
 !**/tailwind.config.js
+# Tracked JS configuration files in monolith Laravel. Tanpa un-ignore
+# ini, `.gitignore:156 **/*.js` membuat vite.config.js (entry point
+# Vite build) terabaikan dan CI Vite job gagal dengan
+# "Cannot resolve entry module index.html" karena fresh checkout tidak
+# punya config dan Vite fallback ke entry default.
+!**/vite.config.js
+!**/postcss.config.js
 !**/profile.rs
 .env
 
