@@ -56,26 +56,6 @@ export default defineConfig({
   /* Configure projects by test category */
   projects: [
     {
-      name: 'api-chromium',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: [
-        '**/business-process-*.spec.ts',
-        '**/edge-cases-validation.spec.ts',
-        '**/workflow-edge-cases.spec.ts',
-        '**/search-filter-pagination.spec.ts',
-        '**/batch-operations-export.spec.ts',
-      ],
-    },
-    {
-      name: 'portal-chromium',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: [
-        '**/portal-*.spec.ts',
-        '**/auth-*.spec.ts',
-        '**/integrasi-authenc*.spec.ts'
-      ],
-    },
-    {
       name: 'perlengkapan-chromium',
       use: { ...devices['Desktop Chrome'] },
       testMatch: [
@@ -83,27 +63,6 @@ export default defineConfig({
         '**/dashboard-navigation.spec.ts'
       ],
     },
-
-    // Uncomment to test on other browsers
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
   ],
 
   /* Run your local dev server before starting the tests */

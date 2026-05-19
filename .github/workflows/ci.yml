@@ -669,14 +669,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [api-chromium, portal-chromium, perlengkapan-chromium]
+        include:
+          - project: portal-chromium
+            dir: antarmuka/portal/tests/e2e
+          - project: perlengkapan-chromium
+            dir: antarmuka/perlengkapan/tests/e2e
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node
         with:
-          working-directory: tests/e2e
+          working-directory: ${{ matrix.dir }}
       - name: Install Playwright browsers
-        working-directory: tests/e2e
+        working-directory: ${{ matrix.dir }}
         run: npx playwright install --with-deps chromium
       - name: Spin up service stack
         shell: bash
@@ -691,7 +695,7 @@ jobs:
             echo "::warning::No docker-compose.yml at root, E2E will run against external/mocked services"
           fi
       - name: Run Playwright (${{ matrix.project }})
-        working-directory: tests/e2e
+        working-directory: ${{ matrix.dir }}
         env:
           CI: 'true'
           BASE_URL: ${{ vars.E2E_BASE_URL || 'http://localhost:8080' }}
@@ -702,8 +706,8 @@ jobs:
         with:
           name: playwright-report-${{ matrix.project }}
           path: |
-            tests/e2e/playwright-report
-            tests/e2e/results
+            ${{ matrix.dir }}/playwright-report
+            ${{ matrix.dir }}/results
           retention-days: 7
       - name: Tear down stack
         if: always()
