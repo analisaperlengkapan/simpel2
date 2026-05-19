@@ -92,11 +92,11 @@ impl AuthencClient {
         } else {
             // In dev mode without Authenc, accept all tokens
             tracing::warn!("Authenc not connected - accepting token in dev mode");
-            
+
             let mut user_id = Some("00000000-0000-0000-0000-000000000001".to_string());
             let mut role = "admin".to_string();
             let mut satker_code = None;
-            
+
             if token.starts_with("mock::") {
                 let parts: Vec<&str> = token.split("::").collect();
                 if parts.len() >= 4 {
