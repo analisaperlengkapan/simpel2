@@ -8,8 +8,11 @@
 global:
   environment: staging
   # Tag dipindahkan dari mutable 'stag' ke semver immutable.
-  # Override saat helm install via --set global.imageTag=v0.1.0 jika beda dari default.
-  imageTag: v0.1.0
+  # Staging tracks the latest RC (post-build cosign failures di rc22 menggagalkan
+  # workflow conclusion, tapi docker push semua 7 image sukses — verified via
+  # `docker manifest inspect` dengan ghcr-pull PAT).
+  # Override via --set global.imageTag=v0.1.0-rcN saat helm install jika perlu.
+  imageTag: v0.1.0-rc22
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # Schedule semua workload ke node 'simple02' karena master tidak punya unpigz.
