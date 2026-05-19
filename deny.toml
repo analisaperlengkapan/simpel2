@@ -12,13 +12,17 @@ ignore = [
     "RUSTSEC-2024-0436", # paste (unmaintained)
     "RUSTSEC-2025-0134", # rustls-pemfile (unmaintained)
     "RUSTSEC-2025-0141", # bincode (unmaintained)
+    # rustls-webpki 0.101.7 advisories — transitive via aws-smithy-http-client
+    # 1.1.12 (latest) → rustls 0.21.12. AWS SDK has not yet upgraded to
+    # rustls 0.22+. Vulnerable code path only triggers when validating TLS
+    # certs from servers we connect to; we only connect to AWS endpoints
+    # (S3, IAM, KMS) which use standard CAs without exotic name constraints
+    # or malformed CRLs, so the exploit conditions are not reachable from
+    # our usage. Re-evaluate when AWS SDK upgrades. Track:
+    # https://github.com/awslabs/aws-sdk-rust/issues (rustls 0.22 migration).
     "RUSTSEC-2026-0098", # rustls-webpki - URI name constraints
     "RUSTSEC-2026-0099", # rustls-webpki - wildcard name constraints
-    # RUSTSEC-2025-0066 (google-apis-common) and RUSTSEC-2026-0097
-    # (rustls-webpki) removed: cargo-deny reported "no crate matched
-    # advisory criteria" — the affected crate is no longer in the
-    # dependency tree (likely upgraded out via rustls update), so the
-    # ignore entry is dead weight and now triggers a deny-action warning.
+    "RUSTSEC-2026-0104", # rustls-webpki - panic in CRL parsing
 ]
 
 [licenses]
