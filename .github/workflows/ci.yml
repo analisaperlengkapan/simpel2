@@ -749,11 +749,32 @@ jobs:
             -u "$(id -u):$(id -g)" \
             --entrypoint php \
             serversideup/php:8.2-cli artisan key:generate --force
+      - name: Prepare sqlite test DB (file-based)
+        run: |
+          # phpunit.xml override DB ke sqlite file. File harus exist +
+          # readable+writable oleh container user. Hapus dulu kalau
+          # ada residu dari run sebelumnya, lalu touch.
+          rm -f /tmp/simpelv1-test.sqlite
+          touch /tmp/simpelv1-test.sqlite
+          chmod 666 /tmp/simpelv1-test.sqlite
+      - name: Run migrations (sqlite file)
+        working-directory: monolith/simpelv1
+        run: |
+          docker run --rm \
+            -v "$PWD":/app \
+            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
+            -w /app \
+            -u "$(id -u):$(id -g)" \
+            -e DB_CONNECTION=sqlite \
+            -e DB_DATABASE=/tmp/simpelv1-test.sqlite \
+            --entrypoint php \
+            serversideup/php:8.2-cli artisan migrate --force --no-interaction 2>&1 | tail -10
       - name: PHPUnit
         working-directory: monolith/simpelv1
         run: |
           docker run --rm \
             -v "$PWD":/app \
+            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
             -w /app \
             -u "$(id -u):$(id -g)" \
             --entrypoint vendor/bin/phpunit \

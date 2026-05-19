@@ -56,12 +56,11 @@ runs:
           echo "::warning::Neither clang nor gcc found; cargo build mungkin fail untuk crate yang butuh C compiler."
         fi
         # pqcrypto-falcon dan beberapa crate C butuh `ar` (binutils).
-        # Kalau runner tidak punya, fail-early dengan pesan jelas
-        # daripada nanti gagal di tengah cargo build dengan error samar
-        # "ar: command not found / No such file".
+        # Warning saja kalau tidak ada — biar test/lint job lain yang
+        # tidak butuh ar tetap bisa jalan, dan kita lihat clear di log
+        # mana yang fail karena tooling absent.
         if ! command -v ar >/dev/null 2>&1; then
-          echo "::error::Binary 'ar' (binutils) tidak tersedia di runner. Self-hosted runner harus pre-install: \`apt install binutils build-essential\`. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal tanpa ini."
-          exit 1
+          echo "::warning::Binary 'ar' (binutils) tidak tersedia di runner. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal. Self-hosted runner harus pre-install: \`sudo apt install binutils build-essential\` once."
         fi
 
     - name: Install Rust toolchain
