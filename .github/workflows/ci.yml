@@ -526,6 +526,13 @@ jobs:
         with:
           cache-key: ci-build-${{ matrix.name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo build --release -p ${{ matrix.package }}
         run: cargo build --release -p ${{ matrix.package }}
 
@@ -582,6 +589,13 @@ jobs:
         with:
           cache-key: ci-test-lib-core
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -597,6 +611,13 @@ jobs:
         with:
           cache-key: ci-test-lib-backend
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -612,6 +633,13 @@ jobs:
         with:
           cache-key: ci-test-lib-crypto
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -627,6 +655,13 @@ jobs:
         with:
           cache-key: ci-test-lib-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -659,6 +694,13 @@ jobs:
       # `unresolved import crate::sys::IoSourceState`. Trunk build di
       # release.yml validates wasm32 compile untuk antarmuka via real
       # build pipeline; CI duplikat di sini redundant.
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo build (host) — sanity check syntax
         env:
           RUST_BACKTRACE: 1
@@ -678,6 +720,13 @@ jobs:
       # Same reason — wasm32 test compile fails on tokio mio. Trunk
       # build di release.yml + ci.yml build-antarmuka-portal job
       # cover the wasm32 compile path.
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -694,6 +743,13 @@ jobs:
           targets: wasm32-unknown-unknown
           cache-key: ci-test-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -732,6 +788,13 @@ jobs:
         with:
           cache-key: ci-test-${{ matrix.tier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        # _work dir persists between jobs on self-hosted runner.
+        # rust-cache@v2 with cache-targets:false doesn't touch target/,
+        # but previous job's stale target/ stays. Wipe explicitly to
+        # avoid 'could not parse/generate dep info' from stale .d files.
+        run: rm -rf target
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
