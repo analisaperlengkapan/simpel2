@@ -68,21 +68,17 @@ jobs:
           # berhasil tetap di-push.
           fmt_exit=0; fix_exit=0; clippy_exit=0
           cargo fmt --all || fmt_exit=$?
-          [ $fmt_exit -ne 0 ] && echo "::warning::cargo fmt exit code: $fmt_exit"
-
+          if [ $fmt_exit -ne 0 ]; then echo "::warning::cargo fmt exit code: $fmt_exit"; fi
           cargo fix --workspace --all-targets --all-features \
             --allow-dirty --allow-staged || fix_exit=$?
-          [ $fix_exit -ne 0 ] && echo "::warning::cargo fix exit code: $fix_exit"
-
+          if [ $fix_exit -ne 0 ]; then echo "::warning::cargo fix exit code: $fix_exit"; fi
           cargo clippy --workspace --all-targets --all-features \
             --fix --allow-dirty --allow-staged -- -W clippy::all || clippy_exit=$?
-          [ $clippy_exit -ne 0 ] && echo "::warning::cargo clippy --fix exit code: $clippy_exit"
-
+          if [ $clippy_exit -ne 0 ]; then echo "::warning::cargo clippy --fix exit code: $clippy_exit"; fi
           # Final fmt pass untuk reformat hasil fix/clippy.
           final_fmt_exit=0
           cargo fmt --all || final_fmt_exit=$?
-          [ $final_fmt_exit -ne 0 ] && echo "::warning::final cargo fmt exit code: $final_fmt_exit"
-
+          if [ $final_fmt_exit -ne 0 ]; then echo "::warning::final cargo fmt exit code: $final_fmt_exit"; fi
       - name: Normalize Cargo versioning
         shell: bash
         run: python3 ./infra/scripts/check-cargo-versioning.py fix || echo "::warning::Cargo versioning normalize gagal"
@@ -160,8 +156,7 @@ jobs:
         run: |
           taplo_exit=0
           taplo fmt || taplo_exit=$?
-          [ $taplo_exit -ne 0 ] && echo "::warning::taplo fmt exit code: $taplo_exit"
-
+          if [ $taplo_exit -ne 0 ]; then echo "::warning::taplo fmt exit code: $taplo_exit"; fi
       - name: Commit & push (retry on rebase conflict)
         shell: bash
         env:
@@ -232,8 +227,7 @@ jobs:
             '!monolith/simpelv1/public/assets/libs/**' \
             '!**/CHANGELOG.md' \
             || md_exit=$?
-          [ $md_exit -ne 0 ] && echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"
-
+          if [ $md_exit -ne 0 ]; then echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"; fi
       - name: Commit & push (retry on rebase conflict)
         shell: bash
         env:
@@ -311,8 +305,7 @@ jobs:
             --entrypoint vendor/bin/pint \
             serversideup/php:8.2-cli \
             || pint_exit=$?
-          [ $pint_exit -ne 0 ] && echo "::warning::pint exit code: $pint_exit"
-
+          if [ $pint_exit -ne 0 ]; then echo "::warning::pint exit code: $pint_exit"; fi
       - name: Commit & push (retry on rebase conflict)
         shell: bash
         env:
