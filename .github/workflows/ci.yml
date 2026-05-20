@@ -20,6 +20,11 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  # Limit parallelism per cargo invocation; 9 paralel self-hosted
+  # runners on simple02 each spawning many rustc procs concurrently
+  # exhausted memory/FDs, causing intermittent "could not parse/
+  # generate dep info at: target/.../X.d: No such file" errors.
+  CARGO_BUILD_JOBS: "4"
 
 jobs:
   # ─────────────────────────────────────────────────────
@@ -736,6 +741,7 @@ jobs:
     runs-on: self-hosted
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           # `-p authenc` di-skip — package `authenc` legacy di
