@@ -61,7 +61,7 @@ ldap3 = { workspace = true, optional = true }
 aws-sdk-s3 = { workspace = true, optional = true }
 aws-config = { workspace = true, optional = true }
 aws-credential-types = { workspace = true, optional = true }
-openssl = { version = "0.10.74", optional = true }
+openssl = { version = "0.10.80", optional = true }
 quick-xml = { workspace = true, features = ["serialize"], optional = true }
 
 [features]
