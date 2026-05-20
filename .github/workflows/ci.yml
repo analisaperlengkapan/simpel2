@@ -222,18 +222,6 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
-      - name: cargo clean before clippy
-        shell: bash
-        run: |
-          # Self-hosted runner persistently restores stale
-          # `target/debug/deps/*.d` files yang bikin clippy fail dengan
-          # `could not parse/generate dep info at: …: No such file or
-          # directory`. Canary check `cargo check -p lib-core` tidak
-          # cukup deteksi karena lib-core hanya pakai sebagian dep tree.
-          # Force-rebuild secara unconditional. Trade-off ~5 menit
-          # tambahan vs reliable lint. rust-cache tetap restore for
-          # registry + git crates (~30s), hanya target/debug yang clean.
-          cargo clean
       - name: cargo clippy --workspace
         run: cargo clippy --workspace --all-targets -- -D warnings
 
@@ -538,9 +526,6 @@ jobs:
         with:
           cache-key: ci-build-${{ matrix.name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo build --release -p ${{ matrix.package }}
         run: cargo build --release -p ${{ matrix.package }}
 
@@ -597,9 +582,6 @@ jobs:
         with:
           cache-key: ci-test-lib-core
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -615,9 +597,6 @@ jobs:
         with:
           cache-key: ci-test-lib-backend
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -633,9 +612,6 @@ jobs:
         with:
           cache-key: ci-test-lib-crypto
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -651,9 +627,6 @@ jobs:
         with:
           cache-key: ci-test-lib-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -686,9 +659,6 @@ jobs:
       # `unresolved import crate::sys::IoSourceState`. Trunk build di
       # release.yml validates wasm32 compile untuk antarmuka via real
       # build pipeline; CI duplikat di sini redundant.
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo build (host) — sanity check syntax
         env:
           RUST_BACKTRACE: 1
@@ -708,9 +678,6 @@ jobs:
       # Same reason — wasm32 test compile fails on tokio mio. Trunk
       # build di release.yml + ci.yml build-antarmuka-portal job
       # cover the wasm32 compile path.
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -727,9 +694,6 @@ jobs:
           targets: wasm32-unknown-unknown
           cache-key: ci-test-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        run: cargo clean
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -768,13 +732,6 @@ jobs:
         with:
           cache-key: ci-test-${{ matrix.tier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: cargo clean (avoid stale target cache corruption)
-        shell: bash
-        # Multiple paralel test jobs di runner host yang sama share
-        # ~/.cargo/registry. rust-cache@v2 restore target/ dari prior
-        # run — kalau partial/cancelled, dep info file (.d) hilang
-        # dan rustc gagal `No such file or directory`. Force-rebuild.
-        run: cargo clean
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1

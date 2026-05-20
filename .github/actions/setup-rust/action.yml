@@ -128,3 +128,12 @@ runs:
       with:
         key: ${{ inputs.cache-key }}
         workspaces: ". -> target"
+        # cache-targets: false — JANGAN restore target/ dir antar runs.
+        # Self-hosted runners share ~/.cargo across jobs/instances, dan
+        # target/ cache yang ter-restore partial (job sebelumnya cancelled
+        # mid-save, atau paralel jobs writing concurrent) bikin cargo
+        # gagal dengan "could not parse/generate dep info at: X.d:
+        # No such file or directory". Compromise: hanya cache ~/.cargo/
+        # registry (download crates) yang aman + immutable. target/
+        # rebuild full per-job (~5-10 min, dapat diterima vs flaky).
+        cache-targets: false
