@@ -35,6 +35,7 @@ Secreton provides comprehensive automated backup and restore capabilities to pro
 ### What Gets Backed Up
 
 Each backup includes:
+
 1. **Raft Consensus State**: Complete cluster state for HA deployments
 2. **PostgreSQL Database**: All secrets, policies, leases, audit logs
 3. **Metadata**: Backup information, checksums, encryption details
@@ -109,6 +110,7 @@ path = "/var/backups/secreton"
 Restart Secreton to apply changes.
 
 ---
+
 ## S3-Compatible Storage Setup
 
 ### AWS S3
@@ -244,6 +246,7 @@ prefix = "production/"
 ```
 
 ---
+
 ## Backup Schedule Configuration
 
 ### Cron Expression Format
@@ -276,6 +279,7 @@ Secreton uses standard cron syntax for backup scheduling:
 ### Recommended Schedules by Environment
 
 #### Production
+
 ```toml
 [backup]
 schedule = "0 */6 * * *"  # Every 6 hours
@@ -283,6 +287,7 @@ retention_days = 30        # Keep 30 days (120 backups)
 ```
 
 #### Staging
+
 ```toml
 [backup]
 schedule = "0 2 * * *"     # Daily at 2 AM
@@ -290,6 +295,7 @@ retention_days = 14        # Keep 14 days
 ```
 
 #### Development
+
 ```toml
 [backup]
 schedule = "0 0 * * 0"     # Weekly on Sunday
@@ -345,6 +351,7 @@ export SECRETON_BACKUP_S3_REGION=us-east-1
 ```
 
 ---
+
 ## Restoration Procedures
 
 ### Pre-Restoration Checklist
@@ -484,6 +491,7 @@ secreton-cli backup restore \
 **⚠️ Warning**: This will overwrite existing secrets. Use with caution!
 
 ---
+
 ## Disaster Recovery Playbook
 
 ### Scenario 1: Complete Data Loss
@@ -493,6 +501,7 @@ secreton-cli backup restore \
 **Recovery Steps**:
 
 1. **Assess the Situation** (5 minutes)
+
    ```bash
    # Check if any nodes are recoverable
    kubectl get pods -n secreton-system
@@ -502,6 +511,7 @@ secreton-cli backup restore \
    ```
 
 2. **Deploy New Secreton Cluster** (15 minutes)
+
    ```bash
    # Deploy fresh Secreton instance via Helm
    ./infra/helm/deploy.sh production install
@@ -512,6 +522,7 @@ secreton-cli backup restore \
    ```
 
 3. **Download Latest Backup** (5 minutes)
+
    ```bash
    # Find latest backup
    LATEST_BACKUP=$(aws s3 ls s3://secreton-backups/production/ | sort | tail -n 1 | awk '{print $4}')
@@ -521,6 +532,7 @@ secreton-cli backup restore \
    ```
 
 4. **Verify Backup Integrity** (2 minutes)
+
    ```bash
    secreton-cli backup verify \
      --file /tmp/restore.enc \
@@ -528,6 +540,7 @@ secreton-cli backup restore \
    ```
 
 5. **Restore Data** (10-30 minutes, depending on size)
+
    ```bash
    secreton-cli backup restore \
      --file /tmp/restore.enc \
@@ -536,6 +549,7 @@ secreton-cli backup restore \
    ```
 
 6. **Verify Restoration** (5 minutes)
+
    ```bash
    # Check critical secrets
    secreton-cli kv get secret/database/password
@@ -564,11 +578,13 @@ secreton-cli backup restore \
 **Recovery Steps**:
 
 1. **Stop Secreton** (1 minute)
+
    ```bash
    kubectl scale deployment secreton --replicas=0 -n secreton-system
    ```
 
 2. **Backup Current State** (5 minutes)
+
    ```bash
    # Create emergency backup of current state
    secreton-cli backup create \
@@ -577,12 +593,14 @@ secreton-cli backup restore \
    ```
 
 3. **Drop and Recreate Database** (2 minutes)
+
    ```bash
    psql -h postgres-host -U postgres -c "DROP DATABASE secreton;"
    psql -h postgres-host -U postgres -c "CREATE DATABASE secreton;"
    ```
 
 4. **Restore from Backup** (10 minutes)
+
    ```bash
    secreton-cli backup restore \
      --file /path/to/latest-backup.enc \
@@ -590,6 +608,7 @@ secreton-cli backup restore \
    ```
 
 5. **Restart Secreton** (2 minutes)
+
    ```bash
    kubectl scale deployment secreton --replicas=3 -n secreton-system
    ```
@@ -603,18 +622,21 @@ secreton-cli backup restore \
 **Recovery Steps**:
 
 1. **Identify Deletion Time** (2 minutes)
+
    ```bash
    # Check audit logs
    secreton-cli audit list --operation delete --limit 50
    ```
 
 2. **Find Appropriate Backup** (3 minutes)
+
    ```bash
    # List backups before deletion
    secreton-cli backup list --directory /var/backups/secreton
    ```
 
 3. **Restore to Different Namespace** (5 minutes)
+
    ```bash
    secreton-cli backup restore \
      --file /path/to/backup-before-deletion.enc \
@@ -624,6 +646,7 @@ secreton-cli backup restore \
    ```
 
 4. **Copy Secrets Back** (5 minutes)
+
    ```bash
    # Copy specific secrets from recovery namespace
    secreton-cli kv get recovery/secret/deleted-secret | \
@@ -631,6 +654,7 @@ secreton-cli backup restore \
    ```
 
 5. **Verify and Cleanup** (2 minutes)
+
    ```bash
    # Verify secret is restored
    secreton-cli kv get secret/deleted-secret
@@ -648,12 +672,14 @@ secreton-cli backup restore \
 **Recovery Steps**:
 
 1. **Activate DR Region** (5 minutes)
+
    ```bash
    # Scale up DR cluster
    kubectl scale deployment secreton --replicas=3 -n secreton-system --context=dr-region
    ```
 
 2. **Restore Latest Backup** (15 minutes)
+
    ```bash
    # Download latest backup from S3
    aws s3 cp s3://secreton-backups/production/latest.enc /tmp/restore.enc
@@ -666,6 +692,7 @@ secreton-cli backup restore \
    ```
 
 3. **Update DNS** (5 minutes)
+
    ```bash
    # Point secreton.kejaksaan.go.id to DR region
    aws route53 change-resource-record-sets \
@@ -674,6 +701,7 @@ secreton-cli backup restore \
    ```
 
 4. **Verify Services** (5 minutes)
+
    ```bash
    # Test from multiple locations
    curl https://secreton.kejaksaan.go.id/v1/sys/health
@@ -702,6 +730,7 @@ secreton-cli backup create [OPTIONS]
 ```
 
 **Options**:
+
 - `--output, -o <PATH>`: Output file path (required)
 - `--password, -p <PASSWORD>`: Encryption password (prompts if not provided)
 - `--include-audit`: Include audit logs (default: true)
@@ -734,6 +763,7 @@ secreton-cli backup verify [OPTIONS]
 ```
 
 **Options**:
+
 - `--file, -f <PATH>`: Backup file to verify (required)
 - `--password, -p <PASSWORD>`: Decryption password
 - `--verbose, -v`: Show detailed information
@@ -757,6 +787,7 @@ secreton-cli backup restore [OPTIONS]
 ```
 
 **Options**:
+
 - `--file, -f <PATH>`: Backup file to restore (required)
 - `--password, -p <PASSWORD>`: Decryption password
 - `--point-in-time <TIMESTAMP>`: Restore to specific time (ISO 8601)
@@ -795,6 +826,7 @@ secreton-cli backup list [OPTIONS]
 ```
 
 **Options**:
+
 - `--directory, -d <PATH>`: Directory containing backups (default: current)
 - `--detailed`: Show detailed information
 
@@ -809,6 +841,7 @@ secreton-cli backup list --directory /var/backups/secreton --detailed
 ```
 
 ---
+
 ## Troubleshooting
 
 ### Backup Creation Fails
@@ -816,6 +849,7 @@ secreton-cli backup list --directory /var/backups/secreton --detailed
 **Problem**: Backup creation fails with "Connection refused" error.
 
 **Solution**:
+
 ```bash
 # Check Secreton service status
 kubectl get pods -n secreton-system
@@ -830,6 +864,7 @@ curl https://secreton.kejaksaan.go.id/v1/sys/health
 **Problem**: Backup fails with "Insufficient disk space".
 
 **Solution**:
+
 ```bash
 # Check disk space
 df -h /var/backups/secreton
@@ -846,6 +881,7 @@ find /var/backups/secreton -name "*.enc" -mtime +30 -delete
 **Problem**: Verification fails with "Checksum mismatch".
 
 **Solution**:
+
 ```bash
 # Backup may be corrupted
 # Try downloading again if from S3
@@ -858,6 +894,7 @@ secreton-cli backup list --directory /var/backups/secreton
 **Problem**: Verification fails with "Invalid password".
 
 **Solution**:
+
 ```bash
 # Ensure you're using the correct password
 # Check if password was rotated
@@ -872,6 +909,7 @@ secreton-cli backup list --directory /var/backups/secreton
 **Problem**: Restore fails with "Secret already exists".
 
 **Solution**:
+
 ```bash
 # Use --force to overwrite
 secreton-cli backup restore --file backup.enc --force
@@ -885,6 +923,7 @@ secreton-cli backup restore \
 **Problem**: Restore fails with "Database connection error".
 
 **Solution**:
+
 ```bash
 # Check PostgreSQL status
 kubectl get pods -n secreton-system -l app=postgres
@@ -901,6 +940,7 @@ kubectl rollout restart statefulset/postgres -n secreton-system
 **Problem**: Backup upload to S3 fails with "Access Denied".
 
 **Solution**:
+
 ```bash
 # Check IAM permissions
 aws iam get-role-policy \
@@ -917,6 +957,7 @@ aws s3api get-bucket-policy --bucket secreton-backups
 **Problem**: S3 upload fails with "Endpoint not found".
 
 **Solution**:
+
 ```bash
 # Check endpoint configuration
 # For MinIO, ensure force_path_style = true
@@ -927,11 +968,13 @@ curl -I https://s3.us-east-1.amazonaws.com
 ```
 
 ---
+
 ## Security Best Practices
 
 ### Encryption Key Management
 
 **DO**:
+
 - ✅ Generate strong 32-byte encryption keys using cryptographically secure random number generators
 - ✅ Store encryption keys in a separate secure location (KMS, HSM, or another Secreton instance)
 - ✅ Rotate encryption keys periodically (every 90 days)
@@ -939,6 +982,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 - ✅ Document key rotation procedures
 
 **DON'T**:
+
 - ❌ Store encryption keys in the same location as backups
 - ❌ Use weak passwords (< 16 characters)
 - ❌ Share encryption keys via email or chat
@@ -948,6 +992,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 ### Backup Storage Security
 
 **DO**:
+
 - ✅ Enable encryption at rest on S3 buckets (SSE-S3 or SSE-KMS)
 - ✅ Enable versioning on S3 buckets to protect against accidental deletion
 - ✅ Use IAM roles instead of access keys when possible
@@ -956,6 +1001,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 - ✅ Enable S3 access logging for audit trail
 
 **DON'T**:
+
 - ❌ Make backup buckets publicly accessible
 - ❌ Use overly permissive IAM policies
 - ❌ Store backups on the same infrastructure as Secreton
@@ -964,6 +1010,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 ### Access Control
 
 **DO**:
+
 - ✅ Limit backup creation to authorized personnel only
 - ✅ Require MFA for backup restoration
 - ✅ Log all backup and restore operations
@@ -971,6 +1018,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 - ✅ Use separate credentials for backup operations
 
 **DON'T**:
+
 - ❌ Allow unrestricted access to backup files
 - ❌ Share backup passwords with unauthorized personnel
 - ❌ Skip audit logging for backup operations
@@ -978,6 +1026,7 @@ curl -I https://s3.us-east-1.amazonaws.com
 ### Testing and Validation
 
 **DO**:
+
 - ✅ Test restore procedures quarterly
 - ✅ Verify backups automatically after creation
 - ✅ Perform disaster recovery drills annually
@@ -985,11 +1034,13 @@ curl -I https://s3.us-east-1.amazonaws.com
 - ✅ Test backups in a non-production environment first
 
 **DON'T**:
+
 - ❌ Assume backups work without testing
 - ❌ Skip backup verification
 - ❌ Test restores in production without proper planning
 
 ---
+
 ## Monitoring & Alerting
 
 ### Prometheus Metrics
@@ -1029,6 +1080,7 @@ curl -O https://raw.githubusercontent.com/kejaksaan/secreton/main/monitoring/gra
 ```
 
 Dashboard includes:
+
 - Backup success rate (last 24h, 7d, 30d)
 - Backup size trends
 - Backup duration trends
@@ -1201,6 +1253,7 @@ aws kms create-key \
 ```
 
 ---
+
 ## Appendix B: Backup Retention Calculator
 
 Calculate storage requirements based on retention policy:
@@ -1293,6 +1346,7 @@ Enterprise (10 GB DB, 4x/day, 30 days)
 ```
 
 ---
+
 ## Appendix C: Automated Backup Testing Script
 
 ```bash
@@ -1429,6 +1483,7 @@ crontab -e
 ```
 
 ---
+
 ## Appendix D: Compliance and Audit
 
 ### Regulatory Requirements
@@ -1436,11 +1491,13 @@ crontab -e
 Secreton backup system helps meet various compliance requirements:
 
 #### Indonesian Government Standards
+
 - **Peraturan Pemerintah No. 71 Tahun 2019**: Data protection and backup requirements
 - **Surat Edaran Menkominfo**: Disaster recovery planning for government systems
 - **ISO 27001**: Information security management (backup and recovery controls)
 
 #### International Standards
+
 - **SOC 2 Type II**: Backup and disaster recovery controls
 - **ISO 22301**: Business continuity management
 - **NIST SP 800-53**: Contingency planning (CP family)
@@ -1486,6 +1543,7 @@ secreton-cli audit export \
 
 **Q: How long does a backup take?**
 A: Backup duration depends on data size. Typical times:
+
 - Small (< 1 GB): 1-2 minutes
 - Medium (1-5 GB): 5-10 minutes
 - Large (5-20 GB): 15-30 minutes
@@ -1503,6 +1561,7 @@ A: Yes, use `--target-namespace` to restore to a temporary namespace, then copy 
 
 **Q: What happens if a backup fails?**
 A: Secreton will:
+
 1. Log the error to audit trail
 2. Trigger alerts (if configured)
 3. Retry on next scheduled run
@@ -1521,6 +1580,7 @@ A: Yes, using gzip. Compression level is configurable (0-9, default 6).
 
 **Q: What's the difference between Raft snapshot and PostgreSQL dump?**
 A:
+
 - **Raft snapshot**: Consensus state for HA clusters
 - **PostgreSQL dump**: All secrets, policies, leases, audit logs
 
@@ -1529,6 +1589,7 @@ A: Backups include version information. Restoring to a different major version m
 
 **Q: How do I migrate backups between storage backends?**
 A:
+
 ```bash
 # Download from old storage
 secreton-cli backup list --directory /old/storage
@@ -1560,16 +1621,19 @@ A: Use `--target-namespace` to restore to a test namespace, or restore to a sepa
 ## Support and Resources
 
 ### Documentation
+
 - [Secreton Main Documentation](../README.md)
 - [Backup Manager README](../crates/backup/README.md)
 - [CLI Reference](../crates/cli/README.md)
 - [API Documentation](../docs/API.md)
 
 ### Community
+
 - GitHub Issues: https://github.com/kejaksaan/secreton/issues
 - Discussions: https://github.com/kejaksaan/secreton/discussions
 
 ### Professional Support
+
 For enterprise support, contact: support@kejaksaan.go.id
 
 ---
@@ -1584,6 +1648,7 @@ For enterprise support, contact: support@kejaksaan.go.id
 ## Change Log
 
 ### Version 2.0 (February 18, 2026)
+
 - Complete rewrite with comprehensive disaster recovery procedures
 - Added S3-compatible storage setup guides
 - Added monitoring and alerting section
@@ -1593,6 +1658,7 @@ For enterprise support, contact: support@kejaksaan.go.id
 - Added extensive troubleshooting guide
 
 ### Version 1.0 (February 12, 2026)
+
 - Initial documentation
 - Basic backup/restore procedures
 - CLI reference

@@ -9,6 +9,7 @@
 ## ✅ Step 1: Fix Import Paths (COMPLETED)
 
 **Changes Made**:
+
 ```bash
 # Fixed import paths from authenc_types::domain::X to authenc_types::X
 sed 's/authenc_types::domain::UserId/authenc_types::UserId/g'
@@ -24,7 +25,7 @@ sed 's/authenc_types::domain::Role/authenc_types::Role/g'
 
 ## 🔄 Step 2: Remove Unused Imports (IN PROGRESS)
 
-### Files to Clean:
+### Files to Clean
 
 1. **crates/core/src/services/token_exchange.rs**
    - Remove: `use crate::utils::crypto::jwt::verify_jwt_with_validation;`
@@ -65,9 +66,10 @@ sed 's/authenc_types::domain::Role/authenc_types::Role/g'
 
 ## 🔄 Step 3: Fix Feature-Gated Modules (PENDING)
 
-### Files to Update:
+### Files to Update
 
 **crates/core/src/services/mod.rs**:
+
 ```rust
 // Add feature gates for optional modules
 #[cfg(feature = "redis-cache")]
@@ -96,6 +98,7 @@ pub mod ldap_federation;
 ```
 
 **crates/core/src/services/cache/mod.rs**:
+
 ```rust
 #[cfg(feature = "kafka")]
 pub mod event_consumer;
@@ -122,16 +125,19 @@ pub mod invalidation;
 Once Phase 1 is complete (errors reduced to ~10), proceed to:
 
 **Phase 2: Implement Storage Operations** (1 hour)
+
 - Create `authenc-storage/src/operations/client_registration.rs`
 - Create `authenc-storage/src/operations/protocol_mappers_ops.rs`
 - Expected: ~10 → ~5 errors
 
 **Phase 3: Fix Service Dependencies** (30 minutes)
+
 - Update `client_registration.rs` to use new storage ops
 - Update `protocol_mapper_service.rs` to use new storage ops
 - Expected: ~5 → 0 errors
 
 **Phase 4: Implement Client Management Handlers** (1 hour)
+
 - Create client CRUD handlers in `crates/api`
 - Create DCR endpoints in `crates/api`
 - Complete client management feature

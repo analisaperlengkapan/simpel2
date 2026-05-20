@@ -5,13 +5,13 @@ namespace App\Models\Sdm;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Sdmpengadaan extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'sdm_pengadaan';
 
@@ -34,13 +34,13 @@ class Sdmpengadaan extends Model
         'file_sertifikat',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $ms_satker_id = session('userData.current_role.ms_satker_id_keu');
-        if(in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'))){
+        if (in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'))) {
             $query->where('a.kdsatker', $ms_satker_id);
         }
         // if (!empty($search)) {
@@ -56,15 +56,15 @@ class Sdmpengadaan extends Model
         //         });
         //     }
         // }
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
-                    $kolom = $columnName=='inst_nama'?'b.'.$columnName:'a.'.$columnName;
-                    $tableName = $columnName=='inst_nama'?'ms_satker':$this->table;
-                    if($value){
+                    $kolom = $columnName == 'inst_nama' ? 'b.'.$columnName : 'a.'.$columnName;
+                    $tableName = $columnName == 'inst_nama' ? 'ms_satker' : $this->table;
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($kolom, '=', $value);
@@ -82,14 +82,17 @@ class Sdmpengadaan extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function findOne($nip){
+    public static function findOne($nip)
+    {
         $query = DB::table('sdm_pengadaan as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $query->where('a.nip', '=', $nip);
+
         return $query->first();
     }
 }

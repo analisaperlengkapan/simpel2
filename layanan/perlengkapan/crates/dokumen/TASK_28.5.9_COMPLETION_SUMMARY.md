@@ -9,6 +9,7 @@ Implemented automatic document archival integration for the SIMPEL document serv
 ### 1. Enhanced Archive Service (`src/archive.rs`)
 
 **New Features:**
+
 - `RetentionPolicy` struct with configurable retention periods:
   - SK documents: 5 years
   - Rekapitulasi documents: 3 years
@@ -20,6 +21,7 @@ Implemented automatic document archival integration for the SIMPEL document serv
 - `delete_expired_documents()` - Automatically deletes documents past retention period
 
 **Key Methods:**
+
 ```rust
 pub async fn archive_document_after_completion(
     &self,
@@ -49,6 +51,7 @@ pub async fn delete_expired_documents(
 ### 2. Configuration Updates (`src/config.rs`)
 
 **Added:**
+
 - `archive_storage_path` field to `AppConfig`
 - Default archive path: `/var/data/dokumen/archive`
 - Environment variable support: `ARCHIVE_STORAGE_PATH`
@@ -75,6 +78,7 @@ pub async fn delete_expired_documents(
 ### 4. Document Scheduler (`src/scheduler.rs`)
 
 **New Module:**
+
 - `DocumentScheduler` struct for background tasks
 - Runs daily at 02:00 AM
 - Two main tasks:
@@ -82,12 +86,14 @@ pub async fn delete_expired_documents(
   2. Delete expired documents
 
 **Features:**
+
 - Automatic detection of completed workflows
 - Batch processing of documents
 - Error handling with logging
 - Configurable schedule
 
 **Usage:**
+
 ```rust
 let scheduler = Arc::new(DocumentScheduler::new(
     pool.clone(),
@@ -99,6 +105,7 @@ scheduler.clone().start().await;
 ### 5. Database Migration (`migrations/003_archive_and_retention.sql`)
 
 **Created Tables:**
+
 - `dokumen.documents` - Main documents table with `is_archived` flag
 - `dokumen.document_versions` - Version history
 - `dokumen.archive_collections` - Archive collections
@@ -109,11 +116,13 @@ scheduler.clone().start().await;
 - `dokumen.document_permissions` - Access control
 
 **Indexes:**
+
 - Performance indexes on all tables
 - GIN index on metadata JSONB column for fast searches
 - Composite indexes for common query patterns
 
 **Metadata Structure:**
+
 ```json
 {
   "document_type": "SK",
@@ -127,6 +136,7 @@ scheduler.clone().start().await;
 ### 6. Main Service Integration (`src/main.rs`)
 
 **Updated:**
+
 - Implemented proper main.rs (was previously disabled)
 - Database connection setup
 - Scheduler initialization
@@ -135,16 +145,19 @@ scheduler.clone().start().await;
 ### 7. Documentation
 
 **Created Files:**
+
 - `ARCHIVE_INTEGRATION.md` - Complete documentation of archive features
 - `TASK_28.5.9_COMPLETION_SUMMARY.md` - This file
 
 ## Requirements Satisfied
 
 ✅ **REQ-D012**: Document retention policy
+
 - Implemented configurable retention periods
 - Automatic deletion after retention period
 
 ✅ **NFR-A005**: Recovery Point Objective (RPO) ≤ 1 hour
+
 - Documents archived immediately after workflow completion
 - Metadata kept in database for search
 
@@ -215,14 +228,16 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/perlengkapan
 
 ## Files Modified/Created
 
-### Modified:
+### Modified
+
 1. `src/archive.rs` - Enhanced with new features
 2. `src/config.rs` - Added archive_storage_path
 3. `src/handlers.rs` - Added new endpoints
 4. `src/lib.rs` - Exported scheduler module
 5. `src/main.rs` - Implemented service startup
 
-### Created:
+### Created
+
 1. `src/scheduler.rs` - Document scheduler
 2. `migrations/003_archive_and_retention.sql` - Database schema
 3. `ARCHIVE_INTEGRATION.md` - Documentation
@@ -231,6 +246,7 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/perlengkapan
 ## Completion Status
 
 ✅ All sub-tasks completed:
+
 - ✅ Implement automatic document archival
 - ✅ Add document retention policy
 - ✅ Create archive storage in MinIO/S3 (filesystem implementation)

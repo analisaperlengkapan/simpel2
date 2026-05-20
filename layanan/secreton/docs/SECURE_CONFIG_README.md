@@ -66,6 +66,7 @@ threshold = 3
 ### Application Config (Encrypted in Storage)
 
 Stored encrypted after unsealing:
+
 - Auth settings (JWT secrets)
 - Database credentials
 - MFA policies
@@ -96,12 +97,14 @@ secreton migrate --cleanup
 ## Deployment
 
 ### Development
+
 ```bash
 # Start with file backend
 secreton server
 ```
 
 ### Production
+
 ```bash
 # With Raft HA + TLS + Shamir
 systemctl start secreton
@@ -109,6 +112,7 @@ secreton unseal  # 3 operators
 ```
 
 ### Production HA (Auto-Unseal with AWS KMS)
+
 ```toml
 [seal]
 type = "aws-kms"

@@ -3,6 +3,7 @@
 ## Current Issues
 
 ### 1. ⚠️ CRITICAL: Unseal Endpoint Extension Missing
+
 **Status**: BLOCKING
 **Severity**: CRITICAL
 **Affected Endpoints**: `POST /v1/sys/unseal`
@@ -10,21 +11,25 @@
 **Issue**: The unseal endpoint requires `Extension<Option<String>>` for client IP extraction (for rate limiting), but this extension is not being injected by the middleware layer.
 
 **Error**:
+
 ```
 Missing request extension: Extension of type `core::option::Option<alloc::string::String>` was not found
 ```
 
 **Root Cause**:
+
 - Middleware layer not configured in `api_server.rs`
 - Extensions need to be injected via Axum middleware
 - Client IP extraction middleware not implemented
 
 **Impact**:
+
 - Cannot unseal engine via REST API
 - Unseal operations fail with 500 error
 - Secret Vault remains sealed and unusable
 
 **Workaround** (Temporary):
+
 1. Modify `unseal_engine` function to make `client_ip` optional
 2. Or implement middleware layer in `api_server.rs`
 
@@ -63,6 +68,7 @@ app.layer(axum::middleware::from_fn(extract_client_ip))
 ---
 
 ### 2. ⚠️ Initialize Endpoint Returns No Response
+
 **Status**: BLOCKING
 **Severity**: HIGH
 **Affected Endpoints**: `POST /v1/sys/init`
@@ -70,25 +76,30 @@ app.layer(axum::middleware::from_fn(extract_client_ip))
 **Issue**: Initialize endpoint accepts requests but returns empty response body.
 
 **Error**:
+
 ```
 curl: (52) Empty reply from server
 ```
 
 **Root Cause**:
+
 - Response serialization issue
 - Possible panic in handler not being caught
 - Response not being properly formatted
 
 **Impact**:
+
 - Cannot initialize engine
 - Cannot get unseal keys and root token
 - Secret Vault initialization workflow broken
 
 **Workaround**:
+
 - Check container logs for panic messages
 - Manually inspect SealService state
 
 **Fix** (Recommended):
+
 1. Add better error handling in `initialize_engine` function
 2. Ensure response is properly serialized before sending
 3. Add logging for debugging
@@ -96,6 +107,7 @@ curl: (52) Empty reply from server
 ---
 
 ### 3. ⚠️ Secret Vault Already Initialized on Restart
+
 **Status**: EXPECTED BEHAVIOR
 **Severity**: LOW
 **Affected Endpoints**: `POST /v1/sys/init`
@@ -103,6 +115,7 @@ curl: (52) Empty reply from server
 **Issue**: Once engine is initialized, subsequent init calls fail with "Attempted to initialize already initialized engine"
 
 **Error**:
+
 ```json
 {
   "error": "Attempted to initialize already initialized engine"
@@ -110,19 +123,23 @@ curl: (52) Empty reply from server
 ```
 
 **Root Cause**:
+
 - This is correct behavior - engine can only be initialized once
 - In-memory storage persists during container lifetime
 - On container restart, engine state is lost
 
 **Impact**:
+
 - Cannot reinitialize without resetting engine state
 - Need to implement engine reset/rekey operations
 
 **Workaround**:
+
 - Restart container to reset engine state
 - Implement `/v1/sys/reset` endpoint for development
 
 **Fix** (Recommended):
+
 - Implement persistent storage backend (PostgreSQL)
 - Implement `/v1/sys/rekey` for key rotation
 - Add admin endpoint to reset engine (development only)
@@ -219,6 +236,7 @@ let app = router
 ### Extension Types
 
 Extensions needed:
+
 - `Extension<Option<String>>` - Client IP
 - `Extension<String>` - Request ID
 - `Extension<Instant>` - Request start time

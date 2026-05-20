@@ -360,7 +360,7 @@ ANALYZE perlengkapan.izin_pemakaian_bmn_aktivitas;
 -- COMPLETION MESSAGE
 -- ============================================================================
 
-DO $
+DO $$
 DECLARE
     index_count INTEGER;
 BEGIN
@@ -382,4 +382,4 @@ BEGIN
     RAISE NOTICE '🔍 Schema: perlengkapan';
     RAISE NOTICE '⚡ Query performance should be significantly improved';
     RAISE NOTICE '📝 Run EXPLAIN ANALYZE on slow queries to verify index usage';
-END $;
+END $$;

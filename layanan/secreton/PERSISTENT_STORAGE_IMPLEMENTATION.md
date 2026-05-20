@@ -8,7 +8,7 @@ Secreton now implements **persistent storage with Raft consensus as the default 
 
 ### 1. Configuration Structure
 
-#### Added to `crates/api/src/config.rs`:
+#### Added to `crates/api/src/config.rs`
 
 - **`StorageConfig`**: Main storage backend configuration
   - `backend`: Storage backend type (raft, memory, postgres, file, redis, consul)
@@ -31,6 +31,7 @@ Secreton now implements **persistent storage with Raft consensus as the default 
 ### 2. Default Configuration
 
 **Default values** (set in `RaftConfig::default()`):
+
 ```rust
 node_id: 1
 bind_address: "127.0.0.1:7000"
@@ -46,6 +47,7 @@ data_dir: "/var/lib/secreton/raft"
 ### 3. Configuration Files Updated
 
 #### `config/default.toml` (Development)
+
 ```toml
 [storage]
 backend = "raft"
@@ -61,6 +63,7 @@ data_dir = "/var/lib/secreton/raft"
 ```
 
 #### `config/production.toml` (Production)
+
 ```toml
 [storage]
 backend = "raft"
@@ -87,6 +90,7 @@ data_dir = "/var/lib/secreton/raft"
   5. Support multiple backend types with feature flags
 
 **Configuration Priority** (highest to lowest):
+
 1. Environment variable: `SECRETON_STORAGE_BACKEND`
 2. Config file: `config.storage.backend`
 3. Hardcoded default: `"raft"`
@@ -127,6 +131,7 @@ data_dir = "/var/lib/secreton/raft"
 ### 7. Environment Variables
 
 **Storage Backend Selection**:
+
 ```bash
 SECRETON_STORAGE_BACKEND=raft          # Default
 SECRETON_STORAGE_BACKEND=postgres      # PostgreSQL
@@ -135,12 +140,14 @@ SECRETON_STORAGE_BACKEND=memory        # In-memory (dev only)
 ```
 
 **Raft Configuration**:
+
 ```bash
 SECRETON_RAFT_NODE_ID=1                # Node ID
 SECRETON_RAFT_PEERS="2=http://node2:7000,3=http://node3:7000"  # Peer list
 ```
 
 **PostgreSQL Configuration**:
+
 ```bash
 SECRETON_STORAGE_URL=postgresql://user:pass@host:5432/secreton
 # Or
@@ -148,6 +155,7 @@ DATABASE_URL=postgresql://user:pass@host:5432/secreton
 ```
 
 **File Storage Configuration**:
+
 ```bash
 SECRETON_STORAGE_FILE_PATH=/var/lib/secreton/data
 ```
@@ -155,6 +163,7 @@ SECRETON_STORAGE_FILE_PATH=/var/lib/secreton/data
 ### 8. Docker Deployment
 
 **Single Node (Development)**:
+
 ```yaml
 services:
   secreton:
@@ -170,6 +179,7 @@ services:
 ```
 
 **3-Node Raft Cluster (Production)**:
+
 ```yaml
 services:
   secreton-1:
@@ -240,28 +250,33 @@ services:
 ### 11. Verification Steps
 
 **Build**:
+
 ```bash
 cd /srv/proyek/simpelv2/layanan/secreton
 cargo build --release -p secreton-api --bin api_server
 ```
 
 **Docker Image**:
+
 ```bash
 docker build -t secreton:latest .
 ```
 
 **Docker Compose**:
+
 ```bash
 docker-compose up -d
 docker-compose logs secreton
 ```
 
 **Health Check**:
+
 ```bash
 curl http://localhost:8200/v1/health
 ```
 
 **Storage Status**:
+
 ```bash
 curl http://localhost:8200/v1/sys/raft/status
 ```
@@ -307,18 +322,21 @@ curl http://localhost:8200/v1/sys/raft/status
 ### 14. Security Considerations
 
 **Raft Cluster**:
+
 - ✅ Use TLS for Raft communication
 - ✅ Implement mutual TLS
 - ✅ Run on private network
 - ✅ Restrict access to Raft port (7000)
 
 **Data Directory**:
+
 - ✅ Restrict file permissions (700)
 - ✅ Use persistent volumes
 - ✅ Regular backups
 - ✅ Encryption at rest
 
 **Production Deployment**:
+
 - ✅ Use 3+ node cluster for HA
 - ✅ Monitor cluster health
 - ✅ Implement alerting

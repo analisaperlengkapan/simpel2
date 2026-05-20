@@ -1,16 +1,20 @@
 # MFA API Documentation - SIMPEL
 
 ## Overview
+
 This document provides comprehensive API documentation for the Multi-Factor Authentication (MFA) system in SIMPEL. The MFA API enables secure two-factor authentication using TOTP (Time-based One-Time Password) for government employees.
 
 ## Base URL
+
 ```
 Production: https://simipelv2.kejaksaan.go.id/api/auth/mfa
 Staging: https://staging.simipelv2.kejaksaan.go.id/api/auth/mfa
 ```
 
 ## Authentication
+
 All MFA API endpoints require authentication via JWT token in the Authorization header:
+
 ```
 Authorization: Bearer <jwt_token>
 ```
@@ -20,15 +24,18 @@ Authorization: Bearer <jwt_token>
 ### 1. MFA Setup
 
 #### POST /setup
+
 Initiates MFA setup for a user by generating TOTP secret and QR code.
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "user_preference": {
@@ -38,6 +45,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -63,6 +71,7 @@ Content-Type: application/json
 ```
 
 **Error Responses:**
+
 ```json
 // 400 Bad Request - MFA already enabled
 {
@@ -82,16 +91,20 @@ Content-Type: application/json
   }
 }
 ```
+
 #### POST /verify-setup
+
 Verifies the initial TOTP code during MFA setup to confirm successful configuration.
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "code": "123456"
@@ -99,6 +112,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -111,6 +125,7 @@ Content-Type: application/json
 ```
 
 **Error Responses:**
+
 ```json
 // 400 Bad Request - Invalid code
 {
@@ -135,15 +150,18 @@ Content-Type: application/json
 ### 2. MFA Verification
 
 #### POST /verify
+
 Verifies TOTP code during login process.
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <temp_jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "code": "123456",
@@ -152,6 +170,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -166,6 +185,7 @@ Content-Type: application/json
 ```
 
 **Error Responses:**
+
 ```json
 // 401 Unauthorized - Invalid code
 {
@@ -189,15 +209,18 @@ Content-Type: application/json
 ```
 
 #### POST /verify-backup-code
+
 Verifies backup code as alternative to TOTP.
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <temp_jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "backup_code": "12345678"
@@ -205,6 +228,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -217,17 +241,21 @@ Content-Type: application/json
   "message": "Backup code verification successful"
 }
 ```
+
 ### 3. MFA Status and Management
 
 #### GET /status
+
 Retrieves current MFA status for the authenticated user.
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -243,15 +271,18 @@ Authorization: Bearer <jwt_token>
 ```
 
 #### POST /disable
+
 Disables MFA for the current user (admin only or with additional verification).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "confirmation_code": "123456", // Current TOTP code required
@@ -260,6 +291,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -272,15 +304,18 @@ Content-Type: application/json
 ```
 
 #### POST /reset
+
 Resets MFA configuration (generates new secret).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "current_code": "123456" // Current TOTP code or backup code
@@ -288,6 +323,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -304,14 +340,17 @@ Content-Type: application/json
 ### 4. Backup Codes Management
 
 #### GET /backup-codes
+
 Retrieves remaining backup codes count (not the actual codes).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -323,15 +362,18 @@ Authorization: Bearer <jwt_token>
 ```
 
 #### POST /backup-codes/regenerate
+
 Generates new backup codes (invalidates old ones).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "confirmation_code": "123456" // Current TOTP code required
@@ -339,6 +381,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -360,22 +403,27 @@ Content-Type: application/json
   "message": "New backup codes generated successfully"
 }
 ```
+
 ### 5. Administrative Endpoints
 
 #### GET /admin/users
+
 Lists MFA status for all users (admin only).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <admin_jwt_token>
 ```
 
 **Query Parameters:**
+
 ```
 ?page=1&limit=50&satker=KEJATI_DKI&mfa_status=enabled
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -409,15 +457,18 @@ Authorization: Bearer <admin_jwt_token>
 ```
 
 #### POST /admin/users/{user_id}/reset
+
 Admin reset of user MFA (admin only).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <admin_jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "reason": "User reported lost device",
@@ -426,6 +477,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -440,15 +492,18 @@ Content-Type: application/json
 ```
 
 #### POST /admin/users/{user_id}/disable
+
 Admin disable of user MFA (admin only).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <admin_jwt_token>
 Content-Type: application/json
 ```
 
 **Request Body:**
+
 ```json
 {
   "reason": "Temporary exemption approved",
@@ -457,6 +512,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -473,19 +529,23 @@ Content-Type: application/json
 ### 6. Reporting Endpoints
 
 #### GET /admin/reports/adoption
+
 MFA adoption report (admin only).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <admin_jwt_token>
 ```
 
 **Query Parameters:**
+
 ```
 ?start_date=2024-10-01&end_date=2024-10-15&group_by=satker
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -512,20 +572,25 @@ Authorization: Bearer <admin_jwt_token>
   }
 }
 ```
+
 #### GET /admin/reports/security
+
 Security events report (admin only).
 
 **Request Headers:**
+
 ```
 Authorization: Bearer <admin_jwt_token>
 ```
 
 **Query Parameters:**
+
 ```
 ?start_date=2024-10-01&end_date=2024-10-15&event_type=failed_attempts
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -588,6 +653,7 @@ Authorization: Bearer <admin_jwt_token>
 ## Security Headers
 
 All API responses include security headers:
+
 ```
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
@@ -601,6 +667,7 @@ Content-Security-Policy: default-src 'self'
 The MFA system can send webhook notifications for important events:
 
 ### Event Types
+
 - `mfa.setup.completed`
 - `mfa.verification.failed`
 - `mfa.account.locked`
@@ -608,6 +675,7 @@ The MFA system can send webhook notifications for important events:
 - `mfa.admin.reset`
 
 ### Webhook Payload Example
+
 ```json
 {
   "event_type": "mfa.setup.completed",
@@ -626,6 +694,7 @@ The MFA system can send webhook notifications for important events:
 ## SDK Examples
 
 ### JavaScript/TypeScript
+
 ```typescript
 import { MfaClient } from '@simipelv2/mfa-client';
 
@@ -648,6 +717,7 @@ console.log('Access Token:', loginResponse.data.access_token);
 ```
 
 ### Python
+
 ```python
 from simipelv2_mfa import MfaClient
 

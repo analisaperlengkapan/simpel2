@@ -84,11 +84,11 @@ async fn handle_dashboard_socket(mut socket: WebSocket, state: AppState) {
         "timestamp": chrono::Utc::now().to_rfc3339(),
     });
 
-    if let Ok(msg_text) = serde_json::to_string(&welcome_msg) {
-        if socket.send(Message::Text(msg_text.into())).await.is_err() {
-            warn!("Failed to send welcome message to client {}", client_id);
-            return;
-        }
+    if let Ok(msg_text) = serde_json::to_string(&welcome_msg)
+        && socket.send(Message::Text(msg_text.into())).await.is_err()
+    {
+        warn!("Failed to send welcome message to client {}", client_id);
+        return;
     }
 
     // Main message loop

@@ -10,6 +10,7 @@
 Task 8 migrates the public REST API from the monolithic `src/handlers/` structure to the new `crates/api/` crate. This is the most critical task in Phase 3 as it provides the interface between frontend microfrontends and the backend services.
 
 **Scope**:
+
 - 22 handler files to migrate (Priority 1-3)
 - 12 middleware files to migrate
 - Router configuration
@@ -17,6 +18,7 @@ Task 8 migrates the public REST API from the monolithic `src/handlers/` structur
 - Integration tests
 
 **Dependencies**:
+
 - ✅ authenc-core (Task 5) - Complete
 - ✅ authenc-storage (Task 3) - Complete
 - ✅ authenc-crypto (Task 4) - Complete
@@ -30,17 +32,20 @@ Task 8 migrates the public REST API from the monolithic `src/handlers/` structur
 We'll migrate in 3 phases to minimize risk and ensure each component works before moving to the next:
 
 **Phase 1 (Days 1-4)**: Core Authentication
+
 - Migrate authentication handlers (session, TOTP, auth_helpers)
 - Migrate authentication middleware (auth_middleware, csrf_protection)
 - Test authentication flows
 
 **Phase 2 (Days 5-8)**: OAuth2/OIDC & Security
+
 - Migrate OAuth2/OIDC handlers
 - Migrate rate limiting middleware
 - Migrate security middleware
 - Test OAuth2 flows
 
 **Phase 3 (Days 9-12)**: Infrastructure & Integration
+
 - Migrate utility handlers (health, metrics)
 - Migrate remaining middleware
 - Create unified router
@@ -62,6 +67,7 @@ We'll migrate in 3 phases to minimize risk and ensure each component works befor
 #### Day 1: Authentication Handlers (Priority 1)
 
 **Task 8.1.1: Migrate session.rs**
+
 - [ ] Read `src/handlers/session.rs` to understand implementation
 - [ ] Create `crates/api/src/handlers/session.rs`
 - [ ] Update imports:
@@ -74,6 +80,7 @@ We'll migrate in 3 phases to minimize risk and ensure each component works befor
 - [ ] Mark as migrated in MIGRATION_ANALYSIS.md
 
 **Task 8.1.2: Migrate totp.rs**
+
 - [ ] Read `src/handlers/totp.rs` to understand implementation
 - [ ] Create `crates/api/src/handlers/totp.rs`
 - [ ] Update imports:
@@ -86,6 +93,7 @@ We'll migrate in 3 phases to minimize risk and ensure each component works befor
 - [ ] Mark as migrated
 
 **Task 8.1.3: Migrate totp_verify.rs**
+
 - [ ] Read `src/handlers/totp_verify.rs`
 - [ ] Create `crates/api/src/handlers/totp_verify.rs`
 - [ ] Update imports (similar to totp.rs)
@@ -95,6 +103,7 @@ We'll migrate in 3 phases to minimize risk and ensure each component works befor
 - [ ] Mark as migrated
 
 **Task 8.1.4: Migrate auth_helpers.rs**
+
 - [ ] Read `src/handlers/auth_helpers.rs`
 - [ ] Create `crates/api/src/handlers/auth_helpers.rs`
 - [ ] Update imports
@@ -104,6 +113,7 @@ We'll migrate in 3 phases to minimize risk and ensure each component works befor
 - [ ] Mark as migrated
 
 **Checkpoint 1.1**: Verify authentication handlers compile
+
 ```bash
 cargo check -p authenc-api
 cargo test -p authenc-api --lib
@@ -112,6 +122,7 @@ cargo test -p authenc-api --lib
 #### Day 2: Authentication Middleware (Priority 1)
 
 **Task 8.5.1: Migrate auth_middleware.rs**
+
 - [ ] Read `src/middleware/auth_middleware.rs`
 - [ ] Create `crates/api/src/middleware/auth.rs`
 - [ ] Update imports:
@@ -123,6 +134,7 @@ cargo test -p authenc-api --lib
 - [ ] Mark as migrated
 
 **Task 8.5.2: Migrate csrf_protection.rs**
+
 - [ ] Read `src/middleware/csrf_protection.rs`
 - [ ] Create `crates/api/src/middleware/csrf.rs`
 - [ ] Update imports
@@ -132,6 +144,7 @@ cargo test -p authenc-api --lib
 - [ ] Mark as migrated
 
 **Checkpoint 1.2**: Verify middleware compiles
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -139,8 +152,10 @@ cargo check -p authenc-api
 #### Day 3: Create ApiState and Router (Phase 1)
 
 **Task 8.7.1: Create ApiState**
+
 - [ ] Create `crates/api/src/state.rs`
 - [ ] Define `ApiState` struct:
+
   ```rust
   pub struct ApiState {
       pub database: Arc<Database>,
@@ -153,12 +168,15 @@ cargo check -p authenc-api
       pub config: Arc<AppConfig>,
   }
   ```
+
 - [ ] Add constructor methods
 - [ ] Test compilation
 
 **Task 8.6.1: Create Router (Phase 1 - Authentication only)**
+
 - [ ] Create `crates/api/src/router.rs`
 - [ ] Add authentication routes:
+
   ```rust
   Router::new()
       .route("/api/v1/auth/session", get(session_handler))
@@ -168,9 +186,11 @@ cargo check -p authenc-api
       .layer(csrf_protection_layer())
       .with_state(state)
   ```
+
 - [ ] Test compilation
 
 **Checkpoint 1.3**: Verify ApiState and Router compile
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -178,6 +198,7 @@ cargo check -p authenc-api
 #### Day 4: Integration Tests (Phase 1)
 
 **Task 8.8.1: Write authentication integration tests**
+
 - [ ] Create `crates/api/tests/authentication_tests.rs`
 - [ ] Test session creation
 - [ ] Test TOTP setup flow
@@ -187,6 +208,7 @@ cargo check -p authenc-api
 - [ ] Run tests: `cargo test -p authenc-api`
 
 **Checkpoint 1.4**: Phase 1 Complete
+
 - [ ] All authentication handlers migrated
 - [ ] All authentication middleware migrated
 - [ ] ApiState created
@@ -195,6 +217,7 @@ cargo check -p authenc-api
 - [ ] Update MIGRATION_ANALYSIS.md
 
 **Phase 1 Success Criteria**:
+
 - ✅ 4 handlers migrated (session, totp, totp_verify, auth_helpers)
 - ✅ 2 middleware migrated (auth_middleware, csrf_protection)
 - ✅ ApiState created
@@ -209,6 +232,7 @@ cargo check -p authenc-api
 #### Day 5: OAuth2/OIDC Handlers (Priority 2)
 
 **Task 8.2.1: Compare oauth2.rs implementations**
+
 - [ ] Read `src/handlers/oauth2.rs` (monolithic version)
 - [ ] Read `crates/api/src/handlers/oauth2.rs` (already migrated)
 - [ ] Identify missing features in crates/ version
@@ -216,12 +240,14 @@ cargo check -p authenc-api
 - [ ] Plan merge strategy
 
 **Task 8.2.2: Merge oauth2.rs features**
+
 - [ ] Add missing features from src/ to crates/
 - [ ] Update imports
 - [ ] Test compilation
 - [ ] Mark as complete
 
 **Task 8.2.3: Migrate oauth2_authz_code.rs**
+
 - [ ] Read `src/handlers/oauth2_authz_code.rs`
 - [ ] Create `crates/api/src/handlers/oauth2_authz_code.rs`
 - [ ] Update imports:
@@ -234,6 +260,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.4: Migrate oidc_ed25519.rs**
+
 - [ ] Read `src/handlers/oidc_ed25519.rs`
 - [ ] Create `crates/api/src/handlers/oidc_ed25519.rs`
 - [ ] Update imports
@@ -243,6 +270,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.5: Migrate oidc_provider.rs**
+
 - [ ] Read `src/handlers/oidc_provider.rs`
 - [ ] Create `crates/api/src/handlers/oidc_provider.rs`
 - [ ] Update imports
@@ -252,6 +280,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 2.1**: Verify OAuth2 handlers compile
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -259,6 +288,7 @@ cargo check -p authenc-api
 #### Day 6: More OAuth2/OIDC Handlers (Priority 2)
 
 **Task 8.2.6: Migrate oidc_sso.rs**
+
 - [ ] Read `src/handlers/oidc_sso.rs`
 - [ ] Create `crates/api/src/handlers/oidc_sso.rs`
 - [ ] Update imports
@@ -268,6 +298,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.7: Migrate jwks.rs**
+
 - [ ] Read `src/handlers/jwks.rs`
 - [ ] Create `crates/api/src/handlers/jwks.rs`
 - [ ] Update imports
@@ -277,6 +308,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.8: Migrate jwt_ed25519.rs**
+
 - [ ] Read `src/handlers/jwt_ed25519.rs`
 - [ ] Create `crates/api/src/handlers/jwt_ed25519.rs`
 - [ ] Update imports
@@ -286,6 +318,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.9: Migrate oidc_keys.rs**
+
 - [ ] Read `src/handlers/oidc_keys.rs`
 - [ ] Create `crates/api/src/handlers/oidc_keys.rs`
 - [ ] Update imports
@@ -295,6 +328,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 2.2**: Verify all OAuth2 handlers compile
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -302,6 +336,7 @@ cargo check -p authenc-api
 #### Day 7: Rate Limiting Middleware (Priority 2)
 
 **Task 8.5.3: Compare rate_limit.rs implementations**
+
 - [ ] Read `src/middleware/rate_limit.rs`
 - [ ] Read `crates/api/src/middleware/rate_limit.rs`
 - [ ] Identify missing features
@@ -309,12 +344,14 @@ cargo check -p authenc-api
 - [ ] Plan merge strategy
 
 **Task 8.5.4: Merge rate_limit.rs features**
+
 - [ ] Add missing features from src/ to crates/
 - [ ] Update imports
 - [ ] Test compilation
 - [ ] Mark as complete
 
 **Task 8.5.5: Migrate adaptive_rate_limit.rs**
+
 - [ ] Read `src/middleware/adaptive_rate_limit.rs`
 - [ ] Create `crates/api/src/middleware/adaptive_rate_limit.rs`
 - [ ] Update imports:
@@ -327,6 +364,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.6: Migrate adaptive_rate_limit_integration.rs**
+
 - [ ] Read `src/middleware/adaptive_rate_limit_integration.rs`
 - [ ] Create `crates/api/src/middleware/adaptive_rate_limit_integration.rs`
 - [ ] Update imports
@@ -336,6 +374,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.7: Migrate mfa_rate_limit.rs**
+
 - [ ] Read `src/middleware/mfa_rate_limit.rs`
 - [ ] Create `crates/api/src/middleware/mfa_rate_limit.rs`
 - [ ] Update imports
@@ -345,6 +384,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 2.3**: Verify rate limiting middleware compiles
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -352,6 +392,7 @@ cargo check -p authenc-api
 #### Day 8: Security Middleware (Priority 2)
 
 **Task 8.5.8: Migrate security_monitoring.rs**
+
 - [ ] Read `src/middleware/security_monitoring.rs`
 - [ ] Create `crates/api/src/middleware/security.rs`
 - [ ] Update imports:
@@ -363,6 +404,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.9: Migrate input_validation.rs**
+
 - [ ] Read `src/middleware/input_validation.rs`
 - [ ] Create `crates/api/src/middleware/validation.rs`
 - [ ] Update imports
@@ -372,6 +414,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.10: Migrate request_size_limit.rs**
+
 - [ ] Read `src/middleware/request_size_limit.rs`
 - [ ] Create `crates/api/src/middleware/size_limit.rs`
 - [ ] Update imports
@@ -381,6 +424,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.11: Migrate rbac.rs**
+
 - [ ] Read `src/middleware/rbac.rs`
 - [ ] Create `crates/api/src/middleware/rbac.rs`
 - [ ] Update imports:
@@ -392,11 +436,13 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 2.4**: Verify security middleware compiles
+
 ```bash
 cargo check -p authenc-api
 ```
 
 **Task 8.8.2: Write OAuth2 integration tests**
+
 - [ ] Create `crates/api/tests/oauth2_tests.rs`
 - [ ] Test OAuth2 authorization code flow
 - [ ] Test OIDC discovery endpoint
@@ -406,6 +452,7 @@ cargo check -p authenc-api
 - [ ] Run tests: `cargo test -p authenc-api`
 
 **Checkpoint 2.5**: Phase 2 Complete
+
 - [ ] All OAuth2/OIDC handlers migrated (8 handlers)
 - [ ] All rate limiting middleware migrated (4 middleware)
 - [ ] All security middleware migrated (4 middleware)
@@ -413,6 +460,7 @@ cargo check -p authenc-api
 - [ ] Update MIGRATION_ANALYSIS.md
 
 **Phase 2 Success Criteria**:
+
 - ✅ 8 OAuth2/OIDC handlers migrated
 - ✅ 8 middleware migrated (rate limiting + security)
 - ✅ OAuth2 integration tests passing (>10 tests)
@@ -425,6 +473,7 @@ cargo check -p authenc-api
 #### Day 9: Utility Handlers (Priority 3)
 
 **Task 8.4.1: Migrate health.rs**
+
 - [ ] Read `src/handlers/health.rs`
 - [ ] Create `crates/api/src/handlers/health.rs`
 - [ ] Update imports
@@ -434,6 +483,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.4.2: Migrate metrics.rs**
+
 - [ ] Read `src/handlers/metrics.rs`
 - [ ] Create `crates/api/src/handlers/metrics.rs`
 - [ ] Update imports
@@ -443,6 +493,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.4.3: Migrate validation_helper.rs**
+
 - [ ] Read `src/handlers/validation_helper.rs`
 - [ ] Create `crates/api/src/handlers/validation_helper.rs`
 - [ ] Update imports
@@ -452,6 +503,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.4.4: Migrate consent_ui.rs**
+
 - [ ] Read `src/handlers/consent_ui.rs`
 - [ ] Create `crates/api/src/handlers/consent_ui.rs`
 - [ ] Update imports
@@ -461,6 +513,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.4.5: Migrate authorization.rs**
+
 - [ ] Read `src/handlers/authorization.rs`
 - [ ] Create `crates/api/src/handlers/authorization.rs`
 - [ ] Update imports
@@ -470,6 +523,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 3.1**: Verify utility handlers compile
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -477,6 +531,7 @@ cargo check -p authenc-api
 #### Day 10: Remaining Middleware (Priority 3)
 
 **Task 8.5.12: Migrate compression.rs**
+
 - [ ] Read `src/middleware/compression.rs`
 - [ ] Create `crates/api/src/middleware/compression.rs`
 - [ ] Update imports
@@ -486,6 +541,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.13: Migrate mtls.rs**
+
 - [ ] Read `src/middleware/mtls.rs`
 - [ ] Create `crates/api/src/middleware/mtls.rs`
 - [ ] Update imports
@@ -495,6 +551,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.5.14: Migrate mfa_performance_middleware.rs**
+
 - [ ] Read `src/middleware/mfa_performance_middleware.rs`
 - [ ] Create `crates/api/src/middleware/mfa_performance.rs`
 - [ ] Update imports
@@ -504,6 +561,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 3.2**: Verify remaining middleware compiles
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -511,6 +569,7 @@ cargo check -p authenc-api
 #### Day 11: SSO Handlers & Token Exchange (Priority 3)
 
 **Task 8.3.1: Migrate sso.rs**
+
 - [ ] Read `src/handlers/sso.rs`
 - [ ] Create `crates/api/src/handlers/sso.rs`
 - [ ] Update imports
@@ -520,6 +579,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Task 8.2.10: Migrate token_exchange.rs**
+
 - [ ] Read `src/handlers/token_exchange.rs`
 - [ ] Create `crates/api/src/handlers/token_exchange.rs`
 - [ ] Update imports:
@@ -530,6 +590,7 @@ cargo check -p authenc-api
 - [ ] Mark as migrated
 
 **Checkpoint 3.3**: Verify SSO and token exchange handlers compile
+
 ```bash
 cargo check -p authenc-api
 ```
@@ -537,6 +598,7 @@ cargo check -p authenc-api
 #### Day 12: Final Router & Integration Tests
 
 **Task 8.6.2: Complete unified router**
+
 - [ ] Update `crates/api/src/router.rs` with all routes
 - [ ] Add all migrated handlers
 - [ ] Apply middleware layers in correct order:
@@ -549,6 +611,7 @@ cargo check -p authenc-api
 - [ ] Test router with mock requests
 
 **Task 8.7.2: Complete ApiState**
+
 - [ ] Update `crates/api/src/state.rs` with all services
 - [ ] Add OAuth2 services
 - [ ] Add federation services (if needed)
@@ -556,6 +619,7 @@ cargo check -p authenc-api
 - [ ] Test compilation
 
 **Task 8.8.3: Write comprehensive integration tests**
+
 - [ ] Create `crates/api/tests/integration_tests.rs`
 - [ ] Test complete authentication flow (login → session → logout)
 - [ ] Test complete OAuth2 flow (authorize → token → userinfo)
@@ -566,6 +630,7 @@ cargo check -p authenc-api
 - [ ] Run all tests: `cargo test -p authenc-api`
 
 **Task 8.9: Verify API integration**
+
 - [ ] Test authenc-api → authenc-core integration
 - [ ] Test authenc-api → authenc-webauthn integration
 - [ ] Test authenc-api → authenc-crypto integration
@@ -574,6 +639,7 @@ cargo check -p authenc-api
 - [ ] Test logging and metrics
 
 **Task 8.10: Documentation**
+
 - [ ] Update MIGRATION_ANALYSIS.md with complete API migration status
 - [ ] Document all migrated handlers
 - [ ] Document all migrated middleware
@@ -581,6 +647,7 @@ cargo check -p authenc-api
 - [ ] Create API migration summary document
 
 **Checkpoint 3.4**: Phase 3 Complete
+
 - [ ] All utility handlers migrated (5 handlers)
 - [ ] All remaining middleware migrated (3 middleware)
 - [ ] Unified router complete
@@ -590,6 +657,7 @@ cargo check -p authenc-api
 - [ ] Update MIGRATION_ANALYSIS.md
 
 **Phase 3 Success Criteria**:
+
 - ✅ 7 additional handlers migrated (utility + SSO + token exchange)
 - ✅ 3 remaining middleware migrated
 - ✅ Unified router complete
@@ -603,11 +671,13 @@ cargo check -p authenc-api
 ## Final Verification Checklist
 
 ### Compilation
+
 - [ ] `cargo check -p authenc-api` - No errors
 - [ ] `cargo check --workspace` - No errors
 - [ ] `cargo clippy -p authenc-api` - No warnings
 
 ### Testing
+
 - [ ] `cargo test -p authenc-api --lib` - All unit tests pass
 - [ ] `cargo test -p authenc-api --test authentication_tests` - Pass
 - [ ] `cargo test -p authenc-api --test oauth2_tests` - Pass
@@ -616,6 +686,7 @@ cargo check -p authenc-api
 - [ ] Test coverage: >70%
 
 ### Integration
+
 - [ ] authenc-api → authenc-core integration verified
 - [ ] authenc-api → authenc-storage integration verified
 - [ ] authenc-api → authenc-crypto integration verified
@@ -626,6 +697,7 @@ cargo check -p authenc-api
 - [ ] Metrics verified
 
 ### Documentation
+
 - [ ] MIGRATION_ANALYSIS.md updated
 - [ ] All migrated handlers documented
 - [ ] All migrated middleware documented
@@ -633,6 +705,7 @@ cargo check -p authenc-api
 - [ ] API migration summary created
 
 ### Migration Status
+
 - [ ] 22 handlers migrated (100%)
 - [ ] 12 middleware migrated (100%)
 - [ ] Router complete
@@ -704,6 +777,7 @@ If Task 8 encounters blocking issues:
 ## Next Steps
 
 After Task 8 completion:
+
 1. **Task 9**: Migrate authenc-iam-api (Admin REST API)
 2. **Task 10**: Migrate authenc-grpc (Service-to-Service gRPC)
 3. **Task 11**: Checkpoint - Verify API implementation

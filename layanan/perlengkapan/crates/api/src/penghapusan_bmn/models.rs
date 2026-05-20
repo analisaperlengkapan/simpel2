@@ -19,8 +19,10 @@ use validator::Validate;
 /// Workflow status codes for Usulan SK Penghapusan BMN
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
+#[derive(Default)]
 pub enum PenghapusanBmnStatus {
     /// Draft by operator satker
+    #[default]
     Draft = 4000,
     /// Submitted to Validator Wilayah
     SubmitWilayah = 4001,
@@ -130,12 +132,6 @@ impl PenghapusanBmnStatus {
             SKSigned => vec![Completed],
             Completed | Rejected => vec![],
         }
-    }
-}
-
-impl Default for PenghapusanBmnStatus {
-    fn default() -> Self {
-        Self::Draft
     }
 }
 

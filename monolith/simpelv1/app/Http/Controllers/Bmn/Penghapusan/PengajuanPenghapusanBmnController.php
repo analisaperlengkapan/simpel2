@@ -5,42 +5,43 @@ namespace App\Http\Controllers\Bmn\Penghapusan;
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalUserSpseSirup as Approval;
-use App\Models\Files;
-use App\Models\Master\MsSatker;
-use App\Models\Notifikasi;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmn as Model;
 use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAktifitas as Aktifitas;
 use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAsset as Asset;
 use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAssetFile as File;
 use App\Models\Master;
+use App\Models\Master\MsSatker;
+use App\Models\Notifikasi;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File as FileManager;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PengajuanPenghapusanBmnController extends Controller
 {
     protected $kategoriJudul = 'Pengajuan Penghapusan BMN';
+
     protected $kategori = 'penghapusan_bmn';
-    protected $breadcums = ['Pengelolaan BMN','Penghapusan BMN'];
+
+    protected $breadcums = ['Pengelolaan BMN', 'Penghapusan BMN'];
+
     private $controller = '/bmn/penghapusan/penghapusansk';
 
     public function __construct(Request $request)
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>$this->kategoriJudul]]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => $this->kategoriJudul]]);
     }
-
 
     public function index()
     {
-        //dd(session('userData.current_role.ms_role_id'));
+        // dd(session('userData.current_role.ms_role_id'));
         return view('bmn.penghapusansk.pengajuan.pengajuanV', [
             'tableId' => 'dt-pengajuan',
             'breadcums' => $this->breadcums,
             'controller' => $this->controller,
             'kategori' => $this->kategori,
             'kategoriJudul' => $this->kategoriJudul,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ]);
     }
 
@@ -52,10 +53,11 @@ class PengajuanPenghapusanBmnController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getDataGrid($pagingParams, $searchParams, $this->kategori);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -65,8 +67,9 @@ class PengajuanPenghapusanBmnController extends Controller
 
     public function gridDataAsset($pengajuan_id)
     {
-        $model = new Asset();
+        $model = new Asset;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -74,15 +77,16 @@ class PengajuanPenghapusanBmnController extends Controller
 
     public function gridDataMsPegawai($pengajuan_id)
     {
-        $model = new Asset();
+        $model = new Asset;
         $currentRole = session('userData.current_role');
         $data = $model->getMsPegawai($currentRole['ms_satker_id'], $pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -91,7 +95,7 @@ class PengajuanPenghapusanBmnController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -104,15 +108,14 @@ class PengajuanPenghapusanBmnController extends Controller
             'controller' => $this->controller,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -141,16 +144,19 @@ class PengajuanPenghapusanBmnController extends Controller
             }
             Model::updateOrCreate(['id' => $id], $inputan);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveAsset(Request $request){
+    public function saveAsset(Request $request)
+    {
         $customMessages = [
             'kode_barang.required' => 'Barang harus dipilih',
         ];
@@ -162,26 +168,29 @@ class PengajuanPenghapusanBmnController extends Controller
             DB::beginTransaction();
             $id = $request->input('pengajuan_asset_id');
             $kode_barang = $request->input('kode_barang');
-            $barang = DB::table('vw_asset_barang')->where('kode_barang',$kode_barang)->first();
+            $barang = DB::table('vw_asset_barang')->where('kode_barang', $kode_barang)->first();
             $data = [
-                'pengajuan_id' =>$request->input('pengajuan_id'),
+                'pengajuan_id' => $request->input('pengajuan_id'),
                 'kode_barang' => $kode_barang,
                 'nm_barang' => $barang->nm_barang,
                 'ms_jenis_asset_id' => $barang->ms_jenis_asset_id,
-                'keterangan' => $request->input('keterangan')
+                'keterangan' => $request->input('keterangan'),
             ];
             Asset::updateOrCreate(['id' => $id], $data);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveSkPenetapan(Request $request){
+    public function saveSkPenetapan(Request $request)
+    {
         $customMessages = [
             'sk_penetapan.required' => 'SK Penetapan harus diupload',
         ];
@@ -203,7 +212,7 @@ class PengajuanPenghapusanBmnController extends Controller
                 $filesave = $filepath.'/'.$fileName;
                 $file->move($filepath, $fileName);
 
-                $file = new File();
+                $file = new File;
                 $file->pengajuan_asset_id = $pengajuan_asset_id;
                 $file->no_sk = $no_sk;
                 $file->tgl_sk = $tgl_sk;
@@ -212,11 +221,13 @@ class PengajuanPenghapusanBmnController extends Controller
                 $file->save();
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -224,32 +235,32 @@ class PengajuanPenghapusanBmnController extends Controller
     /**
      * edit admin perlengkapan
      */
-    public function show(Request $request,string $id)
+    public function show(Request $request, string $id)
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $model->ms_aktifitas_id;
-        $whereAct = ['ms_aktifitas_id' => $msAktifitasId,'group'=>'BMN'];
+        $whereAct = ['ms_aktifitas_id' => $msAktifitasId, 'group' => 'BMN'];
         $aktifitasHistories = Aktifitas::getDetail($model->id);
         $aktifitasOptions = Approval::getAktifitas($whereAct);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
@@ -276,10 +287,7 @@ class PengajuanPenghapusanBmnController extends Controller
     /**
      * pelaksana ngisi /  validator ngeliat
      */
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     public function savePengajuan(Request $request)
     {
@@ -298,14 +306,20 @@ class PengajuanPenghapusanBmnController extends Controller
 
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
 
-        //cek pegawai harus ada dan apabila 1009(selesai) cek SK
+        // cek pegawai harus ada dan apabila 1009(selesai) cek SK
         $asset = Asset::where(['pengajuan_id' => $id])->get();
-        if ($asset->isEmpty()) return $this->resError('Barang harus diisi');
-        if($ms_aktifitas_id == 3006){
+        if ($asset->isEmpty()) {
+            return $this->resError('Barang harus diisi');
+        }
+        if ($ms_aktifitas_id == 3006) {
             $filesk = File::getDetail($id, 'sk_penetapan');
-            if ($filesk->isEmpty()) return $this->resError('SK Penetapan masing-masing barang harus diupload');
+            if ($filesk->isEmpty()) {
+                return $this->resError('SK Penetapan masing-masing barang harus diupload');
+            }
             foreach ($filesk as $file) {
-                if(empty($file->url)) return $this->resError('SK Penetapan masing-masing barang harus diupload');
+                if (empty($file->url)) {
+                    return $this->resError('SK Penetapan masing-masing barang harus diupload');
+                }
             }
         }
 
@@ -318,14 +332,14 @@ class PengajuanPenghapusanBmnController extends Controller
                 'pengajuan_id' => $id,
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => $ms_aktifitas_id == 3000 ? false : true
+                'to_satker_induk' => $ms_aktifitas_id == 3000 ? false : true,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             Aktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [3003, 3005, 3007])) { //revisi
+                if (in_array($newAct, [3003, 3005, 3007])) { // revisi
                     $newAct = 3000;
                 }
                 Model::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
@@ -344,16 +358,18 @@ class PengajuanPenghapusanBmnController extends Controller
             //     Notifikasi::sendNotif($notifParams);
             // }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -374,9 +390,9 @@ class PengajuanPenghapusanBmnController extends Controller
         try {
             DB::beginTransaction();
             $asset = Asset::where('pengajuan_id', $id)->first();
-            if(!empty($asset)){
+            if (! empty($asset)) {
                 $files = File::where(['pengajuan_asset_id' => $asset->id])->get();
-                if(!empty($files)){
+                if (! empty($files)) {
                     foreach ($files as $file) {
                         $filePath = public_path($file->url);
                         // Delete the physical file from public directory
@@ -388,9 +404,11 @@ class PengajuanPenghapusanBmnController extends Controller
             }
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -400,20 +418,22 @@ class PengajuanPenghapusanBmnController extends Controller
         try {
             DB::beginTransaction();
             $files = File::where(['pengajuan_asset_id' => $id])->get();
-                if(!empty($files)){
-                    foreach ($files as $file) {
-                        $filePath = public_path($file->url);
-                        // Delete the physical file from public directory
-                        if (FileManager::exists($filePath)) {
-                            FileManager::delete($filePath);
-                        }
+            if (! empty($files)) {
+                foreach ($files as $file) {
+                    $filePath = public_path($file->url);
+                    // Delete the physical file from public directory
+                    if (FileManager::exists($filePath)) {
+                        FileManager::delete($filePath);
                     }
                 }
+            }
             Asset::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

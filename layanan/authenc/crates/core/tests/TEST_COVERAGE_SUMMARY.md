@@ -13,6 +13,7 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Coverage**: ~95% (estimated)
 
 **Test Categories**:
+
 - ✅ Successful authentication flow (with/without MFA)
 - ✅ Failed authentication (invalid password, user not found, disabled user)
 - ✅ Brute force protection integration
@@ -25,6 +26,7 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Test Count**: 17 tests
 
 **Key Scenarios Covered**:
+
 1. `test_successful_authentication_without_mfa` - Happy path
 2. `test_successful_authentication_with_mfa_required` - MFA flow
 3. `test_authentication_invalid_password` - Wrong password
@@ -48,6 +50,7 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Target Coverage**: >80%
 
 **Required Test Categories**:
+
 - User creation with validation
 - User updates (email, password, enabled status)
 - User deletion (soft delete)
@@ -64,6 +67,7 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Target Coverage**: >80%
 
 **Required Test Categories**:
+
 - Realm creation with validation
 - Realm updates (display name, enabled status)
 - Realm deletion
@@ -81,9 +85,10 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Status**: ⚠️ Created, pending core library compilation fix
 **Target Coverage**: >80%
 
-#### Test Categories Implemented:
+#### Test Categories Implemented
 
 **A. Authorization Code Flow (6 tests)**
+
 - ✅ `test_authorization_code_flow_with_pkce_s256` - Full flow with PKCE S256
 - ✅ `test_authorization_code_flow_invalid_pkce` - Wrong code verifier
 - ✅ `test_authorization_code_flow_missing_pkce` - Missing PKCE (should fail)
@@ -92,16 +97,19 @@ This document summarizes the comprehensive unit tests for all core services in t
 - ✅ `test_authorization_client_not_found` - Non-existent client
 
 **B. Client Credentials Flow (3 tests)**
+
 - ✅ `test_client_credentials_flow_success` - Successful client credentials
 - ✅ `test_client_credentials_flow_invalid_secret` - Wrong client secret
 - ✅ `test_client_credentials_flow_public_client_not_allowed` - Public client not allowed
 
 **C. Refresh Token Flow (3 tests)**
+
 - ✅ `test_refresh_token_flow_success` - Successful refresh with rotation
 - ✅ `test_refresh_token_flow_invalid_token` - Invalid refresh token
 - ✅ `test_refresh_token_flow_expired_token` - Expired refresh token
 
 **D. PKCE Verification (5 tests)**
+
 - ✅ `test_pkce_s256_verification_success` - S256 verification success
 - ✅ `test_pkce_s256_verification_failure` - S256 verification failure
 - ✅ `test_pkce_plain_verification_success` - Plain verification success
@@ -109,24 +117,28 @@ This document summarizes the comprehensive unit tests for all core services in t
 - ✅ `test_pkce_unsupported_method` - Unsupported PKCE method
 
 **E. Redirect URI Validation (3 tests)**
+
 - ✅ `test_redirect_uri_validation_exact_match` - Exact match success
 - ✅ `test_redirect_uri_validation_not_in_whitelist` - Not in whitelist
 - ✅ `test_redirect_uri_validation_case_sensitive` - Case sensitivity
 
 **F. Scope Validation (4 tests)**
+
 - ✅ `test_scope_validation_all_allowed` - All scopes allowed
 - ✅ `test_scope_validation_single_scope` - Single scope
 - ✅ `test_scope_validation_invalid_scope` - Invalid scope
 - ✅ `test_scope_validation_empty_scope` - Empty scope
 
 **G. Client Authentication (5 tests)**
+
 - ✅ `test_client_authentication_confidential_success` - Confidential client success
 - ✅ `test_client_authentication_confidential_wrong_secret` - Wrong secret
 - ✅ `test_client_authentication_public_no_secret` - Public client (no secret)
 - ✅ `test_client_authentication_client_not_found` - Client not found
 - ✅ `test_client_authentication_disabled_client` - Disabled client
 
-#### Mock Implementations:
+#### Mock Implementations
+
 - ✅ `MockClientStore` - In-memory client storage
 - ✅ `MockCodeStore` - In-memory authorization code storage
 - ✅ `MockRefreshTokenStore` - In-memory refresh token storage
@@ -139,6 +151,7 @@ This document summarizes the comprehensive unit tests for all core services in t
 **Coverage**: ~90% (estimated)
 
 **Test Categories**:
+
 - ✅ Check unlocked user
 - ✅ Record failure under threshold
 - ✅ CAPTCHA required after threshold
@@ -202,6 +215,7 @@ cargo test --lib -- --nocapture
 ## Requirements Validation
 
 These tests validate the following requirements:
+
 - REQ-AUTH-001: Username/password authentication
 - REQ-AUTH-002: Multi-factor authentication support
 - REQ-AUTH-003: Brute force protection

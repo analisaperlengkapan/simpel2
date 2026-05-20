@@ -2,19 +2,21 @@
 
 namespace App\Models\Suport;
 
-use App\Traits\LogTrait;
 use App\Blameable;
+use App\Traits\LogTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Survey extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'suport_survey';
+
     const tableKet = 'Survey';
 
     /**
@@ -33,23 +35,25 @@ class Survey extends Model
         'image',
         'status',
         'catatan',
-		'tgl_survey'
+        'tgl_survey',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*');
-        if(!empty($select)) $query->select($select);
-        if (!empty($search)) {
+        if (! empty($select)) {
+            $query->select($select);
+        }
+        if (! empty($search)) {
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
-            //    if($search['filterBy']=='kode_tiket'){ 
+            // if (isset($search['filterBy'])) {
+            //    if($search['filterBy']=='kode_tiket'){
             //        if(is_numeric($searchVal))
             //            $query->where(DB::raw($search['filterBy']), '=', "{$searchVal}");
             //    }else{
             //        $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             //    }
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //       $q->orWhere(DB::raw("lower(pertanyaan)"), 'like', "%{$searchVal}%")
             //            ->orWhere(DB::raw("lower(tipe_tiket)"), 'like', "%{$searchVal}%")
@@ -58,11 +62,11 @@ class Survey extends Model
             //            $q->orWhere('kode_tiket', "=", $searchVal);
             //    });
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -81,6 +85,7 @@ class Survey extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

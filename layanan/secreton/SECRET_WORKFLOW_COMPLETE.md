@@ -7,6 +7,7 @@ Secreton implements **HashiCorp Secret Vault-compatible** engine initialization 
 ## Architecture
 
 ### Seal States
+
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                  VAULT LIFECYCLE                        │
@@ -37,6 +38,7 @@ Secreton uses **Shamir's Secret Sharing** scheme:
 - **Security**: Any M shares can reconstruct, but M-1 shares reveal nothing
 
 **Recommended Configuration**: 5-of-3 (5 shares, 3 threshold)
+
 - Distribute 5 shares to 5 different people/locations
 - Any 3 people can unseal the engine
 - Protects against loss of 2 shares
@@ -46,6 +48,7 @@ Secreton uses **Shamir's Secret Sharing** scheme:
 ### Phase 1: Fresh Deployment
 
 #### 1.1 Start Container
+
 ```bash
 docker run -d --name secreton \
   -p 8200:8200 \
@@ -56,11 +59,13 @@ docker run -d --name secreton \
 ```
 
 #### 1.2 Verify Uninitialized Status
+
 ```bash
 curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response:
+
 ```json
 {
   "seal_type": "shamir",
@@ -75,6 +80,7 @@ Response:
 ```
 
 #### 1.3 Initialize Secret Vault
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/init \
   -H "Content-Type: application/json" \
@@ -85,6 +91,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -104,6 +111,7 @@ Response:
 **⚠️ CRITICAL SECURITY STEPS:**
 
 1. **Save shares securely**:
+
    ```bash
    # Each share to separate secure location
    echo "share_1" | gpg --encrypt --recipient admin@company.com > share_1.gpg
@@ -113,6 +121,7 @@ Response:
    ```
 
 2. **Save root token**:
+
    ```bash
    echo "root_token" | gpg --encrypt --recipient admin@company.com > root_token.gpg
    ```
@@ -125,11 +134,13 @@ Response:
 ### Phase 2: Unsealing (Every Restart)
 
 #### 2.1 Check Seal Status
+
 ```bash
 curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response (sealed):
+
 ```json
 {
   "sealed": true,
@@ -146,6 +157,7 @@ Response (sealed):
 Provide shares one at a time. Each person provides their share:
 
 **Person 1:**
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/unseal \
   -H "Content-Type: application/json" \
@@ -153,6 +165,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 Response:
+
 ```json
 {
   "sealed": true,
@@ -164,6 +177,7 @@ Response:
 ```
 
 **Person 2:**
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/unseal \
   -H "Content-Type: application/json" \
@@ -171,6 +185,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 Response:
+
 ```json
 {
   "sealed": true,
@@ -182,6 +197,7 @@ Response:
 ```
 
 **Person 3 (Threshold Reached):**
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/unseal \
   -H "Content-Type: application/json" \
@@ -189,6 +205,7 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 Response:
+
 ```json
 {
   "sealed": false,
@@ -200,11 +217,13 @@ Response:
 ```
 
 #### 2.3 Verify Unsealed
+
 ```bash
 curl http://localhost:8200/v1/sys/seal-status
 ```
 
 Response (unsealed):
+
 ```json
 {
   "sealed": false,
@@ -218,6 +237,7 @@ Response (unsealed):
 Once unsealed, engine is ready for operations:
 
 #### 3.1 Create Secret
+
 ```bash
 curl -X POST http://localhost:8200/v1/secret/my-app/db \
   -H "Content-Type: application/json" \
@@ -233,12 +253,14 @@ curl -X POST http://localhost:8200/v1/secret/my-app/db \
 ```
 
 #### 3.2 Read Secret
+
 ```bash
 curl http://localhost:8200/v1/secret/my-app/db \
   -H "X-Secret Vault-Token: root_token"
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -252,12 +274,14 @@ Response:
 ```
 
 #### 3.3 List Secrets
+
 ```bash
 curl http://localhost:8200/v1/secrets \
   -H "X-Secret Vault-Token: root_token"
 ```
 
 #### 3.4 Delete Secret
+
 ```bash
 curl -X DELETE http://localhost:8200/v1/secret/my-app/db \
   -H "X-Secret Vault-Token: root_token"
@@ -279,6 +303,7 @@ curl -X POST http://localhost:8200/v1/sys/seal \
 ### 1. Key Distribution
 
 **Recommended**: 5-of-3 Shamir scheme
+
 ```
 Person 1: Share 1 + Share 2
 Person 2: Share 3 + Share 4
@@ -286,6 +311,7 @@ Person 3: Share 5
 ```
 
 Why this distribution:
+
 - No single person has all shares
 - Any 3 people can unseal
 - Requires coordination (security feature)
@@ -294,12 +320,14 @@ Why this distribution:
 ### 2. Root Token Management
 
 **DO:**
+
 - ✅ Store in secure engine
 - ✅ Rotate regularly
 - ✅ Audit all usage
 - ✅ Revoke after setup
 
 **DON'T:**
+
 - ❌ Commit to git
 - ❌ Store in plain text
 - ❌ Share via email
@@ -308,12 +336,14 @@ Why this distribution:
 ### 3. Unseal Operations
 
 **DO:**
+
 - ✅ Rate limit attempts (10/60s built-in)
 - ✅ Log all attempts
 - ✅ Use HTTPS in production
 - ✅ Verify share authenticity
 
 **DON'T:**
+
 - ❌ Provide all shares at once
 - ❌ Store shares together
 - ❌ Use over unencrypted channels
@@ -334,12 +364,14 @@ watch -n 5 'curl -s http://localhost:8200/v1/sys/seal-status | jq'
 ### 5. Disaster Recovery
 
 **Backup Strategy:**
+
 1. Backup engine state regularly
 2. Store backups securely (encrypted)
 3. Test restore procedures
 4. Document recovery steps
 
 **Key Rotation:**
+
 1. Implement rekey operation
 2. Rotate shares periodically
 3. Update distribution
@@ -364,9 +396,11 @@ watch -n 5 'curl -s http://localhost:8200/v1/sys/seal-status | jq'
 ### Seal/Unseal Endpoints
 
 #### GET /v1/sys/seal-status
+
 Returns current seal status (accessible when sealed)
 
 **Response:**
+
 ```json
 {
   "seal_type": "shamir",
@@ -381,9 +415,11 @@ Returns current seal status (accessible when sealed)
 ```
 
 #### POST /v1/sys/init
+
 Initialize engine with Shamir shares
 
 **Request:**
+
 ```json
 {
   "secret_shares": 5,
@@ -392,6 +428,7 @@ Initialize engine with Shamir shares
 ```
 
 **Response:**
+
 ```json
 {
   "keys": ["share1", "share2", "share3", "share4", "share5"],
@@ -400,9 +437,11 @@ Initialize engine with Shamir shares
 ```
 
 #### POST /v1/sys/unseal
+
 Provide unseal key/share
 
 **Request:**
+
 ```json
 {
   "key": "base64_encoded_share",
@@ -411,6 +450,7 @@ Provide unseal key/share
 ```
 
 **Response:**
+
 ```json
 {
   "sealed": true,
@@ -423,41 +463,52 @@ Provide unseal key/share
 ```
 
 #### POST /v1/sys/seal
+
 Seal the engine (requires authentication)
 
 **Response:** 204 No Content
 
 #### POST /v1/sys/rekey/init
+
 Start rekey operation
 
 #### POST /v1/sys/rekey/update
+
 Provide shares for rekey
 
 ## Troubleshooting
 
 ### Issue: "Secret Vault is already initialized"
+
 **Cause**: Secret Vault was already initialized in previous run
 **Solution**:
+
 - For development: Restart container
 - For production: Use rekey operation
 
 ### Issue: "Invalid unseal key"
+
 **Cause**: Wrong share provided or corrupted
 **Solution**:
+
 - Verify share is base64-encoded correctly
 - Check share hasn't been corrupted
 - Ensure using shares from same initialization
 
 ### Issue: "Rate limit exceeded"
+
 **Cause**: Too many unseal attempts
 **Solution**:
+
 - Wait 60 seconds before retrying
 - Limit is 10 attempts per 60 seconds per IP
 - Check logs for suspicious activity
 
 ### Issue: "Threshold not met"
+
 **Cause**: Not enough shares provided yet
 **Solution**:
+
 - Continue providing shares until threshold reached
 - Check progress in seal-status response
 

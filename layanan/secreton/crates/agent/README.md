@@ -18,12 +18,14 @@
 | **Template**        | Tidak                            | Ya (render file dari secret)         |
 
 **Singkatnya:**
+
 - `secreton` = server utama, pusat API dan storage secret
 - `secreton-agent` = client/sidecar untuk aplikasi, mengambil secret/token dari server
 
 ---
 
 ## Kegunaan Agent
+
 - Otomatis login ke Secreton engine dan perpanjang token
 - Render file konfigurasi dari secret engine ke file lokal (template)
 - Sink token ke file atau environment variable
@@ -33,6 +35,7 @@
 ---
 
 ## Fitur Utama
+
 - **Auto-auth**: userpass, approle, kubernetes
 - **Token renewal**: otomatis setiap 5 menit (configurable)
 - **Template rendering**: secret engine → file lokal
@@ -43,6 +46,7 @@
 ---
 
 ## Contoh Konfigurasi (`agent.yaml`)
+
 ```yaml
 server_url: "https://engine.example.com:8200"
 server_urls:
@@ -74,17 +78,23 @@ health_port: 9900
 ---
 
 ## Cara Menjalankan
+
 1. **Build**
+
    ```sh
    cargo build --release -p secreton-agent
    ```
+
 2. **Jalankan**
+
    ```sh
    ./target/release/secreton-agent --config agent.yaml
    ```
+
 3. **Health check**
    - Endpoint: `http://localhost:9900/healthz`
    - Response:
+
      ```json
      {
        "status": "ok",
@@ -95,6 +105,7 @@ health_port: 9900
 ---
 
 ## Best Practice
+
 - Jalankan agent sebagai sidecar container di Kubernetes
 - Gunakan token sink untuk aplikasi yang butuh token dinamis
 - Gunakan health endpoint untuk monitoring otomatis

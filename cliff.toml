@@ -1,0 +1,60 @@
+# git-cliff config untuk SIMPEL release notes
+# https://git-cliff.org/docs/configuration
+
+[changelog]
+header = ""
+trim = true
+footer = ""
+
+body = """
+{% if version %}\
+## v{{ version }} — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+## Unreleased
+{% endif %}\
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }} ([`{{ commit.id | truncate(length=7, end="") }}`](https://github.com/analisaperlengkapan/simpel2/commit/{{ commit.id }}))\
+{% if commit.breaking %} _**BREAKING**_{% endif %}\
+{% endfor %}
+{% endfor %}\n
+"""
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+skip_tags = "v0\\.0\\.0"
+ignore_tags = ""
+topo_order = false
+sort_commits = "newest"
+
+commit_parsers = [
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Bug Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^security", group = "Security" },
+  { message = "^sec\\(", group = "Security" },
+  { body = ".*security.*", group = "Security" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Testing" },
+  { message = "^build", group = "Build System" },
+  { message = "^ci", group = "CI / Internal" },
+  { message = "^chore\\(deps\\)", group = "Dependencies" },
+  { message = "^deps", group = "Dependencies" },
+  { message = "^chore", group = "Internal" },
+  { message = "^style", group = "Style" },
+  { message = "^revert", group = "Reverts" },
+  { message = "^.*", group = "Other" },
+]
+
+commit_preprocessors = []
+
+link_parsers = [
+  { pattern = "#(\\d+)", href = "https://github.com/analisaperlengkapan/simpel2/issues/$1" },
+]

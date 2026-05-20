@@ -19,7 +19,7 @@ RETURNS TABLE (
     mean_time_ms NUMERIC,
     max_time_ms NUMERIC,
     suggested_action TEXT
-) AS $
+) AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -41,7 +41,7 @@ BEGIN
     ORDER BY mean_exec_time DESC
     LIMIT 20;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION perlengkapan.analyze_slow_queries IS 'Analyze slow queries and suggest optimizations (requires pg_stat_statements extension)';
 
@@ -52,7 +52,7 @@ RETURNS TABLE (
     column_name TEXT,
     constraint_name TEXT,
     suggested_index TEXT
-) AS $
+) AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -76,7 +76,7 @@ BEGIN
       )
     ORDER BY tc.table_name, kcu.column_name;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION perlengkapan.check_missing_fk_indexes IS 'Identify foreign keys without indexes';
 
@@ -88,7 +88,7 @@ RETURNS TABLE (
     bloat_size TEXT,
     bloat_ratio NUMERIC,
     suggested_action TEXT
-) AS $
+) AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -107,7 +107,7 @@ BEGIN
       AND n_live_tup + n_dead_tup > 0
     ORDER BY n_dead_tup::numeric / NULLIF(n_live_tup + n_dead_tup, 0) DESC;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION perlengkapan.check_table_bloat IS 'Check table bloat and suggest VACUUM operations';
 
@@ -122,7 +122,7 @@ RETURNS TABLE (
     rows_fetched BIGINT,
     usage_ratio NUMERIC,
     suggested_action TEXT
-) AS $
+) AS $$
 BEGIN
     RETURN QUERY
     SELECT
@@ -145,7 +145,7 @@ BEGIN
     WHERE schemaname = 'perlengkapan'
     ORDER BY idx_scan ASC, pg_relation_size(indexrelid) DESC;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION perlengkapan.check_index_usage IS 'Analyze index usage and identify unused indexes';
 
@@ -347,7 +347,7 @@ COMMENT ON MATERIALIZED VIEW cache.mv_gap_analysis IS 'Cached gap analysis resul
 
 -- Function to refresh materialized views
 CREATE OR REPLACE FUNCTION cache.refresh_materialized_views()
-RETURNS TEXT AS $
+RETURNS TEXT AS $$
 DECLARE
     v_start_time TIMESTAMPTZ;
     v_end_time TIMESTAMPTZ;
@@ -366,7 +366,7 @@ BEGIN
 
     RETURN 'Materialized views refreshed in ' || v_duration::TEXT;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION cache.refresh_materialized_views IS 'Refresh all materialized views (call every 5 minutes for dashboard, every 1 hour for gap analysis)';
 
@@ -468,7 +468,7 @@ ANALYZE integrasi.mysimkari_pegawai;
 -- COMPLETION MESSAGE
 -- ============================================================================
 
-DO $
+DO $$
 DECLARE
     v_total_indexes INTEGER;
     v_total_tables INTEGER;
@@ -505,4 +505,4 @@ BEGIN
     RAISE NOTICE '  4. Run: SELECT * FROM perlengkapan.check_index_usage();';
     RAISE NOTICE '  5. Schedule: SELECT cache.refresh_materialized_views(); (every 5 minutes)';
     RAISE NOTICE '⚡ Query performance should be significantly improved';
-END $;
+END $$;

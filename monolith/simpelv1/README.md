@@ -5,10 +5,11 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 ## 🚀 Fitur Utama
 
 ### 📊 Manajemen Aset
+
 - **Asset Management**: Pengelolaan berbagai jenis aset (Gedung, Tanah, Kendaraan, dll)
 - **QR Code Generator**: Generate QR code untuk setiap aset
 - **Asset Tracking**: Pelacakan lokasi dan status aset
-- **Asset Categories**: 
+- **Asset Categories**:
   - Asset TIK (Teknologi Informasi & Komunikasi)
   - Asset Non-TIK
   - Asset Konstruksi
@@ -21,6 +22,7 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
   - Asset Lainnya
 
 ### 🛒 Pengadaan Barang/Jasa
+
 - **Pengadaan Management**: Sistem pengadaan terintegrasi
 - **SPSE Integration**: Integrasi dengan sistem SPSE
 - **Distribusi**: Manajemen distribusi barang
@@ -28,18 +30,21 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 - **BAST Management**: Berita Acara Serah Terima
 
 ### 👥 SDM (Sumber Daya Manusia)
+
 - **Pegawai Management**: Data pegawai dan profil
 - **Role Management**: Sistem role dan permission
 - **Aktivitas Tracking**: Log aktivitas pengguna
 - **Pakaian Dinas**: Manajemen pakaian dinas pegawai
 
 ### 📋 Analisis Kebutuhan
+
 - **BMN Analysis**: Analisis kebutuhan Barang Milik Negara
 - **Kelayakan Analysis**: Analisis kelayakan pengadaan
 - **Prioritas Management**: Penyusunan prioritas kebutuhan
 - **Pengajuan System**: Sistem pengajuan kebutuhan
 
 ### 🔧 Fitur Teknis
+
 - **Two-Factor Authentication (2FA)**: Keamanan tambahan
 - **JWT Authentication**: API authentication
 - **Excel Import/Export**: Import dan export data Excel
@@ -53,6 +58,7 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 ## 🛠️ Tech Stack
 
 ### Backend
+
 - **Laravel 10.48.29** - PHP Framework
 - **PHP 8.1+** - Programming Language
 - **PostgreSQL** - Database
@@ -61,12 +67,14 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 - **Google 2FA** - Two-Factor Authentication
 
 ### Frontend
+
 - **Blade Templates** - Template Engine
 - **Vite** - Build Tool
 - **Axios** - HTTP Client
 - **Prettier** - Code Formatter
 
 ### Libraries & Packages
+
 - **Maatwebsite Excel** - Excel Import/Export
 - **Laravel MPDF** - PDF Generation
 - **Endroid QR Code** - QR Code Generation
@@ -79,6 +87,7 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 ## 📦 Instalasi
 
 ### Prerequisites
+
 - PHP 8.1+
 - Composer
 - Node.js 18+
@@ -88,17 +97,20 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
 ### Langkah Instalasi
 
 1. **Clone repository:**
+
    ```bash
    git clone <repo-url>
    cd simpel_web
    ```
 
 2. **Install dependensi PHP:**
+
    ```bash
    composer install
    ```
 
 3. **Install dependensi Node.js:**
+
    ```bash
    npm install
    # atau
@@ -106,6 +118,7 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
    ```
 
 4. **Setup environment:**
+
    ```bash
    cp .env.example .env
    # Edit .env sesuai konfigurasi database dan aplikasi
@@ -113,6 +126,7 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
    ```
 
 5. **Konfigurasi database:**
+
    ```bash
    # Edit .env dengan konfigurasi PostgreSQL
    DB_CONNECTION=pgsql
@@ -124,21 +138,25 @@ Simpel Web adalah aplikasi berbasis Laravel untuk manajemen aset, pengadaan bara
    ```
 
 6. **Migrasi database:**
+
    ```bash
    php artisan migrate
    ```
 
 7. **Seed database (opsional):**
+
    ```bash
    php artisan db:seed
    ```
 
 8. **Build assets:**
+
    ```bash
    npm run build
    ```
 
 9. **Jalankan aplikasi:**
+
    ```bash
    php artisan serve
    ```
@@ -176,6 +194,7 @@ php artisan view:cache
 ![Pipeline](https://gitlab.com/analisiskebutuhan/simpel_web/badge/main/pipeline.svg)
 
 Pipeline CI/CD menggunakan GitLab CI dengan tahapan:
+
 - **Setup**: Install dependensi PHP dan Node.js
 - **Test**: Jalankan test dengan database PostgreSQL
 - **Build**: Build aplikasi untuk production
@@ -214,6 +233,7 @@ simpel_web/
 ## 📊 Database Schema
 
 Aplikasi menggunakan PostgreSQL dengan tabel utama:
+
 - `users` - Data pengguna
 - `assets` - Data aset
 - `bmn_*` - Tabel BMN

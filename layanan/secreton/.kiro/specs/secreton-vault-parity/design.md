@@ -9,6 +9,7 @@ This design document specifies the architecture and implementation approach for 
 ### 1.2 Scope
 
 This design covers 14 major feature areas:
+
 1. Auto-unseal capability (AWS KMS, GCP KMS, Azure Key Vault, Transit)
 2. Performance replication (multi-region read replicas)
 3. Disaster recovery replication (full cluster failover)
@@ -142,6 +143,7 @@ This design covers 14 major feature areas:
 #### 2.2.1 Core Components (Existing)
 
 ```
+
 secreton/
 ├── crates/
 │   ├── core/              # Business logic
@@ -167,11 +169,13 @@ secreton/
 │   ├── grpc/              # gRPC service (Tonic)
 │   ├── cli/               # CLI tool
 │   └── hsm/               # HSM integration (PKCS#11)
+
 ```
 
 #### 2.2.2 New Components (To Be Implemented)
 
 ```
+
 secreton/
 ├── crates/
 │   ├── auto-unseal/       # NEW: Auto-unseal providers
@@ -229,6 +233,7 @@ secreton/
 │       ├── aws.rs         # AWS KMS operations
 │       ├── gcp.rs         # GCP KMS operations
 │       └── azure.rs       # Azure Key Vault operations
+
 ```
 
 ### 2.3 Data Flow
@@ -236,6 +241,7 @@ secreton/
 #### 2.3.1 Auto-Unseal Flow
 
 ```
+
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Secreton Pod Starts (Sealed State)                          │
 └────────────────────┬────────────────────────────────────────────┘
@@ -277,11 +283,13 @@ secreton/
 │    - Start accepting requests                                   │
 │    - Audit log: auto-unseal successful                          │
 └─────────────────────────────────────────────────────────────────┘
+
 ```
 
 #### 2.3.2 Performance Replication Flow
 
 ```
+
 Primary Cluster (Jakarta)                Secondary Cluster (Surabaya)
 ┌──────────────────────┐                 ┌──────────────────────┐
 │  1. Write Request    │                 │                      │
@@ -314,12 +322,14 @@ Primary Cluster (Jakarta)                Secondary Cluster (Surabaya)
                                          │     Requests         │
                                          │     (low latency)    │
                                          └──────────────────────┘
+
 ```
 
 
 #### 2.3.3 Agent/Sidecar Flow
 
 ```
+
 ┌─────────────────────────────────────────────────────────────────┐
 │ Application Pod                                                 │
 │                                                                 │
@@ -361,6 +371,7 @@ Primary Cluster (Jakarta)                Secondary Cluster (Surabaya)
 │  │  (runs continuously) │      │                      │       │
 │  └──────────────────────┘      └──────────────────────┘       │
 └─────────────────────────────────────────────────────────────────┘
+
 ```
 
 ## 3. Components and Interfaces
@@ -605,7 +616,6 @@ impl AutoUnsealProvider for TransitProvider {
     }
 }
 ```
-
 
 ### 3.2 Replication Component
 
@@ -927,7 +937,6 @@ impl BackupManager {
     }
 }
 ```
-
 
 ### 3.4 Agent/Sidecar Component
 
@@ -1256,7 +1265,6 @@ pub async fn reconcile(
     )))
 }
 ```
-
 
 ### 3.6 KMIP Secrets Engine
 
@@ -1664,7 +1672,6 @@ CREATE INDEX idx_kmip_keys_scope ON kmip_keys(scope);
 CREATE INDEX idx_kmip_keys_state ON kmip_keys(state);
 ```
 
-
 ## 5. Correctness Properties
 
 ### 5.1 What Are Correctness Properties?
@@ -2061,12 +2068,12 @@ A property is a characteristic or behavior that should hold true across all vali
 *For any* key management operation, an audit event should be created
 **Validates: Requirements 2.14.10**
 
-
 ## 6. Error Handling
 
 ### 6.1 Auto-Unseal Error Handling
 
 **Error Scenarios:**
+
 - KMS provider unavailable
 - Invalid credentials/permissions
 - Network timeout
@@ -2074,6 +2081,7 @@ A property is a characteristic or behavior that should hold true across all vali
 - Decryption failure
 
 **Handling Strategy:**
+
 ```rust
 pub async fn auto_unseal(&self) -> Result<(), SecretonError> {
     match self.provider.decrypt(&sealed_key).await {
@@ -2100,6 +2108,7 @@ pub async fn auto_unseal(&self) -> Result<(), SecretonError> {
 ### 6.2 Replication Error Handling
 
 **Error Scenarios:**
+
 - Network partition
 - Secondary node unavailable
 - Replication lag exceeds threshold
@@ -2107,6 +2116,7 @@ pub async fn auto_unseal(&self) -> Result<(), SecretonError> {
 - Storage backend failure
 
 **Handling Strategy:**
+
 ```rust
 pub async fn replicate_operation(&self, op: Operation) -> Result<(), SecretonError> {
     let mut failed_secondaries = Vec::new();
@@ -2141,6 +2151,7 @@ pub async fn replicate_operation(&self, op: Operation) -> Result<(), SecretonErr
 ### 6.3 Backup Error Handling
 
 **Error Scenarios:**
+
 - Insufficient disk space
 - S3 upload failure
 - Backup verification failure
@@ -2148,6 +2159,7 @@ pub async fn replicate_operation(&self, op: Operation) -> Result<(), SecretonErr
 - PostgreSQL dump failure
 
 **Handling Strategy:**
+
 ```rust
 pub async fn create_backup(&self) -> Result<String, SecretonError> {
     let backup_id = Uuid::new_v4().to_string();
@@ -2204,6 +2216,7 @@ pub async fn create_backup(&self) -> Result<String, SecretonError> {
 ### 6.4 Agent/Sidecar Error Handling
 
 **Error Scenarios:**
+
 - Secreton unavailable
 - Authentication failure
 - Secret not found
@@ -2211,6 +2224,7 @@ pub async fn create_backup(&self) -> Result<String, SecretonError> {
 - Volume write failure
 
 **Handling Strategy:**
+
 ```rust
 pub async fn fetch_secrets_with_retry(&self) -> Result<(), AgentError> {
     let mut retry_count = 0;
@@ -2255,6 +2269,7 @@ pub async fn fetch_secrets_with_retry(&self) -> Result<(), AgentError> {
 ### 6.5 KMIP Error Handling
 
 **Error Scenarios:**
+
 - Invalid KMIP request
 - Unsupported operation
 - Key not found
@@ -2262,6 +2277,7 @@ pub async fn fetch_secrets_with_retry(&self) -> Result<(), AgentError> {
 - TLS authentication failure
 
 **Handling Strategy:**
+
 ```rust
 pub async fn handle_kmip_request(&self, request: KmipRequest) -> KmipResponse {
     match self.process_request(request).await {
@@ -2307,6 +2323,7 @@ pub async fn handle_kmip_request(&self, request: KmipRequest) -> KmipResponse {
 **Scope:** Individual components and functions
 
 **Approach:**
+
 - Test each auto-unseal provider independently with mocked KMS responses
 - Test replication logic with in-memory storage
 - Test backup encryption/decryption with known keys
@@ -2314,6 +2331,7 @@ pub async fn handle_kmip_request(&self, request: KmipRequest) -> KmipResponse {
 - Test KMIP protocol parsing with sample requests
 
 **Example:**
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -2348,11 +2366,13 @@ mod tests {
 **Scope:** Universal properties across all inputs
 
 **Configuration:**
+
 - Minimum 100 iterations per property test
 - Use `proptest` or `quickcheck` crate
 - Tag each test with feature name and property number
 
 **Example:**
+
 ```rust
 use proptest::prelude::*;
 
@@ -2437,6 +2457,7 @@ proptest! {
 **Scope:** Component interactions and end-to-end flows
 
 **Approach:**
+
 - Test auto-unseal with real KMS providers (using test accounts)
 - Test replication between actual Secreton instances
 - Test agent/sidecar in real Kubernetes cluster
@@ -2444,6 +2465,7 @@ proptest! {
 - Test KMIP with VMware/NetApp test environments
 
 **Example:**
+
 ```rust
 #[tokio::test]
 #[ignore] // Run only in CI with real infrastructure
@@ -2494,6 +2516,7 @@ async fn test_performance_replication_end_to_end() {
 **Scope:** Latency, throughput, and resource usage
 
 **Metrics:**
+
 - Read latency p50, p95, p99
 - Write latency p50, p95, p99
 - Throughput (ops/sec)
@@ -2503,12 +2526,14 @@ async fn test_performance_replication_end_to_end() {
 - CPU usage
 
 **Tools:**
+
 - `criterion` for Rust benchmarks
 - `k6` or `wrk` for load testing
 - Prometheus for metrics collection
 - Grafana for visualization
 
 **Example:**
+
 ```rust
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -2535,6 +2560,7 @@ criterion_main!(benches);
 **Scope:** Authentication, authorization, encryption, audit logging
 
 **Approach:**
+
 - Test mTLS enforcement for replication
 - Test auto-unseal fallback on KMS failure
 - Test audit logging for all operations
@@ -2547,6 +2573,7 @@ criterion_main!(benches);
 **Scope:** Resilience under failure conditions
 
 **Scenarios:**
+
 - Network partition between primary and secondaries
 - Primary node crash during replication
 - KMS provider unavailable during auto-unseal
@@ -2555,6 +2582,7 @@ criterion_main!(benches);
 - Raft leader election during high load
 
 **Tools:**
+
 - Chaos Mesh for Kubernetes
 - `toxiproxy` for network failures
 - Custom failure injection
@@ -2564,6 +2592,7 @@ criterion_main!(benches);
 ### 8.1 Kubernetes Deployment
 
 **Helm Chart Structure:**
+
 ```
 secreton-helm/
 ├── Chart.yaml
@@ -2587,6 +2616,7 @@ secreton-helm/
 ```
 
 **Key Configuration:**
+
 ```yaml
 # values.yaml
 replicaCount: 3
@@ -2661,12 +2691,14 @@ operator:
 ### 8.3 Rollback Plan
 
 **Rollback Triggers:**
+
 - Auto-unseal failures > 5%
 - Replication lag > 1 second
 - Data loss detected
 - Critical security vulnerability
 
 **Rollback Procedure:**
+
 1. Stop new version deployment
 2. Restore from latest backup
 3. Revert to previous version

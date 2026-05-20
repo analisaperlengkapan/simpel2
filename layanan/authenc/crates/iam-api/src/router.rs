@@ -441,9 +441,16 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
             post(admin::test_identity_provider),
         )
         // ============================================================
-        // Apply admin authentication middleware to all routes
+        // Apply admin authentication middleware to MATCHED routes only.
+        //
+        // `route_layer` (vs `layer`) scopes the middleware to routes that
+        // exist in this router. Without this, the layer wraps the entire
+        // Router service and runs on UNMATCHED paths after `.merge()`:
+        // hitting `/api/v1/auth/health` or any non-existent path would
+        // return 401 "Missing Authorization header" instead of 404,
+        // making the API appear universally auth-gated.
         // ============================================================
-        .layer(middleware::from_fn_with_state(
+        .route_layer(middleware::from_fn_with_state(
             state.clone(),
             admin_auth_middleware,
         ))

@@ -216,8 +216,8 @@ impl PolicyStateMachine {
                 let key = Self::policy_key(&entry.namespace, &entry.name);
                 let id = entry.id;
 
-                if policies.contains_key(&key) {
-                    policies.insert(key, entry);
+                if let std::collections::hash_map::Entry::Occupied(mut e) = policies.entry(key) {
+                    e.insert(entry);
                     PolicyResponse::Updated(id)
                 } else {
                     PolicyResponse::Error("Policy not found".to_string())
@@ -431,8 +431,7 @@ impl PolicyStateMachine {
             return path.starts_with(prefix);
         }
 
-        if pattern.ends_with('*') {
-            let prefix = &pattern[..pattern.len() - 1];
+        if let Some(prefix) = pattern.strip_suffix('*') {
             return path.starts_with(prefix);
         }
 

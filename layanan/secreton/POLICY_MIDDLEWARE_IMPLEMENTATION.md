@@ -43,6 +43,7 @@ pub struct RequestContext {
 **Function**: `extract_policy_names_from_claims()`
 
 Extracts policy names from JWT claims metadata. Supports multiple field names:
+
 - `policy_names` (comma-separated list)
 - `policies` (comma-separated list)
 - Falls back to role-based policies if no explicit policies are defined
@@ -54,6 +55,7 @@ Extracts policy names from JWT claims metadata. Supports multiple field names:
 Core middleware that enforces policy-based authorization on all operations:
 
 **Features**:
+
 - Skips policy checks for system endpoints (health, version, metrics, seal-status, unseal, init)
 - Maps HTTP methods to policy actions (GET→read, POST→create, PUT/PATCH→update, DELETE→delete)
 - Evaluates policies using the PolicySet service
@@ -63,6 +65,7 @@ Core middleware that enforces policy-based authorization on all operations:
 - Returns 401 Unauthorized if no authentication context exists
 
 **Policy Evaluation Context**:
+
 - User ID and email
 - User roles
 - Client IP address
@@ -73,6 +76,7 @@ Core middleware that enforces policy-based authorization on all operations:
 ### 5. Helper Functions
 
 **`map_method_to_action()`**: Maps HTTP methods to policy actions/capabilities
+
 - GET → read
 - POST → create
 - PUT/PATCH → update
@@ -84,6 +88,7 @@ Core middleware that enforces policy-based authorization on all operations:
 **`record_policy_evaluation_metrics()`**: Records metrics for policy evaluations (placeholder for Prometheus integration)
 
 **`log_policy_decision_to_audit()`**: Logs policy decisions to audit log with:
+
 - Action performed
 - Actor (user)
 - Resource type and ID
@@ -97,6 +102,7 @@ Core middleware that enforces policy-based authorization on all operations:
 **Function**: `extract_jwt_claims_from_token()`
 
 Converts auth service token claims into JwtClaims for namespace validation:
+
 - Extracts satker_code and wilayah_code from metadata
 - Determines admin level from roles or metadata
 - Preserves all original claims
@@ -104,6 +110,7 @@ Converts auth service token claims into JwtClaims for namespace validation:
 **Function**: `determine_admin_level()`
 
 Determines admin level from roles and metadata:
+
 - Checks metadata for explicit admin_level
 - Infers from role names (pusat, eselon, wilayah, satker)
 - Defaults to Satker (most restrictive)
@@ -113,6 +120,7 @@ Determines admin level from roles and metadata:
 **File**: `layanan/secreton/crates/api/tests/policy_middleware_tests.rs`
 
 Comprehensive test suite covering:
+
 - Policy allows matching paths
 - Policy denies non-matching paths
 - Deny overrides allow (policy precedence)
@@ -188,6 +196,7 @@ let policy_set = PolicySet::new(rules);
 ## Audit Logging
 
 All policy evaluations are logged to the audit system with:
+
 - **Action**: "policy_evaluation"
 - **Actor**: User ID
 - **Resource Type**: "policy"
@@ -203,6 +212,7 @@ All policy evaluations are logged to the audit system with:
 ## Metrics
 
 Policy evaluation metrics are recorded (placeholder for Prometheus integration):
+
 - `secreton_policy_evaluations_total{decision="allowed|denied"}` - Total policy evaluations
 - `secreton_policy_evaluation_duration_seconds` - Policy evaluation duration
 - `secreton_policy_cache_hits_total` - Policy cache hits

@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn test_redirect_uris_validation() {
-        let redirect_uris = vec![
+        let redirect_uris = [
             "https://example.com/callback".to_string(),
             "https://example.com/callback2".to_string(),
         ];
@@ -367,7 +367,7 @@ mod tests {
 
     #[test]
     fn test_grant_types() {
-        let grant_types = vec![
+        let grant_types = [
             "authorization_code".to_string(),
             "refresh_token".to_string(),
         ];

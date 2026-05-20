@@ -15,11 +15,14 @@ class MenuController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengaturan', 'Menu dan Tema Aplikasi', 'Menu Aplikasi'];
+
     protected $controller = 'pengaturan/menu';
+
     public function index()
     {
         $columns = ['Nama', 'Level', 'Urutan', 'Aktif'];
-        $defColumns = [0, 1, 2, 3,];
+        $defColumns = [0, 1, 2, 3];
+
         return view('pengaturan.menu.gridV', [
             'columns' => $columns,
             'defColumns' => $defColumns,
@@ -31,10 +34,11 @@ class MenuController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -42,18 +46,12 @@ class MenuController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
-    {
-
-    }
+    public function getData($id = null, $readOnly = false) {}
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -69,15 +67,16 @@ class MenuController extends Controller
                 'urutan' => $request->input('urutan'),
             ])->update(['urutan' => $model->urutan]);
 
-
             $inputan = $request->only(['name', 'urutan']);
             $inputan = array_merge($inputan, ['is_active' => $request->input('is_active') ?? 0]);
             Model::where('id', $request->input('id'))->update($inputan);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -88,8 +87,9 @@ class MenuController extends Controller
     public function show(string $id)
     {
         $model = Model::where('id', $id)->first();
-        if (!$model)
+        if (! $model) {
             throw new NotFoundHttpException('Menu Tidak ditemukan');
+        }
 
         $menus = Model::where('parent', $model->parent)->orderBy('urutan')->get();
         foreach ($menus as $key => $menu) {
@@ -117,10 +117,7 @@ class MenuController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -133,8 +130,5 @@ class MenuController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-
-    }
+    public function destroy(string $id) {}
 }

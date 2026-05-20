@@ -7,8 +7,13 @@
 
 global:
   environment: staging
-  imageTag: stag
-  imagePullPolicy: Always
+  # Tag dipindahkan dari mutable 'stag' ke semver immutable.
+  # Staging tracks the latest RC (post-build cosign failures di rc22 menggagalkan
+  # workflow conclusion, tapi docker push semua 7 image sukses — verified via
+  # `docker manifest inspect` dengan ghcr-pull PAT).
+  # Override via --set global.imageTag=v0.1.0-rcN saat helm install jika perlu.
+  imageTag: v0.1.0-rc22
+  imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # Schedule semua workload ke node 'simple02' karena master tidak punya unpigz.
   nodeSelector:
@@ -53,6 +58,13 @@ secreton:
 layananIntegrasi:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
+  # CronJob auto-trigger MATI di staging (cegah rate-limit token API yang dipakai bersama
+  # production scheduler). Penarikan data dilakukan manual via:
+  #   kubectl create job --from=cronjob/layanan-integrasi-mysimkari manual-$(date +%s)
+  cronjobs:
+    siman:      { suspend: true }
+    mysimkari:  { suspend: true }
+    monsakti:   { suspend: true }
 layananPerlengkapan:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
@@ -64,8 +76,12 @@ simpelv1:
     APP_ENV: staging
     QUEUE_CONNECTION: sync
     PORTAL_URL: "http://portal:3000/portal"
+  # DB sudah ter-initialize di staging postgres-0 via postgres-init job.
+  # Skip restore-from-backup init container (butuh ConfigMap simpelv1-db-backup
+  # yang berisi SQL dump). Set ke "none" agar init container db-migrate
+  # tidak rendered.
   dbBackup:
-    source: configMap
+    source: none
     name: simpelv1-db-backup
 portal:
   replicas: 1
@@ -77,17 +93,27 @@ perlengkapan:
 
 istio:
   gateway:
-    name: simpelv2-dev-gateway          # gateway eksisting di istio-system
-    hosts: ["10.1.7.121"]
+    name: simpelv2-gateway              # shared gateway untuk staging & production (per AGENTS.md)
+    # hosts: ["*"] untuk catch-all SNI matching. Per RFC 6066, browser
+    # tidak kirim SNI untuk IP-only URL (https://10.1.7.121) — Istio dengan
+    # hosts: [10.1.7.121] reject handshake dengan filter_chain_not_found.
+    # Pakai wildcard supaya semua SNI (kosong, IP, atau hostname) match.
+    hosts: ["*"]
     httpsRedirect: false
   virtualService:
     name: simpelv2-staging-routes
     hosts: ["10.1.7.121"]
-    defaultRedirect: /portal
+    # Hapus defaultRedirect: Istio TIDAK lagi handle redirect dari path
+    # tidak match. Per spec user: redirect dilakukan di frontend HTML/JS,
+    # bukan di Istio. Path tidak match → 404 (jujur ke user, bukan
+    # dialihkan diam-diam).
+    defaultRedirect: ""
     routes:
-      # CORS untuk auth/captcha — origin = http://10.1.7.121
+      # Root path / di-route ke portal frontend TANPA rewrite. nginx serve
+      # /usr/share/nginx/html/index.html (portal HTML dengan <base href="/portal/">
+      # dan JS redirect to /portal). Per spec user: Istio hanya routing, tidak
+      # rewrite/redirect — redirect dari / ke /portal dilakukan di portal JS.
       - match: { exact: / }
-        rewrite: /portal
         destination: { host: portal, port: 8080 }
       - match: { prefix: /api/captcha/ }
         destination: { host: authenc, port: 8088 }
@@ -106,20 +132,36 @@ istio:
         rewrite: /api/captcha/
         destination: { host: authenc, port: 8088 }
         timeout: 30s
-      - match: { prefix: /perlengkapan/simpel/v1 }
+      # SIMPEL v1 = Laravel monolith. Istio strip prefix → Laravel sees
+      # `/login`. Laravel `AppServiceProvider::boot()` panggil
+      # `URL::forceRootUrl(APP_URL)` (APP_URL=http://host/perlengkapan/simpel/v1)
+      # → helper `redirect('/auth/login')` produce Location header dengan
+      # prefix lengkap: `http://host/perlengkapan/simpel/v1/auth/login`. User
+      # tetap stay di prefix v1 sesuai routing spec.
+      - match: { exact: /perlengkapan/simpel/v1 }
+        redirect: { uri: /perlengkapan/simpel/v1/, code: 308 }
+      - match: { prefix: /perlengkapan/simpel/v1/ }
         rewrite: /
         destination: { host: simpelv1, port: 80 }
         timeout: 30s
         retries: { attempts: 3, perTryTimeout: 10s }
+      # SIMPEL v2 = antarmuka/perlengkapan (Leptos WASM frontend) di
+      # canonical path /perlengkapan/simpel/v2/. Frontend WASM di-build
+      # dengan `<base href="/perlengkapan/simpel/v2/" />` dan nginx serve
+      # dari `/usr/share/nginx/html/perlengkapan/simpel/v2/`. NO rewrite —
+      # backend terima path apa adanya.
       - match: { prefix: /perlengkapan/simpel/v2 }
-        rewrite: /
-        destination: { host: layanan-perlengkapan, port: 3020 }
+        destination: { host: perlengkapan, port: 8080 }
         timeout: 30s
-        retries: { attempts: 3, perTryTimeout: 10s }
-      - match: { prefix: /pembinaan/perlengkapan }
+      # Parent path /perlengkapan/ dan /perlengkapan/simpel/ — frontend
+      # nginx serve static index.html dengan meta-refresh ke canonical
+      # /perlengkapan/simpel/v2/. Redirect dilakukan di FRONTEND HTML
+      # (bukan di Istio) supaya tidak konflik dengan Istio rewrite logic.
+      - match: { prefix: /perlengkapan/simpel }
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /perlengkapan }
-        rewrite: /
+        destination: { host: perlengkapan, port: 8080 }
+      - match: { prefix: /pembinaan/perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /api/perlengkapan/ }
         rewrite: /api/pembinaan/perlengkapan/
@@ -158,9 +200,15 @@ istio:
         timeout: 30s
       - match: { exact: /health }
         destination: { host: perlengkapan, port: 8080 }
-      - match: { prefix: /portal }
+      # Portal frontend (Leptos WASM) — pakai pola trailing-slash prefix +
+      # rewrite=/ untuk hindari `//` paths di backend nginx.
+      - match: { exact: /portal }
+        redirect: { uri: /portal/, code: 308 }
+      - match: { prefix: /portal/ }
         rewrite: /
         destination: { host: portal, port: 8080 }
-      - match: { prefix: /daskrimti }
+      - match: { exact: /daskrimti }
+        redirect: { uri: /daskrimti/, code: 308 }
+      - match: { prefix: /daskrimti/ }
         rewrite: /
         destination: { host: portal, port: 8080 }

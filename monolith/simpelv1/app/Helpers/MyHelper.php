@@ -8,7 +8,7 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class MyHelper
 {
-    static function generateSelectOptions(array $arr)
+    public static function generateSelectOptions(array $arr)
     {
         $opts = '';
 
@@ -64,17 +64,18 @@ class MyHelper
             }
         }
 
-
         return $opts;
     }
 
-    static function getPk($yearmonthdate, $table)
+    public static function getPk($yearmonthdate, $table)
     {
-        $query = DB::selectOne("select nextval('" . $table . "') as next_value");
+        $query = DB::selectOne("select nextval('".$table."') as next_value");
         $hasil = $query->next_value;
-        return $yearmonthdate . str_pad($hasil, 3, '0', STR_PAD_LEFT);
+
+        return $yearmonthdate.str_pad($hasil, 3, '0', STR_PAD_LEFT);
     }
-    static function toIdSatkerCms($kdSatker)
+
+    public static function toIdSatkerCms($kdSatker)
     {
         if ($kdSatker == '00') {
             $id_kejati = '00';
@@ -83,12 +84,13 @@ class MyHelper
         } else {
             $exp = explode('.', $kdSatker);
             $id_kejati = $exp[0] ?? null;
-            if (!$id_kejati) {
+            if (! $id_kejati) {
                 return ['id_kejati' => null, 'id_kejari' => null, 'id_cabjari' => null];
             }
             $id_kejari = $exp[1] ?? '00';
             $id_cabjari = $exp[2] ?? '00';
         }
+
         return ['id_kejati' => $id_kejati, 'id_kejari' => $id_kejari, 'id_cabjari' => $id_cabjari];
     }
 
@@ -99,30 +101,31 @@ class MyHelper
             ->size(150)
             ->errorCorrection('M')
             ->generate($data);
+
         return $qrCode;
     }
 
     public static function generateLabelBankAsset($model)
     {
-        $data = 'Kode Barang : ' . $model['kode_barang'] . "\n" . 'Nama Barang : ' . $model['nm_barang'] . "\n" . "Nama Satker : " . $model['nm_satker'];
+        $data = 'Kode Barang : '.$model['kode_barang']."\n".'Nama Barang : '.$model['nm_barang']."\n".'Nama Satker : '.$model['nm_satker'];
         $qrCodeImage = self::generateQrCode($data);
         $logoPath = public_path('assets/images/web-bg.png');
         $pdfContent = '<html><style> table.myFormat tr td { font-size: 8px; } table { margin-left: auto; margin-right: auto;}, table, th, td {border: 1px solid black;border-collapse: collapse;} </style><body>';
         $pdfContent .= '<table class="myFormat" style="border: 1px solid black;border-collapse: collapse;" width="100%"><tbody>';
         $pdfContent .= '<tr>';
-        $pdfContent .= '<td width="20%"><center><img src="' . $logoPath . '" width="30"/></center></td>';
-        $pdfContent .= '<td colspan="2"><center><b>' . $model['nm_satker'] . '<br/><br/><br/>' . $model['kdsatker_keu'] . '</center></b></td>';
+        $pdfContent .= '<td width="20%"><center><img src="'.$logoPath.'" width="30"/></center></td>';
+        $pdfContent .= '<td colspan="2"><center><b>'.$model['nm_satker'].'<br/><br/><br/>'.$model['kdsatker_keu'].'</center></b></td>';
         $pdfContent .= '</tr>';
         $pdfContent .= '<tr><td colspan="2">';
-        $pdfContent .= $model['kode_barang'] . '<br/>' . $model['nm_barang'] . '<br/>' . ($model['nup'] ? 'NUP : ' . $model['nup'] : '') . '<br/><br/>' . ($model['merk'] ? 'Merk : ' . $model['merk'] : '');
+        $pdfContent .= $model['kode_barang'].'<br/>'.$model['nm_barang'].'<br/>'.($model['nup'] ? 'NUP : '.$model['nup'] : '').'<br/><br/>'.($model['merk'] ? 'Merk : '.$model['merk'] : '');
         $pdfContent .= '</td>';
         $pdfContent .= '<td width="50%">';
-        $pdfContent .= '<center><img src="data:image/png;base64,' . base64_encode($qrCodeImage) . '" width="100"/></center>';
+        $pdfContent .= '<center><img src="data:image/png;base64,'.base64_encode($qrCodeImage).'" width="100"/></center>';
         $pdfContent .= '</td></tr>';
         $pdfContent .= '</tbody></table>';
         $pdfContent .= '</body></html>';
         $pdf = LaravelMpdf::loadHTML($pdfContent, [
-            'title' => "Label",
+            'title' => 'Label',
             'format' => 'A8-L',
             'orientation' => 'L',
             'margin_left' => 1,
@@ -130,10 +133,11 @@ class MyHelper
             'margin_top' => 5,
             'margin_bottom' => 1,
         ]);
+
         return $pdf;
     }
 
-    static function insertUpdateHooks($data, $isCreate = true)
+    public static function insertUpdateHooks($data, $isCreate = true)
     {
         $currentRole = session('userData.current_role');
         $satkerCms = MyHelper::toIdSatkerCms($currentRole['ms_satker_id']);
@@ -146,13 +150,15 @@ class MyHelper
         } else {
             $data['updated_by'] = session('userData.username');
         }
+
         return $data;
     }
 
-    static function getTingkatRole($satkerId)
+    public static function getTingkatRole($satkerId)
     {
-        if ($satkerId == '00')
+        if ($satkerId == '00') {
             return 'KEJAGUNG';
+        }
         if (strlen($satkerId) == 2) {
             return 'KEJATI';
         } else {
@@ -160,10 +166,11 @@ class MyHelper
         }
     }
 
-    static function dateFormat($date, $tipe = 'NORMAL')
+    public static function dateFormat($date, $tipe = 'NORMAL')
     {
-        if (!$date)
+        if (! $date) {
             return '-';
+        }
 
         $exp = explode(' ', $date);
         $tanggal = $exp[0];
@@ -172,96 +179,103 @@ class MyHelper
         $tgl = "{$tanggal}-{$bulan}-{$tahun}";
         if ($waktu) {
             [$jam, $menit] = explode(':', $waktu);
+
             return "{$tgl} {$jam}:{$menit}";
         }
+
         return $tgl;
     }
-    static function getShortMonth(int $key = NULL)
+
+    public static function getShortMonth(?int $key = null)
     {
         $months = [
             [
                 'id' => 1,
                 'textId' => '01',
                 'text' => 'Januari',
-                'shortText' => 'Jan'
+                'shortText' => 'Jan',
             ],
             [
                 'id' => 2,
                 'textId' => '02',
                 'text' => 'Februari',
-                'shortText' => 'Feb'
+                'shortText' => 'Feb',
             ],
             [
                 'id' => 3,
                 'textId' => '03',
                 'shortText' => 'Mar',
-                'text' => 'Maret'
+                'text' => 'Maret',
             ],
             [
                 'id' => 4,
                 'textId' => '04',
                 'shortText' => 'Apr',
-                'text' => 'April'
+                'text' => 'April',
             ],
             [
                 'id' => 5,
                 'textId' => '05',
                 'shortText' => 'Mei',
-                'text' => 'Mei'
+                'text' => 'Mei',
             ],
             [
                 'id' => 6,
                 'textId' => '06',
                 'shortText' => 'Jun',
-                'text' => 'Juni'
+                'text' => 'Juni',
             ],
             [
                 'id' => 7,
                 'textId' => '07',
                 'shortText' => 'Jul',
-                'text' => 'Juli'
+                'text' => 'Juli',
             ],
             [
                 'id' => 8,
                 'textId' => '08',
                 'shortText' => 'Agu',
-                'text' => 'Agustus'
+                'text' => 'Agustus',
             ],
             [
                 'id' => 9,
                 'textId' => '09',
                 'shortText' => 'Sep',
-                'text' => 'September'
+                'text' => 'September',
             ],
             [
                 'id' => 10,
                 'textId' => '10',
                 'shortText' => 'Oct',
-                'text' => 'Oktober'
+                'text' => 'Oktober',
             ],
             [
                 'id' => 11,
                 'textId' => '11',
                 'shortText' => 'Nop',
-                'text' => 'Nopember'
+                'text' => 'Nopember',
             ],
             [
                 'id' => 12,
                 'textId' => '12',
                 'shortText' => 'Des',
-                'text' => 'Desember'
+                'text' => 'Desember',
             ],
         ];
 
-        if (!$key)
+        if (! $key) {
             return $months;
+        }
+
         return $months[$key - 1];
     }
-    static function dateFormatIndo($completeDate, $short = false)
+
+    public static function dateFormatIndo($completeDate, $short = false)
     {
-        if (!$completeDate)
+        if (! $completeDate) {
             return '';
-        $exp = explode(" ", $completeDate);
+        }
+        $exp = explode(' ', $completeDate);
         $date = $exp[0];
         $time = $exp[1] ?? null;
         $timeText = '';
@@ -270,10 +284,11 @@ class MyHelper
         }
         $exDate = explode('-', $date);
         $month = $short ? self::getShortMonth($exDate[1])['shortText'] : self::getShortMonth($exDate[1])['text'];
+
         return "{$exDate[2]}-{$month}-{$exDate[0]} {$timeText}";
     }
 
-    static function getSatkerLevel($msSatkerId)
+    public static function getSatkerLevel($msSatkerId)
     {
         if ($msSatkerId == '00') {
             return 'KEJAGUNG';
@@ -284,7 +299,7 @@ class MyHelper
         }
     }
 
-    static function generateLogData($operation, $model)
+    public static function generateLogData($operation, $model)
     {
 
         $role = session('userData.current_role');
@@ -297,15 +312,16 @@ class MyHelper
             'table' => $model->getTable(),
             'keterangan' => $model::tableKet,
             'ip_address' => request()->ip(),
-            'user_agent' => request()->header('User-Agent')
+            'user_agent' => request()->header('User-Agent'),
         ];
+
         return $newLog;
     }
 
-    static function generateAssetpdf($view, $selectedColumns, $data, $defColumns, $judul)
+    public static function generateAssetpdf($view, $selectedColumns, $data, $defColumns, $judul)
     {
-        $filename = str_replace(" ", "_", strtolower($judul)) . '.pdf';
-        
+        $filename = str_replace(' ', '_', strtolower($judul)).'.pdf';
+
         // Handle different data formats
         $rows = [];
         if (isset($data['data'])) {
@@ -315,7 +331,7 @@ class MyHelper
                 $rows = $data['data'];
             }
         }
-        
+
         $pdf = LaravelMpdf::chunkLoadView('<html-separator/>', $view, [
             'headers' => $selectedColumns,
             'rows' => $rows,
@@ -324,12 +340,13 @@ class MyHelper
         ], [], [
             'title' => $judul,
             'format' => 'A4-L',
-            'orientation' => 'L'
+            'orientation' => 'L',
         ]);
+
         return $pdf->stream($filename);
     }
 
-    static function generateTahun($start = null, $end = null)
+    public static function generateTahun($start = null, $end = null)
     {
         $tahunEnd = $end ?? date('Y');
         $tahunMulai = $start ?? $tahunEnd - 5;
@@ -337,10 +354,11 @@ class MyHelper
         for ($i = (int) $tahunEnd; $i >= $tahunMulai; $i--) {
             $tahuns[] = (string) $i;
         }
+
         return $tahuns;
     }
 
-    static function generateSlug($inputString)
+    public static function generateSlug($inputString)
     {
         $urlFriendlyString = str_replace(' ', '-', strtolower($inputString));
 
@@ -351,7 +369,7 @@ class MyHelper
         return $urlFriendlyString;
     }
 
-    static function paginate($totalData, $pageSize = 15, $currentPage = 1)
+    public static function paginate($totalData, $pageSize = 15, $currentPage = 1)
     {
         $totalPages = ceil($totalData / $pageSize);
 
@@ -379,7 +397,6 @@ class MyHelper
         // <li class="page-item">
         //     <a href="#" class="page-link">→</a>
         // </li>
-
 
         // Generate the "Previous" link
         // if ($currentPage > 1) {
@@ -429,6 +446,7 @@ class MyHelper
             'totalPages' => $totalPages,
             // 'paginationElms' => $paginationLinks,
         ];
+
         // dd($paginationInfo);
         //
         return $paginationLinks;
@@ -447,52 +465,54 @@ class MyHelper
     // }
 
     //     }
-    static function isAdmin()
+    public static function isAdmin()
     {
         return session('userData.current_role.ms_role_id') == config('constants.admin_biro_lengkap_role_id');
     }
-    static function isSuperAdmin()
+
+    public static function isSuperAdmin()
     {
         return session('userData.current_role.ms_role_id') == config('constants.superadmin_role_id');
     }
 
-    static function isValidatorPusat()
+    public static function isValidatorPusat()
     {
         return session('userData.current_role.ms_role_id') == config('constants.validator_pusat_role_id');
     }
 
-    static function isValidatorWilayah()
+    public static function isValidatorWilayah()
     {
         return session('userData.current_role.ms_role_id') == config('constants.validator_wilayah_role_id');
     }
 
-    static function isPelaksanaSatker()
+    public static function isPelaksanaSatker()
     {
 
         return session('userData.current_role.ms_role_id') == config('constants.pelaksana_satker_role_id');
     }
 
-    static function getFotoMysimkari($foto)
+    public static function getFotoMysimkari($foto)
     {
-    $baseFoto = config('constants.mysimkari_foto');
+        $baseFoto = config('constants.mysimkari_foto');
 
-    if (empty($foto)) return '';
+        if (empty($foto)) {
+            return '';
+        }
 
-    // ✅ Cegah URL double
-    if (str_starts_with($foto, 'http://') || str_starts_with($foto, 'https://')) {
-        return $foto;
+        // ✅ Cegah URL double
+        if (str_starts_with($foto, 'http://') || str_starts_with($foto, 'https://')) {
+            return $foto;
+        }
+
+        return "{$baseFoto}{$foto}";
     }
 
-    return "{$baseFoto}{$foto}";
-}
-
-
-    static function money2int($duit)
+    public static function money2int($duit)
     {
         return str_replace('.', '', $duit);
     }
 
-    static function int2money($duit)
+    public static function int2money($duit)
     {
         return number_format($duit, 0, '', ',');
     }

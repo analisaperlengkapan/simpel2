@@ -18,11 +18,13 @@ Task 9.3 aims to verify the authenc-iam-api crate through unit tests, integratio
 ## 9.3.1 Unit Tests Status
 
 ### Current State
+
 - Test file exists: `crates/iam-api/tests/integration_tests.rs`
 - All tests are placeholder TODOs
 - Cannot run tests due to authenc-core compilation errors
 
 ### Planned Tests (from test file)
+
 1. ✅ `test_list_users_requires_auth` - Verify authentication required
 2. ✅ `test_list_users_with_valid_token` - Verify admin access works
 3. ✅ `test_create_user` - Test user creation endpoint
@@ -55,6 +57,7 @@ Task 9.3 aims to verify the authenc-iam-api crate through unit tests, integratio
 ## 9.3.2 Integration Tests Status
 
 ### Planned Integration Tests
+
 1. ❌ Test authenc-iam-api → authenc-core integration (all handlers call services)
 2. ❌ Test authenc-iam-api → authenc-storage integration (admin queries)
 3. ❌ Run end-to-end tests: Portal IAM Admin (mock) → authenc-iam-api → authenc-core → authenc-storage → PostgreSQL
@@ -68,12 +71,13 @@ Task 9.3 aims to verify the authenc-iam-api crate through unit tests, integratio
 ### authenc-iam-api Compilation
 
 ```bash
-$ cargo check --package authenc-iam-api
+cargo check --package authenc-iam-api
 ```
 
 **Result**: ✅ **SUCCESS** (with warnings only)
 
 **Warnings**:
+
 - 11 warnings in authenc-types (unused imports, ambiguous glob re-exports)
 - 1 warning in lib-common (unused imports)
 
@@ -82,7 +86,7 @@ $ cargo check --package authenc-iam-api
 ### authenc-core Compilation (Dependency)
 
 ```bash
-$ cargo check --package authenc-core
+cargo check --package authenc-core
 ```
 
 **Result**: ❌ **FAILED** - 127 compilation errors
@@ -90,6 +94,7 @@ $ cargo check --package authenc-core
 ### authenc-core Error Categories
 
 #### 1. Type Mismatches (Most Common)
+
 - **Issue**: `Option<Uuid>` vs `RealmId`, `UserId`, `SessionId` type mismatches
 - **Examples**:
   - `expected RealmId, found Option<Uuid>` (multiple occurrences)
@@ -99,6 +104,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~30 errors
 
 #### 2. Missing Struct Fields
+
 - **Issue**: Struct fields don't match between definition and usage
 - **Examples**:
   - `UpdateUserRequest` missing `password`, `mfa_enabled` fields
@@ -108,6 +114,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~20 errors
 
 #### 3. Missing Methods/Functions
+
 - **Issue**: Methods or associated functions don't exist
 - **Examples**:
   - `OAuth2Error::unauthorized_client` not found
@@ -121,6 +128,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~25 errors
 
 #### 4. Module Resolution Failures
+
 - **Issue**: Cannot find modules or operations
 - **Examples**:
   - `could not find operations in database` (multiple occurrences)
@@ -129,6 +137,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 5. Trait Implementation Issues
+
 - **Issue**: Missing trait implementations
 - **Examples**:
   - `From<CommonError>` not implemented for `AuthencError`
@@ -138,6 +147,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 6. Error Variant Mismatches
+
 - **Issue**: Error enum variants don't match
 - **Examples**:
   - `AuthencError::Forbidden` variant not found
@@ -149,6 +159,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 7. Password Hasher API Mismatch
+
 - **Issue**: Method names don't match
 - **Examples**:
   - `hash_password` not found (should be `hash`)
@@ -157,6 +168,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~5 errors
 
 #### 8. Miscellaneous
+
 - **Issue**: Various other type and API mismatches
 - **Impact**: ~7 errors
 
@@ -286,6 +298,7 @@ The router has been successfully created with 100+ endpoints organized into logi
 Task 9.3 cannot be completed until authenc-core compilation errors are resolved. The authenc-iam-api crate itself is correctly structured and compiles successfully, but it depends on authenc-core which has 127 compilation errors.
 
 ### What Works
+
 - ✅ authenc-iam-api crate structure
 - ✅ authenc-iam-api compilation (with warnings only)
 - ✅ Router with 100+ endpoints
@@ -293,12 +306,14 @@ Task 9.3 cannot be completed until authenc-core compilation errors are resolved.
 - ✅ Test file structure
 
 ### What's Blocked
+
 - ❌ Running unit tests (blocked by authenc-core errors)
 - ❌ Running integration tests (blocked by authenc-core errors)
 - ❌ Testing handler implementations (blocked by authenc-core errors)
 - ❌ Testing service integrations (blocked by authenc-core errors)
 
 ### Next Steps
+
 1. **User Decision Required**: Should we:
    - Option A: Fix authenc-core errors first, then return to Task 9.3
    - Option B: Document current state and mark Task 9.3 as "blocked"

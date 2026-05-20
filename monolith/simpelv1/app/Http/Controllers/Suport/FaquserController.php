@@ -15,20 +15,22 @@ class FaquserController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Suport', 'FAQ'];
+
     public function index()
     {
         $faq = $this->indexData();
+
         return view('suport.faq.faquserV', ['faq' => $faq, 'tableId' => 'dt-kritik', 'breadcums' => $this->breadcums]);
     }
 
-    function indexData($plaftorm = 'WEB')
+    public function indexData($plaftorm = 'WEB')
     {
         return Faquser::where(['status' => 'Aktif', 'platform' => strtoupper($plaftorm)])->get()->toArray();
     }
 
     public function gridData(Request $request)
     {
-        $model = new Faquser();
+        $model = new Faquser;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
@@ -40,7 +42,7 @@ class FaquserController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -48,7 +50,7 @@ class FaquserController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Faquser::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -79,12 +81,14 @@ class FaquserController extends Controller
                 'selected' => $model['status'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
     public function create()
     {
         $data = $this->getData();
+
         return view('suport.faq.faqFormV', $data);
     }
 
@@ -92,10 +96,10 @@ class FaquserController extends Controller
     {
         $request->validate([
             'pertanyaan' => 'required',
-            'jawaban' => 'required'
+            'jawaban' => 'required',
         ]);
 
-        //dd($request->all());
+        // dd($request->all());
 
         $data['pertanyaan'] = $request->pertanyaan;
         $data['jawaban'] = $request->jawaban;
@@ -107,18 +111,21 @@ class FaquserController extends Controller
 
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'suport_kritik_seq');
         Faquser::updateOrCreate(['id' => $id], $data);
+
         return $this->resSuccess();
     }
 
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('suport.faq.faqFormV', $data);
     }
 
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('suport.faq.faqFormV', $data);
     }
 
@@ -133,10 +140,10 @@ class FaquserController extends Controller
             DB::beginTransaction();
             Faquser::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
 }

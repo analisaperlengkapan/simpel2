@@ -9,7 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Cross-Tab Session Validator Middleware
- * 
+ *
  * Detects if session was invalidated by logout in another tab
  * by checking if localStorage logout_event was triggered
  */
@@ -38,7 +38,7 @@ class ValidateCrossTabSession
             if ($request->expectsJson()) {
                 return response()->json([
                     'error' => 'Session invalidated from another tab',
-                    'code'  => 'SESSION_INVALIDATED',
+                    'code' => 'SESSION_INVALIDATED',
                 ], 401);
             }
 

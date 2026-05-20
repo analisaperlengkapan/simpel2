@@ -19,12 +19,15 @@ class NotifikasiManualController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Bantuan', 'Pengaturan Notifikasi', 'Pengiriman Notifikasi manual'];
+
     protected $controller = 'suport/notifikasi-manual';
+
     public function index()
     {
 
         $columns = ['Username', 'Judul', 'Tanggal', 'Isi', 'Role', 'Aktif'];
         $defColumns = array_keys($columns);
+
         return view('suport.pengaturan_notifikasi.notifikasiManualV', [
             'columns' => $columns,
             'defColumns' => $defColumns,
@@ -35,7 +38,7 @@ class NotifikasiManualController extends Controller
         ]);
     }
 
-    function canCreate()
+    public function canCreate()
     {
         return in_array(session('userData.current_role.ms_role_id'), [
             config('constants.validator_pusat_role_id'),
@@ -46,10 +49,11 @@ class NotifikasiManualController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new NotifikasiManual();
+        $model = new NotifikasiManual;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -57,7 +61,7 @@ class NotifikasiManualController extends Controller
         ]);
     }
 
-    function getData($id = null, $isRaw = false)
+    public function getData($id = null, $isRaw = false)
     {
         $model = [];
         $isNew = true;
@@ -65,7 +69,7 @@ class NotifikasiManualController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = NotifikasiManual::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -85,8 +89,9 @@ class NotifikasiManualController extends Controller
                 'text' => 'name',
                 'type' => $isRaw ? 'raw' : null,
                 'selected' => $selectedRole ?? null,
-            ])
+            ]),
         ];
+
         return $data;
 
     }
@@ -103,10 +108,10 @@ class NotifikasiManualController extends Controller
             [
                 'judul' => 'required',
                 'isi' => 'required',
-                'ms_role_id' => 'required|array|min:1'
+                'ms_role_id' => 'required|array|min:1',
             ],
             [
-                'ms_role_id.required' => 'Role harus Pilih minimal 1'
+                'ms_role_id.required' => 'Role harus Pilih minimal 1',
             ]
         );
         $data = $request->input();
@@ -125,6 +130,7 @@ class NotifikasiManualController extends Controller
         }
 
         $notif = NotifikasiManualTarget::insert($targets);
+
         return $this->resSuccess();
     }
 
@@ -135,10 +141,8 @@ class NotifikasiManualController extends Controller
 
     }
 
-    public function edit(string $id)
-    {
+    public function edit(string $id) {}
 
-    }
     public function update(Request $request)
     {
         //
@@ -150,21 +154,24 @@ class NotifikasiManualController extends Controller
             DB::beginTransaction();
             Review::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
 
-    public function getByRole(int $msRoleId = null)
+    public function getByRole(?int $msRoleId = null)
     {
         $notifikasiManual = NotifikasiManual::getRoleNotif($msRoleId);
+
         return response()->json($notifikasiManual);
     }
 
-    public function getOne(string $msRoleId = null)
+    public function getOne(?string $msRoleId = null)
     {
         $notifikasiManual = NotifikasiManual::getRoleNotif($msRoleId);
+
         return response()->json($notifikasiManual);
     }
 
@@ -177,5 +184,4 @@ class NotifikasiManualController extends Controller
     {
         return response()->json($this->getData($id, true));
     }
-
 }

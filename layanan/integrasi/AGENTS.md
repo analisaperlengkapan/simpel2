@@ -11,6 +11,7 @@
 ## 🌍 Service Context
 
 **Layanan Integrasi** adalah microservice Rust yang mengintegrasikan 3 API eksternal pemerintah Indonesia:
+
 - **MonSAKTI v1.4**: 8 modules (ADM, ANG, AST, BEN, GLP, KOM, PEM, PER)
 - **MySIMKARI**: Sistem Informasi Manajemen Kepegawaian Kejaksaan RI
 - **SIMAN v2.0**: Sistem Informasi Manajemen Aset Negara (Kemenkeu)
@@ -159,18 +160,43 @@ let tanah = integrasi_client.get_siman_tanah(None, 1, 100).await?;
 
 ## 🚀 Kubernetes Deployment
 
-This service has **two deployments**:
+This service has **two workload types**:
 
-### 1. CronJob (Batch Sync)
-- **Schedule:** Every 6 hours (`0 */6 * * *`)
-- **Purpose:** Sync data from external APIs to database
-- **Image:** `layanan-integrasi:staging`
+### 1. gRPC Server Deployment
 
-### 2. Deployment (gRPC Server)
-- **Replicas:** 2
-- **Port:** 50051 (gRPC)
-- **Purpose:** Serve data to other backend services
-- **Image:** `layanan-integrasi-grpc:staging`
+- **Replicas:** 1 (staging) / 2 (production HA)
+- **Port:** 50051 (gRPC), 8080 (HTTP monitoring)
+- **Purpose:** Serve data to other backend services + admin manual trigger
+- **Image:** `ghcr.io/analisaperlengkapan/simpel2/layanan-integrasi:v0.1.0` (semver immutable)
+
+### 2. CronJob per Provider (Batch Sync)
+
+Scheduler binary dipanggil oneshot per CronJob (bukan daemon idle). 1 CronJob per provider:
+
+| Provider | Schedule | Time Zone | Staging | Production |
+|----------|----------|-----------|---------|------------|
+| **SIMAN** | `0 4 * * 0` (Minggu 04:00 WIB) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **MySIMKARI** | `0 */6 * * *` (tiap 6 jam) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+| **MonSAKTI** | `0 3 * * *` (tiap hari 03:00 WIB) | Asia/Jakarta | `suspend: true` | `suspend: false` |
+
+**Staging suspend=true** karena rate-limit token API eksternal yang dipakai bersama production scheduler. Penarikan data di staging dilakukan **manual** untuk testing:
+
+```bash
+# Trigger satu sync via CronJob ad-hoc (best practice K8s)
+kubectl -n simpelv2-staging create job --from=cronjob/layanan-integrasi-mysimkari manual-$(date +%s)
+kubectl -n simpelv2-staging wait --for=condition=complete job/manual-XXXX --timeout=10m
+kubectl -n simpelv2-staging logs job/manual-XXXX --tail=200
+```
+
+### 3. Token API (Zero-Trust)
+
+**Token API SIMAN/MonSAKTI/MySIMKARI** WAJIB dari **Secreton** (`kv/integrasi/tokens/<provider>/*`), **bukan** dari k8s Secret atau env langsung. Saat `secretonAuth.enabled=true`:
+
+- Pod auth ke Secreton via SA token (audience `secreton`).
+- Fetch token dari `kv/integrasi/tokens/{siman,mysimkari,monsakti}/*`.
+- Gunakan token untuk reqwest call ke API eksternal.
+
+Idealnya: **token staging berbeda dari token production** (request ke vendor untuk token terpisah jika provider mendukung). Jika tidak, jadwalkan manual trigger staging di luar jam puncak production scheduler.
 
 ## 📏 Critical Conventions
 
@@ -213,6 +239,7 @@ pub struct Config {
 ```
 
 **Environment Variables (`.env`):**
+
 ```bash
 # MonSAKTI
 MONSAKTI_BASE_URL=https://monsakti.kemenkeu.go.id/sitp-monsakti-omspan/webservice
@@ -362,6 +389,7 @@ pub async fn bulk_insert_postgres(
 ```
 
 **Key Points:**
+
 - Tables created dynamically: `{module}_{endpoint}`
 - JSONB `raw_data` column stores full API response
 - `api_id BIGINT UNIQUE` prevents duplicates
@@ -534,6 +562,7 @@ LIMIT 10;
 ## ⚠️ Common Pitfalls
 
 ### ❌ DON'T
+
 1. Hard-code API tokens → use `config.tokens.get("ADM")?`
 2. Call APIs tanpa audit logging → gunakan `client.fetch()` (auto-logs)
 3. Lupa handle token expiry → `client.fetch()` auto-retry pada 403
@@ -541,6 +570,7 @@ LIMIT 10;
 5. Jalankan scheduler tanpa error handling → `match` per-job, jangan `?` langsung
 
 ### ✅ DO
+
 1. **Use Config::from_env()** for all configuration
 2. **Use MonsaktiClient methods** for API calls (auto-logging, retry)
 3. **Store full responses in JSONB** `raw_data`
@@ -555,6 +585,7 @@ LIMIT 10;
 **Problem:** Token expired or lacks permissions
 
 **Solution:**
+
 1. Check token health: `SELECT * FROM integrasi.v_token_health;`
 2. Get fresh token from MonSAKTI portal
 3. Update `.env`: `MONSAKTI_TOKEN_ADM=new_token`
@@ -565,6 +596,7 @@ LIMIT 10;
 **Problem:** Client credentials invalid
 
 **Solution:**
+
 ```bash
 # Test OAuth2 manually
 curl -X POST https://sso.kemenkeu.go.id/connect/token \
@@ -581,6 +613,7 @@ echo $SIMAN_BA_KEY  # Should match your unit
 **Problem:** Too many concurrent queries
 
 **Solution:**
+
 ```rust
 // In .env
 DATABASE_POOL_SIZE=20  # Increase from 10
@@ -596,6 +629,7 @@ for chunk in satker_list.chunks(10) {
 **Problem:** `SCHEDULER_ENABLED=false` or invalid cron expression
 
 **Solution:**
+
 ```bash
 # Check logs
 cargo run --bin scheduler

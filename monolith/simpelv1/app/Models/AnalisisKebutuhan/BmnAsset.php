@@ -7,12 +7,13 @@ namespace App\Models\AnalisisKebutuhan;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 
 class BmnAsset extends Model
 {
-    use HasFactory, Blameable;
+    use Blameable, HasFactory;
+
     protected $table = 'pengajuan_kebutuhan_bmn_asset';
+
     /**
      * The attributes that are mass assignable.
      *

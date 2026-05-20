@@ -4,7 +4,7 @@ API MySIMKARI
 
 Endpoint: https://mysimkari.kejaksaan.go.id/api/anbut/get-satker
 Auth Type: Bearer Token
-Sample data tarikan: 
+Sample data tarikan:
 {
     "status": "200",
     "message": "Berhasil",
@@ -64,7 +64,7 @@ Sample data tarikan:
 2. Kemudian tarik data pegawai dari setiap satker
 Endpoint: https://mysimkari.kejaksaan.go.id/api/anbut/pegawai-satker/[id dari get-satker]
 Auth Type: Bearer Token
-Sample data tarikan: 
+Sample data tarikan:
 {
     "status": "200",
     "message": "Berhasil",
@@ -123,5 +123,3 @@ Sample data tarikan:
             "nama_satker": "KEJAKSAAN AGUNG",
             "GOL_KD": "IV/a"
         },
-
-

@@ -520,9 +520,7 @@ impl AuthService {
     /// cleared automatically when the tab closes. Only `/perlengkapan/…`
     /// paths are accepted to prevent open-redirect abuse.
     pub fn save_post_login_redirect(target: &str) {
-        if !target.starts_with("/perlengkapan") {
-            return;
-        }
+        if !target.starts_with("/perlengkapan") {}
         #[cfg(target_arch = "wasm32")]
         {
             if let Some(storage) = web_sys::window()

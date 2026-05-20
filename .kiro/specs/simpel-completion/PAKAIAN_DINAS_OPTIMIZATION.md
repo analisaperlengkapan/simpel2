@@ -7,6 +7,7 @@ After analyzing the existing Laravel implementation in `simpel_laravel` and `sim
 ## Current Implementation Analysis
 
 ### Strengths
+
 1. **Complete workflow**: 3-level hierarchical approval (Kejari → Kejati → Kejagung)
 2. **Comprehensive reporting**: Laporan Daftar (individual) and Laporan Rekap (aggregated)
 3. **Performance optimization**: Uses CTE-based SQL queries
@@ -14,6 +15,7 @@ After analyzing the existing Laravel implementation in `simpel_laravel` and `sim
 5. **Proper database schema**: 8 tables with relationships and indexes
 
 ### Issues Found
+
 1. **Satker selection**: Uses string matching (`LIKE '0200%'`) instead of proper hierarchical structure
 2. **Mixed ID types**: Uses both `inst_satkerkd` (string) and UUID inconsistently
 3. **Complex pusat handling**: `ms_satker_pusat_id` and `is_pusat` flag creates confusion
@@ -25,12 +27,14 @@ After analyzing the existing Laravel implementation in `simpel_laravel` and `sim
 ### 1. Satker Selection - MonSAKTI Wilayah Structure
 
 **Current Approach (Laravel):**
+
 ```php
 // String matching - fragile and inefficient
 $satkerQ->where('inst_satkerkd', 'like', "{$kdSatker}%");
 ```
 
 **Optimized Approach (Rust):**
+
 ```rust
 // Use MonSAKTI wilayah hierarchy (2-level tree)
 // Level 1: Wilayah codes (0100=Kejagung, 0200=Jawa Barat, 3400=Sulawesi Barat)
@@ -73,6 +77,7 @@ impl SatkerSelectionTree {
 ```
 
 **Benefits:**
+
 - Clear hierarchical structure (2 levels, not 4)
 - No string matching - uses proper codes
 - Efficient parent-child selection
@@ -81,12 +86,14 @@ impl SatkerSelectionTree {
 ### 2. Workflow State Machine
 
 **Current Approach (Laravel):**
+
 ```php
 // State transitions scattered across controller methods
 // No clear validation of allowed transitions
 ```
 
 **Optimized Approach (Rust):**
+
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorkflowState {
@@ -169,6 +176,7 @@ pub async fn transition_state(
 ```
 
 **Benefits:**
+
 - Type-safe state transitions
 - Clear validation rules
 - Centralized transition logic
@@ -177,6 +185,7 @@ pub async fn transition_state(
 ### 3. Master Data Update (UPSERT Logic)
 
 **Current Approach (Laravel):**
+
 ```php
 // Delete then insert - not atomic
 PegawaiPakaianDinas::whereIn('nip', $nips)->delete();
@@ -184,6 +193,7 @@ DB::table('pegawai_pakaian_dinas')->insert($data);
 ```
 
 **Optimized Approach (Rust):**
+
 ```rust
 pub async fn update_master_data(&self, pengajuan_satker_id: Uuid) -> Result<()> {
     let pegawai_data = self.get_pegawai_with_ukuran(pengajuan_satker_id).await?;
@@ -234,6 +244,7 @@ pub async fn update_master_data(&self, pengajuan_satker_id: Uuid) -> Result<()> 
 ```
 
 **Benefits:**
+
 - Atomic operation (no delete-then-insert race condition)
 - Batch processing for performance
 - Proper audit trail
@@ -242,12 +253,14 @@ pub async fn update_master_data(&self, pengajuan_satker_id: Uuid) -> Result<()> 
 ### 4. Reporting Optimization
 
 **Current Approach (Laravel):**
+
 ```php
 // Good: Uses CTE-based SQL
 // Issue: No caching, generates on every request
 ```
 
 **Optimized Approach (Rust):**
+
 ```rust
 pub struct ReportService {
     db_pool: deadpool_postgres::Pool,
@@ -336,6 +349,7 @@ impl ReportService {
 ```
 
 **Benefits:**
+
 - 5-minute cache TTL reduces database load
 - Efficient Excel generation with rust_xlsxwriter
 - Same CTE-based SQL as Laravel (proven performance)
@@ -391,6 +405,7 @@ impl ReportService {
 ## Conclusion
 
 The optimized approach maintains the strengths of the Laravel implementation while addressing its weaknesses:
+
 - **Better structure**: MonSAKTI wilayah hierarchy instead of string matching
 - **Type safety**: Workflow state machine with compile-time validation
 - **Performance**: Caching, batch operations, efficient SQL

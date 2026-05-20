@@ -16,6 +16,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPEL:
 ## 🏗️ **Architecture**
 
 ### **🔐 Security Stack**
+
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │   API Gateway   │    │  Security Svc   │
@@ -30,6 +31,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPEL:
 ```
 
 ### **🦀 Technology Stack**
+
 - **Language**: Rust (Axum web framework)
 - **Authentication**: JWT + Argon2 + TOTP
 - **Database**: PostgreSQL dengan SQLx
@@ -39,6 +41,7 @@ Layanan Keamanan menyediakan sistem keamanan yang komprehensif untuk SIMPEL:
 ## 🚀 **Quick Start**
 
 ### **Prerequisites**
+
 - Rust 1.75+
 - PostgreSQL 15+
 - Secreton
@@ -83,6 +86,7 @@ docker run -d \
 ## 📡 **API Endpoints**
 
 ### **🔐 Authentication**
+
 ```http
 POST /auth/login
 POST /auth/logout
@@ -92,6 +96,7 @@ POST /auth/mfa/verify
 ```
 
 ### **👥 User Management**
+
 ```http
 GET  /users/me
 GET  /users/{id}
@@ -101,6 +106,7 @@ DELETE /users/{id}
 ```
 
 ### **🎭 Role Management**
+
 ```http
 GET  /roles
 POST /roles
@@ -109,6 +115,7 @@ DELETE /roles/{id}
 ```
 
 ### **🔑 Permission Management**
+
 ```http
 GET  /permissions
 POST /permissions
@@ -117,6 +124,7 @@ DELETE /permissions/{id}
 ```
 
 ### **📊 Audit & Monitoring**
+
 ```http
 GET  /audit/logs
 GET  /audit/analytics
@@ -126,6 +134,7 @@ GET  /security/health
 ## 🔧 **Configuration**
 
 ### **Environment Variables**
+
 ```env
 # Database
 DATABASE_URL=postgres://user:pass@host:5432/simpelv2
@@ -152,6 +161,7 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 ## 🗄️ **Database Schema**
 
 ### **Core Tables**
+
 - `users`: User accounts dan credentials
 - `roles`: Role definitions
 - `permissions`: Permission definitions
@@ -162,6 +172,7 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 - `failed_logins`: Brute force protection
 
 ### **Security Features**
+
 - **Immutable Audit Logs**: Hash-based integrity
 - **Automatic Timestamps**: Created/updated tracking
 - **Foreign Key Constraints**: Data integrity
@@ -170,6 +181,7 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 ## 🔐 **Security Features**
 
 ### **JWT Authentication**
+
 ```rust
 // Generate JWT token
 let token = auth_service.generate_access_token(&user, &roles, &permissions)?;
@@ -179,6 +191,7 @@ let claims = auth_service.verify_token(token)?;
 ```
 
 ### **MFA Implementation**
+
 ```rust
 // Setup MFA
 let mfa_response = auth_service.setup_mfa(user_id)?;
@@ -188,6 +201,7 @@ let is_valid = auth_service.verify_mfa(secret, code)?;
 ```
 
 ### **RBAC Authorization**
+
 ```rust
 // Check permission
 let has_access = rbac_service.check_permission(user_id, "read:users")?;
@@ -197,6 +211,7 @@ let is_authorized = rbac_service.validate_access(user_id, "users", "read")?;
 ```
 
 ### **Vault Integration**
+
 ```rust
 // Get secret from Vault
 let secret = vault_client.get_secret("database/credentials").await?;
@@ -208,12 +223,14 @@ let new_secret = vault_client.rotate_secret("api/keys").await?;
 ## 📊 **Performance Metrics**
 
 ### **🔐 Security Performance**
+
 - **JWT Generation**: ~1ms per token
 - **Password Verification**: ~10ms per verification
 - **MFA Verification**: ~5ms per code
 - **Audit Logging**: ~2ms per log entry
 
 ### **📈 Scalability**
+
 - **Concurrent Users**: 1000+ users
 - **Token Validation**: 10000+ requests/second
 - **Audit Logging**: 10000+ events/minute
@@ -222,18 +239,21 @@ let new_secret = vault_client.rotate_secret("api/keys").await?;
 ## 🔒 **Security Best Practices**
 
 ### **Code Security**
+
 - **Memory Safety**: Rust's ownership system
 - **No Runtime**: No garbage collection overhead
 - **Type Safety**: Compile-time error checking
 - **Zero-cost Abstractions**: High performance
 
 ### **Operational Security**
+
 - **Principle of Least Privilege**: Minimal permissions
 - **Defense in Depth**: Multiple security layers
 - **Secure by Default**: Safe defaults
 - **Regular Updates**: Security patches
 
 ### **Compliance**
+
 - **ISO 27001**: Information security management
 - **PCI DSS**: Payment card industry standards
 - **GDPR**: Data protection regulations
@@ -242,6 +262,7 @@ let new_secret = vault_client.rotate_secret("api/keys").await?;
 ## 📈 **Monitoring & Observability**
 
 ### **Health Checks**
+
 ```bash
 # Service health
 curl http://localhost:3001/health
@@ -254,6 +275,7 @@ curl http://localhost:3001/health/vault
 ```
 
 ### **Metrics**
+
 - Authentication success/failure rates
 - Token generation/validation metrics
 - MFA usage statistics
@@ -261,6 +283,7 @@ curl http://localhost:3001/health/vault
 - Security event counts
 
 ### **Logging**
+
 ```rust
 // Structured logging
 info!("User logged in successfully", user_id = user.id);
@@ -270,16 +293,19 @@ error!("Failed login attempt", username = username, ip = ip);
 ## 🧪 **Testing**
 
 ### **Unit Tests**
+
 ```bash
 cargo test
 ```
 
 ### **Integration Tests**
+
 ```bash
 cargo test --test integration
 ```
 
 ### **Security Tests**
+
 ```bash
 # Run security scan
 cargo audit
@@ -291,12 +317,13 @@ cargo fuzz run
 ## 🔄 **CI/CD**
 
 ### **GitHub Actions**
+
 ```yaml
 name: Security Service CI
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -310,6 +337,7 @@ jobs:
 ## 🤝 **Integration**
 
 ### **Service Integration**
+
 ```rust
 // AI service integration
 let auth_result = security_service.validate_token(token).await?;
@@ -322,6 +350,7 @@ notification_service.send_security_alert(security_event).await?;
 ```
 
 ### **External Integrations**
+
 - **Secreton**: Secret management
 - **LDAP/Active Directory**: Enterprise authentication
 - **SAML/OAuth**: Single sign-on
@@ -330,11 +359,13 @@ notification_service.send_security_alert(security_event).await?;
 ## 📚 **Documentation**
 
 ### **API Documentation**
+
 - **OpenAPI 3.0**: Interactive API docs
 - **Postman Collection**: API testing
 - **Example Requests**: Sample API calls
 
 ### **Security Documentation**
+
 - **Security Architecture**: Detailed security design
 - **Compliance Guides**: ISO, PCI DSS compliance
 - **Audit Procedures**: Forensic investigation guides
@@ -342,12 +373,14 @@ notification_service.send_security_alert(security_event).await?;
 ## 🆘 **Support**
 
 ### **Getting Help**
+
 - **Documentation**: Comprehensive guides
 - **Issues**: GitHub issue tracker
 - **Discussions**: Community forum
 - **Security**: Responsible disclosure
 
 ### **Contact**
+
 - **Email**: security@simpelv2.go.id
 - **Slack**: #simpelv2-security
 - **GitHub**: Issues dan discussions

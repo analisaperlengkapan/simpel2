@@ -4,18 +4,15 @@ namespace App\Http\Controllers\Bmn\Penghapusan;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
+use App\Models\ApprovalUserSpseSirup as Approval;
 use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmn;
+use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmn as Model;
+use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAktifitas as Aktifitas;
 use App\Models\Bmn\PenghapusanSk;
-use App\Models\Master;
+use App\Models\Master\MsSatker;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmn as Model;
-use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAktifitas as Aktifitas;
-use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAsset as Asset;
-use App\Models\Bmn\PengajuanPenghapusanBmn\PengajuanPenghapusanBmnAssetFile as File;
-use App\Models\ApprovalUserSpseSirup as Approval;
-use App\Models\Master\MsSatker;
 
 class PenghapusanMonitorController extends Controller
 {
@@ -23,19 +20,23 @@ class PenghapusanMonitorController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Monitoring Penghapusan'];
+
     protected $controller = '/bmn/penghapusan/penghapusanmonitor';
+
     public function index()
     {
-        $data = ['tableId' => 'dt-penghapusan', 'breadcums' => $this->breadcums,'controller'=>$this->controller];
+        $data = ['tableId' => 'dt-penghapusan', 'breadcums' => $this->breadcums, 'controller' => $this->controller];
+
         return view('bmn.penghapusansk.monitor.pengajuanV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new PengajuanPenghapusanBmn();
+        $model = new PengajuanPenghapusanBmn;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGridDetail($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -43,7 +44,7 @@ class PenghapusanMonitorController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -52,7 +53,7 @@ class PenghapusanMonitorController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -65,6 +66,7 @@ class PenghapusanMonitorController extends Controller
             'controller' => $this->controller,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
@@ -74,6 +76,7 @@ class PenghapusanMonitorController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.penghapusansk.penghapusanFormV', $data);
     }
 
@@ -96,10 +99,10 @@ class PenghapusanMonitorController extends Controller
             'tgl_surat' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SK harus diupload';
-        }else{
+        } else {
 
         }
         $request->validate($validate, $customMessages);
@@ -123,10 +126,12 @@ class PenghapusanMonitorController extends Controller
             PenghapusanSk::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -139,28 +144,28 @@ class PenghapusanMonitorController extends Controller
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $model->ms_aktifitas_id;
-        $whereAct = ['ms_aktifitas_id' => $msAktifitasId,'group'=>'BMN'];
+        $whereAct = ['ms_aktifitas_id' => $msAktifitasId, 'group' => 'BMN'];
         $aktifitasHistories = Aktifitas::getDetail($model->id);
         $aktifitasOptions = Approval::getAktifitas($whereAct);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
@@ -174,6 +179,7 @@ class PenghapusanMonitorController extends Controller
             'breadcums' => array_merge($this->breadcums, ['Pengajuan']),
             'isNew' => $isNew,
         ];
+
         return view('bmn.penghapusansk.monitor.pengajuanFormSatkerIsiV', $data);
     }
 
@@ -183,6 +189,7 @@ class PenghapusanMonitorController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.penghapusansk.penghapusanFormV', $data);
     }
 
@@ -203,20 +210,19 @@ class PenghapusanMonitorController extends Controller
             DB::beginTransaction();
             PenghapusanSk::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
 
-
-
     public function cetakLabel($id)
     {
         $data = PenghapusanSk::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

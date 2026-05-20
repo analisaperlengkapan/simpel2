@@ -5,10 +5,12 @@ Frontend pages for BMN needs analysis workflow.
 ## Pages
 
 ### 1. Period Management (`period_management.rs`)
+
 **Actor:** Validator Pusat
 **Status:** Planned (not yet implemented)
 
 Allows Validator Pusat to:
+
 - Create kebutuhan BMN periods
 - Select eligible BMN items
 - Select eligible satkers
@@ -19,10 +21,12 @@ Allows Validator Pusat to:
 ---
 
 ### 2. Submission Form (`submission_form.rs`)
+
 **Actor:** Operator Satker
 **Status:** ✅ Implemented
 
 Allows Operator Satker to:
+
 - View active pengajuan period information
 - Add BMN items with justification (required per REQ-K005)
 - Upload supporting documents (surat permohonan and attachments per REQ-K006)
@@ -32,6 +36,7 @@ Allows Operator Satker to:
 **Requirements:** REQ-K004, REQ-K005, REQ-K006, REQ-K007, REQ-K017
 
 **API Endpoints Used:**
+
 - `GET /api/v1/kebutuhan-bmn/pengajuan?status_kode=2001` - Fetch active pengajuan
 - `GET /api/v1/kebutuhan-bmn/pengajuan/{id}/satker` - Fetch satker detail
 - `GET /api/v1/kebutuhan-bmn/satker/{id}` - Fetch barang items
@@ -39,6 +44,7 @@ Allows Operator Satker to:
 - `POST /api/v1/kebutuhan-bmn/satker/{id}/submit-wilayah` - Submit to Validator Wilayah
 
 **Components Used:**
+
 - `Card` - Layout container from lib-ui
 - `Alert` - Error/success messages from lib-ui
 - `Spinner` - Loading indicator from lib-ui
@@ -48,11 +54,13 @@ Allows Operator Satker to:
 - `FileUpload` - File upload with preview from lib-ui
 
 **State Management:**
+
 - Uses Leptos 0.8.x `signal()` pattern (NOT `create_signal()`)
 - Reactive state for form inputs, loading, errors, and success messages
 - Async data fetching with `spawn_local`
 
 **Validation:**
+
 - Nama barang required
 - Justifikasi required (REQ-K005)
 - Jumlah must be > 0
@@ -60,6 +68,7 @@ Allows Operator Satker to:
 - Minimum 1 barang item before submission
 
 **File Upload:**
+
 - Supports multiple files
 - Accepted formats: PDF, DOC, DOCX, JPG, PNG
 - Shows file preview
@@ -70,11 +79,13 @@ Allows Operator Satker to:
 ## Architecture
 
 ### Communication Pattern
+
 - **Frontend → Backend:** REST API (JSON/HTTP)
 - **NO direct gRPC calls** from frontend (per AGENTS.md)
 - All API calls use `gloo_net::http::Request`
 
 ### Leptos 0.8.x Patterns
+
 ```rust
 // ✅ Correct: Use signal()
 let (count, set_count) = signal(0);
@@ -84,12 +95,14 @@ let (count, set_count) = create_signal(0);
 ```
 
 ### Error Handling
+
 - Network errors caught and displayed to user
 - HTTP errors (non-200 status) caught and displayed
 - Parse errors caught and displayed
 - Validation errors shown before API calls
 
 ### Loading States
+
 - Global loading indicator during API calls
 - Disabled buttons during loading
 - Prevents duplicate submissions
@@ -99,6 +112,7 @@ let (count, set_count) = create_signal(0);
 ## TODO
 
 ### High Priority
+
 1. **File Upload Implementation** - Complete the file upload to server
    - POST /api/v1/kebutuhan-bmn/pengajuan/{id}/attachments
    - Handle upload progress
@@ -123,6 +137,7 @@ let (count, set_count) = create_signal(0);
    - Generate analysis reports
 
 ### Medium Priority
+
 5. **Routing Integration** - Add routes to main app router
 6. **Authentication** - Integrate with Authenc for role-based access
 7. **Notifications** - Show real-time notifications on workflow transitions
@@ -130,6 +145,7 @@ let (count, set_count) = create_signal(0);
 9. **Search/Filter** - Add search and filter for barang items
 
 ### Low Priority
+
 10. **Offline Support** - Cache data for offline viewing
 11. **Export** - Export barang list to Excel/PDF
 12. **Bulk Operations** - Bulk add/delete barang items
@@ -139,6 +155,7 @@ let (count, set_count) = create_signal(0);
 ## Testing
 
 ### Manual Testing Checklist
+
 - [ ] Load active pengajuan successfully
 - [ ] Display period information correctly
 - [ ] Add barang item with all fields
@@ -155,11 +172,13 @@ let (count, set_count) = create_signal(0);
 - [ ] Success messages display correctly
 
 ### Unit Tests (TODO)
+
 - Test form validation logic
 - Test API response parsing
 - Test state management
 
 ### Integration Tests (TODO)
+
 - Test complete submission workflow
 - Test file upload workflow
 - Test error handling

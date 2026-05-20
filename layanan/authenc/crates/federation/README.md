@@ -17,22 +17,26 @@ This crate implements federation and SSO features:
 ## Supported Providers
 
 ### OIDC
+
 - Google
 - Microsoft Azure AD
 - Generic OIDC providers
 
 ### SAML
+
 - SAML 2.0 compliant identity providers
 - SP-initiated and IdP-initiated SSO
 - Single Logout (SLO)
 
 ### LDAP (Optional)
+
 - Active Directory
 - OpenLDAP
 
 ## Requirements
 
 Implements requirements:
+
 - REQ-FED-001 (External identity providers)
 - REQ-FED-002 (Identity brokering)
 - REQ-FED-003 (SSO flows)

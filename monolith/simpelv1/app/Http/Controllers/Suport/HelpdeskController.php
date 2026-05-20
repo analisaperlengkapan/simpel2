@@ -17,18 +17,23 @@ class HelpdeskController extends Controller
      * Display a listing of the resource.
      */
     protected $kategoriJudul = 'Bantuan';
-    //protected $breadcums = ['Bantuan', 'Ajukan Tiket'];
+
+    // protected $breadcums = ['Bantuan', 'Ajukan Tiket'];
     protected $controller = '/suport/helpdesk';
+
     protected $breadcums = ['Suport'];
+
     protected $columns = ['Tgl Tiket', 'ID Tiket', 'User', 'Topik', 'Judul',  'Status'];
+
     protected $defColumns = [0, 1, 2, 3, 4, 5, 6];
-    //protected $breadcums = ['Suport', 'Panduan'];
+    // protected $breadcums = ['Suport', 'Panduan'];
 
     public function __construct()
     {
         $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Helpdesk']]);
 
     }
+
     public function index()
     {
         if (session('userData.current_role.ms_satker_id_keu')) {
@@ -45,6 +50,7 @@ class HelpdeskController extends Controller
             'Status',
         ];
         $defColumns = [0, 1, 2, 3, 4, 5];
+
         return view('suport.helpdesk.helpdeskV', [
             'tableId' => 'dt-helpdesk',
             'kategoriJudul' => $this->kategoriJudul,
@@ -53,21 +59,24 @@ class HelpdeskController extends Controller
             'defColumns' => $defColumns,
             'controller' => $this->controller,
             'candelete' => $isdelete,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ]);
     }
+
     protected function canCreatePermintaan()
     {
         // return true;
         return in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'));
     }
+
     public function gridData(Request $request)
     {
-        $model = new Helpdesk();
+        $model = new Helpdesk;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -75,7 +84,7 @@ class HelpdeskController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -89,7 +98,7 @@ class HelpdeskController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Helpdesk::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -137,18 +146,21 @@ class HelpdeskController extends Controller
                 'selected' => $model['status'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
     public function create()
     {
         $data = $this->getData();
+
         return view('suport.helpdesk.helpdeskFormV', $data);
     }
 
     public function getTopik()
     {
         $data = Master::gettopik();
+
         return response()->json($data);
     }
 
@@ -159,16 +171,15 @@ class HelpdeskController extends Controller
             'topik' => 'required',
             // 'tgl_pengajuan' => 'required',
             // 'deskripsi' => 'required',
-            //'image' => 'image|mimes:png,jpg|max:1024'
+            // 'image' => 'image|mimes:png,jpg|max:1024'
         ]);
 
-        //dd($request->all())
+        // dd($request->all())
         $image = 'no image';
         if ($request->file('image')) {
             $image = $request->file('image')->store('helpdesk-image');
 
         }
-
 
         $data['judul'] = $request->judul;
         $data['topik'] = $request->topik;
@@ -190,6 +201,7 @@ class HelpdeskController extends Controller
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'suport_helpdesk_seq');
         $data['kode_tiket'] = $id;
         Helpdesk::updateOrCreate(['id' => $id], $data);
+
         return $this->resSuccess();
     }
 
@@ -198,7 +210,7 @@ class HelpdeskController extends Controller
         $model = [];
         $data = $this->getData($id);
         $model = Helpdesk::where('id', $id)->first();
-        if (!$model) {
+        if (! $model) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $aktifitasHistories = Aktifitas::getDetail($id);
@@ -207,8 +219,9 @@ class HelpdeskController extends Controller
             'model' => $model,
             'aktifitasHistories' => $aktifitasHistories,
             'breadcums' => $this->breadcums,
-            'kategoriJudul' => $this->kategoriJudul
+            'kategoriJudul' => $this->kategoriJudul,
         ];
+
         return view('suport.helpdesk.helpdeskFormKomentar_viewV', $data);
     }
 
@@ -217,7 +230,7 @@ class HelpdeskController extends Controller
         $model = [];
         $data = $this->getData($id);
         $model = Helpdesk::where('id', $id)->first();
-        if (!$model) {
+        if (! $model) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $aktifitasHistories = Aktifitas::getDetail($id);
@@ -226,10 +239,12 @@ class HelpdeskController extends Controller
             'model' => $model,
             'aktifitasHistories' => $aktifitasHistories,
             'breadcums' => $this->breadcums,
-            'kategoriJudul' => $this->kategoriJudul
+            'kategoriJudul' => $this->kategoriJudul,
         ];
+
         return view('suport.helpdesk.helpdeskFormKomentarV', $data);
     }
+
     public function saveKomentar(Request $request)
     {
         $validasi = [
@@ -269,25 +284,28 @@ class HelpdeskController extends Controller
                 'created_at' => $created_at,
                 'nama' => $user_id,
                 'role' => $rote_id,
-                'komentar' => $request->input('komentar')
+                'komentar' => $request->input('komentar'),
             ];
-            //$acts = Approval::roleCheck($dataAktifitas);
+            // $acts = Approval::roleCheck($dataAktifitas);
             Aktifitas::insert($dataAktifitas);
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/suport/helpdesk')
+                    'url' => \URL::to('/suport/helpdesk'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
+
     public function update(Request $request, Helpdesk $tanah)
     {
         //
@@ -299,10 +317,10 @@ class HelpdeskController extends Controller
             DB::beginTransaction();
             Helpdesk::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
 }

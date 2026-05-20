@@ -20,6 +20,7 @@ use Throwable;
 class IntegrasiGrpcClient
 {
     private string $baseUrl;
+
     private float $timeout;
 
     public function __construct()
@@ -45,15 +46,17 @@ class IntegrasiGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/monsakti/assets/" . rawurlencode($assetId)
+                "{$this->baseUrl}/v1/monsakti/assets/".rawurlencode($assetId)
             );
             if (! $response->successful()) {
                 return null;
             }
             $data = $response->json();
+
             return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch asset from MonSAKTI: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -65,15 +68,17 @@ class IntegrasiGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/mysimkari/employees/" . rawurlencode($nip)
+                "{$this->baseUrl}/v1/mysimkari/employees/".rawurlencode($nip)
             );
             if (! $response->successful()) {
                 return null;
             }
             $data = $response->json();
+
             return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch employee from MySIMKARI: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -85,15 +90,17 @@ class IntegrasiGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/siman/inventory/" . rawurlencode($inventoryId)
+                "{$this->baseUrl}/v1/siman/inventory/".rawurlencode($inventoryId)
             );
             if (! $response->successful()) {
                 return null;
             }
             $data = $response->json();
+
             return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch inventory from SIMAN: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -107,9 +114,11 @@ class IntegrasiGrpcClient
             $response = $this->http()
                 ->asJson()
                 ->post("{$this->baseUrl}/v1/monsakti/assets/sync", $assetData);
+
             return $response->successful();
         } catch (Throwable $th) {
             Log::warning("Failed to sync asset to MonSAKTI: {$th->getMessage()}");
+
             return false;
         }
     }
@@ -123,6 +132,7 @@ class IntegrasiGrpcClient
             return $this->http()->get("{$this->baseUrl}/healthz")->successful();
         } catch (Throwable $th) {
             Log::warning("Integrasi gateway health check failed: {$th->getMessage()}");
+
             return false;
         }
     }

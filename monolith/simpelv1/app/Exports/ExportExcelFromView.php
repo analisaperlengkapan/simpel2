@@ -8,11 +8,14 @@ use Maatwebsite\Excel\Concerns\FromView;
 class ExportExcelFromView implements FromView
 {
     private $setData;
+
     private $setHeadings;
+
     private $setSheetTitle;
+
     private $setView;
 
-    public function __construct($data = [], $view)
+    public function __construct($data, $view)
     {
         $this->setData = $data;
         $this->setView = $view;

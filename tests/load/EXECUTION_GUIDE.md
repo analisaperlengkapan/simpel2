@@ -81,6 +81,7 @@ kubectl create secret generic load-test-credentials \
 ```
 
 **Expected Duration:**
+
 - Dashboard test: ~13 minutes
 - API test: ~14 minutes
 - Search test: ~16 minutes
@@ -131,14 +132,17 @@ cat tests/load/results/analysis_report_*.md
 Check for:
 
 ✅ **Response Times**
+
 - Dashboard p95 ≤ 5000ms
 - API p95 ≤ 500ms
 - Search p95 ≤ 500ms
 
 ✅ **Throughput**
+
 - API ≥ 100 req/s
 
 ✅ **Error Rate**
+
 - < 5% for dashboard
 - < 1% for API
 - < 2% for search
@@ -163,6 +167,7 @@ DB_URL="postgres://simpelv2:${DB_PASSWORD}@postgres.simpelv2-staging:5432/perlen
 ```
 
 **This will:**
+
 1. Add performance indexes (~5 minutes)
 2. Create materialized views (~5 minutes)
 3. Verify optimizations (~2 minutes)
@@ -255,6 +260,7 @@ mv load_test_results_*.tar.gz tests/load/archives/
 ### Issue: Pod CrashLoopBackOff
 
 **Symptoms:**
+
 ```bash
 kubectl get pods -n simpelv2-staging -l app=k6-load-test
 # NAME                          READY   STATUS             RESTARTS
@@ -262,6 +268,7 @@ kubectl get pods -n simpelv2-staging -l app=k6-load-test
 ```
 
 **Solution:**
+
 ```bash
 # Check pod logs
 kubectl logs k6-dashboard-load-test-xxx -n simpelv2-staging
@@ -275,10 +282,12 @@ kubectl logs k6-dashboard-load-test-xxx -n simpelv2-staging
 ### Issue: High Error Rate
 
 **Symptoms:**
+
 - Error rate > 5%
 - Many HTTP 500 errors
 
 **Solution:**
+
 ```bash
 # Check service logs
 kubectl logs -l app.kubernetes.io/name=layanan-perlengkapan \
@@ -297,10 +306,12 @@ kubectl top pods -n simpelv2-staging
 ### Issue: Slow Response Times
 
 **Symptoms:**
+
 - p95 > 500ms
 - Dashboard > 5 seconds
 
 **Solution:**
+
 ```bash
 # Check for missing indexes
 kubectl exec -n simpelv2-staging postgres-0 -- \
@@ -387,6 +398,7 @@ kubectl delete jobs -l app=k6-load-test -n simpelv2-staging
 ## Support
 
 For help:
+
 1. Check [K8S_LOAD_TESTING.md](./K8S_LOAD_TESTING.md)
 2. Review [LOAD_TEST_ANALYSIS.md](./LOAD_TEST_ANALYSIS.md)
 3. Contact DevOps team

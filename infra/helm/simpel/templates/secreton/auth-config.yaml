@@ -1,0 +1,50 @@
+{{- /*
+  Secreton Kubernetes Auth Backend bootstrap config.
+
+  Dirender hanya saat .Values.secretonAuth.enabled. ConfigMap berisi:
+  - kubernetes/config: cluster CA, TokenReview API URL
+  - kubernetes/role/<service>: bind SA <ns>:<service> → policies
+
+  Dipakai oleh `infra/helm/bootstrap-secreton.sh` (one-shot, post-install) untuk
+  setup auth backend & roles via Secreton API. Tidak di-apply otomatis ke Secreton
+  (untuk keamanan: bootstrap pakai root token, harus manual).
+
+  Reference: layanan/secreton/crates/core/src/services/auth/kubernetes.rs
+*/ -}}
+{{- if (default (dict) .Values.secretonAuth).enabled }}
+{{- $ns := include "simpel.namespace" . -}}
+{{- $audience := default "secreton" .Values.secretonAuth.audience -}}
+{{- $tokenTTL := default 3600 .Values.secretonAuth.tokenTTL -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secreton-auth-config
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: secreton
+    app.kubernetes.io/component: auth-bootstrap
+    {{- include "simpel.labels" . | nindent 4 }}
+data:
+  # Backend config — pakai in-cluster kubernetes API URL.
+  # CA dipakai dari pod's mounted /var/run/secrets/kubernetes.io/serviceaccount/ca.crt.
+  config.json: |
+    {
+      "kubernetes_host": "https://kubernetes.default.svc",
+      "audience": {{ $audience | quote }},
+      "use_pod_ca": true
+    }
+  # Role definitions — satu role per service.
+  # Format: kv-key = "role/<service-name>", value = JSON dengan bound_service_account, policies, ttl.
+  {{- range $service, $paths := .Values.secretonAuth.policies }}
+  role-{{ $service }}.json: |
+    {
+      "name": {{ $service | quote }},
+      "bound_service_account_names": [{{ $service | quote }}],
+      "bound_service_account_namespaces": [{{ $ns | quote }}],
+      "audience": {{ $audience | quote }},
+      "policies": [{{ $service | quote }}],
+      "ttl": {{ $tokenTTL }},
+      "max_ttl": {{ mul $tokenTTL 24 }}
+    }
+  {{- end }}
+{{- end }}

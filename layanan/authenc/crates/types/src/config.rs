@@ -204,8 +204,8 @@ mod tests {
     fn test_default_sso_cookie_config() {
         let config = SsoCookieConfig::default();
         assert_eq!(config.name, "AUTHENC_SSO");
-        assert_eq!(config.secure, true);
-        assert_eq!(config.http_only, true);
+        assert!(config.secure);
+        assert!(config.http_only);
         assert_eq!(config.same_site, "Lax");
         assert_eq!(config.max_age, 604800);
         assert_eq!(config.path, "/");
@@ -215,7 +215,7 @@ mod tests {
     fn test_production_sso_cookie_config() {
         let config = SsoCookieConfig::production(".kejaksaan.go.id".to_string());
         assert_eq!(config.domain, Some(".kejaksaan.go.id".to_string()));
-        assert_eq!(config.secure, true);
+        assert!(config.secure);
         assert_eq!(config.same_site, "Strict");
     }
 
@@ -223,7 +223,7 @@ mod tests {
     fn test_development_sso_cookie_config() {
         let config = SsoCookieConfig::development();
         assert_eq!(config.name, "AUTHENC_SSO_DEV");
-        assert_eq!(config.secure, false);
+        assert!(!config.secure);
         assert_eq!(config.max_age, 86400);
     }
 

@@ -9,8 +9,9 @@ Successfully implemented **Transform Secrets Engine** for Secreton with producti
 ### ✅ Completed Components
 
 #### 1. **FPE Cryptography Module** (`crates/crypto/src/fpe.rs`)
+
 - **FF3-1 Algorithm**: NIST SP 800-38G Rev. 1 compliant format-preserving encryption
-- **Multiple Alphabets**: 
+- **Multiple Alphabets**:
   - Numeric (0-9)
   - Alphanumeric (a-z, 0-9)
   - Alphanumeric Mixed (A-Z, a-z, 0-9)
@@ -23,6 +24,7 @@ Successfully implemented **Transform Secrets Engine** for Secreton with producti
 - **Comprehensive Tests**: Unit tests for all alphabet types and edge cases
 
 #### 2. **Transform Engine Core** (`crates/core/src/services/secrets/transform.rs`)
+
 - **Three Transformation Types**:
   1. **FPE (Format-Preserving Encryption)**: Maintains data format while encrypting
   2. **Tokenization**: Reversible token replacement with persistent mapping
@@ -37,6 +39,7 @@ Successfully implemented **Transform Secrets Engine** for Secreton with producti
   - Tweak support for context-based encryption
 
 #### 3. **API Handlers** (`crates/api/src/handlers/transform.rs`)
+
 - **Transformation Management**:
   - `POST /v1/transform/transformation` - Create transformation
   - `GET /v1/transform/transformation/:name` - Get transformation
@@ -53,12 +56,14 @@ Successfully implemented **Transform Secrets Engine** for Secreton with producti
   - `POST /v1/transform/decode/:role/:transformation` - Decode value
 
 #### 4. **Service Integration**
+
 - Added to `ServiceContainer` in `crates/api/src/services/mod.rs`
 - Integrated into router in `crates/api/src/handlers/mod.rs`
 - Initialized with PostgreSQL connection pool
 - Proper logging and error handling
 
 #### 5. **Dependencies**
+
 - Added `fpe = "0.6"` to workspace Cargo.toml
 - Integrated into crypto crate dependencies
 
@@ -96,6 +101,7 @@ Successfully implemented **Transform Secrets Engine** for Secreton with producti
 ## Use Cases
 
 ### 1. Credit Card Tokenization (PCI DSS Compliance)
+
 ```bash
 # Create FPE transformation for credit cards
 POST /v1/transform/transformation
@@ -131,6 +137,7 @@ POST /v1/transform/decode/payment-processor/credit-card-fpe
 ```
 
 ### 2. SSN/PII Masking (GDPR Compliance)
+
 ```bash
 # Create masking transformation
 POST /v1/transform/transformation
@@ -150,6 +157,7 @@ POST /v1/transform/encode/hr-role/ssn-mask
 ```
 
 ### 3. Database Column Tokenization
+
 ```bash
 # Create tokenization transformation
 POST /v1/transform/transformation
@@ -176,23 +184,27 @@ POST /v1/transform/decode/app-role/email-tokenization
 ## Security Features
 
 ### 1. **Format-Preserving Encryption (FF3-1)**
+
 - NIST-approved algorithm
 - Maintains data format and length
 - Deterministic encryption (same input + key + tweak = same output)
 - Suitable for legacy systems with format constraints
 
 ### 2. **Key Management**
+
 - Automatic AES-256 key generation
 - Secure key storage with zeroization
 - Keys stored encrypted in PostgreSQL
 - Per-transformation key isolation
 
 ### 3. **Access Control**
+
 - Role-based permissions
 - Transformation-level access control
 - Audit logging integration (ready)
 
 ### 4. **Tweak Support**
+
 - Additional security context (e.g., user ID, merchant ID)
 - Different tweaks produce different ciphertexts
 - Prevents cross-context attacks
@@ -200,6 +212,7 @@ POST /v1/transform/decode/app-role/email-tokenization
 ## Testing
 
 ### Unit Tests (Crypto Module)
+
 - ✅ Numeric FPE encryption/decryption
 - ✅ Alphanumeric FPE encryption/decryption
 - ✅ Credit card format preservation
@@ -208,7 +221,9 @@ POST /v1/transform/decode/app-role/email-tokenization
 - ✅ Input validation (minimum length, invalid characters)
 
 ### Integration Tests (Engine)
+
 Built-in tests verify:
+
 - Transformation CRUD operations
 - Role management
 - Encode/decode operations
@@ -225,6 +240,7 @@ Built-in tests verify:
 ## Compliance
 
 ### Standards Met
+
 - ✅ **NIST SP 800-38G Rev. 1**: FF3-1 FPE algorithm
 - ✅ **PCI DSS**: Credit card tokenization
 - ✅ **GDPR**: PII masking and pseudonymization
@@ -233,6 +249,7 @@ Built-in tests verify:
 ## Future Enhancements
 
 ### Planned Features
+
 1. **Storage Persistence**: Full PostgreSQL integration with schema migration
 2. **Batch Operations**: Bulk encode/decode for performance
 3. **Key Rotation**: Automatic key rotation with re-encryption
@@ -283,11 +300,13 @@ curl -X POST http://localhost:8200/v1/transform/decode/payment-app/card-fpe \
 ## Files Modified/Created
 
 ### Created Files
+
 1. `/srv/proyek/simpelv2/layanan/secreton/crates/crypto/src/fpe.rs` - FPE crypto module
 2. `/srv/proyek/simpelv2/layanan/secreton/crates/core/src/services/secrets/transform.rs` - Transform engine
 3. `/srv/proyek/simpelv2/layanan/secreton/crates/api/src/handlers/transform.rs` - API handlers
 
 ### Modified Files
+
 1. `/srv/proyek/simpelv2/layanan/secreton/Cargo.toml` - Added FPE dependency
 2. `/srv/proyek/simpelv2/layanan/secreton/crates/crypto/Cargo.toml` - Added FPE dependency
 3. `/srv/proyek/simpelv2/layanan/secreton/crates/crypto/src/lib.rs` - Exported FPE module
@@ -297,6 +316,7 @@ curl -X POST http://localhost:8200/v1/transform/decode/payment-app/card-fpe \
 ## Conclusion
 
 The Transform Secrets Engine is now **production-ready** with:
+
 - ✅ NIST-compliant FF3-1 FPE implementation
 - ✅ Complete API integration
 - ✅ Role-based access control

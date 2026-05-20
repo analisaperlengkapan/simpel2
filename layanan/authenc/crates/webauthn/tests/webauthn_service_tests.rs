@@ -47,7 +47,7 @@ impl CredentialStore for MockCredentialStore {
 
         by_user
             .entry(credential.user_id.0)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(credential.id);
 
         Ok(())

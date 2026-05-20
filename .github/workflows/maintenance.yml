@@ -1,0 +1,168 @@
+# maintenance.yml — Health check + dependency audit + governance
+# (rename + perluasan dari health-check.yml)
+
+name: Maintenance
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/labels.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: maintenance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  workflow-syntax:
+    name: Workflow Syntax (actionlint)
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: raven-actions/actionlint@v2
+        continue-on-error: true
+        with:
+          fail-on-error: false
+      - name: YAML safe-load fallback
+        shell: bash
+        run: |
+          INVALID=0
+          for workflow in .github/workflows/*.yml; do
+            if python3 -c "import yaml; yaml.safe_load(open('$workflow'))" 2>/dev/null; then
+              echo "OK $(basename "$workflow")"
+            else
+              echo "::error::Invalid YAML: $workflow"
+              INVALID=$((INVALID + 1))
+            fi
+          done
+          exit "$INVALID"
+
+  dependency-health:
+    name: Dependency Health
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: maintenance-deps
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo audit
+        shell: bash
+        continue-on-error: true
+        run: |
+          if ! command -v cargo-audit &>/dev/null; then
+            cargo install cargo-audit --locked
+          fi
+          {
+            echo "## Cargo Audit"
+            echo '```'
+            cargo audit 2>&1 | head -120 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: cargo outdated
+        shell: bash
+        continue-on-error: true
+        run: |
+          if ! command -v cargo-outdated &>/dev/null; then
+            cargo install cargo-outdated --locked
+          fi
+          {
+            echo "## Cargo Outdated"
+            echo '```'
+            cargo outdated --workspace --depth 1 2>&1 | head -120 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  codeowners-validate:
+    name: Validate CODEOWNERS
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate CODEOWNERS paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f .github/CODEOWNERS ] || { echo "No CODEOWNERS file"; exit 0; }
+          missing=0
+          while IFS= read -r line; do
+            line="${line%%#*}"
+            line="$(echo "$line" | xargs)"
+            [ -z "$line" ] && continue
+            path_pattern="${line%% *}"
+            [ -z "$path_pattern" ] && continue
+            check="${path_pattern#/}"
+            check="${check%/}"
+            if [[ "$check" == *"*"* ]]; then
+              continue
+            fi
+            if [ ! -e "$check" ] && [ ! -e "${check%/*}" ]; then
+              echo "::warning::CODEOWNERS path tidak ditemukan: $path_pattern"
+              missing=$((missing+1))
+            fi
+          done < .github/CODEOWNERS
+          echo "CODEOWNERS check selesai (warnings: $missing)"
+
+  label-sync:
+    name: Sync Labels
+    runs-on: self-hosted
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, 'labels.yml'))
+    steps:
+      - uses: actions/checkout@v6
+      - uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/labels.yml
+          delete-other-labels: false
+
+  stale:
+    name: Stale Issues & PRs
+    runs-on: self-hosted
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-message: |
+            Issue ini ditandai stale karena tidak ada aktivitas selama 60 hari. Silakan komen jika masih relevan, atau akan ditutup dalam 14 hari.
+          stale-pr-message: |
+            PR ini ditandai stale karena tidak ada aktivitas selama 60 hari. Silakan rebase/komen jika masih dikerjakan.
+          stale-issue-label: 'stale'
+          stale-pr-label: 'stale'
+          exempt-issue-labels: 'priority:high,security,pinned'
+          exempt-pr-labels: 'priority:high,security,pinned,dependencies'
+          operations-per-run: 50
+
+  infrastructure-health:
+    name: Runner Health
+    runs-on: self-hosted
+    steps:
+      - name: Check Docker & Disk
+        shell: bash
+        run: |
+          {
+            echo "## Runner Infrastructure"
+            echo
+            if command -v docker &>/dev/null; then
+              echo "- Docker: $(docker --version)"
+            else
+              echo "- Docker: NOT AVAILABLE"
+            fi
+            FREE_SPACE=$(df -BG / | tail -1 | awk '{print $4}' | sed 's/G//')
+            echo "- Free disk space: ${FREE_SPACE}GB"
+            if [ "$FREE_SPACE" -lt 20 ]; then
+              echo "::warning::Low disk space: ${FREE_SPACE}GB"
+            fi
+            echo "- Free RAM: $(free -h | awk '/^Mem:/ {print $7}')"
+            echo "- Load avg: $(uptime | awk -F'load average:' '{print $2}')"
+          } >> "$GITHUB_STEP_SUMMARY"

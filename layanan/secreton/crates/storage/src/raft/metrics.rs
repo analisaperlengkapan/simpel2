@@ -242,6 +242,6 @@ mod tests {
         collector.record_commit_latency(Duration::from_millis(30));
 
         let avg = collector.avg_commit_latency().unwrap();
-        assert!(avg >= 19.0 && avg <= 21.0); // ~20ms average
+        assert!((19.0..=21.0).contains(&avg)); // ~20ms average
     }
 }

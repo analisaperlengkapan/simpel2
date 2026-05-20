@@ -15,6 +15,7 @@ class KritikController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Suport', 'Kritik dan Saran'];
+
     public function index()
     {
         return view('suport.kritik.kritikV', ['tableId' => 'dt-kritik', 'breadcums' => $this->breadcums]);
@@ -22,11 +23,11 @@ class KritikController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Kritik();
+        $model = new Kritik;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
-        
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -34,7 +35,7 @@ class KritikController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -42,78 +43,83 @@ class KritikController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Kritik::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
-        }        
+        }
         $status = ['Open', 'Close'];
         $data = [
             'model' => $model,
             'isNew' => $isNew,
             'breadcums' => array_merge($this->breadcums, [$breadcum]),
             'judul' => $breadcum,
-            'readOnly' => $readOnly,            
+            'readOnly' => $readOnly,
             'statusOptions' => MyHelper::generateSelectOptions([
                 'data' => $status,
                 'text' => 'status',
                 'value' => null,
                 'selected' => $model['status'] ?? null,
-            ]),    
+            ]),
         ];
+
         return $data;
     }
 
     public function create()
     {
         $data = $this->getData();
+
         return view('suport.kritik.kritikFormV', $data);
     }
 
     public function store(Request $request)
-    {        
+    {
         $request->validate([
-            //'kode_tiket' => 'required',
-            //'judul' => 'required',
+            // 'kode_tiket' => 'required',
+            // 'judul' => 'required',
             'kritik' => 'required',
-            'saran' => 'required'
+            'saran' => 'required',
         ]);
-        
-        //dd($request->all());
-       
-            //$data['kode_tiket'] =$request->kode_tiket;
-            //$data['judul']      =$request->judul;
-            $data['kritik']     =$request->kritik;
-            $data['saran']      =$request->saran;
-            if(session('userData.current_role.ms_satker_id_keu')){
-                $data['kode_satker'] = session('userData.current_role.ms_satker_id_keu');
-            }
-        if($request->status){
-            $data['status'] =$request->status;
-        }else{
-            $data['status'] ='Open';
+
+        // dd($request->all());
+
+        // $data['kode_tiket'] =$request->kode_tiket;
+        // $data['judul']      =$request->judul;
+        $data['kritik'] = $request->kritik;
+        $data['saran'] = $request->saran;
+        if (session('userData.current_role.ms_satker_id_keu')) {
+            $data['kode_satker'] = session('userData.current_role.ms_satker_id_keu');
         }
-        
+        if ($request->status) {
+            $data['status'] = $request->status;
+        } else {
+            $data['status'] = 'Open';
+        }
+
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'suport_kritik_seq');
-        $data['kode_tiket'] =$id;
-        Kritik::updateOrCreate(['id' => $id],$data);
+        $data['kode_tiket'] = $id;
+        Kritik::updateOrCreate(['id' => $id], $data);
+
         return $this->resSuccess();
     }
 
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('suport.kritik.kritikFormV', $data);
     }
 
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('suport.kritik.kritikFormV', $data);
     }
 
@@ -128,10 +134,10 @@ class KritikController extends Controller
             DB::beginTransaction();
             Kritik::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
 }

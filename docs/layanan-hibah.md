@@ -43,7 +43,6 @@ layanan-hibah/
 | GET    | `/hibah/{id}`               | Detail hibah tertentu                 |
 | GET    | `/hibah/riwayat`            | Riwayat hibah per satker              |
 
-
 ---
 
 ## 🔐 Keamanan

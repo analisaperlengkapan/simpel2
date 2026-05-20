@@ -8,6 +8,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [Unreleased]
 
 ### Added
+
 - Sistem manajemen aset terintegrasi
 - Pengadaan barang/jasa dengan integrasi SPSE
 - Manajemen SDM dengan role-based access
@@ -20,12 +21,14 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Integrasi dengan sistem eksternal
 
 ### Changed
+
 - Migrasi dari sistem lama ke Laravel 10
 - Peningkatan keamanan dengan JWT authentication
 - Optimasi performa database PostgreSQL
 - UI/UX yang lebih modern dan responsif
 
 ### Fixed
+
 - Bug pada sistem autentikasi
 - Masalah sinkronisasi data
 - Error handling yang lebih baik
@@ -33,6 +36,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [1.0.0] - 2024-06-20
 
 ### Added
+
 - **Core System**
   - Laravel 10.48.29 framework
   - PostgreSQL database integration
@@ -93,6 +97,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
   - Google reCAPTCHA Enterprise
 
 ### Security
+
 - JWT token authentication
 - Two-Factor Authentication (2FA)
 - CSRF protection
@@ -102,6 +107,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - Secure file upload validation
 
 ### Performance
+
 - Database optimization dengan PostgreSQL
 - Caching system
 - Asset compression
@@ -111,18 +117,21 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## [0.9.0] - 2024-05-15
 
 ### Added
+
 - Initial project setup
 - Basic authentication system
 - Database migrations
 - Core models dan controllers
 
 ### Changed
+
 - Migrasi dari sistem legacy
 - Setup development environment
 
 ## [0.8.0] - 2024-04-01
 
 ### Added
+
 - Project initialization
 - Laravel framework setup
 - Basic configuration
@@ -132,6 +141,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## Migration Guide
 
 ### From v0.9.0 to v1.0.0
+
 1. Update Laravel ke versi 10.48.29
 2. Jalankan `composer update`
 3. Jalankan `php artisan migrate`
@@ -139,6 +149,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 5. Test semua fitur utama
 
 ### From v0.8.0 to v0.9.0
+
 1. Install dependencies baru
 2. Jalankan database migrations
 3. Setup authentication system
@@ -156,6 +167,7 @@ dan proyek ini mengikuti [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ## Breaking Changes
 
 ### v1.0.0
+
 - Migrasi database dari MySQL ke PostgreSQL
 - Perubahan struktur authentication
 - Update API endpoints

@@ -62,7 +62,9 @@ captcha = { workspace = true }
 moka = { version = "0.12", features = ["future"] }
 lib-core = { workspace = true }
 lib-backend = { workspace = true, features = ["telemetry", "db"] }
-lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = ["backend"] }
+lib-perlengkapan = { path = "../../../../lib/perlengkapan", features = [
+  "backend",
+] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
@@ -81,4 +83,3 @@ webhook = []
 [[bin]]
 name = "layanan-perlengkapan-bantuan"
 path = "src/main.rs"
-

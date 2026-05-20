@@ -808,7 +808,7 @@ jobs:
 
 ## 9. Best Practices Summary
 
-### ✅ DO:
+### ✅ DO
 
 1. **Use PR/MR approach** - Never push directly to protected branches
 2. **Implement multiple loop detection** - Commit prefix + author + branch name
@@ -819,7 +819,7 @@ jobs:
 7. **Use concurrency controls** - Prevent race conditions
 8. **Test in staging first** - Before production deployment
 
-### ❌ DON'T:
+### ❌ DON'T
 
 1. **Use `--mirror` for bidirectional sync** - Overwrites history
 2. **Sync without comparison** - Creates unnecessary MRs/PRs

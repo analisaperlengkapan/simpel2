@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
-
 class TokenToSessionMiddleware
 {
     /**
@@ -24,6 +23,7 @@ class TokenToSessionMiddleware
             $userData = Pengguna::setUserdata($user);
             session()->put('userData', $userData);
         }
+
         return $next($request);
     }
 }

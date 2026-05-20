@@ -10,26 +10,29 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-
 class JasaController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Pemeliharaan Jasa Listrik dan Air'];
+    // protected $breadcums = ['BMN', 'Pemeliharaan Jasa Listrik dan Air'];
     protected $kategoriJudul = 'Pemeliharaan Jasa Listrik dan Air';
+
     protected $controller = 'bmn/jasa/jasa';
+
     protected $breadcums = ['BMN'];
-    protected $columns = ['Nama Satker', 'Nomor', 'Tgl Perawatan', 'Nama jasa', 'Jenis','Pelaksana','Biaya','Status'];
-    protected $defColumns = [0,1,2,3,4,5,6,7];
+
+    protected $columns = ['Nama Satker', 'Nomor', 'Tgl Perawatan', 'Nama jasa', 'Jenis', 'Pelaksana', 'Biaya', 'Status'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5, 6, 7];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Pemeliharaan Jasa Listrik dan Air']]);
-        
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Pemeliharaan Jasa Listrik dan Air']]);
+
     }
 
-    public function index() 
+    public function index()
     {
         $columns = [
             'Nama Satker',
@@ -42,24 +45,26 @@ class JasaController extends Controller
             'Status',
         ];
         $defColumns = [0, 1, 2, 3, 4, 5, 6, 7];
+
         return view('bmn.jasa.jasaV', [
             'tableId' => 'dt-hibah',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $columns,
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new jasa();
+        $model = new jasa;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
-        //dd($data);
+
+        // dd($data);
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -67,7 +72,7 @@ class JasaController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -75,14 +80,14 @@ class JasaController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = jasa::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -114,6 +119,7 @@ class JasaController extends Controller
                 'selected' => $model['kode_barang'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -123,6 +129,7 @@ class JasaController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.jasa.jasaFormV', $data);
     }
 
@@ -151,7 +158,7 @@ class JasaController extends Controller
             'spesifikasi' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'bmn_jasa_seq');
-        
+
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
@@ -163,23 +170,23 @@ class JasaController extends Controller
                 'pelaksana' => $request->input('pelaksana'),
                 'biaya' => $request->input('biaya'),
                 'spesifikasi' => $request->input('spesifikasi'),
-                'no_perawatan' =>$id,
+                'no_perawatan' => $id,
             ];
-            if($request->status){
-                $data['status'] =$request->status;
-            }else{
-                $data['status'] ='On Proses';
+            if ($request->status) {
+                $data['status'] = $request->status;
+            } else {
+                $data['status'] = 'On Proses';
             }
-            
-
 
             jasa::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -191,6 +198,7 @@ class JasaController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.jasa.jasaFormV', $data);
     }
 
@@ -200,6 +208,7 @@ class JasaController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.jasa.jasaFormV', $data);
     }
 
@@ -220,13 +229,10 @@ class JasaController extends Controller
             DB::beginTransaction();
             jasa::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-	
-	
-
-    
 }

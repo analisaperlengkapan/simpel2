@@ -86,7 +86,6 @@ graph TB
     style PMF fill:#99ccff
 ```
 
-
 ### Target Multi-Crate Architecture
 
 ```mermaid
@@ -147,7 +146,6 @@ graph TB
     style MF2 fill:#99ccff
 ```
 
-
 ## Components and Interfaces
 
 ### 1. Authenc Multi-Crate Structure
@@ -157,6 +155,7 @@ graph TB
 **Purpose**: Shared types, traits, and interfaces used across all authenc crates
 
 **Interface**:
+
 ```rust
 // Core domain types
 pub struct UserId(pub Uuid);
@@ -191,18 +190,19 @@ pub trait AuthenticationService: Send + Sync {
 ```
 
 **Responsibilities**:
+
 - Define core domain types (User, Session, Realm, Client, etc.)
 - Define service traits for dependency injection
 - Define error types and result types
 - Define configuration structures
 - No implementation logic (pure interfaces)
 
-
 #### 1.2 authenc-core
 
 **Purpose**: Core business logic and service implementations
 
 **Interface**:
+
 ```rust
 // Main authentication service
 pub struct AuthenticationServiceImpl {
@@ -258,6 +258,7 @@ pub struct OAuth2Service {
 ```
 
 **Responsibilities**:
+
 - Implement authentication logic
 - Implement user management
 - Implement realm management
@@ -266,12 +267,12 @@ pub struct OAuth2Service {
 - Coordinate between different stores
 - Publish domain events
 
-
 #### 1.3 authenc-crypto
 
 **Purpose**: Cryptographic operations (JWT, password hashing, encryption)
 
 **Interface**:
+
 ```rust
 // JWT operations
 pub struct JwtService {
@@ -311,18 +312,19 @@ impl EncryptionService {
 ```
 
 **Responsibilities**:
+
 - JWT generation and validation (Ed25519)
 - Password hashing (Argon2id)
 - Symmetric encryption (ChaCha20-Poly1305)
 - Key management
 - TOTP generation and verification
 
-
 #### 1.4 authenc-storage
 
 **Purpose**: Database layer with PostgreSQL implementation
 
 **Interface**:
+
 ```rust
 // Database connection pool
 pub struct Database {
@@ -371,18 +373,19 @@ pub struct PostgresClientStore {
 ```
 
 **Responsibilities**:
+
 - Database connection management
 - Prepared statement caching
 - Transaction support
 - Store implementations for all domain entities
 - Migration management
 
-
 #### 1.5 authenc-api
 
 **Purpose**: REST API layer (Axum 0.8.x)
 
 **Interface**:
+
 ```rust
 // API state
 pub struct ApiState {
@@ -426,6 +429,7 @@ pub async fn get_user_handler(...) -> Result<Json<User>, ApiError>;
 ```
 
 **Responsibilities**:
+
 - HTTP request handling
 - Request validation
 - Response serialization
@@ -433,12 +437,12 @@ pub async fn get_user_handler(...) -> Result<Json<User>, ApiError>;
 - Middleware (auth, rate limiting, CORS)
 - OpenAPI documentation
 
-
 #### 1.6 authenc-grpc
 
 **Purpose**: gRPC service layer (Tonic 0.14.x)
 
 **Interface**:
+
 ```rust
 // Proto definition
 // proto/authenc.proto
@@ -487,18 +491,19 @@ impl authenc_proto::authenc_service_server::AuthencService for AuthencGrpcServic
 ```
 
 **Responsibilities**:
+
 - gRPC service implementation
 - Proto code generation
 - mTLS configuration
 - gRPC interceptors (auth, logging)
 - Error mapping
 
-
 #### 1.7 authenc-mfa
 
 **Purpose**: Multi-factor authentication logic
 
 **Interface**:
+
 ```rust
 // MFA service
 pub struct MfaService {
@@ -545,18 +550,19 @@ pub struct WebAuthnService {
 ```
 
 **Responsibilities**:
+
 - TOTP setup and verification
 - Backup codes generation and validation
 - WebAuthn/FIDO2 support
 - MFA policy enforcement
 - Integration with Secreton for secret storage
 
-
 #### 1.8 authenc-federation
 
 **Purpose**: SSO and external identity provider integration
 
 **Interface**:
+
 ```rust
 // Federation service
 pub struct FederationService {
@@ -597,12 +603,12 @@ pub struct LdapProvider {
 ```
 
 **Responsibilities**:
+
 - External IdP integration (OIDC, SAML, LDAP)
 - SSO flow orchestration
 - User account linking
 - Attribute mapping
 - Just-in-time provisioning
-
 
 ### 2. Portal Service Architecture Decision
 
@@ -661,6 +667,7 @@ pub async fn auth_middleware(
 ```
 
 **Portal Service Responsibilities**:
+
 - REST API gateway for microfrontends
 - Business logic orchestration
 - Call Authenc for authentication/authorization
@@ -668,7 +675,6 @@ pub async fn auth_middleware(
 - Call domain services (perlengkapan, etc.)
 - Session management (via Authenc)
 - CORS and security headers
-
 
 ### 3. Portal Microfrontend Rebuild
 
@@ -767,7 +773,6 @@ pub fn Dashboard() -> impl IntoView {
 }
 ```
 
-
 ## Data Models
 
 ### Authenc Core Models
@@ -823,11 +828,11 @@ pub struct OidcClient {
 ```
 
 **Validation Rules**:
+
 - Username: 3-50 characters, alphanumeric + underscore
 - Email: Valid email format
 - Password: Minimum 8 characters, complexity requirements
 - Realm name: Unique, 3-50 characters
-
 
 ## Algorithmic Pseudocode
 
@@ -889,19 +894,20 @@ END
 ```
 
 **Preconditions**:
+
 - credentials.username is non-empty string
 - credentials.password is non-empty string
 - Database connection is available
 - Password hasher is initialized
 
 **Postconditions**:
+
 - If successful: Session is created and stored
 - If MFA required: MFA token is generated
 - If failed: Failure is recorded for brute force protection
 - Authentication event is published
 
 **Loop Invariants**: N/A (no loops in main flow)
-
 
 ### OAuth2 Authorization Code Flow
 
@@ -969,20 +975,22 @@ END
 ```
 
 **Preconditions**:
+
 - client_id is valid and registered
 - redirect_uri is whitelisted for the client
 - User is authenticated (or will be redirected to login)
 
 **Postconditions**:
+
 - Authorization code is generated and stored
 - Code expires in 10 minutes
 - User consent is recorded
 - Redirect includes code and state parameters
 
 **Loop Invariants**:
+
 - All previously checked scopes are valid
 - Scope validation state remains consistent
-
 
 ## Key Functions with Formal Specifications
 
@@ -997,6 +1005,7 @@ pub async fn create_user(
 ```
 
 **Preconditions:**
+
 - `request.username` is non-empty and 3-50 characters
 - `request.email` is valid email format
 - `request.password` meets complexity requirements (min 8 chars)
@@ -1004,6 +1013,7 @@ pub async fn create_user(
 - Username and email are unique (not already registered)
 
 **Postconditions:**
+
 - Returns `User` with generated UUID
 - User is persisted in database
 - Password is hashed with Argon2id
@@ -1026,11 +1036,13 @@ pub fn validate_token(
 ```
 
 **Preconditions:**
+
 - `token` is non-empty string
 - `token` is valid JWT format
 - JWT signing key is loaded
 
 **Postconditions:**
+
 - Returns `TokenClaims` if token is valid
 - Verifies Ed25519 signature
 - Checks token expiration (`exp` claim)
@@ -1051,11 +1063,13 @@ pub async fn setup_totp(
 ```
 
 **Preconditions:**
+
 - `user_id` exists in database
 - User does not already have TOTP enabled
 - Secreton client is connected
 
 **Postconditions:**
+
 - TOTP secret is generated (32 bytes, base32 encoded)
 - Secret is stored in Secreton at path `totp/{user_id}`
 - QR code is generated with secret and user identifier
@@ -1063,7 +1077,6 @@ pub async fn setup_totp(
 - User's `mfa_enabled` flag is NOT set (requires verification first)
 
 **Loop Invariants:** N/A
-
 
 ## Example Usage
 
@@ -1148,7 +1161,6 @@ Server::builder()
     .await?;
 ```
 
-
 ### Portal Service Usage
 
 ```rust
@@ -1232,7 +1244,6 @@ async fn auth_middleware(
     Ok(next.run(req).await)
 }
 ```
-
 
 ### Portal Microfrontend Usage
 
@@ -1329,7 +1340,6 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 }
 ```
 
-
 ## Correctness Properties
 
 ### Universal Quantification Statements
@@ -1354,7 +1364,6 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 
 10. **Session Isolation**: ∀ session1, session2 ∈ Sessions, session1.user_id ≠ session2.user_id ⟹ session1 cannot access session2's data
 
-
 ## Error Handling
 
 ### Error Scenario 1: Database Connection Failure
@@ -1362,12 +1371,14 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Condition**: Database connection pool is exhausted or database is unreachable
 
 **Response**:
+
 - Return `AuthencError::DatabaseError` with descriptive message
 - Log error with full context (connection string, pool stats)
 - Return HTTP 503 Service Unavailable to clients
 - Trigger health check failure
 
 **Recovery**:
+
 - Retry connection with exponential backoff
 - If persistent, alert operations team
 - Gracefully degrade (e.g., use cached data if available)
@@ -1379,12 +1390,14 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Condition**: Token signature is invalid, token is expired, or token format is malformed
 
 **Response**:
+
 - Return `AuthencError::InvalidToken` with specific reason
 - Log security event (potential attack)
 - Return HTTP 401 Unauthorized
 - Do NOT reveal specific reason to client (security)
 
 **Recovery**:
+
 - Client should redirect to login page
 - Clear stored token from localStorage
 - Optionally trigger re-authentication flow
@@ -1396,12 +1409,14 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Condition**: TOTP code is invalid or expired
 
 **Response**:
+
 - Return `AuthencError::MfaVerificationFailed`
 - Increment failed MFA attempts counter
 - Return HTTP 401 Unauthorized with `mfa_required: true`
 - Log MFA failure event
 
 **Recovery**:
+
 - Allow user to retry (up to 3 attempts)
 - After 3 failures, lock account temporarily
 - Provide option to use backup codes
@@ -1414,12 +1429,14 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Condition**: Cannot connect to Secreton gRPC service
 
 **Response**:
+
 - Return `AuthencError::SecretonUnavailable`
 - Log error with connection details
 - Return HTTP 503 Service Unavailable
 - Trigger circuit breaker
 
 **Recovery**:
+
 - Retry with exponential backoff (3 attempts)
 - If persistent, use fallback local storage (if configured)
 - Alert operations team
@@ -1432,15 +1449,16 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Condition**: Client requests authorization with non-whitelisted redirect URI
 
 **Response**:
+
 - Return `AuthencError::InvalidRedirectUri`
 - Log security event (potential attack)
 - Do NOT redirect (security risk)
 - Display error page to user
 
 **Recovery**:
+
 - User must contact administrator to whitelist URI
 - No automatic recovery (security measure)
-
 
 ## Testing Strategy
 
@@ -1490,6 +1508,7 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
 **Properties to Test**:
 
 1. **Password Hashing Idempotence**:
+
    ```rust
    proptest! {
        #[test]
@@ -1502,6 +1521,7 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
    ```
 
 2. **JWT Token Roundtrip**:
+
    ```rust
    proptest! {
        #[test]
@@ -1523,6 +1543,7 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
    ```
 
 3. **Session Expiry Invariant**:
+
    ```rust
    proptest! {
        #[test]
@@ -1539,7 +1560,6 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
        }
    }
    ```
-
 
 ### Integration Testing Approach
 
@@ -1607,6 +1627,7 @@ pub fn ProtectedRoute(children: Children) -> impl IntoView {
    - Tool: Custom benchmark
 
 **Benchmarking**:
+
 ```rust
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -1628,7 +1649,6 @@ fn benchmark_jwt_generation(c: &mut Criterion) {
 criterion_group!(benches, benchmark_password_hashing, benchmark_jwt_generation);
 criterion_main!(benches);
 ```
-
 
 ## Performance Considerations
 
@@ -1712,7 +1732,6 @@ criterion_main!(benches);
    - Limit in-memory cache size
    - Use streaming for large responses
    - Monitor memory usage and alert on high usage
-
 
 ## Security Considerations
 
@@ -1808,12 +1827,12 @@ criterion_main!(benches);
    - Secure communication (TLS 1.3, mTLS for gRPC)
    - Regular security audits
 
-
 ## Dependencies
 
 ### Authenc Dependencies
 
 **Core Dependencies**:
+
 - `tokio` (1.x): Async runtime
 - `axum` (0.8.x): REST API framework
 - `tonic` (0.14.x): gRPC framework
@@ -1825,6 +1844,7 @@ criterion_main!(benches);
 - `chrono` (0.4.x): Date/time handling
 
 **Cryptography Dependencies**:
+
 - `argon2` (0.5.x): Password hashing
 - `ed25519-dalek` (2.x): Ed25519 signing
 - `chacha20poly1305` (0.10.x): Symmetric encryption
@@ -1832,6 +1852,7 @@ criterion_main!(benches);
 - `totp-rs` (5.x): TOTP generation
 
 **Testing Dependencies**:
+
 - `proptest` (1.x): Property-based testing
 - `criterion` (0.5.x): Benchmarking
 - `mockall` (0.13.x): Mocking
@@ -1842,6 +1863,7 @@ criterion_main!(benches);
 ### Portal Service Dependencies
 
 **Core Dependencies**:
+
 - `tokio` (1.x): Async runtime
 - `axum` (0.8.x): REST API framework
 - `tonic` (0.14.x): gRPC client
@@ -1854,6 +1876,7 @@ criterion_main!(benches);
 ### Portal Microfrontend Dependencies
 
 **Core Dependencies**:
+
 - `leptos` (0.8.x): Frontend framework
 - `leptos_router` (0.8.x): Routing
 - `gloo-net` (0.6.x): HTTP client
@@ -1862,6 +1885,7 @@ criterion_main!(benches);
 - `web-sys` (0.3.x): Web APIs
 
 **UI Dependencies**:
+
 - `lib-ui` (workspace): Shared UI components
 - `tailwindcss` (via Trunk): CSS framework
 
@@ -1887,7 +1911,6 @@ criterion_main!(benches);
    - Event streaming
    - Audit log streaming
 
-
 ## Migration Strategy
 
 ### Phase 1: Preparation (Week 1-2)
@@ -1895,6 +1918,7 @@ criterion_main!(benches);
 **Goals**: Set up multi-crate structure, define interfaces
 
 **Tasks**:
+
 1. Create new crate directories under `layanan/authenc/crates/`
 2. Define `authenc-types` with core traits and types
 3. Set up workspace in `layanan/authenc/Cargo.toml`
@@ -1902,6 +1926,7 @@ criterion_main!(benches);
 5. Document migration plan and communicate to team
 
 **Success Criteria**:
+
 - All crates compile independently
 - Workspace builds successfully
 - CI/CD pipeline passes
@@ -1913,6 +1938,7 @@ criterion_main!(benches);
 **Goals**: Migrate core business logic to new crates
 
 **Tasks**:
+
 1. Implement `authenc-storage` with PostgreSQL stores
 2. Implement `authenc-crypto` with JWT, password hashing
 3. Implement `authenc-core` with authentication service
@@ -1921,6 +1947,7 @@ criterion_main!(benches);
 6. Maintain backward compatibility with old code
 
 **Success Criteria**:
+
 - All core services implemented in new crates
 - Unit tests pass with >80% coverage
 - Old code still works (parallel implementation)
@@ -1932,6 +1959,7 @@ criterion_main!(benches);
 **Goals**: Migrate REST and gRPC APIs to new crates
 
 **Tasks**:
+
 1. Implement `authenc-api` with Axum handlers
 2. Implement `authenc-grpc` with Tonic services
 3. Update handlers to use new core services
@@ -1939,6 +1967,7 @@ criterion_main!(benches);
 5. Integration tests for API endpoints
 
 **Success Criteria**:
+
 - All API endpoints work with new implementation
 - Integration tests pass
 - Performance is equal or better than old implementation
@@ -1950,6 +1979,7 @@ criterion_main!(benches);
 **Goals**: Migrate MFA, federation, and other features
 
 **Tasks**:
+
 1. Implement `authenc-mfa` with TOTP, backup codes
 2. Implement `authenc-federation` with OIDC, SAML
 3. Migrate MFA logic to new crate
@@ -1957,6 +1987,7 @@ criterion_main!(benches);
 5. Integration tests for MFA and federation
 
 **Success Criteria**:
+
 - MFA works with new implementation
 - Federation works with new implementation
 - All existing features are migrated
@@ -1968,6 +1999,7 @@ criterion_main!(benches);
 **Goals**: Refactor portal service and microfrontend
 
 **Tasks**:
+
 1. Refactor `layanan-portal` to use new Authenc gRPC client
 2. Simplify portal handlers (remove duplicate auth logic)
 3. Rebuild portal microfrontend with modern architecture
@@ -1975,6 +2007,7 @@ criterion_main!(benches);
 5. Integration tests for portal
 
 **Success Criteria**:
+
 - Portal service is simplified and maintainable
 - Portal microfrontend has modern UI/UX
 - All authentication flows work end-to-end
@@ -1986,6 +2019,7 @@ criterion_main!(benches);
 **Goals**: Remove old code, optimize performance
 
 **Tasks**:
+
 1. Remove old monolithic code from `layanan/authenc/src/`
 2. Update documentation
 3. Performance testing and optimization
@@ -1993,6 +2027,7 @@ criterion_main!(benches);
 5. Production deployment preparation
 
 **Success Criteria**:
+
 - Old code is removed
 - Documentation is up-to-date
 - Performance meets targets
@@ -2011,11 +2046,11 @@ If migration fails at any phase:
 4. **Communication**: Notify team and stakeholders
 
 **Rollback Triggers**:
+
 - Critical bugs in production
 - Performance degradation >20%
 - Security vulnerabilities
 - Data loss or corruption
-
 
 ## Deployment Architecture
 
@@ -2044,6 +2079,7 @@ graph TB
 ```
 
 **Configuration**:
+
 - Use `.env` files for local configuration
 - Docker Compose for local services
 - Hot reload for development
@@ -2073,6 +2109,7 @@ graph TB
 ```
 
 **Configuration**:
+
 - 1 replica for each service
 - PERMISSIVE mTLS
 - Debug logging
@@ -2111,12 +2148,12 @@ graph TB
 ```
 
 **Configuration**:
+
 - 3 replicas for high availability
 - STRICT mTLS
 - Info logging
 - Manual deployment with approval
 - Blue-green deployment strategy
-
 
 ## Monitoring and Observability
 
@@ -2182,6 +2219,7 @@ pub async fn authenticate(username: &str, password: &str) -> Result<AuthResult> 
 ```
 
 **Log Levels**:
+
 - `ERROR`: Critical errors requiring immediate attention
 - `WARN`: Warnings that may indicate problems
 - `INFO`: Important events (login, logout, etc.)
@@ -2210,6 +2248,7 @@ span.end();
 ```
 
 **Trace Propagation**:
+
 - Propagate trace context via gRPC metadata
 - Propagate trace context via HTTP headers
 - Correlate logs with traces using trace ID
@@ -2219,16 +2258,19 @@ span.end();
 ### Health Checks
 
 **Liveness Probe** (`/health/live`):
+
 - Returns 200 if service is running
 - Used by Kubernetes to restart unhealthy pods
 
 **Readiness Probe** (`/health/ready`):
+
 - Returns 200 if service is ready to accept traffic
 - Checks database connection
 - Checks Redis connection (if enabled)
 - Checks Secreton connection
 
 **Startup Probe** (`/health/startup`):
+
 - Returns 200 when service has completed initialization
 - Allows longer startup time
 
@@ -2257,7 +2299,6 @@ span.end();
    - Condition: `up{job="authenc"} == 0`
    - Severity: Critical
    - Action: Restart service, investigate crash
-
 
 ## Crate Dependency Graph
 
@@ -2297,6 +2338,7 @@ graph TD
 ```
 
 **Dependency Rules**:
+
 1. `authenc-types` has no dependencies (pure interfaces)
 2. `authenc-core` depends on types, crypto, storage, mfa, federation
 3. `authenc-api` and `authenc-grpc` depend on core (presentation layer)
@@ -2402,7 +2444,6 @@ layanan/authenc/
 ├── tests/                        # Integration tests
 └── benches/                      # Benchmarks
 ```
-
 
 ## Root Cargo.toml Configuration
 
@@ -2532,18 +2573,19 @@ mockall = { workspace = true }
 tokio = { workspace = true, features = ["test-util"] }
 ```
 
-
 ## Backward Compatibility
 
 ### API Compatibility
 
 **REST API**:
+
 - Maintain existing endpoints during migration
 - Use API versioning (`/api/v1/`, `/api/v2/`)
 - Deprecate old endpoints gradually
 - Provide migration guide for clients
 
 **gRPC API**:
+
 - Maintain existing proto definitions
 - Use proto versioning (`authenc.v1`, `authenc.v2`)
 - Support both old and new protos during transition
@@ -2554,12 +2596,14 @@ tokio = { workspace = true, features = ["test-util"] }
 ### Database Compatibility
 
 **Schema Changes**:
+
 - Use additive migrations (add columns, don't remove)
 - Keep old columns during transition
 - Use database views for backward compatibility
 - Remove old columns only after migration complete
 
 **Data Migration**:
+
 - Migrate data in background (no downtime)
 - Use dual-write pattern during transition
 - Verify data integrity after migration
@@ -2570,12 +2614,14 @@ tokio = { workspace = true, features = ["test-util"] }
 ### Configuration Compatibility
 
 **Environment Variables**:
+
 - Support both old and new variable names
 - Provide deprecation warnings for old variables
 - Document migration path
 - Remove old variables after grace period
 
 **Configuration Files**:
+
 - Support both old and new formats
 - Auto-migrate old format to new format
 - Provide validation and error messages
@@ -2634,7 +2680,6 @@ tokio = { workspace = true, features = ["test-util"] }
    - Mitigation: Continuous documentation updates
    - Impact: Low
    - Probability: Medium
-
 
 ## Success Metrics
 
@@ -2700,6 +2745,7 @@ This comprehensive refactoring addresses the core architectural issues in the cu
 The design follows Rust best practices, maintains backward compatibility, includes comprehensive testing strategies, and provides a clear migration path. The result will be a production-ready, enterprise-grade authentication and portal system that is maintainable, scalable, and secure.
 
 **Next Steps**:
+
 1. Review and approve design document
 2. Create detailed task breakdown
 3. Set up development environment

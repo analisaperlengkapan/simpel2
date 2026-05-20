@@ -109,6 +109,7 @@ SIMAN_API_KEY=xxx
 ---
 
 © 2025 – Kejaksaan RI | Divisi Teknologi SIMPEL
+
 ```
 
 ---

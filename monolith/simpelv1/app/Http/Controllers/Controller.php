@@ -10,22 +10,22 @@ class Controller extends BaseController
 {
     use AuthorizesRequests, ValidatesRequests;
 
-    function resSuccess($msg = 'Ok', $callback = null, $body = [])
+    public function resSuccess($msg = 'Ok', $callback = null, $body = [])
     {
         return response([
             'status' => 'success',
             'body' => $body,
             'message' => $msg,
-            'callback' => $callback
+            'callback' => $callback,
         ], 200);
     }
 
-    function resError($msg = 'Gagal', $callback = null)
+    public function resError($msg = 'Gagal', $callback = null)
     {
         return response([
             'status' => 'danger',
             'message' => $msg,
-            'callback' => $callback
+            'callback' => $callback,
         ], 400);
     }
 }

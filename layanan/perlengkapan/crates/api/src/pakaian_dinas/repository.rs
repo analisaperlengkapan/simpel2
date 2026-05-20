@@ -579,8 +579,7 @@ impl PakaianDinasRepository {
                 .map_err(|e| bad_request(&e.to_string()))?;
             (
                 "filtered".to_string(),
-                format!(
-                    r#"
+                r#"
                     SELECT p.*, j.nama as jenis_pakaian_nama,
                            (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
                            (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker ps
@@ -590,8 +589,7 @@ impl PakaianDinasRepository {
                     WHERE p.tahun = $1
                     ORDER BY p.created_at DESC
                     LIMIT $2 OFFSET $3
-                    "#
-                ),
+                    "#.to_string(),
                 row.get("total"),
             )
         } else {
@@ -1303,6 +1301,8 @@ impl PakaianDinasRepository {
     }
 }
 
+use chrono::Datelike;
+
 // ============ Unit Tests ============
 
 #[cfg(test)]
@@ -1319,5 +1319,3 @@ mod tests {
         // Actual tests would require a database connection
     }
 }
-
-use chrono::Datelike;

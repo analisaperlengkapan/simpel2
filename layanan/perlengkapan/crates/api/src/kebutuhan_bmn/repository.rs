@@ -242,7 +242,15 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             )
             .await
             .map_err(|e| {
-                error!("Failed to create pengajuan: {}", e);
+                if let Some(db_err) = e.as_db_error() {
+                    error!(
+                        "Failed to create pengajuan: {} - {}",
+                        db_err.message(),
+                        db_err.detail().unwrap_or("")
+                    );
+                } else {
+                    error!("Failed to create pengajuan: {}", e);
+                }
                 AppError::Internal(format!("Database error: {}", e))
             })?;
 
@@ -412,7 +420,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         }
 
         // Always update version and updated_by
-        updates.push(format!("version = version + 1"));
+        updates.push("version = version + 1".to_string());
         updates.push(format!("updated_by = ${}", param_idx));
         params.push(Box::new(user_id));
         param_idx += 1;

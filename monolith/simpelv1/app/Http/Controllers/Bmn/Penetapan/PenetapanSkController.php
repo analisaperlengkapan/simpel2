@@ -22,36 +22,41 @@ class PenetapanSkController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Pengajuan SK Penetapan Status Penggunaan'];
+
     protected $controller = '/bmn/penetapan/penetapansk';
+
     public function index()
     {
 
         $columns = ['Nama Satker', 'No Surat Pernyataan', 'Tgl Surat Pernyataan', 'File Lampiran', 'Status', 'No SK PSP', 'Tgl SK PSP', 'File PSP'];
         $defColumns = [0, 1, 2, 3, 4, 5];
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         $data = [
             'tableId' => 'dt-penetapan',
             'breadcums' => $this->breadcums,
             'controller' => $this->controller,
             'canChange' => $this->isPelaksanaSatker(),
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ];
+
         return view('bmn.penetapansk.penetapanV', $data);
     }
 
-    function isPelaksanaSatker()
+    public function isPelaksanaSatker()
     {
         $currentRole = session('userData.current_role');
+
         return $currentRole['ms_role_id'] == config('constants.pelaksana_satker_role_id') ? 1 : 0;
     }
 
     public function gridData(Request $request)
     {
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -61,10 +66,11 @@ class PenetapanSkController extends Controller
 
     public function gridDataAset(Request $request)
     {
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns', 'has_psp']);
         $data = $model->getDataGridAset($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -72,7 +78,7 @@ class PenetapanSkController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -81,7 +87,7 @@ class PenetapanSkController extends Controller
         if ($id) {
             $breadcum = 'Ubah Pengajuan';
             $model = PenetapanSk::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -99,7 +105,7 @@ class PenetapanSkController extends Controller
         $satkers = Master::getSatkersKeu();
         $assets = Master::getJenisAsset();
         $jenis = ['UAKPB', 'UAPPB-W', 'UAPPB-E1', 'UAPB'];
-        $inputedAssetIds =  Arr::pluck($savedAssets, 'id');
+        $inputedAssetIds = Arr::pluck($savedAssets, 'id');
         $data = [
             'model' => $model,
             'isNew' => $isNew,
@@ -132,6 +138,7 @@ class PenetapanSkController extends Controller
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -141,26 +148,26 @@ class PenetapanSkController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
 
     /**
      * Store a newly created resource in storage.
      */
-
     public function validatorAction(Request $request)
     {
         $customMessages = [
             'sk_no.required' => ' Nomor Surat Harus Diisi',
             'sk_tgl.required' => 'Tanggal Surat Harus Diisi',
-            'ms_aktifitas_id.required' => 'Aksi Harus Diisi'
+            'ms_aktifitas_id.required' => 'Aksi Harus Diisi',
         ];
 
         $validate = [
             'ms_aktifitas_id' => 'required',
         ];
 
-        if ($request->input('ms_aktifitas_id') == 2002) { //KLO DITERIMA
+        if ($request->input('ms_aktifitas_id') == 2002) { // KLO DITERIMA
             $validate['sk_no'] = 'required';
             $validate['sk_tgl'] = 'required';
         }
@@ -188,14 +195,14 @@ class PenetapanSkController extends Controller
                 'idValue' => $id,
                 'ms_aktifitas_id' => $request->input('ms_aktifitas_id'),
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => false
+                'to_satker_induk' => false,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             PenetapanSkAktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if ($newAct == 2002) { //selesa57Gi
+                if ($newAct == 2002) { // selesa57Gi
 
                 }
                 PenetapanSk::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
@@ -206,7 +213,7 @@ class PenetapanSkController extends Controller
 
             $notifParams = [
                 'url' => "bmn/penetapan/penetapansk/{$id}",
-                'judul' => 'SK PSP' . ' ' . $acts['msAct']->nama,
+                'judul' => 'SK PSP'.' '.$acts['msAct']->nama,
                 'isi' => '',
                 'target' => 'username',
                 'targetValue' => $data->created_by,
@@ -214,13 +221,16 @@ class PenetapanSkController extends Controller
             ];
             Notifikasi::sendNotif($notifParams);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
+
     public function store(Request $request)
     {
         $isNew = $request->input('isNew');
@@ -231,7 +241,7 @@ class PenetapanSkController extends Controller
             // 'surat_pernyataan.required' => 'Tanggal Surat harus diisi',
             'assets.required' => 'Minimal Input 1 Asset ',
             'sp_no.required' => ' Nomor Surat Harus Diisi',
-            'sp_tgl.required' => 'Tanggal Surat Harus Diisi'
+            'sp_tgl.required' => 'Tanggal Surat Harus Diisi',
         ];
 
         $validate = [
@@ -250,12 +260,12 @@ class PenetapanSkController extends Controller
                 'dir' => 'bmn/pengajuan-sk-penetapan',
                 'isRequired' => $request->input('ms_aktifitas_id') == 2001 ? true : false,
                 'fileKey' => 'sp_file',
-                'pkey' => $id
+                'pkey' => $id,
             ];
             $file = Files::upload($request, $params);
             // $currentRole = session('userData.current_role');
             $inputan = $request->only(['sp_no', 'sp_tgl', 'ms_aktifitas_id']);
-            if (!$isNew && $file) {
+            if (! $isNew && $file) {
                 $inputan['sp_file'] = $file['path'];
             } else {
                 $inputan['sp_file'] = $file['path'] ?? null;
@@ -267,11 +277,11 @@ class PenetapanSkController extends Controller
             foreach ($request->input('vw_aset_psp_ids') as $value) {
                 $inputanAssets[] = [
                     'bmn_penetapan_id' => $id,
-                    'vw_aset_psp_id' => $value
+                    'vw_aset_psp_id' => $value,
                 ];
             }
 
-            if (!empty($inputanAssets)) {
+            if (! empty($inputanAssets)) {
                 PenetapanSkAsset::where('bmn_penetapan_id', $id)->delete();
                 PenetapanSkAsset::insert($inputanAssets);
             }
@@ -281,12 +291,12 @@ class PenetapanSkController extends Controller
                 'idValue' => $id,
                 'ms_aktifitas_id' => $request->input('ms_aktifitas_id'),
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => false
+                'to_satker_induk' => false,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             PenetapanSkAktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
                 PenetapanSk::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
                 PenetapanSkAktifitas::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
@@ -304,10 +314,12 @@ class PenetapanSkController extends Controller
                 Notifikasi::sendNotif($params);
             }
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -319,6 +331,7 @@ class PenetapanSkController extends Controller
     {
 
         $data = $this->getData($id, true);
+
         // return view('bmn.penetapansk.penetapanValidatorFormV', $data);
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
@@ -329,6 +342,7 @@ class PenetapanSkController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
 
@@ -349,6 +363,7 @@ class PenetapanSkController extends Controller
             DB::beginTransaction();
             PenetapanSk::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -377,13 +392,14 @@ class PenetapanSkController extends Controller
                 'disableds' => $disabled,
             ]
         );
+
         return response()->json($data ?? []);
     }
 
-
-    function getSelectedAsset(Request $request)
+    public function getSelectedAsset(Request $request)
     {
         $data = PenetapanSk::getAset($request->input());
+
         return response()->json($data);
     }
 }

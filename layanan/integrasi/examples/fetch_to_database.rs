@@ -30,7 +30,6 @@ use layanan_integrasi::{
     fetch_satker_complete, storage_from_env,
 };
 use tracing::{Level, info};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -53,13 +52,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         storage,
         layanan_integrasi::StorageStrategy::Database
             | layanan_integrasi::StorageStrategy::Both { .. }
-    ) {
-        if config.db_config.is_none() {
-            eprintln!("ERROR: DATABASE_URL tidak dikonfigurasi!");
-            eprintln!("Silakan set DATABASE_URL di file .env");
-            eprintln!("Atau gunakan STORAGE_TYPE=json untuk simpan ke file");
-            std::process::exit(1);
-        }
+    ) && config.db_config.is_none()
+    {
+        eprintln!("ERROR: DATABASE_URL tidak dikonfigurasi!");
+        eprintln!("Silakan set DATABASE_URL di file .env");
+        eprintln!("Atau gunakan STORAGE_TYPE=json untuk simpan ke file");
+        std::process::exit(1);
     }
 
     // Buat client

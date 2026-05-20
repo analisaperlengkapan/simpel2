@@ -17,7 +17,9 @@ This document describes the implementation of the pemakaian BMN monitoring dashb
 Added new monitoring-specific models:
 
 #### ActiveUsageMonitoringDashboard
+
 Provides real-time overview of active permits:
+
 - Total active permits count
 - Permits grouped by BMN type (with percentages)
 - Permits grouped by satker (top 10)
@@ -25,7 +27,9 @@ Provides real-time overview of active permits:
 - Recent activations (last 7 days)
 
 #### BmnUtilizationReport
+
 Comprehensive utilization analysis:
+
 - Total BMN count (from SIMAN integration)
 - BMN with active permits
 - BMN without permits
@@ -35,6 +39,7 @@ Comprehensive utilization analysis:
 - Underutilized BMN (no permits in last 180 days)
 
 #### Supporting Models
+
 - `PermitsByJenisBmn`: Permits grouped by type with count and percentage
 - `PermitsBySatker`: Active permits per satker
 - `ExpiringPermitInfo`: Permit expiry information with days until expiry
@@ -47,12 +52,15 @@ Comprehensive utilization analysis:
 ### 2. Repository Methods (`src/pemakaian_bmn/repository.rs`)
 
 #### get_active_usage_dashboard()
+
 Fetches active usage monitoring data with optional filters:
+
 - Supports filtering by satker_id and jenis_bmn
 - Aggregates data from multiple queries for comprehensive dashboard
 - Calculates percentages and statistics
 
 **SQL Queries:**
+
 1. Total active permits count
 2. Permits grouped by jenis_bmn with counts
 3. Permits grouped by satker (top 10)
@@ -60,12 +68,15 @@ Fetches active usage monitoring data with optional filters:
 5. Recently activated permits (last 7 days)
 
 #### get_bmn_utilization_report()
+
 Generates comprehensive utilization report:
+
 - Integrates with SIMAN data (integrasi schema)
 - Calculates utilization rates
 - Identifies top utilized and underutilized BMN
 
 **SQL Queries:**
+
 1. Total BMN count from SIMAN (kondisi = 'BAIK')
 2. BMN with active permits
 3. Utilization by BMN type (using kode_barang patterns)
@@ -73,6 +84,7 @@ Generates comprehensive utilization report:
 5. Underutilized BMN (no permits in last 180 days)
 
 **BMN Type Classification:**
+
 - `03.01%` → KENDARAAN_BERMOTOR
 - `03.02%` → RUMAH_NEGARA
 - `03.03%` → LAPTOP
@@ -83,11 +95,13 @@ Generates comprehensive utilization report:
 Added two monitoring service methods:
 
 #### get_active_usage_dashboard()
+
 - Delegates to repository method
 - Logs dashboard access
 - Returns `ActiveUsageMonitoringDashboard`
 
 #### get_bmn_utilization_report()
+
 - Delegates to repository method
 - Logs report generation
 - Returns `BmnUtilizationReport`
@@ -97,15 +111,18 @@ Added two monitoring service methods:
 Added two new REST API endpoints:
 
 #### GET /pemakaian-bmn/monitoring/active-usage
+
 Returns active usage monitoring dashboard data.
 
 **Query Parameters:**
+
 - `satker_id` (optional): Filter by satker
 - `jenis_bmn` (optional): Filter by BMN type
 - `start_date` (optional): Filter by date range start
 - `end_date` (optional): Filter by date range end
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -150,15 +167,18 @@ Returns active usage monitoring dashboard data.
 ```
 
 #### GET /pemakaian-bmn/monitoring/utilization-report
+
 Returns BMN utilization report.
 
 **Query Parameters:**
+
 - `satker_id` (optional): Filter by satker
 - `jenis_bmn` (optional): Filter by BMN type
 - `start_date` (optional): Filter by date range start
 - `end_date` (optional): Filter by date range end
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -202,6 +222,7 @@ Returns BMN utilization report.
 ### 5. Routes (`src/routes.rs`)
 
 Registered two new monitoring routes:
+
 - `GET /pemakaian-bmn/monitoring/active-usage`
 - `GET /pemakaian-bmn/monitoring/utilization-report`
 
@@ -210,19 +231,24 @@ Both routes require JWT authentication via middleware.
 ## Integration with Existing Features
 
 ### SIMAN Integration
+
 The utilization report integrates with SIMAN data from the `integrasi` schema:
+
 - Queries `integrasi.siman_aset_tanah` for total BMN count
 - Filters by `kondisi = 'BAIK'` to only count usable BMN
 - Uses `kode_barang` patterns to classify BMN types
 
 ### Existing History Endpoints
+
 The monitoring dashboard complements existing history endpoints:
+
 - `GET /pemakaian-bmn/bmn/:bmn_nup/history` - Detailed history per BMN
 - `GET /pemakaian-bmn/pegawai/:pegawai_nip/history` - Detailed history per pegawai
 
 ## Usage Examples
 
 ### Active Usage Dashboard
+
 ```bash
 # Get overall active usage dashboard
 curl -H "Authorization: Bearer $TOKEN" \
@@ -238,6 +264,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 ```
 
 ### Utilization Report
+
 ```bash
 # Get overall utilization report
 curl -H "Authorization: Bearer $TOKEN" \
@@ -251,16 +278,20 @@ curl -H "Authorization: Bearer $TOKEN" \
 ## Performance Considerations
 
 ### Database Queries
+
 - All queries use appropriate indexes (created in migration 20260209_create_new_entity_tables.sql)
 - Aggregation queries are optimized with GROUP BY and LIMIT clauses
 - SIMAN integration queries filter by `kondisi = 'BAIK'` to reduce dataset
 
 ### Caching Recommendations
+
 For production deployment, consider caching:
+
 - Active usage dashboard: 5-minute TTL
 - Utilization report: 1-hour TTL (less frequently changing data)
 
 ### Query Optimization
+
 - Use EXPLAIN ANALYZE to verify query performance
 - Add composite indexes if specific filter combinations are frequently used
 - Consider materialized views for complex aggregations if performance becomes an issue
@@ -268,6 +299,7 @@ For production deployment, consider caching:
 ## Testing
 
 ### Manual Testing
+
 1. Create test permits with various statuses
 2. Verify dashboard shows correct counts and percentages
 3. Test filtering by satker and jenis_bmn
@@ -275,7 +307,9 @@ For production deployment, consider caching:
 5. Check utilization report calculations
 
 ### Integration Testing
+
 Test the monitoring endpoints with:
+
 - Empty database (no permits)
 - Single permit
 - Multiple permits across different types and satkers
@@ -285,6 +319,7 @@ Test the monitoring endpoints with:
 ## Future Enhancements
 
 Potential improvements for future iterations:
+
 1. **Real-time Updates**: WebSocket support for live dashboard updates
 2. **Export Functionality**: Export reports to PDF/Excel
 3. **Trend Analysis**: Historical utilization trends over time
@@ -296,6 +331,7 @@ Potential improvements for future iterations:
 ## Compliance
 
 This implementation satisfies:
+
 - ✅ REQ-P011: Active usage monitoring dashboard
 - ✅ REQ-P012: Usage history per BMN and per pegawai (implemented in 27.1)
 - ✅ REQ-P013: BMN utilization report

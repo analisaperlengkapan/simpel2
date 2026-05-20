@@ -277,6 +277,7 @@ systemctl start antarmuka-perlengkapan
 ### Issue: Migration script fails
 
 **Solution:**
+
 1. Check PostgreSQL logs: `tail -f /var/log/postgresql/postgresql-14-main.log`
 2. Verify database connectivity
 3. Check for insufficient permissions
@@ -285,6 +286,7 @@ systemctl start antarmuka-perlengkapan
 ### Issue: Performance degradation after migration
 
 **Solution:**
+
 1. Run `ANALYZE` on all tables
 2. Check index usage with `pg_stat_user_indexes`
 3. Review slow query log
@@ -293,6 +295,7 @@ systemctl start antarmuka-perlengkapan
 ### Issue: Application cannot connect after migration
 
 **Solution:**
+
 1. Verify schema names in connection strings
 2. Check search_path configuration
 3. Verify user permissions on new schemas
@@ -328,6 +331,7 @@ Expected improvements after migration:
 ## Support
 
 For issues or questions:
+
 - Check logs: `/var/log/simpelv2/`
 - Review PostgreSQL logs: `/var/log/postgresql/`
 - Contact: SIMPEL Team

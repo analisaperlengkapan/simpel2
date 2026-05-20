@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-
 use App\Helpers\MyHelper;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 class Approval extends Model
 {
-    static function roleCheck($data)
+    public static function roleCheck($data)
     {
         $currentRole = session('userData.current_role');
         $msAct = DB::table('ms_aktifitas')->where(['id' => $data['ms_aktifitas_id']])->first();
@@ -26,11 +25,12 @@ class Approval extends Model
             'nama' => session('userData.name'),
             'pangkat' => session('userData.pangkat'),
             'jabatan' => session('userData.jabatan'),
-            'role' => $currentRole['name'] . MyHelper::getTingkatRole($currentRole['ms_satker_id']),
+            'role' => $currentRole['name'].MyHelper::getTingkatRole($currentRole['ms_satker_id']),
         ];
         $msAct->tingkat = MyHelper::getTingkatRole($currentRole['ms_satker_id']);
         $msAct->nextSatker = $nextSatker;
         $act = $currentAct;
+
         // if ($msAct->next_aktifitas) {
         //     $nextAct = [
         //         'ms_aktifitas_id' => $msAct->next_aktifitas,
@@ -41,25 +41,27 @@ class Approval extends Model
         return ['act' => $act, 'nextAct' => $msAct->next_aktifitas, 'msAct' => $msAct];
     }
 
-    static function getSatkerInduk($currentSatkerId)
+    public static function getSatkerInduk($currentSatkerId)
     {
         if ($currentSatkerId == '00') {
             return null;
         }
 
         $satker = DB::table('ms_satker')->where(['inst_satkerkd' => $currentSatkerId])->first();
+
         return $satker->inst_satkerinduk;
     }
 
-    static function getAktifitas($data)
+    public static function getAktifitas($data)
     {
         $currentRole = session('userData.current_role');
         $msAktifitasId = $data['ms_aktifitas_id'] ?? 0;
         $group = $data['group'] ?? 'BASIC';
+
         return DB::table('ms_aktifitas')->where(['jawaban_dari_aktifitas' => $msAktifitasId])->get()->toArray();
     }
 
-    static function getCurrentAktifitas($msAktifitasId)
+    public static function getCurrentAktifitas($msAktifitasId)
     {
         $currentRole = session('userData.current_role');
         $role = $currentRole['ms_role_id'];
@@ -72,7 +74,7 @@ class Approval extends Model
         $views = explode(',', $res->can_view);
         $changes = explode(',', $res->can_change);
 
-        $canChange = in_array($role, $changes); //&& $currentRole['satker_level'] == $res->tingkat;
+        $canChange = in_array($role, $changes); // && $currentRole['satker_level'] == $res->tingkat;
         $canView = in_array($role, $views);
 
         $res->canChange = $canChange;

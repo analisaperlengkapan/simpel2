@@ -33,6 +33,7 @@ vim secreton.toml
 ```
 
 **Minimal dev config:**
+
 ```toml
 [storage]
 backend = "file"
@@ -111,6 +112,7 @@ sudo chmod 600 /etc/secreton/tls/key.pem
 ### Configuration
 
 **/etc/secreton/secreton.toml:**
+
 ```toml
 [storage]
 backend = "raft"
@@ -142,6 +144,7 @@ log_format = "json"
 ### Systemd Service
 
 **/etc/systemd/system/secreton.service:**
+
 ```ini
 [Unit]
 Description=Secreton Secret Vault
@@ -221,6 +224,7 @@ curl -k https://localhost:8200/v1/sys/seal-status
 ### Node 1 Configuration
 
 **/etc/secreton/secreton.toml (node1):**
+
 ```toml
 [storage]
 backend = "raft"
@@ -320,6 +324,7 @@ export AWS_REGION=us-east-1
 ```
 
 **Benefits:**
+
 - Auto-unseal on restart
 - No manual operator intervention
 - Centralized key management
@@ -403,6 +408,7 @@ curl -k https://localhost:8200/v1/sys/storage/raft/configuration | jq
 ### Log Rotation
 
 **/etc/logrotate.d/secreton:**
+
 ```
 /var/log/secreton/*.log {
     daily

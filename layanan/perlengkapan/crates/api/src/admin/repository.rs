@@ -50,18 +50,18 @@ pub async fn list_audit_logs(
         where_sql.push_str(&format!(" AND t.action = ${}", params.len()));
     }
 
-    if let Some(from) = filter.from.as_ref().filter(|s| !s.is_empty()) {
-        if let Ok(dt) = DateTime::parse_from_rfc3339(from) {
-            params.push(Box::new(dt.with_timezone(&Utc)));
-            where_sql.push_str(&format!(" AND t.transitioned_at >= ${}", params.len()));
-        }
+    if let Some(from) = filter.from.as_ref().filter(|s| !s.is_empty())
+        && let Ok(dt) = DateTime::parse_from_rfc3339(from)
+    {
+        params.push(Box::new(dt.with_timezone(&Utc)));
+        where_sql.push_str(&format!(" AND t.transitioned_at >= ${}", params.len()));
     }
 
-    if let Some(to) = filter.to.as_ref().filter(|s| !s.is_empty()) {
-        if let Ok(dt) = DateTime::parse_from_rfc3339(to) {
-            params.push(Box::new(dt.with_timezone(&Utc)));
-            where_sql.push_str(&format!(" AND t.transitioned_at <= ${}", params.len()));
-        }
+    if let Some(to) = filter.to.as_ref().filter(|s| !s.is_empty())
+        && let Ok(dt) = DateTime::parse_from_rfc3339(to)
+    {
+        params.push(Box::new(dt.with_timezone(&Utc)));
+        where_sql.push_str(&format!(" AND t.transitioned_at <= ${}", params.len()));
     }
 
     if let Some(q) = filter.q.as_ref().filter(|s| !s.is_empty()) {

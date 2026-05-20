@@ -1,0 +1,65 @@
+name: 'Setup Node Environment'
+description: 'Installs Node.js, configures npm cache, and optionally runs npm ci for SIMPEL CI/CD'
+
+inputs:
+  node-version:
+    description: 'Node.js version'
+    required: false
+    default: '20'
+  working-directory:
+    description: 'Path containing package.json + package-lock.json'
+    required: false
+    default: '.'
+  install:
+    description: 'Run npm ci after setup'
+    required: false
+    default: 'true'
+  cache-key-suffix:
+    description: 'Additional cache key suffix to invalidate per-job'
+    required: false
+    default: ''
+
+runs:
+  using: "composite"
+  steps:
+    - name: Fix workspace permissions
+      shell: bash
+      env:
+        WORKSPACE: ${{ github.workspace }}
+      run: |
+        docker run --rm -v "$WORKSPACE":/workspace -w /workspace alpine \
+          chown -R "$(id -u):$(id -g)" . 2>/dev/null || true
+
+    - name: Check for lock file
+      id: lockfile
+      shell: bash
+      env:
+        WORKING_DIR: ${{ inputs.working-directory }}
+      run: |
+        if [ -f "$WORKING_DIR/package-lock.json" ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::No package-lock.json in $WORKING_DIR, npm cache disabled"
+        fi
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: ${{ steps.lockfile.outputs.exists == 'true' && 'npm' || '' }}
+        cache-dependency-path: ${{ steps.lockfile.outputs.exists == 'true' && format('{0}/package-lock.json', inputs.working-directory) || '' }}
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        WORKING_DIR: ${{ inputs.working-directory }}
+      run: |
+        if [ -f package-lock.json ]; then
+          npm ci --no-audit --no-fund
+        else
+          echo "::warning::No package-lock.json in $WORKING_DIR, falling back to npm install"
+          npm install --no-audit --no-fund
+        fi

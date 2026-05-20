@@ -16,6 +16,7 @@ When auto-unseal fails, the system automatically retries with exponential backof
 - **Maximum retries**: 5 attempts (configurable)
 
 **Example retry sequence:**
+
 ```
 Attempt 1: Immediate
 Attempt 2: Wait 1 second
@@ -212,10 +213,12 @@ The health endpoint reports auto-unseal status:
 #### 1. Network Connectivity Issues
 
 **Symptoms:**
+
 - Auto-unseal fails with "Network timeout" or "Connection refused"
 - Retries exhaust after configured attempts
 
 **Resolution:**
+
 1. Check network connectivity to KMS provider
 2. Verify firewall rules allow outbound HTTPS
 3. Check DNS resolution for provider endpoint
@@ -224,10 +227,12 @@ The health endpoint reports auto-unseal status:
 #### 2. Invalid Credentials
 
 **Symptoms:**
+
 - Auto-unseal fails with "Invalid credentials" or "Permission denied"
 - Fails immediately without retries
 
 **Resolution:**
+
 1. Verify IAM role/service account has correct permissions
 2. Check credentials are not expired
 3. Verify key ID/ARN is correct
@@ -236,10 +241,12 @@ The health endpoint reports auto-unseal status:
 #### 3. KMS Key Not Found
 
 **Symptoms:**
+
 - Auto-unseal fails with "Key not found"
 - Fails immediately without retries
 
 **Resolution:**
+
 1. Verify key ID/ARN is correct
 2. Check key exists in the specified region
 3. Verify key is not deleted or disabled
@@ -248,10 +255,12 @@ The health endpoint reports auto-unseal status:
 #### 4. Rate Limiting
 
 **Symptoms:**
+
 - Auto-unseal fails with "Rate limit exceeded"
 - Retries may succeed after backoff
 
 **Resolution:**
+
 1. Increase retry delays to avoid rate limits
 2. Request rate limit increase from provider
 3. Consider using Transit provider for higher throughput
@@ -305,6 +314,7 @@ Example debug output:
 ### 1. Fallback Audit Trail
 
 All fallback events are logged to the audit trail with:
+
 - Timestamp of fallback decision
 - Provider type and configuration
 - Number of retry attempts
@@ -315,6 +325,7 @@ This ensures compliance and forensic analysis capabilities.
 ### 2. No Credential Logging
 
 The fallback mechanism never logs:
+
 - Master key (encrypted or decrypted)
 - Provider credentials (tokens, access keys)
 - Unseal shares

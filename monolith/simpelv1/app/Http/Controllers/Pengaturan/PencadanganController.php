@@ -13,7 +13,9 @@ class PencadanganController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengaturan', 'Pencadangan dan Pemulihan Data'];
+
     private $controller = '/pengaturan/pencadangan';
+
     public function index()
     {
         $columns = [
@@ -27,17 +29,19 @@ class PencadanganController extends Controller
             'controller' => $this->controller,
             'breadcums' => $this->breadcums,
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ];
+
         return view('pengaturan.pencadangan.formV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Backup();
+        $model = new Backup;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -45,14 +49,10 @@ class PencadanganController extends Controller
         ]);
     }
 
-
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -62,7 +62,7 @@ class PencadanganController extends Controller
         $fileName = date('YmdHis');
         $basePath = base_path();
         $model = Backup::create([
-            'filename' => $fileName . '.sql',
+            'filename' => $fileName.'.sql',
             'path' => "{$basePath}/storage/bu/{$fileName}.sql",
             'created_by' => session('userData.username'),
             'is_complete' => 0,
@@ -72,6 +72,7 @@ class PencadanganController extends Controller
         // $exitCode = 0;
 
         exec("sh {$basePath}/simanal_bu.sh {$fileName} {$model->id} &");
+
         // dd("sh {$basePath}/simanal_bu.sh {$fileName} {$model->id} &");
         return $this->resSuccess('ok', ['type' => 'redirect', 'url' => '/pengaturan/pencadangan']);
         // // Handle the script output and exit code as needed
@@ -88,12 +89,14 @@ class PencadanganController extends Controller
     {
         $id = $request->input('id');
         $bu = Backup::where('id', $id)->first();
-        if (!$bu)
-            throw new NotFoundHttpException();
+        if (! $bu) {
+            throw new NotFoundHttpException;
+        }
 
         $isExists = file_exists($bu->path);
-        if (!$isExists)
+        if (! $isExists) {
             throw new NotFoundHttpException('File Backup Tidak Ditermukan ');
+        }
 
         $scriptOutput = [];
         $errorOutput = [];
@@ -104,6 +107,7 @@ class PencadanganController extends Controller
         if ($exitCode !== 0) {
             return $this->resError('Script execution failed', null, $scriptOutput);
         }
+
         return $this->resSuccess();
     }
 
@@ -113,22 +117,22 @@ class PencadanganController extends Controller
     public function show(string $id)
     {
         $bu = Backup::where('id', $id)->first();
-        if (!$bu)
-            throw new NotFoundHttpException();
+        if (! $bu) {
+            throw new NotFoundHttpException;
+        }
 
         $isExists = file_exists($bu->path);
-        if (!$isExists)
+        if (! $isExists) {
             throw new NotFoundHttpException('File Backup Tidak Ditermukan ');
+        }
+
         return response()->download($bu->path, $bu->filename);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -141,8 +145,5 @@ class PencadanganController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-
-    }
+    public function destroy(string $id) {}
 }

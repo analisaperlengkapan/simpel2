@@ -25,7 +25,7 @@ The authenc-federation crate migration (Task 13.1) is structurally complete, but
 ### ✅ Cargo Check Status
 
 ```bash
-$ cargo check --package authenc-federation
+cargo check --package authenc-federation
 ```
 
 **Result**: ❌ **FAILED** - 71 compilation errors, 31 warnings
@@ -33,6 +33,7 @@ $ cargo check --package authenc-federation
 ### Error Categories
 
 #### 1. Missing External Dependencies (18 errors)
+
 **Root Cause**: Cargo.toml missing required crates
 
 | Crate | Usage | Files Affected |
@@ -52,6 +53,7 @@ $ cargo check --package authenc-federation
 | `log` | Logging | saml/service.rs |
 
 **Fix Required**: Add to `layanan/authenc/crates/federation/Cargo.toml`:
+
 ```toml
 [dependencies]
 anyhow = { workspace = true }
@@ -70,6 +72,7 @@ log = { workspace = true }
 ```
 
 #### 2. authenc-core Integration Errors (25 errors)
+
 **Root Cause**: authenc-core has 127 compilation errors (Phase 2 incomplete)
 
 | Error Type | Count | Example |
@@ -79,6 +82,7 @@ log = { workspace = true }
 | `unresolved import 'services'` | 11 | `use crate::services::federation_manager` |
 
 **Affected Files**:
+
 - `sso/cookie.rs` - Missing `authenc_core::error::Result`
 - `sso/service.rs` - Missing `authenc_core::models::realm::Realm`
 - `sso/session.rs` - Missing `authenc_core::error::Result`
@@ -91,6 +95,7 @@ log = { workspace = true }
 **Fix Required**: Complete Phase 2 Task 5 (authenc-core migration) first
 
 #### 3. Import Path Mismatches (15 errors)
+
 **Root Cause**: Models moved from `authenc_core::models` to `authenc_types::domain`
 
 | Old Path | New Path | Files Affected |
@@ -103,6 +108,7 @@ log = { workspace = true }
 **Fix Required**: Update imports after authenc-core is complete
 
 #### 4. Missing Operations (3 errors)
+
 **Root Cause**: Operation module naming mismatch
 
 ```rust
@@ -114,11 +120,13 @@ use authenc_storage::operations::federated_identities;
 ```
 
 **Fix Required**: Change `federated_identities` → `federated_identity` in:
+
 - `providers/mod.rs:209`
 - `providers/mod.rs:267`
 - `providers/mod.rs:294`
 
 #### 5. Missing Utility Modules (2 errors)
+
 **Root Cause**: `crate::utils::encoding` not migrated
 
 ```rust
@@ -128,10 +136,12 @@ let decoded = crate::utils::encoding::base64_decode(...)
 ```
 
 **Fix Required**: Either:
+
 - Migrate `src/utils/encoding.rs` → `crates/federation/src/utils/encoding.rs`
 - Or use `base64ct` crate directly
 
 #### 6. Missing SAML Storage (2 errors)
+
 **Root Cause**: SAML storage not accessible
 
 ```rust
@@ -143,6 +153,7 @@ crate::services::saml_signature::saml_storage::store_saml_request(...)
 **Fix Required**: Expose `saml_storage` module in federation crate
 
 #### 7. Missing SPI Module (1 error)
+
 **Root Cause**: LDAP federation feature-gated
 
 ```rust
@@ -163,7 +174,7 @@ pub mod ldap_federation;
 ### ❌ Test Execution Status
 
 ```bash
-$ cargo test --package authenc-federation
+cargo test --package authenc-federation
 ```
 
 **Result**: ❌ **CANNOT RUN** - Compilation failed
@@ -175,6 +186,7 @@ $ cargo test --package authenc-federation
 Based on Task 13.2.1 requirements, the following tests should be implemented:
 
 #### OIDC Provider Tests
+
 - [ ] Test OIDC discovery endpoint parsing
 - [ ] Test OIDC token exchange
 - [ ] Test OIDC user info retrieval
@@ -182,6 +194,7 @@ Based on Task 13.2.1 requirements, the following tests should be implemented:
 - [ ] Test OIDC provider configuration
 
 #### SAML Provider Tests
+
 - [ ] Test SAML AuthnRequest generation
 - [ ] Test SAML Response parsing
 - [ ] Test SAML signature verification
@@ -189,6 +202,7 @@ Based on Task 13.2.1 requirements, the following tests should be implemented:
 - [ ] Test SAML metadata parsing
 
 #### User Account Linking Tests
+
 - [ ] Test linking existing user to federated identity
 - [ ] Test creating new user from federated identity
 - [ ] Test unlinking federated identity
@@ -208,30 +222,35 @@ Based on Task 13.2.1 requirements, the following tests should be implemented:
 ### Expected Integration Tests (Once Compilation Fixed)
 
 #### authenc-federation → authenc-core Integration
+
 - [ ] Test user provisioning from external IdP
 - [ ] Test user attribute mapping
 - [ ] Test role assignment from IdP claims
 - [ ] Test session creation after SSO login
 
 #### authenc-federation → authenc-storage Integration
+
 - [ ] Test IdP configuration CRUD operations
 - [ ] Test federated identity storage
 - [ ] Test SAML request/response storage
 - [ ] Test SSO session storage
 
 #### authenc-federation → External IdP Integration
+
 - [ ] Test OIDC flow with mock IdP
 - [ ] Test SAML flow with mock IdP
 - [ ] Test IdP callback handling
 - [ ] Test error handling for IdP failures
 
 #### authenc-api → authenc-federation Integration
+
 - [ ] Test SSO initiation endpoint
 - [ ] Test SSO callback endpoint
 - [ ] Test IdP metadata endpoint
 - [ ] Test federated identity management endpoints
 
 #### End-to-End Tests
+
 - [ ] Test: Click SSO button → Redirect to IdP → Callback → Create/link user → Authenticate
 - [ ] Test: SAML SSO flow with signature verification
 - [ ] Test: OIDC SSO flow with token validation
@@ -244,7 +263,7 @@ Based on Task 13.2.1 requirements, the following tests should be implemented:
 ### ⚠️ Clippy Status
 
 ```bash
-$ cargo clippy --package authenc-federation
+cargo clippy --package authenc-federation
 ```
 
 **Result**: ⚠️ **PARTIAL** - Compilation failed, but some warnings detected
@@ -252,12 +271,14 @@ $ cargo clippy --package authenc-federation
 ### Warnings Found (31 total)
 
 #### 1. Unused Imports (1 warning)
+
 ```rust
 // providers/saml_security.rs:6
 use std::sync::Arc;  // unused
 ```
 
 #### 2. Unexpected cfg Conditions (30 warnings)
+
 **Pattern**: Feature flags `test`, `dev`, `default` not defined in Cargo.toml
 
 ```rust
@@ -268,6 +289,7 @@ use std::sync::Arc;  // unused
 ```
 
 **Fix Required**: Add to `Cargo.toml`:
+
 ```toml
 [features]
 default = []
@@ -382,11 +404,13 @@ Step 11: Mark Task 13.2 as COMPLETE
 ## Test Coverage Analysis (Projected)
 
 ### Current Coverage
+
 - **Unit Tests**: 0% (cannot run due to compilation errors)
 - **Integration Tests**: 0% (cannot run due to compilation errors)
 - **End-to-End Tests**: 0% (cannot run due to compilation errors)
 
 ### Target Coverage (After Fixes)
+
 - **Unit Tests**: >80% (per Task 13.2.1 requirements)
 - **Integration Tests**: 100% of integration points tested
 - **End-to-End Tests**: All SSO flows tested (OIDC, SAML, Social)
@@ -417,18 +441,21 @@ crates/federation/tests/
 ## Comparison with Task 12.2 (authenc-mfa)
 
 ### authenc-mfa Testing Report (Task 12.2)
+
 - ✅ Compilation: **SUCCESS** (0 errors, 77 warnings)
 - ✅ Tests: **PASSED** (all tests passed)
 - ✅ Clippy: **SUCCESS** (warnings only)
 - ✅ Integration: **VERIFIED** (all integration points tested)
 
 ### authenc-federation Testing Report (Task 13.2)
+
 - ❌ Compilation: **FAILED** (71 errors, 31 warnings)
 - ❌ Tests: **CANNOT RUN** (compilation failed)
 - ⚠️ Clippy: **PARTIAL** (compilation failed, some warnings detected)
 - ❌ Integration: **CANNOT VERIFY** (compilation failed)
 
 ### Key Difference
+
 **authenc-mfa** had minimal dependencies on authenc-core (mostly crypto and storage), while **authenc-federation** has **heavy dependencies** on authenc-core services (user management, session management, authentication flow).
 
 ---
@@ -438,6 +465,7 @@ crates/federation/tests/
 ### Task 13.2 Status: ⚠️ **BLOCKED**
 
 **Reason**: Cannot complete testing due to **71 compilation errors** in authenc-federation, which are caused by:
+
 1. **127 compilation errors in authenc-core** (Phase 2 Task 5 incomplete)
 2. **Missing external dependencies** in federation/Cargo.toml
 3. **Import path mismatches** after model migration
@@ -451,6 +479,7 @@ crates/federation/tests/
 ### User Decision Required
 
 **Question**: Should we:
+
 - **Option A**: Pause Task 13.2 and complete Phase 2 Task 5 (authenc-core) first? ✅ **RECOMMENDED**
 - **Option B**: Continue with partial testing and document blockers?
 - **Option C**: Skip federation testing and proceed to Phase 5 (Portal)?

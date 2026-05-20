@@ -8,6 +8,7 @@
 ## Overview
 
 This document provides a comprehensive analysis of the current API handler state before beginning the API migration (Tasks 8, 9, 10). This analysis is CRITICAL to ensure we:
+
 1. Don't duplicate work (identify already-migrated handlers)
 2. Understand dependencies (map handler → service → store chains)
 3. Plan migration order (identify which handlers to migrate first)
@@ -128,6 +129,7 @@ These handlers are in the OLD monolithic structure and need migration analysis:
 | `authorization.rs` | Authorization handlers | ⚠️ Needs migration | HIGH | Authorization logic |
 
 **Migration Plan**:
+
 - `health.rs`, `metrics.rs` → `crates/api/src/handlers/` (Task 8)
 - `audit.rs` → `crates/iam-api/src/handlers/` (Task 9)
 - `authorization.rs` → `crates/api/src/handlers/` (Task 8)
@@ -217,6 +219,7 @@ Based on the analysis above, here's the recommended migration order:
 **Task 8: authenc-api (Public REST API)**
 
 Priority 1 (Week 7):
+
 1. ✅ `auth.rs` - Already migrated
 2. ✅ `oauth2.rs` - Already migrated (verify completeness)
 3. ✅ `token_validation.rs` - Already migrated
@@ -247,6 +250,7 @@ Priority 3 (Week 8):
 **Task 9: authenc-iam-api (Admin REST API)**
 
 Priority 1 (Week 8):
+
 1. ⚠️ `user.rs` - Migrate from src/handlers/api/
 2. ⚠️ `user_role.rs` - Migrate from src/handlers/api/
 3. ⚠️ `user_permission.rs` - Migrate from src/handlers/api/
@@ -271,6 +275,7 @@ Priority 2 (Week 8):
 **Task 10: authenc-grpc (Service-to-Service gRPC)**
 
 Priority 1 (Week 8):
+
 1. ⚠️ Migrate gRPC service implementation from src/grpc/
 2. ⚠️ Verify proto files and code generation
 3. ⚠️ Write integration tests
@@ -278,6 +283,7 @@ Priority 1 (Week 8):
 #### Phase 4 (Week 9-10) - Feature Migration
 
 **Task 12: authenc-federation**
+
 - ⚠️ `broker.rs`
 - ⚠️ `federated_auth.rs`
 - ⚠️ `federated_login.rs`
@@ -288,6 +294,7 @@ Priority 1 (Week 8):
 - ⚠️ `saml.rs`
 
 **Task 13: authenc-mfa**
+
 - ⚠️ `mfa_admin.rs`
 - ⚠️ `mfa_management.rs`
 - ⚠️ `mfa_troubleshooting.rs`
@@ -295,6 +302,7 @@ Priority 1 (Week 8):
 - ⚠️ `mfa_performance.rs`
 
 **Task 14: Advanced Features**
+
 - ⚠️ `uma.rs`
 - ⚠️ `oid4vc.rs`
 - ⚠️ `device.rs`
@@ -418,6 +426,7 @@ These middleware are in the OLD monolithic structure and need migration analysis
 **Migration Plan**: These should be migrated to `crates/api/src/middleware/` in Task 8.3.
 
 **Dependencies**:
+
 - `auth_middleware.rs` depends on: `JwtService`, `SessionStore`, `UserStore`
 - `rbac.rs` depends on: `RoleStore`, `PermissionStore`, `UserStore`
 - `mtls.rs` depends on: Crypto utilities, certificate validation
@@ -437,6 +446,7 @@ These middleware are in the OLD monolithic structure and need migration analysis
 **CRITICAL NOTE**: Compare `src/middleware/rate_limit.rs` with `crates/api/src/middleware/rate_limit.rs` to identify missing features.
 
 **Dependencies**:
+
 - `adaptive_rate_limit.rs` depends on: `BruteForceProtector`, `AnomalyDetector`, `RiskEngine`
 - `mfa_rate_limit.rs` depends on: `MfaService`, `TotpStore`, `UserStore`
 
@@ -452,6 +462,7 @@ These middleware are in the OLD monolithic structure and need migration analysis
 **Migration Plan**: These should be migrated to `crates/api/src/middleware/` in Task 8.3.
 
 **Dependencies**:
+
 - `csrf_protection.rs` depends on: Session management, token generation
 - `security_monitoring.rs` depends on: `AuditLogStore`, `EventPublisher`
 - `input_validation.rs` depends on: Validation utilities
@@ -467,6 +478,7 @@ These middleware are in the OLD monolithic structure and need migration analysis
 **Migration Plan**: These should be migrated to `crates/api/src/middleware/` in Task 8.3.
 
 **Dependencies**:
+
 - `compression.rs` depends on: Axum tower layers
 - `mfa_performance_middleware.rs` depends on: Prometheus metrics, `MfaService`
 
@@ -479,6 +491,7 @@ Based on the analysis above, here's the recommended migration order:
 **Task 8.3: Migrate Middleware**
 
 Priority 1 (Week 7):
+
 1. ✅ `cors.rs` - Already migrated
 2. ✅ `rate_limit.rs` - Already migrated (verify completeness)
 3. ⚠️ `auth_middleware.rs` - Migrate from src/ (CRITICAL)
@@ -581,6 +594,7 @@ No middleware files are deprecated. All should be migrated.
 **Action Required**: Compare these two files to identify missing features in crates/ version.
 
 **Expected Differences**:
+
 - src/ version may have more rate limiting strategies (sliding window, fixed window, token bucket)
 - src/ version may have more configuration options
 - src/ version may have Redis integration
@@ -613,6 +627,7 @@ Frontend (WASM) → REST API (authenc-api) → Core Services (authenc-core) → 
 **Frontend Component**: Portal Login Page
 
 **Request**:
+
 ```json
 {
   "username": "user@example.com",
@@ -622,6 +637,7 @@ Frontend (WASM) → REST API (authenc-api) → Core Services (authenc-core) → 
 ```
 
 **Response** (Success):
+
 ```json
 {
   "access_token": "eyJhbGc...",
@@ -638,6 +654,7 @@ Frontend (WASM) → REST API (authenc-api) → Core Services (authenc-core) → 
 ```
 
 **Response** (MFA Required):
+
 ```json
 {
   "mfa_required": true,
@@ -647,6 +664,7 @@ Frontend (WASM) → REST API (authenc-api) → Core Services (authenc-core) → 
 ```
 
 **Flow Diagram**:
+
 ```
 Portal Login Page
   → POST /api/v1/auth/login
@@ -664,6 +682,7 @@ Portal Login Page
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/auth.rs`
 - Middleware: `auth_middleware`, `rate_limit_middleware`, `csrf_protection`
 - Services: `AuthenticationService`, `SessionStore`, `UserStore`, `JwtService`
@@ -676,6 +695,7 @@ Portal Login Page
 **Frontend Component**: Portal Login Page (Passkey button)
 
 **Request**:
+
 ```json
 {
   "username": "user@example.com"  // Optional for usernameless auth
@@ -683,6 +703,7 @@ Portal Login Page
 ```
 
 **Response**:
+
 ```json
 {
   "challenge": "base64-encoded-challenge",
@@ -701,6 +722,7 @@ Portal Login Page
 **Handler**: `crates/api/src/handlers/webauthn.rs::finish_authentication_handler`
 
 **Request**:
+
 ```json
 {
   "credential": {
@@ -718,6 +740,7 @@ Portal Login Page
 ```
 
 **Response**:
+
 ```json
 {
   "access_token": "eyJhbGc...",
@@ -734,6 +757,7 @@ Portal Login Page
 ```
 
 **Flow Diagram**:
+
 ```
 Portal Login Page (Passkey button)
   → POST /api/v1/auth/webauthn/start-authentication
@@ -764,6 +788,7 @@ Portal Login Page
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/webauthn.rs`
 - Middleware: `rate_limit_middleware`, `csrf_protection`
 - Services: `WebAuthnService`, `SessionStore`, `JwtService`
@@ -776,6 +801,7 @@ Portal Login Page
 **Frontend Component**: Automatic (token expiry detection)
 
 **Request**:
+
 ```json
 {
   "refresh_token": "eyJhbGc..."
@@ -783,6 +809,7 @@ Portal Login Page
 ```
 
 **Response**:
+
 ```json
 {
   "access_token": "eyJhbGc...",
@@ -793,6 +820,7 @@ Portal Login Page
 ```
 
 **Flow Diagram**:
+
 ```
 Portal (automatic)
   → POST /api/v1/auth/refresh
@@ -807,6 +835,7 @@ Portal (automatic)
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/auth.rs`
 - Services: `JwtService`, `SessionStore`
 - Storage: `SessionStore`
@@ -818,6 +847,7 @@ Portal (automatic)
 **Frontend Component**: Portal Logout button
 
 **Request**:
+
 ```json
 {
   "refresh_token": "eyJhbGc..."
@@ -825,6 +855,7 @@ Portal (automatic)
 ```
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -832,6 +863,7 @@ Portal (automatic)
 ```
 
 **Flow Diagram**:
+
 ```
 Portal Logout button
   → POST /api/v1/auth/logout
@@ -843,6 +875,7 @@ Portal Logout button
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/auth.rs`
 - Middleware: `auth_middleware`
 - Services: `SessionStore`, `SsoCookieService`
@@ -857,12 +890,14 @@ Portal Logout button
 **Frontend Component**: Portal User Profile page
 
 **Request**:
+
 ```
 GET /api/v1/auth/me
 Authorization: Bearer eyJhbGc...
 ```
 
 **Response**:
+
 ```json
 {
   "id": "uuid",
@@ -881,6 +916,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Flow Diagram**:
+
 ```
 Portal User Profile page
   → GET /api/v1/auth/me
@@ -893,6 +929,7 @@ Portal User Profile page
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/auth.rs`
 - Middleware: `auth_middleware`
 - Services: `UserStore`, `RoleStore`, `PermissionStore`
@@ -907,6 +944,7 @@ Portal User Profile page
 **Frontend Component**: Portal OAuth2 consent page
 
 **Request**:
+
 ```
 GET /oauth2/authorize?
   response_type=code&
@@ -919,6 +957,7 @@ GET /oauth2/authorize?
 ```
 
 **Response** (Redirect to consent page):
+
 ```
 302 Found
 Location: /consent?client_id=portal-client&scope=openid+profile+email
@@ -928,6 +967,7 @@ Location: /consent?client_id=portal-client&scope=openid+profile+email
 **Handler**: `crates/api/src/handlers/oauth2.rs::token_handler`
 
 **Request**:
+
 ```json
 {
   "grant_type": "authorization_code",
@@ -940,6 +980,7 @@ Location: /consent?client_id=portal-client&scope=openid+profile+email
 ```
 
 **Response**:
+
 ```json
 {
   "access_token": "eyJhbGc...",
@@ -952,6 +993,7 @@ Location: /consent?client_id=portal-client&scope=openid+profile+email
 ```
 
 **Flow Diagram**:
+
 ```
 Portal OAuth2 client
   → GET /oauth2/authorize
@@ -980,6 +1022,7 @@ Portal OAuth2 client
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/oauth2.rs`
 - Middleware: `auth_middleware`
 - Services: `OidcClientStore`, `OidcCodeStore`, `JwtService`, `ConsentStore`
@@ -994,6 +1037,7 @@ Portal OAuth2 client
 **Frontend Component**: Portal MFA Setup page
 
 **Request**:
+
 ```json
 {
   "user_id": "uuid"
@@ -1001,6 +1045,7 @@ Portal OAuth2 client
 ```
 
 **Response**:
+
 ```json
 {
   "secret": "base32-secret",
@@ -1013,6 +1058,7 @@ Portal OAuth2 client
 **Handler**: `src/handlers/totp_verify.rs::verify_totp` (needs migration)
 
 **Request**:
+
 ```json
 {
   "user_id": "uuid",
@@ -1021,6 +1067,7 @@ Portal OAuth2 client
 ```
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -1028,6 +1075,7 @@ Portal OAuth2 client
 ```
 
 **Flow Diagram**:
+
 ```
 Portal MFA Setup page
   → POST /api/v1/auth/totp/setup
@@ -1051,6 +1099,7 @@ Portal MFA Setup page (user scans QR code)
 ```
 
 **Dependencies**:
+
 - Handler: `src/handlers/totp.rs`, `src/handlers/totp_verify.rs` (needs migration)
 - Middleware: `auth_middleware`, `mfa_rate_limit_middleware`
 - Services: `TotpService`, `MfaService`, `TotpStore`, `UserStore`
@@ -1065,12 +1114,14 @@ Portal MFA Setup page (user scans QR code)
 **Frontend Component**: Portal Security Settings page
 
 **Request**:
+
 ```
 GET /api/v1/auth/webauthn/credentials
 Authorization: Bearer eyJhbGc...
 ```
 
 **Response**:
+
 ```json
 {
   "credentials": [
@@ -1087,6 +1138,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Flow Diagram**:
+
 ```
 Portal Security Settings page
   → GET /api/v1/auth/webauthn/credentials
@@ -1097,6 +1149,7 @@ Portal Security Settings page
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/webauthn.rs`
 - Middleware: `auth_middleware`
 - Services: `CredentialStore`
@@ -1109,12 +1162,14 @@ Portal Security Settings page
 **Frontend Component**: Portal Security Settings page
 
 **Request**:
+
 ```
 DELETE /api/v1/auth/webauthn/credentials/uuid
 Authorization: Bearer eyJhbGc...
 ```
 
 **Response**:
+
 ```json
 {
   "success": true
@@ -1122,6 +1177,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Flow Diagram**:
+
 ```
 Portal Security Settings page (delete button)
   → DELETE /api/v1/auth/webauthn/credentials/{credential_id}
@@ -1134,6 +1190,7 @@ Portal Security Settings page (delete button)
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/webauthn.rs`
 - Middleware: `auth_middleware`
 - Services: `CredentialStore`
@@ -1148,12 +1205,14 @@ Portal Security Settings page (delete button)
 **Frontend Component**: Portal IAM Admin - Users page
 
 **Request**:
+
 ```
 GET /api/v1/iam/users?page=1&limit=20&realm=kejaksaan-ri
 Authorization: Bearer eyJhbGc...
 ```
 
 **Response**:
+
 ```json
 {
   "users": [
@@ -1176,6 +1235,7 @@ Authorization: Bearer eyJhbGc...
 ```
 
 **Flow Diagram**:
+
 ```
 Portal IAM Admin - Users page
   → GET /api/v1/iam/users
@@ -1187,6 +1247,7 @@ Portal IAM Admin - Users page
 ```
 
 **Dependencies**:
+
 - Handler: `src/handlers/api/user.rs` (needs migration)
 - Middleware: `auth_middleware`, `rbac_middleware`
 - Services: `UserStore`
@@ -1199,6 +1260,7 @@ Portal IAM Admin - Users page
 **Frontend Component**: Portal IAM Admin - Create User form
 
 **Request**:
+
 ```json
 {
   "username": "newuser@example.com",
@@ -1212,6 +1274,7 @@ Portal IAM Admin - Users page
 ```
 
 **Response**:
+
 ```json
 {
   "id": "uuid",
@@ -1222,6 +1285,7 @@ Portal IAM Admin - Users page
 ```
 
 **Flow Diagram**:
+
 ```
 Portal IAM Admin - Create User form
   → POST /api/v1/iam/users
@@ -1238,6 +1302,7 @@ Portal IAM Admin - Create User form
 ```
 
 **Dependencies**:
+
 - Handler: `src/handlers/api/user.rs` (needs migration)
 - Middleware: `auth_middleware`, `rbac_middleware`, `csrf_protection_middleware`
 - Services: `UserStore`, `RoleStore`, `AuditLogStore`
@@ -1252,6 +1317,7 @@ Portal IAM Admin - Create User form
 **Frontend Component**: Other microfrontends (Perlengkapan, Intel, etc.)
 
 **Request**:
+
 ```json
 {
   "token": "eyJhbGc..."
@@ -1259,6 +1325,7 @@ Portal IAM Admin - Create User form
 ```
 
 **Response**:
+
 ```json
 {
   "valid": true,
@@ -1271,6 +1338,7 @@ Portal IAM Admin - Create User form
 ```
 
 **Flow Diagram**:
+
 ```
 Other Microfrontend (Perlengkapan, Intel, etc.)
   → POST /api/v1/auth/validate
@@ -1286,6 +1354,7 @@ Other Microfrontend (Perlengkapan, Intel, etc.)
 ```
 
 **Dependencies**:
+
 - Handler: `crates/api/src/handlers/token_validation.rs`
 - Services: `JwtService`, `SessionStore`, `UserStore`, `RoleStore`, `PermissionStore`
 - Storage: `SessionStore`, `UserStore`, `RoleStore`, `PermissionStore`
@@ -1361,6 +1430,7 @@ Backend Service (layanan-*) → gRPC (authenc-grpc) → Core Services (authenc-c
 **Proto File**: `proto/authenc.proto` (needs verification)
 
 **Service Methods**:
+
 ```protobuf
 service AuthencService {
   // Authentication
@@ -1396,6 +1466,7 @@ service AuthencService {
 **Use Case**: Backend service needs to authenticate a user on behalf of frontend
 
 **Request**:
+
 ```protobuf
 message AuthenticateRequest {
   string username = 1;
@@ -1405,6 +1476,7 @@ message AuthenticateRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message AuthenticateResponse {
   string access_token = 1;
@@ -1417,6 +1489,7 @@ message AuthenticateResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: Authenticate(username, password, realm)
@@ -1432,6 +1505,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `AuthenticationService`, `SessionStore`, `UserStore`, `JwtService`
 - Storage: `UserStore`, `SessionStore`
@@ -1443,6 +1517,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to validate a JWT token from frontend
 
 **Request**:
+
 ```protobuf
 message ValidateTokenRequest {
   string token = 1;
@@ -1450,6 +1525,7 @@ message ValidateTokenRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message ValidateTokenResponse {
   bool valid = 1;
@@ -1462,6 +1538,7 @@ message ValidateTokenResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan (receives JWT from frontend)
   → gRPC: ValidateToken(token)
@@ -1477,6 +1554,7 @@ layanan-perlengkapan (receives JWT from frontend)
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `JwtService`, `SessionStore`, `UserStore`, `RoleStore`, `PermissionStore`
 - Storage: `SessionStore`, `UserStore`, `RoleStore`, `PermissionStore`
@@ -1490,6 +1568,7 @@ layanan-perlengkapan (receives JWT from frontend)
 **Use Case**: Backend service needs to refresh an expired token
 
 **Request**:
+
 ```protobuf
 message RefreshTokenRequest {
   string refresh_token = 1;
@@ -1497,6 +1576,7 @@ message RefreshTokenRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message RefreshTokenResponse {
   string access_token = 1;
@@ -1506,6 +1586,7 @@ message RefreshTokenResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: RefreshToken(refresh_token)
@@ -1520,6 +1601,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `JwtService`, `SessionStore`
 - Storage: `SessionStore`
@@ -1533,6 +1615,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs user details for business logic
 
 **Request**:
+
 ```protobuf
 message GetUserRequest {
   string user_id = 1;
@@ -1540,6 +1623,7 @@ message GetUserRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message GetUserResponse {
   string id = 1;
@@ -1557,6 +1641,7 @@ message GetUserResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: GetUser(user_id)
@@ -1567,6 +1652,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `UserStore`, `RoleStore`
 - Storage: `UserStore`, `RoleStore`
@@ -1578,6 +1664,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to create a user (e.g., JIT provisioning)
 
 **Request**:
+
 ```protobuf
 message CreateUserRequest {
   string username = 1;
@@ -1591,6 +1678,7 @@ message CreateUserRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message CreateUserResponse {
   string id = 1;
@@ -1600,6 +1688,7 @@ message CreateUserResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan (JIT provisioning)
   → gRPC: CreateUser(user_data)
@@ -1613,6 +1702,7 @@ layanan-perlengkapan (JIT provisioning)
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `UserStore`, `RoleStore`, `AuditLogStore`
 - Storage: `UserStore`, `RoleStore`, `AuditLogStore`
@@ -1626,6 +1716,7 @@ layanan-perlengkapan (JIT provisioning)
 **Use Case**: Backend service needs to check if user has permission for an action
 
 **Request**:
+
 ```protobuf
 message CheckPermissionRequest {
   string user_id = 1;
@@ -1635,6 +1726,7 @@ message CheckPermissionRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message CheckPermissionResponse {
   bool allowed = 1;
@@ -1643,6 +1735,7 @@ message CheckPermissionResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: CheckPermission(user_id, resource, action)
@@ -1654,6 +1747,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `PermissionStore`, `RoleStore`, `UserStore`
 - Storage: `PermissionStore`, `RoleStore`, `UserStore`
@@ -1665,6 +1759,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to check user roles for authorization
 
 **Request**:
+
 ```protobuf
 message GetUserRolesRequest {
   string user_id = 1;
@@ -1672,6 +1767,7 @@ message GetUserRolesRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message GetUserRolesResponse {
   repeated string roles = 1;
@@ -1679,6 +1775,7 @@ message GetUserRolesResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: GetUserRoles(user_id)
@@ -1688,6 +1785,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `RoleStore`
 - Storage: `RoleStore`
@@ -1701,6 +1799,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to create a session for a user
 
 **Request**:
+
 ```protobuf
 message CreateSessionRequest {
   string user_id = 1;
@@ -1710,6 +1809,7 @@ message CreateSessionRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message CreateSessionResponse {
   string session_id = 1;
@@ -1718,6 +1818,7 @@ message CreateSessionResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: CreateSession(user_id, ip_address, user_agent)
@@ -1729,6 +1830,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `SessionStore`
 - Storage: `SessionStore`
@@ -1740,6 +1842,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to retrieve session details
 
 **Request**:
+
 ```protobuf
 message GetSessionRequest {
   string session_id = 1;
@@ -1747,6 +1850,7 @@ message GetSessionRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message GetSessionResponse {
   string session_id = 1;
@@ -1760,6 +1864,7 @@ message GetSessionResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: GetSession(session_id)
@@ -1770,6 +1875,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `SessionStore`
 - Storage: `SessionStore`
@@ -1781,6 +1887,7 @@ layanan-perlengkapan
 **Use Case**: Backend service needs to invalidate a session (logout)
 
 **Request**:
+
 ```protobuf
 message DeleteSessionRequest {
   string session_id = 1;
@@ -1788,6 +1895,7 @@ message DeleteSessionRequest {
 ```
 
 **Response**:
+
 ```protobuf
 message DeleteSessionResponse {
   bool success = 1;
@@ -1795,6 +1903,7 @@ message DeleteSessionResponse {
 ```
 
 **Flow Diagram**:
+
 ```
 layanan-perlengkapan
   → gRPC: DeleteSession(session_id)
@@ -1804,6 +1913,7 @@ layanan-perlengkapan
 ```
 
 **Dependencies**:
+
 - gRPC Service: `src/grpc/authenc_service.rs` (needs migration)
 - Core Services: `SessionStore`
 - Storage: `SessionStore`
@@ -1813,6 +1923,7 @@ layanan-perlengkapan
 **CRITICAL**: All gRPC communication MUST use mTLS for security.
 
 **Client Configuration** (layanan-perlengkapan):
+
 ```rust
 use tonic::transport::{Channel, ClientTlsConfig};
 
@@ -1829,6 +1940,7 @@ let mut client = AuthencServiceClient::new(channel);
 ```
 
 **Server Configuration** (authenc-grpc):
+
 ```rust
 use tonic::transport::{Server, ServerTlsConfig};
 
@@ -1902,12 +2014,14 @@ For each gRPC method, we need:
 Task 7.1 (Pre-API Migration Analysis) is **COMPLETE** ✅. The comprehensive analysis shows:
 
 ### Task 7.1.1: Handler Analysis
+
 - ✅ 5 handlers already migrated to crates/api/
 - ⚠️ 74 handlers in src/ need migration
 - 📊 Clear migration priority matrix established
 - 🔗 Handler dependencies on core services mapped
 
 ### Task 7.1.2: Middleware Analysis
+
 - ✅ 3 middleware already migrated to crates/api/
 - ⚠️ 15 middleware in src/ need migration
 - 📊 Clear migration priority matrix established
@@ -1915,6 +2029,7 @@ Task 7.1 (Pre-API Migration Analysis) is **COMPLETE** ✅. The comprehensive ana
 - ⚠️ Need to compare src/middleware/rate_limit.rs with crates/ version
 
 ### Task 7.1.3: Frontend → Backend API Integration Flows
+
 - ✅ 12 critical integration flows documented
 - ✅ Core authentication flows already migrated (login, WebAuthn, token refresh, logout)
 - ⚠️ MFA (TOTP) flows need migration
@@ -1922,6 +2037,7 @@ Task 7.1 (Pre-API Migration Analysis) is **COMPLETE** ✅. The comprehensive ana
 - 📊 Clear testing strategy established
 
 ### Task 7.1.4: Backend Services → gRPC Integration Flows
+
 - ✅ 10 critical gRPC methods documented
 - ⚠️ All gRPC methods need migration from src/grpc/
 - 🔒 mTLS configuration requirements documented
@@ -1948,6 +2064,7 @@ Task 7.1 (Pre-API Migration Analysis) is **COMPLETE** ✅. The comprehensive ana
 ### Recommended Migration Order (Phase 3)
 
 **Week 7 (Task 8.1-8.2):**
+
 1. Migrate core authentication handlers (session, TOTP, auth_helpers)
 2. Migrate OAuth2/OIDC handlers (oauth2_authz_code, oidc_ed25519, oidc_provider)
 3. Migrate critical middleware (auth_middleware, rbac, csrf_protection)

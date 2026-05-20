@@ -85,5 +85,6 @@ impl UserStore for MyUserStore {
 ## Requirements
 
 This crate implements:
+
 - REQ-ARCH-001: Multi-crate architecture
 - REQ-ARCH-003: Shared type definitions

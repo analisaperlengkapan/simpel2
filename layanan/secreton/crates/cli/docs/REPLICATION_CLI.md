@@ -7,6 +7,7 @@ This document describes the CLI commands for managing Secreton replication.
 ## Overview
 
 The replication CLI provides commands to:
+
 - Enable/disable replication
 - View replication status and metrics
 - Promote secondary to primary (manual failover)
@@ -20,11 +21,13 @@ The replication CLI provides commands to:
 Enable replication on this node.
 
 **Usage:**
+
 ```bash
 secreton replication enable [OPTIONS]
 ```
 
 **Options:**
+
 - `-m, --mode <MODE>` - Replication mode (performance or dr) [default: performance]
 - `-p, --primary <PRIMARY>` - Primary node endpoint (for secondary nodes)
 - `-s, --secondaries <SECONDARIES>` - Secondary node endpoints (for primary nodes, can be specified multiple times)
@@ -32,6 +35,7 @@ secreton replication enable [OPTIONS]
 **Examples:**
 
 Enable as primary with two secondaries:
+
 ```bash
 secreton replication enable \
   --mode performance \
@@ -40,6 +44,7 @@ secreton replication enable \
 ```
 
 Enable as secondary connecting to primary:
+
 ```bash
 secreton replication enable \
   --mode performance \
@@ -47,6 +52,7 @@ secreton replication enable \
 ```
 
 Enable DR replication:
+
 ```bash
 secreton replication enable \
   --mode dr \
@@ -60,21 +66,25 @@ secreton replication enable \
 Disable replication on this node.
 
 **Usage:**
+
 ```bash
 secreton replication disable [OPTIONS]
 ```
 
 **Options:**
+
 - `-f, --force` - Force disable even if replication is active
 
 **Examples:**
 
 Disable replication:
+
 ```bash
 secreton replication disable
 ```
 
 Force disable:
+
 ```bash
 secreton replication disable --force
 ```
@@ -86,26 +96,31 @@ secreton replication disable --force
 Show replication status and metrics.
 
 **Usage:**
+
 ```bash
 secreton replication status [OPTIONS]
 ```
 
 **Options:**
+
 - `-f, --format <FORMAT>` - Output format (table, json, yaml) [default: table]
 
 **Examples:**
 
 Show status in table format:
+
 ```bash
 secreton replication status
 ```
 
 Show status in JSON format:
+
 ```bash
 secreton replication status --format json
 ```
 
 **Sample Output (table format):**
+
 ```
 📊 Replication Status
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -133,6 +148,7 @@ secreton replication status --format json
 ```
 
 **Sample Output (JSON format):**
+
 ```json
 {
   "enabled": true,
@@ -164,26 +180,31 @@ secreton replication status --format json
 Promote secondary to primary (manual failover).
 
 **Usage:**
+
 ```bash
 secreton replication promote [OPTIONS]
 ```
 
 **Options:**
+
 - `-y, --yes` - Skip confirmation prompt
 
 **Examples:**
 
 Promote with confirmation:
+
 ```bash
 secreton replication promote
 ```
 
 Promote without confirmation:
+
 ```bash
 secreton replication promote --yes
 ```
 
 **Sample Output:**
+
 ```
 ⚠️  WARNING: Promoting secondary to primary will:
    • Stop replication from the current primary
@@ -202,21 +223,25 @@ Are you sure you want to continue? (yes/no): yes
 Add a secondary node to replication.
 
 **Usage:**
+
 ```bash
 secreton replication add-secondary <ENDPOINT>
 ```
 
 **Arguments:**
+
 - `<ENDPOINT>` - Secondary node endpoint
 
 **Examples:**
 
 Add a secondary node:
+
 ```bash
 secreton replication add-secondary https://secondary2:8200
 ```
 
 **Sample Output:**
+
 ```
 ✅ Secondary node added successfully
    Node ID: node-def456
@@ -230,21 +255,25 @@ secreton replication add-secondary https://secondary2:8200
 Remove a secondary node from replication.
 
 **Usage:**
+
 ```bash
 secreton replication remove-secondary <NODE_ID>
 ```
 
 **Arguments:**
+
 - `<NODE_ID>` - Secondary node ID
 
 **Examples:**
 
 Remove a secondary node:
+
 ```bash
 secreton replication remove-secondary node-def456
 ```
 
 **Sample Output:**
+
 ```
 ✅ Secondary node removed successfully
    Node ID: node-def456
@@ -257,26 +286,31 @@ secreton replication remove-secondary node-def456
 Show replication lag metrics.
 
 **Usage:**
+
 ```bash
 secreton replication lag [OPTIONS]
 ```
 
 **Options:**
+
 - `-f, --format <FORMAT>` - Output format (table, json, yaml) [default: table]
 
 **Examples:**
 
 Show lag in table format:
+
 ```bash
 secreton replication lag
 ```
 
 Show lag in JSON format:
+
 ```bash
 secreton replication lag --format json
 ```
 
 **Sample Output (table format):**
+
 ```
 📊 Replication Lag Metrics
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -290,6 +324,7 @@ secreton replication lag --format json
 ```
 
 **Lag Status Indicators:**
+
 - ✅ Excellent: < 100ms
 - ⚠️  Warning: 100-1000ms
 - ❌ Critical: > 1000ms
@@ -301,6 +336,7 @@ secreton replication lag --format json
 ### Setting Up Performance Replication
 
 1. **On Primary Node:**
+
    ```bash
    # Enable replication as primary
    secreton replication enable \
@@ -310,6 +346,7 @@ secreton replication lag --format json
    ```
 
 2. **On Secondary Nodes:**
+
    ```bash
    # Enable replication as secondary
    secreton replication enable \
@@ -318,6 +355,7 @@ secreton replication lag --format json
    ```
 
 3. **Verify Status:**
+
    ```bash
    # Check replication status
    secreton replication status
@@ -329,17 +367,20 @@ secreton replication lag --format json
 ### Manual Failover
 
 1. **Check Current Status:**
+
    ```bash
    secreton replication status
    ```
 
 2. **Promote Secondary:**
+
    ```bash
    # On the secondary node you want to promote
    secreton replication promote --yes
    ```
 
 3. **Verify Promotion:**
+
    ```bash
    secreton replication status
    ```
@@ -347,11 +388,13 @@ secreton replication lag --format json
 ### Adding a New Secondary
 
 1. **On Primary:**
+
    ```bash
    secreton replication add-secondary https://new-secondary:8200
    ```
 
 2. **On New Secondary:**
+
    ```bash
    secreton replication enable \
      --mode performance \
@@ -359,6 +402,7 @@ secreton replication lag --format json
    ```
 
 3. **Verify:**
+
    ```bash
    secreton replication status
    ```
@@ -385,12 +429,14 @@ done
 If replication lag is high (> 1000ms):
 
 1. Check network connectivity:
+
    ```bash
    ping secondary-node
    curl -k https://secondary:8200/health
    ```
 
 2. Check secondary node health:
+
    ```bash
    secreton replication status --format json | jq '.secondaries[].status'
    ```
@@ -404,6 +450,7 @@ If replication lag is high (> 1000ms):
 If a secondary shows "disconnected" status:
 
 1. Check if secondary is running:
+
    ```bash
    curl -k https://secondary:8200/health
    ```
@@ -413,6 +460,7 @@ If a secondary shows "disconnected" status:
 3. Check secondary logs for errors
 
 4. Try removing and re-adding the secondary:
+
    ```bash
    secreton replication remove-secondary <node-id>
    secreton replication add-secondary https://secondary:8200
@@ -423,6 +471,7 @@ If a secondary shows "disconnected" status:
 If promotion fails:
 
 1. Check if node is actually a secondary:
+
    ```bash
    secreton replication status | grep Role
    ```
@@ -430,6 +479,7 @@ If promotion fails:
 2. Check replication mode (DR mode requires different promotion process)
 
 3. Check if there's excessive lag:
+
    ```bash
    secreton replication lag
    ```

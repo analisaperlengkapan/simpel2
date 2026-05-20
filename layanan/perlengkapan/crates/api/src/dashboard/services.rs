@@ -129,12 +129,12 @@ impl DashboardService {
         // Title
         worksheet.write_string_with_format(0, 0, "DASHBOARD PERLENGKAPAN", &title_format)?;
 
-        worksheet.write_string(1, 0, &format!("Tahun Anggaran: {}", tahun_anggaran))?;
+        worksheet.write_string(1, 0, format!("Tahun Anggaran: {}", tahun_anggaran))?;
 
         worksheet.write_string(
             2,
             0,
-            &format!(
+            format!(
                 "Generated: {}",
                 chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")
             ),
@@ -223,7 +223,7 @@ impl DashboardService {
             .set_font_color(Color::White);
 
         // Headers
-        let headers = vec![
+        let headers = [
             "Kode Barang",
             "Nama Barang",
             "Standard Qty",

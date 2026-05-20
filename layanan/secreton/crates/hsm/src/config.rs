@@ -133,9 +133,11 @@ mod tests {
 
     #[test]
     fn test_pkcs11_validation() {
-        let mut config = HsmConfig::default();
-        config.enabled = true;
-        config.provider = HsmProvider::Pkcs11;
+        let mut config = HsmConfig {
+            enabled: true,
+            provider: HsmProvider::Pkcs11,
+            ..Default::default()
+        };
 
         // Missing library path
         assert!(config.validate().is_err());
@@ -147,10 +149,12 @@ mod tests {
 
     #[test]
     fn test_timeout_validation() {
-        let mut config = HsmConfig::default();
-        config.enabled = true;
-        config.pkcs11_library_path = Some(PathBuf::from("/usr/lib/libpkcs11.so"));
-        config.connection_timeout = 0;
+        let config = HsmConfig {
+            enabled: true,
+            pkcs11_library_path: Some(PathBuf::from("/usr/lib/libpkcs11.so")),
+            connection_timeout: 0,
+            ..Default::default()
+        };
 
         assert!(config.validate().is_err());
     }

@@ -27,7 +27,7 @@ class Aktifitas extends Model
         'pkey',
         'keterangan',
         'ip_address',
-        'user_agent'
+        'user_agent',
     ];
 
     /**
@@ -46,23 +46,23 @@ class Aktifitas extends Model
     //     'password' => 'hashed',
     // ];
 
-    function getGridData($paging, $search = [])
+    public function getGridData($paging, $search = [])
     {
-        $query = DB::table("vw_user_log as a")
+        $query = DB::table('vw_user_log as a')
             ->orderBy('created_at', 'desc');
 
-        if (!MyHelper::isSuperAdmin()) {
+        if (! MyHelper::isSuperAdmin()) {
             $query->where('username', session('userData.username'));
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -81,7 +81,7 @@ class Aktifitas extends Model
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
-
 }

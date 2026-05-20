@@ -2,19 +2,21 @@
 
 namespace App\Models\Suport;
 
-use App\Traits\LogTrait;
 use App\Blameable;
+use App\Traits\LogTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Kritik extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'suport_kritik';
+
     const tableKet = 'Masukan kritik dan saran';
 
     /**
@@ -28,35 +30,38 @@ class Kritik extends Model
         'judul',
         'kritik',
         'saran',
-        'status'
+        'status',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*');
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
-                if($search['filterBy']=='kode_tiket'){
-                    if(is_numeric($searchVal))
+                if ($search['filterBy'] == 'kode_tiket') {
+                    if (is_numeric($searchVal)) {
                         $query->where(DB::raw($search['filterBy']), '=', "{$searchVal}");
-                }else{
+                    }
+                } else {
                     $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
                 }
             } else {
                 $query->where(function (Builder $q) use ($searchVal) {
-                    $q->orWhere(DB::raw("lower(judul)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(kritik)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(saran)"), 'like', "%{$searchVal}%");
-                         if($searchVal && is_numeric($searchVal))
-                        $q->orWhere('kode_tiket', "=", $searchVal);
+                    $q->orWhere(DB::raw('lower(judul)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(kritik)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(saran)'), 'like', "%{$searchVal}%");
+                    if ($searchVal && is_numeric($searchVal)) {
+                        $q->orWhere('kode_tiket', '=', $searchVal);
+                    }
                 });
             }
         }
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

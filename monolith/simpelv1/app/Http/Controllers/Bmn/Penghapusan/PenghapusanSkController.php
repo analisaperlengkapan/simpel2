@@ -16,19 +16,23 @@ class PenghapusanSkController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Pengajuan SK Penghapusan'];
+
     protected $controller = '/bmn/penghapusan/penghapusansk';
+
     public function index()
     {
-        $data = ['tableId' => 'dt-penghapusan', 'breadcums' => $this->breadcums,'controller'=>$this->controller];
+        $data = ['tableId' => 'dt-penghapusan', 'breadcums' => $this->breadcums, 'controller' => $this->controller];
+
         return view('bmn.penghapusansk.penghapusanV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new penghapusanSk();
+        $model = new penghapusanSk;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -36,7 +40,7 @@ class PenghapusanSkController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -44,14 +48,14 @@ class PenghapusanSkController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = PenghapusanSk::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -75,8 +79,9 @@ class PenghapusanSkController extends Controller
                 'value' => null,
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
-            'controller'=>$this->controller
+            'controller' => $this->controller,
         ];
+
         return $data;
     }
 
@@ -86,6 +91,7 @@ class PenghapusanSkController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.penghapusansk.penghapusanFormV', $data);
     }
 
@@ -104,10 +110,10 @@ class PenghapusanSkController extends Controller
             'tgl_surat' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SK harus diupload';
-        }else{
+        } else {
 
         }
         $request->validate($validate, $customMessages);
@@ -131,10 +137,12 @@ class PenghapusanSkController extends Controller
             PenghapusanSk::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -146,6 +154,7 @@ class PenghapusanSkController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.penghapusansk.penghapusanFormV', $data);
     }
 
@@ -155,6 +164,7 @@ class PenghapusanSkController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.penghapusansk.penghapusanFormV', $data);
     }
 
@@ -175,20 +185,19 @@ class PenghapusanSkController extends Controller
             DB::beginTransaction();
             PenghapusanSk::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
 
-
-
     public function cetakLabel($id)
     {
         $data = PenghapusanSk::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

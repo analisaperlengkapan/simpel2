@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 class PokjaPemilihanPegawaiFile extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'pengajuan_pokja_pemilihan_pegawai_file';
 
@@ -22,25 +22,29 @@ class PokjaPemilihanPegawaiFile extends Model
     protected $fillable = [
         'pengajuan_pegawai_id',
         'jenis',
-        'url'
+        'url',
     ];
 
-    static function getDetail($pengajuan_id, $jenis="")
+    public static function getDetail($pengajuan_id, $jenis = '')
     {
         $query = DB::table('pengajuan_pokja_pemilihan_pegawai_file as a');
         $query->select('a.*');
         $query->join('pengajuan_pokja_pemilihan_pegawai as b', 'a.pengajuan_pegawai_id', '=', 'b.id');
         $query->where('b.pengajuan_id', $pengajuan_id);
-        if($jenis) $query->where('a.jenis', $jenis);
+        if ($jenis) {
+            $query->where('a.jenis', $jenis);
+        }
+
         return $query->get();
     }
 
-    static function getMasterFile($kategori)
+    public static function getMasterFile($kategori)
     {
         $query = DB::table('ms_pengajuan_file');
         $query->select('*');
         $query->where('kategori', $kategori);
         $query->orderBy('id', 'asc');
+
         return $query->get();
     }
 }

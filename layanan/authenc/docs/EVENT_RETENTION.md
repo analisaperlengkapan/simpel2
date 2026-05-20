@@ -100,6 +100,7 @@ Before deletion, events are archived to S3/MinIO:
 - **Batch Processing**: Events are archived in batches (configurable size)
 - **JSON Format**: Events are stored as JSON for easy retrieval and analysis
 - **Organized Structure**: Archives are organized by date and table name
+
   ```
   authenc/events/archive/
   ├── events/
@@ -247,21 +248,25 @@ mc admin policy attach minio readwrite --user authenc-service
 ### Grafana Dashboard Queries
 
 **Events Deleted Over Time**:
+
 ```promql
 rate(authenc_event_retention_events_deleted_total[5m])
 ```
 
 **Events Archived Over Time**:
+
 ```promql
 rate(authenc_event_retention_events_archived_total[5m])
 ```
 
 **Cleanup Duration**:
+
 ```promql
 histogram_quantile(0.95, rate(authenc_event_retention_cleanup_duration_ms_bucket[5m]))
 ```
 
 **Expired Events Pending Cleanup**:
+
 ```promql
 authenc_event_retention_expired_user_events + authenc_event_retention_expired_admin_events
 ```
@@ -269,6 +274,7 @@ authenc_event_retention_expired_user_events + authenc_event_retention_expired_ad
 ### Alerts
 
 **High Number of Expired Events**:
+
 ```yaml
 - alert: HighExpiredEvents
   expr: authenc_event_retention_expired_user_events > 100000
@@ -278,6 +284,7 @@ authenc_event_retention_expired_user_events + authenc_event_retention_expired_ad
 ```
 
 **Cleanup Failures**:
+
 ```yaml
 - alert: CleanupFailures
   expr: increase(authenc_event_retention_cleanup_failures_total[1h]) > 3
@@ -317,12 +324,14 @@ authenc_event_retention_expired_user_events + authenc_event_retention_expired_ad
 ### Cleanup Not Running
 
 Check if retention is enabled:
+
 ```toml
 [events]
 enabled = true
 ```
 
 Check logs for scheduler startup:
+
 ```
 Event retention cleanup task started with interval: 24 hours
 ```
@@ -330,11 +339,13 @@ Event retention cleanup task started with interval: 24 hours
 ### Archiving Failures
 
 **S3 Connection Issues**:
+
 - Verify endpoint URL and region
 - Check IAM credentials or instance profile
 - Test S3 connectivity: `aws s3 ls s3://bucket-name`
 
 **MinIO Connection Issues**:
+
 - Verify endpoint is accessible from pod
 - Check access key and secret key
 - Ensure `force_path_style = true` for MinIO
@@ -342,6 +353,7 @@ Event retention cleanup task started with interval: 24 hours
 ### High Memory Usage
 
 Reduce batch size:
+
 ```toml
 max_cleanup_batch_size = 5000
 ```

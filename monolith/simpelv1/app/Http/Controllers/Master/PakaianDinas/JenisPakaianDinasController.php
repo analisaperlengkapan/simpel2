@@ -14,38 +14,44 @@ class JenisPakaianDinasController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['Master', 'Pakaian Dinas', 'Jenis Pakaian Dinas'];
+    // protected $breadcums = ['Master', 'Pakaian Dinas', 'Jenis Pakaian Dinas'];
     protected $kategoriJudul = 'Jenis Pakaian Dinas';
+
     protected $controller = 'master/pakaian-dinas/jenis-pakaian-dinas';
+
     protected $breadcums = ['Master'];
+
     protected $columns = ['No', 'Nama'];
-    protected $defColumns = [0,1];
+
+    protected $defColumns = [0, 1];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Jenis Pakaian Dinas']]);
-        
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Jenis Pakaian Dinas']]);
+
     }
+
     public function index()
     {
-        //return view('master.pakaian-dinas.jenis-pakaian-dinas.gridV', ['tableId' => 'dt-jenis', 'breadcums' => $this->breadcums]);
+        // return view('master.pakaian-dinas.jenis-pakaian-dinas.gridV', ['tableId' => 'dt-jenis', 'breadcums' => $this->breadcums]);
         return view('master.pakaian-dinas.jenis-pakaian-dinas.gridV', [
             'tableId' => 'dt-jenis',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $this->columns,
             'defColumns' => $this->defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -53,7 +59,7 @@ class JenisPakaianDinasController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -61,14 +67,14 @@ class JenisPakaianDinasController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $data = [
@@ -78,7 +84,8 @@ class JenisPakaianDinasController extends Controller
             'judul' => $breadcum,
             'readOnly' => $readOnly,
         ];
-        //dd($data['satkerOptions']);
+
+        // dd($data['satkerOptions']);
         return $data;
     }
 
@@ -88,6 +95,7 @@ class JenisPakaianDinasController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.pakaian-dinas.jenis-pakaian-dinas.formV', $data);
     }
 
@@ -100,10 +108,11 @@ class JenisPakaianDinasController extends Controller
             'nama.required' => 'Nama harus diisi ',
         ];
         $request->validate([
-            'nama' => 'required'
+            'nama' => 'required',
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'ms_jenis_pakaian_dinas_seq');
-        Model::updateOrCreate(['id' => $id],$request->input());
+        Model::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -113,15 +122,14 @@ class JenisPakaianDinasController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.pakaian-dinas.jenis-pakaian-dinas.formV', $data);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
-    {
-    }
+    public function edit(string $id) {}
 
     /**
      * Update the specified resource in storage.
@@ -140,6 +148,7 @@ class JenisPakaianDinasController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

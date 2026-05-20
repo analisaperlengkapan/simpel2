@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class Notifikasi extends Model
 {
     protected $table = 'notifikasi';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -27,8 +28,9 @@ class Notifikasi extends Model
         'isi',
         'judul',
         'url',
-        'is_read'
+        'is_read',
     ];
+
     protected static function boot()
     {
         parent::boot();
@@ -48,10 +50,10 @@ class Notifikasi extends Model
         });
     }
 
-    static function getUnread()
+    public static function getUnread()
     {
         $currentRole = session('userData.current_role');
-        if (!$currentRole) {
+        if (! $currentRole) {
             return 0;
         }
         $query = DB::table('vw_notifikasi')->where(['is_read' => 0, 'target_username' => session('userData.username')])->count();
@@ -59,19 +61,20 @@ class Notifikasi extends Model
         return $query;
     }
 
-    static function getNotifs()
+    public static function getNotifs()
     {
         $currentRole = session('userData.username');
+
         return DB::table('vw_notifikasi')->where('target_username', session('userData.username'))->orderByDesc('created_at')->limit(10)->get();
     }
     // select count(*) as unread from vw_notifikasi where ms_satker_id = '10.05' or username = 'superadmin' ;
 
-    static function sendMobileNotif($params)
+    public static function sendMobileNotif($params)
     {
-        $client = new Client();
+        $client = new Client;
         $headers = [
             'Authorization' => getenv('FIREBASE_TOKEN'),
-            'Content-Type' => 'application/json'
+            'Content-Type' => 'application/json',
         ];
         // "to" => "dxZI4VqCT_yrHXDyDsMNRI:APA91bFlbLEi_NPGG7llmAb0M0-RskIs-4OAYZfIgLRm0tFdiposuy_sosFEp2vSwF8PEObf4nnGjadZ0t6GXC-OHwNpkgV0wxn68H_ua-ZuNuakcjV8L8bv5c9O6LWV-GJuLV9pG-8c",
         // "data" => [
@@ -80,16 +83,16 @@ class Notifikasi extends Model
         //     "id" => 12345678
         // ],
         $body = [
-            "registration_ids" => $params['tokens'],
-            "data" => [
-                "title" => $params['title'],
-                "message" => $params['isi'],
-                "id" => uniqid()
+            'registration_ids' => $params['tokens'],
+            'data' => [
+                'title' => $params['title'],
+                'message' => $params['isi'],
+                'id' => uniqid(),
             ],
-            "notification" => [
-                "body" => $params['isi'],
-                "title" => $params['title']
-            ]
+            'notification' => [
+                'body' => $params['isi'],
+                'title' => $params['title'],
+            ],
         ];
         $request = new Request('POST', 'https://fcm.googleapis.com/fcm/send', $headers, json_encode($body));
         $client->send($request);
@@ -105,7 +108,7 @@ class Notifikasi extends Model
      *targetSatker = array optional
      *targetSatkerPusat = array optional
      */
-    static function sendNotif(array $params)
+    public static function sendNotif(array $params)
     {
         $currentRole = session('userData.current_role');
         $notifs = [];
@@ -119,7 +122,7 @@ class Notifikasi extends Model
             'dari_ms_satker_pusat_id' => $currentRole['ms_satker_pusat_id'],
             'url' => $params['url'],
             'judul' => $params['judul'],
-            'isi' => $params['isi']
+            'isi' => $params['isi'],
         ];
 
         if ($params['target'] == 'role') {
@@ -132,14 +135,14 @@ class Notifikasi extends Model
             $newNotif = $baseNotif;
             $newNotif['target_username'] = $user->username;
             $newNotif['target_role_id'] = $params['targetValue'] ?? null;
-            if (!empty($user->firebase_token)) {
+            if (! empty($user->firebase_token)) {
                 $userTokens[] = $user->firebase_token;
             }
             $notifs[] = $newNotif;
         }
 
         Notifikasi::insert($notifs);
-        if (!empty($userTokens)) {
+        if (! empty($userTokens)) {
             self::sendMobileNotif(['title' => $params['judul'], 'isi' => $params['isi'], 'tokens' => $userTokens]);
         }
 

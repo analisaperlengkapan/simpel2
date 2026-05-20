@@ -1,6 +1,7 @@
 # MFA Security Considerations and Compliance - SIMPEL
 
 ## Table of Contents
+
 1. [Security Framework](#security-framework)
 2. [Regulatory Compliance](#regulatory-compliance)
 3. [Risk Assessment](#risk-assessment)
@@ -59,12 +60,14 @@ graph TB
 ### Security Principles
 
 #### 1. Zero Trust Architecture
+
 - **Never Trust, Always Verify**: Every request is authenticated and authorized
 - **Least Privilege Access**: Minimal necessary permissions granted
 - **Assume Breach**: Design with the assumption that perimeter is compromised
 - **Continuous Verification**: Ongoing validation of user identity and device trust
 
 #### 2. Cryptographic Standards
+
 ```yaml
 cryptographic_standards:
   totp_algorithm:
@@ -93,6 +96,7 @@ cryptographic_standards:
 ```
 
 #### 3. Secure Development Lifecycle
+
 - **Security by Design**: Security considerations from initial design
 - **Threat Modeling**: Systematic identification of security threats
 - **Secure Coding**: Following secure coding practices and standards
@@ -105,9 +109,11 @@ cryptographic_standards:
 ### Indonesian Government Regulations
 
 #### 1. Peraturan Menteri Komunikasi dan Informatika No. 4 Tahun 2016
+
 **Requirement**: Keamanan Informasi dalam Penyelenggaraan Sistem Elektronik
 
 **Compliance Mapping**:
+
 ```yaml
 permenkominfo_4_2016:
   pasal_15_autentikasi:
@@ -133,9 +139,11 @@ permenkominfo_4_2016:
 ```
 
 #### 2. Surat Edaran Menteri PANRB No. 3 Tahun 2018
+
 **Requirement**: Keamanan Data dan Informasi ASN
 
 **Compliance Implementation**:
+
 ```sql
 -- Data protection compliance tracking
 CREATE TABLE compliance_tracking (
@@ -159,6 +167,7 @@ INSERT INTO compliance_tracking VALUES
  '{"backup_frequency": "daily", "recovery_tested": "monthly", "offsite_storage": "enabled"}',
  CURRENT_DATE, CURRENT_DATE + INTERVAL '3 months', 'security-officer-uuid');
 ```
+
 #### 3. ISO 27001:2013 Information Security Management
 
 **Control Implementation Matrix**:
@@ -178,6 +187,7 @@ INSERT INTO compliance_tracking VALUES
 ### International Standards Compliance
 
 #### NIST Cybersecurity Framework
+
 ```yaml
 nist_csf_compliance:
   identify:
@@ -203,6 +213,7 @@ nist_csf_compliance:
 ```
 
 #### NIST SP 800-63B Authentication Guidelines
+
 ```yaml
 nist_800_63b_compliance:
   authenticator_assurance_level: "AAL2"  # Multi-factor authentication
@@ -233,6 +244,7 @@ nist_800_63b_compliance:
 ### MFA-Specific Risk Analysis
 
 #### High-Risk Scenarios
+
 ```yaml
 high_risk_scenarios:
   totp_secret_compromise:
@@ -267,6 +279,7 @@ high_risk_scenarios:
 ```
 
 #### Risk Mitigation Matrix
+
 ```sql
 -- Risk tracking and mitigation
 CREATE TABLE security_risks (
@@ -303,6 +316,7 @@ INSERT INTO security_risks VALUES
 ### Technical Controls
 
 #### 1. Cryptographic Controls
+
 ```rust
 // Secure TOTP implementation
 pub struct SecureTotpProvider {
@@ -354,6 +368,7 @@ impl SecureTotpProvider {
 ```
 
 #### 2. Access Controls
+
 ```yaml
 rbac_configuration:
   roles:
@@ -396,7 +411,9 @@ rbac_configuration:
         - "request.reason != null"
         - "target_user.role != 'super_admin'"
 ```
+
 #### 3. Monitoring and Detection Controls
+
 ```sql
 -- Security event detection rules
 CREATE TABLE security_detection_rules (
@@ -467,6 +484,7 @@ $$ LANGUAGE plpgsql;
 ### Administrative Controls
 
 #### 1. Security Policies and Procedures
+
 ```yaml
 security_policies:
   mfa_policy:
@@ -500,6 +518,7 @@ security_policies:
 ```
 
 #### 2. Training and Awareness
+
 ```yaml
 security_training:
   mfa_user_training:

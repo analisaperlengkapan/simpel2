@@ -1,6 +1,6 @@
 [package]
 name = "lib-backend"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 license.workspace = true
 description = "Backend infrastructure utilities for SIMPEL services (DB, cache, middleware, gRPC)"
@@ -28,7 +28,10 @@ dotenvy = { workspace = true, optional = true }
 redis = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, features = ["env-filter", "json"], optional = true }
+tracing-subscriber = { workspace = true, features = [
+  "env-filter",
+  "json",
+], optional = true }
 tokio-postgres = { workspace = true, optional = true }
 deadpool-postgres = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
@@ -54,11 +57,30 @@ sha2 = { workspace = true, optional = true }
 default = []
 redis-cache = ["dep:redis"]
 env-config = ["dep:dotenvy"]
-axum = ["dep:axum", "dep:tower", "dep:tower-http", "dep:http", "dep:http-body", "dep:http-body-util", "dep:pin-project", "dep:futures-util", "dep:bytes"]
+axum = [
+  "dep:axum",
+  "dep:tower",
+  "dep:tower-http",
+  "dep:http",
+  "dep:http-body",
+  "dep:http-body-util",
+  "dep:pin-project",
+  "dep:futures-util",
+  "dep:bytes",
+]
 telemetry = ["dep:tracing-subscriber"]
 db = ["dep:tokio-postgres", "dep:deadpool-postgres"]
 jwt = ["dep:jsonwebtoken"]
 grpc = ["dep:tonic", "dep:rustls", "dep:rustls-pemfile"]
 storage = ["dep:aws-config", "dep:aws-sdk-s3", "dep:sha2"]
 # Full backend feature set
-full-backend = ["jwt", "axum", "db", "telemetry", "redis-cache", "grpc", "storage", "env-config"]
+full-backend = [
+  "jwt",
+  "axum",
+  "db",
+  "telemetry",
+  "redis-cache",
+  "grpc",
+  "storage",
+  "env-config",
+]

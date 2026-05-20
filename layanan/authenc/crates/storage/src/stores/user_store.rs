@@ -28,7 +28,7 @@ async fn load_user_roles(
         WHERE ur.user_id = $1
     "#;
     match db.query(roles_query, &[user_id]).await {
-        Ok(role_rows) => role_rows.iter().map(|r| row_to_role(r)).collect(),
+        Ok(role_rows) => role_rows.iter().map(row_to_role).collect(),
         Err(e) => {
             warn!(user_id = %user_id, error = %e, "Failed to load roles for user");
             Vec::new()

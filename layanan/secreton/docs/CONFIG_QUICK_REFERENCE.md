@@ -67,6 +67,7 @@ secreton migrate --cleanup
 **Purpose:** Infrastructure configuration
 
 **Contains:**
+
 - Storage backend type (Raft/File/Postgres)
 - Listener addresses (HTTP/gRPC)
 - Seal type (Shamir/AWS KMS/GCP KMS/Azure KV)
@@ -74,6 +75,7 @@ secreton migrate --cleanup
 - Log level
 
 **Does NOT contain:**
+
 - Database passwords
 - JWT secrets
 - API keys
@@ -86,6 +88,7 @@ secreton migrate --cleanup
 **Purpose:** All application settings
 
 **Contains (encrypted):**
+
 - Auth settings (JWT secrets)
 - Database connection URLs
 - MFA policies
@@ -262,14 +265,17 @@ key_name = "seal-key"
 ### Auto-Unseal
 
 **AWS KMS:**
+
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` (optional, overrides config)
 
 **GCP KMS:**
+
 - `GOOGLE_APPLICATION_CREDENTIALS` (path to service account JSON)
 
 **Azure Key Secret Vault:**
+
 - `AZURE_TENANT_ID`
 - `AZURE_CLIENT_ID`
 - `AZURE_CLIENT_SECRET`

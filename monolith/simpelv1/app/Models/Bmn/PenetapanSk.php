@@ -14,7 +14,9 @@ class PenetapanSk extends Model
     use HooksTrait, LogTrait;
 
     protected $table = 'bmn_penetapan';
+
     const tableKet = 'Pengajuan SK Penetapan Status Penggunaan';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -36,9 +38,9 @@ class PenetapanSk extends Model
         'sk_jenis',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
-        $query = DB::table($this->table . ' as a');
+        $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.ms_satker_id', '=', 'b.inst_satkerkd');
         $query->leftJoin('ms_aktifitas as c', 'a.ms_aktifitas_id', '=', 'c.id');
         $query->select(['a.*', 'b.inst_nama', 'c.nama as aktifitas_nama', 'c.id as aktifitas_id']);
@@ -47,10 +49,10 @@ class PenetapanSk extends Model
             $query->where('a.ms_satker_id', $currentRole['ms_satker_id']);
         }
         if (MyHelper::isValidatorWilayah()) {
-            $query->where('a.ms_satker_id',  'like', "{$currentRole['ms_satker_id']}%");
+            $query->where('a.ms_satker_id', 'like', "{$currentRole['ms_satker_id']}%");
         }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -60,11 +62,11 @@ class PenetapanSk extends Model
                     if ($columnName == 'inst_nama') {
                         $kolom = 'b.inst_nama';
                         $tableName = 'ms_satker';
-                    } else if ($columnName == 'aktifitas_nama') {
-                        $kolom = "c.nama";
+                    } elseif ($columnName == 'aktifitas_nama') {
+                        $kolom = 'c.nama';
                         $tableName = 'ms_aktifitas';
                     } else {
-                        $kolom = 'a.' . $columnName;
+                        $kolom = 'a.'.$columnName;
                     }
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
@@ -84,19 +86,21 @@ class PenetapanSk extends Model
         $query->orderByDesc('a.created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function findOne($id)
+    public static function findOne($id)
     {
         $query = DB::table('asset_tik_hakcipta as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $query->where('a.id', '=', $id);
+
         return $query->first();
     }
 
-    function getDataGridMonitoring($paging, $search)
+    public function getDataGridMonitoring($paging, $search)
     {
         $currentRole = session('userData.current_role');
         $query = DB::table('vw_aset_psp as a')
@@ -105,14 +109,14 @@ class PenetapanSk extends Model
             ->select([
                 'a.*',
                 'b.name as nm_aset',
-                'e.inst_nama'
+                'e.inst_nama',
             ]);
         $query->where('a.kdsatker_keu', $currentRole['ms_satker_id_keu'])
             ->orderBy('b.name')->orderBy('a.nm_barang');
         // if ($currentRole['ms_role_id'] == config('constants.pelaksana_satker_role_id')) {
         // }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -122,11 +126,11 @@ class PenetapanSk extends Model
                     if ($columnName == 'nama_asset') {
                         $kolom = 'b.name';
                         $tableName = 'ms_jenis_asset';
-                    } else if ($columnName == 'inst_nama') {
-                        $kolom = "e.inst_nama";
+                    } elseif ($columnName == 'inst_nama') {
+                        $kolom = 'e.inst_nama';
                         $tableName = 'ms_satker';
                     } else {
-                        $kolom = 'a.' . $columnName;
+                        $kolom = 'a.'.$columnName;
                     }
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
@@ -154,18 +158,21 @@ class PenetapanSk extends Model
         // $query->orderByDesc('a.created_at');
         $total = $query->distinct()->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function asetSudahDiPsp()
+    public static function asetSudahDiPsp()
     {
         $udahDiajukanIds = DB::table('bmn_penetapan_asset as a')
             ->select(['a.vw_aset_psp_id'])
             ->join('bmn_penetapan as b', 'a.bmn_penetapan_id', '=', 'b.id')
             ->whereNotIn('b.ms_aktifitas_id', ['2003'])->get()->pluck('vw_aset_psp_id')->toArray();
+
         return $udahDiajukanIds;
     }
-    static function getAset($filter = [], $raw = true)
+
+    public static function getAset($filter = [], $raw = true)
     {
         $pspStatus = $filter['pspStatus'] ?? null;
         $whereIn = $filter['whereIn'] ?? null;
@@ -196,14 +203,14 @@ class PenetapanSk extends Model
             $query->whereNotIn('a.id', $whereNotIn);
         }
 
-
-        if ($raw)
+        if ($raw) {
             return $query->get();
+        }
 
         return $query;
     }
 
-    static function getPengajuanAset($id)
+    public static function getPengajuanAset($id)
     {
         return DB::table('bmn_penetapan_asset as a')->select(['b.*', 'c.name as nm_aset'])
             ->join('vw_aset_psp as b', 'b.id', '=', 'a.vw_aset_psp_id')
@@ -211,17 +218,18 @@ class PenetapanSk extends Model
             ->where('a.bmn_penetapan_id', $id)
             ->get();
     }
-    function getDataGridAset($paging, $search = [])
+
+    public function getDataGridAset($paging, $search = [])
     {
         $query = self::getAset($search, false);
-        if (!empty($search) && isset($search['columns'])) {
+        if (! empty($search) && isset($search['columns'])) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -239,6 +247,7 @@ class PenetapanSk extends Model
         }
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

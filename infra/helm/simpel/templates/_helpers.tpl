@@ -54,10 +54,16 @@ app.kubernetes.io/instance: {{ .top.Release.Name }}
 {{- $spec := .spec -}}
 {{- $registry := $top.Values.global.registry -}}
 {{- $tag := default $top.Values.global.imageTag $spec.tag -}}
+{{- $prefix := default "simpelv2-" $top.Values.global.imageNamePrefix -}}
 {{- if $spec.repository -}}
 {{- printf "%s:%s" $spec.repository $tag -}}
 {{- else if $spec.name -}}
+{{- /* Pakai prefix kalau spec.name tidak include "/" (full path override) */ -}}
+{{- if contains "/" $spec.name -}}
 {{- printf "%s/%s:%s" $registry $spec.name $tag -}}
+{{- else -}}
+{{- printf "%s/%s%s:%s" $registry $prefix $spec.name $tag -}}
+{{- end -}}
 {{- else -}}
 {{- fail (printf "image spec missing both repository and name: %v" $spec) -}}
 {{- end -}}

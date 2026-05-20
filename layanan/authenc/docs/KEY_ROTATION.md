@@ -202,6 +202,7 @@ When `enable_notifications` is true, the system sends notifications on rotation 
 - Timestamp
 
 Notifications can be integrated with:
+
 - Email
 - Slack
 - Microsoft Teams

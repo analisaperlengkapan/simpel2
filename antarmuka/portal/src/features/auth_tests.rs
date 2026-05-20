@@ -45,8 +45,8 @@ mod tests {
 
         let claims: Claims = serde_json::from_value(json_data).expect("Failed to deserialize");
 
-        assert_eq!(claims.mfa_enabled, true);
-        assert_eq!(claims.mfa_setup_required, false);
+        assert!(claims.mfa_enabled);
+        assert!(!claims.mfa_setup_required);
         assert_eq!(claims.exp, Some(1700000000));
     }
 
@@ -59,8 +59,8 @@ mod tests {
 
         let claims: Claims = serde_json::from_value(json_data).expect("Failed to deserialize");
 
-        assert_eq!(claims.mfa_enabled, false);
-        assert_eq!(claims.mfa_setup_required, false);
+        assert!(!claims.mfa_enabled);
+        assert!(!claims.mfa_setup_required);
         assert_eq!(claims.exp, None);
     }
 
@@ -73,9 +73,9 @@ mod tests {
 
         let claims: Claims = serde_json::from_value(json_data).expect("Failed to deserialize");
 
-        assert_eq!(claims.mfa_setup_required, true);
+        assert!(claims.mfa_setup_required);
         // mfa_enabled should default to false
-        assert_eq!(claims.mfa_enabled, false);
+        assert!(!claims.mfa_enabled);
     }
 
     #[test]

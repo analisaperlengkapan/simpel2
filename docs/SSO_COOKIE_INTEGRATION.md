@@ -44,6 +44,7 @@ Dokumentasi ini menjelaskan integrasi SSO cookie antara backend (Authenc) dan fr
 ## Backend Implementation
 
 ### Lokasi
+
 - **File**: `layanan/authenc/src/utils/sso_cookie.rs`
 - **Config**: `layanan/authenc/src/config/mod.rs`
 - **Handlers**: `layanan/authenc/src/handlers/oidc_sso.rs`
@@ -96,6 +97,7 @@ pub struct SsoSession {
 ## Frontend Implementation
 
 ### Lokasi
+
 - **File**: `antarmuka/shared/src/utils/sso_cookie.rs`
 - **Integration**: `antarmuka/shared/src/hooks/use_auth.rs`
 
@@ -156,6 +158,7 @@ impl From<SsoSession> for UserSession {
 ### Backend → Frontend
 
 1. **Login Flow**
+
    ```
    User Login → Authenc validates → Generate JWT
    → Create SsoSession → Set AUTHENC_SSO cookie
@@ -180,6 +183,7 @@ impl From<SsoSession> for UserSession {
 ### Frontend → Backend
 
 1. **Validation Flow**
+
    ```
    Frontend reads cookie → Validates expiration locally
    → If valid, use session → If expired, redirect to login
@@ -187,6 +191,7 @@ impl From<SsoSession> for UserSession {
    ```
 
 2. **Logout Flow**
+
    ```
    User clicks logout → Frontend calls backend /oidc/logout
    → Backend sets Max-Age=0 → Frontend clears auth context
@@ -270,6 +275,7 @@ pub fn use_auth() -> AuthContext {
 ```
 
 **Masalah**:
+
 - Tidak ada sinkronisasi dengan backend
 - Session tidak ter-validasi server-side
 - Tidak ada SSO antar microfrontend
@@ -289,6 +295,7 @@ if let Some(sso_session) = reader.read_session() {
 ```
 
 **Keuntungan**:
+
 - Server-side validation
 - SSO antar microfrontend (shared domain)
 - HttpOnly security
@@ -338,21 +345,25 @@ cargo test --lib utils::sso_cookie::tests
 ## Migration Path
 
 ### Phase 1: Backend Implementation ✅
+
 - Implement SsoCookieManager
 - Add OIDC SSO handlers
 - Configure cookie settings
 
 ### Phase 2: Frontend Implementation ✅
+
 - Implement SsoCookieReader
 - Integrate with use_auth
 - Add session monitoring
 
 ### Phase 3: Portal Integration (Next)
+
 - Update login flow to use SSO cookie
 - Update logout flow to clear SSO cookie
 - Add session monitoring to portal
 
 ### Phase 4: Microfrontend Integration (Next)
+
 - Update each microfrontend to read SSO cookie
 - Remove localStorage-only auth
 - Test cross-microfrontend SSO
@@ -364,6 +375,7 @@ cargo test --lib utils::sso_cookie::tests
 **Symptom**: Frontend cannot read AUTHENC_SSO cookie
 
 **Checklist**:
+
 - [ ] Backend sets Set-Cookie header
 - [ ] Domain matches (simpel.kejaksaan.go.id)
 - [ ] HTTPS enabled (Secure flag)
@@ -375,6 +387,7 @@ cargo test --lib utils::sso_cookie::tests
 **Symptom**: User logged out unexpectedly
 
 **Checklist**:
+
 - [ ] Check max_age configuration (default: 3600s)
 - [ ] Verify server time synchronization
 - [ ] Check frontend validation logic
@@ -385,6 +398,7 @@ cargo test --lib utils::sso_cookie::tests
 **Symptom**: Cookie not shared across subdomains
 
 **Checklist**:
+
 - [ ] Domain set to parent domain (.simpel.kejaksaan.go.id)
 - [ ] SameSite=Lax allows cross-subdomain
 - [ ] HTTPS on all subdomains
@@ -414,4 +428,3 @@ cargo test --lib utils::sso_cookie::tests
 ⏳ **Portal Integration** - Pending
 ⏳ **Microfrontend Integration** - Pending
 ⏳ **Production Testing** - Pending
-

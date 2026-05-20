@@ -2,10 +2,6 @@
 # Version: 1.1.0 - Enhanced Security & Quality Pipeline with Bidirectional Sync
 # Features: Comprehensive Rust toolchain with security scanning
 
-# Include bidirectional sync with GitHub
-include:
-  - local: ".gitlab/ci/sync-to-github.yml"
-
 stages:
   - preparation
   - quality

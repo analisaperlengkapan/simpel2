@@ -4,6 +4,7 @@
 > **DO NOT LOOK FOR CODE EXAMPLES HERE.** This file is deliberately kept short to prevent AI context truncation. Use the **AI Routing Guide** below to find specific code patterns.
 
 ## 📑 Daftar Isi (Table of Contents)
+
 1. 🗺️ AI Routing Guide
 2. 🌍 Project Context
 3. 🏛️ System Architecture & Contracts
@@ -13,6 +14,7 @@
 7. ✅ Pre-Implementation Checklist
 
 ## 🗺️ AI Routing Guide (Read This First!)
+
 Berdasarkan lokasi file yang sedang Anda kerjakan, baca `AGENTS.md` spesifik di direktori tersebut untuk mengetahui aturan teknis (Axum, Leptos, gRPC, dll):
 
 - ⚙️ **Backend Services**: Baca `layanan/AGENTS.md` (Pola Axum, gRPC, PostgreSQL, Observability).
@@ -28,7 +30,9 @@ Berdasarkan lokasi file yang sedang Anda kerjakan, baca `AGENTS.md` spesifik di 
 - 📖 **Documentation & ADRs**: Baca `docs/AGENTS.md` (Standar Penulisan, Mermaid).
 
 ## 🌍 Project Context
+
 **SIMPEL** adalah sistem monorepo Rust kritikal untuk Kejaksaan RI. Backend menggunakan arsitektur *modular monolith* (`layanan/`) dan antarmuka menggunakan Microfrontends Leptos (`antarmuka/`).
+
 - **Production URL:** https://simpel.kejaksaan.go.id/
 - **Compliance:** Zero-trust security, government standards
 - **Precedence**: `AGENTS.md` (root) > `<domain>/AGENTS.md` > `README.md`.
@@ -68,6 +72,7 @@ flowchart TB
 ⛔ **DO NOT** use alternative key names (e.g. `simpel_access_token`, `jwt_token`).
 
 ## 🏗️ Workspace Structure
+
 - **`Cargo.toml` (Root)**: Single source of truth untuk SEMUA dependensi eksternal.
 - **`antarmuka/`**: Frontend WASM (Portal, Perlengkapan).
 - **`layanan/`**: Backend services & Core infra (Perlengkapan, Integrasi, Authenc, Secreton).
@@ -93,13 +98,18 @@ flowchart TB
    - ALL external dependencies MUST be in `[workspace.dependencies]` di Root `Cargo.toml`.
    - Member crates MUST use `dependency_name = { workspace = true }`. Jangan pernah menaruh versi di crate anak.
 2. **Database Rules**: ⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres` + `deadpool-postgres` + `refinery`. Setiap layanan (authenc, perlengkapan, secreton) menggunakan DB terpisah.
-3. **Secrets**: Jangan pernah menggunakan Environment Variables untuk rahasia produksi. Gunakan Secreton gRPC Client.
+3. **Secrets (Zero-Trust)**:
+   - **Source of truth produksi & staging**: Secreton vault (`kv/<service>/...`).
+   - **Auth**: Setiap pod project SA token (audience `secreton`) → exchange via `POST /v1/auth/kubernetes/login` → Secreton client token. **JANGAN** pakai `SECRETON_TOKEN` env (dev lokal saja).
+   - **Image registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>` dengan tag SemVer immutable (`v0.1.0`). DILARANG mutable tag (`latest`/`stag`/`prod`).
+   - Detail: `infra/AGENTS.md` section "Secret Management Zero-Trust".
 4. **Library Boundaries**: `lib/common/` telah dipecah menjadi `lib/core/` (WASM-safe types), `lib/backend/` (infrastruktur backend), dan `lib/crypto/` (primitif kripto). DILARANG menambahkan dependensi async (`tokio`, `axum`) ke `lib-core`. Buat crate shared spesifik baru di `lib/` jika diperlukan.
 5. **Security**: Zero-trust antar layanan. Validasi JWT di setiap request REST via middleware yang memanggil Authenc gRPC. Password hash menggunakan Argon2.
 
 ## ⚠️ Common Pitfalls (DO & DON'T)
 
 ❌ **DON'T:**
+
 - Call Authenc/Secreton directly from microfrontend.
 - Use `create_signal` in Leptos 0.8.x (use `signal()`).
 - Specify dependency versions in member `Cargo.toml` files.
@@ -108,12 +118,14 @@ flowchart TB
 - Use `.unwrap()` in production (use `?` and custom `AppError`).
 
 ✅ **DO:**
+
 - Gunakan alat *search* (grep/view_file) ke `AGENTS.md` spesifik jika butuh contoh kode.
 - Jalankan `cargo fmt --all && cargo clippy --workspace` sebelum *commit*.
 - Gunakan REST API untuk MFE → Backend, dan gRPC untuk Backend → Core.
 
 ## ✅ Pre-Implementation Checklist
+
 1. **Auth-related?** → Gunakan Portal + `use_auth()` hook. Flow: MFE → REST → gRPC.
-2. **Needs secrets?** → Gunakan Secreton gRPC client di backend (BUKAN env vars).
+2. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`. Untuk simpelv1 (PHP/Laravel): init container `fetch-secrets` generate `.env` ke emptyDir saat pod start.
 3. **Reusable UI?** → Masukkan ke `lib/ui/`, lalu impor.
 4. **New dependency?** → Tambahkan ke root `Cargo.toml` `[workspace.dependencies]` terlebih dahulu.

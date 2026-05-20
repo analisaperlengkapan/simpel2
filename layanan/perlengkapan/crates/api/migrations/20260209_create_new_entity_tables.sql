@@ -416,12 +416,12 @@ COMMENT ON TABLE perlengkapan.izin_pemakaian_bmn_aktivitas IS 'Workflow history 
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION perlengkapan.update_entity_updated_at()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- Apply triggers to all new tables
 CREATE TRIGGER trg_roadmap_updated_at
@@ -464,7 +464,7 @@ SELECT
     i.tanggal_mulai,
     i.tanggal_selesai,
     i.status,
-    EXTRACT(DAY FROM (i.tanggal_selesai - CURRENT_DATE)) as days_until_expiry,
+    (i.tanggal_selesai - CURRENT_DATE) as days_until_expiry,
     CASE
         WHEN i.tanggal_selesai < CURRENT_DATE THEN 'EXPIRED'
         WHEN i.tanggal_selesai < CURRENT_DATE + INTERVAL '30 days' THEN 'EXPIRING_SOON'
@@ -528,7 +528,7 @@ COMMENT ON VIEW perlengkapan.v_mapping_progress IS 'Progress of code mapping by 
 -- COMPLETION MESSAGE
 -- ============================================================================
 
-DO $
+DO $$
 BEGIN
     RAISE NOTICE '✅ New entity tables created successfully';
     RAISE NOTICE '📊 Created: 7 new tables';
@@ -543,4 +543,4 @@ BEGIN
     RAISE NOTICE '👁️ Created: 3 views for reporting';
     RAISE NOTICE '🔧 Created: 5 triggers for updated_at';
     RAISE NOTICE '🔍 Schema: perlengkapan';
-END $;
+END $$;

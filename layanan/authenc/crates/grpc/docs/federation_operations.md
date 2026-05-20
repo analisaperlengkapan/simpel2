@@ -5,6 +5,7 @@ This document describes the federation gRPC RPCs for SSO and external identity p
 ## Overview
 
 The federation RPCs enable:
+
 - **SSO Initiation**: Start federated authentication flow with external IdP
 - **SSO Callback Handling**: Complete authentication and link/create user accounts
 - **External IdP Integration**: Support for OIDC, SAML, and LDAP providers
@@ -14,6 +15,7 @@ The federation RPCs enable:
 ## Requirements
 
 Implements the following requirements from the spec:
+
 - **REQ-FED-001**: External identity provider support (OIDC, SAML, LDAP)
 - **REQ-FED-002**: Identity brokering with account linking
 - **REQ-FED-003**: SSO flows (SP-initiated, IdP-initiated, SLO)
@@ -25,6 +27,7 @@ Implements the following requirements from the spec:
 Initiates federated authentication flow by generating an authorization URL for the specified identity provider.
 
 **Request:**
+
 ```protobuf
 message FederatedAuthRequest {
   string provider = 1;                  // Provider name (e.g., "google", "microsoft")
@@ -34,6 +37,7 @@ message FederatedAuthRequest {
 ```
 
 **Response:**
+
 ```protobuf
 message FederatedAuthResponse {
   string auth_url = 1;  // Authorization URL to redirect user to
@@ -62,6 +66,7 @@ println!("Redirect to: {}", response.into_inner().auth_url);
 ```
 
 **Flow:**
+
 1. Client calls `InitiateFederatedAuth` with provider name
 2. Authenc generates authorization URL with state parameter
 3. Client redirects user to authorization URL
@@ -69,6 +74,7 @@ println!("Redirect to: {}", response.into_inner().auth_url);
 5. IdP redirects back to callback URL with authorization code
 
 **Error Cases:**
+
 - `NOT_FOUND`: Provider not found
 - `INVALID_ARGUMENT`: Invalid provider configuration
 - `FAILED_PRECONDITION`: Provider is disabled
@@ -80,6 +86,7 @@ println!("Redirect to: {}", response.into_inner().auth_url);
 Completes federated authentication by exchanging authorization code for tokens and linking/creating user account.
 
 **Request:**
+
 ```protobuf
 message CompleteFederatedAuthRequest {
   string provider = 1;  // Provider name
@@ -89,6 +96,7 @@ message CompleteFederatedAuthRequest {
 ```
 
 **Response:**
+
 ```protobuf
 message CompleteFederatedAuthResponse {
   string access_token = 1;   // Internal access token
@@ -117,6 +125,7 @@ println!("User: {:?}", inner.user);
 ```
 
 **Flow:**
+
 1. Client receives authorization code from IdP callback
 2. Client calls `CompleteFederatedAuth` with code and state
 3. Authenc verifies state parameter (CSRF protection)
@@ -127,6 +136,7 @@ println!("User: {:?}", inner.user);
 8. Client receives tokens and user info
 
 **Error Cases:**
+
 - `NOT_FOUND`: Provider not found
 - `UNAUTHENTICATED`: Invalid authorization code
 - `INVALID_ARGUMENT`: State verification failed
@@ -197,6 +207,7 @@ The federation flow uses state parameters to prevent CSRF attacks:
 4. `CompleteFederatedAuth` verifies state matches
 
 **Implementation:**
+
 ```rust
 // State generation (in FederationService)
 fn generate_state() -> String {
@@ -223,6 +234,7 @@ When completing federated authentication, Authenc performs account linking:
 3. **Create new user**: If no match, create new user (just-in-time provisioning)
 
 **Security:**
+
 - Email verification required before linking
 - User consent required for account linking
 - Audit log for all account linking operations
@@ -269,12 +281,14 @@ cargo test federation_test
 ## Future Enhancements
 
 ### Phase 1 (Current)
+
 - ✅ OIDC provider support
 - ✅ SAML provider support (basic)
 - ✅ Account linking
 - ✅ Just-in-time provisioning
 
 ### Phase 2 (Future)
+
 - [ ] LDAP/Active Directory integration
 - [ ] Attribute mapping configuration
 - [ ] Identity provider chaining
@@ -283,6 +297,7 @@ cargo test federation_test
 - [ ] Advanced SAML features (encryption, signing)
 
 ### Phase 3 (Future)
+
 - [ ] Social login providers (Facebook, Twitter, GitHub)
 - [ ] Multi-factor authentication with external IdP
 - [ ] Account unlinking

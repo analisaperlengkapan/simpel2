@@ -215,6 +215,7 @@ sudo dnf install openssl-devel
 ### 2.3 Network Requirements
 
 **Required Ports:**
+
 | Port | Service | Direction | Description |
 |------|---------|-----------|-------------|
 | 8088 | Authenc HTTP | Inbound | Main API endpoint |

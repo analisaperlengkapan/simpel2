@@ -61,9 +61,11 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
 #### 1. Broker Service (Priority 1)
 
 **Files Migrated**:
+
 - `src/services/broker/mod.rs` → `crates/core/src/services/broker/mod.rs`
 
 **Changes Made**:
+
 1. Updated imports:
    - `crate::models::user::*` → `authenc_types::domain::user::*`
    - Removed `SecretonAccessPolicy` import (not used)
@@ -72,6 +74,7 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
    - Added `pub use broker::*;`
 
 **Types Exported**:
+
 - `IdentityProviderType` enum
 - `IdentityProviderConfig` struct
 - `IdentityBroker` trait
@@ -93,6 +96,7 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
 #### 2. Federation Services (Priority 1)
 
 **Files to Migrate**:
+
 1. `src/services/federation/mod.rs` → `crates/core/src/services/federation/mod.rs`
 2. `src/services/federation/oidc.rs` → `crates/core/src/services/federation/oidc.rs`
 3. `src/services/federation/saml.rs` → `crates/core/src/services/federation/saml.rs`
@@ -102,6 +106,7 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
 7. `src/services/advanced_federation.rs` → `crates/core/src/services/advanced_federation.rs`
 
 **Complexity**: HIGH
+
 - 7 files total
 - Complex interdependencies
 - JIT provisioning logic
@@ -109,6 +114,7 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
 - Database operations
 
 **Import Updates Needed**:
+
 - `crate::database::*` → `authenc_storage::*`
 - `crate::models::*` → `authenc_types::domain::*`
 - `crate::error::*` → `authenc_types::error::*`
@@ -124,6 +130,7 @@ Phase 2 (Task 5 - Migrate authenc-core) migration has been restarted to complete
 The following types are referenced in authenc-api but not yet in authenc-types:
 
 ### OAuth2/OIDC Types (Priority: HIGH)
+
 - ❌ `OAuth2TokenRequest` - Token endpoint request
 - ❌ `OAuth2TokenResponse` - Token endpoint response
 - ❌ `AuthorizationCode` - For oidc_code_store
@@ -132,14 +139,17 @@ The following types are referenced in authenc-api but not yet in authenc-types:
 - ❌ `TrustEvaluationContext` - Device trust
 
 ### User Management Types (Priority: HIGH)
+
 - ❌ `JITUserProvisioningResponse` - JIT provisioning result
 - ❌ `ExternalUser` - Already in broker, may need in types
 
 ### Event Types (Priority: MEDIUM)
+
 - ❌ `EventCategory` enum - Event categorization
 - ❌ `EventBus` trait - Event publishing
 
 ### Federation Types (Priority: HIGH)
+
 - ❌ `FederationRegistry` - Federation provider registry
 - ❌ `FederationProvider` trait - Federation provider interface
 
@@ -150,6 +160,7 @@ The following types are referenced in authenc-api but not yet in authenc-types:
 For each service, follow this process:
 
 ### Step 1: Read Source Files
+
 ```bash
 # Read all files in the service directory
 readFile src/services/<service>/mod.rs
@@ -157,6 +168,7 @@ readFile src/services/<service>/*.rs
 ```
 
 ### Step 2: Identify Dependencies
+
 - List all `use crate::*` imports
 - Identify which crates they should map to:
   - `crate::database::*` → `authenc_storage::*`
@@ -166,11 +178,13 @@ readFile src/services/<service>/*.rs
   - `crate::crypto::*` → `authenc_crypto::*`
 
 ### Step 3: Check for Missing Types
+
 - Identify types that don't exist in target crates
 - Add missing types to `authenc-types` first
 - Verify types compile before proceeding
 
 ### Step 4: Migrate Files
+
 ```bash
 # Create directory if needed
 mkdir -p crates/core/src/services/<service>
@@ -181,6 +195,7 @@ fsWrite crates/core/src/services/<service>/<file>.rs
 ```
 
 ### Step 5: Update Module Exports
+
 ```rust
 // In crates/core/src/services/mod.rs
 pub mod <service>;
@@ -190,11 +205,13 @@ pub use <service>::*;
 ```
 
 ### Step 6: Verify Compilation
+
 ```bash
 cargo check --package authenc-core
 ```
 
 ### Step 7: Document
+
 - Update this file with migration status
 - Note any issues or blockers
 - Document types added to authenc-types

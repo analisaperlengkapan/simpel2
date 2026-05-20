@@ -6,16 +6,17 @@ use App\Blameable;
 use App\Traits\LogTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Timakuntansibarang extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
 
     const tableKet = 'Pengajuan SK Tim Unit Akuntansi Barang';
+
     protected $table = 'sdm_timakuntansibarang';
 
     /**
@@ -36,7 +37,7 @@ class Timakuntansibarang extends Model
         'inst_satkerkd',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
@@ -55,15 +56,15 @@ class Timakuntansibarang extends Model
         //     }
         // }
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
-                    $kolom = $columnName=='inst_nama'?'b.'.$columnName:'a.'.$columnName;
-                    $tableName = $columnName=='inst_nama'?'ms_satker':$this->table;
-                    if($value){
+                    $kolom = $columnName == 'inst_nama' ? 'b.'.$columnName : 'a.'.$columnName;
+                    $tableName = $columnName == 'inst_nama' ? 'ms_satker' : $this->table;
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($kolom, '=', $value);
@@ -81,14 +82,17 @@ class Timakuntansibarang extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function findOne($id){
+    public static function findOne($id)
+    {
         $query = DB::table('sdm_timakuntansibarang as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $query->where('a.id', '=', $id);
+
         return $query->first();
     }
 }

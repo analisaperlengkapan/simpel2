@@ -4,13 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="/perlengkapan/" />
+    <base href="/perlengkapan/simpel/v2/" />
     <title>SIMPEL — Kejaksaan RI</title>
 
     <script>
-        if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
-            window.location.replace('/perlengkapan/');
-        }
+        // Canonical path untuk microfrontend ini adalah /perlengkapan/simpel/v2/.
+        // Redirect dari path lama (/, /perlengkapan/, /perlengkapan/simpel/) ke
+        // canonical v2 path. Per spec routing: redirect dilakukan di frontend
+        // (HTML/JS), BUKAN di Istio VS, supaya prefix tetap terpelihara dan
+        // browser history bersih.
+        (function () {
+            var p = window.location.pathname;
+            var canonical = '/perlengkapan/simpel/v2/';
+            if (p === '/' || p === '/index.html'
+                || p === '/perlengkapan' || p === '/perlengkapan/'
+                || p === '/perlengkapan/simpel' || p === '/perlengkapan/simpel/') {
+                window.location.replace(canonical);
+            }
+        })();
     </script>
 
     <link data-trunk rel="tailwind-css" href="styles/tailwind.css" />
@@ -79,7 +90,7 @@
 <body>
     <div id="loading-screen">
         <div style="text-align: center;">
-            <img src="/perlengkapan/assets/kejaksaan-logo.png" alt="Kejaksaan RI" class="loader-logo">
+            <img src="/perlengkapan/simpel/v2/assets/kejaksaan-logo.png" alt="Kejaksaan RI" class="loader-logo">
             <div class="loader-text">SIMPEL</div>
             <div class="loader-sub">Memuat aplikasi…</div>
         </div>

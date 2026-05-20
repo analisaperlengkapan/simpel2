@@ -12,6 +12,7 @@
 **Contrary to requirements document claiming 0% completion, the workflow engine is 70% implemented!**
 
 **Evidence:**
+
 - `engine.rs` - Full WorkflowEngine implementation with state machine
 - `config.rs` - Workflow configurations for kebutuhan_bmn, pemakaian_bmn, penghapusan_bmn
 - `sla.rs` - SLA tracking
@@ -20,6 +21,7 @@
 - `notifikasi_client.rs` - Notification service client hooks
 
 **What's Missing:**
+
 - Admin UI for workflow configuration
 - SLA breach auto-escalation scheduler
 - Workflow monitoring dashboard UI
@@ -29,6 +31,7 @@
 **Evidence:** 20 migration files in `migrations/` directory
 
 **Fully Defined:**
+
 - ✅ Kebutuhan BMN tables (6 tables + view)
 - ✅ Pakaian Dinas tables (8 master + 8 transaction tables)
 - ✅ Pemakaian BMN tables
@@ -37,6 +40,7 @@
 - ✅ Workflow status codes (ms_aktivitas_bmn)
 
 **Missing:**
+
 - ❌ Master data tables for kode barang CRUD
 - ❌ Document template tables
 - ❌ Notification queue tables (may be in separate crate)
@@ -46,6 +50,7 @@
 **Evidence:** `routes.rs` defines 100+ endpoints
 
 **Implemented Modules:**
+
 - ✅ Kebutuhan BMN (40+ endpoints)
 - ✅ Pakaian Dinas (30+ endpoints)
 - ✅ Pemakaian BMN (20+ endpoints)
@@ -55,6 +60,7 @@
 - ✅ Roadmap Sarpras (4 endpoints, basic)
 
 **Missing:**
+
 - ❌ Master data CRUD endpoints
 - ❌ Notifikasi endpoints (separate crate)
 - ❌ Dokumen template management endpoints (separate crate)
@@ -83,6 +89,7 @@
 **Impact:** Blocks all features requiring external data
 
 **Missing:**
+
 - SIMAN API client implementation
 - MySIMKARI API client implementation
 - Sync scheduler (full + incremental)
@@ -90,6 +97,7 @@
 - gRPC service for other services
 
 **Files to Create:**
+
 - `layanan/integrasi/src/clients/siman.rs`
 - `layanan/integrasi/src/clients/mysimkari.rs`
 - `layanan/integrasi/src/sync/scheduler.rs`
@@ -100,12 +108,14 @@
 **Impact:** Blocks document generation for permits, SK, reports
 
 **Missing:**
+
 - DOCX template system
 - PDF generation
 - Auto-numbering (SK numbers, permit numbers)
 - Template management
 
 **Files to Create:**
+
 - `layanan/perlengkapan/crates/dokumen/src/templates/`
 - `layanan/perlengkapan/crates/dokumen/src/generation/`
 - `layanan/perlengkapan/crates/dokumen/src/numbering.rs`
@@ -115,12 +125,14 @@
 **Impact:** Users don't receive workflow updates
 
 **Missing:**
+
 - Workflow event subscription
 - Email delivery
 - Reminder scheduling
 - Notification templates
 
 **Files to Create:**
+
 - `layanan/perlengkapan/crates/notifikasi/src/workflow_subscriber.rs`
 - `layanan/perlengkapan/crates/notifikasi/src/email.rs`
 - `layanan/perlengkapan/crates/notifikasi/src/scheduler.rs`
@@ -130,12 +142,14 @@
 **Impact:** Cannot manage kode barang, standar spesifikasi, standar jumlah
 
 **Missing:**
+
 - Complete service implementation
 - CRUD endpoints
 - Bulk import
 - UI
 
 **Files to Create:**
+
 - `layanan/perlengkapan/crates/master/` (entire crate)
 
 ## Frontend Status
@@ -143,6 +157,7 @@
 **Location:** `antarmuka/perlengkapan/src/pages/`
 
 **Files Found:**
+
 - `dashboard.rs`
 - `not_found.rs`
 - `placeholder.rs`
@@ -150,6 +165,7 @@
 **Status:** Minimal frontend implementation
 
 **Missing:**
+
 - Kebutuhan BMN pages
 - Pakaian Dinas pages
 - Pemakaian BMN pages
@@ -162,23 +178,27 @@
 ## Recommended Completion Order
 
 ### Phase 1: Unblock Core Features (2-3 weeks)
+
 1. Complete Integration Service (SIMAN + MySIMKARI API clients)
 2. Complete Dokumen Service (template system + generation)
 3. Complete Notifikasi Service (workflow integration + email)
 
 ### Phase 2: Complete Core Modules (2-3 weeks)
+
 4. Complete Penghapusan BMN workflow
 5. Complete Pakaian Dinas 3-level approval
 6. Complete Pemakaian BMN document generation
 7. Wire all services to workflow engine
 
 ### Phase 3: Master Data & Advanced Features (2-3 weeks)
+
 8. Implement Master Data Service
 9. Complete Dashboard drill-down
 10. Complete Roadmap Sarpras 5-year planning
 11. Implement advanced search and export
 
 ### Phase 4: Frontend & Polish (2-3 weeks)
+
 12. Build frontend pages for all modules
 13. Implement workflow monitoring UI
 14. Add real-time WebSocket updates

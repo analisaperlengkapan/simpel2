@@ -8,10 +8,12 @@ use std::fmt;
 /// Represents the health status of a component or the overall system.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum HealthStatus {
     /// Component is fully operational
     ///
     /// All checks passed and the component is functioning normally.
+    #[default]
     Healthy,
 
     /// Component is operational but with reduced functionality
@@ -80,12 +82,6 @@ impl fmt::Display for HealthStatus {
             HealthStatus::Degraded => write!(f, "degraded"),
             HealthStatus::Unhealthy => write!(f, "unhealthy"),
         }
-    }
-}
-
-impl Default for HealthStatus {
-    fn default() -> Self {
-        HealthStatus::Healthy
     }
 }
 

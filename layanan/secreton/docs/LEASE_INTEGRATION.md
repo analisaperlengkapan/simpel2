@@ -443,6 +443,7 @@ let _scheduler = lease_manager.clone().start_expiration_scheduler();
 **Problem**: Lease renewal returns error
 
 **Possible Causes**:
+
 1. Lease already expired
 2. Max renewals reached
 3. New TTL exceeds max_ttl
@@ -517,4 +518,3 @@ Lease integration provides automatic lifecycle management for secrets and creden
 - **Reliability**: Background scheduler for automatic cleanup
 
 All new secret and credential operations should use lease integration for production deployments.
-

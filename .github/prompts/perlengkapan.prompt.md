@@ -9,11 +9,13 @@ shared-components: v0.2.0 (40+ components, production-ready)
 # Perlengkapan Microfrontend Development Guide
 
 ## Overview
+
 Kembangkan `antarmuka/pembinaan/perlengkapan` sebagai perlengkapan-microfrontend menggunakan **Leptos 0.8.x CSR SPA WASM** dengan memanfaatkan **shared-microfrontend v0.2.0** yang sudah production-ready (40+ components, zero compilation errors, thread-safe).
 
 ## Technical Requirements
 
 ### Frontend Stack
+
 - **Framework**: Leptos 0.8.x (CSR SPA)
 - **Target**: wasm32-unknown-unknown
 - **Build Tool**: Trunk 0.21.4+
@@ -22,6 +24,7 @@ Kembangkan `antarmuka/pembinaan/perlengkapan` sebagai perlengkapan-microfrontend
 - **Styling**: Kejaksaan RI branding, responsive, accessible
 
 ### Backend Integration
+
 - **Service**: `layanan/pembinaan/perlengkapan` (Rust Axum)
 - **Database**: PostgreSQL (tokio-postgres + deadpool-postgres)
 - **Authentication**: JWT via `infra/authenc/`
@@ -30,7 +33,9 @@ Kembangkan `antarmuka/pembinaan/perlengkapan` sebagai perlengkapan-microfrontend
 ## UI Specification
 
 ### Login Page
+
 Tampilan awalnya merupakan halaman login dengan desain bagus menggunakan shared-microfrontend:
+
 - **Header**: Logo + "SIMPEL KEJAKSAAN RI"
 - **Subheader**: "Sistem Informasi Manajemen Perlengkapan"
 - **NO input fields** untuk username/password
@@ -38,7 +43,9 @@ Tampilan awalnya merupakan halaman login dengan desain bagus menggunakan shared-
 - **Flow**: Portal authentication → redirect back to perlengkapan dashboard
 
 ### Main Layout (Post-Login)
+
 Nanti tampilannya:
+
 - **Top Bar**: Foto pengguna (pojok kanan atas) → dropdown menu (Profil, Keluar)
 - **Footer**: Pojok bawah
 - **Sidebar**: Sisi kiri dengan menu:
@@ -99,9 +106,11 @@ Nanti tampilannya:
   - Helpdesk
   - Panduan
   - FAQ
-    ## Development Principles
+
+## Development Principles
 
 ### Code Quality Standards
+
 - **Leptos 0.8.x Patterns**: Use modern signal patterns, updated callback methods, proper type annotations
 - **Shared Components**: Maximize reuse from `antarmuka/shared/` v0.2.0 (Button, Input, Modal, Table, Navigation, etc.)
 - **Thread Safety**: All components must be Send + Sync compatible
@@ -109,6 +118,7 @@ Nanti tampilannya:
 - **Type Safety**: Leverage Rust's type system for compile-time guarantees
 
 ### Security Requirements
+
 - **Zero-Trust**: No client-side secrets, all auth via JWT
 - **MFA Integration**: Support TOTP multi-factor authentication
 - **CSP Compliance**: Content Security Policy headers
@@ -116,6 +126,7 @@ Nanti tampilannya:
 - **RBAC**: Role-Based Access Control for features
 
 ### Testing Requirements
+
 - **Unit Tests**: `cargo test` for business logic
 - **Integration Tests**: API endpoint testing with mock backend
 - **WASM Tests**: `cargo test --target wasm32-unknown-unknown`
@@ -125,6 +136,7 @@ Nanti tampilannya:
 ### Backend Development (layanan-perlengkapan)
 
 **Technology Stack:**
+
 - **Framework**: Rust Axum
 - **Database**: PostgreSQL with:
   - `tokio-postgres` 0.7 (async driver)
@@ -136,6 +148,7 @@ Nanti tampilannya:
 - **Cryptography**: blake3, sha2 (NO sha1), ed25519-dalek
 
 **Architecture:**
+
 - RESTful APIs following OpenAPI 3.0 spec
 - Multi-schema PostgreSQL (isolated from other services)
 - Connection pooling for performance

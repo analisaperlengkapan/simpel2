@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 class BukuPanduan extends Model
 {
     protected $table = 'buku_panduan';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -24,21 +25,21 @@ class BukuPanduan extends Model
         'judul',
         'kategori',
         'is_active',
-        'platform'
+        'platform',
     ];
 
-    function getDataGrid($paging, $search = [], $isRaw = false)
+    public function getDataGrid($paging, $search = [], $isRaw = false)
     {
         $query = DB::table("{$this->table} as a");
         // dd($query->paginate());
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -57,14 +58,16 @@ class BukuPanduan extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'] ?? 10)->skip($paging['start'] ?? 0)->get();
+
         return ['total' => $total, 'data' => $data];
     }
     // select count(*) as unread from vw_notifikasi where ms_satker_id = '10.05' or username = 'superadmin' ;
 
-    static function getKategori()
+    public static function getKategori()
     {
         $data = self::select('kategori')->distinct()->get();
         $kategori = Arr::pluck($data, 'kategori');
+
         return $kategori;
     }
 }

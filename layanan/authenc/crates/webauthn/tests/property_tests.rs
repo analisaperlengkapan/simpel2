@@ -282,7 +282,7 @@ mod additional_tests {
         // This test verifies the concept of counter monotonicity
         // In practice, webauthn-rs enforces this during finish_passkey_authentication
 
-        let counters = vec![1u32, 2, 3, 5, 8, 13, 21];
+        let counters = [1u32, 2, 3, 5, 8, 13, 21];
 
         // Verify all counters are strictly increasing
         for window in counters.windows(2) {

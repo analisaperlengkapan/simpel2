@@ -92,6 +92,7 @@ Fixed all Database API usage errors in Client Management storage operations. Cha
 **Date**: 2026-02-20
 
 All types already exist in `authenc-types::domain`:
+
 - OAuth2Client, ClientRegistrationToken, InitialAccessToken
 - ClientRegistrationPolicy, SoftwareStatementIssuer
 - ProtocolMapper, ProtocolMapperType
@@ -104,6 +105,7 @@ All types already exist in `authenc-types::domain`:
 **Date**: 2026-02-20
 
 Fixed imports and enabled storage operations:
+
 - Changed imports from `crate::models` to `authenc_types::domain`
 - Uncommented storage operations in `operations/mod.rs`
 - Uncommented imports in core services
@@ -134,6 +136,7 @@ Fixed imports and enabled storage operations:
 **Discovery**: Database methods return `Row` directly, not generic types.
 
 **Pattern Established**:
+
 ```rust
 // Single row
 let row = db.query_one(query, params).await?;
@@ -156,6 +159,7 @@ match db.query_opt(query, params).await? {
 ### AuthencError Construction
 
 **Pattern**: Use helper functions, not struct syntax
+
 ```rust
 AuthencError::validation("message")
 AuthencError::internal("message")
@@ -167,18 +171,22 @@ AuthencError::database("message")
 ## Files Modified (All Phases)
 
 ### Types (Phase 1)
+
 - No changes needed (types already existed)
 
 ### Storage Operations (Phase 2)
+
 1. `crates/storage/src/operations/client_registration_ops.rs`
 2. `crates/storage/src/operations/protocol_mappers_ops.rs`
 3. `crates/storage/src/operations/mod.rs`
 
 ### Core Services (Phase 2)
+
 4. `crates/core/src/services/client_registration.rs`
 5. `crates/core/src/services/protocol_mapper_service.rs`
 
 ### Database API Fixes (Phase 3)
+
 6. `crates/storage/src/operations/client_registration_ops.rs` (11 functions)
 7. `crates/storage/src/operations/mod.rs` (duplicate export)
 

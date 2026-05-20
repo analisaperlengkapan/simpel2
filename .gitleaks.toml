@@ -1,0 +1,49 @@
+# gitleaks config — SIMPEL.
+# Schema: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+
+# Pakai default ruleset built-in.
+# Reference: https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml
+title = "SIMPEL gitleaks config"
+[extend]
+useDefault = true
+
+# ─── Allowlist global ──────────────────────────────────────────────
+# Pattern yang sering false-positive di repo ini.
+[allowlist]
+description = "Global allowlist untuk fixtures, examples, dan placeholder"
+
+paths = [
+  # Documentation & ADR
+  '''(.+/)?docs/.+\.md''',
+  '''(.+/)?CHANGELOG\.md''',
+  '''(.+/)?README\.md''',
+  '''(.+/)?AGENTS\.md''',
+  # Test fixtures
+  '''(.+/)?tests?/.*\.(rs|go|php|json|yaml|yml)''',
+  '''(.+/)?fixtures?/.*''',
+  # Examples & templates
+  '''.+\.example''',
+  '''.+\.template''',
+  '''(.+/)?\.env\.example''',
+  '''(.+/)?\.env\..+\.template''',
+  # Generated / lock files
+  '''Cargo\.lock''',
+  '''package-lock\.json''',
+  '''pnpm-lock\.yaml''',
+  '''yarn\.lock''',
+  '''composer\.lock''',
+  # Helm chart values templates (placeholder, akan diisi runtime)
+  '''infra/helm/.*/values-secrets\.example\.yaml''',
+]
+
+regexes = [
+  # Helm template placeholder (cuma syntax, bukan secret)
+  '''\{\{[^}]*\}\}''',
+  # Common test/dummy values
+  '''(test|dummy|fake|placeholder|example|changeme)[_-]?(password|secret|token|key)''',
+  # Base64 padding char di config public
+  '''^[A-Za-z0-9+/]{1,15}={0,2}$''',
+]
+
+commits = [
+] # Hash specific commits to ignore (jika ada false positive historis)

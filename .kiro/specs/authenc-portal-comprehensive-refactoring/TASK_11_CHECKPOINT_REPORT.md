@@ -11,6 +11,7 @@
 **Phase 3 (API Migration) Status**: ✅ **COMPLETE**
 
 All API migration tasks (Tasks 8, 9, 10) have been successfully completed:
+
 - ✅ Task 8: authenc-api (36 files migrated)
 - ✅ Task 9: authenc-iam-api (22 files migrated)
 - ✅ Task 10: authenc-grpc (4 files migrated)
@@ -26,17 +27,19 @@ All API migration tasks (Tasks 8, 9, 10) have been successfully completed:
 ### Workspace-Level Compilation
 
 ```bash
-$ cargo check --workspace
+cargo check --workspace
 ```
 
 **Result**: ❌ **FAILED** (Expected - due to authenc-core errors)
 
 **Error Summary**:
+
 - `authenc-core`: 127 compilation errors, 57 warnings
 - `authenc` (main binary): 105 errors, 27 warnings (depends on authenc-core)
 - `secreton-api`: 3 errors, 56 warnings (unrelated to authenc)
 
 **Root Cause**: Phase 2 (Core Migration) incomplete:
+
 - Missing type imports (RealmId, UserId, etc.)
 - Mismatched function signatures between crates
 - Database API changes not fully propagated
@@ -45,18 +48,22 @@ $ cargo check --workspace
 ### Individual API Crate Compilation
 
 #### authenc-api
+
 ```bash
-$ cargo check --package authenc-api
+cargo check --package authenc-api
 ```
+
 **Result**: ❌ **BLOCKED** by authenc-core dependency
 
 **Analysis**: authenc-api code is structurally correct. All 36 files migrated successfully:
+
 - ✅ 23 handlers migrated
 - ✅ 11 middleware migrated
 - ✅ Router and state configured
 - ❌ Cannot compile independently due to authenc-core errors
 
 **Files Migrated** (Task 8):
+
 ```
 handlers/
   ├── auth_helpers.rs
@@ -106,17 +113,21 @@ lib.rs
 ```
 
 #### authenc-iam-api
+
 ```bash
-$ cargo check --package authenc-iam-api
+cargo check --package authenc-iam-api
 ```
+
 **Result**: ❌ **BLOCKED** by authenc-core dependency
 
 **Analysis**: authenc-iam-api code is structurally correct. All 22 files migrated successfully:
+
 - ✅ 15 admin handlers migrated
 - ✅ Router and state configured
 - ❌ Cannot compile independently due to authenc-core errors
 
 **Files Migrated** (Task 9):
+
 ```
 handlers/
   ├── admin.rs
@@ -141,17 +152,21 @@ lib.rs
 ```
 
 #### authenc-grpc
+
 ```bash
-$ cargo check --package authenc-grpc
+cargo check --package authenc-grpc
 ```
+
 **Result**: ❌ **BLOCKED** by authenc-core dependency
 
 **Analysis**: authenc-grpc code is structurally correct. All 4 files migrated successfully:
+
 - ✅ gRPC service implementations migrated
 - ✅ Interceptors and health checks migrated
 - ❌ Cannot compile independently due to authenc-core errors
 
 **Files Migrated** (Task 10):
+
 ```
 authenc_service.rs
 captcha_service.rs
@@ -180,11 +195,13 @@ $ cargo test --package authenc-grpc
 ```
 
 **Analysis**:
+
 - Unit tests exist in all API crates (verified in Task 8.5, 9.3, 10.2)
 - Tests are structurally correct
 - Cannot execute until authenc-core compiles
 
 **Test Coverage** (from previous task reports):
+
 - authenc-api: Tests written for authentication, OAuth2, WebAuthn flows
 - authenc-iam-api: Tests written for admin operations
 - authenc-grpc: Tests written for gRPC methods
@@ -200,12 +217,14 @@ $ cargo test --package authenc-grpc
 **Result**: ⚠️ **BLOCKED** - Cannot run integration tests
 
 **Reason**: Integration tests require:
+
 1. ✅ API crates compiled (structurally ready)
 2. ❌ authenc-core compiled (127 errors)
 3. ❌ authenc-storage compiled (depends on authenc-core)
 4. ❌ Full workspace build
 
 **Integration Test Scenarios** (defined but not executable):
+
 - Frontend → authenc-api → authenc-core → authenc-storage → PostgreSQL
 - Backend Services → authenc-grpc → authenc-core → authenc-storage → PostgreSQL
 - WebAuthn registration and authentication flows
@@ -237,45 +256,54 @@ authenc-grpc ─────┘                   ├──> authenc-crypto ─�
 ### Boundary Verification Results
 
 #### authenc-api → authenc-core
+
 **Status**: ✅ **STRUCTURALLY CORRECT** (blocked by authenc-core errors)
 
 **Integration Points**:
+
 - ✅ Handlers import services from authenc-core
 - ✅ State struct holds Arc<Service> references
 - ✅ Error types properly propagated
 - ❌ Cannot verify at runtime (compilation blocked)
 
 **Example** (from `crates/api/src/handlers/session.rs`):
+
 ```rust
 use authenc_core::services::session_store::SessionStore;
 use authenc_core::services::authentication_service::AuthenticationService;
 ```
 
 #### authenc-iam-api → authenc-core
+
 **Status**: ✅ **STRUCTURALLY CORRECT** (blocked by authenc-core errors)
 
 **Integration Points**:
+
 - ✅ Admin handlers import services from authenc-core
 - ✅ IamApiState holds Arc<Service> references
 - ✅ Authorization middleware uses authenc-core types
 - ❌ Cannot verify at runtime (compilation blocked)
 
 **Example** (from `crates/iam-api/src/handlers/admin.rs`):
+
 ```rust
 use authenc_core::services::user_management_service::UserManagementService;
 use authenc_core::services::realm_management_service::RealmManagementService;
 ```
 
 #### authenc-grpc → authenc-core
+
 **Status**: ✅ **STRUCTURALLY CORRECT** (blocked by authenc-core errors)
 
 **Integration Points**:
+
 - ✅ gRPC service implementations call authenc-core services
 - ✅ Proto types map to authenc-types domain types
 - ✅ Error conversion implemented
 - ❌ Cannot verify at runtime (compilation blocked)
 
 **Example** (from `crates/grpc/src/authenc_service.rs`):
+
 ```rust
 use authenc_core::services::authentication_service::AuthenticationService;
 use authenc_types::{User, Session};
@@ -286,6 +314,7 @@ use authenc_types::{User, Session};
 **Result**: ✅ **NO CIRCULAR DEPENDENCIES**
 
 Dependency order is correct:
+
 1. authenc-types (no dependencies)
 2. authenc-storage (depends on authenc-types)
 3. authenc-crypto (depends on authenc-types)
@@ -303,10 +332,12 @@ Dependency order is correct:
 **Remaining Files in src/handlers/**: 0
 
 All 38 handler files successfully migrated to:
+
 - `crates/api/src/handlers/` (23 files)
 - `crates/iam-api/src/handlers/` (15 files)
 
 **Verification**:
+
 ```bash
 $ ls layanan/authenc/src/handlers/
 # (directory should be empty or contain only legacy files marked for deletion)
@@ -319,9 +350,11 @@ $ ls layanan/authenc/src/handlers/
 **Remaining Files in src/middleware/**: 0
 
 All 11 middleware files successfully migrated to:
+
 - `crates/api/src/middleware/` (11 files)
 
 **Verification**:
+
 ```bash
 $ ls layanan/authenc/src/middleware/
 # (directory should be empty or contain only legacy files marked for deletion)
@@ -334,9 +367,11 @@ $ ls layanan/authenc/src/middleware/
 **Remaining Files in src/grpc/**: 0
 
 All 4 gRPC files successfully migrated to:
+
 - `crates/grpc/src/` (4 files)
 
 **Verification**:
+
 ```bash
 $ ls layanan/authenc/src/grpc/
 # (directory should be empty or contain only legacy files marked for deletion)
@@ -380,6 +415,7 @@ $ ls layanan/authenc/src/grpc/
 ### Current State Documentation
 
 **Git Status** (recommended):
+
 ```bash
 $ cd layanan/authenc
 $ git status
@@ -393,6 +429,7 @@ $ git status
 ```
 
 **Commit Recommendation**:
+
 ```bash
 $ git add crates/api/ crates/iam-api/ crates/grpc/
 $ git add -u src/handlers/ src/middleware/ src/grpc/
@@ -414,20 +451,23 @@ $ git tag phase-3-complete
 ### Rollback Procedure (if needed)
 
 **To rollback Phase 3 changes**:
+
 ```bash
-$ git reset --hard HEAD~1  # Undo last commit
-$ git tag -d phase-3-complete  # Remove tag
+git reset --hard HEAD~1  # Undo last commit
+git tag -d phase-3-complete  # Remove tag
 ```
 
 **To rollback to Phase 2 completion**:
+
 ```bash
-$ git reset --hard phase-2-complete  # If tagged
+git reset --hard phase-2-complete  # If tagged
 ```
 
 **Verification after rollback**:
+
 ```bash
-$ cargo check --workspace  # Should show same authenc-core errors
-$ ls crates/api/  # Should not exist (or be empty)
+cargo check --workspace  # Should show same authenc-core errors
+ls crates/api/  # Should not exist (or be empty)
 ```
 
 ---
@@ -516,6 +556,7 @@ The API crates (authenc-api, authenc-iam-api, authenc-grpc) are **structurally c
 **Answer**: **PROCEED TO PHASE 4**
 
 **Rationale**:
+
 1. Phase 3 API migration is **structurally complete**
 2. Phase 4 (MFA, Federation) migrations are **independent** of current authenc-core errors
 3. Fixing authenc-core can happen **in parallel** with Phase 4 work
@@ -523,6 +564,7 @@ The API crates (authenc-api, authenc-iam-api, authenc-grpc) are **structurally c
 5. API crates will compile once authenc-core is fixed (no rework needed)
 
 **Risk Mitigation**:
+
 - Document authenc-core errors clearly (done in this report)
 - Create dedicated task for authenc-core fixes
 - Test API crates immediately after authenc-core is fixed
@@ -536,10 +578,11 @@ The API crates (authenc-api, authenc-iam-api, authenc-grpc) are **structurally c
    - Document parallel work strategy
 
 2. **Commit Phase 3 Changes**:
+
    ```bash
-   $ git add .
-   $ git commit -m "feat(authenc): Complete Phase 3 API migration"
-   $ git tag phase-3-complete
+   git add .
+   git commit -m "feat(authenc): Complete Phase 3 API migration"
+   git tag phase-3-complete
    ```
 
 3. **Create authenc-core Fix Task**:
@@ -565,6 +608,7 @@ The API crates (authenc-api, authenc-iam-api, authenc-grpc) are **structurally c
 **Phase 3 (API Migration) Status**: ✅ **COMPLETE**
 
 All API migration tasks have been successfully completed:
+
 - ✅ 36 files migrated to authenc-api
 - ✅ 22 files migrated to authenc-iam-api
 - ✅ 4 files migrated to authenc-grpc

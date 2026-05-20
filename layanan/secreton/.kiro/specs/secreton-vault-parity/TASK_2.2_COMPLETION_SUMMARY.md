@@ -7,9 +7,11 @@ Task 2.2 "Implement cron-based backup scheduler" has been verified as **already 
 ## Implementation Details
 
 ### 1. Scheduler Implementation
+
 **File:** `crates/backup/src/scheduler.rs`
 
 The `BackupScheduler` struct provides:
+
 - Cron expression parsing using the `cron` crate (v0.13)
 - Background task management with tokio
 - Automatic backup execution at scheduled times
@@ -27,11 +29,13 @@ pub struct BackupScheduler {
 ### 2. Key Features
 
 #### Cron Expression Support
-- Parses standard cron expressions (e.g., "0 2 * * *" for daily at 2 AM)
+
+- Parses standard cron expressions (e.g., "0 2 ** *" for daily at 2 AM)
 - Validates expressions at creation time
 - Returns clear error messages for invalid expressions
 
 #### Background Task
+
 - Spawns a tokio task that runs continuously
 - Calculates duration until next scheduled backup
 - Sleeps until the scheduled time
@@ -39,6 +43,7 @@ pub struct BackupScheduler {
 - Handles errors gracefully with logging
 
 #### Lifecycle Management
+
 - `start()`: Starts the scheduler background task
 - `stop()`: Stops the scheduler gracefully
 - `is_running()`: Checks if scheduler is active
@@ -136,6 +141,7 @@ tracing = { workspace = true }
 **File:** `crates/backup/src/scheduler.rs` (tests module)
 
 Comprehensive unit tests:
+
 - `test_scheduler_creation`: Tests valid and invalid cron expressions
 - `test_next_backup_time`: Verifies next backup time calculation
 - `test_scheduler_start_stop`: Tests lifecycle management
@@ -147,6 +153,7 @@ All tests pass successfully.
 **Requirement 2.5.1:** ✅ Scheduled backups run automatically (cron-like)
 
 The implementation fully satisfies this requirement:
+
 - Cron expression parsing via `cron` crate
 - Background task for scheduled execution
 - Automatic backup creation at scheduled times
@@ -192,6 +199,7 @@ async fn main() -> Result<()> {
 ## Outstanding Work
 
 ### Workspace Integration
+
 The backup crate needs to be added to the root workspace `Cargo.toml`:
 
 ```toml
@@ -211,6 +219,7 @@ This is a minor configuration change and does not affect the implementation itse
 ## Conclusion
 
 Task 2.2 is **COMPLETE**. The cron-based backup scheduler is fully implemented with:
+
 - ✅ Cron expression parsing
 - ✅ Background task for scheduled execution
 - ✅ Integration with BackupManager
@@ -221,5 +230,6 @@ Task 2.2 is **COMPLETE**. The cron-based backup scheduler is fully implemented w
 The implementation meets all requirements specified in the design document (Requirements 2.5.1).
 
 **Next Steps:**
+
 1. Add backup crate to root workspace (minor configuration)
 2. Proceed to task 2.3: Write property test for scheduled backup execution

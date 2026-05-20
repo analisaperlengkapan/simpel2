@@ -304,6 +304,7 @@ All operations are logged for audit purposes:
 ### Recommended Alerts
 
 1. **Degraded Mode Alert**
+
    ```yaml
    alert: MfaFallbackDegradedMode
    expr: authenc_mfa_local_storage_degraded_mode > 0
@@ -314,6 +315,7 @@ All operations are logged for audit purposes:
    ```
 
 2. **Sync Failure Alert**
+
    ```yaml
    alert: MfaFallbackSyncFailures
    expr: rate(authenc_mfa_local_storage_syncs_failed_total[5m]) > 0
@@ -324,6 +326,7 @@ All operations are logged for audit purposes:
    ```
 
 3. **Extended Degraded Mode Alert**
+
    ```yaml
    alert: MfaFallbackExtendedDegradedMode
    expr: authenc_mfa_local_storage_degraded_duration_seconds > 3600
@@ -339,6 +342,7 @@ All operations are logged for audit purposes:
 **Symptoms**: Degraded mode persists, sync failures in logs
 
 **Solutions**:
+
 1. Check Secreton connectivity: `curl https://secreton.example.com/v1/health`
 2. Verify authentication token is valid
 3. Check network connectivity and firewall rules
@@ -350,6 +354,7 @@ All operations are logged for audit purposes:
 **Symptoms**: "Invalid encryption key" errors, decryption failures
 
 **Solutions**:
+
 1. Verify encryption key is 32 bytes (256 bits)
 2. Check base64 encoding is correct
 3. Ensure key hasn't changed since secrets were encrypted
@@ -360,6 +365,7 @@ All operations are logged for audit purposes:
 **Symptoms**: "Failed to load local MFA storage" errors
 
 **Solutions**:
+
 1. Check file permissions (should be 600)
 2. Verify file is not corrupted: `file /var/lib/authenc/mfa_storage.enc`
 3. Check disk space: `df -h /var/lib/authenc`

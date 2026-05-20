@@ -9,12 +9,14 @@ This document summarizes the implementation of Task 14: Enhance SSH Engine from 
 ### 1. SSH User Certificate Issuance with TTL Validation (Requirement 7.1)
 
 **Changes to `SshRole`:**
+
 - Added `min_ttl` field (default: 60 seconds / 1 minute)
 - Updated `default_ttl` to 28800 seconds (8 hours)
 - Kept `max_ttl` at 86400 seconds (24 hours)
 - Added `validate_ttl()` method to enforce bounds
 
 **Implementation:**
+
 ```rust
 pub struct SshRole {
     // ... existing fields
@@ -44,17 +46,20 @@ impl SshRole {
 ### 2. SSH Certificate Principals (Requirement 7.2)
 
 **Implementation:**
+
 - Principals are now properly embedded in certificate metadata
 - Certificate metadata tracks all principals for audit purposes
 - Principals are included in the signed certificate string
 
 **Key Changes:**
+
 - Enhanced `sign_certificate()` to store principals in `SshCertificateMetadata`
 - Principals are validated and embedded in the certificate output
 
 ### 3. SSH Certificate Extensions (Requirement 7.3)
 
 **Implementation:**
+
 - Support for standard SSH extensions:
   - `permit-pty` - Allow PTY allocation
   - `permit-port-forwarding` - Allow port forwarding
@@ -63,6 +68,7 @@ impl SshRole {
 - Only extensions allowed by the role are included
 
 **Key Changes:**
+
 ```rust
 // Merge role extensions with request extensions
 let mut extensions = role.allowed_extensions.clone();
@@ -78,6 +84,7 @@ if let Some(req_extensions) = request.extensions {
 ### 4. SSH Host Certificate Signing (Requirement 7.4)
 
 **New Data Structure:**
+
 ```rust
 pub struct SshHostCertificateRequest {
     pub public_key: String,
@@ -87,6 +94,7 @@ pub struct SshHostCertificateRequest {
 ```
 
 **New Method:**
+
 ```rust
 pub async fn sign_host_certificate(
     &self,
@@ -97,17 +105,20 @@ pub async fn sign_host_certificate(
 ```
 
 **Features:**
+
 - Validates that the role allows host certificates
 - Enforces TTL bounds
 - Embeds hostnames as principals
 - Stores metadata for audit
 
 **New API Endpoint:**
+
 - `POST /v1/ssh/sign-host/:ca/:role`
 
 ### 5. SSH Certificate Audit (Requirement 7.5)
 
 **New Data Structure:**
+
 ```rust
 pub struct SshCertificateMetadata {
     pub serial_number: String,
@@ -123,6 +134,7 @@ pub struct SshCertificateMetadata {
 ```
 
 **New Methods:**
+
 ```rust
 // Get all active (non-expired) certificates
 pub async fn get_certificate_audit(&self) -> Vec<SshCertificateMetadata>
@@ -133,9 +145,11 @@ pub async fn get_certificate_metadata(&self, serial_number: &str)
 ```
 
 **New API Endpoint:**
+
 - `GET /v1/ssh/audit` - Returns all active certificates with metadata
 
 **Features:**
+
 - Tracks all issued certificates in memory
 - Filters expired certificates from audit results
 - Provides complete metadata without exposing private keys
@@ -145,17 +159,20 @@ pub async fn get_certificate_metadata(&self, serial_number: &str)
 ### Updated Endpoints
 
 **Create Role:**
+
 - `POST /v1/ssh/roles`
 - Now accepts `min_ttl` parameter
 
 ### New Endpoints
 
 **Sign Host Certificate:**
+
 - `POST /v1/ssh/sign-host/:ca/:role`
 - Request body: `SshHostCertificateRequest`
 - Response: `SshCertificate`
 
 **Get Certificate Audit:**
+
 - `GET /v1/ssh/audit`
 - Response: `Vec<SshCertificateMetadata>`
 
@@ -164,12 +181,14 @@ pub async fn get_certificate_metadata(&self, serial_number: &str)
 ### Test File: `crates/core/tests/ssh_property_tests.rs`
 
 **Property 19: SSH Certificate Validity Bounds**
+
 - Tests that valid TTLs (60s - 86400s) are accepted
 - Tests that TTLs below minimum (< 60s) are rejected
 - Tests that TTLs above maximum (> 86400s) are rejected
 - 100 test cases per scenario
 
 **Property 20: SSH Certificate Contains Requested Principals**
+
 - Tests that user certificates contain exactly the requested principals
 - Tests that host certificates contain exactly the requested hostnames
 - Verifies principals are embedded in the signed key
@@ -178,6 +197,7 @@ pub async fn get_certificate_metadata(&self, serial_number: &str)
 ### Unit Tests
 
 **Additional Coverage:**
+
 - `test_ssh_certificate_extensions` - Verifies extension handling
 - `test_ssh_certificate_audit` - Verifies audit functionality
 - `test_ssh_host_certificate_role_validation` - Verifies role validation
@@ -236,6 +256,7 @@ test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured
 ## Compliance
 
 All implementations comply with the requirements specified in:
+
 - **Requirements 7.1:** SSH certificate validity period with configurable bounds
 - **Requirements 7.2:** SSH certificate principals embedded in certificates
 - **Requirements 7.3:** SSH certificate extensions support
@@ -259,6 +280,7 @@ All implementations comply with the requirements specified in:
 ## Future Enhancements
 
 Potential improvements for future iterations:
+
 1. Persistent storage of certificate metadata (currently in-memory)
 2. Certificate revocation list (CRL) integration
 3. OCSP responder for real-time certificate validation

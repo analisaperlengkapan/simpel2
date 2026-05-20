@@ -1,0 +1,55 @@
+// markdownlint-cli2 config — pragmatic, content-focused rules.
+// https://github.com/DavidAnson/markdownlint
+//
+// Banyak file Markdown di repo (docs internal, AGENTS.md, README, ADR, log)
+// pakai gaya bebas — tab indent, heading lompat level, fenced code tanpa
+// lang tag, list nomor 1./1./1., dst. Konten teknis-nya BENAR; gaya
+// formatting bukan prioritas dan auto-fix tidak mencakup semua kasus.
+// Daripada generate ribuan PR cosmetic, rules stilistik di-disable;
+// rules yang sungguh-sungguh menjaga readability/correctness tetap aktif.
+{
+  "default": true,
+
+  // ── Stylistic rules disabled (high churn, low signal) ───────────
+  "MD001": false, // heading-increment (h2 → h4 ok)
+  "MD003": false, // heading-style (mix # vs underline ok)
+  "MD010": false, // hard-tabs (banyak doc indent pakai tab)
+  "MD013": false, // line-length (toleran tabel/URL panjang)
+  "MD024": false, // duplicate headings ok (changelog, glossary, dst)
+  "MD025": false, // multiple H1 ok (CHANGELOG-style)
+  "MD029": false, // ordered-list-numbering (1./1./1. style ok)
+  "MD032": false, // blanks-around-lists (compact list ok)
+  "MD033": false, // inline HTML ok (alert blocks, badges)
+  "MD034": false, // bare URLs ok
+  "MD036": false, // emphasis-as-heading ok
+  "MD040": false, // fenced-code-language (kode polos ok)
+  "MD041": false, // first-line H1 not required
+  "MD045": false, // image alt text (banyak diagram screenshot tanpa alt)
+  "MD051": false, // link-fragments (anchor manual TOC bebas)
+  "MD055": false, // table-pipe-style (mix pipe ok)
+  "MD056": false, // table-column-count (gabungan cell ok)
+  "MD058": false, // blanks-around-tables (compact tables ok)
+  "MD059": false, // descriptive-link-text — "click here"/"more" ok di
+                  // docs internal; rule baru v0.18, banyak false positive.
+
+  // ── Style preferences explicitly set ────────────────────────────
+  "MD046": { "style": "fenced" }, // prefer fenced code blocks
+  "MD048": { "style": "backtick" }, // prefer ``` over ~~~
+
+  "ignores": [
+    "node_modules",
+    "vendor",
+    "target",
+    "dist",
+    "monolith/simpelv1/vendor",
+    "monolith/simpelv1/node_modules",
+    "monolith/simpelv1/storage",
+    // Vendored JS libraries (moment, prismjs, sortablejs, etc.) shipped
+    // by simpelv1 monolith. Bundled docs are 3rd-party; don't lint.
+    "monolith/simpelv1/public/assets/libs/**",
+    "antarmuka/portal/tests/e2e/node_modules",
+    "antarmuka/perlengkapan/tests/e2e/node_modules",
+    "CHANGELOG.md",
+    "**/CHANGELOG.md"
+  ]
+}

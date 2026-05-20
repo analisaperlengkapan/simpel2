@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\DB;
 class MsMenu extends Model
 {
     use LogTrait;
+
     protected $table = 'ms_menu';
+
     const tableKet = 'Pengaturan menu';
 
     /**
@@ -28,22 +30,22 @@ class MsMenu extends Model
         'tipe',
         'icon',
         'is_active',
-        'route_old'
+        'route_old',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table("{$this->table} as a");
         $query->select('*');
         // $query->where("level","1");
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -62,6 +64,7 @@ class MsMenu extends Model
         $query->orderBy('is_active', 'desc')->orderBy('parent')->orderBy('urutan');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

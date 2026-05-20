@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\AssetTik;
 
 use App\Helpers\MyHelper;
-use App\Models\Files;
 use App\Http\Controllers\Controller;
 use App\Models\AssetTik\Langganan;
+use App\Models\Files;
 use App\Models\Master;
 use App\Models\Master\MsSatker;
 use Illuminate\Http\Request;
@@ -18,28 +18,34 @@ class LanggananController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Asset TIK', 'Daftar Langganan Jasa Khusus TIK'];
-    protected $controller = '/sdm/langganan';
-    protected $columns = ['Nama Satker', 'Nama Layanan', 'Penyedia', 'Tgl Mulai', 'Nilai'];
-    protected $defColumns = [0,1,2,3,4,5];
 
-    protected function canCreate(){
+    protected $controller = '/sdm/langganan';
+
+    protected $columns = ['Nama Satker', 'Nama Layanan', 'Penyedia', 'Tgl Mulai', 'Nilai'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
+
+    protected function canCreate()
+    {
         return in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'));
     }
 
     public function index()
     {
-        //print_r(session('userData.current_role'));exit;
+        // print_r(session('userData.current_role'));exit;
 
         $data = ['tableId' => 'dt-langganan', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller, 'canCreate' => $this->canCreate()];
+
         return view('asset_tik.langganan.langgananV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Langganan();
+        $model = new Langganan;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -47,7 +53,7 @@ class LanggananController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -55,7 +61,7 @@ class LanggananController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Langganan::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -63,12 +69,12 @@ class LanggananController extends Controller
             $isNew = false;
 
             $ms_satker_id = $model['id_satker'];
-        }else{
+        } else {
             $currentRole = session('userData.current_role');
             $ms_satker_id = $currentRole['ms_satker_id'] ?? $model['id_satker'];
         }
 
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
 
@@ -76,7 +82,7 @@ class LanggananController extends Controller
         $nama_satker = MsSatker::where('inst_satkerkd', $ms_satker_id)->first();
         $tipe_beli = ['BELI BARU', 'PERPANJANGAN'];
 
-        $model['kdsatker_keu']=$nama_satker['kdsatker_keu'];
+        $model['kdsatker_keu'] = $nama_satker['kdsatker_keu'];
         $model['inst_nama'] = MsSatker::where('inst_satkerkd', $ms_satker_id)->first()['inst_nama'];
 
         $data = [
@@ -109,6 +115,7 @@ class LanggananController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('asset_tik.langganan.langgananFormV', $data);
     }
 
@@ -137,7 +144,7 @@ class LanggananController extends Controller
             'nilai' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'asset_tik_langganan_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_invoice'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_invoice.required'] = 'File Invoice harus diupload';
         }
@@ -156,10 +163,10 @@ class LanggananController extends Controller
                 'tgl_mulai' => $request->input('tgl_mulai'),
                 'tgl_selesai' => $request->input('tgl_selesai'),
                 'tipe_beli' => $request->input('tipe_beli'),
-                'nilai' => str_replace('.','',$request->input('nilai')),
+                'nilai' => str_replace('.', '', $request->input('nilai')),
                 'deskripsi' => $request->input('deskripsi'),
             ];
-            
+
             if ($request->hasFile('file_invoice')) {
                 $params = [
                     'kategori' => 'Asset TIK - Langganan Jasa TIK',
@@ -174,15 +181,17 @@ class LanggananController extends Controller
             // echo "<pre>"; print_r($data);exit;
 
             Langganan::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
-            return $this->resSuccess('Berhasil Disimpan!',[
+
+            return $this->resSuccess('Berhasil Disimpan!', [
                 'type' => 'redirect',
-                'url' => \URL::to('/asset-tik/langganan')
+                'url' => \URL::to('/asset-tik/langganan'),
             ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -194,6 +203,7 @@ class LanggananController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('asset_tik.langganan.langgananFormV', $data);
     }
 
@@ -203,6 +213,7 @@ class LanggananController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('asset_tik.langganan.langgananFormV', $data);
     }
 
@@ -223,6 +234,7 @@ class LanggananController extends Controller
             DB::beginTransaction();
             Langganan::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -234,7 +246,7 @@ class LanggananController extends Controller
         $data = Langganan::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

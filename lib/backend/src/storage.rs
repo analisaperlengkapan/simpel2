@@ -169,13 +169,13 @@ impl StorageClient {
         let calculated_checksum = calculate_sha256(&data);
 
         // Verify checksum if available
-        if let Some(stored) = &stored_checksum {
-            if stored != &calculated_checksum {
-                return Err(CommonError::Internal(format!(
-                    "Checksum mismatch: expected {}, got {}",
-                    stored, calculated_checksum
-                )));
-            }
+        if let Some(stored) = &stored_checksum
+            && stored != &calculated_checksum
+        {
+            return Err(CommonError::Internal(format!(
+                "Checksum mismatch: expected {}, got {}",
+                stored, calculated_checksum
+            )));
         }
 
         Ok(DownloadResult {

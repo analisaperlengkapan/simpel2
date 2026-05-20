@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PengadaanBarangJasaRingkasan extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'pengadaan_barang_jasa_ringkasan_kontrak';
 

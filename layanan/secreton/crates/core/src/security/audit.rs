@@ -1070,10 +1070,8 @@ impl AdvancedAuditSystem {
                         event.compliance_tags.push("SOX".to_string());
                     }
                 }
-                ComplianceStandard::Gdpr => {
-                    if event.sensitive_data_access {
-                        event.compliance_tags.push("GDPR".to_string());
-                    }
+                ComplianceStandard::Gdpr if event.sensitive_data_access => {
+                    event.compliance_tags.push("GDPR".to_string());
                 }
                 ComplianceStandard::Ojk => {
                     if matches!(

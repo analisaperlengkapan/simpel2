@@ -354,6 +354,7 @@ invalidation_service.invalidate_user(&user_id).await?;
 ### Cache Not Invalidating
 
 1. Check if invalidation service is running:
+
 ```rust
 if !invalidation_service.is_running().await {
     warn!("Cache invalidation service is not running!");
@@ -362,6 +363,7 @@ if !invalidation_service.is_running().await {
 ```
 
 2. Verify Kafka connectivity:
+
 ```bash
 # Test Kafka connection
 kafka-console-consumer --bootstrap-server localhost:9092 \
@@ -369,6 +371,7 @@ kafka-console-consumer --bootstrap-server localhost:9092 \
 ```
 
 3. Check invalidation statistics:
+
 ```rust
 let stats = invalidation_service.get_stats().await;
 if stats.failures > 0 {
@@ -423,6 +426,7 @@ Cache warming on startup can delay application readiness. Consider:
 When adding new features that modify cached data:
 
 1. Publish appropriate events:
+
 ```rust
 // After updating user
 let event = Event::new(realm_id, EventType::UpdateProfile, EventCategory::User)
@@ -431,6 +435,7 @@ event_bus.dispatch(event).await;
 ```
 
 2. Or use manual invalidation:
+
 ```rust
 // After updating permissions
 invalidation_service.invalidate_permissions(&user_id).await?;

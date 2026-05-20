@@ -38,6 +38,7 @@ secreton seal status
 ```
 
 Output shows:
+
 - Current state (sealed/unsealing/unsealed)
 - Seal type (shamir)
 - Total shares and threshold
@@ -481,6 +482,7 @@ secreton operator diagnose
 ```
 
 This command checks:
+
 - Connectivity to the engine server
 - Secret Vault initialization status
 - Secret Vault seal status
@@ -535,6 +537,7 @@ The CLI can be configured via:
 3. Command-line flags
 
 Configuration precedence (highest to lowest):
+
 - Command-line flags
 - Environment variables
 - Configuration file

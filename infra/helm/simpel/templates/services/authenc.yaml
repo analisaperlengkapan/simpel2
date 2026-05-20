@@ -1,0 +1,6 @@
+{{- /*
+  authenc — Identity Provider (Axum + gRPC).
+  Refactored: pakai simpel.workload helper (templates/_workload.tpl).
+  Konfigurasi inline di .Values.authenc (service.ports, env, probes, dst).
+*/ -}}
+{{- include "simpel.workload" (dict "ctx" . "name" "authenc" "values" .Values.authenc) }}

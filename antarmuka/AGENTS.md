@@ -3,6 +3,7 @@
 > **Notice to Agents**: File ini adalah pedoman (Level 2 Archetype) untuk SELURUH Frontend Microfrontends (`antarmuka/`) di monorepo SIMPEL. Baca file ini sebelum memodifikasi kode frontend.
 
 ## 📑 Daftar Isi (Table of Contents)
+
 1. 🏛️ Frontend Architecture
 2. 🔐 Authentication Flow (Frontend Side)
 --- *Batas Truncation* ---
@@ -103,6 +104,7 @@ pub fn main() {
 - **Tree shaking**: Singkirkan *unused code*.
 
 **Konfigurasi `Trunk.toml` Standar:**
+
 ```toml
 [tools]
 wasm-bindgen = "0.2"
@@ -113,6 +115,7 @@ release = true
 ```
 
 ### Signal Reactivity Best Practices
+
 Gunakan Leptos 0.8.x *signal API* untuk reaktivitas yang efisien:
 
 ```rust
@@ -129,6 +132,7 @@ let doubled = move || *count.read() * 2;
 ```
 
 ### Debouncing untuk User Input
+
 Untuk *input* pencarian yang memicu panggilan API mahal, gunakan *debouncing*:
 
 ```rust
@@ -149,3 +153,13 @@ let debounced_search = Memo::new(move |_| {
 
 - **E2E Testing**: Gunakan Playwright untuk menguji seluruh alur pengguna (user flows) di antarmuka web, termasuk penanganan CAPTCHA jika diperlukan.
 - **Komponen**: Uji *logic* statis secara independen. Hindari menempatkan *business logic* kompleks di dalam komponen antarmuka.
+
+---
+
+## 🔐 Secret Boundary (Frontend NEVER Touches Secreton)
+
+- Frontend Leptos **TIDAK** memanggil Secreton (gRPC/HTTP) langsung. Semua secret hidup di server-side (backend Rust / authenc / Secreton).
+- `config.json` runtime (di-generate `entrypoint.sh` saat container start) hanya berisi **URL public** (`PORTAL_URL`, `AUTHENC_URL`, `API_URL`) — bukan secret.
+- JWT token user disimpan di `localStorage` (key `auth_token`, canonical), dikirim ke backend di header `Authorization: Bearer <token>`. Tidak ada API key client-side.
+- Saat `secretonAuth.enabled=true` di Helm: pod portal & perlengkapan **TIDAK** punya projected SA token Secreton (tidak butuh — frontend tidak fetch secret).
+- CSP `connect-src` dibatasi ke domain backend resmi (`https://*.kejaksaan.go.id`) — set via `values.yaml` `portal.csp.connectSrc`.

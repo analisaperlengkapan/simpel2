@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class SpesifikasiPakaianDinas extends Model
 {
-    use HasFactory, Blameable, LogTrait;
-
+    use Blameable, HasFactory, LogTrait;
 
     protected $table = 'ms_spesifikasi_pakaian_dinas';
+
     const tableKet = 'Referensi Spesifikasi Pakaian Dinas';
 
     /**
@@ -27,30 +27,31 @@ class SpesifikasiPakaianDinas extends Model
         'ms_jenis_pakaian_dinas_id',
         'ms_ukuran_group',
         'nama',
-        'gender'
+        'gender',
 
     ];
 
-    function getDataGrid($paging, $search = [], $isRaw = false)
+    public function getDataGrid($paging, $search = [], $isRaw = false)
     {
-        $query = DB::table("{$this->table} as a")->join('ms_jenis_pakaian_dinas as b', "a.ms_jenis_pakaian_dinas_id", '=', 'b.id');
-        $query->select(["a.*", 'b.nama as jenis']);
+        $query = DB::table("{$this->table} as a")->join('ms_jenis_pakaian_dinas as b', 'a.ms_jenis_pakaian_dinas_id', '=', 'b.id');
+        $query->select(['a.*', 'b.nama as jenis']);
         if ($isRaw) {
             return $query->orderBy('ms_jenis_pakaian_dinas.nama')->get();
         }
-        if (!empty($select))
+        if (! empty($select)) {
             $query->select($select);
-        if (!empty($search)) {
-            //$searchVal = strtolower($search['search']['value']);
+        }
+        if (! empty($search)) {
+            // $searchVal = strtolower($search['search']['value']);
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
+            // if (isset($search['filterBy'])) {
             //     $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //        $q->orWhere(DB::raw('lower(ms_spesifikasi_pakaian_dinas.nama)'), "like", "%{$searchVal}%")
             //            ->orWhere(DB::raw('lower(ms_jenis_pakaian_dinas.nama)'), "like", "%{$searchVal}%");
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
@@ -74,22 +75,23 @@ class SpesifikasiPakaianDinas extends Model
         $query->orderByDesc('b.nama')->orderByDesc('a.nama')->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function getSelections()
+    public static function getSelections()
     {
         return DB::table('ms_spesifikasi_pakaian_dinas as a')
-            ->join('ms_jenis_pakaian_dinas as b', "a.ms_jenis_pakaian_dinas_id", '=', 'b.id')
+            ->join('ms_jenis_pakaian_dinas as b', 'a.ms_jenis_pakaian_dinas_id', '=', 'b.id')
             ->selectRaw("b.nama || ' - ' || a.nama as nama, a.id ")->orderBy('b.nama')->get();
 
     }
 
-    static function getComplete($ids = [])
+    public static function getComplete($ids = [])
     {
-        $query = DB::table('ms_spesifikasi_pakaian_dinas as a')->join('ms_jenis_pakaian_dinas as b', "a.ms_jenis_pakaian_dinas_id", '=', 'b.id');
-        $query->select(["a.*", 'b.nama as jenis'])->whereIn('a.id', $ids);
+        $query = DB::table('ms_spesifikasi_pakaian_dinas as a')->join('ms_jenis_pakaian_dinas as b', 'a.ms_jenis_pakaian_dinas_id', '=', 'b.id');
+        $query->select(['a.*', 'b.nama as jenis'])->whereIn('a.id', $ids);
+
         return $query->get();
     }
-
 }

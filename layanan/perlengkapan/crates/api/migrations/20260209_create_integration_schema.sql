@@ -372,12 +372,11 @@ CREATE TABLE IF NOT EXISTS integrasi.sync_status (
 
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
-    -- Unique constraint for running syncs
-    CONSTRAINT unique_running_sync UNIQUE (service_name, entity_type, satker_code, status)
-        WHERE status = 'RUNNING'
 );
+
+CREATE UNIQUE INDEX unique_running_sync ON integrasi.sync_status (service_name, entity_type, satker_code, status) WHERE status = 'RUNNING';
 
 -- Indexes for sync_status
 CREATE INDEX idx_sync_status_service ON integrasi.sync_status(service_name, started_at DESC);

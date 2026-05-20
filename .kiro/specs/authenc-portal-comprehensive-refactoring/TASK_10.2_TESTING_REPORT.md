@@ -30,6 +30,7 @@ The authenc-grpc crate has 4 test files in `crates/grpc/tests/`:
 ### integration_test.rs Analysis
 
 **Test Coverage (Planned)**:
+
 - ✅ `test_authenticate_rpc` - Test authentication RPC
 - ✅ `test_validate_token_rpc` - Test token validation RPC
 - ✅ `test_create_user_rpc` - Test user creation RPC
@@ -43,6 +44,7 @@ The authenc-grpc crate has 4 test files in `crates/grpc/tests/`:
 **Status**: ⚠️ All tests marked with `#[ignore]` - Need mock services
 
 **Test Structure**:
+
 ```rust
 #[tokio::test]
 #[ignore] // Ignore until mock services are implemented
@@ -61,6 +63,7 @@ async fn test_authenticate_rpc() {
 ```
 
 **Missing Components**:
+
 - ❌ Mock service implementations
 - ❌ Test server setup
 - ❌ Test client setup
@@ -69,6 +72,7 @@ async fn test_authenticate_rpc() {
 ### jwt_token_generation_test.rs Analysis
 
 **Test Coverage**:
+
 - ✅ `test_jwt_service_initialization` - Test JWT service initialization
 - ✅ `test_access_token_generation` - Test access token generation
 - ✅ `test_access_token_validation` - Test access token validation
@@ -127,12 +131,13 @@ To implement integration tests, we need:
 ### authenc-grpc Compilation
 
 ```bash
-$ cargo check --package authenc-grpc
+cargo check --package authenc-grpc
 ```
 
 **Result**: ❌ **BLOCKED** - Cannot compile due to authenc-core dependency errors
 
 **Compilation Flow**:
+
 1. ✅ authenc-types compiles (with 11 warnings)
 2. ✅ lib-common compiles (with 1 warning)
 3. ❌ authenc-core fails (127 errors)
@@ -143,6 +148,7 @@ $ cargo check --package authenc-grpc
 **Result**: ✅ **SUCCESS** (with warnings only)
 
 **Warnings** (11 total):
+
 - Unused import: `super::*` in dynamic_role.rs
 - Ambiguous glob re-exports (6 warnings):
   - `AccessLevel` (user vs dynamic_role)
@@ -161,7 +167,7 @@ $ cargo check --package authenc-grpc
 ### authenc-core Compilation (Dependency)
 
 ```bash
-$ cargo check --package authenc-core
+cargo check --package authenc-core
 ```
 
 **Result**: ❌ **FAILED** - 127 compilation errors, 57 warnings
@@ -169,6 +175,7 @@ $ cargo check --package authenc-core
 ### authenc-core Error Categories
 
 #### 1. Type Mismatches (Most Common)
+
 - **Issue**: `Option<Uuid>` vs `RealmId`, `UserId`, `SessionId` type mismatches
 - **Examples**:
   - `expected RealmId, found Option<Uuid>` (multiple occurrences)
@@ -178,6 +185,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~30 errors
 
 #### 2. Missing Struct Fields
+
 - **Issue**: Struct fields don't match between definition and usage
 - **Examples**:
   - `UpdateUserRequest` missing `password`, `mfa_enabled` fields
@@ -187,6 +195,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~20 errors
 
 #### 3. Missing Methods/Functions
+
 - **Issue**: Methods or associated functions don't exist
 - **Examples**:
   - `OAuth2Error::unauthorized_client` not found
@@ -200,6 +209,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~25 errors
 
 #### 4. Module Resolution Failures
+
 - **Issue**: Cannot find modules or operations
 - **Examples**:
   - `could not find operations in database` (multiple occurrences)
@@ -208,6 +218,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 5. Trait Implementation Issues
+
 - **Issue**: Missing trait implementations
 - **Examples**:
   - `From<CommonError>` not implemented for `AuthencError`
@@ -217,6 +228,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 6. Error Variant Mismatches
+
 - **Issue**: Error enum variants don't match
 - **Examples**:
   - `AuthencError::Forbidden` variant not found
@@ -228,6 +240,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~15 errors
 
 #### 7. Password Hasher API Mismatch
+
 - **Issue**: Method names don't match
 - **Examples**:
   - `hash_password` not found (should be `hash`)
@@ -236,6 +249,7 @@ $ cargo check --package authenc-core
 - **Impact**: ~5 errors
 
 #### 8. Miscellaneous
+
 - **Issue**: Various other type and API mismatches
 - **Impact**: ~7 errors
 
@@ -277,6 +291,7 @@ pub mod proto {
 ### Migration Status (Task 10.1)
 
 ✅ **COMPLETE** - All files migrated from `src/grpc/` to `crates/grpc/src/`:
+
 - ✅ captcha_service.rs
 - ✅ batch_operations.rs
 - ✅ health.rs
@@ -289,12 +304,13 @@ pub mod proto {
 ### Attempt 1: Run all tests
 
 ```bash
-$ cargo test --package authenc-grpc --no-fail-fast
+cargo test --package authenc-grpc --no-fail-fast
 ```
 
 **Result**: ❌ **FAILED** - Cannot compile authenc-core
 
 **Output**:
+
 ```
 error: could not compile `authenc-core` (lib) due to 127 previous errors; 57 warnings emitted
 ```
@@ -302,7 +318,7 @@ error: could not compile `authenc-core` (lib) due to 127 previous errors; 57 war
 ### Attempt 2: Run JWT tests only
 
 ```bash
-$ cargo test --package authenc-grpc --test jwt_token_generation_test
+cargo test --package authenc-grpc --test jwt_token_generation_test
 ```
 
 **Result**: ❌ **FAILED** - Cannot compile authenc-core (workspace dependency)
@@ -312,7 +328,7 @@ $ cargo test --package authenc-grpc --test jwt_token_generation_test
 ### Attempt 3: Check authenc-grpc compilation
 
 ```bash
-$ cargo check --package authenc-grpc
+cargo check --package authenc-grpc
 ```
 
 **Result**: ❌ **FAILED** - Cannot compile authenc-core
@@ -440,6 +456,7 @@ $ cargo check --package authenc-grpc
 Task 10.2 cannot be completed until authenc-core compilation errors are resolved. The authenc-grpc crate structure is correct (Task 10.1 successful), and the test files are well-structured, but all tests are blocked by the authenc-core dependency.
 
 ### What Works
+
 - ✅ authenc-grpc crate structure (migration complete)
 - ✅ authenc-types compilation (with warnings only)
 - ✅ Test file structure (4 test files)
@@ -447,6 +464,7 @@ Task 10.2 cannot be completed until authenc-core compilation errors are resolved
 - ✅ Proto definitions and code generation
 
 ### What's Blocked
+
 - ❌ Running any tests (blocked by authenc-core errors)
 - ❌ Compiling authenc-grpc (blocked by authenc-core dependency)
 - ❌ Testing gRPC service (blocked by authenc-core errors)
@@ -456,6 +474,7 @@ Task 10.2 cannot be completed until authenc-core compilation errors are resolved
 ### Next Steps
 
 **User Decision Required**: Should we:
+
 - **Option A**: Fix authenc-core errors first (16-32 hours), then return to Task 10.2
 - **Option B**: Document current state and mark Task 10.2 as "blocked"
 - **Option C**: Create isolated tests that don't depend on authenc-core (limited scope)

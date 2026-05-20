@@ -42,6 +42,7 @@ lib-core (types) ◄──depends── lib-backend (infrastructure)
 ## 🔑 Pola Penting
 
 ### JWT Extraction
+
 ```rust
 // Di handler:
 use lib_backend::jwt::AuthClaims;
@@ -53,12 +54,14 @@ let claims = decode_jwt(token, secret)?;
 ```
 
 ### Request Context
+
 ```rust
 use lib_backend::context::request_context_from_headers;
 let ctx = request_context_from_headers(&headers);
 ```
 
 ### Config Loading
+
 ```rust
 use lib_backend::config::load_base_config;
 let config = load_base_config(); // reads from env vars

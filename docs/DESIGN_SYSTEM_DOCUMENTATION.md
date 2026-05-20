@@ -1,6 +1,7 @@
 # SIMPEL Design System Documentation
 
 ## Overview
+
 Arsitektur CSS yang terstruktur dan scalable untuk sistem SIMPEL dengan pendekatan modular dan best practices.
 
 ## Structure
@@ -19,6 +20,7 @@ antarmuka/shared/styles/
 ## Architecture Principles
 
 ### 1. **Separation of Concerns**
+
 - **Variables**: Design tokens & theme configuration
 - **Base**: Element resets & typography  
 - **Layout**: Structural components
@@ -27,6 +29,7 @@ antarmuka/shared/styles/
 - **Legacy**: Backward compatibility
 
 ### 2. **Dependency Order**
+
 ```css
 @import 'variables.css';    /* First - defines tokens */
 @import 'base.css';        /* Second - element defaults */
@@ -38,6 +41,7 @@ antarmuka/shared/styles/
 ### 3. **Naming Convention**
 
 #### CSS Custom Properties (Variables)
+
 ```css
 --color-primary-500     /* Color palette */
 --spacing-4            /* Spacing scale */
@@ -46,6 +50,7 @@ antarmuka/shared/styles/
 ```
 
 #### Layout Classes
+
 ```css
 .app-header           /* Application-level layouts */
 .content-section      /* Content structure */
@@ -53,6 +58,7 @@ antarmuka/shared/styles/
 ```
 
 #### Component Classes
+
 ```css
 .btn-primary          /* UI components */
 .card-header          /* Component parts */
@@ -60,6 +66,7 @@ antarmuka/shared/styles/
 ```
 
 #### Utility Classes
+
 ```css
 .p-4                 /* Padding utilities */
 .text-center         /* Text utilities */
@@ -69,6 +76,7 @@ antarmuka/shared/styles/
 ## Usage Guide
 
 ### 1. **Standard Implementation**
+
 ```html
 <!-- Tailwind CSS for rapid development -->
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@3.4.0/dist/tailwind.min.css" rel="stylesheet">
@@ -81,7 +89,9 @@ antarmuka/shared/styles/
 ```
 
 ### 2. **Modern Development (Recommended)**
+
 Use Tailwind CSS for new components:
+
 ```html
 <div class="bg-white rounded-lg shadow-md p-6">
   <h2 class="text-xl font-semibold text-gray-800 mb-4">Modern Component</h2>
@@ -90,7 +100,9 @@ Use Tailwind CSS for new components:
 ```
 
 ### 3. **Legacy Support**
+
 Existing components continue working:
+
 ```html
 <div class="card">
   <div class="card-header">
@@ -103,18 +115,21 @@ Existing components continue working:
 ## Migration Strategy
 
 ### Phase 1: **Foundation** ✅ COMPLETED
+
 - [x] Restructure CSS architecture
 - [x] Create design system files
 - [x] Add Tailwind CSS integration  
 - [x] Maintain backward compatibility
 
 ### Phase 2: **Gradual Migration** 🔄 IN PROGRESS
+
 - [ ] Migrate BADIKLAT components to new system
 - [ ] Update shared components in Rust
 - [ ] Convert legacy classes to utilities
 - [ ] Remove unused CSS rules
 
 ### Phase 3: **Optimization** 📋 PLANNED
+
 - [ ] Remove legacy.css dependency
 - [ ] Implement CSS purging for production
 - [ ] Add component documentation
@@ -123,21 +138,25 @@ Existing components continue working:
 ## Benefits
 
 ### ✅ **Improved Structure**
+
 - Clear separation of concerns
 - Scalable architecture
 - Easy maintenance
 
 ### ✅ **Reduced Duplication**
+
 - Single source of truth
 - Shared design tokens
 - Consistent theming
 
 ### ✅ **Better Developer Experience**
+
 - Tailwind CSS integration
 - Utility-first approach
 - Component-based thinking
 
 ### ✅ **Backward Compatibility**
+
 - Existing components still work
 - Gradual migration path
 - No breaking changes
@@ -145,12 +164,14 @@ Existing components continue working:
 ## File Size Analysis
 
 ### Before Refactoring
+
 ```
 perlengkapan.css (duplicate): 539 lines × 8 files = 4,312 lines
 Total CSS: ~3,243 lines
 ```
 
 ### After Refactoring
+
 ```
 main.css (entry):      10 lines
 variables.css:         374 lines  
@@ -165,6 +186,7 @@ Total CSS: ~1,916 lines (40% reduction)
 ## Best Practices
 
 ### 1. **Use Design Tokens**
+
 ```css
 /* Good */
 color: var(--color-primary-600);
@@ -174,6 +196,7 @@ color: #2563eb;
 ```
 
 ### 2. **Prefer Utilities for New Code**
+
 ```html
 <!-- Good -->
 <div class="p-4 bg-white rounded-lg shadow">
@@ -183,12 +206,14 @@ color: #2563eb;
 ```
 
 ### 3. **Component-Specific Styles**
+
 ```css
 /* Keep component-specific styles in individual CSS files */
 /* badiklat.css, datun.css, etc. */
 ```
 
 ### 4. **Responsive Design**
+
 ```css
 /* Use mobile-first approach */
 .component {
@@ -204,13 +229,15 @@ color: #2563eb;
 
 ## Migration Guide
 
-### For Existing Components:
+### For Existing Components
+
 1. Keep current CSS references working
 2. Add Tailwind classes alongside existing classes
 3. Gradually replace custom CSS with utilities
 4. Remove unused styles when confident
 
-### For New Components:
+### For New Components
+
 1. Use Tailwind CSS utilities primarily
 2. Add custom CSS only when necessary
 3. Use design system variables

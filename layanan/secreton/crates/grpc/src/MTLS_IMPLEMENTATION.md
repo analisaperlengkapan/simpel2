@@ -9,6 +9,7 @@ Successfully implemented mutual TLS (mTLS) support for the Secreton gRPC server 
 ### 1. GrpcTlsConfig (`tls.rs`)
 
 **Features:**
+
 - Certificate and key loading from filesystem
 - Optional CA certificate for client authentication
 - Configuration validation
@@ -16,6 +17,7 @@ Successfully implemented mutual TLS (mTLS) support for the Secreton gRPC server 
 - Comprehensive error handling
 
 **Key Methods:**
+
 - `new()` - Create basic TLS configuration
 - `with_ca_cert()` - Add CA certificate for client verification
 - `with_client_auth()` - Enable client certificate requirement
@@ -25,23 +27,27 @@ Successfully implemented mutual TLS (mTLS) support for the Secreton gRPC server 
 ### 2. Server Integration (`server.rs`)
 
 **Features:**
+
 - Two server modes: with and without TLS
 - Proper TLS configuration with tonic 0.12
 - Client certificate verification support
 - Detailed logging for TLS operations
 
 **Key Methods:**
+
 - `serve()` - Start server without TLS (development only)
 - `serve_with_tls()` - Start server with mTLS support
 
 ### 3. Metrics Integration (`metrics.rs`)
 
 **New Metrics:**
+
 - `GrpcTlsMetrics` - Track TLS connection metrics
 - `GrpcTlsMetricsSnapshot` - Snapshot for reporting
 - Prometheus format export
 
 **Tracked Metrics:**
+
 - Total connections
 - Successful/failed handshakes
 - Client certificate verifications
@@ -50,6 +56,7 @@ Successfully implemented mutual TLS (mTLS) support for the Secreton gRPC server 
 ### 4. Configuration (`config/secreton.production.toml`)
 
 **New Section:**
+
 ```toml
 [grpc]
 enabled = true
@@ -65,6 +72,7 @@ require_client_auth = true
 ### 5. Dependencies (`Cargo.toml`)
 
 **Added:**
+
 - `tonic` with `tls` and `tls-roots` features
 - `tokio-rustls` for TLS support
 - `rustls-pemfile` for certificate parsing
@@ -97,12 +105,15 @@ require_client_auth = true
 ## Testing Recommendations
 
 ### Unit Tests
+
 All TLS configuration and metrics have unit tests in `tls.rs`:
+
 - Configuration creation and validation
 - Metrics tracking and calculation
 - Prometheus export format
 
 ### Integration Tests (Next Steps)
+
 1. Test TLS handshake with valid certificates
 2. Test client certificate verification
 3. Test rejection of invalid certificates
@@ -110,7 +121,9 @@ All TLS configuration and metrics have unit tests in `tls.rs`:
 5. Test configuration validation errors
 
 ### Manual Testing
+
 Use `grpcurl` to test mTLS connections:
+
 ```bash
 # Test with client certificate
 grpcurl \
@@ -123,6 +136,7 @@ grpcurl \
 ```
 
 ## Security Features
+
 1. **Mutual TLS**: Both server and client authenticate each other
 2. **Certificate Validation**: Proper CA chain verification
 3. **Configurable**: Can disable client auth fo
@@ -133,12 +147,14 @@ ment
 ## Production Deployment
 
 ### Prerequisites
+
 1. Valid TLS certificates from trusted CA
 2. CA certificate for client verification
 3. Proper file permissions on private keys (0600)
 4. Kubernetes secrets for certificate storage
 
 ### Deployment Steps
+
 1. Generate or obtain certificates
 2. Create Kubernetes secret with certificates
 3. Update deployment to mount certificates
@@ -156,6 +172,7 @@ ment
 ## Next Steps (Task 1.4)
 
 The next task is to integrate the gRPC server with the main application:
+
 1. Update `api_server.rs` to start both REST and gRPC servers
 2. Share state between servers
 3. Add gRPC health checks
@@ -168,4 +185,3 @@ The next task is to integrate the gRPC server with the main application:
 - Design: Security Architecture, Defense in Depth
 - Tonic Documentation: https://docs.rs/tonic/0.12/tonic/
 - gRPC Authentication: https://grpc.io/docs/guides/auth/
-

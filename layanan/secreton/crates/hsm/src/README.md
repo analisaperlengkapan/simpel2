@@ -39,6 +39,7 @@ The HSM module enables Secreton to leverage hardware-backed security for cryptog
 Main interface for HSM operations. Implements the `HsmSecret Vault` trait from Authenc.
 
 **Key Methods:**
+
 - `initialize()` - Initialize HSM connection
 - `generate_hsm_key()` - Generate key in HSM
 - `hsm_sign()` - Sign data using HSM key
@@ -53,6 +54,7 @@ Main interface for HSM operations. Implements the `HsmSecret Vault` trait from A
 PKCS#11 implementation for HSM communication.
 
 **Features:**
+
 - Session management
 - Authentication (PIN/password)
 - Key generation and management
@@ -64,6 +66,7 @@ PKCS#11 implementation for HSM communication.
 Configuration for HSM integration.
 
 **Settings:**
+
 - `enabled` - Enable/disable HSM
 - `provider` - HSM provider type (pkcs11, aws-kms, etc.)
 - `pkcs11_library_path` - Path to PKCS#11 library
@@ -176,11 +179,13 @@ if !is_healthy {
 ## Supported Algorithms
 
 ### Symmetric Encryption
+
 - AES-128-GCM
 - AES-192-GCM
 - AES-256-GCM
 
 ### Asymmetric Cryptography
+
 - RSA-2048
 - RSA-3072
 - RSA-4096

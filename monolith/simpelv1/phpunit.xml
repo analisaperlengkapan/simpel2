@@ -21,8 +21,12 @@
         <env name="APP_ENV" value="testing"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_DRIVER" value="array"/>
-        <!-- <env name="DB_CONNECTION" value="sqlite"/> -->
-        <!-- <env name="DB_DATABASE" value=":memory:"/> -->
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <!-- File-based supaya migrate-once + phpunit bisa pakai DB
+             yang sama. `:memory:` ada per-connection sehingga test
+             yang TIDAK pakai RefreshDatabase trait kehilangan schema.
+             File dihapus di prepare-test-environment CI step. -->
+        <env name="DB_DATABASE" value="/tmp/simpelv1-test.sqlite"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

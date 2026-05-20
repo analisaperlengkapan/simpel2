@@ -1,6 +1,7 @@
 # Panduan Reporting dan Monitoring MFA SIMPEL
 
 ## Daftar Isi
+
 1. [Dashboard dan Metrics](#dashboard-dan-metrics)
 2. [Automated Reporting](#automated-reporting)
 3. [Real-time Monitoring](#real-time-monitoring)
@@ -16,6 +17,7 @@
 ### Executive Dashboard
 
 #### Key Performance Indicators (KPIs)
+
 ```sql
 -- MFA Adoption Rate (Overall)
 SELECT
@@ -54,6 +56,7 @@ WHERE mfa_setup_at IS NOT NULL
 ```
 
 #### Operational Dashboard Queries
+
 ```sql
 -- Daily Active MFA Users
 SELECT
@@ -101,6 +104,7 @@ ORDER BY week DESC;
 ### Technical Dashboard
 
 #### System Health Metrics
+
 ```sql
 -- MFA Service Performance
 SELECT
@@ -153,6 +157,7 @@ FROM redis_info info;
 ### Daily Reports
 
 #### Daily MFA Summary Report
+
 ```bash
 #!/bin/bash
 # Script: /scripts/reports/daily_mfa_summary.sh
@@ -182,6 +187,7 @@ curl -X POST https://dashboard.internal/api/reports \
 ```
 
 #### Daily Security Events Report
+
 ```sql
 -- Daily security events related to MFA
 WITH daily_security_events AS (
@@ -220,6 +226,7 @@ FROM daily_security_events;
 ### Weekly Reports
 
 #### Weekly MFA Adoption Report
+
 ```bash
 #!/bin/bash
 # Script: /scripts/reports/weekly_mfa_adoption.sh
@@ -246,6 +253,7 @@ REPORT_FILE="/var/reports/weekly/mfa_adoption_week_$(date +%Y%W).pdf"
 ```
 
 #### Weekly Performance Report
+
 ```sql
 -- Weekly performance metrics
 WITH weekly_metrics AS (
@@ -290,6 +298,7 @@ FROM weekly_metrics;
 ### Monthly Reports
 
 #### Monthly Compliance Report
+
 ```bash
 #!/bin/bash
 # Script: /scripts/reports/monthly_compliance.sh
@@ -324,6 +333,7 @@ cp $REPORT_FILE "/var/archives/compliance/mfa_compliance_${MONTH}.pdf"
 ### Grafana Dashboard Configuration
 
 #### MFA Overview Dashboard
+
 ```json
 {
   "dashboard": {
@@ -375,6 +385,7 @@ cp $REPORT_FILE "/var/archives/compliance/mfa_compliance_${MONTH}.pdf"
 ```
 
 #### Security Monitoring Dashboard
+
 ```json
 {
   "dashboard": {
@@ -418,6 +429,7 @@ cp $REPORT_FILE "/var/archives/compliance/mfa_compliance_${MONTH}.pdf"
 ### Prometheus Metrics
 
 #### Custom MFA Metrics
+
 ```yaml
 # /config/prometheus/mfa_metrics.yml
 groups:
@@ -456,6 +468,7 @@ groups:
 ### Real-time Alerting Rules
 
 #### Critical Alerts
+
 ```yaml
 # /config/prometheus/mfa_alerts.yml
 groups:
@@ -516,6 +529,7 @@ groups:
 ### Alert Configuration
 
 #### Email Alerts
+
 ```yaml
 # /config/alertmanager/mfa_routes.yml
 route:
@@ -554,6 +568,7 @@ receivers:
 ```
 
 #### Slack Integration
+
 ```yaml
 # Slack webhook configuration
 receivers:
@@ -569,6 +584,7 @@ receivers:
 ```
 
 ### SMS Alerts for Critical Issues
+
 ```bash
 #!/bin/bash
 # Script: /scripts/alerts/mfa_sms_alert.sh
@@ -593,6 +609,7 @@ done
 ### Regulatory Compliance Reports
 
 #### Monthly Compliance Summary
+
 ```sql
 -- Monthly compliance report for regulatory requirements
 WITH monthly_stats AS (
@@ -642,6 +659,7 @@ FROM monthly_stats ms, security_incidents si;
 ```
 
 #### Audit Trail Report
+
 ```sql
 -- Comprehensive audit trail for compliance
 SELECT
@@ -691,6 +709,7 @@ SELECT
 ### Risk Assessment Reports
 
 #### Security Risk Assessment
+
 ```sql
 -- Monthly security risk assessment
 WITH risk_indicators AS (
@@ -775,6 +794,7 @@ FROM risk_indicators;
 ### Response Time Analysis
 
 #### MFA Performance Metrics
+
 ```sql
 -- Detailed performance analysis
 WITH performance_metrics AS (
@@ -815,6 +835,7 @@ GROUP BY endpoint;
 ### Capacity Planning
 
 #### Usage Trend Analysis
+
 ```sql
 -- Capacity planning metrics
 WITH daily_usage AS (
@@ -864,6 +885,7 @@ FROM daily_usage;
 ### Threat Detection
 
 #### Anomaly Detection Queries
+
 ```sql
 -- Detect unusual MFA patterns
 WITH user_baselines AS (
@@ -919,6 +941,7 @@ ORDER BY ta.today_verifications DESC;
 ```
 
 #### Geographic Analysis
+
 ```sql
 -- Geographic anomaly detection
 WITH user_locations AS (
@@ -963,6 +986,7 @@ ORDER BY sl.countries_count DESC, sl.cities_count DESC;
 ### Automated Threat Response
 
 #### Auto-Response Rules
+
 ```bash
 #!/bin/bash
 # Script: /scripts/security/auto_threat_response.sh
@@ -998,11 +1022,13 @@ esac
 ---
 
 **Kontak Tim Monitoring**:
+
 - **Email**: monitoring@kejaksaan.go.id
 - **Slack**: #mfa-monitoring
 - **Dashboard**: https://monitoring.internal/mfa
 
 **Dokumen Terkait**:
+
 - [MFA Admin Guide](./MFA_ADMIN_GUIDE.md)
 - [MFA Security Policy](./MFA_SECURITY_POLICY.md)
 - [Incident Response Playbook](./MFA_INCIDENT_RESPONSE.md)

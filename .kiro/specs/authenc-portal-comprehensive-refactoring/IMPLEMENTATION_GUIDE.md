@@ -9,6 +9,7 @@ Dokumen ini memberikan panduan step-by-step untuk melakukan migrasi dari struktu
 ### Prerequisites
 
 1. Backup kode saat ini:
+
 ```bash
 cd layanan/authenc
 git checkout -b migration/multi-crate
@@ -17,11 +18,13 @@ git commit -m "Backup before multi-crate migration"
 ```
 
 2. Pastikan semua tests pass:
+
 ```bash
 cargo test --workspace
 ```
 
 3. Pastikan tidak ada uncommitted changes:
+
 ```bash
 git status
 ```
@@ -46,6 +49,7 @@ Jalankan migration script:
 ```
 
 Script ini akan:
+
 - Migrate services ke crates/core/
 - Migrate handlers ke crates/api/ dan crates/iam-api/
 - Migrate middleware ke crates/api/
@@ -66,6 +70,7 @@ chmod +x scripts/update_imports.sh
 Update mod.rs di setiap crate untuk export modules yang baru:
 
 #### crates/core/src/lib.rs
+
 ```rust
 // Re-export services
 pub mod services {
@@ -99,6 +104,7 @@ pub mod secreton;
 ```
 
 #### crates/api/src/lib.rs
+
 ```rust
 // Re-export handlers
 pub mod handlers {
@@ -127,6 +133,7 @@ pub mod router;
 ```
 
 #### crates/iam-api/src/lib.rs
+
 ```rust
 // Re-export admin handlers
 pub mod handlers {
@@ -150,6 +157,7 @@ pub mod router;
 ```
 
 #### crates/mfa/src/lib.rs
+
 ```rust
 // Re-export MFA services
 pub mod fallback_client;
@@ -165,6 +173,7 @@ pub use authenc_core::services::mfa_admin_service::MfaAdminService;
 ```
 
 #### crates/federation/src/lib.rs
+
 ```rust
 // Re-export federation services
 pub mod manager;
@@ -189,6 +198,7 @@ pub mod social;
 Update dependencies di setiap crate untuk menggunakan workspace crates:
 
 #### crates/api/Cargo.toml
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -205,6 +215,7 @@ tower-http = { workspace = true }
 ```
 
 #### crates/iam-api/Cargo.toml
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -219,6 +230,7 @@ tower = { workspace = true }
 ```
 
 #### crates/mfa/Cargo.toml
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -230,6 +242,7 @@ authenc-storage = { path = "../storage" }
 ```
 
 #### crates/federation/Cargo.toml
+
 ```toml
 [dependencies]
 authenc-types = { path = "../types" }
@@ -244,6 +257,7 @@ authenc-storage = { path = "../storage" }
 Update src/main.rs dan src/lib.rs untuk menggunakan crates baru:
 
 #### src/lib.rs
+
 ```rust
 // Re-export all crates
 pub use authenc_types as types;
@@ -264,7 +278,9 @@ pub mod server;
 ```
 
 #### src/app.rs
+
 Update imports:
+
 ```rust
 use authenc_core::services::*;
 use authenc_storage::Database;
@@ -276,6 +292,7 @@ use authenc_types::*;
 ### Step 7: Build and Test
 
 1. Build workspace:
+
 ```bash
 cargo build --workspace
 ```
@@ -286,6 +303,7 @@ cargo build --workspace
    - Fix module paths
 
 3. Run tests:
+
 ```bash
 cargo test --workspace
 ```
@@ -333,6 +351,7 @@ rm -rf src/middleware
 ### Step 10: Update Documentation
 
 1. Update AGENTS.md:
+
 ```markdown
 ## Architecture
 
@@ -359,6 +378,7 @@ Authenc uses a multi-crate architecture:
 Update CI/CD pipelines untuk multi-crate builds:
 
 #### .github/workflows/ci.yml
+
 ```yaml
 name: CI
 
@@ -366,7 +386,7 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
@@ -416,6 +436,7 @@ Compare dengan baseline sebelum migrasi.
 **Problem**: `error[E0433]: failed to resolve: use of undeclared crate or module`
 
 **Solution**:
+
 1. Check Cargo.toml dependencies
 2. Update imports to use correct crate names
 3. Ensure mod.rs exports the module
@@ -425,6 +446,7 @@ Compare dengan baseline sebelum migrasi.
 **Problem**: `error: cyclic package dependency`
 
 **Solution**:
+
 1. Review dependency graph
 2. Move shared code to authenc-types
 3. Use trait objects for abstraction
@@ -434,6 +456,7 @@ Compare dengan baseline sebelum migrasi.
 **Problem**: Tests fail after migration
 
 **Solution**:
+
 1. Update test imports
 2. Update test setup code
 3. Check for hardcoded paths
@@ -444,6 +467,7 @@ Compare dengan baseline sebelum migrasi.
 **Problem**: Slower build or runtime performance
 
 **Solution**:
+
 1. Enable LTO in release profile
 2. Check for unnecessary dependencies
 3. Profile critical paths
@@ -507,6 +531,7 @@ crates/
 ## 📞 Support
 
 Jika mengalami masalah:
+
 1. Check troubleshooting section
 2. Review migration plan
 3. Check CI/CD logs
@@ -517,7 +542,6 @@ Jika mengalami masalah:
 **Document Version**: 1.0
 **Last Updated**: 2026-02-19
 **Status**: Ready for Use
-
 
 ---
 
@@ -530,11 +554,13 @@ Jika mengalami masalah:
 ### Integration Verification Results
 
 #### ✅ Dependency Structure
+
 - **No circular dependencies** detected
 - Clean dependency hierarchy: `types` → `storage` → `core`
 - All Cargo.toml dependencies correctly configured
 
 #### ✅ Trait Implementations
+
 All storage traits properly implemented:
 
 | Store Implementation | Trait | Status | Tests |
@@ -548,6 +574,7 @@ All storage traits properly implemented:
 **Total**: 94 unit tests passing
 
 #### ✅ Compilation Status
+
 ```bash
 # Individual crate checks
 cargo check --package authenc-storage  # ✅ PASS
@@ -558,10 +585,12 @@ cargo check --package authenc-core     # ✅ PASS
 #### ⚠️ Pending Items for Phase 3
 
 **Missing Store Implementations** (to be added in Task 5.x):
+
 - `PostgresAuthorizationCodeStore` (for OAuth2 auth code flow)
 - `PostgresRefreshTokenStore` (for OAuth2 refresh tokens)
 
 **Integration Tests**:
+
 - Current tests use mock implementations (appropriate for unit testing)
 - Real database integration tests to be added in Phase 3
 - Testcontainers setup needed for end-to-end testing
@@ -590,6 +619,7 @@ See: [`STORAGE_INTEGRATION_VERIFICATION.md`](./STORAGE_INTEGRATION_VERIFICATION.
 ### Phase 2 Progress: 50%
 
 **Completed**:
+
 - ✅ 3.1 - Create authenc-storage crate structure
 - ✅ 3.2 - Migrate PostgresUserStore
 - ✅ 3.3 - Migrate PostgresSessionStore
@@ -599,6 +629,7 @@ See: [`STORAGE_INTEGRATION_VERIFICATION.md`](./STORAGE_INTEGRATION_VERIFICATION.
 - ✅ 3.7 - Verify storage integration
 
 **Remaining**:
+
 - ⏳ 3.8 - Update documentation
 - ⏳ 3.9 - Final Phase 2 verification
 

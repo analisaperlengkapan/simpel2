@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 class NotifikasiManual extends Model
 {
     protected $table = 'notifikasi_manual';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -27,18 +28,18 @@ class NotifikasiManual extends Model
         'url',
     ];
 
-    function getDataGrid($paging, $search = [], $isRaw = false)
+    public function getDataGrid($paging, $search = [], $isRaw = false)
     {
-        $query = DB::table("notifikasi_manual as a");
+        $query = DB::table('notifikasi_manual as a');
         // dd($query->paginate());
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -57,10 +58,11 @@ class NotifikasiManual extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'] ?? 10)->skip($paging['start'] ?? 0)->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function getRoleNotif($roleId = null)
+    public static function getRoleNotif($roleId = null)
     {
         $roleId = $roleId ?? session('userData.current_role.ms_role_id');
         $targets = DB::table('notifikasi_manual as a')->select('a.id')
@@ -68,6 +70,7 @@ class NotifikasiManual extends Model
             ->where(['b.role_id' => $roleId, 'a.is_active' => 1])->get();
         $notifIds = Arr::pluck($targets, 'id');
         $notifs = self::whereIn('id', $notifIds)->get();
+
         return $notifs;
     }
 }

@@ -17,40 +17,45 @@ class HibahController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Pengajuan Persetujuan Penerimaan Hibah'];
+    // protected $breadcums = ['BMN', 'Pengajuan Persetujuan Penerimaan Hibah'];
     protected $kategoriJudul = 'Pengajuan Persetujuan Penerimaan Hibah';
+
     protected $controller = '/bmn/hibah/hibah';
+
     protected $breadcums = ['BMN'];
-    protected $columns = ['Nama Satker', 'Jenis Hibah','Bentuk Hibah', 'Tanggal', 'Hibah Dari','nilai'];
-    protected $defColumns = [0,1,2,3,4,5];
+
+    protected $columns = ['Nama Satker', 'Jenis Hibah', 'Bentuk Hibah', 'Tanggal', 'Hibah Dari', 'nilai'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Pengajuan Persetujuan Penerimaan Hibah']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Pengajuan Persetujuan Penerimaan Hibah']]);
 
     }
 
     public function index()
     {
-        //$data = ['tableId' => 'dt-hibah', 'breadcums' => $this->breadcums];
-        //return view('bmn.hibah.hibahV', $data);
+        // $data = ['tableId' => 'dt-hibah', 'breadcums' => $this->breadcums];
+        // return view('bmn.hibah.hibahV', $data);
         return view('bmn.hibah.hibahV', [
             'tableId' => 'dt-hibah',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $this->columns,
             'defColumns' => $this->defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $model = new hibah();
+        $model = new hibah;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -58,7 +63,7 @@ class HibahController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $modelSk = [];
@@ -67,7 +72,7 @@ class HibahController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = hibah::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -76,7 +81,7 @@ class HibahController extends Controller
             $modelSk = HibahFile::where('id_hibah', $id)->get();
             $modelSk = $modelSk->toArray();
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -109,6 +114,7 @@ class HibahController extends Controller
                 'selected' => $model['kategori'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -118,6 +124,7 @@ class HibahController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.hibah.hibahFormV', $data);
     }
 
@@ -152,17 +159,17 @@ class HibahController extends Controller
             $data = [
                 'kdsatker_keu' => session('userData.current_role.ms_satker_id_keu'),
                 'jenis_hibah' => $request->input('jenis_hibah'),
-                //'no_register' => $request->input('no_register'),
+                // 'no_register' => $request->input('no_register'),
                 'tgl_register' => $request->input('tgl_register'),
                 'kategori' => $request->input('kategori'),
-                //'nilai' => $request->input('nilai'),
-                'nilai' => str_replace('.', '', $request->input('nilai')), 
+                // 'nilai' => $request->input('nilai'),
+                'nilai' => str_replace('.', '', $request->input('nilai')),
                 'hibah_ke' => $request->input('hibah_ke'),
             ];
-            if($request->status){
-                $data['status'] =$request->status;
-            }else{
-                $data['status'] ='On Proses';
+            if ($request->status) {
+                $data['status'] = $request->status;
+            } else {
+                $data['status'] = 'On Proses';
             }
             hibah::updateOrCreate(['id' => $id], $data);
 
@@ -172,10 +179,10 @@ class HibahController extends Controller
             })->toArray();
             $id_sk = $request->input('id_sk') ?? [];
             $idsToDelete = array_diff($fileIds, $id_sk);
-            if (!empty($idsToDelete)) {
-                foreach($idsToDelete as $idDelete){
-                    $delHibah = HibahFile::where('id',$idDelete)->first();
-                    if(!empty($delHibah)){
+            if (! empty($idsToDelete)) {
+                foreach ($idsToDelete as $idDelete) {
+                    $delHibah = HibahFile::where('id', $idDelete)->first();
+                    if (! empty($delHibah)) {
                         $filePath = public_path($delHibah->file);
                         if (File::exists($filePath)) {
                             File::delete($filePath);
@@ -185,8 +192,8 @@ class HibahController extends Controller
                 }
             }
 
-            if(count($id_sk)>0){
-                foreach($id_sk as $key => $idsk){
+            if (count($id_sk) > 0) {
+                foreach ($id_sk as $key => $idsk) {
                     $dataSk = [
                         'id_hibah' => $id,
                         'no' => $request->input('no_sk')[$key],
@@ -204,16 +211,18 @@ class HibahController extends Controller
                 }
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/bmn/hibah/hibah')
+                    'url' => \URL::to('/bmn/hibah/hibah'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -225,6 +234,7 @@ class HibahController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.hibah.hibahFormV', $data);
     }
 
@@ -234,6 +244,7 @@ class HibahController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.hibah.hibahFormV', $data);
     }
 
@@ -262,14 +273,10 @@ class HibahController extends Controller
             }
             hibah::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
-
-
-
-
 }

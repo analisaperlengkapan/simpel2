@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\Pengguna\Pengguna;
+use Tests\TestCase;
 
 class AIRealAnswerTest extends TestCase
 {
@@ -16,7 +16,7 @@ class AIRealAnswerTest extends TestCase
     {
         // Login user (pastikan ada user dengan email 'admin@example.com' atau sesuaikan)
         $user = Pengguna::first();
-        if (!$user) {
+        if (! $user) {
             $user = Pengguna::create([
                 'name' => 'Test User',
                 'username' => 'testuser',
@@ -26,7 +26,7 @@ class AIRealAnswerTest extends TestCase
         }
         $this->actingAs($user);
         $response = $this->post('/ai/chat', [
-            'prompt' => $question
+            'prompt' => $question,
         ]);
         $response->assertStatus(200);
         $data = $response->json();
@@ -46,7 +46,7 @@ class AIRealAnswerTest extends TestCase
                 break;
             }
         }
-        $this->assertTrue($found, "[$desc] Jawaban tidak mengandung minimal satu keyword penting: " . implode(', ', $minKeywords));
+        $this->assertTrue($found, "[$desc] Jawaban tidak mengandung minimal satu keyword penting: ".implode(', ', $minKeywords));
     }
 
     public static function questionProvider()
@@ -74,4 +74,4 @@ class AIRealAnswerTest extends TestCase
             ['Bagaimana BMN mendukung pelayanan publik?', ['BMN', 'pelayanan'], 'BMN dan pelayanan publik'],
         ];
     }
-} 
+}

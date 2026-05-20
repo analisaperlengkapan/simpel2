@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db_name = config
         .database_url
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("perlengkapan")
         .to_string();
 

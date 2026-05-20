@@ -7,12 +7,14 @@ The enhanced nginx configuration management system for SIMPEL provides automated
 ## Components
 
 ### 1. Enhanced Generator (`nginx-config-generator.py`)
+
 - **Auto-discovery** of microfrontend services from antarmuka directory
 - **Template-based generation** using shared template with variable substitution
 - **Infrastructure integration** for reverse proxy configuration
 - **Validation support** with comprehensive syntax checking
 
 ### 2. Management Script (`nginx-manager.sh`)
+
 - **Unified CLI** for all nginx configuration operations
 - **Docker-aware validation** that handles containerized environments
 - **Deployment automation** with Docker Compose integration
@@ -21,6 +23,7 @@ The enhanced nginx configuration management system for SIMPEL provides automated
 ## Generated Files
 
 ### Microfrontend Configurations
+
 ```
 antarmuka/shared/nginx/generated/
 ├── nginx-badiklat.conf
@@ -35,6 +38,7 @@ antarmuka/shared/nginx/generated/
 ```
 
 ### Infrastructure Configuration
+
 ```
 infra/nginx/
 ├── nginx.conf           # Main reverse proxy
@@ -48,6 +52,7 @@ infra/nginx/
 ## Template System
 
 ### Base Template (`microfrontend.conf`)
+
 - **WASM optimizations** for Leptos applications
 - **Security headers** with CSP for WASM
 - **Compression settings** optimized for WASM files
@@ -56,6 +61,7 @@ infra/nginx/
 - **API proxy configuration** to gerbang service
 
 ### Variable Substitution
+
 - `{{SERVICE_NAME}}` → Service name (e.g., "portal", "badiklat")
 - `{{SERVICE_NAME_UPPER}}` → Uppercase service name
 - `{{SERVICE_NAME_TITLE}}` → Title case service name
@@ -65,6 +71,7 @@ infra/nginx/
 ## Commands
 
 ### Generation
+
 ```bash
 # Generate all microfrontend configurations
 ./scripts/tools/nginx-manager.sh generate-all --validate
@@ -77,6 +84,7 @@ infra/nginx/
 ```
 
 ### Validation
+
 ```bash
 # Validate all generated configurations
 ./scripts/tools/nginx-manager.sh validate
@@ -86,6 +94,7 @@ infra/nginx/
 ```
 
 ### Deployment
+
 ```bash
 # Deploy configurations (dry run)
 ./scripts/tools/nginx-manager.sh deploy --dry-run
@@ -95,6 +104,7 @@ infra/nginx/
 ```
 
 ### Maintenance
+
 ```bash
 # Clean generated configurations
 ./scripts/tools/nginx-manager.sh clean
@@ -106,13 +116,17 @@ infra/nginx/
 ## Integration Points
 
 ### Docker Compose
+
 The nginx configurations are designed to work seamlessly with Docker Compose deployments:
+
 - **Volume mounts** for configuration files
 - **Service networking** using Docker container names
 - **Health checks** for container orchestration
 
 ### CI/CD Pipeline
+
 Can be integrated into GitLab CI/CD:
+
 ```yaml
 generate_nginx:
   stage: build
@@ -124,6 +138,7 @@ generate_nginx:
 ```
 
 ### Development Workflow
+
 1. **Service Discovery** → Auto-detect microfrontends
 2. **Configuration Generation** → Create nginx configs from template
 3. **Validation** → Check syntax and structure
@@ -133,17 +148,20 @@ generate_nginx:
 ## Optimizations Implemented
 
 ### Template Consolidation ✅
+
 - Single shared template for all microfrontends
 - Eliminated duplicate nginx configurations
 - Centralized maintenance and updates
 
 ### Auto-Generation Enhancement ✅
+
 - Service discovery from filesystem
 - Dynamic template variable substitution
 - Infrastructure nginx integration
 - Comprehensive validation system
 
 ### Container-Aware Validation
+
 - Docker hostname resolution awareness
 - Syntax validation without network dependencies
 - Production-ready configuration checking
@@ -159,6 +177,7 @@ generate_nginx:
 ## Usage Examples
 
 ### Complete Setup
+
 ```bash
 # 1. Generate all configurations
 ./scripts/tools/nginx-manager.sh generate-all --validate
@@ -174,6 +193,7 @@ generate_nginx:
 ```
 
 ### Development Workflow
+
 ```bash
 # Add new microfrontend service
 mkdir antarmuka/new-service

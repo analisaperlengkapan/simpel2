@@ -8,22 +8,26 @@ use App\Models\ApprovalUserSpseSirup as Approval;
 use App\Models\Files;
 use App\Models\Master\MsSatker;
 use App\Models\Notifikasi;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Arr;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use App\Models\Pengadaan\User\UserSpseSirup as Model;
 use App\Models\Pengadaan\User\UserSpseSirupAktifitas as Aktifitas;
 use App\Models\Pengadaan\User\UserSpseSirupPegawai as Pegawai;
 use App\Models\Pengadaan\User\UserSpseSirupPegawaiFile as File;
+use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File as FileManager;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class UserSpseController extends Controller
 {
     protected $kategoriJudul = 'User SPSE';
+
     protected $kategori = 'spse';
+
     protected $breadcums = ['Pengadaan'];
+
     private $controller = '/pengadaan/user-spse';
+
     private $url = 'pengadaan/user-spse';
 
     public function __construct(Request $request)
@@ -50,7 +54,7 @@ class UserSpseController extends Controller
             'controller' => $this->controller,
             'kategori' => $this->kategori,
             'kategoriJudul' => $this->kategoriJudul,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ]);
     }
 
@@ -62,10 +66,11 @@ class UserSpseController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getDataGrid($pagingParams, $searchParams, $this->kategori);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -75,7 +80,7 @@ class UserSpseController extends Controller
 
     public function gridDataPegawai($pengajuan_id, $json = false)
     {
-        $model = new Pegawai();
+        $model = new Pegawai;
         $data = $model->getDetail($pengajuan_id);
         if ($json) {
             return $data;
@@ -88,15 +93,16 @@ class UserSpseController extends Controller
 
     public function gridDataMsPegawai($pengajuan_id)
     {
-        $model = new Pegawai();
+        $model = new Pegawai;
         $currentRole = session('userData.current_role');
         $data = $model->getMsPegawai($currentRole['ms_satker_id'], $pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -105,7 +111,7 @@ class UserSpseController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $model = $model->toArray();
@@ -116,18 +122,16 @@ class UserSpseController extends Controller
             'model' => $model,
             'isNew' => $isNew,
             'controller' => $this->controller,
-            'breadcums' => array_merge($this->breadcums, [$breadcum])
+            'breadcums' => array_merge($this->breadcums, [$breadcum]),
         ];
+
         return $data;
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
-
-    }
+    public function create() {}
 
     /**
      * Store a newly created resource in storage.
@@ -155,11 +159,13 @@ class UserSpseController extends Controller
             }
             Model::updateOrCreate(['id' => $id], $inputan);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -174,7 +180,7 @@ class UserSpseController extends Controller
         ];
         $msFile = File::getMasterFile($this->kategori);
         foreach ($msFile as $file) {
-            $customMessages[$file->jenis . '.required'] = $file->nama . ' harus diupload';
+            $customMessages[$file->jenis.'.required'] = $file->nama.' harus diupload';
             $validasi[$file->jenis] = 'required|mimes:jpeg,png,pdf|max:2048';
         }
         $request->validate($validasi, $customMessages);
@@ -190,8 +196,8 @@ class UserSpseController extends Controller
                 if ($request->hasFile($jenis)) {
                     $filepath = 'uploads/pengadaan/user_spse';
                     $file = $request->file($jenis);
-                    $fileName = $pegawaiId . '_' . $jenis . '.' . $file->getClientOriginalExtension();
-                    $filesave = $filepath . '/' . $fileName;
+                    $fileName = $pegawaiId.'_'.$jenis.'.'.$file->getClientOriginalExtension();
+                    $filesave = $filepath.'/'.$fileName;
                     $file->move($filepath, $fileName);
                     $newFile = [
                         'filename' => $file->getClientOriginalName(),
@@ -205,7 +211,7 @@ class UserSpseController extends Controller
                     ];
                     $insertedFiles[] = $newFile;
 
-                    $file = new File();
+                    $file = new File;
                     $file->pengajuan_pegawai_id = $pegawaiId;
                     $file->jenis = $jenis;
                     $file->url = $filesave;
@@ -214,11 +220,13 @@ class UserSpseController extends Controller
             }
             Files::insert($insertedFiles);
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -240,11 +248,13 @@ class UserSpseController extends Controller
             $id = $request->input('id');
             Pegawai::where(['id' => $id])->update($request->only(['username', 'password']));
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -256,26 +266,26 @@ class UserSpseController extends Controller
     {
         $data = $this->getData($id);
         $pengajuan = Model::where('id', $id)->first();
-        if (!$pengajuan) {
+        if (! $pengajuan) {
             throw new NotFoundHttpException('Data Tidak Ditemukan');
         }
         $satker = MsSatker::where('inst_satkerkd', $pengajuan->inst_satkerkd)->first();
         $pengajuan->inst_nama = $satker->inst_nama;
-        //$_GET['satker'] cuma ada klo diliat validator pusat /kejati
+        // $_GET['satker'] cuma ada klo diliat validator pusat /kejati
         $currentRole = session('userData.current_role');
         $whereData = ['ms_satker_id' => $_GET['satker'] ?? $currentRole['ms_satker_id'], 'pengajuan_id' => $pengajuan->id];
         $whereSatker = ['inst_satkerkd' => $_GET['satker'] ?? $currentRole['ms_satker_id']];
 
-        if ($currentRole['ms_satker_id'] == '00' && !isset($_GET['satker'])) {
+        if ($currentRole['ms_satker_id'] == '00' && ! isset($_GET['satker'])) {
             $whereData['ms_satker_pusat_id'] = $currentRole['ms_satker_pusat_id'];
             $whereSatker['unitkerja_idk'] = $currentRole['ms_satker_pusat_id'];
         }
 
-        //model utama
+        // model utama
         $model = $pengajuan ?? [];
         $isNew = empty($model) ? true : false;
 
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $model->ms_aktifitas_id == 1000 ? 1006 : $model->ms_aktifitas_id;
         $whereAct = ['ms_aktifitas_id' => $msAktifitasId];
         $aktifitasHistories = Aktifitas::getDetail($model->id);
@@ -301,7 +311,7 @@ class UserSpseController extends Controller
         // }, $aktifitasOptions);
         $currentAktifitas = Approval::getCurrentAktifitas($model->ms_aktifitas_id);
 
-        //file
+        // file
         $msFile = File::getMasterFile($this->kategori);
 
         $data = [
@@ -315,21 +325,19 @@ class UserSpseController extends Controller
             'kategoriJudul' => $this->kategoriJudul,
             'kategori' => strtoupper($this->kategori),
             'msFile' => $msFile,
-            'canCreate' => $this->canCreatePermintaan()
+            'canCreate' => $this->canCreatePermintaan(),
         ];
         if ($request->wantsJson()) {
             $data = Arr::only($data, ['model', 'aktifitasHistories']);
             $data['pegawai'] = $this->gridDataPegawai($id, true);
+
             return response()->json($data);
         } else {
             return view('pengadaan.user_spse_sirup.pengajuanFormSatkerIsiV', $data);
         }
     }
 
-    public function edit(string $id)
-    {
-
-    }
+    public function edit(string $id) {}
 
     public function savePengajuan(Request $request)
     {
@@ -348,10 +356,11 @@ class UserSpseController extends Controller
 
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
 
-        //cek pegawai harus ada dan apabila 1009(selesai) cek username password
+        // cek pegawai harus ada dan apabila 1009(selesai) cek username password
         $pegawai = Pegawai::where(['pengajuan_id' => $id])->get();
-        if ($pegawai->isEmpty())
+        if ($pegawai->isEmpty()) {
             return $this->resError('Pegawai harus diisi');
+        }
         if ($ms_aktifitas_id == 1009) {
             foreach ($pegawai as $data) {
                 if (empty($data->username) || empty($data->password)) {
@@ -369,14 +378,14 @@ class UserSpseController extends Controller
                 'pengajuan_id' => $id,
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
-                'to_satker_induk' => $ms_aktifitas_id == 1000 ? false : true
+                'to_satker_induk' => $ms_aktifitas_id == 1000 ? false : true,
             ];
             $acts = Approval::roleCheck($dataAktifitas);
             Aktifitas::insert($acts['act']);
 
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [1003, 1005, 1007])) { //revisi
+                if (in_array($newAct, [1003, 1005, 1007])) { // revisi
                     $newAct = 1000;
                 }
                 Model::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
@@ -384,8 +393,8 @@ class UserSpseController extends Controller
             if ($ms_aktifitas_id == 1008) {
                 $targetSatker[] = config('constants.ms_satker_kejagung_id');
                 $notifParams = [
-                    'url' => $this->url . '/' . $id,
-                    'judul' => 'Pengajuan Pembuatan User ' .strtoupper($this->kategori),
+                    'url' => $this->url.'/'.$id,
+                    'judul' => 'Pengajuan Pembuatan User '.strtoupper($this->kategori),
                     'isi' => '',
                     'target' => 'role',
                     'targetValue' => config('constants.validator_pusat_role_id'),
@@ -395,16 +404,18 @@ class UserSpseController extends Controller
                 Notifikasi::sendNotif($notifParams);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to($this->controller)
+                    'url' => \URL::to($this->controller),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
@@ -434,9 +445,11 @@ class UserSpseController extends Controller
             }
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -455,9 +468,11 @@ class UserSpseController extends Controller
             }
             Pegawai::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

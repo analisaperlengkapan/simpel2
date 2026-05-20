@@ -401,6 +401,7 @@ WHERE id NOT IN (
    - Report current integration status
 
 5. **Set up periodic ADM refresh:**
+
    ```bash
    # Weekly cron job
    0 2 * * 1 cd /srv/proyek/simpelv2/layanan/shared/integrasi && \

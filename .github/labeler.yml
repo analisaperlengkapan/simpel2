@@ -1,0 +1,123 @@
+# Path-based PR labels untuk actions/labeler@v5
+# Format: <label>: [{ changed-files: [{ any-glob-to-any-file: [...] }] }]
+
+# ─── Microservices ──────────────────────────────────────
+"microservice:authenc":
+  - changed-files:
+      - any-glob-to-any-file:
+          - layanan/authenc/**
+
+"microservice:perlengkapan":
+  - changed-files:
+      - any-glob-to-any-file:
+          - layanan/perlengkapan/**
+
+"microservice:integrasi":
+  - changed-files:
+      - any-glob-to-any-file:
+          - layanan/integrasi/**
+
+"microservice:secreton":
+  - changed-files:
+      - any-glob-to-any-file:
+          - layanan/secreton/**
+
+# ─── Microfrontends ─────────────────────────────────────
+"microfrontend:portal":
+  - changed-files:
+      - any-glob-to-any-file:
+          - antarmuka/portal/**
+
+"microfrontend:perlengkapan":
+  - changed-files:
+      - any-glob-to-any-file:
+          - antarmuka/perlengkapan/**
+
+# ─── Monolith ───────────────────────────────────────────
+monolith:
+  - changed-files:
+      - any-glob-to-any-file:
+          - monolith/**
+
+"monolith:assets":
+  - changed-files:
+      - any-glob-to-any-file:
+          - monolith/simpelv1/resources/**
+          - monolith/simpelv1/public/assets/**
+          - monolith/simpelv1/package.json
+          - monolith/simpelv1/vite.config.*
+
+# ─── Shared libraries ──────────────────────────────────
+"lib:ui":
+  - changed-files: [{ any-glob-to-any-file: [lib/ui/**] }]
+"lib:core":
+  - changed-files: [{ any-glob-to-any-file: [lib/core/**] }]
+"lib:backend":
+  - changed-files: [{ any-glob-to-any-file: [lib/backend/**] }]
+"lib:crypto":
+  - changed-files: [{ any-glob-to-any-file: [lib/crypto/**] }]
+"lib:perlengkapan":
+  - changed-files: [{ any-glob-to-any-file: [lib/perlengkapan/**] }]
+
+# ─── Infrastructure ────────────────────────────────────
+"infra:k8s":
+  - changed-files: [{ any-glob-to-any-file: ['infra/helm/**', 'infra/k8s/**'] }]
+"infra:helm":
+  - changed-files: [{ any-glob-to-any-file: ['infra/helm/**'] }]
+"infra:nginx":
+  - changed-files: [{ any-glob-to-any-file: ['infra/nginx/**', '**/nginx.conf'] }]
+"infra:monitoring":
+  - changed-files: [{ any-glob-to-any-file: ['infra/monitoring/**'] }]
+"infra:scripts":
+  - changed-files: [{ any-glob-to-any-file: ['infra/scripts/**'] }]
+
+# ─── Tests ─────────────────────────────────────────────
+"tests:load":
+  - changed-files: [{ any-glob-to-any-file: [tests/load/**] }]
+"tests:verification":
+  - changed-files: [{ any-glob-to-any-file: [tests/verification/**] }]
+
+# ─── Programming languages ─────────────────────────────
+"lang:rust":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.rs', '**/Cargo.toml', 'Cargo.lock'] }]
+"lang:php":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.php', '**/composer.json', '**/composer.lock'] }]
+"lang:typescript":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.ts', '**/*.tsx', '**/tsconfig*.json'] }]
+"lang:javascript":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.js', '**/*.jsx', '**/package.json'] }]
+"lang:blade":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.blade.php'] }]
+"lang:sql":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.sql', '**/migrations/**'] }]
+"lang:dockerfile":
+  - changed-files: [{ any-glob-to-any-file: ['**/Dockerfile', '**/Dockerfile.*'] }]
+"lang:yaml":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.yml', '**/*.yaml'] }]
+"lang:shell":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.sh', '**/*.bash'] }]
+"lang:toml":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.toml'] }]
+"lang:markdown":
+  - changed-files: [{ any-glob-to-any-file: ['**/*.md', '**/*.mdx'] }]
+
+# ─── Areas ─────────────────────────────────────────────
+"area:ci-cd":
+  - changed-files: [{ any-glob-to-any-file: ['.github/workflows/**', '.github/actions/**'] }]
+"area:docs":
+  - changed-files: [{ all-globs-to-all-files: ['**/*.md'] }]
+"area:deps":
+  - changed-files: [{ any-glob-to-any-file: ['Cargo.lock', '**/package-lock.json', '**/composer.lock'] }]
+"area:database":
+  - changed-files: [{ any-glob-to-any-file: ['**/migrations/**', '**/*.sql'] }]
+"area:security":
+  - changed-files:
+      - any-glob-to-any-file:
+          - layanan/authenc/**
+          - layanan/secreton/**
+          - lib/crypto/**
+          - .gitleaks.toml
+          - deny.toml
+          - .github/workflows/security.yml
+"area:dependabot":
+  - changed-files: [{ any-glob-to-any-file: ['.github/dependabot.yml'] }]

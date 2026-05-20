@@ -74,8 +74,67 @@ spec:
       {{- include "simpel.tolerations" . | nindent 6 }}
       securityContext:
         {{- toYaml $cfg.podSecurityContext | nindent 8 }}
-      {{- if ne $cfg.dbBackup.source "none" }}
+      {{- $secretonAuthEnabled := (default (dict) $.Values.secretonAuth).enabled }}
       initContainers:
+        - name: nginx-dirs
+          image: alpine:3.20
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              # nginx needs writable dirs; chmod open agar nginx user (apapun) bisa write
+              mkdir -p /var/lib/nginx/logs /var/lib/nginx/tmp/client_body \
+                       /var/lib/nginx/tmp/proxy /var/lib/nginx/tmp/fastcgi \
+                       /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi
+              # Symlink access.log + error.log ke stdout/stderr biar log fan-out ke kubectl
+              ln -sf /dev/stdout /var/lib/nginx/logs/access.log
+              ln -sf /dev/stderr /var/lib/nginx/logs/error.log
+              # Laravel butuh subdirs di storage/ untuk view cache, session,
+              # framework cache. Dockerfile create dirs ini di /app/storage,
+              # tapi emptyDir mount overlay menghapusnya — jadi init container
+              # harus pre-create ulang setelah mount.
+              mkdir -p /app-storage/logs \
+                       /app-storage/framework/views \
+                       /app-storage/framework/sessions \
+                       /app-storage/framework/cache/data
+              chmod -R 0777 /var/lib/nginx /run-nginx /var-cache-nginx /var-run /tmp-mount /app-storage /bootstrap-cache
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: true
+          # Mount paths beda dari main container, lalu chown — agar tidak conflict
+          # dengan kebutuhan /run /tmp dst di alpine init container.
+          volumeMounts:
+            - { name: nginx-lib,       mountPath: /var/lib/nginx }
+            - { name: run,             mountPath: /run-nginx }
+            - { name: nginx-cache,     mountPath: /var-cache-nginx }
+            - { name: var-run,         mountPath: /var-run }
+            - { name: tmp,             mountPath: /tmp-mount }
+            - { name: storage,         mountPath: /app-storage }
+            - { name: bootstrap-cache, mountPath: /bootstrap-cache }
+        {{- if $secretonAuthEnabled }}
+        - name: fetch-secrets
+          image: curlimages/curl:8.10.1
+          command: [sh, /scripts/fetch-secrets.sh]
+          env:
+            - { name: SECRETON_ADDR, value: {{ include "simpel.secretonEndpoint" . | quote }} }
+            - { name: SECRETON_AUTH_METHOD, value: kubernetes }
+            - { name: SECRETON_AUTH_ROLE, value: simpelv1 }
+            - { name: SECRETON_K8S_TOKEN_PATH, value: /var/run/secrets/tokens/secreton-token }
+            - { name: OUTPUT_DIR, value: /app/runtime }
+          volumeMounts:
+            - { name: fetch-secrets-script, mountPath: /scripts, readOnly: true }
+            - { name: secreton-token, mountPath: /var/run/secrets/tokens, readOnly: true }
+            - { name: runtime, mountPath: /app/runtime }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities: { drop: [ALL] }
+        {{- end }}
+        {{- if ne $cfg.dbBackup.source "none" }}
         - name: db-migrate
           image: postgres:15-alpine
           command: [sh, -c]
@@ -108,20 +167,36 @@ spec:
               valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_PASSWORD } }
           volumeMounts:
             - { name: db-backup, mountPath: /db-backup, readOnly: true }
-      {{- end }}
+        {{- end }}
       containers:
         - name: simpelv1
           image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
           imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.image.pullPolicy }}
+          # Override Dockerfile CMD: redirect nginx pid + error log + access log
+          # ke stderr/stdout (writable selalu), bypass /var/lib/nginx file mode
+          # mismatch issue.
+          command: ["sh", "-c"]
+          args:
+            - >
+              php-fpm -D && exec nginx -g
+              "pid /tmp/nginx.pid; error_log /dev/stderr; daemon off;"
+              -e /dev/stderr
           securityContext:
             {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
           ports:
             - { name: http, containerPort: 8080, protocol: TCP }
           envFrom:
             - configMapRef: { name: simpelv1-env }
+            {{- if not $secretonAuthEnabled }}
             - secretRef:    { name: simpelv1-secrets }
+            {{- end }}
           env:
             - { name: APP_URL, value: {{ $cfg.appUrl | quote }} }
+            {{- if $secretonAuthEnabled }}
+            # Saat secretonAuth aktif: APP_KEY/DB_PASSWORD dibaca Laravel dari /app/runtime/.env
+            # (di-generate init container fetch-secrets, override entries di simpelv1-env ConfigMap).
+            - { name: APP_ENV_FILE, value: /app/runtime/.env }
+            {{- end }}
           resources:
             {{- toYaml $cfg.resources | nindent 12 }}
           livenessProbe:
@@ -137,10 +212,20 @@ spec:
             timeoutSeconds: 3
             failureThreshold: {{ if eq .Values.global.environment "production" }}2{{ else }}3{{ end }}
           volumeMounts:
-            - { name: storage,     mountPath: /app/storage }
-            - { name: tmp,         mountPath: /tmp }
-            - { name: nginx-cache, mountPath: /var/cache/nginx }
-            - { name: run,         mountPath: /run/nginx }
+            - { name: storage,        mountPath: /app/storage }
+            # Laravel butuh /app/bootstrap/cache writable untuk package
+            # manifest, config cache, route cache, view cache. Karena
+            # container pakai readOnlyRootFilesystem=true, perlu emptyDir
+            # mount agar Laravel bisa write cache files.
+            - { name: bootstrap-cache, mountPath: /app/bootstrap/cache }
+            - { name: tmp,            mountPath: /tmp }
+            - { name: nginx-cache,    mountPath: /var/cache/nginx }
+            - { name: nginx-lib,      mountPath: /var/lib/nginx }
+            - { name: run,            mountPath: /run/nginx }
+            - { name: var-run,        mountPath: /var/run }
+            {{- if $secretonAuthEnabled }}
+            - { name: runtime,        mountPath: /app/runtime, readOnly: true }
+            {{- end }}
       volumes:
         {{- if eq $cfg.dbBackup.source "configMap" }}
         - name: db-backup
@@ -151,12 +236,33 @@ spec:
         {{- end }}
         - name: storage
           emptyDir: {}
+        - name: bootstrap-cache
+          emptyDir: {}
         - name: tmp
           emptyDir: {}
         - name: nginx-cache
           emptyDir: {}
+        - name: nginx-lib
+          emptyDir: {}
         - name: run
           emptyDir: {}
+        - name: var-run
+          emptyDir: {}
+        {{- if $secretonAuthEnabled }}
+        - name: runtime
+          emptyDir: { sizeLimit: 1Mi }
+        - name: fetch-secrets-script
+          configMap:
+            name: simpelv1-fetch-secrets
+            defaultMode: 0555
+        - name: secreton-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: secreton-token
+                  audience: {{ default "secreton" $.Values.secretonAuth.audience }}
+                  expirationSeconds: {{ default 3600 $.Values.secretonAuth.tokenTTL }}
+        {{- end }}
       affinity:
         podAntiAffinity:
           {{- if eq $cfg.podAntiAffinity.type "required" }}

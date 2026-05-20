@@ -3,6 +3,7 @@
 ## Tujuan Dokumen
 
 Dokumen ini membandingkan implementasi SSO cookie di backend dan frontend untuk memastikan:
+
 1. **Tidak ada duplikasi fungsi** yang seharusnya hanya ada di satu sisi
 2. **Sinergi yang baik** antara backend dan frontend
 3. **Separation of concerns** yang jelas
@@ -10,6 +11,7 @@ Dokumen ini membandingkan implementasi SSO cookie di backend dan frontend untuk 
 ## Perbandingan Struktur Data
 
 ### Backend: `SsoSession`
+
 ```rust
 // layanan/authenc/src/utils/sso_cookie.rs
 pub struct SsoSession {
@@ -26,6 +28,7 @@ pub struct SsoSession {
 ```
 
 ### Frontend: `SsoSession`
+
 ```rust
 // antarmuka/shared/src/utils/sso_cookie.rs
 pub struct SsoSession {
@@ -42,6 +45,7 @@ pub struct SsoSession {
 ```
 
 **Perbedaan**:
+
 - Backend menggunakan `DateTime<Utc>` untuk operasi timestamp
 - Frontend menggunakan `String` (ISO 8601) karena serialisasi JSON
 - **Tidak ada duplikasi**: Struktur sama, tipe berbeda sesuai kebutuhan
@@ -58,6 +62,7 @@ pub struct SsoSession {
 | **Status** | ✅ Tidak ada duplikasi | ✅ Tidak ada duplikasi |
 
 **Backend Only**:
+
 ```rust
 // Backend: SsoCookieManager::create_cookie()
 pub fn create_cookie(&self, session: &SsoSession) -> Result<String> {
@@ -89,6 +94,7 @@ pub fn create_cookie(&self, session: &SsoSession) -> Result<String> {
 | **Status** | ✅ Tidak ada duplikasi | ✅ Tidak ada duplikasi |
 
 **Backend Only**:
+
 ```rust
 // Backend: SsoCookieManager::delete_cookie()
 pub fn delete_cookie(&self) -> String {
@@ -112,6 +118,7 @@ pub fn delete_cookie(&self) -> String {
 | **Status** | ✅ Tidak ada duplikasi (berbeda API) | ✅ Tidak ada duplikasi (berbeda API) |
 
 **Backend**:
+
 ```rust
 // Backend: SsoCookieManager::extract_session()
 pub fn extract_session(&self, headers: &HeaderMap) -> Result<Option<SsoSession>> {
@@ -126,6 +133,7 @@ pub fn extract_session(&self, headers: &HeaderMap) -> Result<Option<SsoSession>>
 ```
 
 **Frontend**:
+
 ```rust
 // Frontend: SsoCookieReader::read_session()
 pub fn read_session(&self) -> Option<SsoSession> {
@@ -166,6 +174,7 @@ fn get_cookie_value(&self) -> Option<String> {
 | **Status** | ⚠️ Duplikasi (tapi diperlukan) | ⚠️ Duplikasi (tapi diperlukan) |
 
 **Backend**:
+
 ```rust
 impl SsoSession {
     pub fn is_expired(&self) -> bool {
@@ -179,6 +188,7 @@ impl SsoSession {
 ```
 
 **Frontend**:
+
 ```rust
 impl SsoSession {
     pub fn is_expired(&self) -> bool {
@@ -197,6 +207,7 @@ impl SsoSession {
 ```
 
 **Kesimpulan**: Duplikasi diperlukan karena:
+
 - Backend perlu validasi untuk security
 - Frontend perlu validasi untuk UX (avoid unnecessary API calls)
 - **Defense in depth**: Validasi di kedua sisi lebih aman
@@ -204,6 +215,7 @@ impl SsoSession {
 ## Fungsi Unik Backend
 
 ### 1. Cookie Header Management
+
 ```rust
 // Backend only
 pub fn add_cookie_header(&self, headers: &mut HeaderMap, session: &SsoSession) -> Result<()>
@@ -213,6 +225,7 @@ pub fn add_delete_cookie_header(&self, headers: &mut HeaderMap) -> Result<()>
 **Alasan**: Only backend can set HTTP response headers
 
 ### 2. OIDC Endpoints
+
 ```rust
 // Backend only
 pub async fn oidc_token_with_sso(...)
@@ -223,6 +236,7 @@ pub async fn oidc_logout_with_sso(...)
 **Alasan**: Backend handles OAuth2/OIDC flows
 
 ### 3. Session Creation
+
 ```rust
 // Backend only
 impl SsoSession {
@@ -243,6 +257,7 @@ impl SsoSession {
 ## Fungsi Unik Frontend
 
 ### 1. Auth Context Integration
+
 ```rust
 // Frontend only
 impl From<SsoSession> for UserSession {
@@ -255,6 +270,7 @@ impl From<SsoSession> for UserSession {
 **Alasan**: Frontend needs to integrate with existing auth system
 
 ### 2. Session Initialization
+
 ```rust
 // Frontend only
 pub fn init_auth_from_sso_cookie()
@@ -263,6 +279,7 @@ pub fn init_auth_from_sso_cookie()
 **Alasan**: Frontend needs to restore session on app load
 
 ### 3. Session Monitoring
+
 ```rust
 // Frontend only
 pub fn setup_sso_session_monitor(interval_ms: i32)
@@ -271,6 +288,7 @@ pub fn setup_sso_session_monitor(interval_ms: i32)
 **Alasan**: Frontend needs to monitor session validity for UX
 
 ### 4. Browser Cookie Access
+
 ```rust
 // Frontend only
 fn get_cookie_value(&self) -> Option<String> {
@@ -374,4 +392,3 @@ fn get_cookie_value(&self) -> Option<String> {
 ## Status
 
 ✅ **VERIFIED** - Implementasi backend dan frontend sudah sinergi dengan baik, tidak ada duplikasi berbahaya, dan separation of concerns sudah jelas.
-

@@ -105,6 +105,7 @@ curl -X POST "https://test-authenc.kejaksaan.go.id/api/auth/mfa/verify" \
 ```
 
 **Results:**
+
 - ✅ **Test 1 PASSED**: Direct dashboard access properly blocked (HTTP 401)
 - ✅ **Test 2 PASSED**: API access with temporary token restricted (HTTP 403)
 - ✅ **Test 3 PASSED**: Session manipulation rejected (HTTP 400)
@@ -204,6 +205,7 @@ if __name__ == "__main__":
 ```
 
 **Results:**
+
 - ✅ **Rate Limiting**: Activated after 5 attempts within 1 minute
 - ✅ **Progressive Delays**: Response times increase exponentially
 - ✅ **Account Lockout**: Triggered after 10 failed attempts
@@ -373,6 +375,7 @@ if __name__ == "__main__":
 ```
 
 **Results:**
+
 - ✅ **Code Length Timing**: No significant timing differences detected
 - ⚠️ **Correctness Timing**: Minor timing variations detected (recommendation: implement constant-time comparison)
 - ✅ **Character Timing**: No character-by-character timing leakage
@@ -565,6 +568,7 @@ mod crypto_security_tests {
 ```
 
 **Results:**
+
 - ✅ **Secret Entropy**: 160-bit minimum entropy confirmed
 - ⚠️ **Secret Length**: Recommend upgrading to 256-bit secrets
 - ✅ **Collision Resistance**: Low collision rate (< 1%)
@@ -756,6 +760,7 @@ if __name__ == "__main__":
 ```
 
 **Results:**
+
 - ✅ **Encryption at Rest**: AES-256-GCM encryption confirmed
 - ✅ **Access Controls**: Proper authorization and path validation
 - ✅ **Key Rotation**: Rotation mechanism working correctly
@@ -839,6 +844,7 @@ echo "✅ Rate limiting tests completed"
 ```
 
 **Results:**
+
 - ✅ **Request Rate Limiting**: Activated after 5 requests/minute
 - ✅ **IP-based Limiting**: Different IPs tracked independently
 - ✅ **Progressive Delays**: Exponential backoff implemented
@@ -861,6 +867,7 @@ No critical vulnerabilities identified.
 **Recommendation:** Implement constant-time string comparison for OTP codes.
 
 **Fix:**
+
 ```rust
 use subtle::ConstantTimeEq;
 

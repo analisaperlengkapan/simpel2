@@ -11,11 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 class Faq extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'suport_faq';
+
     const tableKet = 'manajemen FAQ';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -26,16 +29,18 @@ class Faq extends Model
         'pertanyaan',
         'jawaban',
         'platform',
-        'status'
+        'status',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*');
-        if(!empty($select)) $query->select($select);
-        if (!empty($search)) {
+        if (! empty($select)) {
+            $query->select($select);
+        }
+        if (! empty($search)) {
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
+            // if (isset($search['filterBy'])) {
             //    $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
@@ -44,13 +49,13 @@ class Faq extends Model
             //             if($searchVal && is_numeric($searchVal))
             //            $q->orWhere('kategori', "=", $searchVal);
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -68,6 +73,7 @@ class Faq extends Model
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

@@ -5,13 +5,13 @@ namespace App\Models\Bmn;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Pencabutan extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'bmn_pencabutan';
 
@@ -32,35 +32,38 @@ class Pencabutan extends Model
         'file_sk',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function (Builder $q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(a.kdsatker_keu)'), "like", "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(b.inst_nama)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(no_surat)"), 'like', "%{$searchVal}%")
-                        ->orWhere(DB::raw("lower(dikeluarkan_di)"), 'like', "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(a.kdsatker_keu)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(b.inst_nama)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(no_surat)'), 'like', "%{$searchVal}%")
+                        ->orWhere(DB::raw('lower(dikeluarkan_di)'), 'like', "%{$searchVal}%");
                 });
             }
         }
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function findOne($id){
+    public static function findOne($id)
+    {
         $query = DB::table('asset_tik_hakcipta as a');
         $query->leftJoin('ms_satker as b', 'a.kdsatker_keu', '=', 'b.kdsatker_keu');
         $query->select('a.*', 'b.inst_nama');
         $query->where('a.id', '=', $id);
+
         return $query->first();
     }
 }

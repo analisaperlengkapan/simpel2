@@ -28,6 +28,7 @@
 | Post-Quantum | pqcrypto-mldsa, mlkem, falcon | Optional |
 
 ### Feature Flags
+
 ```toml
 [features]
 default = ["axum", "grpc", "auth", "oidc", "db", "metrics"]
@@ -102,17 +103,20 @@ flowchart TD
 ## 📏 Critical Conventions
 
 ### 1. Configuration
+
 - Config hierarchy: `AppConfig` → sub-configs (`ServerConfig`, `DatabaseConfig`, `RateLimitConfig`, dll)
 - Environment variables untuk local dev, Secreton gRPC untuk production secrets
 - Key env vars: `AUTHENC_HOST`, `AUTHENC_PORT`, `AUTHENC_GRPC_PORT`, `DATABASE_URL`, `SECRETON_GRPC_URL`
 
 ### 2. Database
+
 - **Pool**: `deadpool-postgres` (default pool_size=20)
 - **Migrations**: `refinery` (SQL files di `migrations/`)
 - **Operations**: Prepared statements wajib, transaction handling untuk multi-step ops
 - **Terpisah**: Authenc memiliki database sendiri (bukan shared dengan layanan lain)
 
 ### 3. Cryptography
+
 - **Password hashing**: Argon2 (BUKAN bcrypt, BUKAN SHA-256)
 - **JWT signing**: Ed25519 (BUKAN RSA)
 - **Encryption**: ChaCha20-Poly1305 atau AES-256-GCM
@@ -120,14 +124,17 @@ flowchart TD
 - **Key rotation**: Automatic via `key_rotation.rs`
 
 ### 4. Authentication Flow
+
 ```
 Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ```
+
 - Microfrontend DILARANG akses Authenc langsung
 - JWT disimpan di `localStorage` key `auth_token`
 - Token validation wajib di setiap request via gRPC `ValidateToken()`
 
 ### 5. gRPC Service
+
 - Proto files di `proto/authenc.proto`
 - Service: `AuthService` (ValidateToken, CreateSession, RevokeToken, dll)
 - mTLS wajib untuk semua komunikasi gRPC
@@ -141,6 +148,7 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ## ⚠️ Common Pitfalls
 
 ### ❌ DON'T
+
 1. **Store passwords in plaintext** → Use `hash_password()` (Argon2)
 2. **Use short-lived refresh tokens** → `JWT_REFRESH_TOKEN_TTL=604800` (7 days)
 3. **Skip token validation** → Always `validate_jwt_token(token).await?`
@@ -148,6 +156,7 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 5. **Allow unlimited login attempts** → Use rate limiting middleware
 
 ### ✅ DO
+
 1. Use Argon2 for password hashing
 2. Validate all JWT tokens (signature, expiry, issuer)
 3. Implement rate limiting on login endpoints
@@ -162,15 +171,18 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 ## 🔍 Troubleshooting
 
 ### JWT Validation Fails
+
 - Check signing key: `secreton-cli get jwt_signing_key`
 - Verify token issuer: `jwt decode $TOKEN | jq .iss`
 - Check key rotation: `SELECT * FROM signing_keys WHERE is_active = true;`
 
 ### Database Connection Pool Exhausted
+
 - Increase pool size: `DATABASE_POOL_SIZE=50`
 - Use transactions properly to release connections
 
 ### MFA TOTP Not Working
+
 - Check server time sync: `timedatectl status`
 - Verify TOTP secret encoding (base32)
 
@@ -185,6 +197,22 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 | `mfa` | `src/totp.rs` | TOTP implementation |
 | `types` | `src/error.rs` | Error type definitions |
 | `crypto` | `src/signing.rs` | Ed25519 signing |
+
+---
+
+## 🔐 Secret Fetching (Zero-Trust)
+
+Saat `secretonAuth.enabled=true` di Helm values:
+
+- Pod `authenc` punya volume projected `serviceAccountToken` di `/var/run/secrets/tokens/secreton-token` (audience `secreton`, TTL 3600s).
+- Module `secreton-agent` (di `layanan/secreton/crates/agent/src/auth/kubernetes.rs`) handle login: read SA JWT → `POST /v1/auth/kubernetes/login` → terima Secreton client token → auto-renew background task setiap 30 menit.
+- **Path policy yang boleh diakses** (sesuai `secretonAuth.policies.authenc` di `infra/helm/simpel/values.yaml`):
+  - `kv/data/authenc/*` — JWT signing keys (Ed25519 private), session encryption keys, SMTP password, OAuth2 client secrets.
+  - `kv/data/postgres/authenc` — DATABASE_URL credential.
+  - `transit/encrypt|decrypt/authenc-key` — envelope encryption untuk data at-rest.
+- **Env yang di-inject otomatis oleh `_workload.tpl`** (jangan set manual):
+  - `SECRETON_ADDR`, `SECRETON_AUTH_METHOD=kubernetes`, `SECRETON_AUTH_ROLE=authenc`, `SECRETON_K8S_TOKEN_PATH=/var/run/secrets/tokens/secreton-token`.
+- **DILARANG**: pakai `SECRETON_TOKEN` env di production. Token statis hanya untuk dev lokal (docker-compose).
 
 ---
 

@@ -32,9 +32,11 @@ Generate temporary database credentials for a role.
 **Endpoint**: `GET /v1/dynamic/database/creds/:role`
 
 **Query Parameters**:
+
 - `ttl` (optional): Time-to-live in seconds (default: role's default_ttl)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -54,6 +56,7 @@ Generate temporary database credentials for a role.
 ```
 
 **Example**:
+
 ```bash
 curl -X GET http://localhost:8200/v1/dynamic/database/creds/readonly?ttl=7200 \
   -H "Authorization: Bearer $TOKEN"
@@ -66,6 +69,7 @@ Create a new database role configuration.
 **Endpoint**: `POST /v1/dynamic/database/roles/:role`
 
 **Request Body**:
+
 ```json
 {
   "db_name": "postgres-prod",
@@ -86,6 +90,7 @@ Create a new database role configuration.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -99,6 +104,7 @@ Create a new database role configuration.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/dynamic/database/roles/readonly \
   -H "Authorization: Bearer $TOKEN" \
@@ -113,6 +119,7 @@ List all configured database roles.
 **Endpoint**: `GET /v1/dynamic/database/roles`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -127,6 +134,7 @@ Get details of a specific database role.
 **Endpoint**: `GET /v1/dynamic/database/roles/:role`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -154,6 +162,7 @@ Delete a database role and revoke all active credentials.
 **Endpoint**: `DELETE /v1/dynamic/database/roles/:role`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -171,6 +180,7 @@ Configure a database connection for use with dynamic secrets.
 **Endpoint**: `POST /v1/dynamic/database/config/:name`
 
 **Request Body**:
+
 ```json
 {
   "db_type": "postgresql",
@@ -186,6 +196,7 @@ Configure a database connection for use with dynamic secrets.
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -198,6 +209,7 @@ Configure a database connection for use with dynamic secrets.
 ```
 
 **Example**:
+
 ```bash
 curl -X POST http://localhost:8200/v1/dynamic/database/config/postgres-prod \
   -H "Authorization: Bearer $TOKEN" \
@@ -308,6 +320,7 @@ See `infra/proto/secreton.proto` for message definitions.
 ### SQL Injection Prevention
 
 The API performs basic SQL injection detection:
+
 - Blocks statements containing `;--`, `/*`, `*/`
 - Blocks dangerous keywords: `DROP DATABASE`, `DROP TABLE`, `TRUNCATE`, `DELETE FROM`
 - Blocks stored procedure execution: `xp_`, `sp_`, `EXEC`, `EXECUTE`
@@ -337,6 +350,7 @@ The API performs basic SQL injection detection:
 ### Automatic Expiration
 
 Credentials automatically expire after TTL. The lease manager runs a background task that:
+
 1. Checks for expired leases every 60 seconds
 2. Revokes expired credentials automatically
 3. Executes revocation statements to drop database users
@@ -377,6 +391,7 @@ All dynamic secrets operations are logged:
 - `dynamic_secret_revoked`: Credentials revoked
 
 Audit logs include:
+
 - Timestamp
 - User ID
 - Operation
@@ -396,6 +411,7 @@ The following Prometheus metrics are exposed:
 ## Rate Limiting
 
 Credential generation is rate-limited to prevent abuse:
+
 - Default: 10 requests per minute per user
 - Configurable via API configuration
 - Returns HTTP 429 (Too Many Requests) when limit exceeded
@@ -403,6 +419,7 @@ Credential generation is rate-limited to prevent abuse:
 ## Namespace Isolation
 
 Dynamic secrets are scoped to namespaces:
+
 - Roles are created within a namespace
 - Credentials can only be generated for roles in accessible namespaces
 - Hierarchical access control based on satker/wilayah structure
@@ -412,20 +429,24 @@ Dynamic secrets are scoped to namespaces:
 ### Common Errors
 
 **400 Bad Request**:
+
 - Invalid role configuration
 - Missing required fields
 - SQL injection detected
 - Invalid TTL values
 
 **403 Forbidden**:
+
 - Insufficient permissions
 - Namespace access denied
 
 **404 Not Found**:
+
 - Role not found
 - Connection not found
 
 **500 Internal Server Error**:
+
 - Database connection failed
 - Credential generation failed
 - Storage error

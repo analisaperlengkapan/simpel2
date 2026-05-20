@@ -166,10 +166,10 @@ impl SecretonStateMachine {
 
                 // Identify expired entries
                 for (path, entry) in data.iter() {
-                    if let Some(expires_at) = entry.expires_at {
-                        if expires_at <= timestamp {
-                            expired_paths.push(path.clone());
-                        }
+                    if let Some(expires_at) = entry.expires_at
+                        && expires_at <= timestamp
+                    {
+                        expired_paths.push(path.clone());
                     }
                 }
 

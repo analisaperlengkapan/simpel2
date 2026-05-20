@@ -7,8 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class MsJenisAset extends Model
 {
     protected $table = 'ms_jenis_asset';
-    //protected $primaryKey = 'inst_satkerkd';
-     /**
+
+    // protected $primaryKey = 'inst_satkerkd';
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>

@@ -77,6 +77,7 @@ Phase 3 (API Migration) has been **successfully completed**. All handlers, middl
 All handlers successfully migrated from `src/handlers/` to `crates/api/src/handlers/`:
 
 #### Core Authentication Handlers (8 files)
+
 1. ✅ `consent_ui.rs` - User consent UI handlers
 2. ✅ `health.rs` - Health check endpoints
 3. ✅ `jwks.rs` - JSON Web Key Set endpoint
@@ -87,6 +88,7 @@ All handlers successfully migrated from `src/handlers/` to `crates/api/src/handl
 8. ✅ `oidc_sso.rs` - OIDC SSO handlers
 
 #### Advanced Services Handlers (14 files)
+
 9. ✅ `admin.rs` - Administrative API endpoints
 10. ✅ `broker.rs` - Identity broker handlers
 11. ✅ `client_policy.rs` - Client policy management
@@ -111,10 +113,12 @@ All handlers successfully migrated from `src/handlers/` to `crates/api/src/handl
 30. ✅ `zero_trust.rs` - Zero Trust security handlers
 
 #### Helper Modules (2 files)
+
 31. ✅ `auth_helpers.rs` - Authorization helpers
 32. ✅ `validation_helper.rs` - Validation utilities
 
 #### Legacy Handlers (Kept for compatibility)
+
 - ✅ `oidc_jwt.rs` - Legacy OIDC JWT handlers (deprecated, use oidc_ed25519)
 - ✅ `oidc_keys.rs` - OIDC cryptographic key management
 
@@ -123,6 +127,7 @@ All handlers successfully migrated from `src/handlers/` to `crates/api/src/handl
 ### Task 8.4: Routing and State Migration
 
 #### Routing
+
 - ✅ `crates/api/src/routes.rs` - Unified router with all endpoints
   - OAuth2 routes
   - OIDC routes
@@ -134,6 +139,7 @@ All handlers successfully migrated from `src/handlers/` to `crates/api/src/handl
   - SSO routes
 
 #### State Management
+
 - ✅ `crates/api/src/state.rs` - ApiState for dependency injection
   - Database pool
   - Service stores (user, session, client, etc.)
@@ -141,6 +147,7 @@ All handlers successfully migrated from `src/handlers/` to `crates/api/src/handl
   - Audit logging
 
 #### Session Management
+
 - ✅ `crates/api/src/session_store.rs` - Session store implementation
   - Session creation
   - Session validation
@@ -171,6 +178,7 @@ All API handlers in `src/handlers/api/` remain in `src/` and are **intentionally
 **Reason**: These handlers are tightly coupled with the main authenc application and use `crate::app::AppState` directly. They will be migrated in a future phase when the main application is refactored.
 
 **Files** (30 files in `src/handlers/api/`):
+
 - `account_credentials.rs` - Account credentials management
 - `account.rs` - Account management
 - `audit.rs` - Audit log API
@@ -336,6 +344,7 @@ The migration maintains 100% backward compatibility through:
 **Status**: ⚠️ **Blocked by authenc-core compilation errors**
 
 **Test Files Present**: 21 test modules
+
 - `tests/authentication_tests.rs` - Integration test suite
 - Handler tests in 20 handler files
 
@@ -348,6 +357,7 @@ The migration maintains 100% backward compatibility through:
 **Status**: ⚠️ **Blocked by authenc-core compilation errors**
 
 **Integration Points Identified**:
+
 1. ✅ Frontend → authenc-api (code structure correct)
 2. ✅ authenc-api → authenc-core (code structure correct)
 3. ✅ authenc-api → authenc-webauthn (code structure correct)
@@ -464,6 +474,7 @@ Phase 3 (API Migration) has been **successfully completed** with:
 ✅ **Clean crate structure** with proper module organization
 
 **Files NOT Migrated** (intentionally kept in src/):
+
 - ✅ `src/handlers/mod.rs` - Main application router
 - ✅ `src/handlers/api/` (30 files) - Main application API handlers
 - ✅ `src/handlers/*.rs` (23 files) - Legacy handlers for main application
@@ -477,6 +488,7 @@ Phase 3 (API Migration) has been **successfully completed** with:
 **Phase 3 Status**: ✅ **COMPLETE**
 
 **Next Steps**:
+
 1. Resolve authenc-core compilation errors (Task 5 completion)
 2. Re-run Task 8.5 verification once authenc-core compiles
 3. Proceed to Task 9 (authenc-iam-api) only after authenc-core is fixed

@@ -1,0 +1,26 @@
+{{- /*
+  layanan-integrasi — gRPC server (Deployment) + scheduler (CronJob per provider).
+  - Deployment server: terima request gRPC dari layanan-perlengkapan + admin trigger.
+  - 3 CronJob per provider (siman/mysimkari/monsakti) call binary scheduler oneshot.
+    Staging: suspend=true (manual trigger only). Production: suspend=false sesuai jadwal.
+*/ -}}
+{{- include "simpel.workload" (dict "ctx" . "name" "layanan-integrasi" "values" .Values.layananIntegrasi) }}
+{{- $defaults := default (dict) .Values.layananIntegrasi.cronjobDefaults }}
+{{- range $provider, $cron := .Values.layananIntegrasi.cronjobs }}
+{{- if $cron.enabled }}
+{{- $name := printf "layanan-integrasi-%s" $provider -}}
+{{- $cjValues := merge (deepCopy $cron) (dict
+    "image" $.Values.layananIntegrasi.image
+    "envFrom" $.Values.layananIntegrasi.envFrom
+    "env" $.Values.layananIntegrasi.env
+    "resources" $.Values.layananIntegrasi.resources
+    "podSecurityContext" $.Values.layananIntegrasi.podSecurityContext
+    "containerSecurityContext" $.Values.layananIntegrasi.containerSecurityContext
+    "serviceAccountName" "layanan-integrasi"
+    "tmpVolumeSizeLimit" $.Values.layananIntegrasi.tmpVolumeSizeLimit
+    "component" "scheduler"
+) }}
+---
+{{ include "simpel.cronjob" (dict "ctx" $ "name" $name "values" $cjValues "defaults" $defaults) }}
+{{- end }}
+{{- end }}

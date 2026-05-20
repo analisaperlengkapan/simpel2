@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 class Level extends Model
 {
     protected $table = 'ms_role';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -39,18 +40,18 @@ class Level extends Model
     //     'password' => 'hashed',
     // ];
 
-    function getGridData($paging, $search = [])
+    public function getGridData($paging, $search = [])
     {
         $query = DB::table("{$this->table} as a");
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -69,13 +70,14 @@ class Level extends Model
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    function getRoleMenu($roleId)
+    public function getRoleMenu($roleId)
     {
-        $master = new Master();
-        $sql = "WITH user_menu as (
+        $master = new Master;
+        $sql = 'WITH user_menu as (
         select distinct c.menu_id
         from ms_role_menu c
         join ms_role b on c.role_id = b.id
@@ -87,12 +89,13 @@ class Level extends Model
         left join user_menu b on a.id = b.menu_id
         where is_active = 1
         order by urutan
-         ";
+         ';
         $menus = DB::select($sql, [$roleId]);
+
         return $master->buildMenu($menus);
     }
 
-    function delInsertUserRole($userId, $roles)
+    public function delInsertUserRole($userId, $roles)
     {
         DB::table('user_role')->where(['user_id' => $userId])->delete();
         DB::table('user_role')->insert($roles);

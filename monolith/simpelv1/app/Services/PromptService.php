@@ -26,27 +26,31 @@ class PromptService
         $prompt .= "7. Jika pertanyaan membutuhkan analisis, uraikan secara ringkas alasan atau proses berpikir Anda dalam PENJELASAN.\n";
         $prompt .= "\nContoh reasoning:\nPertanyaan: Apa itu BMN?\nReasoning: BMN sering disebut dalam konteks aset negara. Berdasarkan peraturan, BMN adalah ...\nJawaban:\nDEFINISI: BMN adalah Barang Milik Negara.\nPENJELASAN: BMN merupakan aset milik pemerintah yang digunakan untuk mendukung tugas dan fungsi instansi. Pengelolaan BMN diatur dalam peraturan perundang-undangan.\n";
         $prompt .= "DEFINISI: SIMPEL adalah Sistem Informasi Manajemen Pengelolaan Barang Milik Negara Kejaksaan RI.\nPENJELASAN: SIMPEL digunakan untuk mencatat, memantau, dan mengelola aset Kejaksaan secara terintegrasi. Sistem ini membantu transparansi dan akuntabilitas pengelolaan BMN.\n";
-        if (!empty($aiData['prompt_templates']['acronym_rules'])) {
-            $prompt .= "\n\nAturan akronim: " . implode(", ", array_slice($aiData['prompt_templates']['acronym_rules'], 0, 3));
+        if (! empty($aiData['prompt_templates']['acronym_rules'])) {
+            $prompt .= "\n\nAturan akronim: ".implode(', ', array_slice($aiData['prompt_templates']['acronym_rules'], 0, 3));
         }
         // Tambahkan history
         $historyContext = $this->formatHistory($history);
         // Tambahkan FAQ dan context
-        $faqText = $faq ? ("FAQ: " . $faq['answer']) : '';
+        $faqText = $faq ? ('FAQ: '.$faq['answer']) : '';
         $contextText = $context ? ("Konteks: $context") : '';
         $promptText = "$prompt\n$historyContext\nPertanyaan: $userPrompt\n$faqText\n$contextText";
+
         return Str::limit($promptText, 3000, ' [...]');
     }
 
     private function formatHistory($history)
     {
-        if (empty($history)) return '';
+        if (empty($history)) {
+            return '';
+        }
         $recent = array_slice($history, -2);
         $str = "\n### RIWAYAT PERCAKAPAN TERAKHIR:\n";
         foreach ($recent as $entry) {
             $role = $entry['role'] === 'user' ? 'User' : 'AI';
             $str .= "$role: {$entry['content']}\n";
         }
+
         return Str::limit($str, 300, ' [...]');
     }
-} 
+}

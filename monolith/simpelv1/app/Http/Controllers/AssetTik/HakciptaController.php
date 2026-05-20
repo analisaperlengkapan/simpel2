@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\AssetTik;
 
 use App\Helpers\MyHelper;
-use App\Models\Files;
 use App\Http\Controllers\Controller;
 use App\Models\AssetTik\Hakcipta;
+use App\Models\Files;
 use App\Models\Master;
 use App\Models\Master\MsSatker;
 use Illuminate\Http\Request;
@@ -18,8 +18,11 @@ class HakciptaController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Asset TIK', 'Daftar Hak Cipta & Lisensi Khusus TIK'];
+
     protected $controller = '/sdm/timakuntansibarang';
+
     protected $columns = ['Nama Satker', 'Merk', 'No. Lisensi', 'Jangka Waktu(Bln)', 'Nilai'];
+
     protected $defColumns = [0, 1, 2, 3, 4, 5];
 
     protected function canCreate()
@@ -30,18 +33,20 @@ class HakciptaController extends Controller
 
     public function index()
     {
-        //print_r(session('userData.current_role'));exit;
+        // print_r(session('userData.current_role'));exit;
 
         $data = ['tableId' => 'dt-hakcipta', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller, 'canCreate' => $this->canCreate()];
+
         return view('asset_tik.hakcipta.hakciptaV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Hakcipta();
+        $model = new Hakcipta;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -49,7 +54,7 @@ class HakciptaController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -57,7 +62,7 @@ class HakciptaController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Hakcipta::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -114,6 +119,7 @@ class HakciptaController extends Controller
                 'selected' => $model['is_pnbp'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -123,6 +129,7 @@ class HakciptaController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('asset_tik.hakcipta.hakciptaFormV', $data);
     }
 
@@ -192,18 +199,20 @@ class HakciptaController extends Controller
                 $data['file_invoice'] = $fotos['path'];
             }
 
-            //echo "<pre>"; print_r($data);exit;
+            // echo "<pre>"; print_r($data);exit;
 
             Hakcipta::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
+
             return $this->resSuccess('Berhasil Disimpan!', [
                 'type' => 'redirect',
-                'url' => \URL::to('/asset-tik/hakcipta')
+                'url' => \URL::to('/asset-tik/hakcipta'),
             ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
     }
@@ -214,6 +223,7 @@ class HakciptaController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('asset_tik.hakcipta.hakciptaFormV', $data);
     }
 
@@ -223,6 +233,7 @@ class HakciptaController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('asset_tik.hakcipta.hakciptaFormV', $data);
     }
 
@@ -243,6 +254,7 @@ class HakciptaController extends Controller
             DB::beginTransaction();
             Hakcipta::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -254,6 +266,7 @@ class HakciptaController extends Controller
         $data = Hakcipta::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
 }

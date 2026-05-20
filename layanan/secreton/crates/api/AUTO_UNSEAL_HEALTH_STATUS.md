@@ -9,6 +9,7 @@ The health endpoint (`/health` and `/sys/health`) now includes auto-unseal statu
 Auto-unseal status is determined by environment variables:
 
 ### Enable Auto-Unseal
+
 ```bash
 SECRETON_AUTO_UNSEAL_ENABLED=true
 SECRETON_AUTO_UNSEAL_PROVIDER=aws-kms|gcp-kms|azure-kv|transit
@@ -17,6 +18,7 @@ SECRETON_AUTO_UNSEAL_PROVIDER=aws-kms|gcp-kms|azure-kv|transit
 ### Provider-Specific Configuration
 
 #### AWS KMS
+
 ```bash
 SECRETON_AUTO_UNSEAL_PROVIDER=aws-kms
 SECRETON_AUTO_UNSEAL_AWS_KEY_ID=alias/secreton-unseal
@@ -24,6 +26,7 @@ SECRETON_AUTO_UNSEAL_AWS_REGION=us-east-1
 ```
 
 #### GCP KMS
+
 ```bash
 SECRETON_AUTO_UNSEAL_PROVIDER=gcp-kms
 SECRETON_AUTO_UNSEAL_GCP_KEY_NAME=projects/my-project/locations/us-central1/keyRings/secreton/cryptoKeys/unseal
@@ -31,6 +34,7 @@ SECRETON_AUTO_UNSEAL_GCP_LOCATION=us-central1
 ```
 
 #### Azure Key Vault
+
 ```bash
 SECRETON_AUTO_UNSEAL_PROVIDER=azure-kv
 SECRETON_AUTO_UNSEAL_AZURE_KEY_NAME=secreton-unseal
@@ -38,6 +42,7 @@ SECRETON_AUTO_UNSEAL_AZURE_VAULT_URL=https://myvault.vault.azure.net
 ```
 
 #### Transit (Another Secreton Instance)
+
 ```bash
 SECRETON_AUTO_UNSEAL_PROVIDER=transit
 SECRETON_AUTO_UNSEAL_TRANSIT_KEY_NAME=auto-unseal-key
@@ -45,6 +50,7 @@ SECRETON_AUTO_UNSEAL_TRANSIT_ENDPOINT=https://secreton.internal:50052
 ```
 
 ### Fallback Configuration
+
 ```bash
 SECRETON_AUTO_UNSEAL_FALLBACK_ENABLED=true  # Default: true
 ```

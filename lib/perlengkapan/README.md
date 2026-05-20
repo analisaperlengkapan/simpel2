@@ -48,5 +48,6 @@ Berbeda dengan `lib-common`, modul di sini difokuskan secara kuat pada terminolo
 ## 🔌 Tumpukan Fitur Dependensi (Features)
 
 Sama seperti perpustakaan *shared* lainnya, pustaka perlengkapan memiliki flag `Cargo.toml`.
+
 - **`backend`**: Digunakan *backend service* yang menuntut integrasi konversi ke dalam bentuk ORM atau `tokio-postgres` parsers.
 - **`wasm` / `frontend`**: Mengikutsertakan trait penyesuaian fungsional di WebAssembly dan Javascript binding (`wasm-bindgen`).

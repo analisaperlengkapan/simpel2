@@ -47,9 +47,11 @@ ENV RUST_BACKTRACE=1
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
 
-# Build with trunk (release mode)
-# Assets served at /perlengkapan/ path prefix
-RUN trunk build --release --public-url "/perlengkapan/"
+# Build with trunk (release mode).
+# Assets served at /perlengkapan/simpel/v2/ path prefix (canonical
+# microfrontend mount point). Browser URL `/perlengkapan/simpel/v2/...`
+# matches `<base href>` in index.html dan WASM router base path.
+RUN trunk build --release --public-url "/perlengkapan/simpel/v2/"
 
 # Stage 2: Nginx for serving build output - LISTEN ON PORT 8080
 FROM nginx:alpine
@@ -57,9 +59,22 @@ FROM nginx:alpine
 # Copy perlengkapan-specific nginx config
 COPY antarmuka/perlengkapan/nginx.conf /etc/nginx/nginx.conf
 
-# Copy build output to Nginx html dir
-RUN rm -rf /usr/share/nginx/html/*
-COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan
+# Copy build output to Nginx html dir di path canonical
+# /usr/share/nginx/html/perlengkapan/simpel/v2 — match URL prefix.
+RUN rm -rf /usr/share/nginx/html/* && \
+    mkdir -p /usr/share/nginx/html/perlengkapan/simpel
+COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html/perlengkapan/simpel/v2
+
+# Redirect HTML untuk path parent. Saat user akses /perlengkapan/ atau
+# /perlengkapan/simpel/, browser dapat meta-refresh ke canonical
+# /perlengkapan/simpel/v2/. Redirect dilakukan di HTML (BUKAN di Istio)
+# supaya tetap di sisi frontend dan tidak menimbulkan loop/error di
+# gateway. Konten redirect statik dipertahankan di repo
+# (`antarmuka/perlengkapan/redirect-to-v2.html`) — sebelumnya inline
+# heredoc, di-extract supaya hadolint <=2.12 yang belum support heredoc
+# syntax tidak gagal parse Dockerfile.
+COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/index.html
+COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/simpel/index.html
 
 # Change ownership so entrypoint can write to config.json
 RUN chown -R nginx:nginx /usr/share/nginx/html

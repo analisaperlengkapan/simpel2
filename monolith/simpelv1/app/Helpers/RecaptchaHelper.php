@@ -15,13 +15,13 @@ class RecaptchaHelper
         if (! config('app.recaptcha_enabled')) {
             return [
                 'success' => true,
-                'score'   => 1.0,
-                'action'  => 'bypass',
+                'score' => 1.0,
+                'action' => 'bypass',
             ];
         }
 
         $response = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-            'secret'   => config('app.recaptcha_secret_key'),
+            'secret' => config('app.recaptcha_secret_key'),
             'response' => $token,
         ]);
 

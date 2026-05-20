@@ -1,7 +1,7 @@
 -- Migration: 20260211_perlengkapan_role_access.sql
 -- Purpose: Add role-based access control tables for perlengkapan domain
 -- Date: 2026-02-11
--- 
+--
 -- Integrates with authenc roles via JWT claims.
 -- Perlengkapan-local tables for caching user roles and tracking role switches.
 
@@ -96,7 +96,7 @@ SELECT
         array_agg(DISTINCT pur.role_name) FILTER (WHERE pur.role_name IS NOT NULL),
         '{}'
     ) AS assigned_roles,
-    (SELECT pur2.role_name FROM perlengkapan_user_roles pur2 
+    (SELECT pur2.role_name FROM perlengkapan_user_roles pur2
      WHERE pur2.nip = pu.nip AND pur2.is_active = true LIMIT 1) AS active_role,
     COUNT(DISTINCT pur.role_name) AS role_count
 FROM perlengkapan_users pu

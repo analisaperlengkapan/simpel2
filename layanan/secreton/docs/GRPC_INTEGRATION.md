@@ -79,6 +79,7 @@ Both servers provide health check endpoints:
 - **gRPC**: `HealthCheck` RPC - Returns protobuf health status
 
 Health checks verify:
+
 - Storage backend connectivity
 - Transit engine availability
 - Overall system status
@@ -91,6 +92,7 @@ Prometheus-compatible metrics available at:
 - **gRPC**: `GetMetrics` RPC - Structured metrics
 
 Metrics include:
+
 - Request counts (REST and gRPC)
 - Operation counts (transit, KV)
 - Active connections
@@ -268,6 +270,7 @@ kubectl logs -n simpelv2-infra deployment/secreton
 ```
 
 Common issues:
+
 - Missing TLS certificates
 - Port already in use
 - Invalid configuration

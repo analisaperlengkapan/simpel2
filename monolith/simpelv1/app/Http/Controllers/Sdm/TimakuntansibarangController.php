@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Sdm;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Sdm\Timakuntansibarang;
 use App\Models\Master;
 use App\Models\Master\MsSatker;
+use App\Models\Sdm\Timakuntansibarang;
 use App\Models\Sdm\Timakuntansibarangpegawai;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,27 +18,33 @@ class TimakuntansibarangController extends Controller
      * Display a listing of the resource.
      */
     protected $controller = '/sdm/timakuntansibarang';
-    protected $breadcums = ['SDM'];
-    protected $columns = ['Nama Satker', 'Jenis SK', 'No. Surat', 'Tgl. Surat'];
-    protected $defColumns = [0,1,2,3,4,5];
 
-    protected function canCreate(){
+    protected $breadcums = ['SDM'];
+
+    protected $columns = ['Nama Satker', 'Jenis SK', 'No. Surat', 'Tgl. Surat'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5];
+
+    protected function canCreate()
+    {
         // return true;
         return in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'));
     }
 
     public function index()
     {
-        $data = ['tableId' => 'dt-timakuntansibarang', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller,'canCreate' => $this->canCreate()];
+        $data = ['tableId' => 'dt-timakuntansibarang', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller, 'canCreate' => $this->canCreate()];
+
         return view('sdm.timakuntansibarang.timakuntansibarangV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Timakuntansibarang();
+        $model = new Timakuntansibarang;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -46,7 +52,7 @@ class TimakuntansibarangController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -56,7 +62,7 @@ class TimakuntansibarangController extends Controller
             $breadcum = 'Ubah';
             $model = Timakuntansibarang::where('id', $id)->first();
             $modelPegawai = Timakuntansibarangpegawai::where('pengajuan_id', $id)->get()->toArray();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -64,12 +70,12 @@ class TimakuntansibarangController extends Controller
             $isNew = false;
 
             $ms_satker_id = $model['id_satker'];
-        }else{
+        } else {
             $currentRole = session('userData.current_role');
             $ms_satker_id = $currentRole['ms_satker_id'] ?? $model['id_satker'];
         }
 
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -78,7 +84,7 @@ class TimakuntansibarangController extends Controller
         $dikeluarkan_di = str_replace('KEJAKSAAN NEGERI ', '', $nama_satker['inst_nama']);
         $dikeluarkan_di = str_replace('KEJAKSAAN TINGGI ', '', $dikeluarkan_di);
         $dikeluarkan_di = str_replace('CABANG KEJAKSAAN NEGERI ', '', $dikeluarkan_di);
-        $model['kdsatker_keu']=$nama_satker['kdsatker_keu'];
+        $model['kdsatker_keu'] = $nama_satker['kdsatker_keu'];
         $model['inst_nama'] = MsSatker::where('inst_satkerkd', $ms_satker_id)->first()['inst_nama'];
         $model['dikeluarkan_di'] = $dikeluarkan_di;
         $data = [
@@ -104,13 +110,15 @@ class TimakuntansibarangController extends Controller
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
     public function gridDataPegawai($pengajuan_id)
     {
-        $model = new Timakuntansibarangpegawai();
+        $model = new Timakuntansibarangpegawai;
         $data = $model->getDetail($pengajuan_id);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -118,9 +126,10 @@ class TimakuntansibarangController extends Controller
 
     public function gridDataMsPegawai()
     {
-        $model = new Timakuntansibarangpegawai();
+        $model = new Timakuntansibarangpegawai;
         $currentRole = session('userData.current_role');
         $data = $model->getMsPegawai($currentRole['ms_satker_id']);
+
         return response()->json([
             'data' => $data,
         ]);
@@ -131,11 +140,12 @@ class TimakuntansibarangController extends Controller
      */
     public function create()
     {
-        if (!$this->canCreate()) {
+        if (! $this->canCreate()) {
             throw new UnauthorizedHttpException('Tidak Punya Akses');
         }
 
         $data = $this->getData();
+
         return view('sdm.timakuntansibarang.timakuntansibarangFormV', $data);
     }
 
@@ -158,10 +168,10 @@ class TimakuntansibarangController extends Controller
             'tgl_surat' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'sdm_timakuntansibarang_seq');
-        if($isNew){
+        if ($isNew) {
             $validate['file_sk'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_spk.required'] = 'File SK harus diupload';
-        }else{
+        } else {
 
         }
         $request->validate($validate, $customMessages);
@@ -188,31 +198,33 @@ class TimakuntansibarangController extends Controller
             }
             Timakuntansibarang::updateOrCreate(['id' => $id], $data);
             $pegawais = $request->input('jpnid');
-            if(count($pegawais) > 0){
-                Timakuntansibarangpegawai::where('pengajuan_id',$id)->delete();
-                foreach($pegawais as $pegawai){
-                    $peg = explode('#',$pegawai);
-                    $modelPegawai = new Timakuntansibarangpegawai();
+            if (count($pegawais) > 0) {
+                Timakuntansibarangpegawai::where('pengajuan_id', $id)->delete();
+                foreach ($pegawais as $pegawai) {
+                    $peg = explode('#', $pegawai);
+                    $modelPegawai = new Timakuntansibarangpegawai;
                     $datapeg = [
-                        'pengajuan_id'=>$id,
-                        'nip'=>$peg[0],
-                        'nama'=>$peg[1],
-                        'pangkat'=>$peg[2],
-                        'jabatan'=>$peg[3],
-                        'jabatan_tim'=>$peg[4],
+                        'pengajuan_id' => $id,
+                        'nip' => $peg[0],
+                        'nama' => $peg[1],
+                        'pangkat' => $peg[2],
+                        'jabatan' => $peg[3],
+                        'jabatan_tim' => $peg[4],
                     ];
                     Timakuntansibarangpegawai::insert($datapeg);
                 }
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Disimpan!',
-            [
-                'type' => 'redirect',
-                'url' => \URL::to('/sdm/timakuntansibarang')
-            ]);
+                [
+                    'type' => 'redirect',
+                    'url' => \URL::to('/sdm/timakuntansibarang'),
+                ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -224,6 +236,7 @@ class TimakuntansibarangController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('sdm.timakuntansibarang.timakuntansibarangFormV', $data);
     }
 
@@ -233,6 +246,7 @@ class TimakuntansibarangController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('sdm.timakuntansibarang.timakuntansibarangFormV', $data);
     }
 
@@ -253,6 +267,7 @@ class TimakuntansibarangController extends Controller
             DB::beginTransaction();
             Timakuntansibarang::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

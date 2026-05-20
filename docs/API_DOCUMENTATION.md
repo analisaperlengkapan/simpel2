@@ -36,6 +36,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Retrieve list of kebutuhan BMN submissions with pagination and filters.
 
 **Query Parameters:**
+
 - `page` (integer, optional): Page number (default: 1)
 - `per_page` (integer, optional): Items per page (default: 20, max: 100)
 - `tahun` (integer, optional): Filter by year
@@ -44,6 +45,7 @@ Authorization: Bearer <jwt_token>
 - `search` (string, optional): Search by name
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -75,6 +77,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Create new kebutuhan BMN period (Validator Pusat only).
 
 **Request Body:**
+
 ```json
 {
   "nama": "Kebutuhan BMN 2024",
@@ -87,6 +90,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -107,9 +111,11 @@ Authorization: Bearer <jwt_token>
 **Description:** Get detailed information about a specific pengajuan.
 
 **Path Parameters:**
+
 - `id` (uuid, required): Pengajuan ID
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -139,9 +145,11 @@ Authorization: Bearer <jwt_token>
 **Description:** Transition pengajuan to next status in workflow.
 
 **Path Parameters:**
+
 - `id` (uuid, required): Pengajuan ID
 
 **Request Body:**
+
 ```json
 {
   "target_status": 2001,
@@ -150,6 +158,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -169,12 +178,14 @@ Authorization: Bearer <jwt_token>
 **Description:** Search for existing BMN assets from SIMAN integration.
 
 **Query Parameters:**
+
 - `search` (string, required): Search query
 - `satker_id` (string, optional): Filter by satker
 - `kategori` (string, optional): Filter by category
 - `limit` (integer, optional): Max results (default: 50)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -204,6 +215,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Get list of uniform types.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -227,6 +239,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Create new pakaian dinas period.
 
 **Request Body:**
+
 ```json
 {
   "nama": "Pakaian Dinas 2024",
@@ -238,6 +251,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -258,12 +272,15 @@ Authorization: Bearer <jwt_token>
 **Description:** Get employees with their uniform sizes for a satker.
 
 **Path Parameters:**
+
 - `satker_id` (string, required): Satker ID
 
 **Query Parameters:**
+
 - `pengajuan_id` (uuid, optional): Filter by pengajuan
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -293,6 +310,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Generate size summary report.
 
 **Query Parameters:**
+
 - `pengajuan_id` (uuid, required): Pengajuan ID
 - `format` (string, optional): "pdf" or "excel" (default: "pdf")
 
@@ -309,6 +327,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Get list of BMN usage permits.
 
 **Query Parameters:**
+
 - `page` (integer, optional): Page number
 - `per_page` (integer, optional): Items per page
 - `status` (string, optional): Filter by status
@@ -317,6 +336,7 @@ Authorization: Bearer <jwt_token>
 - `search` (string, optional): Search query
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -350,6 +370,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Create new BMN usage permit.
 
 **Request Body:**
+
 ```json
 {
   "satker_id": "uuid",
@@ -361,6 +382,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -379,9 +401,11 @@ Authorization: Bearer <jwt_token>
 **Description:** Check if a BMN is available for use (REQ-P003, REQ-P004).
 
 **Path Parameters:**
+
 - `bmn_nup` (string, required): BMN NUP
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -403,9 +427,11 @@ Authorization: Bearer <jwt_token>
 **Description:** Generate draft permit document in DOCX format (REQ-P006, REQ-P007).
 
 **Path Parameters:**
+
 - `id` (uuid, required): Permit ID
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -424,11 +450,13 @@ Authorization: Bearer <jwt_token>
 **Description:** Upload signed permit document (REQ-P008, REQ-P009).
 
 **Path Parameters:**
+
 - `id` (uuid, required): Permit ID
 
 **Request:** Multipart form data with `file` field (PDF)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -447,10 +475,12 @@ Authorization: Bearer <jwt_token>
 **Description:** Get monitoring dashboard data (REQ-P016, REQ-P017).
 
 **Query Parameters:**
+
 - `satker_id` (string, optional): Filter by satker
 - `jenis_bmn` (string, optional): Filter by BMN type
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -492,10 +522,12 @@ Authorization: Bearer <jwt_token>
 **Description:** Get BMN utilization statistics (REQ-P021).
 
 **Query Parameters:**
+
 - `satker_id` (string, optional): Filter by satker
 - `jenis_bmn` (string, optional): Filter by BMN type
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -528,12 +560,14 @@ Authorization: Bearer <jwt_token>
 **Description:** Get list of BMN deletion requests.
 
 **Query Parameters:**
+
 - `page` (integer, optional): Page number
 - `per_page` (integer, optional): Items per page
 - `status` (string, optional): Filter by status
 - `satker_id` (string, optional): Filter by satker
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -563,6 +597,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Create new BMN deletion request (REQ-PH001).
 
 **Request Body:**
+
 ```json
 {
   "satker_id": "uuid",
@@ -580,6 +615,7 @@ Authorization: Bearer <jwt_token>
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -598,9 +634,11 @@ Authorization: Bearer <jwt_token>
 **Description:** Generate SK Penghapusan document (REQ-PH008, REQ-PH009).
 
 **Path Parameters:**
+
 - `id` (uuid, required): Penghapusan request ID
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -620,11 +658,13 @@ Authorization: Bearer <jwt_token>
 **Description:** Upload signed SK document (REQ-PH010, REQ-PH011).
 
 **Path Parameters:**
+
 - `id` (uuid, required): Penghapusan request ID
 
 **Request:** Multipart form data with `file` field (PDF)
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -647,10 +687,12 @@ Authorization: Bearer <jwt_token>
 **Description:** Get perlengkapan dashboard metrics.
 
 **Query Parameters:**
+
 - `satker_id` (string, optional): Filter by satker
 - `wilayah_code` (string, optional): Filter by wilayah
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -696,6 +738,7 @@ Authorization: Bearer <jwt_token>
 **Description:** Search across all modules (Task 11.2).
 
 **Query Parameters:**
+
 - `q` (string, required): Search query
 - `module` (string, optional): Filter by module ("kebutuhan", "pemakaian", "penghapusan")
 - `status` (string, optional): Filter by status
@@ -704,6 +747,7 @@ Authorization: Bearer <jwt_token>
 - `per_page` (integer, optional): Items per page
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -791,10 +835,12 @@ Authorization: Bearer <jwt_token>
 ## Rate Limiting
 
 All API endpoints are rate-limited to:
+
 - **100 requests per minute** per user
 - **1000 requests per hour** per user
 
 Rate limit headers are included in responses:
+
 ```
 X-RateLimit-Limit: 100
 X-RateLimit-Remaining: 95
@@ -814,6 +860,7 @@ Future versions will be available at `/api/v2`, `/api/v3`, etc.
 ## Support
 
 For API support, contact:
+
 - **Email:** support@simpel.kejaksaan.go.id
 - **Documentation:** https://docs.simpel.kejaksaan.go.id
 

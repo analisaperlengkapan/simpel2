@@ -13,19 +13,21 @@ class MediaManajemenDigitalController extends Controller
     /**
      * Display a listing of the resource.
      */
-
     protected $breadcums = ['Media Manajemen Digital'];
+
     private $controller = 'media-manajemen-digital';
+
     public function index(Request $request)
     {
         $data = $this->getData($request);
+
         // return view('media-manajemen-digitalV', $data);
         return view('media-manajemen-digital-newV', $data);
     }
 
     public function getData($request, $kategori = null)
     {
-        $files = new Model();
+        $files = new Model;
         $kategories = $files::getKategori();
 
         if ($kategori) {
@@ -51,11 +53,11 @@ class MediaManajemenDigitalController extends Controller
             'controller' => $this->controller,
             'breadcums' => $this->breadcums,
             'fotos' => $fotos['data'],
-            'paginationElms' => $paging
+            'paginationElms' => $paging,
         ];
+
         return $data;
     }
-
 
     /**
      * Show the form for creating a new resource.
@@ -79,6 +81,7 @@ class MediaManajemenDigitalController extends Controller
     public function show(Request $request, string $id)
     {
         $data = $this->getData($request, $id);
+
         return view('media-manajemen-digital-newV', $data);
     }
 
@@ -114,14 +117,17 @@ class MediaManajemenDigitalController extends Controller
     public function searchPegawai(string $nip)
     {
         $pegawai = Master::getPegawaiByNip($nip);
-        if ($pegawai)
+        if ($pegawai) {
             return $this->resSuccess('ok', null, $pegawai);
+        }
+
         return $this->resError('Pegawai Tidak ditemukan');
     }
 
     public function getNotif()
     {
         $notifs = Notifikasi::getNotifs();
+
         return response()->json($notifs, 200);
     }
 }

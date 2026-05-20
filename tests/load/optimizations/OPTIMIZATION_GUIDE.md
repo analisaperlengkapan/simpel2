@@ -71,6 +71,7 @@ CREATE INDEX idx_kebutuhan_bmn_status ON kebutuhan_bmn(status);
 ```
 
 **Impact:**
+
 - JOIN queries: 50-80% faster
 - Filter queries: 60-90% faster
 - Dashboard load time: 40-60% reduction
@@ -90,6 +91,7 @@ ON kebutuhan_bmn(tahun_anggaran, status);
 ```
 
 **Impact:**
+
 - Multi-column filters: 70-90% faster
 - Pagination queries: 50-70% faster
 
@@ -108,6 +110,7 @@ ON kebutuhan_bmn USING GIN(to_tsvector('indonesian', nama_barang));
 ```
 
 **Impact:**
+
 - Search queries: 80-95% faster
 - Autocomplete: 90-98% faster
 - Supports fuzzy matching
@@ -124,6 +127,7 @@ WHERE status NOT IN ('CANCELLED', 'ARCHIVED');
 ```
 
 **Impact:**
+
 - Smaller index size (30-50% reduction)
 - Faster queries on active data
 - Reduced maintenance overhead
@@ -148,11 +152,13 @@ GROUP BY tahun_anggaran;
 ```
 
 **Impact:**
+
 - Dashboard load time: 80-95% reduction (from 5s to <500ms)
 - No real-time aggregation overhead
 - Consistent performance under load
 
 **Refresh Strategy:**
+
 - Automatic: Every 5 minutes (via cron or application)
 - Manual: `SELECT refresh_dashboard_metrics();`
 - Concurrent refresh: No table locking
@@ -175,6 +181,7 @@ GROUP BY ...;
 ```
 
 **Impact:**
+
 - Gap analysis queries: 90-98% faster
 - Eliminates expensive JOIN with SIMAN data
 - Supports drill-down queries
@@ -196,6 +203,7 @@ GROUP BY ...;
 ```
 
 **Impact:**
+
 - Workflow dashboard: 85-95% faster
 - SLA monitoring: Real-time without overhead
 - Historical trend analysis
@@ -217,6 +225,7 @@ DatabaseConfig {
 ```
 
 **Impact:**
+
 - Eliminates connection pool exhaustion
 - Supports 100+ concurrent requests
 - Reduced connection wait time
@@ -237,6 +246,7 @@ redis.setex(&cache_key, 300, &metrics).await?;
 ```
 
 **Impact:**
+
 - Cache hit rate: 80-90% (target)
 - Response time: 95-99% reduction on cache hits
 - Reduced database load
@@ -254,6 +264,7 @@ RateLimitConfig {
 ```
 
 **Impact:**
+
 - Prevents service overload
 - Fair resource allocation
 - Protects against abuse
@@ -277,6 +288,7 @@ ORDER BY idx_scan DESC;
 ```
 
 **Expected:**
+
 - High scan count on frequently used indexes
 - Low scan count on unused indexes (consider dropping)
 
@@ -293,6 +305,7 @@ WHERE k.tahun_anggaran = 2026
 ```
 
 **Expected:**
+
 - Index Scan (not Seq Scan)
 - Execution time < 100ms
 - Planning time < 10ms
@@ -310,6 +323,7 @@ WHERE schemaname = 'perlengkapan';
 ```
 
 **Expected:**
+
 - Age < 5 minutes (for auto-refreshed views)
 - Consistent refresh schedule
 
@@ -329,6 +343,7 @@ WHERE schemaname = 'perlengkapan';
 ```
 
 **Expected Improvements:**
+
 - Response time: 40-60% reduction
 - Throughput: 50-100% increase
 - Error rate: 50-80% reduction
@@ -338,6 +353,7 @@ WHERE schemaname = 'perlengkapan';
 ### Key Metrics to Track
 
 1. **Query Performance**
+
    ```sql
    -- Top 10 slowest queries
    SELECT
@@ -352,6 +368,7 @@ WHERE schemaname = 'perlengkapan';
    ```
 
 2. **Index Efficiency**
+
    ```sql
    -- Unused indexes (candidates for removal)
    SELECT
@@ -366,6 +383,7 @@ WHERE schemaname = 'perlengkapan';
    ```
 
 3. **Cache Hit Rate**
+
    ```sql
    -- Database cache hit rate (target: >95%)
    SELECT
@@ -374,6 +392,7 @@ WHERE schemaname = 'perlengkapan';
    ```
 
 4. **Connection Pool Usage**
+
    ```sql
    -- Active connections
    SELECT
@@ -407,10 +426,12 @@ redis_keyspace_hits_total
 ### High Response Times After Optimization
 
 **Symptoms:**
+
 - Response times still > 500ms
 - No improvement from baseline
 
 **Diagnosis:**
+
 ```sql
 -- Check if indexes are being used
 EXPLAIN ANALYZE <your_slow_query>;
@@ -422,6 +443,7 @@ WHERE schemaname = 'perlengkapan'
 ```
 
 **Solutions:**
+
 1. Run ANALYZE: `ANALYZE perlengkapan.kebutuhan_bmn;`
 2. Check query plan for Seq Scans
 3. Add missing indexes
@@ -430,10 +452,12 @@ WHERE schemaname = 'perlengkapan'
 ### Materialized View Not Refreshing
 
 **Symptoms:**
+
 - Stale data in dashboard
 - last_refresh timestamp old
 
 **Diagnosis:**
+
 ```sql
 -- Check refresh function
 SELECT perlengkapan.refresh_all_dashboard_views();
@@ -444,6 +468,7 @@ WHERE relation = 'perlengkapan.mv_dashboard_metrics'::regclass;
 ```
 
 **Solutions:**
+
 1. Manual refresh: `REFRESH MATERIALIZED VIEW CONCURRENTLY ...`
 2. Check cron job status
 3. Verify no long-running transactions blocking refresh
@@ -451,10 +476,12 @@ WHERE relation = 'perlengkapan.mv_dashboard_metrics'::regclass;
 ### Connection Pool Exhaustion
 
 **Symptoms:**
+
 - "connection pool timeout" errors
 - High connection wait times
 
 **Diagnosis:**
+
 ```sql
 -- Check connection count
 SELECT count(*) FROM pg_stat_activity;
@@ -464,6 +491,7 @@ SELECT count(*) FROM pg_stat_activity WHERE state = 'idle';
 ```
 
 **Solutions:**
+
 1. Increase pool_max in configuration
 2. Reduce connection_timeout
 3. Check for connection leaks in application

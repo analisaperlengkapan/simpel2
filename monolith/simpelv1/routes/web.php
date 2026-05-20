@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AIController;
 use App\Http\Controllers\AnalisisKebutuhan\Bmn\AnalisisKelayakanController;
 use App\Http\Controllers\AnalisisKebutuhan\Bmn\DaftarKebutuhanBmnController;
 use App\Http\Controllers\AnalisisKebutuhan\Bmn\PengajuanController as PengajuanBmn;
@@ -29,20 +30,20 @@ use App\Http\Controllers\Asset\WujudController;
 use App\Http\Controllers\AssetTik\BmntikController;
 use App\Http\Controllers\AssetTik\HakciptaController;
 use App\Http\Controllers\AssetTik\LanggananController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Bmn\Asuransi\AsuransiController;
 use App\Http\Controllers\Bmn\Asuransi\AsuransiKlaimController;
 use App\Http\Controllers\Bmn\Hibah\HibahController as Hibah;
 use App\Http\Controllers\Bmn\Hibah\HibahMonitorController as HibahMonitor;
 use App\Http\Controllers\Bmn\IjinController;
-use App\Http\Controllers\Bmn\IjinPegawaiController;
 use App\Http\Controllers\Bmn\IjinMonitorController;
+use App\Http\Controllers\Bmn\IjinPegawaiController;
 use App\Http\Controllers\Bmn\Jasa\JasaController as Jasa;
 use App\Http\Controllers\Bmn\Pemanfaatan\PemanfaatanMonitorController as PemanfaatanMonitor;
 use App\Http\Controllers\Bmn\Pemanfaatan\PemanfaatanSkController as PemanfaatanSk;
 use App\Http\Controllers\Bmn\Pencabutan\PencabutanController as Pencabutan;
 use App\Http\Controllers\Bmn\Penetapan\PenetapanMonitorController as PenetapanMonitor;
 use App\Http\Controllers\Bmn\Penetapan\PenetapanSkController as PenetapanSk;
-use App\Http\Controllers\Bmn\Penghapusan\PengajuanPenghapusanBmnController;
 use App\Http\Controllers\Bmn\Penghapusan\PenghapusanMonitorController as PenghapusanMonitor;
 use App\Http\Controllers\Bmn\Penghapusan\PenghapusanSkController as PenghapusanSk;
 use App\Http\Controllers\Bmn\Penghapusan\PermohonanPenghapusanBmnController;
@@ -52,7 +53,6 @@ use App\Http\Controllers\Bmn\Penghapusan\PersetujuanBmnMonitorController;
 use App\Http\Controllers\Bmn\Perawatan\PerawatanController as Perawatan;
 use App\Http\Controllers\Bmn\Perawatan\PerawatanMonitorController as PerawatanMonitor;
 use App\Http\Controllers\Bmn\Pnbp\PnbpController as Pnbp;
-use App\Http\Controllers\Bmn\Wasdal\PenertibanController as WasdalPenertiban;
 use App\Http\Controllers\Bmn\Wasdal\AlihstatusbmnController as WasdalAlihstatusbmn;
 use App\Http\Controllers\Bmn\Wasdal\GunasementarabmnController as WasdalGunasementarabmn;
 use App\Http\Controllers\Bmn\Wasdal\HapusppbmnController as WasdalHapusppbmn;
@@ -60,6 +60,7 @@ use App\Http\Controllers\Bmn\Wasdal\HapussbblainbmnController as WasdalHapussbbl
 use App\Http\Controllers\Bmn\Wasdal\KspbmnController as WasdalKspbmn;
 use App\Http\Controllers\Bmn\Wasdal\OprbmnController as WasdalOprbmn;
 use App\Http\Controllers\Bmn\Wasdal\PemusnahanbmnController as WasdalPemusnahanbmn;
+use App\Http\Controllers\Bmn\Wasdal\PenertibanController as WasdalPenertiban;
 use App\Http\Controllers\Bmn\Wasdal\PenjualanbmnController as WasdalPenjualanbmn;
 use App\Http\Controllers\Bmn\Wasdal\PinjambmnController as WasdalPinjambmn;
 use App\Http\Controllers\Bmn\Wasdal\PspbmnController as WasdalPspbmn;
@@ -107,11 +108,9 @@ use App\Http\Controllers\Suport\HelpdeskController;
 use App\Http\Controllers\Suport\KritikController;
 use App\Http\Controllers\Suport\NotifikasiManualController;
 use App\Http\Controllers\Suport\SurveyController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Suport\TopikController;
 use App\Http\Controllers\TwoFAController;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\AIController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,8 +144,8 @@ Route::get('/auth/oauth-callback', [AuthController::class, 'oauthCallback'])->na
 Route::post('/auth/oauth-callback', [AuthController::class, 'oauthCallback'])->name('auth.oauth-callback.post');
 
 // Rute verifikasi OTP 2FA (boleh tanpa Auth guard, cukup session 2fa:user:id)
-Route::get('/2fa', [TwoFAController::class,'showVerifyForm'])->name('2fa.index');
-Route::post('/2fa', [TwoFAController::class,'verify'])->name('2fa.verify');
+Route::get('/2fa', [TwoFAController::class, 'showVerifyForm'])->name('2fa.index');
+Route::post('/2fa', [TwoFAController::class, 'verify'])->name('2fa.verify');
 
 // Setup dan verifikasi 2FA (harus sudah login credential biasa)
 Route::middleware(['auth'])->group(function () {
@@ -203,11 +202,11 @@ Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session'])->group(fu
     // Disable 2FA oleh superadmin untuk user lain
     Route::post('/pengguna/nonaktifkan-2fa/{id}', [TwoFAController::class, 'disableBySuperadmin'])->middleware('auth')->name('2fa.disableBySuperadmin');
 
-   // Chat AI
-   // Route::get('/chat', function () {
-   // return view('chat');
-   // });
-   Route::post('/ai/chat', [AIController::class, 'chat']);
+    // Chat AI
+    // Route::get('/chat', function () {
+    // return view('chat');
+    // });
+    Route::post('/ai/chat', [AIController::class, 'chat']);
 
     Route::get('/searchPegawai/{nip}', [MainController::class, 'searchPegawai']);
     Route::get('/getNotif', [MainController::class, 'getNotif']);
@@ -520,7 +519,7 @@ Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session'])->group(fu
     Route::get('/bmn/perawatan/perawatanmonitor/gridData', [PerawatanMonitor::class, 'gridData']);
     Route::resource('/bmn/perawatan/perawatanmonitor', PerawatanMonitor::class);
 
-    //Wasdal
+    // Wasdal
     Route::get('/bmn/wasdal/penertiban/gridData', [WasdalPenertiban::class, 'gridData']);
     Route::resource('/bmn/wasdal/penertiban', WasdalPenertiban::class);
 
@@ -618,7 +617,7 @@ Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session'])->group(fu
     Route::get('/analisis-kebutuhan/monev/pengelolaan-bmn/gridData', [PengelolaanBmnController::class, 'gridData']);
     Route::get('/analisis-kebutuhan/monev/pengelolaan-bmn/gridDataSatker', [PengelolaanBmnController::class, 'gridDataSatker']);
     Route::resource('/analisis-kebutuhan/monev/pengelolaan-bmn', PengelolaanBmnController::class);
-    //END ANALISIS KEBUTUHAN
+    // END ANALISIS KEBUTUHAN
 
     Route::get('/pengadaan/distribusi/gridDataKontrak', [DistribusiController::class, 'gridDataKontrak']);
     Route::resource('/pengadaan/distribusi/pengisian', DistribusiController::class);

@@ -3,7 +3,10 @@ FROM php:8.2-fpm-alpine AS base
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies + headers untuk PHP extensions.
+# CATATAN: JANGAN install `composer` via apk — apk composer dipasangkan ke PHP
+# system Alpine (PHP 8.4 di Alpine 3.21+), bukan PHP 8.2 dari base image.
+# Composer di-install via official installer di step terpisah.
 RUN apk add --no-cache \
     postgresql-client \
     postgresql-dev \
@@ -12,10 +15,50 @@ RUN apk add --no-cache \
     ca-certificates \
     curl \
     git \
-    composer
+    # GD deps
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    # XML/DOM deps
+    libxml2-dev \
+    # Sodium
+    libsodium-dev \
+    # zip extension (untuk maatwebsite/excel)
+    libzip-dev \
+    # icu untuk intl (locale)
+    icu-dev \
+    # oniguruma untuk mbstring
+    oniguruma-dev
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql
+# Install PHP extensions yang dibutuhkan Laravel framework + dependencies
+# (session, tokenizer, ctype, json sudah built-in PHP 8.2)
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install \
+        pdo \
+        pdo_pgsql \
+        gd \
+        dom \
+        fileinfo \
+        sodium \
+        bcmath \
+        mbstring \
+        intl \
+        zip \
+        opcache
+
+# Install PECL redis extension (Laravel pakai phpredis driver di config/database.php
+# `redis.client = phpredis`). Tanpa ini, Laravel error: `Class "Redis" not found`
+# saat startup session middleware.
+RUN apk add --no-cache --virtual .phpize-deps autoconf g++ make linux-headers \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del .phpize-deps
+
+# Install Composer 2 via official installer untuk PHP 8.2 (bukan apk composer
+# yang dipasangkan ke PHP system Alpine).
+RUN curl -fsSL https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer \
+    && composer --version
 
 # Build dependencies for compiling PHP/protobuf extensions. Installed
 # under a virtual package so they can be removed after composer install
@@ -48,9 +91,17 @@ RUN composer run-script post-install-cmd || true
 # removes compilers from the production image.
 RUN apk del .build-deps
 
-# Create necessary directories
+# Create necessary directories.
+# IMPORTANT: chown ke www-data (uid 82 di Alpine) bukan nobody — PHP-FPM
+# worker run as www-data 82 dan butuh read access ke /app. Sebelumnya
+# nobody:nobody (uid 65534) bikin PHP-FPM open() return EPERM walau
+# mode 644 (Alpine package nobody might have weird attr).
 RUN mkdir -p storage/logs storage/framework/sessions storage/framework/views storage/framework/cache \
-    && chown -R nobody:nobody . \
+              /var/lib/nginx/logs /var/lib/nginx/tmp/client_body \
+              /var/lib/nginx/tmp/proxy /var/lib/nginx/tmp/fastcgi \
+              /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi \
+              /run/nginx /var/cache/nginx \
+    && chown -R www-data:www-data /app /var/lib/nginx /run/nginx /var/cache/nginx \
     && chmod -R 755 storage
 
 # Copy nginx config

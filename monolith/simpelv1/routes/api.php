@@ -151,7 +151,6 @@ Route::middleware(['auth:api', 'token2session'])->group(function () {
     Route::put('unreadnotif', [MainController::class, 'updateNotifID']);
     Route::get('guide-book/{platform}', [BukuPanduanController::class, 'getData']);
 
-
     Route::get('/bantuan/tiket-topik', [HelpdeskController::class, 'getTopik']);
     Route::get('/bantuan/tiket', [HelpdeskController::class, 'gridData']);
     Route::post('/bantuan/tiket', [HelpdeskController::class, 'store']);
@@ -171,8 +170,8 @@ Route::middleware(['auth:api', 'token2session'])->group(function () {
             $data = $model::where('inst_satkerkd', 'like', "{$id_wilayah}%");
         }
         $data = $data->orderBy('inst_satkerkd')->get();
+
         return response()->json($data);
     });
-
 
 });

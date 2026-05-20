@@ -14,6 +14,7 @@
 **Completion Status**: **~60% Complete** (not 100% as marked)
 
 **Impact**:
+
 - ❌ authenc-api has 220 compilation errors
 - ❌ authenc-iam-api blocked
 - ❌ authenc-grpc blocked
@@ -29,12 +30,14 @@
 According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 
 ### Task 5.0: Domain Models ✅ COMPLETE
+
 - ✅ All models migrated to `authenc-types::domain`
 - ✅ User, Realm, Role, Permission, Consent, Session, etc.
 - ✅ OAuth2, OIDC, UMA models
 - ✅ WebAuthn, SAML models
 
 ### Task 5.1: Service Stores (Phase 1 - Core Stores) ✅ COMPLETE
+
 - ✅ user_store.rs
 - ✅ realm_store.rs
 - ✅ role_store.rs
@@ -44,6 +47,7 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ social_account_store.rs
 
 ### Task 5.2: Authentication Services ✅ COMPLETE
+
 - ✅ brute_force_protector.rs
 - ✅ anomaly_detector.rs
 - ✅ risk_engine.rs
@@ -51,16 +55,20 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ password_policy.rs
 
 ### Task 5.3: Session Management ✅ COMPLETE
+
 - ✅ session_store.rs
 - ✅ sso_cookie.rs
 
 ### Task 5.4: Realm and Organization Services ✅ COMPLETE
+
 - ✅ realm.rs
 - ✅ organization.rs
 - ✅ satker_authorization.rs
 
 ### Task 5.5: OAuth2/OIDC Services ⚠️ PARTIAL (7/10 migrated)
+
 **Migrated** (7 files):
+
 - ✅ oidc_client_store.rs
 - ✅ client_registration.rs
 - ✅ scope_store.rs
@@ -70,12 +78,14 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ software_statement_validator.rs
 
 **NOT Migrated** (3 files):
+
 - ❌ oidc_code_store.rs - **MISSING**
 - ❌ client_registration_v2.rs - **MISSING**
 - ❌ client_scope_service.rs - **MISSING**
 - ❌ device.rs (Device Authorization Grant) - **MISSING**
 
 ### Task 5.6: UMA 2.0 Services ✅ COMPLETE
+
 - ✅ uma_policy_store.rs
 - ✅ resource_store.rs
 - ✅ resource_server_store.rs
@@ -83,6 +93,7 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ uma/ directory
 
 ### Task 5.7: Audit and Event Services ✅ COMPLETE
+
 - ✅ audit_events.rs
 - ✅ audit_integrity.rs
 - ✅ audit_signature.rs
@@ -99,14 +110,18 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ kafka_event_listener.rs
 
 ### Task 5.8: Cache Services ⚠️ PARTIAL (2/3 migrated)
+
 **Migrated** (2 files):
+
 - ✅ cache/ directory
 - ✅ cache_invalidation_listener.rs
 
 **NOT Migrated** (1 file):
+
 - ❌ cache_utils.rs - **MISSING** (referenced in authenc-api)
 
 ### Task 5.9: Advanced Services ✅ COMPLETE
+
 - ✅ client_policy/ directory
 - ✅ authorization/ directory
 - ✅ zero_trust/ directory
@@ -119,20 +134,25 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 - ✅ config_manager.rs
 
 ### Task 5.10: PAR (Pushed Authorization Requests) ✅ COMPLETE
+
 - ✅ par/ directory
 
 ### Task 5.11: Configuration ✅ COMPLETE
+
 - ✅ config/ directory
 - ✅ app_init/ → init/ directory
 
 ### Task 5.12-5.13: Remaining Models ✅ COMPLETE
+
 - ✅ All OAuth2/OIDC models
 - ✅ All UMA and advanced models
 
 ### Task 5.14: SPI (Service Provider Interface) ✅ COMPLETE
+
 - ✅ spi/ directory
 
 ### Task 5.15-5.18: Testing and Documentation ⚠️ INCOMPLETE
+
 - ⚠️ Unit tests exist but cannot run (blocked by missing services)
 - ⚠️ Integration tests cannot run
 - ⚠️ Documentation incomplete (missing services not documented)
@@ -146,77 +166,95 @@ According to `tasks.md`, Task 5 (Migrate authenc-core) consists of 18 subtasks:
 Based on authenc-api compilation errors, the following services are **referenced but not implemented**:
 
 #### 1. Device Management Service ❌
+
 **Files**: `src/services/device.rs`
 **Status**: NOT MIGRATED
 **Impact**: device.rs handler has 15+ errors
 **Required Types**:
+
 - DeviceService
 - DeviceRegistrationRequest
 - DeviceUpdateRequest
 - TrustEvaluationContext
 
 #### 2. Cache Service ❌
+
 **Files**: `src/services/cache_utils.rs`
 **Status**: PARTIALLY MIGRATED (cache/ dir exists, but cache_utils.rs missing)
 **Impact**: jwks.rs, token_exchange.rs have cache errors
 **Required Types**:
+
 - Cache trait
 - CacheImpl
 
 #### 3. Identity Broker Services ❌
+
 **Files**: `src/services/broker/`
 **Status**: NOT MIGRATED (directory exists in src/ but not in crates/)
 **Impact**: broker.rs handler has 20+ errors
 **Required Types**:
+
 - ExternalUser
 - IdentityBrokerRegistry
 - IdentityProviderType
 - BrokerService
 
 #### 4. JIT Admin Service ❌
+
 **Files**: `src/services/jit_admin_service.rs` or similar
 **Status**: NOT FOUND
 **Impact**: Multiple handlers reference JIT provisioning
 **Required Types**:
+
 - JITUserProvisioningResponse
 - JITAdminService
 
 #### 5. EventBus ❌
+
 **Files**: Should be in `src/services/events.rs` or `event_publisher.rs`
 **Status**: event_publisher.rs exists but EventBus trait missing
 **Impact**: oidc_sso.rs cannot publish events
 **Required Types**:
+
 - EventBus trait
 - EventCategory enum
 
 #### 6. Federation Registry ❌
+
 **Files**: `src/services/federation/` or `federation_manager.rs`
 **Status**: federation_manager.rs exists in src/ but not migrated
 **Impact**: oidc_sso.rs cannot access federation providers
 **Required Types**:
+
 - FederationRegistry
 - FederationProvider
 
 #### 7. Crypto Monitor ❌
+
 **Files**: `src/services/crypto_monitor.rs` or similar
 **Status**: NOT FOUND
 **Impact**: jwt_ed25519.rs, oidc_ed25519.rs cannot monitor crypto operations
 **Required Types**:
+
 - CryptoMonitor
 
 #### 8. OIDC Code Store ❌
+
 **Files**: `src/services/oidc_code_store.rs`
 **Status**: NOT MIGRATED (Task 5.5 incomplete)
 **Impact**: OAuth2 authorization code flow broken
 **Required Types**:
+
 - OidcCodeStore
 - AuthorizationCode
 
 #### 9. Client Scope Service ❌
+
 **Files**: `src/services/client_scope_service.rs`
 **Status**: NOT MIGRATED (Task 5.5 incomplete)
 **Impact**: Client scope management broken
 **Required Types**:
+
 - ClientScopeService
 
 ---
@@ -269,6 +307,7 @@ Based on authenc-api compilation errors, the following services are **referenced
 The following types are referenced in authenc-api but not found in authenc-types:
 
 ### OAuth2/OIDC Types
+
 - ❌ OAuth2TokenRequest
 - ❌ OAuth2TokenResponse
 - ❌ TokenExchangeRequest (exists but incomplete)
@@ -277,13 +316,16 @@ The following types are referenced in authenc-api but not found in authenc-types
 - ❌ AuthorizationCode (for oidc_code_store)
 
 ### User Management Types
+
 - ❌ JITUserProvisioningResponse
 - ❌ ExternalUser (for broker)
 
 ### Event Types
+
 - ❌ EventCategory enum
 
 ### Device Types
+
 - ❌ DeviceRegistrationRequest
 - ❌ DeviceUpdateRequest
 - ❌ TrustEvaluationContext
@@ -318,11 +360,13 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Direct Cause**: authenc-api handlers reference services that don't exist in authenc-core
 
 **Example Flow**:
+
 1. `crates/api/src/handlers/device.rs` imports `authenc_core::services::device::DeviceService`
 2. But `crates/core/src/services/device.rs` doesn't exist
 3. Compilation error: "unresolved import"
 
 **Cascade Effect**:
+
 - 1 missing service → 10-20 compilation errors
 - 10 missing services → 200+ compilation errors
 
@@ -333,19 +377,23 @@ The following types are referenced in authenc-api but not found in authenc-types
 ### Immediate Impact
 
 **authenc-api**: 220 compilation errors
+
 - 25 handler files affected
 - 13 middleware files affected
 - 3 core files affected
 
 **authenc-iam-api**: Blocked
+
 - Cannot compile (depends on authenc-core)
 - Cannot test
 
 **authenc-grpc**: Blocked
+
 - Cannot compile (depends on authenc-core)
 - Cannot test
 
 **Phase 3 Verification**: Impossible
+
 - Cannot run `cargo check --workspace`
 - Cannot run `cargo test --workspace`
 - Cannot verify integration
@@ -353,15 +401,18 @@ The following types are referenced in authenc-api but not found in authenc-types
 ### Long-term Impact
 
 **Phase 4 (Feature Migration)**: At Risk
+
 - MFA migration depends on complete core
 - Federation migration depends on complete core
 - Cannot proceed safely
 
 **Phase 5 (Portal Refactoring)**: Blocked
+
 - Portal depends on working API
 - Cannot build Portal until API compiles
 
 **Project Timeline**: Delayed
+
 - Estimated 8-12 hours to complete Phase 2
 - Plus 2-4 hours to fix authenc-api
 - Total delay: 10-16 hours
@@ -375,6 +426,7 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Approach**: Go back and finish Task 5 completely
 
 **Steps**:
+
 1. **Audit src/services/** - List all remaining files
 2. **Categorize files** - Which should migrate, which should stay
 3. **Migrate missing services** - Device, Broker, Federation, etc.
@@ -392,6 +444,7 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Approach**: Create placeholder implementations to unblock compilation
 
 **Steps**:
+
 1. **Create stub services** - DeviceService, BrokerService, etc.
 2. **Add placeholder types** - OAuth2TokenRequest, EventCategory, etc.
 3. **Mark with TODO** - Document what needs real implementation
@@ -407,6 +460,7 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Approach**: Migrate critical services, stub the rest
 
 **Steps**:
+
 1. **Migrate critical services** (4-6 hours):
    - Device service (blocking device.rs)
    - Broker services (blocking broker.rs)
@@ -463,6 +517,7 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Critical Finding**: Task 5 (Migrate authenc-core) is incomplete. Approximately 40+ service files remain in `src/services/` and have not been migrated to `crates/core/src/services/`. This has caused a cascade of 220+ compilation errors in authenc-api.
 
 **Recommended Path Forward**: **Option 3 (Hybrid Approach)**
+
 - Migrate critical services that are blocking authenc-api (Device, Broker, Federation, Cache)
 - Stub remaining services with TODO comments
 - Fix authenc-api imports
@@ -472,6 +527,7 @@ The following types are referenced in authenc-api but not found in authenc-types
 **Estimated Time to Resolution**: 6-10 hours
 
 **Next Steps**:
+
 1. Present this analysis to user
 2. Get approval for recommended approach
 3. Create detailed task list for completing Phase 2

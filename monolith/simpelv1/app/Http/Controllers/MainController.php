@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Helpers\MyHelper;
 use App\Models\Dashboard;
 use App\Models\Master;
-use App\Models\MsSatker;
 use App\Models\Notifikasi;
 use App\Models\Pengguna\Pengguna;
 use Illuminate\Http\Request;
@@ -31,11 +30,11 @@ class MainController extends Controller
         // echo "<pre>";
         // print_r($satkers);exit;
 
-        $dashboard = new Dashboard();
+        $dashboard = new Dashboard;
         $dataAset = $dashboard->getdata('statistik_bmn');
         $grafik_tahun_asset = $dashboard->getdata('statistik_grafik_tahun_asset');
         $grafik_psp_asset = $dashboard->getdata('statistik_grafik_psp_asset');
-        
+
         // Get kondisi data for each asset type
         $kondisi_aset_lainnya = $dashboard->getdata('statistik_kondisi_aset_lainnya');
         $kondisi_renovasi = $dashboard->getdata('statistik_kondisi_renovasi');
@@ -58,13 +57,13 @@ class MainController extends Controller
         $psp = [];
         $totalpsp = [];
 
-        //$tahun_perolehan = (array) $dashboard->getTahunPerolehan();
-        if (!empty($grafik_tahun_asset)) {
+        // $tahun_perolehan = (array) $dashboard->getTahunPerolehan();
+        if (! empty($grafik_tahun_asset)) {
             $tahun = Arr::pluck($grafik_tahun_asset, 'tahun');
             $totalAsset = Arr::pluck($grafik_tahun_asset, 'total');
         }
 
-        if (!empty($grafik_psp_asset)) {
+        if (! empty($grafik_psp_asset)) {
             $psp = Arr::pluck($grafik_psp_asset, 'tipe');
             $totalpsp = Arr::pluck($grafik_psp_asset, 'total');
         }
@@ -101,7 +100,7 @@ class MainController extends Controller
             'kondisi_tanah' => $kondisi_tanah,
             'analisis_kebutuhan_bmn' => $analisis_kebutuhan_bmn,
 
-            //'yearOptions' => MyHelper::generateSelectOptions(['data' => $tahun_perolehan, 'selected'=>'']),
+            // 'yearOptions' => MyHelper::generateSelectOptions(['data' => $tahun_perolehan, 'selected'=>'']),
 
             'jenisOptions' => MyHelper::generateSelectOptions([
                 'data' => $jenis,
@@ -129,7 +128,6 @@ class MainController extends Controller
         return view('dashboard.dashboard', $data);
     }
 
-
     /**
      * Show the form for creating a new resource.
      */
@@ -148,10 +146,10 @@ class MainController extends Controller
         $wilayah = $request->input('wilayah');
         $satker = $request->input('satker');
 
-        $dashboard = new Dashboard();
+        $dashboard = new Dashboard;
 
         switch ($tipe) {
-            case "lain":
+            case 'lain':
                 $template = 'dashboard.dashboardAsetlainnya';
                 $kondisi_aset_lainnya = $dashboard->getdata('statistik_kondisi_aset_lainnya', $level, $wilayah, $satker);
                 $kelompok_aset_lainnya = $dashboard->getdata('statistik_kelompok_aset_lainnya', $level, $wilayah, $satker);
@@ -163,7 +161,7 @@ class MainController extends Controller
                     'subkelompok_aset_lainnya' => $subkelompok_aset_lainnya,
                 ];
                 break;
-            case "renovasi":
+            case 'renovasi':
                 $template = 'dashboard.dashboardRenovasi';
                 $kondisi_renovasi = $dashboard->getdata('statistik_kondisi_renovasi', $level, $wilayah, $satker);
                 $kelompok_renovasi = $dashboard->getdata('statistik_kelompok_renovasi', $level, $wilayah, $satker);
@@ -175,7 +173,7 @@ class MainController extends Controller
                     'subkelompok_renovasi' => $subkelompok_renovasi,
                 ];
                 break;
-            case "konstruksi":
+            case 'konstruksi':
                 $template = 'dashboard.dashboardKonstruksi';
                 $kondisi_konstruksi = $dashboard->getdata('statistik_kondisi_konstruksi', $level, $wilayah, $satker);
                 $kelompok_konstruksi = $dashboard->getdata('statistik_kelompok_konstruksi', $level, $wilayah, $satker);
@@ -187,7 +185,7 @@ class MainController extends Controller
                     'subkelompok_konstruksi' => $subkelompok_konstruksi,
                 ];
                 break;
-            case "konstruksi":
+            case 'konstruksi':
                 $template = 'dashboard.dashboardKonstruksi';
                 $kondisi_konstruksi = $dashboard->getdata('statistik_kondisi_konstruksi', $level, $wilayah, $satker);
                 $kelompok_konstruksi = $dashboard->getdata('statistik_kelompok_konstruksi', $level, $wilayah, $satker);
@@ -199,7 +197,7 @@ class MainController extends Controller
                     'subkelompok_konstruksi' => $subkelompok_konstruksi,
                 ];
                 break;
-            case "jalan_jembatan":
+            case 'jalan_jembatan':
                 $template = 'dashboard.dashboardJalanjembatan';
                 $kondisi_jalan_jembatan = $dashboard->getdata('statistik_kondisi_jalan_jembatan', $level, $wilayah, $satker);
                 $kelompok_jalan_jembatan = $dashboard->getdata('statistik_kelompok_jalan_jembatan', $level, $wilayah, $satker);
@@ -211,7 +209,7 @@ class MainController extends Controller
                     'subkelompok_jalan_jembatan' => $subkelompok_jalan_jembatan,
                 ];
                 break;
-            case "bangunan_air":
+            case 'bangunan_air':
                 $template = 'dashboard.dashboardBangunanair';
                 $kondisi_bangunan_air = $dashboard->getdata('statistik_kondisi_bangunan_air', $level, $wilayah, $satker);
                 $kelompok_bangunan_air = $dashboard->getdata('statistik_kelompok_bangunan_air', $level, $wilayah, $satker);
@@ -223,7 +221,7 @@ class MainController extends Controller
                     'subkelompok_bangunan_air' => $subkelompok_bangunan_air,
                 ];
                 break;
-            case "bangunan_air":
+            case 'bangunan_air':
                 $template = 'dashboard.dashboardBangunanair';
                 $kondisi_bangunan_air = $dashboard->getdata('statistik_kondisi_bangunan_air', $level, $wilayah, $satker);
                 $kelompok_bangunan_air = $dashboard->getdata('statistik_kelompok_bangunan_air', $level, $wilayah, $satker);
@@ -235,7 +233,7 @@ class MainController extends Controller
                     'subkelompok_bangunan_air' => $subkelompok_bangunan_air,
                 ];
                 break;
-            case "rumah":
+            case 'rumah':
                 $template = 'dashboard.dashboardRumah';
                 $kondisi_rumah = $dashboard->getdata('statistik_kondisi_rumah', $level, $wilayah, $satker);
                 $kelompok_rumah = $dashboard->getdata('statistik_kelompok_rumah', $level, $wilayah, $satker);
@@ -247,7 +245,7 @@ class MainController extends Controller
                     'subkelompok_rumah' => $subkelompok_rumah,
                 ];
                 break;
-            case "jaringan":
+            case 'jaringan':
                 $template = 'dashboard.dashboardInstalasijaringan';
                 $kondisi_instalasi_jaringan = $dashboard->getdata('statistik_kondisi_instalasi_jaringan', $level, $wilayah, $satker);
                 $kelompok_instalasi_jaringan = $dashboard->getdata('statistik_kelompok_instalasi_jaringan', $level, $wilayah, $satker);
@@ -259,7 +257,7 @@ class MainController extends Controller
                     'subkelompok_instalasi_jaringan' => $subkelompok_instalasi_jaringan,
                 ];
                 break;
-            case "jaringan":
+            case 'jaringan':
                 $template = 'dashboard.dashboardInstalasijaringan';
                 $kondisi_instalasi_jaringan = $dashboard->getdata('statistik_kondisi_instalasi_jaringan', $level, $wilayah, $satker);
                 $kelompok_instalasi_jaringan = $dashboard->getdata('statistik_kelompok_instalasi_jaringan', $level, $wilayah, $satker);
@@ -271,7 +269,7 @@ class MainController extends Controller
                     'subkelompok_instalasi_jaringan' => $subkelompok_instalasi_jaringan,
                 ];
                 break;
-            case "wujud":
+            case 'wujud':
                 $template = 'dashboard.dashboardTakwujud';
                 $kondisi_tak_berwujud = $dashboard->getdata('statistik_kondisi_tak_berwujud', $level, $wilayah, $satker);
                 $kelompok_tak_berwujud = $dashboard->getdata('statistik_kelompok_tik', $level, $wilayah, $satker);
@@ -281,7 +279,7 @@ class MainController extends Controller
                     'kelompok_tak_berwujud' => $kelompok_tak_berwujud,
                 ];
                 break;
-            case "tik":
+            case 'tik':
                 $template = 'dashboard.dashboardTik';
                 $kondisi_tik = $dashboard->getdata('statistik_kondisi_tik', $level, $wilayah, $satker);
                 $penggunaan_tik = $dashboard->getdata('statistik_penggunaan_tik', $level, $wilayah, $satker);
@@ -295,7 +293,7 @@ class MainController extends Controller
                     'subkelompok_tik' => $subkelompok_tik,
                 ];
                 break;
-            case "non_tik":
+            case 'non_tik':
                 $template = 'dashboard.dashboardNontik';
                 $kondisi_nontik = $dashboard->getdata('statistik_kondisi_nontik', $level, $wilayah, $satker);
                 $kelompok_nontik = $dashboard->getdata('statistik_kelompok_nontik', $level, $wilayah, $satker);
@@ -307,7 +305,7 @@ class MainController extends Controller
                     'subkelompok_nontik' => $subkelompok_nontik,
                 ];
                 break;
-            case "angkutan":
+            case 'angkutan':
                 $template = 'dashboard.dashboardAngkutan';
                 $kondisi_kendaraan = $dashboard->getdata('statistik_kondisi_kendaraan', $level, $wilayah, $satker);
                 $penggunaan_kendaraan = $dashboard->getdata('statistik_penggunaan_kendaraan', $level, $wilayah, $satker);
@@ -321,7 +319,7 @@ class MainController extends Controller
                     'subkelompok_kendaraan' => $subkelompok_kendaraan,
                 ];
                 break;
-            case "angkutan":
+            case 'angkutan':
                 $template = 'dashboard.dashboardAngkutan';
                 $kondisi_kendaraan = $dashboard->getdata('statistik_kondisi_kendaraan', $level, $wilayah, $satker);
                 $penggunaan_kendaraan = $dashboard->getdata('statistik_penggunaan_kendaraan', $level, $wilayah, $satker);
@@ -335,7 +333,7 @@ class MainController extends Controller
                     'subkelompok_kendaraan' => $subkelompok_kendaraan,
                 ];
                 break;
-            case "alat_besar":
+            case 'alat_besar':
                 $template = 'dashboard.dashboardAlatbesar';
                 $kondisi_alat_berat = $dashboard->getdata('statistik_kondisi_alat_berat', $level, $wilayah, $satker);
                 $penggunaan_alat_berat = $dashboard->getdata('statistik_penggunaan_alat_berat', $level, $wilayah, $satker);
@@ -349,7 +347,7 @@ class MainController extends Controller
                     'subkelompok_alat_berat' => $subkelompok_alat_berat,
                 ];
                 break;
-            case "gedung":
+            case 'gedung':
                 $template = 'dashboard.dashboardGedung';
                 $kondisi_gedung = $dashboard->getdata('statistik_kondisi_gedung', $level, $wilayah, $satker);
                 $penggunaan_gedung = $dashboard->getdata('statistik_penggunaan_gedung', $level, $wilayah, $satker);
@@ -363,7 +361,7 @@ class MainController extends Controller
                     'subkelompok_gedung' => $subkelompok_gedung,
                 ];
                 break;
-            case "gedung":
+            case 'gedung':
                 $template = 'dashboard.dashboardGedung';
                 $kondisi_gedung = $dashboard->getdata('statistik_kondisi_gedung', $level, $wilayah, $satker);
                 $penggunaan_gedung = $dashboard->getdata('statistik_penggunaan_gedung', $level, $wilayah, $satker);
@@ -377,7 +375,7 @@ class MainController extends Controller
                     'subkelompok_gedung' => $subkelompok_gedung,
                 ];
                 break;
-            case "tanah":
+            case 'tanah':
                 $template = 'dashboard.dashboardTanah';
                 $klasifikasi_tanah = $dashboard->getdata('statistik_klasifikasi_tanah', $level, $wilayah, $satker);
                 $kelompok_tanah = $dashboard->getdata('statistik_kelompok_tanah', $level, $wilayah, $satker);
@@ -389,7 +387,7 @@ class MainController extends Controller
                     'sub_kelompok_tanah' => $sub_kelompok_tanah,
                 ];
                 break;
-            case "tanah":
+            case 'tanah':
                 $template = 'dashboard.dashboardTanah';
                 $klasifikasi_tanah = $dashboard->getdata('statistik_klasifikasi_tanah', $level, $wilayah, $satker);
                 $kelompok_tanah = $dashboard->getdata('statistik_kelompok_tanah', $level, $wilayah, $satker);
@@ -412,11 +410,11 @@ class MainController extends Controller
         $wilayah = $request->input('wilayah');
         $satker = $request->input('satker');
 
-        $dashboard = new Dashboard();
+        $dashboard = new Dashboard;
         $dataAset = $dashboard->getdata('statistik_bmn', $level, $wilayah, $satker);
         $grafik_tahun_asset = $dashboard->getdata('statistik_grafik_tahun_asset', $level, $wilayah, $satker);
         $grafik_psp_asset = $dashboard->getdata('statistik_grafik_psp_asset', $level, $wilayah, $satker);
-        
+
         // Get kondisi data for each asset type with filters
         $kondisi_aset_lainnya = $dashboard->getdata('statistik_kondisi_aset_lainnya', $level, $wilayah, $satker);
         $kondisi_renovasi = $dashboard->getdata('statistik_kondisi_renovasi', $level, $wilayah, $satker);
@@ -437,16 +435,16 @@ class MainController extends Controller
         $psp = [];
         $totalpsp = [];
 
-        //$tahun_perolehan = (array) $dashboard->getTahunPerolehan();
-        if (!empty($grafik_tahun_asset)) {
+        // $tahun_perolehan = (array) $dashboard->getTahunPerolehan();
+        if (! empty($grafik_tahun_asset)) {
             $tahun = Arr::pluck($grafik_tahun_asset, 'tahun');
             $totalAsset = Arr::pluck($grafik_tahun_asset, 'total');
         }
-        if (!empty($grafik_psp_asset)) {
+        if (! empty($grafik_psp_asset)) {
             $psp = Arr::pluck($grafik_psp_asset, 'tipe');
             $totalpsp = Arr::pluck($grafik_psp_asset, 'total');
         }
-        //$satkers = Master::getSatkersKeu();
+        // $satkers = Master::getSatkersKeu();
 
         $jenis = ['K/L', 'WILAYAH', 'SATKER'];
         $wilayahs = Master::getWilayahDashboard();
@@ -542,14 +540,17 @@ class MainController extends Controller
     public function searchPegawai(string $nip)
     {
         $pegawai = Master::getPegawaiByNip($nip);
-        if ($pegawai)
+        if ($pegawai) {
             return $this->resSuccess('ok', null, $pegawai);
+        }
+
         return $this->resError('Pegawai Tidak ditemukan');
     }
 
     public function getNotif()
     {
         $notifs = Notifikasi::getNotifs();
+
         return response()->json($notifs, 200);
     }
 
@@ -558,10 +559,10 @@ class MainController extends Controller
         $requestData = $request->json()->all();
         $id = $requestData['id'];
 
-        //echo $id;exit;
+        // echo $id;exit;
         $notif = Notifikasi::find($id);
 
-        if (!$notif) {
+        if (! $notif) {
             return response()->json(['message' => 'Notifikasi not found'], 404);
         }
 
@@ -576,16 +577,18 @@ class MainController extends Controller
     public function getGuideBook()
     {
         $path = config('constants.buku_panduan_path');
+
         return response()->json(asset($path));
     }
 
     public function gridDataPegawaiDashboard(Request $request)
     {
-        $user = new Master();
+        $user = new Master;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
 
         $data = $user->gridDataPegawaiDashboard($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -598,8 +601,9 @@ class MainController extends Controller
         $search = request()->input('q') ?? null;
 
         $data = Pengguna::getUserChanger(trim(strtolower($search)));
+
         return response()->json([
-            'data' => $data
+            'data' => $data,
         ]);
     }
 }

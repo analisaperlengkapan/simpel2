@@ -21,18 +21,21 @@ This document describes the comprehensive integration of the AI-resistant CAPTCH
 The CAPTCHA system is integrated at three critical authentication points:
 
 ### 1. Login Flow
+
 - **Always Required**: CAPTCHA is shown on every login attempt
 - **Purpose**: Prevent automated brute-force attacks
 - **Difficulty**: Standard (level 3) — the UI no longer displays the level, it is handled internally
 - **Location**: `/login` page
 
 ### 2. MFA Setup Flow
+
 - **Risk-Based**: CAPTCHA shown only for high-risk scenarios
 - **Purpose**: Prevent unauthorized MFA enrollment
 - **Difficulty**: Higher (level 5) due to sensitivity (still configurable via API, not shown to end user)
 - **Location**: `/mfa/setup` page
 
 ### 3. Password Reset Flow
+
 - **Always Required**: CAPTCHA mandatory for all reset requests
 - **Purpose**: Prevent account enumeration and automated attacks
 - **Difficulty**: Higher (level 4) due to sensitivity
@@ -112,6 +115,7 @@ sequenceDiagram
 ### Implementation
 
 **Frontend (Leptos)**:
+
 ```rust
 // In antarmuka/portal/src/pages/login.rs
 let handle_submit = move |ev: web_sys::SubmitEvent| {
@@ -143,6 +147,7 @@ let handle_submit = move |ev: web_sys::SubmitEvent| {
 ```
 
 **Backend (Authenc)**:
+
 ```rust
 // In layanan/authenc/src/handlers/api/auth.rs
 pub async fn login(
@@ -192,6 +197,7 @@ sequenceDiagram
 ### Implementation
 
 **Frontend (Leptos)**:
+
 ```rust
 // In antarmuka/portal/src/pages/mfa_setup.rs
 Effect::new(move |_| {
@@ -217,6 +223,7 @@ Effect::new(move |_| {
 ```
 
 **Backend (Authenc)**:
+
 ```rust
 // Risk assessment endpoint
 pub async fn assess_mfa_setup_risk(
@@ -285,6 +292,7 @@ sequenceDiagram
 ### Implementation
 
 **Frontend (Leptos)**:
+
 ```rust
 // In antarmuka/portal/src/pages/password_reset.rs
 let handle_request_reset = move |ev: web_sys::SubmitEvent| {
@@ -310,6 +318,7 @@ let handle_request_reset = move |ev: web_sys::SubmitEvent| {
 ```
 
 **Backend (Authenc)**:
+
 ```rust
 // Password reset request endpoint
 pub async fn request_password_reset(
@@ -332,6 +341,7 @@ pub async fn request_password_reset(
 ### CAPTCHA Endpoints
 
 #### Generate Challenge
+
 ```http
 POST /api/v1/captcha/challenge
 Content-Type: application/json
@@ -344,6 +354,7 @@ Content-Type: application/json
 ```
 
 #### Validate Challenge
+
 ```http
 POST /api/v1/captcha/validate
 Content-Type: application/json
@@ -358,6 +369,7 @@ Content-Type: application/json
 ### Risk Assessment Endpoints
 
 #### Assess Login Risk
+
 ```http
 POST /api/v1/captcha/risk/login
 Content-Type: application/json
@@ -376,6 +388,7 @@ Response:
 ```
 
 #### Assess MFA Setup Risk
+
 ```http
 GET /api/v1/captcha/risk/mfa-setup
 Authorization: Bearer <token>
@@ -389,6 +402,7 @@ Response:
 ```
 
 #### Assess Password Reset Risk
+
 ```http
 POST /api/v1/captcha/risk/password-reset
 Content-Type: application/json
@@ -412,6 +426,7 @@ Response:
 ### Authentication Endpoints with CAPTCHA
 
 #### Login
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -424,6 +439,7 @@ Content-Type: application/json
 ```
 
 #### MFA Setup
+
 ```http
 POST /api/auth/mfa/setup
 Authorization: Bearer <token>
@@ -435,6 +451,7 @@ Content-Type: application/json
 ```
 
 #### Password Reset Request
+
 ```http
 POST /api/auth/password-reset/request
 Content-Type: application/json
@@ -623,16 +640,19 @@ trunk test --headless
 To add CAPTCHA to existing authentication flows:
 
 1. **Add CAPTCHA Component**:
+
    ```rust
    use shared_microfrontend::components::captcha::Captcha;
    ```
 
 2. **Add State Management**:
+
    ```rust
    let (captcha_token, set_captcha_token) = signal(None::<String>);
    ```
 
 3. **Add CAPTCHA UI**:
+
    ```rust
    <Captcha
        on_success=Callback::new(move |token| set_captcha_token.set(Some(token)))
@@ -642,6 +662,7 @@ To add CAPTCHA to existing authentication flows:
    ```
 
 4. **Update API Calls**:
+
    ```rust
    let request = MyRequest {
        // ... existing fields
@@ -650,6 +671,7 @@ To add CAPTCHA to existing authentication flows:
    ```
 
 5. **Update Backend Handlers**:
+
    ```rust
    // Validate CAPTCHA if provided
    if let Some(token) = &req.captcha_token {
@@ -660,6 +682,7 @@ To add CAPTCHA to existing authentication flows:
 ## Support
 
 For issues or questions:
+
 - Check troubleshooting section above
 - Review logs in `/var/log/authenc/captcha.log`
 - Contact security team: security@kejaksaan.go.id

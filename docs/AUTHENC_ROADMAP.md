@@ -484,7 +484,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - ❌ Session browser with bulk operations
 - ❌ Security settings dashboard with threat visualization
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Web-based administration interface
 - ❌ Realm management UI
@@ -499,7 +499,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - ❌ Metrics and analytics dashboard
 - ❌ Real-time monitoring
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ Centralized user administration untuk admin pusat
@@ -508,7 +508,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ✅ Compliance reporting interface
 ```
 
-#### Architecture:
+#### Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -531,7 +531,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 └─────────────────────────────────────────────┘
 ```
 
-#### Technology Stack:
+#### Technology Stack
 
 ```typescript
 // Frontend (pilihan):
@@ -543,7 +543,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - Authenc REST API di /api/v1/admin/*
 ```
 
-#### Estimasi Effort:
+#### Estimasi Effort
 
 - **Week 1-2**: Dashboard + user management UI
 - **Week 3-4**: Client management + role management UI
@@ -557,7 +557,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 **Prioritas**: **CRITICAL** (Required untuk end-users)
 **Kompleksitas**: Medium (3-4 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ User profile page (view/edit personal info)
 - ❌ Password change interface
@@ -569,7 +569,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 - ❌ Email verification UI
 - ❌ Account deletion request
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ Users dapat manage MFA devices sendiri
@@ -578,7 +578,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 ✅ Manage consent untuk microfrontend access
 ```
 
-#### Architecture:
+#### Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -594,7 +594,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 └─────────────────────────────────────────────┘
 ```
 
-#### API Endpoints (sudah ada sebagian):
+#### API Endpoints (sudah ada sebagian)
 
 ```http
 GET    /api/v1/account/profile
@@ -606,7 +606,7 @@ GET    /api/v1/account/consents
 DELETE /api/v1/account/consents/:client_id
 ```
 
-#### Estimasi Effort:
+#### Estimasi Effort
 
 - **Week 1**: Profile management + password change
 - **Week 2**: MFA device management
@@ -641,7 +641,7 @@ See section 17 above for complete implementation details.
 **Prioritas**: - (Completed)
 **Kompleksitas**: - (Completed)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ User attribute mapper (map user attributes to JWT claims)
 - ✅ Role mapper (include roles in JWT)
@@ -654,7 +654,7 @@ See section 17 above for complete implementation details.
 - ✅ User realm role mapper
 - ✅ User client role mapper
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ Map "satker_id" user attribute to JWT claim
@@ -663,7 +663,7 @@ See section 17 above for complete implementation details.
 ✅ Transform user data before including in token
 ```
 
-#### Architecture:
+#### Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -686,7 +686,7 @@ See section 17 above for complete implementation details.
 └─────────────────────────────────────────────┘
 ```
 
-#### Data Model:
+#### Data Model
 
 ```rust
 pub struct ProtocolMapper {
@@ -709,7 +709,7 @@ pub enum MapperType {
 }
 ```
 
-#### Estimasi Effort:
+#### Estimasi Effort
 
 - **Week 1**: User attribute + role mappers
 - **Week 2**: Group + hardcoded mappers
@@ -734,14 +734,14 @@ See section 18 above for complete implementation details.
 **Prioritas**: **MEDIUM** (Backend already exists)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Sudah Ada (Backend):
+#### Fitur yang Sudah Ada (Backend)
 
 - ✅ SAML Identity Provider integration
 - ✅ OIDC Identity Provider integration
 - ✅ Social login providers
 - ✅ Identity brokering logic
 
-#### Fitur yang Dibutuhkan (UI):
+#### Fitur yang Dibutuhkan (UI)
 
 - ❌ Identity provider configuration UI
 - ❌ Social login provider setup UI
@@ -759,13 +759,13 @@ See section 18 above for complete implementation details.
 **Prioritas**: **MEDIUM** (Advanced authorization)
 **Kompleksitas**: High (3-4 minggu development)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ Basic RBAC (role-based access control)
 - ✅ Permission tickets (UMA 2.0 partial)
 - ✅ Resource server registration
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Resource registration API (complete UMA 2.0)
 - ❌ Policy-based authorization (JavaScript/Drools)
@@ -775,7 +775,7 @@ See section 18 above for complete implementation details.
 - ❌ Policy evaluation engine
 - ❌ Context-aware authorization
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ User A dapat delegate access resource X ke User B
@@ -794,13 +794,13 @@ See section 18 above for complete implementation details.
 **Prioritas**: **MEDIUM** (OAuth2 DCR standard)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ Manual client registration (admin API)
 - ✅ Client credentials storage
 - ✅ RFC 7591 partial implementation (`layanan/authenc/src/handlers/client_registration.rs`)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Complete RFC 7591 compliance (Dynamic Client Registration)
 - ❌ Client metadata endpoint (RFC 7592)
@@ -819,7 +819,7 @@ See section 18 above for complete implementation details.
 **Prioritas**: **MEDIUM** (Branding)
 **Kompleksitas**: Medium (2-3 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Customizable login page
 - ❌ Custom CSS/JavaScript injection
@@ -829,7 +829,7 @@ See section 18 above for complete implementation details.
 - ❌ Theme inheritance
 - ❌ Per-realm themes
 
-#### Use Cases di SIMKARI:
+#### Use Cases di SIMKARI
 
 ```
 ✅ Kejaksaan Agung branding pada login page
@@ -857,7 +857,7 @@ See section 19 above for complete implementation details.
 **Prioritas**: **MEDIUM** (Security policies)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Client authentication policies (allowed methods)
 - ❌ Client registration policies
@@ -892,12 +892,12 @@ See section 15 above for complete implementation details.
 **Prioritas**: **LOW** (Advanced WebAuthn)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Sudah Ada:
+#### Fitur yang Sudah Ada
 
 - ✅ WebAuthn registration
 - ✅ WebAuthn authentication
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Authenticator attestation verification
 - ❌ Trusted authenticator whitelist
@@ -913,7 +913,7 @@ See section 15 above for complete implementation details.
 **Prioritas**: **LOW** (Extensibility)
 **Kompleksitas**: High (3 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Custom user storage provider interface
 - ❌ External user database integration
@@ -930,7 +930,7 @@ See section 15 above for complete implementation details.
 **Prioritas**: **LOW** (Operations)
 **Kompleksitas**: Medium (2 minggu development)
 
-#### Fitur yang Dibutuhkan:
+#### Fitur yang Dibutuhkan
 
 - ❌ Command-line admin tool
 - ❌ Bulk operations (import users, export config)
@@ -1026,7 +1026,7 @@ See section 15 above for complete implementation details.
 
 ## 🎯 Rekomendasi Prioritas (Updated)
 
-### ✅ COMPLETED (November-December 2025):
+### ✅ COMPLETED (November-December 2025)
 
 1. ✅ **Service Accounts** - Microservices authentication
 2. ✅ **Client Scopes** - Fine-grained access control
@@ -1035,17 +1035,17 @@ See section 15 above for complete implementation details.
 5. ✅ **Token Exchange (RFC 8693)** - Service-to-service token exchange
 6. ✅ **WebAuthn Attestation** - Full FIDO2 attestation verification
 
-### Immediate (Next Sprint - Q1 2026):
+### Immediate (Next Sprint - Q1 2026)
 
 1. **Admin Console UI (Complete)** - Full interactive frontend
 2. **Account Management UI** - End-user self-service
 
-### Medium-term (Q2 2026):
+### Medium-term (Q2 2026)
 
 3. **Fine-grained Authorization** - Advanced policies (UMA 2.0)
 4. **Identity Brokering UI** - Provider configuration interface
 
-### Long-term (Q3 2026):
+### Long-term (Q3 2026)
 
 5. **Themes & Customization** - Branding
 6. **Client Policies** - Security profiles
@@ -1089,14 +1089,14 @@ See section 15 above for complete implementation details.
 
 ## 🔧 Technical Debt & Existing Issues
 
-### Known TODOs (from code analysis):
+### Known TODOs (from code analysis)
 
 1. **Vault integration**: Stub implementations (KeystoreVault, KmsVault, HashicorpVault)
 2. **OAuth handlers**: Some endpoints have placeholder implementations
 3. **Test coverage**: Integration tests need database mocking improvements
 4. **OIDC provider**: Temporary RSA → Ed25519 migration comments
 
-### Migration Notes:
+### Migration Notes
 
 - ✅ **Ed25519 JWT signing** sudah fully implemented (timing-attack resistant)
 - ✅ **Axum migration** from Actix-web sudah complete
@@ -1107,20 +1107,20 @@ See section 15 above for complete implementation details.
 
 ## 📚 Reference Documentation
 
-### Keycloak Documentation:
+### Keycloak Documentation
 
 - **Server Admin**: https://www.keycloak.org/docs/latest/server_admin/
 - **Authorization Services**: https://www.keycloak.org/docs/latest/authorization_services/
 - **Server Developer**: https://www.keycloak.org/docs/latest/server_development/
 
-### Existing Authenc Documentation:
+### Existing Authenc Documentation
 
 - `docs/AUTHENC_GETTING_STARTED_GUIDE.md`
 - `layanan/authenc/README.md`
 - `docs/MFA_ARCHITECTURE_DOCUMENTATION.md`
 - `antarmuka/COMPLETE_AUTH_FLOW_ARCHITECTURE.md`
 
-### OAuth2/OIDC Standards:
+### OAuth2/OIDC Standards
 
 - RFC 6749 (OAuth 2.0)
 - RFC 7662 (Token Introspection)
@@ -1133,7 +1133,7 @@ See section 15 above for complete implementation details.
 
 ## 🎓 Implementation Guidelines
 
-### For Admin Console:
+### For Admin Console
 
 ```typescript
 // Technology choices:
@@ -1150,7 +1150,7 @@ See section 15 above for complete implementation details.
    - Con: Cutting edge, smaller community
 ```
 
-### For LDAP Federation:
+### For LDAP Federation
 
 ```rust
 // Use ldap3 crate:
@@ -1165,7 +1165,7 @@ let manager = LdapConnectionManager::new("ldap://server");
 let pool = Pool::builder().max_size(15).build(manager)?;
 ```
 
-### For Protocol Mappers:
+### For Protocol Mappers
 
 ```rust
 // Trait-based design:

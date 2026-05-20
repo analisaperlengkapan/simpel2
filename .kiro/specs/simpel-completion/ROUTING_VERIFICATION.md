@@ -1,4 +1,5 @@
 # Verifikasi Routing Frontend SIMPEL Perlengkapan
+
 **Tanggal:** 9 April 2026
 **Status:** ⚠️ INCOMPLETE - Ada route yang belum terhubung
 
@@ -7,6 +8,7 @@
 ## 1. Route yang Sudah Terhubung ✅
 
 ### 1.1 Dashboard Routes
+
 ```rust
 ✅ /                                    → Redirect to /dashboard
 ✅ /dashboard                           → DashboardHome
@@ -14,12 +16,14 @@
 ```
 
 ### 1.2 Bank Aset Routes
+
 ```rust
 ✅ /dashboard/bank-aset/daftar          → AsetList
 ✅ /dashboard/bank-aset/qrcode          → QrCodeGenerator
 ```
 
 ### 1.3 Kebutuhan BMN Routes
+
 ```rust
 ✅ /dashboard/kebutuhan-bmn/periode     → PeriodManagement
 ✅ /dashboard/kebutuhan-bmn/daftar      → KebutuhanBmnList
@@ -30,6 +34,7 @@
 ```
 
 ### 1.4 Pakaian Dinas Routes
+
 ```rust
 ✅ /dashboard/pakaian-dinas/jenis       → PakaianDinasJenisList
 ✅ /dashboard/pakaian-dinas/pengajuan   → PakaianDinasPengajuanList
@@ -38,6 +43,7 @@
 ```
 
 ### 1.5 Pengelolaan BMN Routes
+
 ```rust
 ✅ /dashboard/pengelolaan/pemakaian                 → PemakaianBmnList
 ✅ /dashboard/pengelolaan/pemakaian/buat            → PemakaianBmnForm
@@ -49,6 +55,7 @@
 ```
 
 ### 1.6 Analitik Routes
+
 ```rust
 ✅ /dashboard/analitik/roadmap          → AnalisisList
 ✅ /dashboard/analitik/roadmap/buat     → AnalisisForm
@@ -56,6 +63,7 @@
 ```
 
 ### 1.7 Admin Routes
+
 ```rust
 ✅ /dashboard/admin/users               → AdminUsersPage
 ✅ /dashboard/admin/roles               → AdminRolesPage
@@ -66,6 +74,7 @@
 ```
 
 ### 1.8 Bantuan Routes
+
 ```rust
 ✅ /dashboard/bantuan/panduan           → PanduanPengguna
 ✅ /dashboard/bantuan/faq               → FaqPage
@@ -83,16 +92,19 @@
 **Status:** ❌ **TIDAK TERHUBUNG**
 
 **Masalah:**
+
 1. Component `SearchPage` sudah dibuat (Task 11.2 ✅)
 2. Module sudah di-export di `pages/mod.rs` ✅
 3. **TAPI** tidak ada route di `lib.rs` ❌
 
 **Route yang Harus Ditambahkan:**
+
 ```rust
 <Route path=path!("/dashboard/search") view=SearchPage />
 ```
 
 **Atau alternatif:**
+
 ```rust
 <Route path=path!("/search") view=SearchPage />
 ```
@@ -100,6 +112,7 @@
 ### 2.2 Pemakaian BMN Pages (dari pages/pemakaian_bmn/)
 
 **Files yang Ada:**
+
 ```
 ✅ permit_creation_page.rs       - Component: PermitCreationPage
 ✅ bmn_selection_page.rs          - Component: BmnSelectionPage
@@ -110,9 +123,11 @@
 **Status:** ⚠️ **PARTIALLY CONNECTED**
 
 **Analisis:**
+
 - Pages sudah dibuat (Task 8.6 ✅)
 - Tapi di `lib.rs` menggunakan component dari `components/` bukan dari `pages/pemakaian_bmn/`
 - Routes yang ada:
+
   ```rust
   /dashboard/pengelolaan/pemakaian           → PemakaianBmnList (dari components)
   /dashboard/pengelolaan/pemakaian/buat      → PemakaianBmnForm (dari components)
@@ -121,6 +136,7 @@
   ```
 
 **Kemungkinan:**
+
 1. Pages di `pages/pemakaian_bmn/` adalah implementasi baru yang belum digunakan
 2. Components di `components/` adalah implementasi lama yang masih digunakan
 3. Perlu migrasi dari components ke pages
@@ -128,6 +144,7 @@
 ### 2.3 Kebutuhan BMN Pages (dari pages/kebutuhan_bmn/)
 
 **Files yang Ada:**
+
 ```
 ✅ period_management.rs - Component: PeriodManagement
 ```
@@ -135,6 +152,7 @@
 **Status:** ✅ **CONNECTED**
 
 Route sudah ada:
+
 ```rust
 <Route path=path!("/dashboard/kebutuhan-bmn/periode") view=PeriodManagement />
 ```
@@ -148,6 +166,7 @@ Perlu dicek apakah ada pages di `pages/penghapusan_bmn/` yang belum terhubung.
 ### 2.5 Workflow Pages (dari pages/workflow/)
 
 **Files yang Ada:**
+
 ```
 ✅ config_management.rs - Component: WorkflowConfigManagement
 ✅ monitoring.rs         - Component: WorkflowMonitoring
@@ -156,6 +175,7 @@ Perlu dicek apakah ada pages di `pages/penghapusan_bmn/` yang belum terhubung.
 **Status:** ✅ **CONNECTED**
 
 Routes sudah ada:
+
 ```rust
 <Route path=path!("/dashboard/admin/workflow") view=WorkflowConfigManagement />
 <Route path=path!("/dashboard/admin/workflow-monitoring") view=WorkflowMonitoring />
@@ -170,6 +190,7 @@ Routes sudah ada:
 **File:** `antarmuka/perlengkapan/src/lib.rs`
 
 **Tambahkan import:**
+
 ```rust
 use pages::search_page::SearchPage;
 ```
@@ -177,11 +198,13 @@ use pages::search_page::SearchPage;
 **Tambahkan route (pilih salah satu):**
 
 **Opsi 1: Di bawah Dashboard (Recommended)**
+
 ```rust
 <Route path=path!("/dashboard/search") view=SearchPage />
 ```
 
 **Opsi 2: Top-level**
+
 ```rust
 <Route path=path!("/search") view=SearchPage />
 ```
@@ -193,6 +216,7 @@ use pages::search_page::SearchPage;
 Jika pages di `pages/pemakaian_bmn/` adalah implementasi baru yang lebih baik:
 
 **Tambahkan imports:**
+
 ```rust
 use pages::pemakaian_bmn::permit_creation_page::PermitCreationPage;
 use pages::pemakaian_bmn::bmn_selection_page::BmnSelectionPage;
@@ -201,6 +225,7 @@ use pages::pemakaian_bmn::monitoring_dashboard_page::MonitoringDashboardPage;
 ```
 
 **Update routes:**
+
 ```rust
 <Route path=path!("/dashboard/pengelolaan/pemakaian/buat") view=PermitCreationPage />
 <Route path=path!("/dashboard/pengelolaan/pemakaian/bmn-selection") view=BmnSelectionPage />
@@ -213,6 +238,7 @@ use pages::pemakaian_bmn::monitoring_dashboard_page::MonitoringDashboardPage;
 ### 3.3 Verifikasi Sidebar Links
 
 Pastikan sidebar memiliki link ke:
+
 ```
 ✅ Dashboard
 ✅ Bank Aset
@@ -232,6 +258,7 @@ Pastikan sidebar memiliki link ke:
 ### 4.1 Immediate Actions (CRITICAL)
 
 - [ ] **Tambahkan route untuk SearchPage di lib.rs**
+
   ```rust
   use pages::search_page::SearchPage;
   // ...
@@ -239,6 +266,7 @@ Pastikan sidebar memiliki link ke:
   ```
 
 - [ ] **Tambahkan link Search di Sidebar**
+
   ```rust
   <a href="/perlengkapan/dashboard/search">
       <i class="fas fa-search"></i>
@@ -275,12 +303,14 @@ Pastikan sidebar memiliki link ke:
 ## 5. Route Naming Conventions
 
 ### 5.1 Current Pattern
+
 ```
 /dashboard/{module}/{action}
 /dashboard/{module}/{action}/{id}
 ```
 
 **Examples:**
+
 - `/dashboard/kebutuhan-bmn/daftar`
 - `/dashboard/kebutuhan-bmn/detail/:id`
 - `/dashboard/pengelolaan/pemakaian/buat`
@@ -288,6 +318,7 @@ Pastikan sidebar memiliki link ke:
 ### 5.2 Consistency Check ✅
 
 All routes follow consistent naming:
+
 - ✅ Kebab-case for URLs
 - ✅ Indonesian language for actions (daftar, buat, detail, laporan)
 - ✅ Hierarchical structure (dashboard → module → action)
@@ -308,6 +339,7 @@ All routes follow consistent naming:
 **Status:** ⚠️ Needs Verification
 
 **Check:**
+
 - Are routes protected by authentication?
 - Are routes protected by role-based access control?
 - Are there redirects for unauthorized access?
@@ -352,6 +384,7 @@ All routes follow consistent naming:
 **Status:** ⚠️ **97% Complete - 1 Critical Route Missing**
 
 **Action Required:**
+
 1. Tambahkan route untuk SearchPage (CRITICAL)
 2. Tambahkan link Search di Sidebar
 3. Test search functionality
@@ -365,11 +398,13 @@ All routes follow consistent naming:
 ### 8.1 File: `antarmuka/perlengkapan/src/lib.rs`
 
 **Line ~30 - Add import:**
+
 ```rust
 use pages::search_page::SearchPage;
 ```
 
 **Line ~120 - Add route (after dashboard routes):**
+
 ```rust
 <Route path=path!("/dashboard") view=DashboardHome />
 <Route path=path!("/dashboard/perlengkapan") view=DashboardPerlengkapan />
@@ -379,6 +414,7 @@ use pages::search_page::SearchPage;
 ### 8.2 File: `antarmuka/perlengkapan/src/components/sidebar.rs`
 
 **Add search link in navigation menu:**
+
 ```rust
 <a href="/perlengkapan/dashboard/search" class="sidebar-link">
     <i class="fas fa-search"></i>

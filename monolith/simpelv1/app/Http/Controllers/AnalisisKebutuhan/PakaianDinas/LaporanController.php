@@ -5,8 +5,8 @@ namespace App\Http\Controllers\AnalisisKebutuhan\PakaianDinas;
 use App\Exports\ExportExcelFromView;
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\AnalisisKebutuhan\PakaianDinas as Model;
 use App\Models\AnalisisKebutuhan\PakaianDinas;
+use App\Models\AnalisisKebutuhan\PakaianDinas as Model;
 use App\Models\Master;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +14,10 @@ use Maatwebsite\Excel\Facades\Excel;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
-use function Psy\debug;
-
 class LaporanController extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Pakaian Dinas', 'Laporan'];
+
     private $controller = '/analisis-kebutuhan/pakaian-dinas/laporan';
 
     public function getPengadaanByTahun(string $tahun)
@@ -29,12 +28,14 @@ class LaporanController extends Controller
                 'data' => $pengadaans,
                 'text' => 'nama',
                 'value' => 'id',
-                'type' => 'raw'
+                'type' => 'raw',
             ]
         );
+
         return response()->json($pengadaans);
     }
-    function mapFilter($filter)
+
+    public function mapFilter($filter)
     {
         $newFilter = [];
         if ($filter['jenis'] != '') {
@@ -42,7 +43,7 @@ class LaporanController extends Controller
         }
 
         if ($filter['eselon'] == 'non') {
-        } else if ($filter['eselon'] != '') {
+        } elseif ($filter['eselon'] != '') {
             array_push($newFilter, ['label' => 'Eselon', 'value' => 'Non Eselon']);
         }
 
@@ -52,6 +53,7 @@ class LaporanController extends Controller
 
         return $newFilter;
     }
+
     public function getData()
     {
         $pengadaans = PakaianDinas::all();
@@ -68,7 +70,7 @@ class LaporanController extends Controller
                     'data' => $pengadaans,
                     'text' => 'nama',
                     'value' => 'id',
-                    'type' => 'raw'
+                    'type' => 'raw',
                 ]
             ),
             'wilayahs' => MyHelper::generateSelectOptions(
@@ -76,7 +78,7 @@ class LaporanController extends Controller
                     'data' => $msSatker['wilayahs'],
                     'text' => 'inst_nama',
                     'value' => 'inst_satkerkd',
-                    'type' => 'raw'
+                    'type' => 'raw',
                 ]
             ),
             'satkers' => MyHelper::generateSelectOptions(
@@ -84,7 +86,7 @@ class LaporanController extends Controller
                     'data' => $msSatker['satkers'],
                     'text' => 'inst_nama',
                     'value' => 'inst_satkerkd',
-                    'type' => 'raw'
+                    'type' => 'raw',
                 ]
             ),
             'pusats' => MyHelper::generateSelectOptions(
@@ -92,30 +94,35 @@ class LaporanController extends Controller
                     'data' => $msSatker['pusats'],
                     'text' => 'inst_nama',
                     'value' => 'inst_satkerkd',
-                    'type' => 'raw'
+                    'type' => 'raw',
                 ]
-            )
+            ),
         ];
+
         return $data;
     }
 
     public function mobile()
     {
         $data = $this->getData();
+
         return response()->json($data);
     }
+
     public function index()
     {
         $data = $this->getData();
+
         return view('analisis_kebutuhan.pakaian_dinas.laporanV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -129,17 +136,18 @@ class LaporanController extends Controller
             'tableId' => 'dt-user',
             'pengajuanId' => $pengajuanId,
             'breadcums' => array_merge($this->breadcums, ['List Satker']),
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridDataSatker(Request $request)
     {
-        $model = new Model();
+        $model = new Model;
         $pengajuanId = $_GET['pengajuanId'];
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getGridDataSatker($pagingParams, $searchParams, $pengajuanId);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -147,16 +155,16 @@ class LaporanController extends Controller
         ]);
     }
 
-    function cetakRekap(Request $req, $jenisFile)
+    public function cetakRekap(Request $req, $jenisFile)
     {
-        $model = new Model();
+        $model = new Model;
         try {
             [$header, $pakaians, $dataUkuran, $listSatker, $dataSummaryPakaian] = $model->dataRekap(
                 [
                     'pengajuan_id' => $req->query('pengajuan_id'),
                     'kejati_id' => $req->query('kejati_id'),
                     'ms_satker_id' => $req->query('ms_satker_id'),
-                    'filter' => $req->query('filter')
+                    'filter' => $req->query('filter'),
                 ]
             );
 
@@ -172,8 +180,9 @@ class LaporanController extends Controller
             // dd($data);
         } catch (\Throwable $th) {
             $msg = $th->getMessage();
-            if (!$msg)
+            if (! $msg) {
                 dd($th);
+            }
             // dd($th->getMessage());
             // dd($data);
             echo "<script>alert('Satker Belum Input');window.close();</script>";
@@ -194,9 +203,10 @@ class LaporanController extends Controller
                 [
                     'default_font_size' => 7,
                     'orientation' => 'L',
-                    'title' => $title
+                    'title' => $title,
                 ]
             );
+
             return $pdf->stream('Laporan.pdf');
         } elseif ($jenisFile == 'excel') {
             return $this->cetakExcel(['data' => $data, 'title' => $title, 'view' => $view]);
@@ -205,23 +215,24 @@ class LaporanController extends Controller
         }
     }
 
-    function cetakDaftar(Request $req, $jenisFile)
+    public function cetakDaftar(Request $req, $jenisFile)
     {
-	ini_set('pcre.backtrack_limit', '100000000000');
-        $model = new Model();
+        ini_set('pcre.backtrack_limit', '100000000000');
+        $model = new Model;
         try {
             [$header, $pakaians, $ukuranPegawais, $listSatker, $dataPerSatker, $isPusat] = $model->getDataDaftar(
                 [
                     'pengajuan_id' => $req->query('pengajuan_id'),
                     'kejati_id' => $req->query('kejati_id'),
                     'ms_satker_id' => $req->query('ms_satker_id'),
-                    'filter' => $req->query('filter')
+                    'filter' => $req->query('filter'),
                 ]
             );
         } catch (\Throwable $th) {
             $msg = $th->getMessage();
-            if (!$msg)
+            if (! $msg) {
                 dd($th);
+            }
             echo "<script>alert('{$msg}');window.close();</script>";
             exit;
         }
@@ -238,7 +249,7 @@ class LaporanController extends Controller
             'listSatker' => $listSatker,
             'dataPerSatker' => $dataPerSatker,
             'mappedUkurans' => $mappedUkurans,
-            'isExcel' => $jenisFile == 'excel' ? true : false
+            'isExcel' => $jenisFile == 'excel' ? true : false,
         ];
         $view =
             'analisis_kebutuhan.pakaian_dinas.laporan.cetakDaftarTemplateV';
@@ -260,8 +271,10 @@ class LaporanController extends Controller
         } else {
             throw new NotFoundHttpException('Jenis Cetakan Laporan Tidak Ditemukan');
         }
+
         return $pdf->stream('Laporan.pdf');
     }
+
     public function cetak(Request $req)
     {
         switch ($req->query('jenis_laporan')) {
@@ -276,7 +289,7 @@ class LaporanController extends Controller
         }
     }
 
-    function eselon()
+    public function eselon()
     {
         $unitkerjas = DB::table('unit_kerja')->get();
         foreach ($unitkerjas as $key => $unit) {
@@ -312,19 +325,21 @@ class LaporanController extends Controller
                     $updated = [];
                     break;
             }
-            if (!empty($updated)) {
+            if (! empty($updated)) {
                 DB::table('unit_kerja')->where(['id' => $unit->id])->update($updated);
             }
         }
         dd($test);
     }
-    function removeLastElement($array)
+
+    public function removeLastElement($array)
     {
         array_pop($array);
+
         return $array;
     }
 
-    function cetakExcel($params)
+    public function cetakExcel($params)
     {
         return Excel::download(new ExportExcelFromView($params['data'], $params['view']), "{$params['title']}.xlsx", \Maatwebsite\Excel\Excel::XLSX);
     }

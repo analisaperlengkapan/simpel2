@@ -4,8 +4,8 @@ namespace App\Http\Controllers\AnalisisKebutuhan\Bmn;
 
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
-use App\Models\AnalisisKebutuhan\Bmn as Model;
 use App\Models\AnalisisKebutuhan\Bmn;
+use App\Models\AnalisisKebutuhan\Bmn as Model;
 use App\Models\AnalisisKebutuhan\BmnAsset;
 use App\Models\AnalisisKebutuhan\BmnSatker;
 use App\Models\AnalisisKebutuhan\BmnSatkerAktifitas;
@@ -13,22 +13,23 @@ use App\Models\AnalisisKebutuhan\BmnSatkerBarang;
 use App\Models\ApprovalUserSpseSirup;
 use App\Models\Files;
 use App\Models\Master;
+use App\Models\Master\MsSatker as MasterMsSatker;
 use App\Models\Notifikasi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Illuminate\Support\Facades\File as FileManager;
-use App\Models\Master\MsSatker as MasterMsSatker;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PengajuanController extends Controller
 {
     protected $breadcums = ['Analisis Kebutuhan', 'Kebutuhan BMN'];
+
     private $controller = '/analisis-kebutuhan/bmn/pengajuan';
 
     public function __construct(Request $request)
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Pengajuan']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Pengajuan']]);
     }
 
     public function index()
@@ -39,6 +40,7 @@ class PengajuanController extends Controller
             'controller' => $this->controller,
             'operasi' => $this->userOperation(),
         ];
+
         return view('analisis_kebutuhan.bmn.pengajuan.pengajuanV', $data);
     }
 
@@ -63,11 +65,12 @@ class PengajuanController extends Controller
 
     public function gridData(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
 
         $data = $user->getGridData($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -77,10 +80,11 @@ class PengajuanController extends Controller
 
     public function gridDataSatker(Request $request)
     {
-        $user = new Model();
+        $user = new Model;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams = $request->only(['columns','id']);
+        $searchParams = $request->only(['columns', 'id']);
         $data = $user->getGridDataSatker($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -90,53 +94,54 @@ class PengajuanController extends Controller
 
     public function gridDataBarang($id)
     {
-        $data = BmnSatkerBarang::where('pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id',$id)
-        ->select('pengajuan_kebutuhan_bmn_satker_barang.id','pengajuan_kebutuhan_bmn_satker_barang.nama',
-        'pengajuan_kebutuhan_bmn_satker_barang.jumlah','pengajuan_kebutuhan_bmn_satker_barang.alasan',
-        'pengajuan_kebutuhan_bmn_satker_barang.file_pendukung','pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id',
-        'pengajuan_kebutuhan_bmn_satker_barang.prioritas','pengajuan_kebutuhan_bmn_satker_barang.keterangan','pengajuan_kebutuhan_bmn_satker_barang.jml_setuju','pengajuan_kebutuhan_bmn_satker_barang.kode_barang',DB::raw('COUNT(d.kode_barang) as jumlah_exist'))
-        ->leftJoin('pengajuan_kebutuhan_bmn_satker as b', 'pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id', '=', 'b.id')
-        ->leftJoin('ms_satker as c', 'b.ms_satker_id', '=', 'c.inst_satkerkd')
-        ->leftJoin('vw_asset_barang_kdsatker as d',function($join){
-            $join->on('d.kdsatker_keu', '=', 'c.kdsatker_keu')
-            ->on('d.kode_barang', '=', 'pengajuan_kebutuhan_bmn_satker_barang.kode_barang');
-        })
-        ->groupBY('pengajuan_kebutuhan_bmn_satker_barang.id','pengajuan_kebutuhan_bmn_satker_barang.nama',
-        'pengajuan_kebutuhan_bmn_satker_barang.jumlah','pengajuan_kebutuhan_bmn_satker_barang.alasan',
-        'pengajuan_kebutuhan_bmn_satker_barang.file_pendukung','pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id',
-        'pengajuan_kebutuhan_bmn_satker_barang.prioritas','pengajuan_kebutuhan_bmn_satker_barang.keterangan','pengajuan_kebutuhan_bmn_satker_barang.jml_setuju','pengajuan_kebutuhan_bmn_satker_barang.kode_barang')
-        ->orderBy('prioritas','ASC')->get()->toArray();
+        $data = BmnSatkerBarang::where('pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id', $id)
+            ->select('pengajuan_kebutuhan_bmn_satker_barang.id', 'pengajuan_kebutuhan_bmn_satker_barang.nama',
+                'pengajuan_kebutuhan_bmn_satker_barang.jumlah', 'pengajuan_kebutuhan_bmn_satker_barang.alasan',
+                'pengajuan_kebutuhan_bmn_satker_barang.file_pendukung', 'pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id',
+                'pengajuan_kebutuhan_bmn_satker_barang.prioritas', 'pengajuan_kebutuhan_bmn_satker_barang.keterangan', 'pengajuan_kebutuhan_bmn_satker_barang.jml_setuju', 'pengajuan_kebutuhan_bmn_satker_barang.kode_barang', DB::raw('COUNT(d.kode_barang) as jumlah_exist'))
+            ->leftJoin('pengajuan_kebutuhan_bmn_satker as b', 'pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id', '=', 'b.id')
+            ->leftJoin('ms_satker as c', 'b.ms_satker_id', '=', 'c.inst_satkerkd')
+            ->leftJoin('vw_asset_barang_kdsatker as d', function ($join) {
+                $join->on('d.kdsatker_keu', '=', 'c.kdsatker_keu')
+                    ->on('d.kode_barang', '=', 'pengajuan_kebutuhan_bmn_satker_barang.kode_barang');
+            })
+            ->groupBY('pengajuan_kebutuhan_bmn_satker_barang.id', 'pengajuan_kebutuhan_bmn_satker_barang.nama',
+                'pengajuan_kebutuhan_bmn_satker_barang.jumlah', 'pengajuan_kebutuhan_bmn_satker_barang.alasan',
+                'pengajuan_kebutuhan_bmn_satker_barang.file_pendukung', 'pengajuan_kebutuhan_bmn_satker_barang.pengajuan_kebutuhan_bmn_satker_id',
+                'pengajuan_kebutuhan_bmn_satker_barang.prioritas', 'pengajuan_kebutuhan_bmn_satker_barang.keterangan', 'pengajuan_kebutuhan_bmn_satker_barang.jml_setuju', 'pengajuan_kebutuhan_bmn_satker_barang.kode_barang')
+            ->orderBy('prioritas', 'ASC')->get()->toArray();
+
         return response()->json([
             'data' => $data,
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
         $breadcum = 'Tambah';
         $selectedSatker = [];
-        $model['is_appv_daskrimti']='';
-        $model['id_jenis_asset']='';
+        $model['is_appv_daskrimti'] = '';
+        $model['id_jenis_asset'] = '';
         if ($id) {
             $breadcum = 'Ubah';
             $model = Model::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             $satkerTerpilih = BmnSatker::where(['pengajuan_kebutuhan_bmn_id' => $id])->get()->toArray();
-            if (!empty($satkerTerpilih)) {
+            if (! empty($satkerTerpilih)) {
                 $selectedSatker = Arr::pluck($satkerTerpilih, 'ms_satker_id');
             }
             $model = $model->toArray();
             $isNew = false;
         }
         $current_year = date('Y');
-        $range = range($current_year-2, $current_year+2);
+        $range = range($current_year - 2, $current_year + 2);
         $years = array_combine($range, $range);
         $satkerTerpilih = Master::getSatkers();
-        $id_jenis_asset = $model && $model['id_jenis_asset'] ? json_decode($model['id_jenis_asset']):null;
+        $id_jenis_asset = $model && $model['id_jenis_asset'] ? json_decode($model['id_jenis_asset']) : null;
         $asset = BmnAsset::where(['pengajuan_kebutuhan_bmn_id' => $id])->get()->toArray();
         $data = [
             'model' => $model,
@@ -148,13 +153,14 @@ class PengajuanController extends Controller
                 'text' => 'nama_barang',
                 'textkode' => 'kode_barang',
                 'value' => 'kode_barang',
-                'selected' => $id_jenis_asset
+                'selected' => $id_jenis_asset,
             ]),
             'satkerOptions' => MyHelper::generateSelectOptions(['data' => $satkerTerpilih, 'text' => 'inst_nama', 'value' => 'inst_satkerkd', 'selected' => $selectedSatker]),
-            'yearOptions' => MyHelper::generateSelectOptions(['data' => $years, 'selected' => ($model['tahun']??date('Y'))]),
+            'yearOptions' => MyHelper::generateSelectOptions(['data' => $years, 'selected' => ($model['tahun'] ?? date('Y'))]),
             'listBarang' => Master::getBarangAset(),
             'asset' => $asset,
         ];
+
         return $data;
     }
 
@@ -167,6 +173,7 @@ class PengajuanController extends Controller
             'operasi' => $this->userOperation(),
             'id' => $pengajuanId,
         ];
+
         return view('analisis_kebutuhan.bmn.daftar_kebutuhan.daftarKebutuhanBmnV', $data);
     }
 
@@ -176,6 +183,7 @@ class PengajuanController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('analisis_kebutuhan.bmn.pengajuan.pengajuanFormV', $data);
     }
 
@@ -193,12 +201,12 @@ class PengajuanController extends Controller
             'nama.required' => 'Nama harus diisi',
             'tahun.required' => 'Tahun harus diisi',
         ];
-        $request->validate($validasi,$customMessages);
+        $request->validate($validasi, $customMessages);
         try {
             $inputan = $request->input();
             DB::beginTransaction();
             $id = $request->input('id');
-            if (!$request->has('id')) {
+            if (! $request->has('id')) {
                 $id = MyHelper::getPk(date('Ymd'), 'pengajuan_kebutuhan_bmn_seq');
                 $isNew = true;
             }
@@ -219,7 +227,7 @@ class PengajuanController extends Controller
                         if ($kdSatker == '00') {
                             $q->orWhere('inst_satkerkd', '00')->orWhere('is_pusat', 1);
                         } else {
-                            $q->orWhere('inst_satkerkd', "like", "{$kdSatker}%");
+                            $q->orWhere('inst_satkerkd', 'like', "{$kdSatker}%");
                         }
                     }
                 });
@@ -248,14 +256,14 @@ class PengajuanController extends Controller
             BmnSatker::insert($satkerTerpilih);
 
             $assets = $inputan['asset_kode_barang'];
-            foreach($assets as $index => $value){
-                $barang = DB::table('vw_asset_barang')->where('kode_barang',$value)->first();
+            foreach ($assets as $index => $value) {
+                $barang = DB::table('vw_asset_barang')->where('kode_barang', $value)->first();
                 $dataAsset[] = [
                     'pengajuan_kebutuhan_bmn_id' => $id,
                     'kode_barang' => $value,
                     'nm_barang' => $barang->nm_barang,
                     'ms_jenis_asset_id' => $barang->ms_jenis_asset_id,
-                    'keterangan' => $inputan['asset_keterangan'][$index]
+                    'keterangan' => $inputan['asset_keterangan'][$index],
                 ];
             }
             BmnAsset::where(['pengajuan_kebutuhan_bmn_id' => $id])->delete();
@@ -263,7 +271,7 @@ class PengajuanController extends Controller
 
             if ($isNew) {
                 $notifParams = [
-                    'url' => "analisis-kebutuhan/bmn/pengajuan/".$id."/list-satker",
+                    'url' => 'analisis-kebutuhan/bmn/pengajuan/'.$id.'/list-satker',
                     'judul' => 'Kebutuhan BMN Baru',
                     'isi' => '',
                     'target' => 'role',
@@ -274,14 +282,17 @@ class PengajuanController extends Controller
                 Notifikasi::sendNotif($notifParams);
             }
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
 
-    public function saveBarang(Request $request){
+    public function saveBarang(Request $request)
+    {
         $customMessages = [
             'nama.required' => 'Nama Barang harus diisi',
             'jumlah.required' => 'Jumlah Barang harus diisi',
@@ -295,13 +306,13 @@ class PengajuanController extends Controller
             DB::beginTransaction();
             $id = $request->input('id');
             $data = [
-                'nama'=>$request->input('nama'),
-                'kode_barang'=>$request->input('kode'),
-                'jumlah'=>$request->input('jumlah'),
-                'alasan'=>$request->input('alasan'),
-                'keterangan'=>$request->input('keterangan'),
-                'jml_setuju'=>$request->input('jml_setuju'),
-                'pengajuan_kebutuhan_bmn_satker_id'=>$request->input('pengajuan_kebutuhan_bmn_satker_id'),
+                'nama' => $request->input('nama'),
+                'kode_barang' => $request->input('kode'),
+                'jumlah' => $request->input('jumlah'),
+                'alasan' => $request->input('alasan'),
+                'keterangan' => $request->input('keterangan'),
+                'jml_setuju' => $request->input('jml_setuju'),
+                'pengajuan_kebutuhan_bmn_satker_id' => $request->input('pengajuan_kebutuhan_bmn_satker_id'),
             ];
             $idbarang = BmnSatkerBarang::updateOrCreate(['id' => $id], $data);
             if ($request->hasFile('file_pendukung')) {
@@ -310,7 +321,7 @@ class PengajuanController extends Controller
                 $fileName = $idbarang['id'].'_file_pendukung.'.$file->getClientOriginalExtension();
                 $filesave = $filepath.'/'.$fileName;
                 $file->move($filepath, $fileName);
-                BmnSatkerBarang::updateOrCreate(['id' => $idbarang['id']], ['file_pendukung'=>$filesave]);
+                BmnSatkerBarang::updateOrCreate(['id' => $idbarang['id']], ['file_pendukung' => $filesave]);
                 $newFile = [
                     'filename' => $file->getClientOriginalName(),
                     'path' => $filesave,
@@ -325,11 +336,13 @@ class PengajuanController extends Controller
                 Files::insert($insertedFiles);
             }
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!'
             );
         } catch (\Throwable $th) {
             dd($th->getMessage());
+
             return $this->resError('Gagal menyimpan data');
         }
     }
@@ -339,7 +352,7 @@ class PengajuanController extends Controller
         try {
             DB::beginTransaction();
             $barang = BmnSatkerBarang::find($id);
-            if($barang->file_pendukung){
+            if ($barang->file_pendukung) {
                 $filePath = public_path($barang->file_pendukung);
                 if (FileManager::exists($filePath)) {
                     FileManager::delete($filePath);
@@ -347,9 +360,11 @@ class PengajuanController extends Controller
             }
             $barang->delete();
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }
@@ -370,13 +385,15 @@ class PengajuanController extends Controller
         }
         $pengajuan_kebutuhan_bmn_satker_id = $request->input('pengajuan_kebutuhan_bmn_satker_id');
         $ms_aktifitas_id = $request->input('ms_aktifitas_id');
-        $type = $request->input('type')??'';
-        //cek barang harus ada
+        $type = $request->input('type') ?? '';
+        // cek barang harus ada
         $barang = BmnSatkerBarang::where(['pengajuan_kebutuhan_bmn_satker_id' => $pengajuan_kebutuhan_bmn_satker_id])->get();
-        if ($barang->isEmpty()) return $this->resError('Barang harus diisi');
-        if($ms_aktifitas_id == 3006 || $type=='selesai'){
+        if ($barang->isEmpty()) {
+            return $this->resError('Barang harus diisi');
+        }
+        if ($ms_aktifitas_id == 3006 || $type == 'selesai') {
             foreach ($barang as $data) {
-                if($data->jml_setuju == '' || is_null($data->jml_setuju)){
+                if ($data->jml_setuju == '' || is_null($data->jml_setuju)) {
                     return $this->resError('Jumlah disetujui masing-masing barang harus diisi');
                 }
             }
@@ -392,22 +409,22 @@ class PengajuanController extends Controller
                 'ms_aktifitas_id' => $ms_aktifitas_id,
                 'komentar' => $request->input('komentar'),
                 'to_satker_induk' => (in_array($ms_aktifitas_id, [3000, 3001, 3003, 3005, 3007, 3014])) ? false : true,
-                'group'=>'BMN'
+                'group' => 'BMN',
             ];
             $acts = ApprovalUserSpseSirup::roleCheck($dataAktifitas);
             BmnSatkerAktifitas::insert($acts['act']);
-            if (!empty($acts['nextAct'])) {
+            if (! empty($acts['nextAct'])) {
                 $newAct = $acts['nextAct'];
-                if (in_array($newAct, [3003, 3005, 3007, 3014])) { //revisi
+                if (in_array($newAct, [3003, 3005, 3007, 3014])) { // revisi
                     $newAct = 3000;
                 }
-                //BmnSatker::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
+                // BmnSatker::where(['id' => $id])->update(['ms_aktifitas_id' => $newAct]);
             }
 
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN','id'=>$ms_aktifitas_id])->first();
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN', 'id' => $ms_aktifitas_id])->first();
             $notifParams = [
-                'url' => "analisis-kebutuhan/bmn/pengajuan/".$pengajuan_kebutuhan_bmn_satker_id."/edit",
-                'judul' => 'Kebutuhan BMN ('.($aktifitasOptions->nama=='Draft'?'Revisi':$aktifitasOptions->nama).')',
+                'url' => 'analisis-kebutuhan/bmn/pengajuan/'.$pengajuan_kebutuhan_bmn_satker_id.'/edit',
+                'judul' => 'Kebutuhan BMN ('.($aktifitasOptions->nama == 'Draft' ? 'Revisi' : $aktifitasOptions->nama).')',
                 'isi' => $dataAktifitas['komentar'],
                 'target' => 'role',
                 'targetValue' => $aktifitasOptions->can_change ?? config('constants.pelaksana_satker_role_id'),
@@ -417,20 +434,21 @@ class PengajuanController extends Controller
             Notifikasi::sendNotif($notifParams);
 
             DB::commit();
+
             return $this->resSuccess(
                 'Berhasil Disimpan!',
                 [
                     'type' => 'redirect',
-                    'url' => \URL::to('/analisis-kebutuhan/bmn/pengajuan/'.$id."/list-satker")
+                    'url' => \URL::to('/analisis-kebutuhan/bmn/pengajuan/'.$id.'/list-satker'),
                 ]
             );
         } catch (\Throwable $th) {
             DB::rollBack();
             dd($th->getMessage());
+
             return $this->resError('Gagal Menyimpan data');
         }
     }
-
 
     /**
      * edit admin perlengkapan
@@ -438,6 +456,7 @@ class PengajuanController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('analisis_kebutuhan.bmn.pengajuan.pengajuanFormV', $data);
     }
 
@@ -446,32 +465,32 @@ class PengajuanController extends Controller
      */
     public function edit(string $id)
     {
-        $pengajuanSatker = BmnSatker::where('id',$id)->first();
-        $pengajuan = Bmn::where('id',$pengajuanSatker['pengajuan_kebutuhan_bmn_id'])->first();
-        $satker = MasterMsSatker::where('inst_satkerkd',$pengajuanSatker['ms_satker_id'])->first();
+        $pengajuanSatker = BmnSatker::where('id', $id)->first();
+        $pengajuan = Bmn::where('id', $pengajuanSatker['pengajuan_kebutuhan_bmn_id'])->first();
+        $satker = MasterMsSatker::where('inst_satkerkd', $pengajuanSatker['ms_satker_id'])->first();
         $asset = BmnAsset::where(['pengajuan_kebutuhan_bmn_id' => $pengajuanSatker['pengajuan_kebutuhan_bmn_id']])->get()->toArray();
         $kodeBarangArray = array_map(function ($item) {
             return $item['kode_barang'];
         }, $asset);
-        //aktifitas
+        // aktifitas
         $msAktifitasId = $pengajuanSatker->ms_aktifitas_id ?? 3000;
-        if (in_array($msAktifitasId, [3003, 3005, 3007, 3014])) { //revisi
+        if (in_array($msAktifitasId, [3003, 3005, 3007, 3014])) { // revisi
             $msAktifitasId = 3000;
         }
-        $whereAct = ['ms_aktifitas_id' => ($msAktifitasId==3008?3002:$msAktifitasId),'group'=>'BMN'];
+        $whereAct = ['ms_aktifitas_id' => ($msAktifitasId == 3008 ? 3002 : $msAktifitasId), 'group' => 'BMN'];
         $aktifitasHistories = BmnSatkerAktifitas::getDetail($pengajuanSatker['id']);
         $aktifitasOptions = ApprovalUserSpseSirup::getAktifitas($whereAct);
 
-        if(empty($msAktifitasId) || $msAktifitasId==3000){
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3000,3002])->get()->toArray();
+        if (empty($msAktifitasId) || $msAktifitasId == 3000) {
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3000, 3002])->get()->toArray();
         }
 
-        if($pengajuan['is_appv_daskrimti']==1 && $msAktifitasId==3002){
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3008,3009])->get()->toArray();
+        if ($pengajuan['is_appv_daskrimti'] == 1 && $msAktifitasId == 3002) {
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3008, 3009])->get()->toArray();
         }
 
-        if(session('userData.current_role.ms_satker_id') == '00' && session('userData.current_role.ms_role_id') == config('constants.pelaksana_satker_role_id')){
-            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id',[3004,3005])->get()->toArray();
+        if (session('userData.current_role.ms_satker_id') == '00' && session('userData.current_role.ms_role_id') == config('constants.pelaksana_satker_role_id')) {
+            $aktifitasOptions = DB::table('ms_aktifitas_user')->where(['group' => 'BMN'])->whereIn('id', [3004, 3005])->get()->toArray();
         }
 
         $currentAktifitas = ApprovalUserSpseSirup::getCurrentAktifitas($msAktifitasId);
@@ -492,11 +511,12 @@ class PengajuanController extends Controller
                 'text' => 'nama_barang',
                 'textkode' => 'kode_barang',
                 'value' => 'kode_barang',
-                'selected' => $kodeBarangArray
+                'selected' => $kodeBarangArray,
             ]),
             'kdBarangOptions' => $kodeBarang,
             'listBarang' => Master::getBarangAset(),
         ];
+
         return view('analisis_kebutuhan.bmn.daftar_kebutuhan.daftarKebutuhanBmnFormV', $data);
     }
 
@@ -517,9 +537,11 @@ class PengajuanController extends Controller
             DB::beginTransaction();
             Model::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
+
             return $this->resError('Gagal Menghapus data');
         }
     }

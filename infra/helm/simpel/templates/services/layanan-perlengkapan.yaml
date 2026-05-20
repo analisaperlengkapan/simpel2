@@ -1,0 +1,4 @@
+{{- /*
+  layanan-perlengkapan — backend Rust (Axum). REST + gRPC client ke authenc/secreton/integrasi.
+*/ -}}
+{{- include "simpel.workload" (dict "ctx" . "name" "layanan-perlengkapan" "values" .Values.layananPerlengkapan) }}

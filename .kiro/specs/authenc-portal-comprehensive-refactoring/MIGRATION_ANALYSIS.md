@@ -5,6 +5,7 @@
 **Status**: Migration Complete ✅
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Migration Scope](#migration-scope)
 3. [Detailed File Analysis](#detailed-file-analysis)
@@ -18,6 +19,7 @@
 This document tracks the migration of cryptographic functionality from the monolithic `authenc` service to the dedicated `authenc-crypto` crate as part of the comprehensive refactoring initiative.
 
 ### Goals
+
 - ✅ Extract all cryptographic primitives to authenc-crypto crate
 - ✅ Maintain 100% backward compatibility during migration
 - ✅ Achieve comprehensive test coverage (140+ tests)
@@ -25,6 +27,7 @@ This document tracks the migration of cryptographic functionality from the monol
 - ✅ Improve maintainability and security auditing
 
 ### Results
+
 - **Migration Status**: 100% Complete
 - **Files Migrated**: 20+ files
 - **Test Coverage**: 140 unit tests
@@ -34,6 +37,7 @@ This document tracks the migration of cryptographic functionality from the monol
 ## Migration Scope
 
 ### In Scope ✅
+
 - Core cryptographic primitives (AES-GCM, Shamir)
 - Key management (Ed25519, ECDSA variants)
 - JWT infrastructure (key manager, validator)
@@ -42,6 +46,7 @@ This document tracks the migration of cryptographic functionality from the monol
 - Password hashing (Argon2)
 
 ### Out of Scope ❌
+
 - Application-specific JWT logic (kept in src/utils/crypto/jwt.rs)
 - Business logic using cryptography
 - Database operations
@@ -53,22 +58,26 @@ This document tracks the migration of cryptographic functionality from the monol
 ### Section 1: Core Encryption (100% Complete)
 
 #### 1.1 AES-GCM Encryption
+
 **Source**: `src/crypto/aes_gcm.rs`
 **Destination**: `crates/crypto/src/aes_gcm.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~200
 
 **Functionality**:
+
 - AES-256-GCM encryption/decryption
 - Nonce generation
 - Associated data support
 - Error handling
 
 **Dependencies**:
+
 - aes-gcm = "0.10"
 - rand = "0.8"
 
 **Tests**: 8 unit tests
+
 - test_aes_gcm_encrypt_decrypt
 - test_aes_gcm_with_aad
 - test_aes_gcm_invalid_key
@@ -79,12 +88,14 @@ This document tracks the migration of cryptographic functionality from the monol
 - test_aes_gcm_concurrent_operations
 
 #### 1.2 Enhanced Crypto Engine
+
 **Source**: `src/crypto/enhanced.rs`
 **Destination**: `crates/crypto/src/enhanced.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~800
 
 **Functionality**:
+
 - Multi-algorithm encryption (AES-GCM, ChaCha20-Poly1305)
 - Session data encryption
 - Audit signature generation
@@ -93,6 +104,7 @@ This document tracks the migration of cryptographic functionality from the monol
 - Metrics collection
 
 **Key Types**:
+
 - `EnhancedCryptoEngine`
 - `UserClaims`, `PegawaiClaims`
 - `EncryptedSessionData`, `SessionMetadata`
@@ -103,18 +115,21 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 15 unit tests covering all major operations
 
 #### 1.3 Shamir's Secret Sharing
+
 **Source**: `src/crypto/shamir.rs`
 **Destination**: `crates/crypto/src/shamir.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - Secret splitting (threshold scheme)
 - Secret reconstruction
 - Galois Field arithmetic (GF(256))
 - Lagrange interpolation
 
 **Tests**: 12 unit tests
+
 - test_shamir_split_reconstruct
 - test_shamir_threshold
 - test_shamir_invalid_threshold
@@ -131,12 +146,14 @@ This document tracks the migration of cryptographic functionality from the monol
 ### Section 2: Key Management (100% Complete)
 
 #### 2.1 Ed25519 Keys
+
 **Source**: `src/crypto/ed25519_keys.rs`
 **Destination**: `crates/crypto/src/keys/ed25519.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~250
 
 **Functionality**:
+
 - Ed25519 keypair generation
 - Signing operations
 - Verification operations
@@ -146,6 +163,7 @@ This document tracks the migration of cryptographic functionality from the monol
 **Global State**: `ED25519_KEYPAIR` (lazy_static)
 
 **Tests**: 10 unit tests
+
 - test_ed25519_sign_verify
 - test_ed25519_invalid_signature
 - test_ed25519_jwk_export
@@ -158,12 +176,14 @@ This document tracks the migration of cryptographic functionality from the monol
 - test_ed25519_public_key_derivation
 
 #### 2.2 ECDSA P-256 Keys
+
 **Source**: `src/crypto/ecdsa_keys.rs`
 **Destination**: `crates/crypto/src/keys/ecdsa.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - ECDSA P-256 keypair generation
 - Signing with SHA-256
 - Verification
@@ -175,12 +195,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 12 unit tests covering all operations
 
 #### 2.3 ECDSA P-384 Keys
+
 **Source**: `src/crypto/ecdsa_p384_keys.rs`
 **Destination**: `crates/crypto/src/keys/ecdsa_p384.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - ECDSA P-384 keypair generation
 - Signing with SHA-384
 - Verification
@@ -191,12 +213,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 10 unit tests
 
 #### 2.4 ECDSA P-521 Keys
+
 **Source**: `src/crypto/ecdsa_p521_keys.rs`
 **Destination**: `crates/crypto/src/keys/ecdsa_p521.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - ECDSA P-521 keypair generation
 - Signing with SHA-512
 - Verification
@@ -207,12 +231,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 10 unit tests
 
 #### 2.5 EdDSA Ed448 Keys
+
 **Source**: `src/crypto/eddsa_ed448_keys.rs`
 **Destination**: `crates/crypto/src/keys/eddsa_ed448.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~200
 
 **Functionality**:
+
 - Ed448 keypair generation
 - Signing operations
 - Verification operations
@@ -225,12 +251,14 @@ This document tracks the migration of cryptographic functionality from the monol
 ### Section 3: JWT Infrastructure (100% Complete)
 
 #### 3.1 JWT Key Manager
+
 **Source**: `src/utils/jwt_key_manager.rs`
 **Destination**: `crates/crypto/src/jwt_key_manager.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~400
 
 **Functionality**:
+
 - Dynamic JWT key management
 - Key rotation support
 - Multiple algorithm support (EdDSA, ES256, ES384, ES512)
@@ -238,11 +266,13 @@ This document tracks the migration of cryptographic functionality from the monol
 - JWKS (JSON Web Key Set) generation
 
 **Key Types**:
+
 - `JwtKeyManager`
 - `JwtKey` (with algorithm, public/private keys)
 - `SecretonClient` trait for key storage
 
 **Tests**: 15 unit tests
+
 - test_jwt_key_manager_creation
 - test_jwt_key_manager_rotation
 - test_jwt_key_manager_multiple_algorithms
@@ -260,12 +290,14 @@ This document tracks the migration of cryptographic functionality from the monol
 - test_jwt_key_manager_key_import
 
 #### 3.2 JWT Validator
+
 **Source**: `src/utils/jwt_validator.rs`
 **Destination**: `crates/crypto/src/jwt_validator.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~500
 
 **Functionality**:
+
 - JWT token validation
 - Signature verification (multiple algorithms)
 - Claims validation (exp, nbf, iss, aud)
@@ -273,11 +305,13 @@ This document tracks the migration of cryptographic functionality from the monol
 - Performance metrics
 
 **Key Types**:
+
 - `JwtValidator`
 - `ValidationResult` (Valid/Invalid/Expired)
 - `ValidationCache` (LRU cache)
 
 **Tests**: 20 unit tests
+
 - test_jwt_validator_valid_token
 - test_jwt_validator_expired_token
 - test_jwt_validator_invalid_signature
@@ -300,18 +334,21 @@ This document tracks the migration of cryptographic functionality from the monol
 - test_jwt_validator_security
 
 #### 3.3 JWT Service
+
 **Source**: `src/crypto/jwt.rs` (different from utils/crypto/jwt.rs)
 **Destination**: `crates/crypto/src/jwt.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - Low-level JWT token generation
 - Token signing with multiple algorithms
 - Token parsing and verification
 - Claims extraction
 
 **Key Types**:
+
 - `JwtService`
 - `TokenClaims` (standard JWT claims)
 
@@ -320,18 +357,21 @@ This document tracks the migration of cryptographic functionality from the monol
 ### Section 4: Advanced Cryptography (100% Complete)
 
 #### 4.1 Post-Quantum Cryptography
+
 **Source**: `src/crypto/pqc.rs`
 **Destination**: `crates/crypto/src/pqc.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~400
 
 **Functionality**:
+
 - ML-KEM (Kyber) key encapsulation
 - ML-DSA (Dilithium) digital signatures
 - Falcon signatures
 - Hybrid classical+PQC schemes
 
 **Tests**: 10 unit tests
+
 - test_pqc_mlkem_keygen
 - test_pqc_mlkem_encapsulation
 - test_pqc_mlkem_decapsulation
@@ -344,12 +384,14 @@ This document tracks the migration of cryptographic functionality from the monol
 - test_pqc_interoperability
 
 #### 4.2 mTLS Utilities
+
 **Source**: `src/crypto/mtls.rs`
 **Destination**: `crates/crypto/src/mtls.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~200
 
 **Functionality**:
+
 - Certificate validation
 - Client certificate extraction
 - TLS configuration helpers
@@ -357,12 +399,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 6 unit tests
 
 #### 4.3 XML Digital Signatures
+
 **Source**: `src/crypto/xmldsig.rs`
 **Destination**: `crates/crypto/src/xmldsig.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~300
 
 **Functionality**:
+
 - XML signature generation (SAML)
 - XML signature verification
 - Canonicalization support
@@ -370,12 +414,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 8 unit tests
 
 #### 4.4 DPoP (Demonstrating Proof-of-Possession)
+
 **Source**: `src/crypto/dpop/`
 **Destination**: `crates/crypto/src/dpop/`
 **Status**: ✅ Migrated
 **Lines of Code**: ~250
 
 **Functionality**:
+
 - DPoP proof generation
 - DPoP proof verification
 - Token binding
@@ -383,12 +429,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 8 unit tests
 
 #### 4.5 SD-JWT (Selective Disclosure JWT)
+
 **Source**: `src/crypto/sdjwt/`
 **Destination**: `crates/crypto/src/sdjwt/`
 **Status**: ✅ Migrated
 **Lines of Code**: ~350
 
 **Functionality**:
+
 - Selective disclosure JWT creation
 - Disclosure verification
 - Claim hiding/revealing
@@ -396,12 +444,14 @@ This document tracks the migration of cryptographic functionality from the monol
 **Tests**: 10 unit tests
 
 #### 4.6 TOTP (Time-based One-Time Password)
+
 **Source**: `src/crypto/totp.rs`
 **Destination**: `crates/crypto/src/totp.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~150
 
 **Functionality**:
+
 - TOTP generation
 - TOTP verification
 - QR code generation
@@ -411,17 +461,20 @@ This document tracks the migration of cryptographic functionality from the monol
 ### Section 5: Password Hashing (100% Complete)
 
 #### 5.1 Argon2 Password Hasher
+
 **Source**: `src/crypto/password.rs`
 **Destination**: `crates/crypto/src/password.rs`
 **Status**: ✅ Migrated
 **Lines of Code**: ~150
 
 **Functionality**:
+
 - Argon2id password hashing
 - Password verification
 - Configurable parameters (memory, iterations)
 
 **Tests**: 8 unit tests
+
 - test_password_hash_verify
 - test_password_invalid_verification
 - test_password_hash_deterministic
@@ -445,6 +498,7 @@ pub use authenc_crypto::*;
 ```
 
 **Rationale**:
+
 - Allows existing code to continue using `use crate::crypto::*`
 - Zero maintenance burden (pure re-export)
 - Will be removed in Phase 4 after all imports are updated
@@ -457,6 +511,7 @@ pub use authenc_crypto::*;
 **Lines of Code**: ~600
 
 **Functionality**:
+
 - Application-specific JWT generation (generate_jwt, generate_temp_jwt, generate_refresh_token)
 - Application-specific JWT verification (verify_jwt, verify_refresh_token, verify_jwt_with_validation)
 - Application-specific claims structures (Claims, RefreshTokenClaims, ExtendedClaims)
@@ -464,6 +519,7 @@ pub use authenc_crypto::*;
 - Uses Ed25519 from authenc-crypto for signing
 
 **Why Not Migrated**:
+
 - Contains application-specific logic, not pure cryptographic primitives
 - Tightly coupled with authenc's error types (`crate::error::AuthencError`)
 - Uses authenc-specific claims structures
@@ -474,6 +530,7 @@ pub use authenc_crypto::*;
 #### 6.3 Re-export Files
 
 **Files**:
+
 - `src/utils/jwt.rs` → Re-exports from `src/utils/crypto/jwt.rs`
 - `src/utils/jwt_key_manager.rs` → Re-exports from `authenc_crypto::jwt_key_manager`
 - `src/utils/crypto/password.rs` → Re-exports from `lib_common::crypto::password`
@@ -491,6 +548,7 @@ pub use authenc_crypto::*;
 #### 6.5 Legacy Files (To Be Verified)
 
 **Files**:
+
 - `src/crypto/aes_gcm.rs`
 - `src/crypto/enhanced.rs`
 - `src/crypto/shamir.rs`
@@ -554,12 +612,14 @@ pub use authenc_crypto::*;
 ```
 
 This allows existing code to continue using:
+
 ```rust
 use crate::crypto::aes_gcm::AesGcmService;
 use crate::crypto::enhanced::EnhancedCryptoEngine;
 ```
 
 While new code can use:
+
 ```rust
 use authenc_crypto::aes_gcm::AesGcmService;
 use authenc_crypto::enhanced::EnhancedCryptoEngine;
@@ -578,6 +638,7 @@ use authenc_crypto::enhanced::EnhancedCryptoEngine;
 ### Unit Tests (140 tests)
 
 Each migrated module includes comprehensive unit tests:
+
 - Happy path scenarios
 - Error conditions
 - Edge cases
@@ -588,6 +649,7 @@ Each migrated module includes comprehensive unit tests:
 ### Integration Tests
 
 Integration with existing authenc code verified through:
+
 - Compilation checks
 - Existing test suite
 - Manual verification of key operations
@@ -643,6 +705,7 @@ cargo tarpaulin --package authenc-crypto
 **Decision**: Keep src/utils/crypto/jwt.rs in src/utils/
 
 **Rationale**:
+
 - Contains application-specific logic, not pure cryptographic primitives
 - Tightly coupled with authenc's error types and configuration
 - Uses authenc-specific claims structures
@@ -660,6 +723,7 @@ The cryptographic layer migration to `authenc-crypto` crate is **100% complete**
 ✅ **Production ready** - thoroughly tested and verified
 
 The remaining files in `src/crypto/` and `src/utils/` serve specific purposes:
+
 - **Re-export layers**: Provide backward compatibility
 - **Application logic**: JWT generation/verification (not pure crypto)
 - **Shared utilities**: Password hashing via lib_common
@@ -672,7 +736,6 @@ The remaining files in `src/crypto/` and `src/utils/` serve specific purposes:
 **Review Status**: Ready for Review
 **Next Phase**: Task 5 - Migrate authenc-core
 
-
 ## CRITICAL ISSUE DISCOVERED
 
 ### Duplicate Code in src/crypto/
@@ -680,6 +743,7 @@ The remaining files in `src/crypto/` and `src/utils/` serve specific purposes:
 During Task 4.8 verification, a critical issue was discovered:
 
 **Files with Duplicate Code**:
+
 1. `src/crypto/aes_gcm.rs` - **~400 lines of full implementation**
 2. `src/crypto/enhanced.rs` - **~992 lines of full implementation**
 
@@ -692,13 +756,16 @@ During Task 4.8 verification, a critical issue was discovered:
 - ❌ Confusion about which implementation is "canonical"
 
 **Impact on Migration Status**:
+
 - Code IS migrated to authenc-crypto ✅
 - Tests ARE passing ✅
 - But old code was NOT removed ❌
 - Migration is 95% complete, not 100%
 
 **Required Actions**:
+
 1. **IMMEDIATE**: Replace both files with re-exports:
+
    ```rust
    // src/crypto/aes_gcm.rs
    pub use authenc_crypto::aes_gcm::*;
@@ -706,12 +773,14 @@ During Task 4.8 verification, a critical issue was discovered:
    // src/crypto/enhanced.rs
    pub use authenc_crypto::enhanced::*;
    ```
+
 2. Verify all imports still work
 3. Run full test suite: `cargo test --workspace`
 4. Confirm no compilation errors: `cargo check --workspace`
 
 **Correct Re-export Example**:
 `src/crypto/shamir.rs` correctly re-exports from lib_common:
+
 ```rust
 pub use lib_common::crypto::shamir::*;
 ```
@@ -734,7 +803,6 @@ This is the pattern that aes_gcm.rs and enhanced.rs should follow.
 ---
 
 **Document Updated**: 2026-02-03 (Task 4.8 - Critical Issue Discovered)
-
 
 ## Task 5.4: Realm and Organization Services Migration
 
@@ -800,12 +868,14 @@ This is the pattern that aes_gcm.rs and enhanced.rs should follow.
 ### Module Updates
 
 **crates/core/src/services/mod.rs**:
+
 - Added `pub mod realm;`
 - Added `pub mod organization;`
 - Added `pub mod satker_authorization;`
 - Added public exports for key types
 
 **src/services/mod.rs**:
+
 - Removed `pub mod realm;`
 - Removed `pub mod organization;`
 - Removed `pub mod satker_authorization;`
@@ -858,11 +928,13 @@ Phase 3 successfully migrated all HTTP handlers, middleware, routing, and state 
 ### Task Breakdown
 
 #### Task 8.3: Handler Migration (22 files)
+
 **Status**: ✅ Complete
 
 All handlers migrated from `src/handlers/` to `crates/api/src/handlers/`:
 
 **Core Authentication Handlers** (8 files):
+
 - ✅ consent_ui.rs - User consent UI handlers
 - ✅ health.rs - Health check endpoints
 - ✅ jwks.rs - JSON Web Key Set endpoint
@@ -873,6 +945,7 @@ All handlers migrated from `src/handlers/` to `crates/api/src/handlers/`:
 - ✅ oidc_sso.rs - OIDC SSO handlers
 
 **Advanced Services Handlers** (14 files):
+
 - ✅ admin.rs - Administrative API endpoints
 - ✅ broker.rs - Identity broker handlers
 - ✅ client_policy.rs - Client policy management
@@ -897,10 +970,12 @@ All handlers migrated from `src/handlers/` to `crates/api/src/handlers/`:
 - ✅ zero_trust.rs - Zero Trust security
 
 **Helper Modules** (2 files):
+
 - ✅ auth_helpers.rs - Authorization helpers
 - ✅ validation_helper.rs - Validation utilities
 
 #### Task 8.4: Routing and State Migration
+
 **Status**: ✅ Complete
 
 - ✅ `crates/api/src/routes.rs` - Unified router with all endpoints
@@ -908,6 +983,7 @@ All handlers migrated from `src/handlers/` to `crates/api/src/handlers/`:
 - ✅ `crates/api/src/session_store.rs` - Session store implementation
 
 #### Task 8.5: Middleware Migration (11 files)
+
 **Status**: ✅ Complete
 
 All middleware migrated from `src/middleware/` to `crates/api/src/middleware/`:
@@ -925,6 +1001,7 @@ All middleware migrated from `src/middleware/` to `crates/api/src/middleware/`:
 - ✅ mod.rs - Module organization
 
 #### Task 8.6: Documentation
+
 **Status**: ✅ Complete
 
 - ✅ Created PHASE_3_API_MIGRATION_STATUS.md
@@ -986,12 +1063,12 @@ All middleware migrated from `src/middleware/` to `crates/api/src/middleware/`:
 ✅ **Phase 3 (API Migration): COMPLETE**
 
 **Next Steps**:
+
 1. Resolve authenc-core compilation errors (Task 5 completion)
 2. Re-run Task 8.5 verification once authenc-core compiles
 3. Proceed to Task 9 (authenc-iam-api) only after authenc-core is fixed
 
 **Detailed Report**: See `PHASE_3_API_MIGRATION_STATUS.md`
-
 
 ---
 
@@ -1019,6 +1096,7 @@ Phase 3 Task 9 successfully migrated all IAM admin handler files from `src/handl
 All 20 admin handler files have been migrated to `crates/iam-api/src/handlers/`:
 
 **Core Admin Handlers** (15 files from Task 9.1):
+
 1. ✅ **admin.rs** - Core admin operations
 2. ✅ **audit.rs** - Audit log management
 3. ✅ **client_policy.rs** - Client policy management
@@ -1051,6 +1129,7 @@ All 20 admin handler files have been migrated to `crates/iam-api/src/handlers/`:
 The following files remain in `src/handlers/` and are **intentionally NOT migrated** to authenc-iam-api:
 
 #### Category 1: Public Authentication API (authenc-api)
+
 These handlers belong to the public authentication API (authenc-api), not the IAM admin API:
 
 1. **auth_helpers.rs** - Authentication helper functions
@@ -1089,12 +1168,14 @@ These handlers belong to the public authentication API (authenc-api), not the IA
    - **Status**: Part of Phase 3 (Task 8) - authenc-api migration
 
 #### Category 2: Main Application Router
+
 8. **mod.rs** - Main handler module and router
    - **Reason**: Root router that combines all API routes (authenc-api + authenc-iam-api + authenc-grpc)
    - **Destination**: Will be updated to import from crates in Phase 6 (Task 18)
    - **Status**: Entry point - stays in src/ until final cleanup
 
 #### Category 3: API Subdirectory
+
 9. **api/** - API handler subdirectory
    - **Reason**: Contains additional API handlers for the main application
    - **Destination**: Will be migrated to appropriate crates in Phase 3/6
@@ -1245,11 +1326,13 @@ All handlers return descriptive NOT_IMPLEMENTED errors:
 ### Next Steps
 
 #### Immediate Actions (Phase 3 Continuation)
+
 1. **Complete Task 8 (authenc-api)**: Migrate public authentication handlers from `src/handlers/` to `crates/api/src/handlers/`
 2. **Resolve authenc-core errors**: Fix 127 compilation errors in authenc-core (blocking Task 9.3 testing)
 3. **Re-run Task 9.3**: Once authenc-core compiles, re-run integration tests for authenc-iam-api
 
 #### Phase 6 Actions (Cleanup)
+
 1. **Implement full business logic**: Replace NOT_IMPLEMENTED errors in `crates/iam-api/src/handlers/` with actual implementations
 2. **Delete duplicate files**: Remove original files from `src/handlers/` after verifying iam-api implementations
 3. **Update main router**: Update `src/handlers/mod.rs` to import from crates instead of local modules
@@ -1269,7 +1352,6 @@ All handlers return descriptive NOT_IMPLEMENTED errors:
 
 **Document Updated**: 2026-02-03 (Task 9.4 - IAM API Migration Documentation)
 **Updated By**: Kiro AI Agent
-
 
 ---
 
@@ -1295,6 +1377,7 @@ Phase 3 Task 10 successfully migrated gRPC components from `src/grpc/` to the de
 All 3 gRPC service files have been migrated to `crates/grpc/src/`:
 
 **gRPC Service Files** (3 files from Task 10.1):
+
 1. ✅ **captcha_service.rs** - CAPTCHA challenge generation and verification
    - **Source**: `src/grpc/captcha_service.rs`
    - **Destination**: `crates/grpc/src/captcha_service.rs`
@@ -1339,15 +1422,19 @@ All 3 gRPC service files have been migrated to `crates/grpc/src/`:
 
 **Infrastructure** (1 file):
 4. ✅ **lib.rs** - Module organization and exports
-   - **File**: `crates/grpc/src/lib.rs`
-   - **Changes**:
-     - Added module declarations for new files:
+
+- **File**: `crates/grpc/src/lib.rs`
+- **Changes**:
+  - Added module declarations for new files:
+
        ```rust
        pub mod captcha_service;
        pub mod batch_operations;
        pub mod health;
        ```
-     - Added re-exports:
+
+  - Added re-exports:
+
        ```rust
        pub use captcha_service::CaptchaGrpcService;
        pub use batch_operations::{batch_check_permissions, batch_lookup_users, optimized_user_lookup, BatchPermissionResult};
@@ -1391,6 +1478,7 @@ The following files remain in `src/grpc/` and should be **deleted** after verifi
 ### Proto Files Verification
 
 **Proto Directory Structure**:
+
 ```
 layanan/authenc/proto/
 ├── authenc.proto      ✅ Exists
@@ -1402,6 +1490,7 @@ layanan/authenc/proto/
 ```
 
 **build.rs Configuration**:
+
 - ✅ Proto directory path: `../../proto` (relative to crate root)
 - ✅ Compiles `authenc.proto` and `common.proto`
 - ✅ Generates server code (not client)
@@ -1410,6 +1499,7 @@ layanan/authenc/proto/
 ### Import Structure Changes
 
 **Before (Old Structure)**:
+
 ```rust
 use crate::app::AppState;
 use crate::services::captcha::CaptchaServiceTrait;
@@ -1418,6 +1508,7 @@ use crate::database::Database;
 ```
 
 **After (New Structure)**:
+
 ```rust
 use authenc_core::services::captcha::CaptchaServiceTrait;
 use authenc_types::error::AuthencError;
@@ -1429,6 +1520,7 @@ use authenc_core::services::cache::Cache;
 ### Compilation Status
 
 **Current State**:
+
 - ✅ All gRPC files migrated successfully
 - ✅ Proto files accessible and configured correctly
 - ✅ build.rs generates code correctly
@@ -1438,6 +1530,7 @@ use authenc_core::services::cache::Cache;
   - Will be resolved in subsequent tasks (Phase 4: Core Services Migration)
 
 **Verification Command**:
+
 ```bash
 cargo check --package authenc-grpc
 ```
@@ -1447,12 +1540,14 @@ cargo check --package authenc-grpc
 ### Architecture Improvements
 
 **1. Trait-Based Design**:
+
 - Changed from concrete `AppState` to trait-based dependencies
 - `CaptchaGrpcService` now generic over `CaptchaServiceTrait`
 - Batch operations generic over `UserStoreTrait` and `Cache`
 - Improves testability and modularity
 
 **2. Proper Crate Boundaries**:
+
 - Clear separation between:
   - `authenc-types`: Domain types and errors
   - `authenc-core`: Business logic and services
@@ -1460,6 +1555,7 @@ cargo check --package authenc-grpc
   - `authenc-grpc`: gRPC service layer
 
 **3. Maintained Functionality**:
+
 - All original functionality preserved
 - No breaking changes to gRPC API
 - All optimizations maintained (parallel queries, caching, etc.)
@@ -1471,6 +1567,7 @@ cargo check --package authenc-grpc
 **Compilation**: ✅ authenc-grpc has 0 errors (blocked by authenc-core dependency)
 
 **Test Coverage**: 4 test files exist with good structure:
+
 - `tests/integration_test.rs` - Main integration tests (9 tests planned)
 - `tests/jwt_token_generation_test.rs` - JWT token generation tests (6 tests)
 - `tests/oauth2_token_test.rs` - OAuth2 token tests
@@ -1498,11 +1595,13 @@ cargo check --package authenc-grpc
 ### Next Steps
 
 **Immediate Actions**:
+
 1. **Resolve authenc-core errors** (CRITICAL) - Fix 127 compilation errors in authenc-core
 2. **Re-run Task 10.2** - Once authenc-core compiles, re-run integration tests for authenc-grpc
 3. **Delete duplicate files** - Remove all files from `src/grpc/` after verification
 
 **Phase 6 Actions (Cleanup)**:
+
 1. **Implement mock services for tests** - Create mock implementations for testing
 2. **Implement mTLS test infrastructure** - Generate test certificates and configure mTLS
 3. **Run full test suite** - Execute all unit and integration tests
@@ -1529,7 +1628,6 @@ cargo check --package authenc-grpc
 **Document Updated**: 2026-02-03 (Task 10.3 - gRPC Migration Documentation)
 **Updated By**: Kiro AI Agent
 
-
 ---
 
 ## Phase 3: API Migration Status (Week 7-8)
@@ -1547,17 +1645,20 @@ cargo check --package authenc-grpc
 #### Migration Summary
 
 **Handlers Migrated** (23 files):
+
 - ✅ Authentication: auth_helpers.rs, session.rs, totp.rs, totp_verify.rs, webauthn.rs
 - ✅ OAuth2/OIDC: oauth2.rs, oauth2_authz_code.rs, oidc_provider.rs, oidc_keys.rs, oidc_sso.rs, oidc_jwt.rs, oidc_ed25519.rs, jwks.rs, jwt_ed25519.rs, token_exchange.rs, device.rs
 - ✅ Federation: federated_auth.rs, federated_login.rs, broker.rs, social.rs, saml.rs, sso.rs
 - ✅ Utilities: health.rs, metrics.rs, validation_helper.rs, consent_ui.rs, authorization.rs
 
 **Middleware Migrated** (11 files):
+
 - ✅ auth.rs, rate_limit.rs, adaptive_rate_limit.rs, mfa_rate_limit.rs
 - ✅ csrf.rs, validation.rs, size_limit.rs, compression.rs
 - ✅ security.rs, rbac.rs, mtls.rs
 
 **Infrastructure** (2 files):
+
 - ✅ router.rs (unified routing configuration)
 - ✅ state.rs (ApiState with service dependencies)
 
@@ -1604,6 +1705,7 @@ crates/api/
 #### Migration Summary
 
 **Admin Handlers Migrated** (15 files):
+
 - ✅ Core Admin: admin.rs, client_registration.rs, dcr_admin.rs, client_policy.rs
 - ✅ Federation: federation_admin.rs, jit_admin.rs
 - ✅ Organization: groups.rs, organizations.rs, satker.rs
@@ -1611,6 +1713,7 @@ crates/api/
 - ✅ Advanced: uma.rs, zero_trust.rs, oid4vc.rs
 
 **Infrastructure** (2 files):
+
 - ✅ router.rs (IAM routing configuration)
 - ✅ state.rs (IamApiState with admin services)
 
@@ -1653,12 +1756,14 @@ crates/iam-api/
 #### Migration Summary
 
 **gRPC Services Migrated** (4 files):
+
 - ✅ authenc_service.rs (main authentication gRPC service)
 - ✅ captcha_service.rs (CAPTCHA gRPC service)
 - ✅ batch_operations.rs (batch gRPC operations)
 - ✅ health.rs (gRPC health checks)
 
 **Infrastructure** (1 file):
+
 - ✅ lib.rs (gRPC server configuration)
 
 #### Crate Structure
@@ -1700,28 +1805,33 @@ crates/grpc/
 #### Verification Results
 
 **Compilation Verification**:
+
 - ❌ Workspace build: FAILED (expected - authenc-core errors)
 - ✅ API crates structurally correct
 - ✅ No circular dependencies
 - ❌ Runtime verification blocked
 
 **Unit Test Verification**:
+
 - ⏳ Cannot run (blocked by compilation errors)
 - ✅ Tests exist and are structurally correct
 - ✅ Target: >80% coverage (achievable once authenc-core is fixed)
 
 **Integration Test Verification**:
+
 - ⏳ Cannot run (blocked by compilation errors)
 - ✅ Test scenarios defined and ready
 - ✅ End-to-end flows documented
 
 **Crate Boundary Verification**:
+
 - ✅ authenc-api → authenc-core: Structurally correct
 - ✅ authenc-iam-api → authenc-core: Structurally correct
 - ✅ authenc-grpc → authenc-core: Structurally correct
 - ✅ No circular dependencies
 
 **Migration Status Verification**:
+
 - ✅ src/handlers/: All files migrated (0 remaining)
 - ✅ src/middleware/: All files migrated (0 remaining)
 - ✅ src/grpc/: All files migrated (0 remaining)
@@ -1731,6 +1841,7 @@ crates/grpc/
 **authenc-core Compilation Errors**: 127 errors
 
 **Error Categories**:
+
 1. Missing Type Imports (6 errors): RealmId not found
 2. Database API Mismatches (15 errors): operations module not found
 3. Error Enum Variants Missing (20 errors): Uma, Forbidden, ConfigurationError
@@ -1766,6 +1877,7 @@ crates/grpc/
 **Answer**: **PROCEED TO PHASE 4**
 
 **Rationale**:
+
 - Phase 3 API migration is structurally complete
 - Phase 4 (MFA, Federation) migrations are independent of current authenc-core errors
 - Fixing authenc-core can happen in parallel with Phase 4 work
@@ -1779,6 +1891,7 @@ crates/grpc/
 **Overall Status**: ✅ **COMPLETE**
 
 **Achievements**:
+
 - ✅ 62 files migrated across 3 API crates
 - ✅ All handlers, middleware, and gRPC services migrated
 - ✅ Router and state configurations complete
@@ -1786,11 +1899,13 @@ crates/grpc/
 - ✅ Crate boundaries correctly defined
 
 **Known Issues**:
+
 - ❌ authenc-core has 127 compilation errors (Phase 2 incomplete)
 - ⏳ Unit tests cannot run until authenc-core is fixed
 - ⏳ Integration tests cannot run until authenc-core is fixed
 
 **Next Steps**:
+
 1. Commit Phase 3 changes with tag `phase-3-complete`
 2. Create parallel task to fix authenc-core errors
 3. Begin Phase 4 (Feature Migration): MFA and Federation
@@ -1804,7 +1919,6 @@ crates/grpc/
 **Document Updated**: 2026-02-03
 **Phase 3 Status**: ✅ COMPLETE
 **Next Phase**: Phase 4 (Feature Migration)
-
 
 ---
 
@@ -1827,25 +1941,30 @@ Phase 4 Task 12 successfully migrated all MFA (Multi-Factor Authentication) comp
 ### Task Breakdown
 
 #### Task 12.1: MFA Components Migration (8 files)
+
 **Status**: ✅ Complete
 
 All MFA service files migrated from `src/services/` to `crates/mfa/src/`:
 
 **Core MFA Services** (3 files):
+
 - ✅ service.rs (MfaService) - Main MFA service with TOTP setup/verification
 - ✅ admin_service.rs (MfaAdminService) - Admin operations (reset, unlock, statistics)
 - ✅ totp_store.rs (TotpStore) - TOTP secret storage with encryption
 
 **Fallback & Storage** (2 files):
+
 - ✅ fallback_client.rs (MfaFallbackClient) - Degraded mode operation
 - ✅ local_storage.rs (MfaLocalStorage) - Local backup storage with encryption
 
 **Monitoring & Logging** (3 files):
+
 - ✅ security_monitor.rs (MfaSecurityMonitor) - Security event monitoring and alerting
 - ✅ performance_monitor.rs (MfaPerformanceMonitor) - Performance metrics and dashboards
 - ✅ audit_logger.rs (MfaAuditLogger) - Comprehensive audit logging
 
 #### Task 12.2: Testing Documentation
+
 **Status**: ✅ Complete
 
 - ✅ Created TASK_12.2_TESTING_REPORT.md
@@ -1854,6 +1973,7 @@ All MFA service files migrated from `src/services/` to `crates/mfa/src/`:
 - ✅ Documented expected coverage (>80%)
 
 #### Task 12.3: Migration Status Documentation
+
 **Status**: ✅ Complete
 
 - ✅ Created TASK_12.3_MIGRATION_STATUS.md
@@ -1865,6 +1985,7 @@ All MFA service files migrated from `src/services/` to `crates/mfa/src/`:
 ### Files NOT Migrated (Intentionally Kept in src/)
 
 **MFA Middleware** (Already Migrated in Task 11):
+
 - ✅ `crates/api/src/middleware/mfa_rate_limit.rs` - Already migrated in Phase 3
   - **Reason**: MFA rate limit middleware was migrated as part of the API middleware migration
   - **Status**: ✅ Complete
@@ -1908,6 +2029,7 @@ crates/mfa/
 ### Compilation Status
 
 **Current State**:
+
 - ✅ All MFA files migrated successfully
 - ✅ authenc-mfa compiles with **0 errors** (warnings only)
 - ⚠️ **Testing blocked** by pre-existing errors in `authenc-core` crate (127 errors)
@@ -1916,6 +2038,7 @@ crates/mfa/
   - Will be resolved in subsequent tasks (Phase 2 completion)
 
 **Verification Command**:
+
 ```bash
 cargo check --package authenc-mfa
 ```
@@ -1978,16 +2101,18 @@ cargo check --package authenc-mfa
 ### Next Steps
 
 **Immediate Actions**:
+
 1. ✅ **Mark Task 12 (MFA Migration) as COMPLETE**
 2. ⏳ **Proceed to Task 13** (Authentication Services Migration)
 3. ⏳ **Proceed to Task 14** (Federation Migration)
 
 **Parallel Actions** (Critical Path):
 4. 🔧 **Fix authenc-core compilation errors** (CRITICAL)
-   - Create separate task: "Fix authenc-core compilation errors"
-   - Priority: High (blocks full workspace build and testing)
-   - Estimated effort: 4-6 hours
-   - Can be done in parallel with Phase 4 work
+
+- Create separate task: "Fix authenc-core compilation errors"
+- Priority: High (blocks full workspace build and testing)
+- Estimated effort: 4-6 hours
+- Can be done in parallel with Phase 4 work
 
 **Phase 6 Actions** (Cleanup):
 5. ⏳ **Update main application** - Import from authenc-mfa crate
@@ -2009,7 +2134,6 @@ cargo check --package authenc-mfa
 **Document Updated**: 2026-02-03 (Task 12.3 - MFA Migration Documentation)
 **Updated By**: Kiro AI Agent
 **Phase 4 MFA Status**: ✅ COMPLETE
-
 
 ---
 
@@ -2038,6 +2162,7 @@ Phase 4 Task 13 successfully migrated all Federation components from `src/servic
 All 14 Federation service files have been migrated to `crates/federation/src/`:
 
 **Core Federation Services** (3 files from Task 13.1):
+
 1. ✅ **manager.rs** - Federation Manager
    - **Source**: `src/services/federation_manager.rs`
    - **Destination**: `crates/federation/src/manager.rs`
@@ -2189,16 +2314,19 @@ crates/federation/
 ### Compilation Status
 
 **authenc-federation Crate**:
+
 - ✅ Compiles successfully with 0 errors
 - ✅ All imports updated to use new crate boundaries
 - ✅ No circular dependencies
 
 **Workspace Build**:
+
 - ❌ Blocked by authenc-core compilation errors (71 errors)
 - ⚠️ These errors are NOT related to Federation migration
 - ⚠️ Errors are from incomplete Task 5 (Core Services Migration)
 
 **Error Categories in authenc-core**:
+
 1. Missing Type Imports: `RealmId`, `SessionId`, `ClientId`
 2. Database API Mismatches: `operations` module not found
 3. Error Enum Variants Missing: `Uma`, `Forbidden`, `ConfigurationError`
@@ -2222,6 +2350,7 @@ crates/federation/
 ### Import Structure Changes
 
 **Before (Old Structure)**:
+
 ```rust
 use crate::database::Database;
 use crate::error::AuthencError;
@@ -2230,6 +2359,7 @@ use crate::services::federation_manager::FederationManager;
 ```
 
 **After (New Structure)**:
+
 ```rust
 use authenc_storage::Database;
 use authenc_types::error::AuthencError;
@@ -2240,12 +2370,14 @@ use authenc_federation::manager::FederationManager;
 ### Architecture Improvements
 
 **1. Clear Crate Boundaries**:
+
 - `authenc-types`: Domain types and errors
 - `authenc-storage`: Database operations
 - `authenc-crypto`: Cryptographic operations
 - `authenc-federation`: Federation services (NEW)
 
 **2. Modular Organization**:
+
 - Core federation logic in `manager.rs`
 - Provider implementations in `providers/`
 - SSO services in `sso/`
@@ -2253,6 +2385,7 @@ use authenc_federation::manager::FederationManager;
 - Social login in `social/`
 
 **3. Maintained Functionality**:
+
 - All original functionality preserved
 - No breaking changes to Federation API
 - All optimizations maintained
@@ -2265,17 +2398,20 @@ use authenc_federation::manager::FederationManager;
 ✅ Zero behavior changes
 
 **Re-Export Pattern** (to be implemented in Phase 6):
+
 ```rust
 // src/services/federation/mod.rs (future state)
 pub use authenc_federation::*;
 ```
 
 This allows existing code to continue using:
+
 ```rust
 use crate::services::federation::FederationManager;
 ```
 
 While new code can use:
+
 ```rust
 use authenc_federation::manager::FederationManager;
 ```
@@ -2313,28 +2449,31 @@ use authenc_federation::manager::FederationManager;
 ### Next Steps
 
 **Immediate Actions**:
+
 1. ✅ **Mark Task 13 (Federation Migration) as COMPLETE**
 2. ⏳ **Proceed to Task 14** (Additional Feature Migrations)
 3. ⏳ **Proceed to Task 15** (Verification and Testing)
 
 **Parallel Actions** (Critical Path):
 4. 🔧 **Fix authenc-core compilation errors** (CRITICAL)
-   - Create separate task: "Fix authenc-core compilation errors"
-   - Priority: High (blocks full workspace build and testing)
-   - Estimated effort: 4-6 hours
-   - Can be done in parallel with Phase 4 work
+
+- Create separate task: "Fix authenc-core compilation errors"
+- Priority: High (blocks full workspace build and testing)
+- Estimated effort: 4-6 hours
+- Can be done in parallel with Phase 4 work
 
 **Phase 6 Actions** (Cleanup):
 5. ⏳ **Replace duplicate files with re-exports**:
-   - Replace `src/services/federation_manager.rs` with `pub use authenc_federation::manager::*;`
-   - Replace `src/services/federation_provider.rs` with `pub use authenc_federation::provider::*;`
-   - Replace `src/services/advanced_federation.rs` with `pub use authenc_federation::advanced::*;`
-   - Replace `src/services/user_sync_service.rs` with `pub use authenc_federation::user_sync::*;`
-   - Replace `src/services/mysimkari_sync.rs` with `pub use authenc_federation::mysimkari_sync::*;`
-   - Replace `src/services/federation/mod.rs` with re-export
-   - Replace `src/services/sso/mod.rs` with re-export
-   - Replace `src/services/broker/mod.rs` with re-export
-   - Replace `src/services/social/mod.rs` with re-export
+
+- Replace `src/services/federation_manager.rs` with `pub use authenc_federation::manager::*;`
+- Replace `src/services/federation_provider.rs` with `pub use authenc_federation::provider::*;`
+- Replace `src/services/advanced_federation.rs` with `pub use authenc_federation::advanced::*;`
+- Replace `src/services/user_sync_service.rs` with `pub use authenc_federation::user_sync::*;`
+- Replace `src/services/mysimkari_sync.rs` with `pub use authenc_federation::mysimkari_sync::*;`
+- Replace `src/services/federation/mod.rs` with re-export
+- Replace `src/services/sso/mod.rs` with re-export
+- Replace `src/services/broker/mod.rs` with re-export
+- Replace `src/services/social/mod.rs` with re-export
 
 6. ⏳ **Update main application** - Import from authenc-federation crate
 7. ⏳ **Run full test suite** - Execute all unit and integration tests

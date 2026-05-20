@@ -29,8 +29,10 @@ dist/
 build/
 
 # ===== NEW: Secure Config System =====
-# Actual bootstrap config (may contain infrastructure details)
-/secreton.toml
+# Bootstrap config tracked di git (no secrets per design Secreton — semua
+# sensitive config encrypted di storage backend, lihat header secreton.toml).
+# Dockerfile COPY file ini ke /app/config/secreton.toml saat build.
+# /secreton.toml  # <- DULU di-ignore; sekarang tracked.
 
 # Safe to commit: example config with no secrets
 !/secreton.toml.example

@@ -32,6 +32,7 @@ Secreton now supports **multiple persistent storage backends** with **Raft conse
 **Use Case**: High availability, distributed deployments, data safety
 
 **Advantages**:
+
 - ✅ Distributed consensus algorithm
 - ✅ Automatic leader election
 - ✅ Data replication across nodes
@@ -40,6 +41,7 @@ Secreton now supports **multiple persistent storage backends** with **Raft conse
 - ✅ No external dependencies
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "raft"
@@ -55,6 +57,7 @@ data_dir = "/var/lib/secreton/raft"
 ```
 
 **Environment Variables**:
+
 ```bash
 SECRETON_STORAGE_BACKEND=raft
 SECRETON_RAFT_NODE_ID=1
@@ -62,6 +65,7 @@ SECRETON_RAFT_PEERS="2=http://node2:7000,3=http://node3:7000"
 ```
 
 **Deployment**:
+
 ```yaml
 # Docker Compose Example
 services:
@@ -114,6 +118,7 @@ volumes:
 **Use Case**: Single node deployments, existing PostgreSQL infrastructure
 
 **Advantages**:
+
 - ✅ Proven database
 - ✅ ACID compliance
 - ✅ Backup/restore tools
@@ -121,6 +126,7 @@ volumes:
 - ✅ Scalable storage
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "postgres"
@@ -128,6 +134,7 @@ postgres_url = "postgresql://user:password@localhost:5432/secreton"
 ```
 
 **Environment Variables**:
+
 ```bash
 SECRETON_STORAGE_BACKEND=postgres
 SECRETON_STORAGE_URL=postgresql://user:password@postgres:5432/secreton
@@ -142,6 +149,7 @@ DATABASE_URL=postgresql://user:password@postgres:5432/secreton
 **Use Case**: Development, testing, single-node deployments
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "file"
@@ -149,6 +157,7 @@ file_path = "/var/lib/secreton/data"
 ```
 
 **Environment Variables**:
+
 ```bash
 SECRETON_STORAGE_BACKEND=file
 SECRETON_STORAGE_FILE_PATH=/var/lib/secreton/data
@@ -161,6 +170,7 @@ SECRETON_STORAGE_FILE_PATH=/var/lib/secreton/data
 **Use Case**: Session storage, caching
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "redis"
@@ -174,6 +184,7 @@ redis_url = "redis://localhost:6379"
 **Use Case**: Distributed deployments, service mesh integration
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "consul"
@@ -188,6 +199,7 @@ consul_path = "secreton/"
 **Use Case**: Development, testing, ephemeral deployments
 
 **Configuration**:
+
 ```toml
 [storage]
 backend = "memory"
@@ -200,12 +212,14 @@ backend = "memory"
 Configuration is applied in this order (highest to lowest priority):
 
 1. **Environment Variables** (highest priority)
+
    ```bash
    SECRETON_STORAGE_BACKEND=raft
    SECRETON_RAFT_NODE_ID=1
    ```
 
 2. **Config File** (default.toml or production.toml)
+
    ```toml
    [storage]
    backend = "raft"
@@ -235,6 +249,7 @@ Configuration is applied in this order (highest to lowest priority):
 ```
 
 **Data Flow**:
+
 1. Write request received by API
 2. Applied to state machine
 3. Replicated to other nodes via Raft
@@ -242,6 +257,7 @@ Configuration is applied in this order (highest to lowest priority):
 5. Acknowledged to client
 
 **Guarantees**:
+
 - ✅ Durability: Data persisted before acknowledgment
 - ✅ Consistency: All nodes have same data
 - ✅ Availability: Survives node failures
@@ -432,23 +448,27 @@ curl -X POST http://localhost:8200/v1/sys/restore \
 ### From Memory to Raft
 
 1. **Stop the service**:
+
    ```bash
    docker stop secreton
    ```
 
 2. **Update configuration**:
+
    ```toml
    [storage]
    backend = "raft"
    ```
 
 3. **Create data directory**:
+
    ```bash
    mkdir -p /var/lib/secreton/raft
    chmod 700 /var/lib/secreton/raft
    ```
 
 4. **Start with Raft**:
+
    ```bash
    docker start secreton
    ```
@@ -456,18 +476,21 @@ curl -X POST http://localhost:8200/v1/sys/restore \
 ### From PostgreSQL to Raft
 
 1. **Backup PostgreSQL data**:
+
    ```bash
    curl -X POST http://localhost:8200/v1/sys/backup \
      -H "X-Secret Vault-Token: $TOKEN" > backup.json
    ```
 
 2. **Update configuration**:
+
    ```toml
    [storage]
    backend = "raft"
    ```
 
 3. **Restore to Raft**:
+
    ```bash
    curl -X POST http://localhost:8200/v1/sys/restore \
      -H "X-Secret Vault-Token: $TOKEN" \
@@ -502,6 +525,7 @@ curl -X POST http://localhost:8200/v1/sys/restore \
 ### Raft Cluster Issues
 
 **Problem**: Node not joining cluster
+
 ```bash
 # Check logs
 docker logs secreton-1 | grep -i raft
@@ -514,6 +538,7 @@ curl http://secreton-2:7000/health
 ```
 
 **Problem**: Leader election timeout
+
 ```bash
 # Increase election timeout
 SECRETON_RAFT_ELECTION_TIMEOUT_MS=3000
@@ -525,6 +550,7 @@ SECRETON_RAFT_HEARTBEAT_INTERVAL_MS=300
 ### PostgreSQL Issues
 
 **Problem**: Connection refused
+
 ```bash
 # Check PostgreSQL is running
 docker ps | grep postgres

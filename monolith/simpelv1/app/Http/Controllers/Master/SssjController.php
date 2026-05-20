@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Master;
 use App\Http\Controllers\Controller;
 use App\Models\Master\MsSssj;
 use Illuminate\Http\Request;
-use App\Helpers\MyHelper;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -21,10 +20,11 @@ class SssjController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new MsSssj();
+        $model = new MsSssj;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['search',  'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -32,14 +32,14 @@ class SssjController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
 
         if ($id) {
             $model = MsSssj::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -51,6 +51,7 @@ class SssjController extends Controller
             'model' => $model,
             'isNew' => $isNew,
         ];
+
         return $data;
     }
 
@@ -60,6 +61,7 @@ class SssjController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('master.sssj.sssjFormV', $data);
     }
 
@@ -69,20 +71,20 @@ class SssjController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            //'inst_wilayahinduk' => 'required',
-            //'inst_wilayahkd' => 'required',
-            //'inst_nama' => 'required',
-            //'inst_jenis' => 'required'
+            // 'inst_wilayahinduk' => 'required',
+            // 'inst_wilayahkd' => 'required',
+            // 'inst_nama' => 'required',
+            // 'inst_jenis' => 'required'
         ]);
 
-
-        $data = new MsSssj();
+        $data = new MsSssj;
         $id = isset($request->input()['id']) ? $request->input()['id'] : null;
-        if($id){
+        if ($id) {
             $data = MsSssj::find($id);
         }
         $data->fill($request->input());
         $data->save();
+
         return $this->resSuccess();
     }
 
@@ -92,6 +94,7 @@ class SssjController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('master.sssj.sssjFormV', $data);
     }
 
@@ -120,6 +123,7 @@ class SssjController extends Controller
             DB::beginTransaction();
             MsSssj::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

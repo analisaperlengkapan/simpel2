@@ -1,0 +1,38 @@
+{{- /*
+  Secreton ACL policies per service.
+  ConfigMap berisi policy HCL/JSON yang di-apply ke Secreton via bootstrap-secreton.sh.
+
+  Setiap entry di .Values.secretonAuth.policies = list path glob yang boleh di-read.
+  Default permission: read + list. Untuk write/delete butuh policy khusus (jangan di sini).
+*/ -}}
+{{- if (default (dict) .Values.secretonAuth).enabled }}
+{{- $ns := include "simpel.namespace" . -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secreton-policies
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: secreton
+    app.kubernetes.io/component: policies
+    {{- include "simpel.labels" . | nindent 4 }}
+data:
+  {{- range $service, $paths := .Values.secretonAuth.policies }}
+  {{ $service }}.hcl: |
+    # Policy: {{ $service }}
+    # Auto-generated dari values.yaml secretonAuth.policies.
+    # Permission: read + list pada path yang ditentukan.
+    {{- range $paths }}
+    path {{ . | quote }} {
+      capabilities = ["read", "list"]
+    }
+    {{- end }}
+    # Allow self token renewal & lookup (standard).
+    path "auth/token/renew-self" {
+      capabilities = ["update"]
+    }
+    path "auth/token/lookup-self" {
+      capabilities = ["read"]
+    }
+  {{- end }}
+{{- end }}

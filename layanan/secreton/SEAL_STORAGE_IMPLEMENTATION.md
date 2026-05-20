@@ -3,14 +3,17 @@
 ## Task 2.2: Add master key encryption for storage
 
 ### Objective
+
 Protect master key when stored in database by encrypting it with a seal key derived from Shamir shares.
 
 ### Implementation Details
 
 #### 1. Database Migration
+
 **File**: `migrations/20250101000003_create_engine_state.sql`
 
 Created `engine_state` table with:
+
 - `encrypted_master_key` (BYTEA): Master key encrypted with seal key
 - `seal_config` (JSONB): Seal configuration (threshold, shares count)
 - `shamir_commitments` (JSONB): Feldman VSS commitments for share verification
@@ -19,16 +22,19 @@ Created `engine_state` table with:
 - Constraint to ensure only one engine state exists
 
 #### 2. Encryption Implementation
+
 **File**: `crates/core/src/services/seal.rs`
 
 Added encryption/decryption functionality:
 
 **Key Structures:**
+
 - `Secret VaultState`: Stores encrypted master key and metadata
 - `EncryptionMetadata`: Algorithm, nonce, salt, KDF parameters
 - `KdfParams`: Argon2id parameters (memory cost, time cost, parallelism)
 
 **Encryption Process:**
+
 1. Generate random salt (16 bytes)
 2. Derive encryption key from seal key using Argon2id
 3. Generate random nonce (12 bytes) for AES-256-GCM
@@ -36,12 +42,14 @@ Added encryption/decryption functionality:
 5. Return ciphertext and metadata
 
 **Decryption Process:**
+
 1. Derive encryption key from seal key using stored salt
 2. Create AES-256-GCM cipher
 3. Decrypt ciphertext using stored nonce
 4. Return plaintext master key
 
 **Security Features:**
+
 - AES-256-GCM for authenticated encryption
 - Argon2id for key derivation (memory-hard, resistant to GPU attacks)
 - Secure parameters: 19 MiB memory cost, 2 iterations, parallelism=1
@@ -51,6 +59,7 @@ Added encryption/decryption functionality:
 #### 3. Storage Integration
 
 **Secret VaultStateStorage Trait:**
+
 ```rust
 #[async_trait]
 pub trait Secret VaultStateStorage: Send + Sync {
@@ -60,10 +69,12 @@ pub trait Secret VaultStateStorage: Send + Sync {
 ```
 
 **InMemorySecret VaultStateStorage:**
+
 - Simple in-memory implementation for testing
 - Stores engine state in Arc<RwLock<Option<Secret VaultState>>>
 
 **SealService Updates:**
+
 - Added `storage_backend` field (Option<Arc<dyn Secret VaultStateStorage>>)
 - `with_storage()` constructor for creating service with storage
 - `store_encrypted_master_key()`: Encrypts and stores master key
@@ -72,6 +83,7 @@ pub trait Secret VaultStateStorage: Send + Sync {
 #### 4. Initialize Flow with Storage
 
 When `initialize()` is called with storage backend:
+
 1. Generate 32-byte master key
 2. Split into Shamir shares with Feldman VSS
 3. Derive seal key from master key (using SHA-256 hash)
@@ -83,6 +95,7 @@ When `initialize()` is called with storage backend:
 #### 5. Unseal Flow with Storage
 
 When `unseal_with_share()` is called:
+
 1. Collect and verify shares
 2. When threshold reached, reconstruct seal key
 3. Load encrypted master key from storage
@@ -94,6 +107,7 @@ When `unseal_with_share()` is called:
 #### 6. Seal Flow
 
 When `seal()` is called:
+
 1. Zeroize master key frmemory
 2. Clear unseal shares
 3. Secret Vault becomes sealed
@@ -102,6 +116,7 @@ When `seal()` is called:
 #### 7. Master Key Rotation
 
 New `rotate_master_key()` method:
+
 1. Check engine is unsealed
 2. Generate new 32-byte master key
 3. Split into new Shamir shares
@@ -113,6 +128,7 @@ New `rotate_master_key()` method:
 #### 8. Load from Storage
 
 New `load_from_storage()` method:
+
 1. Load engine state from storage
 2. Update seal configuration
 3. Deserialize and store commitments
@@ -144,6 +160,7 @@ New `load_from_storage()` method:
 ### Testing
 
 Added comprehensive tests in `seal.rs`:
+
 - `test_initialize_with_storage`: Verify storage integration
 - `test_master_key_rotation`: Test key rotation
 - `test_load_from_storage`: Test persistence
@@ -151,6 +168,7 @@ Added comprehensive tests in `seal.rs`:
 - `test_decryption_with_wrong_key_fails`: Test security
 
 All tests verify:
+
 - Master key encryption/decryption
 - Storage persistence
 - Key rotation
@@ -182,6 +200,7 @@ All tests verify:
 ### Next Steps
 
 For production deployment:
+
 1. Implement PostgreSQL-backed Secret VaultStateStorage
 2. Add HSM integration for seal key storage
 3. Implement backup/restore for engine state
@@ -195,4 +214,3 @@ For production deployment:
 - Storage backend is pluggable via Secret VaultStateStorage trait
 - InMemorySecret VaultStateStorage provided for testing
 - PostgreSQL implementation should be added for production use
-

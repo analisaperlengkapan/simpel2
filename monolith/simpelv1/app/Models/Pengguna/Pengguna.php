@@ -18,6 +18,7 @@ class Pengguna extends Authenticatable implements JWTSubject
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $table = 'users';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -37,7 +38,7 @@ class Pengguna extends Authenticatable implements JWTSubject
         'password',
         'foto',
         'firebase_token',
-        'has_user'
+        'has_user',
     ];
 
     /**
@@ -64,10 +65,12 @@ class Pengguna extends Authenticatable implements JWTSubject
     // join ms_role b on a.ms_role_id = b.id
     // join ms_satker c on a.ms_satker_id = c.inst_satkerkd ";
 
-    static function getRoles(array $where = [])
+    public static function getRoles(array $where = [])
     {
-        if (empty($where))
+        if (empty($where)) {
             $where = ['user_id' => session('userData.id')];
+        }
+
         return DB::table('user_role')
             ->join('ms_role', 'user_role.ms_role_id', '=', 'ms_role.id')
             ->leftJoin('ms_satker', 'user_role.ms_satker_id', '=', 'ms_satker.inst_satkerkd')
@@ -75,7 +78,7 @@ class Pengguna extends Authenticatable implements JWTSubject
             ->where($where)->get(['user_role.*', 'ms_satker.inst_nama', 'ms_role.name', 'unit_kerja.akronim as satker_pusat']);
     }
 
-    static function getMyInfo()
+    public static function getMyInfo()
     {
         $userId = session('userData.id');
         $userInfo = DB::table('users')
@@ -83,21 +86,22 @@ class Pengguna extends Authenticatable implements JWTSubject
             ->where(['users.id' => $userId])
             ->leftJoin('ms_satker', 'users.ms_satker_id', '=', 'ms_satker.inst_satkerkd')->first();
         $userInfo->roles = Pengguna::getRoles(['user_id' => $userId]);
+
         return $userInfo;
     }
 
-    function getUserGrid($paging, $search = [], $isSuperadmin = false)
+    public function getUserGrid($paging, $search = [], $isSuperadmin = false)
     {
         $query = DB::table('vw_user as a')->where('is_superadmin', '=', $isSuperadmin ? 1 : 0);
 
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -116,16 +120,19 @@ class Pengguna extends Authenticatable implements JWTSubject
 
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function isUserHasRole($roleId)
+    public static function isUserHasRole($roleId)
     {
         $userId = session('userData.id');
         $where = ['user_id' => $userId, 'id' => $roleId];
         $res = DB::table('user_role')->where($where)->count();
-        if ($res < 1)
+        if ($res < 1) {
             return false;
+        }
+
         return Pengguna::getRoles(['user_role.id' => $roleId])[0];
     }
 
@@ -141,13 +148,13 @@ class Pengguna extends Authenticatable implements JWTSubject
 
         $customClaims = [
             'roles' => $userData['roles'],
-            'current_role' => $userData['current_role']
+            'current_role' => $userData['current_role'],
         ];
 
         return $customClaims;
     }
 
-    static function setUserdata($user)
+    public static function setUserdata($user)
     {
 
         $role = self::getRoles(['user_id' => $user->id]);
@@ -165,24 +172,25 @@ class Pengguna extends Authenticatable implements JWTSubject
             'current_role' => (array) $defaultRole,
             'roles' => $role,
         ];
+
         return $userInfo;
     }
 
-    static function getUserByRole($msRoleId, $msSatkerId = [], $msSatkerPusat = [])
+    public static function getUserByRole($msRoleId, $msSatkerId = [], $msSatkerPusat = [])
     {
         $q = DB::table('user_role as a')
             ->select(['b.username', 'b.firebase_token'])
             ->join('users as b', 'a.user_id', '=', 'b.id')
             ->where(['a.ms_role_id' => $msRoleId]);
 
-        if (!empty($msSatkerId)) {
+        if (! empty($msSatkerId)) {
             $q->whereIn('a.ms_satker_id', $msSatkerId);
         }
 
         return $q->get();
     }
 
-    static function getUserChanger($search = null)
+    public static function getUserChanger($search = null)
     {
         $query = DB::table('vw_user as a')->limit(20);
         if ($search) {
@@ -192,7 +200,8 @@ class Pengguna extends Authenticatable implements JWTSubject
                     ->orWhere(DB::raw('lower(satker)'), 'like', "%{$search}%");
             });
         }
-        $data =  $query->orderBy('satker')->orderBy('name')->get();
+        $data = $query->orderBy('satker')->orderBy('name')->get();
+
         return $data;
     }
 }

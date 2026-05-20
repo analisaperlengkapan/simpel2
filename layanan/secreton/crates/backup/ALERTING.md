@@ -108,6 +108,7 @@ Triggered when backup creation fails at any stage (Raft snapshot, PostgreSQL dum
 **Severity**: Critical
 
 **Example**:
+
 ```
 Backup alert (CRITICAL): BackupCreationFailed - PostgreSQL dump failed: connection refused
 ```
@@ -119,6 +120,7 @@ Triggered when backup verification fails (checksum mismatch, decryption failure,
 **Severity**: Error
 
 **Example**:
+
 ```
 Backup alert (ERROR): BackupVerificationFailed [backup-123] - Checksum mismatch: expected abc123, got def456
 ```
@@ -130,6 +132,7 @@ Triggered when automatic cleanup of old backups fails. This is non-fatal and doe
 **Severity**: Warning
 
 **Example**:
+
 ```
 Backup alert (WARNING): BackupCleanupFailed - Failed to delete backup: storage error
 ```
@@ -141,6 +144,7 @@ Triggered when backup restoration fails (download failure, decryption failure, R
 **Severity**: Critical
 
 **Example**:
+
 ```
 Backup alert (CRITICAL): BackupRestorationFailed [backup-123] - Raft snapshot restoration failed
 ```
@@ -154,10 +158,12 @@ When the `metrics` feature is enabled, the following Prometheus metrics are reco
 Counter tracking the total number of alerts triggered.
 
 **Labels**:
+
 - `alert_type`: Type of alert (`backup_creation_failed`, `backup_verification_failed`, `backup_cleanup_failed`, `backup_restoration_failed`)
 - `severity`: Severity level (`warning`, `error`, `critical`)
 
 **Example**:
+
 ```
 secreton_backup_alerts_total{alert_type="backup_creation_failed",severity="critical"} 3
 secreton_backup_alerts_total{alert_type="backup_verification_failed",severity="error"} 1
@@ -168,9 +174,11 @@ secreton_backup_alerts_total{alert_type="backup_verification_failed",severity="e
 Gauge tracking the timestamp of the last alert for each type.
 
 **Labels**:
+
 - `alert_type`: Type of alert
 
 **Example**:
+
 ```
 secreton_backup_last_alert_timestamp_seconds{alert_type="backup_creation_failed"} 1707825600.0
 ```

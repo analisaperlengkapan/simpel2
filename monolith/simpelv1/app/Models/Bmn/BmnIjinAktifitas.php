@@ -6,12 +6,11 @@ use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Query\Builder;
 
 class BmnIjinAktifitas extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'bmn_ijin_pemakaian_aktifitas';
 
@@ -33,13 +32,14 @@ class BmnIjinAktifitas extends Model
         'nama',
     ];
 
-    static function getDetail($pengajuan_id)
+    public static function getDetail($pengajuan_id)
     {
         $query = DB::table('bmn_ijin_pemakaian_aktifitas as a');
         $query->select('a.*', 'b.nama as nama_aktifitas');
         $query->join('ms_aktifitas_user as b', 'a.ms_aktifitas_id', '=', 'b.id');
         $query->where('a.pengajuan_id', $pengajuan_id);
         $query->orderBy('a.created_at', 'desc');
+
         return $query->get()->toArray();
     }
 }

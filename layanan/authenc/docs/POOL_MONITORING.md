@@ -108,6 +108,7 @@ curl http://localhost:8088/health/metrics
 ```
 
 Response:
+
 ```json
 {
   "status": "healthy",
@@ -212,6 +213,7 @@ CRITICAL: Connection pool utilization at 92.0% (threshold: 90.0%)
 **Symptoms**: Pool utilization consistently above 80%
 
 **Solutions**:
+
 1. Increase `max_connections` in configuration
 2. Optimize slow queries to release connections faster
 3. Review application connection usage patterns
@@ -222,6 +224,7 @@ CRITICAL: Connection pool utilization at 92.0% (threshold: 90.0%)
 **Symptoms**: Average wait time above 100ms
 
 **Solutions**:
+
 1. Increase pool size
 2. Reduce connection lifetime to force recycling
 3. Check for connection leaks (not properly released)
@@ -232,6 +235,7 @@ CRITICAL: Connection pool utilization at 92.0% (threshold: 90.0%)
 **Symptoms**: Reuse rate below 70%
 
 **Solutions**:
+
 1. Increase `idle_timeout` to keep connections alive longer
 2. Reduce `max_lifetime` if connections are being recycled too aggressively
 3. Check for connection validation failures
@@ -242,6 +246,7 @@ CRITICAL: Connection pool utilization at 92.0% (threshold: 90.0%)
 **Symptoms**: `total_failures` increasing
 
 **Solutions**:
+
 1. Check database server health
 2. Verify network connectivity
 3. Review connection timeout settings

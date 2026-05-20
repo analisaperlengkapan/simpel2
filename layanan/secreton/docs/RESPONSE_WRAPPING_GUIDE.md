@@ -16,7 +16,9 @@ Response wrapping provides a secure mechanism for distributing secrets using one
 ## Use Cases
 
 ### 1. Secure Secret Distribution
+
 Wrap secrets before sending them to users or applications:
+
 ```bash
 # Wrap a database password
 curl -X POST http://localhost:8200/v1/sys/wrapping/wrap \
@@ -44,7 +46,9 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/wrap \
 ```
 
 ### 2. Temporary Access Tokens
+
 Create short-lived tokens for temporary access:
+
 ```bash
 # Wrap an API key with 60-second TTL
 curl -X POST http://localhost:8200/v1/sys/wrapping/wrap \
@@ -56,7 +60,9 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/wrap \
 ```
 
 ### 3. Secure CI/CD Pipelines
+
 Distribute secrets to CI/CD jobs without exposing them in logs:
+
 ```bash
 # In CI/CD script:
 # 1. Request wrapped secret
@@ -77,9 +83,11 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ## REST API Endpoints
 
 ### Wrap Data
+
 **Endpoint**: `POST /v1/sys/wrapping/wrap`
 
 **Request**:
+
 ```json
 {
   "data": {
@@ -91,6 +99,7 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -105,13 +114,16 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Parameters**:
+
 - `data` (required): Any JSON object to wrap
 - `ttl` (optional): Time-to-live in seconds (default: 300, max: 86400)
 
 ### Unwrap Token
+
 **Endpoint**: `POST /v1/sys/wrapping/unwrap`
 
 **Request**:
+
 ```json
 {
   "token": "wrap_abc123..."
@@ -119,6 +131,7 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -134,14 +147,17 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Errors**:
+
 - `404 Not Found`: Token doesn't exist
 - `400 Bad Request`: Token already unwrapped or expired
 - `403 Forbidden`: Namespace mismatch
 
 ### Lookup Token Metadata
+
 **Endpoint**: `GET /v1/sys/wrapping/lookup/{token}`
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -158,14 +174,17 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Status Values**:
+
 - `Active`: Token can be unwrapped
 - `Unwrapped`: Token has been used (one-time use enforced)
 - `Expired`: Token has expired
 
 ### Rewrap Token
+
 **Endpoint**: `POST /v1/sys/wrapping/rewrap`
 
 **Request**:
+
 ```json
 {
   "token": "wrap_abc123...",
@@ -174,6 +193,7 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -192,6 +212,7 @@ curl -X POST http://localhost:8200/v1/sys/wrapping/unwrap \
 ## gRPC API
 
 ### WrapData
+
 ```protobuf
 rpc WrapData(WrapDataRequest) returns (WrapDataResponse);
 
@@ -211,6 +232,7 @@ message WrapDataResponse {
 ```
 
 ### UnwrapToken
+
 ```protobuf
 rpc UnwrapToken(UnwrapTokenRequest) returns (UnwrapTokenResponse);
 
@@ -227,11 +249,13 @@ message UnwrapTokenResponse {
 ```
 
 ### LookupWrappingToken
+
 ```protobuf
 rpc LookupWrappingToken(LookupWrappingTokenRequest) returns (LookupWrappingTokenResponse);
 ```
 
 ### RewrapToken
+
 ```protobuf
 rpc RewrapToken(RewrapTokenRequest) returns (RewrapTokenRespon
 ```
@@ -241,6 +265,7 @@ rpc RewrapToken(RewrapTokenRequest) returns (RewrapTokenRespon
 **Note**: Automatic response wrapping via `X-Secret Vault-Wrap-TTL` header is partially implemented. For production use, use the explicit `/v1/sys/wrapping/wrap` endpoint.
 
 ### Planned Feature
+
 ```bash
 # Request with automatic wrapping
 curl -H "X-Secret Vault-Wrap-TTL: 300" \
@@ -259,27 +284,32 @@ curl -H "X-Secret Vault-Wrap-TTL: 300" \
 ## Security Considerations
 
 ### One-Time Use Enforcement
+
 - Tokens are automatically deleted after unwrapping
 - Attempting to unwrap twice returns `TokenAlreadyUnwrapped` error
 - This prevents replay attacks and unauthorized access
 
 ### TTL Limits
+
 - Minimum TTL: 1 second
 - Maximum TTL: 86400 seconds (24 hours)
 - Expired tokens cannot be unwrapped
 - Automatic cleanup removes expired tokens
 
 ### Encryption
+
 - All wrapped data is encrypted using AES-256-GCM
 - Encryption keys are generated per wrap operation
 - Keys are stored securely in metadata (in production, use Transit engine or HSM)
 
 ### Namespace Isolation
+
 - Tokens are scoped to namespaces
 - Users can only unwrap tokens in their namespace
 - Cross-namespace access returns `InvalidNamespace` error
 
 ### Rate Limiting
+
 - Wrap operations are rate-limited per client
 - Prevents abuse and DoS attacks
 - Configurable limits per namespace
@@ -304,6 +334,7 @@ All wrapping operations are logged:
 ## Monitoring
 
 ### Metrics
+
 - `secreton_wrapping_wraps_total`: Total wrap operations
 - `secreton_wrapping_unwraps_total`: Total unwrap operations
 - `secreton_wrapping_lookups_total`: Total lookup operations
@@ -312,6 +343,7 @@ All wrapping operations are logged:
 - `secreton_wrapping_active_tokens`: Current active tokens
 
 ### Health Checks
+
 - Monitor token expiration rate
 - Alert on high unwrap failure rate
 - Track average token lifetime
@@ -319,6 +351,7 @@ All wrapping operations are logged:
 ## Best Practices
 
 ### 1. Use Short TTLs
+
 ```bash
 # Good: 5-minute TTL for temporary access
 {"ttl": 300}
@@ -328,6 +361,7 @@ All wrapping operations are logged:
 ```
 
 ### 2. Verify Token Before Use
+
 ```bash
 # Check token status before unwrapping
 curl http://localhost:8200/v1/sys/wrapping/lookup/wrap_abc123...
@@ -336,6 +370,7 @@ curl http://localhost:8200/v1/sys/wrapping/lookup/wrap_abc123...
 ```
 
 ### 3. Handle Errors Gracefully
+
 ```bash
 # Implement retry logic for expired tokens
 if [ "$STATUS" == "Expired" ]; then
@@ -345,12 +380,14 @@ fi
 ```
 
 ### 4. Clean Up Tokens
+
 ```bash
 # Tokens are automatically cleaned up on unwrap
 # No manual cleanup needed
 ```
 
 ### 5. Use Namespace Isolation
+
 ```bash
 # Always specify namespace for multi-tenant deployments
 {
@@ -363,49 +400,61 @@ fi
 ## Troubleshooting
 
 ### Token Not Found
+
 **Error**: `404 Not Found: Wrapping token not found`
 
 **Causes**:
+
 - Token already unwrapped (one-time use)
 - Token expired and cleaned up
 - Invalid token format
 
 **Solution**:
+
 - Request a new wrapped secret
 - Check token expiration time
 - Verify token format starts with `wrap_`
 
 ### Token Already Unwrapped
+
 **Error**: `400 Bad Request: Token has already been unwrapped`
 
 **Causes**:
+
 - Attempting to unwrap the same token twice
 - Token was unwrapped by another process
 
 **Solution**:
+
 - Request a new wrapped secret
 - Implement proper token lifecycle management
 
 ### Token Expired
+
 **Error**: `400 Bad Request: Token expired at 2025-10-27T10:05:00Z`
 
 **Causes**:
+
 - TTL elapsed before unwrapping
 - Clock skew between systems
 
 **Solution**:
+
 - Use shorter TTLs for time-sensitive operations
 - Sync system clocks (NTP)
 - Request new wrapped secret
 
 ### Invalid Namespace
+
 **Error**: `403 Forbidden: Token belongs to namespace 'satker-a', not 'satker-b'`
 
 **Causes**:
+
 - Attempting to unwrap token from different namespace
 - Namespace mismatch in JWT claims
 
 **Solution**:
+
 - Verify namespace in JWT token
 - Request wrapped secret in correct namespace
 
@@ -484,6 +533,7 @@ auto_wrap_enabled = false
 ## Examples
 
 ### Python Client
+
 ```python
 import requests
 import json
@@ -508,6 +558,7 @@ print(f"Password: {secret['password']}")
 ```
 
 ### Go Client
+
 ```go
 package main
 
@@ -544,6 +595,7 @@ func main() {
 ```
 
 ### Rust Client
+
 ```rust
 use serde_json::json;
 use reqwest::Client;
@@ -587,4 +639,3 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - [HashiCorp Secret Vault Response Wrapping](https://www.engineproject.io/docs/concepts/response-wrapping)
 - [Secreton API Documentation](./API_DOCUMENTATION.md)
 - [Security Best Practices](./SECURITY_BEST_PRACTICES.md)
-

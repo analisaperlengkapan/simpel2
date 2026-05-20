@@ -47,7 +47,9 @@ console_error_panic_hook = { workspace = true }
 tracing = { workspace = true }
 # WASM only needs the `fmt` layer. Skip `env-filter` (pulls regex) and `json`
 # (pulls tracing-serde) to keep the WASM bundle lean.
-tracing-subscriber = { workspace = true, default-features = false, features = ["fmt"] }
+tracing-subscriber = { workspace = true, default-features = false, features = [
+  "fmt",
+] }
 tracing-subscriber-wasm = { workspace = true }
 uuid = { workspace = true, features = ["v4", "js", "fast-rng"] }
 url = { workspace = true }

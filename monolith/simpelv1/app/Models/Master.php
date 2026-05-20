@@ -12,14 +12,13 @@ class Master extends Model
 {
     use HasFactory;
 
-    function getMenus($role, $isMobile = false)
+    public function getMenus($role, $isMobile = false)
     {
 
-        $sql = "WITH user_menu as (
+        $sql = 'WITH user_menu as (
         select distinct c.menu_id
         from ms_role_menu c
-        join ms_role b on c.role_id = b.id ";
-
+        join ms_role b on c.role_id = b.id ';
 
         if ($role) {
             $sql .= " JOIN user_role a on b.id = {$role} ";
@@ -27,20 +26,21 @@ class Master extends Model
 
         $filterAktif = $isMobile ? 'is_active_mobile' : 'is_active';
 
-        $sql .= ")";
+        $sql .= ')';
         $sql .= " SELECT a.*, b.menu_id, a.route||'?active_route='||a.id as active_route
         from ms_menu a
         join user_menu b on a.id = b.menu_id
         where {$filterAktif} = 1 ";
 
-        $sql .= " order by urutan, name";
+        $sql .= ' order by urutan, name';
 
         $menus = DB::select($sql);
-        if (!empty($menus))
+        if (! empty($menus)) {
             return $this->buildMenu($menus);
+        }
     }
 
-    function buildMenu($menus)
+    public function buildMenu($menus)
     {
         $level = DB::selectOne('SELECT MAX(level) as max_level from ms_menu');
         $maxLevel = $level->max_level;
@@ -59,47 +59,47 @@ class Master extends Model
                 }
             }
         }
+
         return $levels[1];
     }
 
-    static function getSatkerDashboard($excludeKejagung = false)
+    public static function getSatkerDashboard($excludeKejagung = false)
     {
         $q = DB::table('ms_satker')
             ->whereRaw('length(inst_satkerkd) > 2')
             ->whereRaw('kdsatker_keu is not null')
-            //->whereNotNull('kdsatker_keu')
+            // ->whereNotNull('kdsatker_keu')
             ->orderBy('inst_satkerkd', 'asc');
 
-        return
-            $q->get()->toArray();
+        return $q->get()->toArray();
     }
-    static function getWilayahDashboard($excludeKejagung = false)
+
+    public static function getWilayahDashboard($excludeKejagung = false)
     {
-        //DB::enableQueryLog();
+        // DB::enableQueryLog();
         return DB::table('ms_satker')
             ->whereRaw('length(inst_satkerkd) = 2')
             ->whereRaw('kdsatker_keu is not null')
             ->orderBy('inst_satkerkd')->get()->toArray();
 
-
-        //echo dd(DB::getQueryLog()); exit;
+        // echo dd(DB::getQueryLog()); exit;
     }
 
-    static function getSatkers($excludeKejagung = false)
+    public static function getSatkers($excludeKejagung = false)
     {
         $q = DB::table('ms_satker')
             ->orderBy('inst_satkerkd', 'asc');
         if ($excludeKejagung) {
             $q->where('inst_satkerkd', '<>', '00');
         }
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getSatkerWilayah($userSatkerId = null)
+    public static function getSatkerWilayah($userSatkerId = null)
     {
         $q = DB::table('ms_satker')->orderBy('inst_satkerkd', 'asc');
-        if (!$userSatkerId) {
+        if (! $userSatkerId) {
             $userSatkerId = session('userData.current_role.ms_satker_id');
         }
         $satkers = [];
@@ -107,7 +107,7 @@ class Master extends Model
         $wilayahs = [];
 
         if ($userSatkerId != '00') {
-            $q->where('inst_satkerkd', 'like', $userSatkerId . '%');
+            $q->where('inst_satkerkd', 'like', $userSatkerId.'%');
         }
         $satkerRaw = $q->get();
 
@@ -122,43 +122,44 @@ class Master extends Model
                 $satkers[] = $satker;
             }
         }
+
         return ['wilayahs' => $wilayahs, 'satkers' => $satkers, 'pusats' => $pusats];
     }
 
-    static function getSatkersPusat()
+    public static function getSatkersPusat()
     {
         $q = DB::table('ms_satker_pusat')
             ->orderBy('id', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getSatkersKeu()
+    public static function getSatkersKeu()
     {
         $q = DB::table('ms_satker')
             ->whereNotNull('kdsatker_keu') // Filter where the column is not null
             ->where('kdsatker_keu', '!=', '')
             ->orderBy('inst_satkerkd', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getSatkersSakti()
+    public static function getSatkersSakti()
     {
         $q = DB::table('ms_satker_sakti')
             ->orderBy('kdsatker', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getRoles()
+    public static function getRoles()
     {
         $q = DB::table('ms_role');
-        return
-            $q->where('id', '<>', config('constants.superadmin_role_id'))->get()->toArray();
+
+        return $q->where('id', '<>', config('constants.superadmin_role_id'))->get()->toArray();
     }
 
-    static function getPegawaiByNip($nip)
+    public static function getPegawaiByNip($nip)
     {
         return DB::selectOne("SELECT a.*
         , case when c.eselon_simple in('3', '4') then c.eselon2 else c.id end as mapped_unit_kerja
@@ -171,10 +172,10 @@ class Master extends Model
         // return DB::table('mv_curr_pegawai_all')->where(['peg_nip_baru' => $nip])->first();
     }
 
-    function gridDataPegawaiDashboard($paging, $search = [], $filter = [])
+    public function gridDataPegawaiDashboard($paging, $search = [], $filter = [])
     {
         $query = DB::table('vw_pegawai_dashboard');
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
@@ -188,35 +189,36 @@ class Master extends Model
         }
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 
-    static function getPegawaiBySatker($where = [])
+    public static function getPegawaiBySatker($where = [])
     {
         return DB::table('mv_curr_pegawai_all')->where($where)->select(['*', 'peg_nip_baru as nip'])->orderBy('nama')->get();
     }
 
-    static function getPeg()
+    public static function getPeg()
     {
         $q = DB::table('mv_curr_pegawai_all')
             ->whereNotNull('peg_nip_baru') // Filter where the column is not null
             ->where('peg_nip_baru', '!=', '')
             ->orderBy('peg_nip_baru', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getSatuan()
+    public static function getSatuan()
     {
         return DB::table('ms_satuan')->get()->toArray();
     }
 
-    static function getJenisAsset()
+    public static function getJenisAsset()
     {
         return DB::table('ms_jenis_asset')->get()->toArray();
     }
 
-    static function getMsUkuranGroup($isHeader = false)
+    public static function getMsUkuranGroup($isHeader = false)
     {
         $q = DB::table('ms_ukuran');
         if ($isHeader) {
@@ -224,10 +226,11 @@ class Master extends Model
         } else {
             $q->orderBy('urutan');
         }
+
         return $q->get()->toArray();
     }
 
-    static function getMsUkuranGroupMapped($groups, $default = null, $json = null)
+    public static function getMsUkuranGroupMapped($groups, $default = null, $json = null)
     {
         $ukurans = DB::table('ms_ukuran')->whereIn('group', $groups)->orderBy('group')->get();
         foreach ($ukurans as $ukuran) {
@@ -237,50 +240,54 @@ class Master extends Model
             $options = MyHelper::generateSelectOptions(['data' => $ukurans, 'selected' => $default[$ukuranGroup] ?? null, 'type' => $json]);
             $return[$ukuranGroup] = $options;
         }
+
         return $return;
     }
 
-    static function getBarangAset($where = [])
+    public static function getBarangAset($where = [])
     {
         $query = DB::table('vw_asset_barang')->select(['kode_barang', 'nm_barang as nama_barang', 'ms_jenis_asset_id', 'ms_jenis_asset.nm_table'])->distinct();
         $query->leftJoin('ms_jenis_asset', 'vw_asset_barang.ms_jenis_asset_id', 'ms_jenis_asset.id');
-        if (!empty($where)) {
+        if (! empty($where)) {
             $query->whereIn('kode_barang', $where);
         }
+
         return $query->get()->toArray();
     }
-    static function getBarangAsetBmn($where = [])
+
+    public static function getBarangAsetBmn($where = [])
     {
-        //$query = DB::table('vm_aset_bmn_bangunan')->select(['nup','kode_barang', 'nama_barang', 'keterangan'])->distinct();
-        //if (!empty($where)) {
+        // $query = DB::table('vm_aset_bmn_bangunan')->select(['nup','kode_barang', 'nama_barang', 'keterangan'])->distinct();
+        // if (!empty($where)) {
         //    $query->whereIn('kode_barang', $where);
-        //}
-        //return $query->get()->toArray();
+        // }
+        // return $query->get()->toArray();
         $satker = session('userData.current_role.ms_satker_id_keu');
         $q = DB::table('vm_aset_bmn_bangunan')
             ->where('id_satker', '=', $satker)
             ->orderBy('kode_barang', 'asc');
-        //if (!empty($where)) {
+
+        // if (!empty($where)) {
         //    $q->whereIn('kode_barang', $where);
-        //}
+        // }
         return $q->get()->toArray();
     }
 
-    static function gettopik()
+    public static function gettopik()
     {
         $q = DB::table('suport_topik')
             ->where('status', '!=', 'Close')
             ->orderBy('id', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 
-    static function getrole()
+    public static function getrole()
     {
         $q = DB::table('ms_role')
             ->where('is_active', '!=', '0')
             ->orderBy('id', 'asc');
-        return
-            $q->get()->toArray();
+
+        return $q->get()->toArray();
     }
 }

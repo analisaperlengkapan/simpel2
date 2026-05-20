@@ -3,6 +3,7 @@
 **Layanan Bantuan** adalah microservice dalam SIMPEL untuk sistem bantuan, FAQ, ticket, chatbot AI, knowledge base, analytics, GDPR, webhook, export/import, RBAC granular, rate limit, captcha, dan audit log. Dibangun dengan Rust (Axum), PostgreSQL, Redis, dan siap integrasi AI.
 
 ## 🚀 Fitur Utama
+
 - FAQ Management (CRUD, search, versioning)
 - Ticket System (CRUD, komentar, status, anti-spam)
 - AI Chatbot (integrasi AI, feedback loop)
@@ -18,6 +19,7 @@
 - Health check endpoint
 
 ## 🏗️ Struktur Folder
+
 ```
 layanan/bantuan/
 ├── src/
@@ -46,6 +48,7 @@ layanan/bantuan/
 ```
 
 ## ⚙️ Dependensi Utama
+
 - Rust (Axum, SQLx, Tokio, Serde, Tracing, Prometheus, Sentry, Tower)
 - PostgreSQL
 - Redis (rate limit, captcha)
@@ -53,11 +56,15 @@ layanan/bantuan/
 - Docker (opsional)
 
 ## 🔧 Environment Variable
+
 Lihat `.env.example` untuk semua variabel yang didukung:
+
 - DATABASE_URL, AI_SERVICE_URL, API_KEY, CORS_ORIGINS, SEARCH_INDEX_PATH, LOG_LEVEL, SENTRY_DSN, RATE_LIMIT_*, CAPTCHA_SECRET, REDIS_URL
 
 ## 📡 API Endpoint (Utama)
+
 ### FAQ
+
 - `GET/POST   /faq/categories`
 - `GET/PUT/DELETE /faq/categories/:id`
 - `GET    /faq/categories/:id/articles`
@@ -66,6 +73,7 @@ Lihat `.env.example` untuk semua variabel yang didukung:
 - `GET    /faq/search?q=...`
 
 ### Ticket
+
 - `GET/POST   /tickets`
 - `GET/PUT/DELETE /tickets/:id`
 - `GET/POST   /tickets/:id/comments`
@@ -73,12 +81,14 @@ Lihat `.env.example` untuk semua variabel yang didukung:
 - `GET    /tickets/search?q=...`
 
 ### Chatbot
+
 - `POST   /chatbot/query`
 - `GET    /chatbot/history?conversation_id=...`
 - `POST   /chatbot/feedback`
 - `GET    /chatbot/suggestions?user_id=...`
 
 ### Knowledge Base
+
 - `GET/POST   /knowledge/articles`
 - `GET/PUT/DELETE /knowledge/articles/:id`
 - `GET    /knowledge/search?q=...`
@@ -87,12 +97,14 @@ Lihat `.env.example` untuk semua variabel yang didukung:
 - `POST   /knowledge/import`
 
 ### Analytics
+
 - `GET    /analytics/tickets?start=...&end=...`
 - `GET    /analytics/faq?category_id=...&period=...`
 - `GET    /analytics/chatbot?user_id=...&period=...`
 - `GET    /analytics/satisfaction?start=...&end=...`
 
 ### Audit & Admin
+
 - `GET    /audit/logs?user_id=...&action=...&resource=...&limit=...`
 - `GET/POST   /webhook/events`
 - `POST   /webhook/events/:id/deliver`
@@ -107,6 +119,7 @@ Lihat `.env.example` untuk semua variabel yang didukung:
 - `GET    /metrics`
 
 ## 🔒 Keamanan
+
 - RBAC granular: Role & permission per endpoint/resource
 - API key: Semua endpoint dilindungi header `x-api-key`
 - Rate limiting: Per user/IP, configurable
@@ -117,15 +130,18 @@ Lihat `.env.example` untuk semua variabel yang didukung:
 - Sentry error tracking (opsional)
 
 ## 📊 Observability
+
 - Prometheus metrics (`/metrics`)
 - Tracing (OpenTelemetry, Sentry)
 - Health check endpoint
 
 ## 🧪 Testing
+
 - Jalankan: `cargo test`
 - Test FAQ, ticket, chatbot, knowledge, dsb.
 
 ## 🛠️ Build & Run
+
 ```bash
 # Build
 cargo build --release
@@ -136,34 +152,45 @@ cargo run
 ```
 
 ## 🔗 Integrasi
+
 - AI Service: Chatbot via HTTP
 - Security Service: User/role (RBAC, audit)
 - Notifikasi, webhook, export/import, dsb
 
 ## 📑 Contoh Request
+
 ### Buat FAQ
+
 ```bash
 curl -X POST -H 'x-api-key: <API_KEY>' -H 'Content-Type: application/json' \
   -d '{"name":"General","description":"Info umum"}' \
   http://localhost:3006/faq/categories
 ```
+
 ### Buat Tiket
+
 ```bash
 curl -X POST -H 'x-api-key: <API_KEY>' -H 'Content-Type: application/json' \
   -d '{"user_id":"<uuid>","subject":"Butuh bantuan","description":"..."}' \
   http://localhost:3006/tickets
 ```
+
 ### Query Chatbot
+
 ```bash
 curl -X POST -H 'x-api-key: <API_KEY>' -H 'Content-Type: application/json' \
   -d '{"user_id":"<uuid>","message":"Halo"}' \
   http://localhost:3006/chatbot/query
 ```
+
 ### Export Knowledge
+
 ```bash
 curl -H 'x-api-key: <API_KEY>' http://localhost:3006/knowledge/export
 ```
+
 ### GDPR Request Delete
+
 ```bash
 curl -X POST -H 'x-api-key: <API_KEY>' -H 'Content-Type: application/json' \
   -d '{"user_id":"<uuid>","details":{}}' \
@@ -171,10 +198,11 @@ curl -X POST -H 'x-api-key: <API_KEY>' -H 'Content-Type: application/json' \
 ```
 
 ## 📝 Catatan
+
 - Setiap endpoint utama sudah terhubung audit log.
 - RBAC, rate limit, captcha, dan API key wajib diaktifkan di produksi.
 - Untuk integrasi production, pastikan semua service eksternal (AI, Redis, dsb) sudah siap.
 - Webhook, export/import, GDPR, dan audit log siap untuk kebutuhan compliance dan integrasi enterprise.
 
 ---
-**Dibangun dengan ❤️ dan Rust untuk sistem bantuan yang cerdas, aman, dan scalable** 
+**Dibangun dengan ❤️ dan Rust untuk sistem bantuan yang cerdas, aman, dan scalable**

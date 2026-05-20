@@ -34,6 +34,7 @@ pub struct BackupConfig {
 ```
 
 **Configuration Options:**
+
 - `database_url`: PostgreSQL connection string (can also use `DATABASE_URL` env var)
 - `pg_dump_path`: Path to pg_dump binary (default: "pg_dump")
 - `pg_dump_timeout_secs`: Timeout for dump operation (default: 300 seconds / 5 minutes)
@@ -56,6 +57,7 @@ fn parse_database_url(url: &str) -> Result<DatabaseConnectionParams>
 - Validates URL format and returns detailed error messages
 
 **Supported URL formats:**
+
 - `postgresql://user:password@host:port/database`
 - `postgres://user:password@host:port/database`
 - Port defaults to 5432 if not specified
@@ -67,6 +69,7 @@ async fn dump_postgres(&self) -> Result<Vec<u8>>
 ```
 
 **Features:**
+
 1. **Secure credential handling**: Password passed via `PGPASSWORD` environment variable (not command line)
 2. **Custom format output**: Uses `--format=custom` for better compression and flexibility
 3. **Portable dumps**: Includes `--no-owner` and `--no-acl` for cross-environment restoration
@@ -76,6 +79,7 @@ async fn dump_postgres(&self) -> Result<Vec<u8>>
 7. **Metrics integration**: Records dump size and success metrics (when metrics feature enabled)
 
 **pg_dump command options:**
+
 ```bash
 pg_dump \
   --host=<host> \
@@ -95,6 +99,7 @@ pg_dump \
 **File:** `crates/backup/src/error.rs`
 
 The `PostgresDump` error variant already existed and is used for:
+
 - Missing database URL configuration
 - Invalid URL format
 - pg_dump process spawn failures
@@ -131,14 +136,17 @@ pub async fn create_backup(&self) -> Result<String> {
 Comprehensive test suite including:
 
 #### Unit Tests
+
 - `test_postgres_dump_requires_database_url`: Verifies error when URL not configured
 - `test_postgres_dump_with_invalid_url`: Tests various invalid URL formats
 - `test_postgres_dump_timeout_configuration`: Verifies timeout configuration
 
 #### Integration Tests
+
 - `test_postgres_dump_integration`: Full integration test with real PostgreSQL (requires `TEST_DATABASE_URL`)
 
 **File:** `crates/backup/src/manager.rs` (unit tests)
+
 - `test_parse_database_url`: Tests URL parsing with various formats
   - Valid URLs with and without port
   - Invalid URLs (missing protocol, credentials, database)
@@ -147,9 +155,11 @@ Comprehensive test suite including:
 ## Requirements Validation
 
 ### Requirement 2.5.2: ✅ SATISFIED
+>
 > "Backups include Raft snapshots + PostgreSQL dumps"
 
 The implementation:
+
 - Executes pg_dump to capture complete database state
 - Integrates with backup creation workflow
 - Stores dumps alongside Raft snapshots
@@ -230,6 +240,7 @@ let backup_id = manager.create_backup().await?;
 **New Dependencies:** None (uses existing tokio::process)
 
 **Required External Tools:**
+
 - `pg_dump` (PostgreSQL client tools) - must be installed on backup host
 
 ## Compatibility
@@ -243,6 +254,7 @@ let backup_id = manager.create_backup().await?;
 The next task in the backup implementation sequence is:
 
 **Task 2.6**: Write property test for backup completeness
+
 - Verify backups contain both Raft snapshot and PostgreSQL dump
 - Validate backup metadata accuracy
 - Test backup integrity after encryption/compression

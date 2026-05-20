@@ -15,6 +15,7 @@
 ## Current State
 
 ### ✅ What's Complete
+
 1. **Test Structure**: All test stubs created in `comprehensive_integration_tests.rs`
 2. **Requirements Mapping**: Each test maps to specific requirements (REQ-*)
 3. **Test Documentation**: Detailed comments explaining what each test should verify
@@ -22,6 +23,7 @@
 5. **README Documentation**: Comprehensive guide on test coverage and unblocking steps
 
 ### ⏳ What's Blocked
+
 1. **Test Execution**: Cannot run tests because services cannot be instantiated
 2. **Mock Services**: Cannot create mocks without knowing service interfaces
 3. **Integration Testing**: Cannot test crate boundaries without working services
@@ -46,12 +48,14 @@ Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.34s
 ### Service Instantiation Status
 
 **Problem**: Services may compile but cannot be instantiated due to:
+
 1. Missing trait implementations
 2. Incomplete service constructors
 3. Circular dependencies between services
 4. Missing configuration types
 
 **Example**:
+
 ```rust
 // This may fail even though authenc-core compiles
 let auth_service = AuthenticationServiceImpl::new(
@@ -71,6 +75,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/core/src/services/authentication.rs`
 
 **Issues**:
+
 - [ ] Verify `AuthenticationServiceImpl` struct exists
 - [ ] Verify `new()` constructor is complete
 - [ ] Verify all trait methods are implemented
@@ -79,6 +84,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/core/src/services/user_management.rs`
 
 **Issues**:
+
 - [ ] Verify `UserManagementServiceImpl` struct exists
 - [ ] Verify CRUD operations are implemented
 - [ ] Verify dependencies are available
@@ -86,6 +92,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/core/src/services/oauth2.rs`
 
 **Issues**:
+
 - [ ] Verify `OAuth2ServiceImpl` struct exists
 - [ ] Verify OAuth2 flows are implemented
 - [ ] Verify token generation works
@@ -95,6 +102,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/storage/src/stores/user_store.rs`
 
 **Issues**:
+
 - [ ] Verify `PostgresUserStore` implements `UserStore` trait
 - [ ] Verify all trait methods are implemented
 - [ ] Verify database queries are correct
@@ -102,6 +110,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/storage/src/stores/session_store.rs`
 
 **Issues**:
+
 - [ ] Verify `PostgresSessionStore` implements `SessionStore` trait
 - [ ] Verify session CRUD operations work
 
@@ -110,6 +119,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/crypto/src/jwt.rs`
 
 **Issues**:
+
 - [ ] Verify `JwtService` can generate tokens
 - [ ] Verify `JwtService` can validate tokens
 - [ ] Verify Ed25519 signing works
@@ -117,6 +127,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/crypto/src/password.rs`
 
 **Issues**:
+
 - [ ] Verify `Argon2PasswordHasher` implements `PasswordHasher` trait
 - [ ] Verify password hashing works
 - [ ] Verify password verification works
@@ -126,6 +137,7 @@ let auth_service = AuthenticationServiceImpl::new(
 **File**: `crates/webauthn/src/service.rs`
 
 **Issues**:
+
 - [ ] Verify `WebAuthnService` can generate challenges
 - [ ] Verify credential registration works
 - [ ] Verify credential authentication works
@@ -261,6 +273,7 @@ If fixing authenc-core takes too long, we can consider Task 8.5 complete with:
 **Task 8.5 Status**: ✅ Test stubs complete, ⏳ execution blocked
 
 **Recommendation**:
+
 1. Mark Task 8.5 as complete (test stubs done)
 2. Create a follow-up task: "Implement and execute authenc-api integration tests"
 3. Block the follow-up task on: "Complete authenc-core service implementations"

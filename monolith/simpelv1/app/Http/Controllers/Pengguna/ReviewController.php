@@ -14,12 +14,15 @@ class ReviewController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['Pengguna', 'Penilai Aplikasi'];
+
     protected $controller = 'pengguna/review';
+
     public function index()
     {
 
         $columns = ['Username', 'Rating', 'Review', 'Tanggal', 'Platform'];
         $defColumns = [0, 1, 2, 3, 4, 5];
+
         return view('pengguna.review.reviewV', [
             'columns' => $columns,
             'defColumns' => $defColumns,
@@ -31,10 +34,11 @@ class ReviewController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Review();
+        $model = new Review;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -42,16 +46,9 @@ class ReviewController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
-    {
+    public function getData($id = null, $readOnly = false) {}
 
-
-    }
-
-    public function create()
-    {
-
-    }
+    public function create() {}
 
     public function store(Request $request)
     {
@@ -63,6 +60,7 @@ class ReviewController extends Controller
 
         Review::create($data);
         Pengguna::where('username', session('userData.username'))->update(['has_review' => 1]);
+
         return $this->resSuccess();
     }
 
@@ -75,13 +73,12 @@ class ReviewController extends Controller
             'model' => $model,
             'breadcums' => $this->breadcums,
         ];
+
         return view('pengguna.review.detailV', $data);
     }
 
-    public function edit(string $id)
-    {
+    public function edit(string $id) {}
 
-    }
     public function update(Request $request)
     {
         //
@@ -93,10 +90,10 @@ class ReviewController extends Controller
             DB::beginTransaction();
             Review::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-
 }

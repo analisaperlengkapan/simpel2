@@ -1,6 +1,7 @@
 # Panduan Best Practices Keamanan MFA SIMPEL
 
 ## Daftar Isi
+
 1. [Prinsip Keamanan MFA](#prinsip-keamanan-mfa)
 2. [Konfigurasi Keamanan](#konfigurasi-keamanan)
 3. [Manajemen Kunci dan Secret](#manajemen-kunci-dan-secret)
@@ -14,7 +15,9 @@
 ## Prinsip Keamanan MFA
 
 ### Defense in Depth
+
 MFA adalah bagian dari strategi keamanan berlapis:
+
 - **Layer 1**: Network Security (Firewall, VPN)
 - **Layer 2**: Application Security (WAF, Rate Limiting)
 - **Layer 3**: Authentication (Password + MFA)
@@ -22,12 +25,14 @@ MFA adalah bagian dari strategi keamanan berlapis:
 - **Layer 5**: Data Protection (Encryption at Rest/Transit)
 
 ### Zero Trust Architecture
+
 - Tidak ada trust implisit berdasarkan lokasi network
 - Setiap request harus diverifikasi dan diotorisasi
 - Continuous monitoring dan validation
 - Principle of least privilege
 
 ### Cryptographic Standards
+
 - **TOTP Algorithm**: RFC 6238 compliant
 - **Hash Function**: HMAC-SHA1 (minimum), SHA-256 (recommended)
 - **Secret Length**: Minimum 160 bits (20 bytes)
@@ -39,6 +44,7 @@ MFA adalah bagian dari strategi keamanan berlapis:
 ## Konfigurasi Keamanan
 
 ### Secure TOTP Configuration
+
 ```toml
 # /config/mfa_security.toml
 [totp]
@@ -59,7 +65,9 @@ mfa_session_timeout_minutes = 480  # 8 hours
 require_mfa_for_sensitive_operations = true
 invalidate_sessions_on_mfa_reset = true
 ```
+
 ### Database Security
+
 ```sql
 -- Encrypt MFA secrets at database level
 ALTER TABLE mfa_secrets
@@ -89,6 +97,7 @@ CREATE TRIGGER mfa_secrets_audit
 ```
 
 ### Network Security
+
 ```nginx
 # /etc/nginx/conf.d/mfa_security.conf
 # Rate limiting for MFA endpoints
@@ -117,6 +126,7 @@ location /api/auth/mfa/verify {
 ## Manajemen Kunci dan Secret
 
 ### Secret Generation
+
 ```rust
 // Secure secret generation
 use rand::rngs::OsRng;
@@ -140,7 +150,9 @@ fn is_low_entropy(data: &[u8]) -> bool {
     unique_bytes.len() < data.len() / 2
 }
 ```
+
 ### Key Rotation Strategy
+
 ```bash
 #!/bin/bash
 # Script: /scripts/security/mfa_key_rotation.sh
@@ -202,6 +214,7 @@ generate_secure_backup_codes() {
 ```
 
 ### Secure Storage Architecture
+
 ```yaml
 # Secreton MFA Policy Configuration
 apiVersion: v1
@@ -227,11 +240,13 @@ spec:
     enabled: true
     log_level: "detailed"
 ```
+
 ---
 
 ## Monitoring dan Deteksi Ancaman
 
 ### Security Event Detection
+
 ```sql
 -- Real-time threat detection queries
 CREATE OR REPLACE FUNCTION detect_mfa_threats()
@@ -285,6 +300,7 @@ $$ LANGUAGE plpgsql;
 ```
 
 ### Automated Response System
+
 ```bash
 #!/bin/bash
 # Script: /scripts/security/automated_mfa_response.sh
@@ -328,6 +344,7 @@ handle_security_event() {
     esac
 }
 ```
+
 ---
 
 ## Incident Response
@@ -335,6 +352,7 @@ handle_security_event() {
 ### MFA Security Incident Playbook
 
 #### Phase 1: Detection and Analysis
+
 ```bash
 # Incident detection checklist
 INCIDENT_ID=$(date +%Y%m%d_%H%M%S)_MFA
@@ -356,6 +374,7 @@ echo "Impact Level: $IMPACT_LEVEL" | tee -a $INCIDENT_LOG
 ```
 
 #### Phase 2: Containment
+
 ```bash
 # Containment procedures based on impact level
 case $IMPACT_LEVEL in
@@ -379,6 +398,7 @@ esac
 ```
 
 #### Phase 3: Eradication and Recovery
+
 ```bash
 # Eradication procedures
 eradicate_mfa_threat() {
@@ -411,6 +431,7 @@ recover_mfa_services() {
 ```
 
 ### Communication Plan
+
 ```yaml
 # Incident communication matrix
 communication_plan:
@@ -436,6 +457,7 @@ communication_plan:
     - role: "IT Management"
       notification_time: "< 1 hour"
 ```
+
 ---
 
 ## Compliance dan Audit
@@ -443,6 +465,7 @@ communication_plan:
 ### Regulatory Compliance Framework
 
 #### Indonesian Government Standards
+
 ```yaml
 # Compliance mapping for Indonesian regulations
 compliance_standards:
@@ -468,6 +491,7 @@ compliance_standards:
 ```
 
 #### Audit Requirements
+
 ```sql
 -- Comprehensive audit logging for compliance
 CREATE TABLE mfa_compliance_audit (
@@ -509,6 +533,7 @@ FROM (
 ```
 
 ### Security Assessment Procedures
+
 ```bash
 #!/bin/bash
 # Quarterly MFA security assessment
@@ -549,6 +574,7 @@ conduct_mfa_security_assessment() {
 ## Deployment Security
 
 ### Secure Deployment Pipeline
+
 ```yaml
 # CI/CD Security Gates for MFA components
 security_gates:
@@ -567,7 +593,9 @@ security_gates:
     - certificate_validation: "Check TLS certificates"
     - access_control_test: "Validate RBAC settings"
 ```
+
 ### Production Security Hardening
+
 ```bash
 #!/bin/bash
 # Production MFA security hardening script
@@ -636,6 +664,7 @@ apply_container_security() {
 ```
 
 ### Security Monitoring in Production
+
 ```yaml
 # Prometheus alerting rules for MFA security
 groups:
@@ -675,16 +704,19 @@ groups:
 ---
 
 **Kontak Security Team**:
+
 - **Email**: security@kejaksaan.go.id
 - **Emergency**: +62-812-SECURITY (24/7)
 - **Incident Response**: incident-response@kejaksaan.go.id
 
 **Dokumen Terkait**:
+
 - [MFA Admin Guide](./MFA_ADMIN_GUIDE.md)
 - [MFA Incident Response Playbook](./MFA_INCIDENT_RESPONSE.md)
 - [MFA Compliance Documentation](./MFA_COMPLIANCE.md)
 
 **Security Standards**:
+
 - ISO 27001:2013
 - NIST Cybersecurity Framework
 - Indonesian Government Security Guidelines

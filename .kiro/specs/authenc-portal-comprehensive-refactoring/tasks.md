@@ -3,6 +3,7 @@
 ## Overview
 
 This implementation plan transforms the monolithic Authenc service into a modern, enterprise-grade IAM platform with:
+
 - **Multi-crate architecture**: 9 modular crates for maintainability
 - **WebAuthn/Passkeys**: PRIMARY authentication method (MANDATORY)
 - **Portal IAM rebuild**: Direct REST API integration, eliminating layanan-portal
@@ -485,6 +486,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
   - Ensure all tests pass, ask the user if questions arise.
 
 **DEPENDENCY VERIFICATION**: This checkpoint MUST verify that:
+
 - Task 3 (authenc-storage) is complete → Required by Task 5 (authenc-core)
 - Task 4 (authenc-crypto) is complete → Required by Task 5 (authenc-core)
 - Task 5 (authenc-core) is complete → Required by Task 6 (authenc-webauthn)
@@ -870,6 +872,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
   **Ask user if questions arise**: Ensure all tests pass before proceeding
 
 **DEPENDENCY VERIFICATION**: This checkpoint MUST verify that:
+
 - Task 8 (authenc-api) is complete → Required by Task 15 (Portal rebuild)
 - Task 9 (authenc-iam-api) is complete → Required by Task 15 (Portal rebuild)
 - Task 10 (authenc-grpc) is complete → Required for backend service integration
@@ -1078,6 +1081,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
   **Ask user if questions arise**: Ensure all tests pass before proceeding
 
 **DEPENDENCY VERIFICATION**: This checkpoint MUST verify that:
+
 - Task 12 (authenc-mfa) is complete → Required by Task 15 (Portal MFA pages)
 - Task 13 (authenc-federation) is complete → Required by Task 15 (Portal SSO pages)
 - All Phase 3 tasks (API) are complete → Required for MFA/Federation endpoints
@@ -1210,6 +1214,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
   - Ensure all tests pass, ask the user if questions arise.
 
 **DEPENDENCY VERIFICATION**: This checkpoint MUST verify that:
+
 - Task 15 (Portal rebuild) is complete → All Portal features implemented
 - Task 16 (Eliminate layanan-portal) is complete → No more portal service layer
 - All Phase 4 tasks (MFA, Federation) are complete → Required for Portal MFA/SSO features
@@ -1534,6 +1539,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
     - _Requirements: REQ-NFR-012_
 
 ---
+
 ## Notes
 
 ### Task Dependency Order Verification
@@ -1541,11 +1547,13 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **CRITICAL**: Tasks MUST be executed in the order specified below. Each task depends on the completion of its prerequisites.
 
 **Phase 1: Preparation (Week 1-2)** ✅ COMPLETED
+
 - Task 1: Set up multi-crate workspace structure
 - Task 2: Checkpoint - Verify workspace structure
 - **Dependencies**: None (foundation phase)
 
 **Phase 2: Core Migration (Week 3-6)**
+
 - Task 2.1: Pre-Migration Analysis → **MUST complete FIRST** (blocks all Phase 2 tasks)
 - Task 3: Migrate authenc-storage → **Depends on**: Task 2.1
 - Task 4: Migrate authenc-crypto → **Depends on**: Task 2.1
@@ -1556,6 +1564,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **Dependency Chain**: 2.1 → (3, 4) → 5 → 6 → 7
 
 **Phase 3: API Migration (Week 7-8)**
+
 - Task 7.1: Pre-API Migration Analysis → **MUST complete FIRST** (blocks all Phase 3 tasks)
 - Task 8: Migrate authenc-api → **Depends on**: Task 7 (Phase 2 complete), Task 7.1
 - Task 9: Migrate authenc-iam-api → **Depends on**: Task 7 (Phase 2 complete), Task 7.1
@@ -1565,6 +1574,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **Dependency Chain**: 7 → 7.1 → (8, 9, 10) → 11
 
 **Phase 4: Feature Migration (Week 9-10)**
+
 - Task 11.1: Pre-Feature Migration Analysis → **MUST complete FIRST** (blocks all Phase 4 tasks)
 - Task 12: Migrate authenc-mfa → **Depends on**: Task 11 (Phase 3 complete), Task 11.1
 - Task 13: Migrate authenc-federation → **Depends on**: Task 11 (Phase 3 complete), Task 11.1
@@ -1573,6 +1583,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **Dependency Chain**: 11 → 11.1 → (12, 13) → 14
 
 **Phase 5: Portal Refactoring (Week 11-12)**
+
 - Task 15: Rebuild Portal IAM Microfrontend → **Depends on**: Task 14 (Phase 4 complete)
 - Task 16: Eliminate layanan-portal → **Depends on**: Task 15
 - Task 17: Checkpoint → **Depends on**: Task 15, 16
@@ -1580,6 +1591,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **Dependency Chain**: 14 → 15 → 16 → 17
 
 **Phase 6: Cleanup and Optimization (Week 13-14)**
+
 - Task 17.1: Final Migration Analysis → **MUST complete FIRST** (blocks all Phase 6 tasks)
 - Task 18: Clean up old monolithic code → **Depends on**: Task 17 (Phase 5 complete), Task 17.1
 - Task 19: Performance testing → **Depends on**: Task 18
@@ -1590,12 +1602,15 @@ This implementation plan transforms the monolithic Authenc service into a modern
 **Dependency Chain**: 17 → 17.1 → 18 → (19, 20) → 21 → 22
 
 **Phase 7 (OPTIONAL): FAPI-1 Implementation (4-6 weeks)**
+
 - Task 23: Implement FAPI-1 → **Depends on**: Task 22 (Phase 6 complete)
 
 **Phase 8 (OPTIONAL): FAPI-2 Implementation (6-8 weeks)**
+
 - Task 24: Implement FAPI-2 → **Depends on**: Task 23 (FAPI-1 complete)
 
 **Key Dependency Rules**:
+
 1. **Pre-Analysis Tasks**: All `.1` tasks (2.1, 7.1, 11.1, 17.1) MUST complete before their phase tasks
 2. **Storage First**: Task 3 (storage) must complete before Task 5 (core) - core depends on storage
 3. **Crypto First**: Task 4 (crypto) must complete before Task 5 (core) - core depends on crypto
@@ -1607,6 +1622,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 9. **Cleanup Before Production**: Task 18 (Cleanup) must complete before Task 21 (Production) - production requires clean codebase
 
 **Parallel Execution Opportunities**:
+
 - Task 3 (storage) and Task 4 (crypto) can run in parallel (no dependency between them)
 - Task 8 (api), Task 9 (iam-api), Task 10 (grpc) can run in parallel (all depend on Phase 2, not each other)
 - Task 12 (mfa) and Task 13 (federation) can run in parallel (all depend on Phase 3, not each other)
@@ -1617,6 +1633,7 @@ This implementation plan transforms the monolithic Authenc service into a modern
 Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_ANALYSIS.md` that tracks:
 
 **For each file in src/**:
+
 - ✅ **Migrated**: File successfully moved to crates/, tested, and verified
 - 🔄 **In Progress**: File migration started but not complete
 - ⚠️ **Needs Modification**: File has issues (circular deps, tight coupling) - needs refactoring before migration
@@ -1624,11 +1641,13 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
 - 📝 **Notes**: Any special considerations or dependencies
 
 **Integration Status**:
+
 - Document all crate boundary integrations (which crates depend on which)
 - Document all end-to-end flows and their status (working/broken/untested)
 - Document any blocking issues or circular dependencies discovered
 
 **Deletion Checklist**:
+
 - Before deleting any directory in src/, verify:
   1. All files in that directory are marked ✅ Migrated in MIGRATION_ANALYSIS.md
   2. All integration tests pass without that directory
@@ -1636,12 +1655,14 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
   4. Team approval obtained
 
 ### Task Marking Convention
+
 - Tasks marked with `*` (e.g., `- [ ]* Task name`) are OPTIONAL and can be skipped for faster MVP
 - Tasks WITHOUT `*` are REQUIRED and must be implemented
 - All WebAuthn/Passkeys tasks are REQUIRED (no asterisk) - PRIMARY authentication method
 - All FAPI tasks (Phase 7 and 8) are OPTIONAL (with asterisk) - only implement if needed
 
 ### Testing Strategy
+
 - Unit tests: >80% line coverage, >90% branch coverage
 - Integration tests: All API endpoints and critical flows
 - Property-based tests: Cryptographic invariants and security properties
@@ -1649,6 +1670,7 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
 - Security tests: Penetration testing, vulnerability scanning, OWASP Top 10
 
 ### WebAuthn Browser Compatibility
+
 - Chrome 67+ (WebAuthn Level 1)
 - Firefox 60+ (WebAuthn Level 1)
 - Safari 13+ (WebAuthn Level 1)
@@ -1657,6 +1679,7 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
 - Safari 16+ (WebAuthn Level 3 - passkey sync)
 
 ### Passkey Platform Support
+
 - **iOS/iPadOS**: Touch ID, Face ID, iCloud Keychain sync
 - **macOS**: Touch ID, iCloud Keychain sync
 - **Android**: Biometric authentication, Google Password Manager sync
@@ -1664,6 +1687,7 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
 - **Security Keys**: YubiKey, Titan Key, FIDO2-compliant keys
 
 ### FAPI Implementation Decision Tree
+
 1. **Do you need FAPI compliance?**
    - No → Skip Phase 7 and 8 (OPTIONAL)
    - Yes → Continue to step 2
@@ -1677,7 +1701,9 @@ Throughout the migration, maintain a living document `layanan/authenc/MIGRATION_
    - Yes → Run conformance tests and obtain certification
 
 ### Migration Rollback Plan
+
 If critical issues are discovered during migration:
+
 1. **Immediate rollback**: Revert to old monolithic code (keep in parallel during Phase 1-5)
 2. **Gradual rollback**: Disable new features via feature flags
 3. **Data rollback**: Database migrations are backward compatible
@@ -1685,23 +1711,27 @@ If critical issues are discovered during migration:
 ### Critical Migration Principles
 
 **1. Analysis Before Action**
+
 - NEVER migrate a file without first analyzing its dependencies
 - NEVER delete a file without verifying it's fully migrated and tested
 - ALWAYS document migration decisions in MIGRATION_ANALYSIS.md
 
 **2. Integration Verification**
+
 - ALWAYS test crate boundary integrations after each migration
 - ALWAYS test end-to-end flows after each phase
 - NEVER assume integration works - always verify with tests
 
 **3. End-to-End Integration Requirements**
 Every migration task MUST verify:
+
 - **Vertical Integration**: Frontend → API → Core → Storage → Database
 - **Horizontal Integration**: Crate A → Crate B → Crate C (dependency chain)
 - **Cross-Cutting Integration**: All crates → authenc-types (trait implementations)
 
 **4. Deletion Safety**
 Before deleting any src/ directory:
+
 - ✅ All files marked as migrated in MIGRATION_ANALYSIS.md
 - ✅ All unit tests pass
 - ✅ All integration tests pass
@@ -1711,6 +1741,7 @@ Before deleting any src/ directory:
 
 **5. Continuous Verification**
 After each task:
+
 - Run `cargo check --workspace` (must pass)
 - Run `cargo test --workspace` (must pass)
 - Run integration tests (must pass)
@@ -1719,6 +1750,7 @@ After each task:
 ### End-to-End Integration Flows (Must All Work)
 
 **Flow 1: Passkey Authentication (Frontend → Backend → Database)**
+
 ```
 Portal Login Page (Leptos WASM)
   → POST /api/v1/auth/webauthn/authenticate
@@ -1735,6 +1767,7 @@ Portal Login Page (Leptos WASM)
 ```
 
 **Flow 2: Password Authentication (Frontend → Backend → Database)**
+
 ```
 Portal Login Page (Leptos WASM)
   → POST /api/v1/auth/login
@@ -1752,6 +1785,7 @@ Portal Login Page (Leptos WASM)
 ```
 
 **Flow 3: MFA Authentication (Frontend → Backend → Secreton)**
+
 ```
 Portal MFA Page (Leptos WASM)
   → POST /api/v1/auth/mfa/verify
@@ -1769,6 +1803,7 @@ Portal MFA Page (Leptos WASM)
 ```
 
 **Flow 4: IAM Admin (Frontend → Backend → Database)**
+
 ```
 Portal IAM Admin Page (Leptos WASM)
   → POST /api/v1/iam/users
@@ -1784,6 +1819,7 @@ Portal IAM Admin Page (Leptos WASM)
 ```
 
 **Flow 5: Backend Service Authentication (Service → gRPC → Database)**
+
 ```
 layanan-perlengkapan (Axum)
   → gRPC Authenticate(username, password)
@@ -1799,6 +1835,7 @@ layanan-perlengkapan (Axum)
 ```
 
 **Flow 6: SSO Authentication (Frontend → Backend → External IdP → Database)**
+
 ```
 Portal SSO Button (Leptos WASM)
   → GET /api/v1/auth/sso/google
@@ -1822,16 +1859,19 @@ Portal SSO Button (Leptos WASM)
 All these flows MUST work before src/ can be deleted!
 
 ### Success Metrics
+
 - **Technical**: >80% test coverage, <100ms p99 authentication latency
 - **Business**: 99.9% uptime, <0.1% authentication error rate
 - **Migration**: Zero data loss, zero downtime deployment
 
 ### Dependencies
+
 - **External**: PostgreSQL 16.x, Redis 7.x (optional), Secreton service
 - **Crates**: webauthn-rs 0.5.x (MANDATORY), jsonwebtoken, argon2, tonic, axum, leptos
 - **Infrastructure**: Kubernetes cluster, Istio service mesh, MetalLB
 
 ### Related Documentation
+
 - [Design Document](./design.md) - Complete architectural design
 - [Requirements Document](./requirements.md) - Functional and non-functional requirements
 - [AGENTS.md - Authenc](../../AGENTS.md) - Authenc-specific conventions

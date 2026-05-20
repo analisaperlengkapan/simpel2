@@ -15,17 +15,21 @@ class PnbpController extends Controller
     /**
      * Display a listing of the resource.
      */
-    //protected $breadcums = ['BMN', 'Monitoring BMN yang Menghasilkan PNBP'];
+    // protected $breadcums = ['BMN', 'Monitoring BMN yang Menghasilkan PNBP'];
     protected $kategoriJudul = 'Monitoring BMN yang Menghasilkan PNBP';
+
     protected $controller = 'bmn/pnbp/pnbp';
+
     protected $breadcums = ['BMN'];
+
     protected $columns = ['Nama Satker', 'Kode barang', 'Tahun Anggaran', 'Potensi PNBP', 'Realisasi PNBP'];
-    protected $defColumns = [0,1,2,3,4];
+
+    protected $defColumns = [0, 1, 2, 3, 4];
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Monitoring BMN yang Menghasilkan PNBP']]);
-        
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Monitoring BMN yang Menghasilkan PNBP']]);
+
     }
 
     public function index()
@@ -38,23 +42,25 @@ class PnbpController extends Controller
             'Realisasi PNBP',
         ];
         $defColumns = [0, 1, 2, 3, 4];
+
         return view('bmn.pnbp.pnbpV', [
             'tableId' => 'dt-pnbp',
             'kategoriJudul' => $this->kategoriJudul,
             'breadcums' => $this->breadcums,
             'columns' => $columns,
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
-    public function gridData(Request $request) 
+    public function gridData(Request $request)
     {
-        $model = new pnbp();
+        $model = new pnbp;
         $pagingParams = $request->only(['start', 'length']);
-        //$searchParams =  $request->only(['search',  'filterBy']);
-        $searchParams =  $request->only(['columns']);
+        // $searchParams =  $request->only(['search',  'filterBy']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -62,7 +68,7 @@ class PnbpController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -70,14 +76,14 @@ class PnbpController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = pnbp::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
@@ -109,6 +115,7 @@ class PnbpController extends Controller
                 'selected' => $model['kode_barang'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -118,6 +125,7 @@ class PnbpController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.pnbp.pnbpFormV', $data);
     }
 
@@ -137,7 +145,7 @@ class PnbpController extends Controller
             'kode_barang' => 'required',
         ];
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'bmn_pnbp_seq');
-        
+
         $request->validate($validate, $customMessages);
         try {
             DB::beginTransaction();
@@ -148,16 +156,16 @@ class PnbpController extends Controller
                 'potensi' => $request->input('potensi'),
                 'realisasi' => $request->input('realisasi'),
             ];
-            
-            
 
             pnbp::updateOrCreate(['id' => $id], $data);
-            
+
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -169,6 +177,7 @@ class PnbpController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.pnbp.pnbpFormV', $data);
     }
 
@@ -178,6 +187,7 @@ class PnbpController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.pnbp.pnbpFormV', $data);
     }
 
@@ -198,20 +208,19 @@ class PnbpController extends Controller
             DB::beginTransaction();
             pnbp::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
         }
     }
-	
-	
 
     public function cetakLabel($id)
     {
         $data = PenghapusanSk::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

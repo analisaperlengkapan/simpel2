@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PengadaanBarangJasanNodis extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'pengadaan_barang_jasa_nodis';
 

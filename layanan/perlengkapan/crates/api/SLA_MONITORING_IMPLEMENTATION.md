@@ -48,6 +48,7 @@ if let Some(breach_info) = breach {
 ```
 
 **SLA Limits (Kebutuhan BMN):**
+
 - SUBMITTED: 2 days (2880 minutes)
 - REVIEWED: 1 day (1440 minutes)
 - APPROVED: 3 days (4320 minutes)
@@ -121,6 +122,7 @@ sum(workflow_escalations_total{status="success"}) / sum(workflow_escalations_tot
 #### Grafana Dashboard
 
 The dashboard provides:
+
 - **SLA Breach Rate Chart** - Real-time breach rate with alerting (threshold: 10%)
 - **Breach Duration Heatmap** - Distribution of breach durations
 - **Breaches by State Pie Chart** - Breakdown by workflow state
@@ -132,6 +134,7 @@ The dashboard provides:
 #### Alerts
 
 **High SLA Breach Rate Alert:**
+
 - Condition: Breach rate > 10% (0.1 breaches/second)
 - Evaluation: Every 1 minute
 - Action: Send alert notification
@@ -243,6 +246,7 @@ cargo test --test sla_notification_integration_tests test_sla_breach_detection
 ### Integration Tests
 
 The test suite includes:
+
 - ✅ SLA breach detection
 - ✅ SLA no breach (within limit)
 - ✅ Check all SLAs
@@ -252,12 +256,14 @@ The test suite includes:
 - ✅ Metrics recording
 
 **Note:** Integration tests require:
+
 - PostgreSQL database with test schema
 - Notification service running (for full integration tests)
 
 ### Manual Testing
 
 1. **Create test entity with SLA breach:**
+
    ```sql
    -- Insert kebutuhan 3 days ago (SLA is 2 days)
    INSERT INTO perlengkapan.kebutuhan_bmn (id, status, created_at, ...)
@@ -265,11 +271,13 @@ The test suite includes:
    ```
 
 2. **Check SLA:**
+
    ```bash
    curl http://localhost:3020/api/v1/workflow/sla/check/{entity_id}
    ```
 
 3. **View metrics:**
+
    ```bash
    curl http://localhost:3020/metrics | grep workflow_sla
    ```
@@ -314,6 +322,7 @@ NOTIFIKASI_GRPC_URL=http://localhost:50053
 ### SLA Breaches Not Detected
 
 1. **Check workflow activity timestamps:**
+
    ```sql
    SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
    WHERE pengajuan_id = '{entity_id}'
@@ -321,6 +330,7 @@ NOTIFIKASI_GRPC_URL=http://localhost:50053
    ```
 
 2. **Verify SLA configuration:**
+
    ```rust
    let sla_limit = config.get_sla_minutes("SUBMITTED");
    println!("SLA limit: {:?}", sla_limit);
@@ -329,17 +339,20 @@ NOTIFIKASI_GRPC_URL=http://localhost:50053
 ### Notifications Not Sent
 
 1. **Check notification service is running:**
+
    ```bash
    curl http://localhost:50053/health
    ```
 
 2. **Verify notification client connection:**
+
    ```rust
    let client = NotifikasiClient::new("http://localhost:50053").await?;
    // Should not error
    ```
 
 3. **Check notification service logs:**
+
    ```bash
    docker logs layanan-notifikasi
    ```
@@ -347,11 +360,13 @@ NOTIFIKASI_GRPC_URL=http://localhost:50053
 ### Metrics Not Recorded
 
 1. **Verify Prometheus is scraping:**
+
    ```bash
    curl http://localhost:3020/metrics
    ```
 
 2. **Check metric registration:**
+
    ```rust
    let metric = metrics::workflow_sla_breaches_total();
    println!("Metric registered: {:?}", metric);

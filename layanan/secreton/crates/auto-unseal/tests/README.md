@@ -106,6 +106,7 @@ Each provider test file contains:
 ### Property-Based Tests
 
 1. **Round-trip property** - Main correctness property
+
    ```
    ∀ plaintext: decrypt(encrypt(plaintext)) = plaintext
    ```
@@ -138,7 +139,7 @@ These tests are NOT run in CI by default because they require cloud credentials.
 
 ```yaml
 test-gcp-kms:
-  runs-on: ubuntu-latest
+  runs-on: self-hosted
   steps:
     - uses: actions/checkout@v4
     - name: Set up GCP credentials
@@ -203,7 +204,6 @@ PROPTEST_CASES=10 cargo test --features gcp-kms -- --ignored
 - [AWS KMS Documentation](https://docs.aws.amazon.com/kms/)
 - [GCP KMS Documentation](https://cloud.google.com/kms/docs)
 - [Secreton Auto-Unseal Design](../../.kiro/specs/secreton-vault-parity/design.md)
-
 
 ## Azure Key Vault Provider
 

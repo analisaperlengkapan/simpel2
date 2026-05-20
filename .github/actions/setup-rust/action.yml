@@ -42,10 +42,49 @@ runs:
         sudo -n apt-get install -y -qq \
           unzip build-essential pkg-config libssl-dev \
           clang gcc perl libzstd-dev zlib1g-dev libtss2-dev \
+          cmake ninja-build binutils \
           2>/dev/null || true
-        # Use clang to avoid --target flag incompatibility with recent cc crate
-        echo "CC=clang" >> $GITHUB_ENV
-        echo "CXX=clang++" >> $GITHUB_ENV
+        # Prefer clang (newer cc crate compatibility), fallback ke gcc kalau clang
+        # tidak tersedia di runner (mis. self-hosted runner tanpa sudo password).
+        if command -v clang >/dev/null 2>&1; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        elif command -v gcc >/dev/null 2>&1; then
+          echo "CC=gcc" >> $GITHUB_ENV
+          echo "CXX=g++" >> $GITHUB_ENV
+        else
+          echo "::warning::Neither clang nor gcc found; cargo build mungkin fail untuk crate yang butuh C compiler."
+        fi
+        # pqcrypto-falcon dan beberapa crate C butuh `ar` (binutils).
+        # Warning saja kalau tidak ada — biar test/lint job lain yang
+        # tidak butuh ar tetap bisa jalan, dan kita lihat clear di log
+        # mana yang fail karena tooling absent.
+        if ! command -v ar >/dev/null 2>&1; then
+          echo "::warning::Binary 'ar' (binutils) tidak tersedia di runner. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal. Self-hosted runner harus pre-install: \`sudo apt install binutils build-essential\` once."
+        fi
+
+    - name: Heal rustup if shared $HOME rotted
+      shell: bash
+      run: |
+        # Multiple paralel jobs di host yang sama share ~/.cargo dan
+        # ~/.rustup. Race condition / partial install dari job lain
+        # bisa bikin `cargo`/`rustc` symlink di ~/.cargo/bin/ menunjuk
+        # ke `rustup` yang sudah ke-hapus, dan cargo gagal dengan
+        # `could not execute process 'rustc -vV' (never executed)`.
+        # Detect kondisi ini dan reinstall rustup binary (idempotent;
+        # menjaga toolchain yang sudah ada di ~/.rustup intact).
+        if [ -L "$HOME/.cargo/bin/cargo" ] && [ ! -e "$HOME/.cargo/bin/cargo" ]; then
+          echo "::warning::~/.cargo/bin/cargo symlink rotted (rustup binary missing); reinstalling rustup"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- --default-toolchain none -y --no-modify-path
+        fi
+        if [ ! -x "$HOME/.cargo/bin/cargo" ]; then
+          echo "::warning::cargo not executable; reinstalling rustup"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- --default-toolchain none -y --no-modify-path
+        fi
+        # Ensure PATH includes cargo bin for subsequent steps
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -89,3 +128,12 @@ runs:
       with:
         key: ${{ inputs.cache-key }}
         workspaces: ". -> target"
+        # cache-targets: false — JANGAN restore target/ dir antar runs.
+        # Self-hosted runners share ~/.cargo across jobs/instances, dan
+        # target/ cache yang ter-restore partial (job sebelumnya cancelled
+        # mid-save, atau paralel jobs writing concurrent) bikin cargo
+        # gagal dengan "could not parse/generate dep info at: X.d:
+        # No such file or directory". Compromise: hanya cache ~/.cargo/
+        # registry (download crates) yang aman + immutable. target/
+        # rebuild full per-job (~5-10 min, dapat diterima vs flaky).
+        cache-targets: false

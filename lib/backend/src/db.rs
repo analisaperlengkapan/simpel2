@@ -399,7 +399,7 @@ mod tests {
         assert_eq!(pagination.limit(), 10);
         assert_eq!(pagination.total_pages(), Some(5));
         assert_eq!(pagination.has_next_page(), Some(true));
-        assert_eq!(pagination.has_prev_page(), true);
+        assert!(pagination.has_prev_page());
     }
 
     #[test]

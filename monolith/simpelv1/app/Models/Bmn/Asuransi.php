@@ -2,20 +2,22 @@
 
 namespace App\Models\Bmn;
 
+use App\Blameable;
 use App\Helpers\MyHelper;
 use App\Traits\LogTrait;
-use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Asuransi extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'vw_asset_asuransi';
+
     const tableKet = 'Obyek Asuransi';
 
     /**
@@ -55,10 +57,10 @@ class Asuransi extends Model
         'id' => 'string',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
-        //DB::enableQueryLog();
-        $query = DB::table($this->table . ' as a')
+        // DB::enableQueryLog();
+        $query = DB::table($this->table.' as a')
             ->select([
                 'a.*',
                 'c.polis_no',
@@ -66,7 +68,7 @@ class Asuransi extends Model
                 'c.polis_premi',
                 'c.filename',
                 'b.inst_nama',
-                'b.inst_satkerkd as ms_satker_id'
+                'b.inst_satkerkd as ms_satker_id',
             ])
             ->leftJoin('ms_satker as b', 'a.id_satker', '=', 'b.kdsatker_keu')
             ->leftJoin('asuransi_transaksi as c', function ($join) {
@@ -76,14 +78,14 @@ class Asuransi extends Model
         if (MyHelper::isPelaksanaSatker()) {
             $query->where('b.inst_satkerkd', $ms_satker_id);
         }
-        if (!empty($search) && isset($search['columns'])) {
+        if (! empty($search) && isset($search['columns'])) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
                 foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    $kolom = 'a.' . $columnName;
+                    $kolom = 'a.'.$columnName;
                     if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
@@ -106,13 +108,13 @@ class Asuransi extends Model
                 }
             });
         }
-        //$query->orderByAsc('id');
+        // $query->orderByAsc('id');
         $query->orderBy('tipe', 'ASC');
         $query->orderBy('id', 'ASC');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
 
-        //dd(DB::getQueryLog()); exit;
+        // dd(DB::getQueryLog()); exit;
 
         return ['total' => $total, 'data' => $data];
     }

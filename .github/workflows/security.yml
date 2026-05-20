@@ -1,0 +1,213 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Blocking checks ─────────────────────────────────
+  # Kegagalan di sini akan membuat Security Summary gagal.
+
+  gitleaks:
+    name: Gitleaks (Secret Scan)
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Cleanup stale temp files (self-hosted fix)
+        shell: bash
+        run: rm -f /tmp/gitleaks.tmp /tmp/gitleaks-report.*
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Default action uploads the SARIF report as a GitHub Actions
+          # artifact. The org account's artifact storage quota was hit
+          # ("Failed to CreateArtifact: Artifact storage quota has been
+          # hit"), masking the actual scan result with an upload failure.
+          # The job summary still shows findings; artifact upload is
+          # redundant and disabled.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: false
+
+  # ── Advisory checks ─────────────────────────────────
+  # Temuan adalah informational; step TIDAK pakai continue-on-error
+  # supaya job conclusion menunjukkan status sebenarnya ke summary.
+
+  cargo-audit:
+    name: cargo-audit
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          cache-key: audit
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install cargo-audit
+        shell: bash
+        run: |
+          if ! command -v cargo-audit &>/dev/null; then
+            AUDIT_VERSION="0.22.1"
+            URL="https://github.com/rustsec/rustsec/releases/download/cargo-audit/v${AUDIT_VERSION}/cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}.tgz"
+            # Tarball contains a top-level
+            # `cargo-audit-x86_64-unknown-linux-gnu-vX.Y.Z/` directory;
+            # `--strip-components=1` flattens it so the binary lands at
+            # `$HOME/.cargo/bin/cargo-audit` (in PATH) rather than buried
+            # in a subdirectory. Previous extract produced
+            # "error: no such command: 'audit'" because the binary was
+            # never on PATH.
+            if curl -LsSf "$URL" | tar -xzf- --strip-components=1 -C "$HOME/.cargo/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
+              echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
+              cargo-audit --version
+            else
+              echo "::warning::Pre-built binary unavailable, compiling from source"
+              cargo install cargo-audit --locked
+            fi
+          fi
+      - name: cargo audit
+        run: cargo audit
+
+  cargo-deny:
+    name: cargo-deny
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: Cargo.toml
+          command: check advisories bans licenses sources
+          arguments: --workspace
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run Semgrep
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/rust
+            p/security-audit
+            p/owasp-top-ten
+            p/secrets
+            p/dockerfile
+            p/php
+        env:
+          SEMGREP_RULES: p/rust p/security-audit p/owasp-top-ten p/secrets p/dockerfile p/php
+
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v6
+      - name: Trivy fs scan
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: 'fs'
+          format: 'sarif'
+          output: 'trivy-fs.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+          ignore-unfixed: 'true'
+          scanners: 'vuln,secret,misconfig'
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+        continue-on-error: true
+
+  # ── Summary ─────────────────────────────────────────
+  security-summary:
+    name: Security Summary
+    if: always()
+    needs:
+      - cargo-audit
+      - cargo-deny
+      - gitleaks
+      - semgrep
+      - trivy-fs
+    runs-on: self-hosted
+    steps:
+      - name: Aggregate results
+        shell: bash
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          set -euo pipefail
+          echo "## Security Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Check | Result | Category |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          # Blocking = harus sukses. Advisory = boleh gagal (informational).
+          BLOCKING="gitleaks"
+          block_fail=0
+          advisory_fail=0
+
+          PARSED=$(echo "$NEEDS_JSON" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          for k, v in data.items():
+              print(k + "|" + v.get("result", "unknown"))
+          ')
+          while IFS='|' read -r job result; do
+            [ -z "$job" ] && continue
+            # Tentukan kategori
+            if echo " $BLOCKING " | grep -q " $job "; then
+              category="🔒 Blocking"
+            else
+              category="📋 Advisory"
+            fi
+
+            case "$result" in
+              success) icon="✅ OK" ;;
+              skipped) icon="⏭️ SKIP" ;;
+              failure)
+                if echo " $BLOCKING " | grep -q " $job "; then
+                  icon="❌ FAIL"; block_fail=1
+                else
+                  icon="⚠️ FINDINGS"; advisory_fail=1
+                fi
+                ;;
+              cancelled) icon="🚫 CANCEL"; block_fail=1 ;;
+              *) icon="$result" ;;
+            esac
+            echo "| $job | $icon | $category |" >> "$GITHUB_STEP_SUMMARY"
+          done <<< "$PARSED"
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ $advisory_fail -ne 0 ]]; then
+            echo "> **Note:** Advisory checks memiliki temuan. Periksa log masing-masing job untuk detail." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ $block_fail -ne 0 ]]; then
+            echo "::error::Blocking security check gagal (gitleaks). Pastikan tidak ada secret yang bocor."
+            exit 1
+          fi
+
+          if [[ $advisory_fail -ne 0 ]]; then
+            echo "::warning::Advisory security checks memiliki temuan — periksa cargo-audit, cargo-deny, atau semgrep."
+          fi
+          echo "Blocking checks passed."

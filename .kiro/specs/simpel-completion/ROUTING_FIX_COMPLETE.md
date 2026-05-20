@@ -1,4 +1,5 @@
 # Perbaikan Routing Frontend SIMPEL - COMPLETE ✅
+
 **Tanggal:** 9 April 2026
 **Status:** ✅ FIXED - Semua route sudah terhubung
 
@@ -22,6 +23,7 @@
 **Line:** ~32
 
 **Perubahan:**
+
 ```rust
 use pages::dashboard::DashboardHome;
 use pages::dashboard_perlengkapan::DashboardPerlengkapan;
@@ -39,6 +41,7 @@ use pages::workflow::monitoring::WorkflowMonitoring;
 **Line:** ~131
 
 **Perubahan:**
+
 ```rust
 <Route path=path!("/dashboard") view=DashboardHome />
 <Route path=path!("/dashboard/perlengkapan") view=DashboardPerlengkapan />
@@ -146,6 +149,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 **File:** `antarmuka/perlengkapan/src/components/sidebar.rs`
 
 **Recommended Addition:**
+
 ```rust
 // Add after Dashboard links, before Bank Aset
 <a
@@ -159,6 +163,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 ```
 
 **Or with active state:**
+
 ```rust
 <a
     href="/perlengkapan/dashboard/search"
@@ -180,6 +185,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 **Endpoint:** `GET /api/v1/search`
 
 **Query Parameters:**
+
 - `q` (required): Search query string
 - `page` (optional): Page number (default: 1)
 - `module` (optional): Filter by module (kebutuhan, pemakaian, penghapusan)
@@ -187,6 +193,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 - `tahun` (optional): Filter by year
 
 **Response Format:**
+
 ```json
 {
   "success": true,
@@ -213,6 +220,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 ```
 
 **Backend Implementation:**
+
 - ✅ Endpoint exists in `layanan/perlengkapan/crates/api/src/kebutuhan_bmn/handlers.rs`
 - ✅ Function: `search_kebutuhan()` and `get_search_suggestions()`
 - ✅ Uses PostgreSQL full-text search with pg_trgm extension
@@ -276,6 +284,7 @@ Setelah perbaikan, test berikut harus dilakukan:
 ### 7.2 Route Naming Conventions ✅
 
 All routes follow consistent patterns:
+
 - ✅ Kebab-case for URLs (`kebutuhan-bmn`, `pakaian-dinas`)
 - ✅ Indonesian language for actions (`daftar`, `buat`, `detail`, `laporan`)
 - ✅ Hierarchical structure (`/dashboard/{module}/{action}`)
@@ -302,6 +311,7 @@ All routes follow consistent patterns:
 **Status:** ✅ **COMPLETE - All routes properly connected**
 
 **Remaining Tasks:**
+
 1. Add Search link to Sidebar (optional but recommended)
 2. Test SearchPage functionality
 3. Verify search results navigation

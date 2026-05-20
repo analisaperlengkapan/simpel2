@@ -8,6 +8,8 @@
 !.env.*.example
 !.env.example
 !**/.env.example
+!.env.*.template
+!**/.env.*.template
 */.env
 *-secret.yaml
 *.enc
@@ -135,6 +137,8 @@ tmp/
 pnpm-lock.yaml
 yarn.lock
 package-lock.json
+!tests/e2e/package-lock.json
+!monolith/simpelv1/package-lock.json
 npm-debug.log*
 lerna-debug.log*
 
@@ -151,7 +155,12 @@ lerna-debug.log*
 **/*.wasm
 **/*.js
 **/*.d.ts
-**/Cargo.lock
+# Cargo.lock policy:
+# - Binary / application crate (workspace ini): WAJIB tracked untuk reproducible build.
+# - Library-only crate: skip (tapi tidak applicable di sini, semua workspace member jadi binary).
+# Pattern di bawah hanya skip Cargo.lock di sub-project frontend yang punya
+# Cargo.toml terpisah (mis. trunk dist build artifacts), bukan workspace member.
+# **/Cargo.lock  # <-- DIHAPUS: bug menyebabkan Docker build fail di release.yml.
 
 # Microfrontend auto-generated
 antarmuka/*/target/
@@ -208,4 +217,21 @@ antarmuka/*/Cargo.lock
 # Cargo Chef auto-generated
 recipe.json
 !**/tailwind.config.js
+# Tracked JS configuration files in monolith Laravel. Tanpa un-ignore
+# ini, `.gitignore:156 **/*.js` membuat vite.config.js (entry point
+# Vite build) terabaikan dan CI Vite job gagal dengan
+# "Cannot resolve entry module index.html" karena fresh checkout tidak
+# punya config dan Vite fallback ke entry default.
+!**/vite.config.js
+!**/postcss.config.js
+# Laravel source assets (resources/js/*.js) di-track sebagai source code.
+# Tanpa exception, `**/*.js` membuat `monolith/simpelv1/resources/js/
+# app.js` + `bootstrap.js` (entry point Vite) tidak ada di fresh
+# checkout, dan Vite build gagal "Cannot resolve entry module
+# resources/js/app.js".
+!monolith/simpelv1/resources/js/**/*.js
 !**/profile.rs
+.env
+
+# Local AI assistant artifacts
+.claude/

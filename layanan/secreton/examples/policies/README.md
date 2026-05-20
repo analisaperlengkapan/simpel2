@@ -58,38 +58,47 @@ required_claims = { department = "engineering" }
 ## Example Policies
 
 ### read-only.toml
+
 Basic read-only access to secrets. Useful for applications that only need to retrieve secrets.
 
 ### admin.toml
+
 Full administrative access with sudo capability. For engine administrators.
 
 ### database-secrets.toml
+
 Scoped access to database credentials with MFA requirement. Demonstrates path-specific access.
 
 ### transit-only.toml
+
 Access limited to encryption/decryption operations. For applications using Secreton as a cryptographic service.
 
 ### namespace-scoped.toml
+
 Demonstrates namespace isolation for multi-tenant environments.
 
 ## Using Policy Files
 
 ### Apply a policy
+
 ```bash
 secreton policy write my-policy examples/policies/read-only.toml
 ```
 
 ### Validate before applying
+
 ```bash
 secreton policy validate examples/policies/read-only.toml
 ```
 
 ### Format a policy file
+
 ```bash
 secreton policy fmt examples/policies/my-policy.toml
 ```
 
 ### Test policy evaluation
+
 ```bash
 secreton policy test my-policy --path secret/data/myapp --action read
 ```

@@ -10,24 +10,24 @@ class Dashboard extends Model
 {
     use HasFactory;
 
-    function getdata($type, $level = "", $wilayah = null, $satker = null)
+    public function getdata($type, $level = '', $wilayah = null, $satker = null)
     {
-        //$where = $tahun ? "and date_part('year', a.tgl_perolehan) <=  {$tahun}" : '';
-        $where = "";
+        // $where = $tahun ? "and date_part('year', a.tgl_perolehan) <=  {$tahun}" : '';
+        $where = '';
         $roleSatker = session('userData.current_role.ms_satker_id_keu');
         if ($roleSatker != '') {
             $where .= " and a.id_satker_keu = '{$roleSatker}' ";
         }
 
-        if($level == 'K/L'){
-            $where = "and a.id_satker_keu in (
+        if ($level == 'K/L') {
+            $where = 'and a.id_satker_keu in (
                 select kdsatker_keu
                 from ms_satker
                 where kdsatker_keu is not null
-            )";
-        }elseif($level == 'WILAYAH'){
+            )';
+        } elseif ($level == 'WILAYAH') {
 
-            if($wilayah){
+            if ($wilayah) {
                 $where = "and a.id_satker_keu in (
                     select kdsatker_keu
                     from ms_satker
@@ -35,8 +35,8 @@ class Dashboard extends Model
                 )";
             }
 
-        }elseif($level == 'SATKER'){
-            if($satker){
+        } elseif ($level == 'SATKER') {
+            if ($satker) {
                 $where = "and a.id_satker_keu in (
                     select kdsatker_keu
                     from ms_satker
@@ -52,7 +52,7 @@ class Dashboard extends Model
         */
 
         switch ($type) {
-            case "statistik_pegawai":
+            case 'statistik_pegawai':
                 $sql = "
                     select sum(a.jml_laki) as total_laki, sum(a.jml_perempuan) as total_perempuan,
                     sum(a.jml_jaksa) as total_jaksa, sum(a.jml_tu) as total_tu, sum(a.total) as total
@@ -61,10 +61,11 @@ class Dashboard extends Model
                 ";
                 // echo $sql;exit;
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_grafik_psp_asset":
+                return $data;
+                break;
+
+            case 'statistik_grafik_psp_asset':
                 $sql = "
                     select 'Sudah PSP' as tipe, count(a.kode_barang) as total
                     from siman.vw_all_asset_siman a
@@ -75,9 +76,10 @@ class Dashboard extends Model
                     where 1=1 {$where} and a.no_psp is null
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_grafik_tahun_asset":
+                break;
+            case 'statistik_grafik_tahun_asset':
                 $sql = "
                     select extract('year' from a.tanggal_perolehan) as tahun, count(a.kode_barang) as total
                     from siman.vw_all_asset_siman a
@@ -86,10 +88,11 @@ class Dashboard extends Model
                     order by extract('year' from a.tanggal_perolehan) asc
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_aset_lainnya":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_aset_lainnya':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tetap_lainnya_kl a
@@ -97,9 +100,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_aset_lainnya":
+                break;
+            case 'statistik_kelompok_aset_lainnya':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tetap_lainnya_kl a
@@ -107,9 +111,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_aset_lainnya":
+                break;
+            case 'statistik_kondisi_aset_lainnya':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tetap_lainnya_kl a
@@ -117,10 +122,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_renovasi":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_renovasi':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_renovasi_kl a
@@ -128,9 +134,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_renovasi":
+                break;
+            case 'statistik_kelompok_renovasi':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_renovasi_kl a
@@ -138,9 +145,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_renovasi":
+                break;
+            case 'statistik_kondisi_renovasi':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_renovasi_kl a
@@ -148,10 +156,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_konstruksi":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_konstruksi':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_kdp_kl a
@@ -159,9 +168,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_konstruksi":
+                break;
+            case 'statistik_kelompok_konstruksi':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_kdp_kl a
@@ -169,9 +179,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_konstruksi":
+                break;
+            case 'statistik_kondisi_konstruksi':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_kdp_kl a
@@ -179,10 +190,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_jalan_jembatan":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_jalan_jembatan':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_jalan_jembatan_kl a
@@ -190,9 +202,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_jalan_jembatan":
+                break;
+            case 'statistik_kelompok_jalan_jembatan':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_jalan_jembatan_kl a
@@ -200,9 +213,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_jalan_jembatan":
+                break;
+            case 'statistik_kondisi_jalan_jembatan':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_jalan_jembatan_kl a
@@ -210,10 +224,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_bangunan_air":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_bangunan_air':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_bangunan_air_kl a
@@ -221,9 +236,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_bangunan_air":
+                break;
+            case 'statistik_kelompok_bangunan_air':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_bangunan_air_kl a
@@ -231,9 +247,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_bangunan_air":
+                break;
+            case 'statistik_kondisi_bangunan_air':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_bangunan_air_kl a
@@ -241,10 +258,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_rumah":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_rumah':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_rumah_negara_kl a
@@ -252,9 +270,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_rumah":
+                break;
+            case 'statistik_kelompok_rumah':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_rumah_negara_kl a
@@ -262,9 +281,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_rumah":
+                break;
+            case 'statistik_kondisi_rumah':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_rumah_negara_kl a
@@ -272,10 +292,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_instalasi_jaringan":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_instalasi_jaringan':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_instalasi_jaringan_kl a
@@ -283,9 +304,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_instalasi_jaringan":
+                break;
+            case 'statistik_kelompok_instalasi_jaringan':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_instalasi_jaringan_kl a
@@ -293,9 +315,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_instalasi_jaringan":
+                break;
+            case 'statistik_kondisi_instalasi_jaringan':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_instalasi_jaringan_kl a
@@ -303,10 +326,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_kelompok_tik":
+                return $data;
+                break;
+
+            case 'statistik_kelompok_tik':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tak_berwujud_kl a
@@ -314,9 +338,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_tak_berwujud":
+                break;
+            case 'statistik_kondisi_tak_berwujud':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tak_berwujud_kl a
@@ -324,10 +349,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_tik":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_tik':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_tik_kl a
@@ -335,9 +361,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok;
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_tik":
+                break;
+            case 'statistik_kelompok_tik':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_tik_kl a
@@ -345,9 +372,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_penggunaan_tik":
+                break;
+            case 'statistik_penggunaan_tik':
                 $sql = "
                     select upper(a.status_penggunaan) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_tik_kl a
@@ -355,9 +383,10 @@ class Dashboard extends Model
                     group by a.status_penggunaan
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_tik":
+                break;
+            case 'statistik_kondisi_tik':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_tik_kl a
@@ -365,10 +394,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_nontik":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_nontik':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_nontik_kl a
@@ -376,9 +406,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_nontik":
+                break;
+            case 'statistik_kelompok_nontik':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_nontik_kl a
@@ -386,9 +417,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_nontik":
+                break;
+            case 'statistik_kondisi_nontik':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_pm_nontik_kl a
@@ -396,10 +428,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_kendaraan":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_kendaraan':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_angkutan_kl a
@@ -407,9 +440,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok;
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_kendaraan":
+                break;
+            case 'statistik_kelompok_kendaraan':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_angkutan_kl a
@@ -417,9 +451,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_penggunaan_kendaraan":
+                break;
+            case 'statistik_penggunaan_kendaraan':
                 $sql = "
                     select upper(a.status_penggunaan) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_angkutan_kl a
@@ -427,9 +462,10 @@ class Dashboard extends Model
                     group by a.status_penggunaan
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_kendaraan":
+                break;
+            case 'statistik_kondisi_kendaraan':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_angkutan_kl a
@@ -437,10 +473,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_alat_berat":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_alat_berat':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_berat_kl a
@@ -448,9 +485,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok;
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_alat_berat":
+                break;
+            case 'statistik_kelompok_alat_berat':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_berat_kl a
@@ -458,9 +496,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_penggunaan_alat_berat":
+                break;
+            case 'statistik_penggunaan_alat_berat':
                 $sql = "
                     select upper(a.status_penggunaan) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_berat_kl a
@@ -468,9 +507,10 @@ class Dashboard extends Model
                     group by a.status_penggunaan
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_alat_berat":
+                break;
+            case 'statistik_kondisi_alat_berat':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_alat_berat_kl a
@@ -478,10 +518,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_subkelompok_gedung":
+                return $data;
+                break;
+
+            case 'statistik_subkelompok_gedung':
                 $sql = "
                     select upper(a.sub_kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_gedung_bangunan_kl a
@@ -489,9 +530,10 @@ class Dashboard extends Model
                     group by a.sub_kelompok;
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_gedung":
+                break;
+            case 'statistik_kelompok_gedung':
                 $sql = "
                     select upper(a.kelompok) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_gedung_bangunan_kl a
@@ -499,9 +541,10 @@ class Dashboard extends Model
                     group by a.kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_penggunaan_gedung":
+                break;
+            case 'statistik_penggunaan_gedung':
                 $sql = "
                     select upper(a.status_penggunaan) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_gedung_bangunan_kl a
@@ -509,9 +552,10 @@ class Dashboard extends Model
                     group by a.status_penggunaan
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_gedung":
+                break;
+            case 'statistik_kondisi_gedung':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_gedung_bangunan_kl a
@@ -519,10 +563,11 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            
-            case "statistik_subkelompok_tanah":
+                break;
+
+            case 'statistik_subkelompok_tanah':
                 $sql = "
                     select a.sub_kelompok as judul, sum(a.luas_tanah_seluruhnya::bigint) as total, sum(nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tanah_kl a
@@ -530,9 +575,10 @@ class Dashboard extends Model
                     group by sub_kelompok
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kelompok_tanah":
+                break;
+            case 'statistik_kelompok_tanah':
                 $sql = "
                     select a.kelompok as judul, sum(a.luas_tanah_seluruhnya::bigint) as total, sum(nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tanah_kl a
@@ -540,9 +586,10 @@ class Dashboard extends Model
                     group by kelompok;
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_klasifikasi_tanah":
+                break;
+            case 'statistik_klasifikasi_tanah':
                 $sql = "
                     select 'TANAH KOSONG' as judul, sum(a.luas_tanah_kosong) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tanah_kl a
@@ -553,9 +600,10 @@ class Dashboard extends Model
                     where a.luas_tanah_untuk_bangunan <> 0 and a.luas_tanah_untuk_bangunan > 0 and a.luas_tanah_untuk_bangunan is not null {$where}
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            case "statistik_kondisi_tanah":
+                break;
+            case 'statistik_kondisi_tanah':
                 $sql = "
                     select upper(a.kondisi) as judul, count(a.id) as total, sum(a.nilai_perolehan::bigint) as total_nilai_perolehan
                     from siman.siman_aset_tanah_kl a
@@ -563,28 +611,29 @@ class Dashboard extends Model
                     group by a.kondisi
                 ";
                 $data = DB::select($sql);
+
                 return $data;
-            break;
-            
-            case "analisis_kebutuhan_bmn":
-                $currentYear = (int)date('Y');
+                break;
+
+            case 'analisis_kebutuhan_bmn':
+                $currentYear = (int) date('Y');
                 $years = range($currentYear, $currentYear + 4);
                 $unions = [];
                 foreach ($years as $i => $year) {
                     // Threshold: 0 for year 1, 0.1 for year 2, 0.2 for year 3, 0.3 for year 4, 0.4 for year 5
                     $threshold = $i === 0 ? 0 : ($i * 0.1);
                     $keterangan = $i === 0
-                        ? "Aset dengan nilai buku nol atau habis masa pakai"
-                        : ("Aset dengan nilai buku < " . ($threshold * 100) . "% nilai perolehan (perlu perencanaan)");
+                        ? 'Aset dengan nilai buku nol atau habis masa pakai'
+                        : ('Aset dengan nilai buku < '.($threshold * 100).'% nilai perolehan (perlu perencanaan)');
                     $whereNilaiBuku = $i === 0
-                        ? "a.nilai_buku <= 0 OR a.nilai_buku IS NULL"
+                        ? 'a.nilai_buku <= 0 OR a.nilai_buku IS NULL'
                         : ($i === 4
-                            ? "a.nilai_buku > (a.nilai_perolehan * 0." . ($i - 1) . ") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)"
-                            : "a.nilai_buku > (a.nilai_perolehan * 0." . ($i - 1) . ") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)");
+                            ? 'a.nilai_buku > (a.nilai_perolehan * 0.'.($i - 1).") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)"
+                            : 'a.nilai_buku > (a.nilai_perolehan * 0.'.($i - 1).") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)");
                     if ($i === 0) {
-                        $whereNilaiBuku = "a.nilai_buku <= 0 OR a.nilai_buku IS NULL";
+                        $whereNilaiBuku = 'a.nilai_buku <= 0 OR a.nilai_buku IS NULL';
                     } else {
-                        $whereNilaiBuku = "a.nilai_buku > (a.nilai_perolehan * 0." . ($i - 1) . ") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)";
+                        $whereNilaiBuku = 'a.nilai_buku > (a.nilai_perolehan * 0.'.($i - 1).") AND a.nilai_buku <= (a.nilai_perolehan * 0.$i)";
                     }
                     $unions[] = "SELECT
                         '$year' as tahun_prediksi,
@@ -608,10 +657,11 @@ class Dashboard extends Model
                 $sql = implode("\nUNION ALL\n", $unions);
                 $sql = str_replace('and a.id_satker_keu', 'and id_satker_keu', $sql);
                 $data = DB::select($sql);
-                return $data;
-            break;
 
-            case "statistik_bmn":
+                return $data;
+                break;
+
+            case 'statistik_bmn':
                 $sql = "
                     select 'Alat Angkutan Bermotor' as kategori, 
                         count(a.id) as total, sum(a.nilai_perolehan::float8) as nilai_perolehan,
@@ -744,13 +794,14 @@ class Dashboard extends Model
                 */
                 // echo $sql;exit;
                 $data = DB::select($sql);
+
                 return $data;
-            break;
+                break;
         }
 
     }
 
-    function getTahunPerolehan()
+    public function getTahunPerolehan()
     {
         $tables = [
             'asset_alat_angkutan_bermotor',
@@ -811,7 +862,6 @@ class Dashboard extends Model
 
         return $distinctYears;
     }
-
 }
 
 /*

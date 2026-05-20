@@ -110,11 +110,13 @@ sequenceDiagram
 ### 1.5 Format Laporan
 
 **Laporan Daftar (Individual):**
+
 - Kolom: No, NIP, Nama, Pangkat, Jabatan, Eselon, Jenis Pegawai, Ukuran per Pakaian
 - Filter: Jenis pegawai (TU/Jaksa), Eselon, Jenis Kelamin
 - Format: PDF, Excel
 
 **Laporan Rekap (Agregat):**
+
 - Agregasi per ukuran dengan breakdown L/P
 - Per satker
 - Format: PDF, Excel
@@ -166,6 +168,7 @@ sequenceDiagram
 ### 2.2 Fitur Analisis Validator Pusat
 
 **Data yang Digunakan:**
+
 1. **Dari SIMAN:** Data BMN existing per satker
    - Jumlah BMN per kode barang
    - Kondisi BMN (BAIK, RUSAK RINGAN, RUSAK BERAT)
@@ -176,6 +179,7 @@ sequenceDiagram
    - Breakdown Jaksa vs Non-Jaksa (TU)
 
 **Analisis yang Dilakukan:**
+
 - Gap Analysis: Kebutuhan vs Existing (kondisi BAIK)
 - Prioritas berdasarkan scoring
 - Kelayakan berdasarkan standar jumlah
@@ -220,20 +224,24 @@ sequenceDiagram
 ### 3.2 Fitur Tambahan
 
 **Perpanjangan Izin:**
+
 - Operator Satker bisa perpanjang izin yang akan habis
 - Link ke izin sebelumnya (history tracking)
 
 **Pencabutan Izin:**
+
 - Operator Satker atau Admin bisa cabut izin
 - Dengan alasan pencabutan
 - BMN kembali tersedia
 
 **Monitoring (Validator Wilayah & Pusat):**
+
 - Lihat semua izin pemakaian
 - Filter per BMN, per pegawai, per satker
 - Lihat jangka waktu dan status
 
 **Catatan Penting:**
+
 - **Satu pegawai bisa mengajukan lebih dari satu BMN dalam satu surat izin**
 - Format surat: Halaman 1 = identitas pegawai + foto, Halaman 2+ = tabel BMN
 
@@ -346,6 +354,7 @@ sequenceDiagram
 ### 6.1 Prioritas Implementasi
 
 **PRIORITY 1 - CRITICAL (Week 1-2):**
+
 1. ✅ Pakaian Dinas - Sesuaikan dengan flow simpel_web-main
 2. ✅ Kebutuhan BMN - Implement inisiasi Validator Pusat
 3. ✅ Kebutuhan BMN - Implement analisis otomatis
@@ -363,6 +372,7 @@ sequenceDiagram
 ### 6.2 Alternatif Flow yang Lebih Baik
 
 **Kebutuhan BMN - Alternatif 1 (RECOMMENDED):**
+
 ```
 Validator Pusat Inisiasi
   ↓
@@ -378,6 +388,7 @@ Validator Pusat Analisis (dengan data SIMAN + MySIMKARI)
 ```
 
 **Kebutuhan BMN - Alternatif 2 (Lebih Fleksibel):**
+
 ```
 Validator Pusat Inisiasi
   ↓
@@ -402,6 +413,7 @@ Validator Pusat Analisis (dengan data SIMAN + MySIMKARI)
 ### 7.1 Database Schema Changes
 
 **New Tables:**
+
 ```sql
 -- Periode inisiasi kebutuhan BMN
 CREATE TABLE perlengkapan.periode_kebutuhan_bmn (
@@ -454,6 +466,7 @@ CREATE TABLE perlengkapan.bmn_usage_status (
 ### 7.2 API Endpoints
 
 **Pakaian Dinas:**
+
 ```
 POST   /api/v1/pakaian-dinas/periode                    # Validator Pusat buat periode
 GET    /api/v1/pakaian-dinas/periode                    # List periode
@@ -475,6 +488,7 @@ GET    /api/v1/pakaian-dinas/laporan/rekap              # Laporan rekap (PDF/Exc
 ```
 
 **Kebutuhan BMN:**
+
 ```
 POST   /api/v1/kebutuhan-bmn/periode                    # Validator Pusat inisiasi
 GET    /api/v1/kebutuhan-bmn/periode                    # List periode
@@ -492,6 +506,7 @@ GET    /api/v1/kebutuhan-bmn/laporan/analisis           # Laporan analisis (PDF/
 ```
 
 **Pemakaian BMN:**
+
 ```
 GET    /api/v1/pemakaian-bmn/bmn-available              # List BMN yang tersedia
 POST   /api/v1/pemakaian-bmn/validate-bmn               # Validasi BMN belum dipakai
@@ -504,6 +519,7 @@ GET    /api/v1/pemakaian-bmn/monitoring                 # Monitoring (Validator 
 ```
 
 **SK Penghapusan BMN:**
+
 ```
 POST   /api/v1/penghapusan-bmn                          # Operator Satker ajukan
 POST   /api/v1/penghapusan-bmn/:id/lampiran             # Upload lampiran

@@ -10,12 +10,12 @@ body:
     attributes:
       value: |
         ⚠️ **PLEASE DO NOT disclose security vulnerabilities publicly.**
-        
+
         If you have found a critical security vulnerability, please:
         1. **DO NOT** create a public issue
         2. Email security details directly to: **security@kejaksaan.go.id**
         3. Or use GitHub's private vulnerability reporting feature
-        
+
         For non-critical security improvements, you may use this template.
 
   - type: dropdown
@@ -131,5 +131,5 @@ body:
         - We will provide regular updates on remediation progress
         - We request 90 days before public disclosure
         - Security researchers will be credited (if desired)
-        
+
         Thank you for helping keep SIMPEL secure! 🔒

@@ -1,7 +1,6 @@
 //! Applications page — microfrontend launcher with submenu support
 
 use crate::components::layout::MainLayout;
-use crate::features::auth::UserSession;
 use crate::features::microfrontends::{AppCategory, MicrofrontendRegistry};
 use leptos::prelude::*;
 
@@ -111,7 +110,12 @@ pub fn AppsPage() -> impl IntoView {
                                 let has_submenu = app.submenu.is_some();
                                 let app_id = app.id.clone();
                                 let app_id_expanded = app_id.clone();
-                                let is_expanded = move || expanded_app.get().as_ref() == Some(&app_id_expanded);
+                                // Memo is Copy → bisa dipakai di multiple `move ||` closures
+                                // tanpa "use of moved value" error. Sebelumnya `let is_expanded = move ||`
+                                // adalah unique closure (FnOnce-ish) yang tidak Copy.
+                                let is_expanded = Memo::new(move |_| {
+                                    expanded_app.get().as_ref() == Some(&app_id_expanded)
+                                });
 
                                 if has_submenu {
                                     // App with submenu — span full grid width so the dropdown
@@ -120,7 +124,7 @@ pub fn AppsPage() -> impl IntoView {
                                         <div class="sm:col-span-2 lg:col-span-3 rounded-xl border border-slate-100 dark:border-navy-700 overflow-hidden bg-white dark:bg-navy-800">
                                             <button
                                                 on:click=move |_| {
-                                                    if is_expanded() {
+                                                    if is_expanded.get() {
                                                         set_expanded_app.set(None);
                                                     } else {
                                                         set_expanded_app.set(Some(app_id.clone()));
@@ -149,7 +153,7 @@ pub fn AppsPage() -> impl IntoView {
                                                     <svg
                                                         class=move || format!(
                                                             "w-5 h-5 text-slate-400 flex-shrink-0 transition-transform duration-300 {}",
-                                                            if is_expanded() { "rotate-180" } else { "" }
+                                                            if is_expanded.get() { "rotate-180" } else { "" }
                                                         )
                                                         fill="none"
                                                         stroke="currentColor"
@@ -164,7 +168,7 @@ pub fn AppsPage() -> impl IntoView {
                                             <div
                                                 class=move || format!(
                                                     "transition-all duration-300 overflow-hidden {}",
-                                                    if is_expanded() { "max-h-96" } else { "max-h-0" }
+                                                    if is_expanded.get() { "max-h-96" } else { "max-h-0" }
                                                 )
                                             >
                                                 <div class="p-4 space-y-2">

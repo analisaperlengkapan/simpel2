@@ -73,6 +73,7 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_complete_auto_unseal_flow`
 
 **Steps:**
+
 1. Generate a 32-byte master key
 2. Create auto-unseal provider
 3. Encrypt master key with provider
@@ -83,6 +84,7 @@ cargo test --package secreton-auto-unseal \
 8. Verify decrypted key matches original
 
 **Validates:**
+
 - Requirements 2.1.1, 2.1.2, 2.1.3, 2.1.4 (provider functionality)
 - Requirement 2.1.5 (configuration storage)
 
@@ -91,6 +93,7 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_fallback_to_manual_unseal`
 
 **Steps:**
+
 1. Create provider configured to fail
 2. Encrypt master key (while provider is working)
 3. Configure fallback to manual unseal
@@ -98,6 +101,7 @@ cargo test --package secreton-auto-unseal \
 5. Verify fallback occurs and returns empty key
 
 **Validates:**
+
 - Requirement 2.1.6 (fallback to manual unseal)
 
 ### Scenario 3: No Fallback Configured
@@ -105,12 +109,14 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_auto_unseal_fails_without_fallback`
 
 **Steps:**
+
 1. Create provider configured to fail
 2. Configure NO fallback
 3. Attempt auto-unseal
 4. Verify operation fails with error
 
 **Validates:**
+
 - Requirement 2.1.6 (fallback configuration)
 
 ### Scenario 4: Configuration Persistence
@@ -118,6 +124,7 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_configuration_persistence`
 
 **Steps:**
+
 1. Store multiple sealed keys with different providers
 2. Set one key as active
 3. Simulate restart by retrieving configuration
@@ -126,6 +133,7 @@ cargo test --package secreton-auto-unseal \
 6. Query keys by provider type
 
 **Validates:**
+
 - Requirement 2.1.5 (configuration persistence)
 
 ### Scenario 5: Retry with Exponential Backoff
@@ -133,6 +141,7 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_retry_with_exponential_backoff`
 
 **Steps:**
+
 1. Create provider that always fails
 2. Configure retry with exponential backoff
 3. Attempt auto-unseal
@@ -140,6 +149,7 @@ cargo test --package secreton-auto-unseal \
 5. Verify fallback after max retries
 
 **Validates:**
+
 - Requirement 2.1.6 (retry logic)
 
 ### Scenario 6: Successful Unseal After Retries
@@ -147,12 +157,14 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_successful_unseal_after_retries`
 
 **Steps:**
+
 1. Create provider that fails initially
 2. Configure retry mechanism
 3. Enable provider after 2 attempts
 4. Verify auto-unseal eventually succeeds
 
 **Validates:**
+
 - Requirement 2.1.6 (retry success)
 
 ### Scenario 7: Checksum Verification
@@ -160,12 +172,14 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_checksum_verification`
 
 **Steps:**
+
 1. Create sealed key with encrypted data
 2. Verify checksum is valid
 3. Corrupt encrypted data
 4. Verify checksum fails
 
 **Validates:**
+
 - Data integrity (implicit in 2.1.5)
 
 ### Scenario 8: Multiple Providers
@@ -173,12 +187,14 @@ cargo test --package secreton-auto-unseal \
 **Test:** `test_multiple_providers_same_master_key`
 
 **Steps:**
+
 1. Encrypt same master key with 3 different providers
 2. Store all encrypted keys
 3. Verify each provider can decrypt its own key
 4. Verify keys are correctly categorized by provider type
 
 **Validates:**
+
 - Requirements 2.1.1, 2.1.2, 2.1.3, 2.1.4 (all providers)
 
 ## Real KMS Provider Integration
@@ -186,6 +202,7 @@ cargo test --package secreton-auto-unseal \
 ### Transit Provider
 
 **Environment Variables:**
+
 ```bash
 export SECRETON_TRANSIT_ENDPOINT="https://secreton.internal:8200"
 export SECRETON_TRANSIT_KEY_NAME="autounseal"
@@ -193,6 +210,7 @@ export SECRETON_TRANSIT_TOKEN="s.xxxxxxxxxxxxxx"
 ```
 
 **Run Test:**
+
 ```bash
 cargo test --package secreton-auto-unseal \
   --test integration_tests \
@@ -204,6 +222,7 @@ cargo test --package secreton-auto-unseal \
 ### AWS KMS Provider
 
 **Environment Variables:**
+
 ```bash
 export AWS_KMS_KEY_ID="alias/secreton-test"
 export AWS_REGION="us-east-1"
@@ -217,6 +236,7 @@ export AWS_SECRET_ACCESS_KEY="your-secret-key"
 ```
 
 **Run Test:**
+
 ```bash
 cargo test --package secreton-auto-unseal \
   --test integration_tests \
@@ -228,6 +248,7 @@ cargo test --package secreton-auto-unseal \
 ### GCP KMS Provider
 
 **Environment Variables:**
+
 ```bash
 export GCP_PROJECT_ID="my-project"
 export GCP_LOCATION="us-central1"
@@ -237,6 +258,7 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 ```
 
 **Run Test:**
+
 ```bash
 cargo test --package secreton-auto-unseal \
   --test integration_tests \
@@ -256,7 +278,7 @@ on: [push, pull_request]
 
 jobs:
   mock-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -267,7 +289,7 @@ jobs:
             --test integration_tests
 
   aws-kms-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
@@ -291,7 +313,7 @@ jobs:
           AWS_KMS_KEY_ID: ${{ secrets.AWS_KMS_KEY_ID }}
 
   gcp-kms-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4

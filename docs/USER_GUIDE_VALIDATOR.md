@@ -15,11 +15,13 @@
 ## Pengenalan
 
 **Peran Validator Wilayah:**
+
 - Review dan forward pengajuan dari satker di wilayahnya
 - Monitoring pemakaian BMN di wilayah
 - Memberikan rekomendasi ke Validator Pusat
 
 **Peran Validator Pusat:**
+
 - Inisiasi periode kebutuhan BMN
 - Analisis kelayakan dengan data SIMAN dan MySIMKARI
 - Approval final untuk semua pengajuan
@@ -42,6 +44,7 @@
 ### Dashboard Validator Wilayah
 
 Menampilkan:
+
 - Total pengajuan di wilayah
 - Pengajuan menunggu review
 - Pengajuan yang sudah diforward
@@ -50,6 +53,7 @@ Menampilkan:
 ### Dashboard Validator Pusat
 
 Menampilkan:
+
 - Statistik nasional
 - Gap analysis BMN
 - Workflow metrics
@@ -88,6 +92,7 @@ Menampilkan:
    - Satker akan menerima notifikasi
 
 **Tips:**
+
 - Cek konsistensi data dengan kebutuhan satker
 - Verifikasi dokumen pendukung
 - Berikan catatan yang konstruktif jika return
@@ -134,6 +139,7 @@ Menampilkan:
      - Data pendukung dari SIMAN dan MySIMKARI
 
 **Tips:**
+
 - Gunakan data SIMAN dan MySIMKARI untuk keputusan objektif
 - Pertimbangkan prioritas berdasarkan skor sistem
 - Dokumentasikan alasan keputusan dengan baik
@@ -218,6 +224,7 @@ Menampilkan:
 ### Dashboard Monitoring
 
 **Akses:**
+
 - Menu **"Pemakaian BMN"** → **"Monitoring Dashboard"**
 
 **Fitur:**
@@ -235,22 +242,26 @@ Menampilkan:
    - BMN yang jarang digunakan
 
 **Filter:**
+
 - Per satker (Validator Wilayah)
 - Per wilayah (Validator Pusat)
 - Per jenis BMN
 
 **Export:**
+
 - Klik **"Export"** untuk download laporan
 - Format: Excel atau PDF
 
 ### Tindak Lanjut
 
 **Jika utilisasi rendah:**
+
 - Identifikasi BMN yang jarang digunakan
 - Koordinasi dengan satker untuk optimalisasi
 - Pertimbangkan redistribusi BMN
 
 **Jika izin akan berakhir:**
+
 - Sistem akan kirim reminder otomatis ke pegawai
 - Monitor perpanjangan izin
 - Cek ketersediaan BMN untuk pengguna baru
@@ -326,6 +337,7 @@ Menampilkan:
    - Proyeksi kebutuhan
 
 **Cara Generate:**
+
 - Menu **"Laporan"** → Pilih jenis laporan
 - Tentukan filter (tahun, wilayah, satker)
 - Pilih format (PDF, Excel)
@@ -395,11 +407,13 @@ Menampilkan:
 ## Kontak dan Dukungan
 
 **Helpdesk SIMPEL:**
+
 - **Email:** helpdesk@simpel.kejaksaan.go.id
 - **Telepon:** (021) 1234-5678
 - **Jam Kerja:** Senin-Jumat, 08:00-16:00 WIB
 
 **Panduan Video:**
+
 - https://simpel.kejaksaan.go.id/panduan
 
 ---

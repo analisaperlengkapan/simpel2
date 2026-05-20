@@ -265,6 +265,7 @@ cargo test --package secreton-replication secondary_read
 ### Property-Based Tests
 
 Property tests verify:
+
 - Staleness detection accuracy
 - Read-after-write consistency guarantees
 - Lag metric calculations

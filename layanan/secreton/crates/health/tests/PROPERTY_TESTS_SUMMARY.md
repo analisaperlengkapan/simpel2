@@ -26,6 +26,7 @@ This document summarizes the property-based tests implemented for the health che
 **For any health check with a unique name, registering it should succeed, and the registered check should be retrievable and executable.**
 
 This property ensures that:
+
 1. Health checks can be registered with unique names
 2. Registered health checks can be retrieved by name
 3. Registry maintains all registered checks
@@ -34,9 +35,11 @@ This property ensures that:
 ## Test Implementation
 
 ### Test File Location
+
 `layanan/secreton/crates/health/tests/property_tests.rs`
 
 ### Test Framework
+
 - **Framework:** proptest 1.8.0
 - **Runtime:** tokio (async tests)
 - **Test Count:** 16 tests (12 property tests + 4 integration tests)
@@ -144,6 +147,7 @@ struct MockHealthCheck {
 ```
 
 **Features:**
+
 - Configurable name, status, criticality, and tags
 - Deterministic behavior for testing
 - Builder pattern for easy configuration
@@ -153,26 +157,31 @@ struct MockHealthCheck {
 ### Functionality Covered
 
 ✅ **Registration:**
+
 - Unique name registration
 - Duplicate rejection
 - Multiple registrations
 
 ✅ **Retrieval:**
+
 - By name (`check_one`)
 - All checks (`check_all`)
 - By tags (`check_by_tags`)
 
 ✅ **State Management:**
+
 - Count tracking
 - Name listing
 - Contains checking
 
 ✅ **Execution:**
+
 - Individual check execution
 - Batch execution
 - Timeout handling (via registry implementation)
 
 ✅ **Lifecycle:**
+
 - Registration
 - Execution
 - Unregistration

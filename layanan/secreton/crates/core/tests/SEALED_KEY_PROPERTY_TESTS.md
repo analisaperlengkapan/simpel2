@@ -21,6 +21,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_sealed_key_round_trip`
 
 **What it tests:**
+
 - All fields are preserved across store/retrieve cycles
 - ID, provider type, provider key ID, region, endpoint match
 - Encrypted master key data is identical
@@ -41,6 +42,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_active_key_uniqueness`
 
 **What it tests:**
+
 - Setting key1 as active makes it the only active key
 - Setting key2 as active deactivates key1
 - Only one key can be active at any time
@@ -59,6 +61,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_checksum_verification`
 
 **What it tests:**
+
 - Checksum verification passes for retrieved keys
 - Checksum matches the original key's checksum
 - SHA-256 checksum integrity is maintained
@@ -76,6 +79,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_provider_metadata_preservation`
 
 **What it tests:**
+
 - Provider type is preserved (AWS KMS, GCP KMS, Azure KV, Transit)
 - Provider key ID is preserved
 - Provider region is preserved (for cloud providers)
@@ -95,6 +99,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_list_operations_consistency`
 
 **What it tests:**
+
 - All stored keys appear in list operations
 - Individual retrieval matches list entries
 - Encrypted data is consistent between get and list
@@ -113,6 +118,7 @@ This document describes the property-based tests for sealed master key storage o
 **Test Function:** `prop_provider_filtering`
 
 **What it tests:**
+
 - Filtered results contain only keys of the specified provider type
 - All keys of the specified type are returned
 - No keys are missed or incorrectly included
@@ -125,6 +131,7 @@ This document describes the property-based tests for sealed master key storage o
 ### Provider Type Strategy
 
 Generates all four provider types with equal probability:
+
 - `ProviderType::AwsKms`
 - `ProviderType::GcpKms`
 - `ProviderType::AzureKv`
@@ -133,6 +140,7 @@ Generates all four provider types with equal probability:
 ### Provider Key ID Strategy
 
 Generates realistic provider-specific key identifiers:
+
 - **AWS KMS:** ARN format (`arn:aws:kms:us-east-1:123456789012:key/{uuid}`)
 - **GCP KMS:** Resource name format (`projects/test-project/locations/us-central1/keyRings/test/cryptoKeys/{name}`)
 - **Azure Key Vault:** URL format (`https://test-vault.vault.azure.net/keys/{name}`)
@@ -141,6 +149,7 @@ Generates realistic provider-specific key identifiers:
 ### Provider Region Strategy
 
 Generates appropriate regions for each provider:
+
 - **AWS KMS:** `us-east-1`, `us-west-2`, `eu-west-1`
 - **GCP KMS:** `us-central1`, `europe-west1`, `asia-east1`
 - **Azure Key Vault:** `eastus`, `westus`, `westeurope`
@@ -149,6 +158,7 @@ Generates appropriate regions for each provider:
 ### Provider Endpoint Strategy
 
 Generates endpoints for Transit provider:
+
 - `https://secreton.internal:8200`
 - `https://secreton-primary.internal:8200`
 - `https://secreton-dr.internal:8200`
@@ -160,6 +170,7 @@ Generates random byte arrays of size 32-256 bytes, simulating encrypted master k
 ### Metadata Strategy
 
 Generates various metadata JSON objects:
+
 - Empty object: `{}`
 - Rotation count: `{"rotation_count": 1}`
 - Full metadata: `{"created_by": "admin", "purpose": "auto-unseal"}`
@@ -168,21 +179,21 @@ Generates various metadata JSON objects:
 
 ## Running the Tests
 
-### Run all property tests (requires PostgreSQL):
+### Run all property tests (requires PostgreSQL)
 
 ```bash
 cd layanan/secreton
 cargo test -p secreton-core --test sealed_key_storage_property_test -- --ignored --test-threads=1
 ```
 
-### Run unit tests only (no database required):
+### Run unit tests only (no database required)
 
 ```bash
 cd layanan/secreton
 cargo test -p secreton-core --test sealed_key_storage_property_test
 ```
 
-### Run a specific property test:
+### Run a specific property test
 
 ```bash
 cd layanan/secreton

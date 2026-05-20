@@ -20,6 +20,7 @@ use Throwable;
 class SecrethonGrpcClient
 {
     private string $baseUrl;
+
     private float $timeout;
 
     public function __construct()
@@ -45,15 +46,17 @@ class SecrethonGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName)
+                "{$this->baseUrl}/v1/secrets/".rawurlencode($secretName)
             );
             if (! $response->successful()) {
                 return null;
             }
             $value = $response->json('value');
+
             return is_string($value) ? $value : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve secret {$secretName}: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -66,13 +69,15 @@ class SecrethonGrpcClient
         try {
             $response = $this->http()
                 ->asJson()
-                ->put("{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName), [
+                ->put("{$this->baseUrl}/v1/secrets/".rawurlencode($secretName), [
                     'value' => $secretValue,
                     'metadata' => $metadata,
                 ]);
+
             return $response->successful();
         } catch (Throwable $th) {
             Log::error("Failed to store secret {$secretName}: {$th->getMessage()}");
+
             return false;
         }
     }
@@ -84,11 +89,13 @@ class SecrethonGrpcClient
     {
         try {
             $response = $this->http()->delete(
-                "{$this->baseUrl}/v1/secrets/" . rawurlencode($secretName)
+                "{$this->baseUrl}/v1/secrets/".rawurlencode($secretName)
             );
+
             return $response->successful();
         } catch (Throwable $th) {
             Log::error("Failed to delete secret {$secretName}: {$th->getMessage()}");
+
             return false;
         }
     }
@@ -100,15 +107,17 @@ class SecrethonGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/database-credentials/" . rawurlencode($databaseName)
+                "{$this->baseUrl}/v1/database-credentials/".rawurlencode($databaseName)
             );
             if (! $response->successful()) {
                 return null;
             }
             $data = $response->json();
+
             return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve DB credentials: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -120,15 +129,17 @@ class SecrethonGrpcClient
     {
         try {
             $response = $this->http()->get(
-                "{$this->baseUrl}/v1/api-keys/" . rawurlencode($serviceName)
+                "{$this->baseUrl}/v1/api-keys/".rawurlencode($serviceName)
             );
             if (! $response->successful()) {
                 return null;
             }
             $key = $response->json('api_key');
+
             return is_string($key) ? $key : null;
         } catch (Throwable $th) {
             Log::error("Failed to retrieve API key for {$serviceName}: {$th->getMessage()}");
+
             return null;
         }
     }
@@ -142,6 +153,7 @@ class SecrethonGrpcClient
             return $this->http()->get("{$this->baseUrl}/healthz")->successful();
         } catch (Throwable $th) {
             Log::warning("Secreton gateway health check failed: {$th->getMessage()}");
+
             return false;
         }
     }

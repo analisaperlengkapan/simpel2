@@ -5,13 +5,13 @@ namespace App\Models\Asset;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Tanah extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'siman.siman_aset_tanah_kl';
 
@@ -62,37 +62,37 @@ class Tanah extends Model
         'jml_kib',
         'sbsk',
         'optimalisasi',
-        'status_sbsn'
+        'status_sbsn',
     ];
 
-    function getDataGrid($paging, $search = [], $select = [])
+    public function getDataGrid($paging, $search = [], $select = [])
     {
-        //DB::enableQueryLog();
+        // DB::enableQueryLog();
 
         $query = DB::table($this->table.' as a');
-        if(!empty($select)){
-            $query->select($select,'b.inst_nama');
-        }else{
-            $query->select("a.*", 'b.inst_nama');
+        if (! empty($select)) {
+            $query->select($select, 'b.inst_nama');
+        } else {
+            $query->select('a.*', 'b.inst_nama');
         }
-        $query->leftJoin('ms_satker as b','a.id_satker_keu','=','b.kdsatker_keu');
+        $query->leftJoin('ms_satker as b', 'a.id_satker_keu', '=', 'b.kdsatker_keu');
 
         $roleSatker = session('userData.current_role.ms_satker_id');
         $roleSadmin = session('userData.current_role.ms_role_id');
 
-        //return $roleSatker;exit;
+        // return $roleSatker;exit;
 
         if ($roleSatker != '00' && $roleSadmin != '3') {
             $query->where('b.inst_satkerkd', 'like', "{$roleSatker}%");
         }
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -112,31 +112,32 @@ class Tanah extends Model
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
 
-        //dd(DB::getQueryLog());
-        //echo "<pre>";
-        //print_r(DB::getQueryLog()); exit;
-
+        // dd(DB::getQueryLog());
+        // echo "<pre>";
+        // print_r(DB::getQueryLog()); exit;
 
         return ['total' => $total, 'data' => $data];
     }
 
-    function getDataExport($search = [],$defColumn = null)
+    public function getDataExport($search = [], $defColumn = null)
     {
-        $select = array("a.kdsatker_keu", 'a.nm_satker', 'a.kode_barang', 'a.nm_barang', 'a.nup', 'a.kondisi', 'a.jenis_dokumen', 'a.kepemilikan', 'a.jenis_sertifikat',
-        'a.merk', 'a.tgl_rekam_pertama','a.tgl_perolehan','a.nilai_perolehan_pertama','a.nilai_mutasi','a.nilai_perolehan','a.nilai_penyusutan','a.nilai_buku','a.kuantitas',
-        'a.luas_tanah_total','a.luas_tanah_bangunan','a.luas_tanah_sarana','a.luas_lahan_kosong','a.jml_foto','a.status_penggunaan','a.status_pengelolaan','a.no_psp',
-        'a.tgl_psp','a.alamat','a.rt_rw','a.kelurahan','a.kecamatan','a.kabkota','a.kode_kabkota','a.provinsi','a.kode_prov','a.kode_pos','a.jml_kib','a.sbsk','a.optimalisasi','a.status_sbsn');
-        if($defColumn) $select = array_intersect_key($select, array_flip($defColumn));
+        $select = ['a.kdsatker_keu', 'a.nm_satker', 'a.kode_barang', 'a.nm_barang', 'a.nup', 'a.kondisi', 'a.jenis_dokumen', 'a.kepemilikan', 'a.jenis_sertifikat',
+            'a.merk', 'a.tgl_rekam_pertama', 'a.tgl_perolehan', 'a.nilai_perolehan_pertama', 'a.nilai_mutasi', 'a.nilai_perolehan', 'a.nilai_penyusutan', 'a.nilai_buku', 'a.kuantitas',
+            'a.luas_tanah_total', 'a.luas_tanah_bangunan', 'a.luas_tanah_sarana', 'a.luas_lahan_kosong', 'a.jml_foto', 'a.status_penggunaan', 'a.status_pengelolaan', 'a.no_psp',
+            'a.tgl_psp', 'a.alamat', 'a.rt_rw', 'a.kelurahan', 'a.kecamatan', 'a.kabkota', 'a.kode_kabkota', 'a.provinsi', 'a.kode_prov', 'a.kode_pos', 'a.jml_kib', 'a.sbsk', 'a.optimalisasi', 'a.status_sbsn'];
+        if ($defColumn) {
+            $select = array_intersect_key($select, array_flip($defColumn));
+        }
         $query = DB::table($this->table.' as a');
         $query->select($select);
-        if (!empty($search)) {
+        if (! empty($search)) {
             $searchVal = $search['columns'];
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -153,13 +154,16 @@ class Tanah extends Model
         }
         $query->orderByDesc('a.created_at');
         $data = $query->get();
+
         return ['data' => $data];
     }
 
-    static function findOne($id){
+    public static function findOne($id)
+    {
         $query = DB::table('asset_tanah as a');
         $query->select('a.*');
         $query->where('a.id', '=', $id);
+
         return $query->first();
     }
 }

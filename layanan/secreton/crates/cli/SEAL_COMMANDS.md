@@ -11,6 +11,7 @@ This document describes the implementation of seal/unseal CLI commands for Secre
 Initializes the engine and generates Shamir secret shares.
 
 **Features:**
+
 - Configurable number of shares (default: 5)
 - Configurable threshold (default: 3)
 - Optional output to file for secure storage
@@ -19,6 +20,7 @@ Initializes the engine and generates Shamir secret shares.
 - Provides security warnings and best practices
 
 **Usage:**
+
 ```bash
 # Default initialization (5 shares, 3 threshold)
 secreton seal init
@@ -31,6 +33,7 @@ secreton seal init --output keys.json
 ```
 
 **Output:**
+
 - Formatted table with all unseal keys (base64 encoded)
 - Root token (if generated)
 - Security warnings about key distribution
@@ -41,16 +44,19 @@ secreton seal init --output keys.json
 Seals the engine, blocking all operations until unsealed.
 
 **Features:**
+
 - Clears master key from memory
 - Blocks all engine operations
 - Provides clear feedback on seal status
 
 **Usage:**
+
 ```bash
 secreton seal seal
 ```
 
 **Output:**
+
 - Success confirmation
 - Information about unsealing requirements
 
@@ -59,6 +65,7 @@ secreton seal seal
 Unseals the engine using Shamir secret shares.
 
 **Features:**
+
 - Secure key input (no echo to terminal)
 - Progress tracking (shows X/Y shares provided)
 - Support for providing key via argument or interactive prompt
@@ -66,6 +73,7 @@ Unseals the engine using Shamir secret shares.
 - Validates shares using Feldman VSS
 
 **Usage:**
+
 ```bash
 # Interactive mode (secure input)
 secreton seal unseal
@@ -78,6 +86,7 @@ secreton seal unseal --reset
 ```
 
 **Output:**
+
 - Progress indicator (e.g., "2/3 shares provided")
 - Success message when threshold reached
 - Remaining shares needed
@@ -87,6 +96,7 @@ secreton seal unseal --reset
 Shows the current seal status of the engine.
 
 **Features:**
+
 - Displays current state (sealed/unsealing/unsealed)
 - Shows seal configuration (shares, threshold)
 - Progress tracking during unsealing
@@ -94,11 +104,13 @@ Shows the current seal status of the engine.
 - Color-coded status indicators
 
 **Usage:**
+
 ```bash
 secreton seal status
 ```
 
 **Output:**
+
 - State indicator (🟢 unsealed, 🟡 unsealing, 🔴 sealed)
 - Initialization status
 - Seal type (shamir)
@@ -117,11 +129,13 @@ Rekey operation to change the number of shares and threshold.
 Starts a rekey operation.
 
 **Features:**
+
 - Configurable new shares and threshold
 - Generates unique nonce for operation
 - Requires threshold number of current keys
 
 **Usage:**
+
 ```bash
 secreton seal rekey init --shares 7 --threshold 4
 ```
@@ -131,11 +145,13 @@ secreton seal rekey init --shares 7 --threshold 4
 Provides an unseal key for the rekey operation.
 
 **Features:**
+
 - Secure key input (no echo)
 - Progress tracking
 - Completes rekey when threshold reached
 
 **Usage:**
+
 ```bash
 secreton seal rekey update
 ```
@@ -145,6 +161,7 @@ secreton seal rekey update
 Shows rekey operation progress.
 
 **Usage:**
+
 ```bash
 secreton seal rekey status
 ```
@@ -154,6 +171,7 @@ secreton seal rekey status
 Cancels an in-progress rekey operation.
 
 **Usage:**
+
 ```bash
 secreton seal rekey cancel
 ```
@@ -244,6 +262,7 @@ The commands are designed to work with the Secreton API server. Full integration
 ## Success Criteria Met
 
 ✅ **All required commands implemented:**
+
 - `secreton seal init` - Initialize engine with Shamir shares
 - `secreton seal seal` - Seal the engine
 - `secreton seal unseal` - Unseal with key shares
@@ -251,11 +270,13 @@ The commands are designed to work with the Secreton API server. Full integration
 - `secreton seal rekey` - Rekey operation with subcommands
 
 ✅ **Secure share input:**
+
 - No echo to terminal using `rpassword`
 - Support for both interactive and argument-based input
 - Clipboard support through standard input/output
 
 ✅ **User-friendly output:**
+
 - Formatted tables with `comfy-table`
 - Color-coded status indicators
 - Progress tracking
@@ -263,6 +284,7 @@ The commands are designed to work with the Secreton API server. Full integration
 - Security warnings and best practices
 
 ✅ **Production-ready:**
+
 - Comprehensive error handling
 - Input validation
 - Proper API integration

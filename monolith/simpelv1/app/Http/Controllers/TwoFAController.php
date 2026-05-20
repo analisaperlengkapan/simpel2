@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pengguna\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Pengguna\Pengguna;
 use PragmaRX\Google2FAQRCode\Google2FA;
 
 class TwoFAController extends Controller
@@ -17,10 +17,10 @@ class TwoFAController extends Controller
             return redirect('/dashboard')->with('status', '2FA sudah aktif.');
         }
 
-        $secret = (new Google2FA())->generateSecretKey();
+        $secret = (new Google2FA)->generateSecretKey();
         session(['2fa:secret' => $secret]);
 
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $QR_Image = $google2fa->getQRCodeInline(
             config('app.name'),
             $user->email,
@@ -38,12 +38,12 @@ class TwoFAController extends Controller
         $user = Auth::user();
         $secretKey = session('2fa:secret');
 
-        if (!$secretKey) {
+        if (! $secretKey) {
             return redirect()->route('2fa.setup')
                 ->withErrors(['otp' => 'Session kode 2FA hilang.']);
         }
 
-        if (!(new Google2FA())->verifyKey($secretKey, $request->otp)) {
+        if (! (new Google2FA)->verifyKey($secretKey, $request->otp)) {
             return back()->withErrors(['otp' => 'Kode OTP salah.']);
         }
 
@@ -53,15 +53,15 @@ class TwoFAController extends Controller
 
         // Log aktivitas aktivasi 2FA
         \App\Models\Pengguna\Aktifitas::create([
-            'username'    => $user->username,
-            'operation'   => 'AKTIVASI_2FA',
-            'table'       => 'users',
+            'username' => $user->username,
+            'operation' => 'AKTIVASI_2FA',
+            'table' => 'users',
             'ms_satker_id' => $user->ms_satker_id ?? null,
             'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-            'pkey'        => $user->id,
-            'keterangan'  => 'Aktivasi 2FA',
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
+            'pkey' => $user->id,
+            'keterangan' => 'Aktivasi 2FA',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         // Refresh user dan login ulang agar Auth::user() terupdate
@@ -81,7 +81,7 @@ class TwoFAController extends Controller
     /** Tampilkan form verifikasi OTP */
     public function showVerifyForm()
     {
-        if (!session('2fa:user:id')) {
+        if (! session('2fa:user:id')) {
             return redirect()->route('login')->withErrors(['otp' => 'Sesi 2FA tidak ditemukan. Silakan login ulang.']);
         }
 
@@ -96,16 +96,16 @@ class TwoFAController extends Controller
         $userId = session('2fa:user:id');
         $remember = session('2fa:remember', false);
 
-        if (!$userId) {
+        if (! $userId) {
             return redirect()->route('login')->withErrors(['otp' => 'Sesi tidak valid. Silakan login ulang.']);
         }
 
         $user = Pengguna::find($userId);
-        if (!$user || !$user->google2fa_secret) {
+        if (! $user || ! $user->google2fa_secret) {
             return redirect()->route('login')->withErrors(['otp' => 'Akun tidak valid.']);
         }
 
-        if (!(new Google2FA())->verifyKey($user->google2fa_secret, $request->otp)) {
+        if (! (new Google2FA)->verifyKey($user->google2fa_secret, $request->otp)) {
             return back()->withErrors(['otp' => 'Kode OTP salah.']);
         }
 
@@ -132,15 +132,15 @@ class TwoFAController extends Controller
 
         // Log aktivitas nonaktifkan 2FA
         \App\Models\Pengguna\Aktifitas::create([
-            'username'    => $user->username,
-            'operation'   => 'NONAKTIFKAN_2FA',
-            'table'       => 'users',
+            'username' => $user->username,
+            'operation' => 'NONAKTIFKAN_2FA',
+            'table' => 'users',
             'ms_satker_id' => $user->ms_satker_id ?? null,
             'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-            'pkey'        => $user->id,
-            'keterangan'  => 'Nonaktifkan 2FA',
-            'ip_address'  => request()->ip(),
-            'user_agent'  => request()->userAgent(),
+            'pkey' => $user->id,
+            'keterangan' => 'Nonaktifkan 2FA',
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
         ]);
 
         // Perbarui session userData
@@ -154,27 +154,28 @@ class TwoFAController extends Controller
     public function disableBySuperadmin($id, Request $request)
     {
         $admin = Auth::user();
-        if (!$admin || empty($admin->is_superadmin) || $admin->is_superadmin != 1) {
+        if (! $admin || empty($admin->is_superadmin) || $admin->is_superadmin != 1) {
             abort(403, 'Hanya superadmin yang boleh menonaktifkan 2FA user lain.');
         }
         $user = \App\Models\Pengguna\Pengguna::find($id);
-        if (!$user) {
+        if (! $user) {
             return back()->with('error', 'User tidak ditemukan.');
         }
         $user->google2fa_secret = null;
         $user->save();
         // Log aktivitas nonaktifkan 2FA oleh superadmin
         \App\Models\Pengguna\Aktifitas::create([
-            'username'    => $admin->username,
-            'operation'   => 'NONAKTIFKAN_2FA_USER_LAIN',
-            'table'       => 'users',
+            'username' => $admin->username,
+            'operation' => 'NONAKTIFKAN_2FA_USER_LAIN',
+            'table' => 'users',
             'ms_satker_id' => $admin->ms_satker_id ?? null,
             'ms_satker_pusat_id' => $admin->ms_satker_pusat_id ?? null,
-            'pkey'        => $user->id,
-            'keterangan'  => 'Nonaktifkan 2FA user: '.$user->username,
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
+            'pkey' => $user->id,
+            'keterangan' => 'Nonaktifkan 2FA user: '.$user->username,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
+
         return back()->with('status', '2FA user berhasil dinonaktifkan oleh superadmin.');
     }
 }

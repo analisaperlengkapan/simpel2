@@ -41,35 +41,35 @@ ON CONFLICT (kode) DO NOTHING;
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
+
     -- Basic Information
     nama VARCHAR(255) NOT NULL,
     deskripsi TEXT,
     tahun INTEGER NOT NULL,
     tgl_mulai DATE NOT NULL,
     tgl_selesai DATE NOT NULL,
-    
+
     -- Satker Selection
     pilihan_satker VARCHAR(20) DEFAULT 'semua' CHECK (pilihan_satker IN ('semua', 'sebagian')),
-    
+
     -- Asset Types (JSON array of selected asset type IDs)
     id_jenis_asset JSONB DEFAULT '[]'::jsonb,
-    
+
     -- Approval Status
     is_appv_daskrimti BOOLEAN DEFAULT FALSE,
-    
+
     -- Workflow Status (FK to ms_aktivitas_bmn.kode)
     status_kode INTEGER NOT NULL DEFAULT 2000 REFERENCES perlengkapan.ms_aktivitas_bmn(kode),
-    
+
     -- Audit Trail
     created_by UUID,
     updated_by UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- Optimistic Locking
     version INTEGER DEFAULT 1,
-    
+
     CONSTRAINT valid_date_range CHECK (tgl_selesai >= tgl_mulai),
     CONSTRAINT valid_tahun CHECK (tahun >= 2020 AND tahun <= 2100)
 );
@@ -80,13 +80,13 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn (
 CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_asset (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pengajuan_id UUID NOT NULL REFERENCES perlengkapan.pengajuan_kebutuhan_bmn(id) ON DELETE CASCADE,
-    
+
     -- Asset Classification
     kode_barang VARCHAR(50),
     nm_barang VARCHAR(255),
     ms_jenis_asset_id INTEGER,
     keterangan TEXT,
-    
+
     -- Audit Trail
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -98,24 +98,24 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_asset (
 CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pengajuan_id UUID NOT NULL REFERENCES perlengkapan.pengajuan_kebutuhan_bmn(id) ON DELETE CASCADE,
-    
+
     -- Satker Reference (from MySIMKARI)
     ms_satker_id VARCHAR(20) NOT NULL,
     ms_satker_pusat_id VARCHAR(20),
     nm_satker VARCHAR(255),
-    
+
     -- Workflow Status per Satker
     status_kode INTEGER NOT NULL DEFAULT 2001 REFERENCES perlengkapan.ms_aktivitas_bmn(kode),
-    
+
     -- Priority Ranking (set during penyusunan prioritas)
     prioritas INTEGER DEFAULT 0,
-    
+
     -- Audit Trail
     created_by UUID,
     updated_by UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- Unique constraint per pengajuan
     CONSTRAINT unique_satker_per_pengajuan UNIQUE (pengajuan_id, ms_satker_id)
 );
@@ -126,29 +126,29 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker (
 CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker_barang (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pengajuan_satker_id UUID NOT NULL REFERENCES perlengkapan.pengajuan_kebutuhan_bmn_satker(id) ON DELETE CASCADE,
-    
+
     -- Goods Information
     nama VARCHAR(255) NOT NULL,
     kode_barang VARCHAR(50),
     jumlah INTEGER NOT NULL DEFAULT 1 CHECK (jumlah > 0),
     satuan VARCHAR(50) DEFAULT 'Unit',
-    
+
     -- Approval Information
     jml_setuju INTEGER DEFAULT 0 CHECK (jml_setuju >= 0),
     alasan TEXT,
     keterangan TEXT,
-    
+
     -- Priority and Scoring
     prioritas INTEGER DEFAULT 0,
     skor NUMERIC(10,2) DEFAULT 0,
-    
+
     -- Supporting Documents
     file_pendukung JSONB DEFAULT '[]'::jsonb,
-    
+
     -- Existing Inventory Reference (from SIMAN)
     existing_count INTEGER DEFAULT 0,
     existing_condition TEXT,
-    
+
     -- Audit Trail
     created_by UUID,
     updated_by UUID,
@@ -162,11 +162,11 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker_barang (
 CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pengajuan_satker_id UUID NOT NULL REFERENCES perlengkapan.pengajuan_kebutuhan_bmn_satker(id) ON DELETE CASCADE,
-    
+
     -- Workflow Transition
     from_status_kode INTEGER,
     to_status_kode INTEGER NOT NULL REFERENCES perlengkapan.ms_aktivitas_bmn(kode),
-    
+
     -- Actor Information (from Authenc)
     user_id UUID,
     nip VARCHAR(30),
@@ -174,11 +174,11 @@ CREATE TABLE IF NOT EXISTS perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
     pangkat VARCHAR(100),
     jabatan VARCHAR(255),
     role VARCHAR(100),
-    
+
     -- Action Details
     aksi VARCHAR(50) NOT NULL,
     komentar TEXT,
-    
+
     -- Timestamp
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -220,7 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_pkb_aktivitas_created ON perlengkapan.pengajuan_k
 
 -- Summary view for dashboard statistics
 CREATE OR REPLACE VIEW perlengkapan.vw_kebutuhan_bmn_summary AS
-SELECT 
+SELECT
     p.id,
     p.nama,
     p.tahun,
@@ -242,12 +242,12 @@ GROUP BY p.id, p.nama, p.tahun, p.status_kode, m.nama, p.created_at, p.updated_a
 -- Trigger for Updated At
 -- ============================================================================
 CREATE OR REPLACE FUNCTION perlengkapan.update_kebutuhan_bmn_updated_at()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS $BODY$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$ LANGUAGE plpgsql;
 
 -- Apply triggers to main tables
 CREATE TRIGGER trg_pkb_updated_at

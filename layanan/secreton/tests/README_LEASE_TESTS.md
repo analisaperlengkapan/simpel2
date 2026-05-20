@@ -11,6 +11,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 1. Lease Creation Tests
 
 **Test: `test_lease_creation_with_various_ttls`**
+
 - Tests lease creation with short TTL (1 minute)
 - Tests lease creation with medium TTL (1 hour)
 - Tests lease creation with long TTL (24 hours)
@@ -21,6 +22,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 2. Lease Renewal Tests
 
 **Test: `test_lease_renewal_within_max_ttl`**
+
 - Tests successful renewal with valid increment
 - Verifies renew_count increments correctly
 - Verifies last_renewed_at is updated
@@ -28,11 +30,13 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Basic renewal functionality
 
 **Test: `test_lease_renewal_exceeding_max_ttl`**
+
 - Tests renewal request that exceeds max_ttl
 - Verifies TTL is capped at max_ttl
 - **Coverage**: Max TTL enforcement
 
 **Test: `test_lease_renewal_with_max_renewals_limit`**
+
 - Tests lease with max_renewals=2
 - Verifies first renewal succeeds
 - Verifies second renewal succeeds
@@ -40,11 +44,13 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Max renewals enforcement
 
 **Test: `test_lease_renewal_non_renewable`**
+
 - Tests renewal of non-renewable lease
 - Verifies renewal fails with RenewalNotAllowed error
 - **Coverage**: Renewable flag enforcement
 
 **Test: `test_lease_renewal_after_expiration`**
+
 - Creates lease with 1 second TTL
 - Waits for expiration
 - Attempts renewal
@@ -54,6 +60,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 3. Lease Expiration Tests
 
 **Test: `test_lease_automatic_expiration`**
+
 - Creates lease with 2 second TTL
 - Waits for expiration
 - Runs cleanup_expired()
@@ -61,6 +68,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Automatic expiration, cleanup mechanism
 
 **Test: `test_lease_expiration_scheduler`**
+
 - Creates lease with 3 second TTL
 - Starts expiration scheduler with 2 second check interval
 - Waits for scheduler to run
@@ -70,6 +78,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 4. Lease Revocation Tests
 
 **Test: `test_lease_manual_revocation`**
+
 - Creates active lease
 - Manually revokes lease
 - Verifies lease status changes to "revoked"
@@ -78,6 +87,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Manual revocation, revoked lease handling
 
 **Test: `test_lease_revocation_cascades_to_children`**
+
 - Creates parent lease
 - Creates two child leases with parent_id
 - Revokes parent lease
@@ -87,6 +97,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 5. Lease Lookup Tests
 
 **Test: `test_lease_lookup`**
+
 - Creates lease
 - Looks up lease by ID
 - Verifies all lease properties match
@@ -95,6 +106,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Lookup functionality, error handling
 
 **Test: `test_lease_list_with_filters`**
+
 - Creates multiple leases with different attributes
 - Tests listing all leases
 - Tests filtering by user_id
@@ -107,6 +119,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 6. Integration Tests
 
 **Test: `test_lease_integration_with_kv_engine`**
+
 - Creates KV engine with memory backend
 - Writes secret with TTL using write_with_lease()
 - Verifies lease is created automatically
@@ -119,6 +132,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: KV engine integration, lease lifecycle with secrets
 
 **Test: `test_lease_integration_with_dynamic_secrets`**
+
 - Creates database connection configuration
 - Creates database role configuration
 - Attempts to generate credentials with lease
@@ -128,6 +142,7 @@ The test suite provides >80% coverage of lease functionality as required by task
 ### 7. Additional Functionality Tests
 
 **Test: `test_lease_statistics`**
+
 - Creates multiple leases
 - Revokes one lease
 - Gets statistics
@@ -135,18 +150,21 @@ The test suite provides >80% coverage of lease functionality as required by task
 - **Coverage**: Statistics and metrics
 
 **Test: `test_lease_count_operations`**
+
 - Creates leases in different namespaces
 - Tests count_active()
 - Tests count_by_namespace()
 - **Coverage**: Count operations, namespace isolation
 
 **Test: `test_lease_with_metadata`**
+
 - Creates lease with custom metadata
 - Verifies metadata is stored
 - Looks up lease and verifies metadata persists
 - **Coverage**: Metadata handling
 
 **Test: `test_lease_with_revoke_callback`**
+
 - Creates lease with revoke callback
 - Revokes lease
 - Verifies callback is stored (execution tested separately)

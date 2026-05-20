@@ -16,6 +16,7 @@
 ## Pengenalan
 
 **Peran Administrator:**
+
 - Manajemen pengguna dan role
 - Konfigurasi sistem
 - Maintenance master data
@@ -23,6 +24,7 @@
 - Troubleshooting
 
 **Akses:**
+
 - Dashboard admin: https://simpel.kejaksaan.go.id/admin
 - Login dengan akun admin
 
@@ -166,6 +168,7 @@
 4. Klik **"Simpan"**
 
 **Sync Schedule:**
+
 - **Full sync**: Daily at 02:00 WIB
 - **Incremental sync**: Every 6 hours
 - **On-demand sync**: Manual trigger
@@ -240,6 +243,7 @@
    - Tahun berlaku
    - Spesifikasi (JSONB format)
    - Contoh:
+
      ```json
      {
        "processor": "Intel Core i5",
@@ -248,9 +252,11 @@
        "display": "14 inch"
      }
      ```
+
 3. Klik **"Simpan"**
 
 **Versioning:**
+
 - Setiap perubahan membuat versi baru
 - Versi lama tetap tersimpan untuk audit
 
@@ -272,6 +278,7 @@
 3. Klik **"Simpan"**
 
 **Contoh:**
+
 - Laptop: 1 per pegawai eselon III ke atas
 - Kendaraan: 1 per satker + 1 per eselon II
 - Printer: 1 per 10 pegawai
@@ -281,6 +288,7 @@
 **Akses:** Menu **"Admin"** → **"Master Data"** → **"Mapping Kodefikasi"**
 
 **Fungsi:**
+
 - Mapping kode barang non-standar dari MonSAKTI ke kode standar
 
 **Proses:**
@@ -347,6 +355,7 @@
 | Generate Document | 1 hari | Ke Admin |
 
 **Auto-Escalation:**
+
 - Jika SLA breach, sistem otomatis escalate
 - Notifikasi ke level lebih tinggi
 - Log di audit trail
@@ -373,6 +382,7 @@
    - Escalation history
 
 **Export:**
+
 - Download report (Excel, PDF)
 - Schedule automated reports
 
@@ -410,6 +420,7 @@
    - Sync errors
 
 **Alerts:**
+
 - Email alert jika CPU > 80%
 - Email alert jika disk > 90%
 - Email alert jika error rate > 5%
@@ -439,12 +450,14 @@
 | CONFIG_CHANGED | System config changed |
 
 **Filter:**
+
 - By user
 - By event type
 - By date range
 - By IP address
 
 **Export:**
+
 - Download audit log (CSV, Excel)
 - For compliance and audit purposes
 
@@ -453,12 +466,14 @@
 **Akses:** Menu **"Admin"** → **"Error Log"**
 
 **Error Levels:**
+
 - **CRITICAL**: System down
 - **ERROR**: Operation failed
 - **WARNING**: Potential issue
 - **INFO**: Informational
 
 **Error Details:**
+
 - Timestamp
 - Error message
 - Stack trace
@@ -466,6 +481,7 @@
 - Request details
 
 **Actions:**
+
 - View error details
 - Mark as resolved
 - Add notes
@@ -480,6 +496,7 @@
 **Akses:** Menu **"Admin"** → **"Backup & Recovery"** → **"Database Backup"**
 
 **Automated Backup:**
+
 - **Full backup**: Daily at 01:00 WIB
 - **Incremental backup**: Every 6 hours
 - **Retention**: 30 days
@@ -494,6 +511,7 @@
 4. Download backup file
 
 **Backup Location:**
+
 - Primary: Local storage
 - Secondary: S3-compatible storage (MinIO)
 - Tertiary: Off-site backup
@@ -503,11 +521,13 @@
 **Akses:** Menu **"Admin"** → **"Backup & Recovery"** → **"File Backup"**
 
 **Files to Backup:**
+
 - Uploaded documents
 - Generated documents
 - System configuration files
 
 **Backup Schedule:**
+
 - Daily at 02:00 WIB
 - Retention: 90 days
 
@@ -532,6 +552,7 @@
 5. Klik **"Restore"**
 
 **⚠️ Warning:**
+
 - Recovery akan overwrite data existing
 - Backup data current sebelum recovery
 - Test recovery di staging environment dulu
@@ -545,10 +566,12 @@
 #### 1. User Cannot Login
 
 **Symptoms:**
+
 - Invalid credentials error
 - Account locked
 
 **Solutions:**
+
 1. Check user status (active/inactive)
 2. Reset password
 3. Check account lock (after 5 failed attempts)
@@ -557,10 +580,12 @@
 #### 2. Integration Sync Failed
 
 **Symptoms:**
+
 - SIMAN/MySIMKARI data not updated
 - Sync error in log
 
 **Solutions:**
+
 1. Check integration status: **"Integration Settings"**
 2. Test API connection
 3. Check API credentials in Secreton
@@ -570,10 +595,12 @@
 #### 3. Slow Performance
 
 **Symptoms:**
+
 - Page load time > 5 seconds
 - Timeout errors
 
 **Solutions:**
+
 1. Check system resources: **"System Monitoring"**
 2. Check database slow queries
 3. Clear cache: **"System"** → **"Clear Cache"**
@@ -583,10 +610,12 @@
 #### 4. Document Generation Failed
 
 **Symptoms:**
+
 - Document not generated
 - Error in document service
 
 **Solutions:**
+
 1. Check document service status
 2. Check template availability
 3. Check storage space
@@ -596,10 +625,12 @@
 #### 5. Email Notification Not Sent
 
 **Symptoms:**
+
 - Users not receiving emails
 - Email in queue
 
 **Solutions:**
+
 1. Check SMTP configuration
 2. Test email connection
 3. Check email queue: **"System"** → **"Email Queue"**
@@ -609,36 +640,43 @@
 ### Logs Location
 
 **Application Logs:**
+
 - Path: `/var/log/simpel/application.log`
 - Rotation: Daily
 - Retention: 30 days
 
 **Error Logs:**
+
 - Path: `/var/log/simpel/error.log`
 - Rotation: Daily
 - Retention: 30 days
 
 **Access Logs:**
+
 - Path: `/var/log/simpel/access.log`
 - Rotation: Daily
 - Retention: 7 days
 
 **Audit Logs:**
+
 - Database: `audit_log` table
 - Retention: 1 year
 
 ### Support Escalation
 
 **Level 1: Helpdesk**
+
 - Email: helpdesk@simpel.kejaksaan.go.id
 - Telepon: (021) 1234-5678
 - Response time: 4 jam
 
 **Level 2: Technical Support**
+
 - Email: support@simpel.kejaksaan.go.id
 - Response time: 2 jam
 
 **Level 3: Development Team**
+
 - Email: dev@simpel.kejaksaan.go.id
 - For critical issues only
 - Response time: 1 jam
@@ -650,21 +688,25 @@
 ### Regular Maintenance
 
 **Daily:**
+
 - Automated backup (01:00 WIB)
 - Log rotation
 - Cache cleanup
 
 **Weekly:**
+
 - Database optimization
 - Index rebuild
 - Performance review
 
 **Monthly:**
+
 - Security patch update
 - Dependency update
 - Full system health check
 
 **Quarterly:**
+
 - Disaster recovery drill
 - Security audit
 - Performance tuning
@@ -672,15 +714,18 @@
 ### Planned Downtime
 
 **Notification:**
+
 - Notify users 7 days before
 - Send reminder 1 day before
 - Display maintenance banner
 
 **Maintenance Window:**
+
 - Preferred: Sunday 00:00-04:00 WIB
 - Duration: Max 4 hours
 
 **Post-Maintenance:**
+
 - Verify all services running
 - Check integration status
 - Monitor for issues
@@ -723,13 +768,16 @@
 ## Kontak
 
 **Technical Support:**
+
 - Email: support@simpel.kejaksaan.go.id
 - Telepon: (021) 1234-5678 ext. 100
 
 **Development Team:**
+
 - Email: dev@simpel.kejaksaan.go.id
 
 **Documentation:**
+
 - https://docs.simpel.kejaksaan.go.id
 
 ---

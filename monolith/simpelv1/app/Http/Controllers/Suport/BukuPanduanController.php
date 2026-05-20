@@ -13,12 +13,14 @@ class BukuPanduanController extends Controller
     /**
      * Display a listing of the resource.
      */
-
     protected $breadcums = ['Support', 'Buku Panduan'];
+
     private $controller = '/suport/buku-panduan';
+
     public function index()
     {
         $data = $this->getData();
+
         return view('suport.bukuPanduanV', $data);
     }
 
@@ -29,18 +31,18 @@ class BukuPanduanController extends Controller
         // $kategori = BukuPanduan::getKategori();
         $mapped = [];
         foreach ($panduans as $key => $panduan) {
-            # code...
+            // code...
             $mapped[$panduan->kategori][] = $panduan;
         }
         $data = [
             'controller' => $this->controller,
             'breadcums' => $this->breadcums,
             'panduans' => $mapped,
-            'lastUpdate' => $lastUpdate->created_at
+            'lastUpdate' => $lastUpdate->created_at,
         ];
+
         return $data;
     }
-
 
     /**
      * Show the form for creating a new resource.
@@ -61,9 +63,7 @@ class BukuPanduanController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, string $id)
-    {
-    }
+    public function show(Request $request, string $id) {}
 
     /**
      * Show the form for editing the specified resource.
@@ -97,14 +97,17 @@ class BukuPanduanController extends Controller
     public function searchPegawai(string $nip)
     {
         $pegawai = Master::getPegawaiByNip($nip);
-        if ($pegawai)
+        if ($pegawai) {
             return $this->resSuccess('ok', null, $pegawai);
+        }
+
         return $this->resError('Pegawai Tidak ditemukan');
     }
 
     public function getNotif()
     {
         $notifs = Notifikasi::getNotifs();
+
         return response()->json($notifs, 200);
     }
 }

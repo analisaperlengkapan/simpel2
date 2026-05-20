@@ -26,6 +26,7 @@ The core crate coordinates between different stores and implements business logi
 ## Requirements
 
 Implements requirements:
+
 - REQ-AUTH-001 through REQ-AUTH-005 (Authentication)
 - REQ-USER-001 through REQ-USER-004 (User Management)
 - REQ-REALM-001 through REQ-REALM-003 (Realm Management)

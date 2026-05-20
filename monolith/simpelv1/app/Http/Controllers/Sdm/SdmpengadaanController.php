@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Sdm;
 
 use App\Helpers\MyHelper;
-use App\Models\Files;
 use App\Http\Controllers\Controller;
-use App\Models\Sdm\Sdmpengadaan;
+use App\Models\Files;
 use App\Models\Master;
 use App\Models\Master\MsSatker;
+use App\Models\Sdm\Sdmpengadaan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -17,13 +17,16 @@ class SdmpengadaanController extends Controller
     /**
      * Display a listing of the resource.
      */
-
     protected $controller = '/sdm/sdmpengadaan';
-    protected $breadcums = ['SDM', 'Monitoring SDM Pengadaan Barang/Jasa'];
-    protected $columns = ['Nama Satker', 'NIP', 'Nama Pegawai', 'Jabatan', 'NIK', 'NPWP', 'Telpon', 'Tgl. Sertifikat'];
-    protected $defColumns = [0,1,2,3,4,5,6,7,8];
 
-    protected function canCreate(){
+    protected $breadcums = ['SDM', 'Monitoring SDM Pengadaan Barang/Jasa'];
+
+    protected $columns = ['Nama Satker', 'NIP', 'Nama Pegawai', 'Jabatan', 'NIK', 'NPWP', 'Telpon', 'Tgl. Sertifikat'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+    protected function canCreate()
+    {
         // return true;
         return in_array(session('userData.current_role.ms_role_id'), config('constants.pelaksana_role'));
     }
@@ -31,6 +34,7 @@ class SdmpengadaanController extends Controller
     public function index()
     {
         $data = ['tableId' => 'dt-sdmpengadaan', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller, 'canCreate' => $this->canCreate()];
+
         return view('sdm.sdmpengadaan.sdmpengadaanV', $data);
 
         // echo "<pre>";
@@ -39,10 +43,11 @@ class SdmpengadaanController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Sdmpengadaan();
+        $model = new Sdmpengadaan;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -50,7 +55,7 @@ class SdmpengadaanController extends Controller
         ]);
     }
 
-    function getData($nip = null, $readOnly = false)
+    public function getData($nip = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -58,7 +63,7 @@ class SdmpengadaanController extends Controller
         if ($nip) {
             $breadcum = 'Ubah';
             $model = Sdmpengadaan::where('nip', $nip)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -66,16 +71,16 @@ class SdmpengadaanController extends Controller
             $isNew = false;
 
             $ms_satker_id = $model['kdsatker'];
-        }else{
+        } else {
             $currentRole = session('userData.current_role');
             $ms_satker_id = $currentRole['ms_satker_id'] ?? $model['kdsatker'];
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $satkers = Master::getSatkersKeu();
         $model['inst_nama'] = MsSatker::where('kdsatker_keu', $ms_satker_id)->first()['inst_nama'];
-        
+
         $data = [
             'model' => $model,
             'isNew' => $isNew,
@@ -90,6 +95,7 @@ class SdmpengadaanController extends Controller
                 'selected' => $model['kdsatker_keu'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -99,6 +105,7 @@ class SdmpengadaanController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('sdm.sdmpengadaan.sdmpengadaanFormV', $data);
     }
 
@@ -115,7 +122,7 @@ class SdmpengadaanController extends Controller
             'tgl_sertifikat' => 'required',
         ];
         $nip = $request->input('nip') ?? 0;
-        if($isNew){
+        if ($isNew) {
             $validate['file_sertifikat'] = 'required|mimes:jpeg,png,pdf|max:2048';
             $customMessages['file_sertifikat.required'] = 'File SK harus diupload';
         }
@@ -148,18 +155,20 @@ class SdmpengadaanController extends Controller
             //     $file->move($filepath, $fileName);
             //     $data['file_sertifikat'] = $filesave;
             // }
-            //Sdmpengadaan::updateOrCreate(['nip' => $nip], $data);
+            // Sdmpengadaan::updateOrCreate(['nip' => $nip], $data);
 
             Sdmpengadaan::where('nip', $nip)->update($data);
-            
+
             DB::commit();
-            return $this->resSuccess('Berhasil Disimpan!',[
+
+            return $this->resSuccess('Berhasil Disimpan!', [
                 'type' => 'redirect',
-                'url' => \URL::to('/sdm/sdmpengadaan')
+                'url' => \URL::to('/sdm/sdmpengadaan'),
             ]);
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -171,6 +180,7 @@ class SdmpengadaanController extends Controller
     public function show(string $nip)
     {
         $data = $this->getData($nip, true);
+
         return view('sdm.sdmpengadaan.sdmpengadaanFormV', $data);
     }
 
@@ -180,6 +190,7 @@ class SdmpengadaanController extends Controller
     public function edit(string $nip)
     {
         $data = $this->getData($nip);
+
         return view('sdm.sdmpengadaan.sdmpengadaanFormV', $data);
     }
 
@@ -200,6 +211,7 @@ class SdmpengadaanController extends Controller
             DB::beginTransaction();
             Sdmpengadaan::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -211,7 +223,7 @@ class SdmpengadaanController extends Controller
         $data = Hakcipta::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

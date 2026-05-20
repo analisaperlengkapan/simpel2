@@ -5,13 +5,13 @@ namespace App\Models\Pengadaan\Distribusi;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class DistribusiHist extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'penyimpanan_distribusi_hist';
 
@@ -24,27 +24,28 @@ class DistribusiHist extends Model
         'id',
         'id_penyimpanan',
         'id_status',
-        'ket'
+        'ket',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table.' as a');
         $query->leftJoin('ms_status_penyimpanan_distribusi as c', 'a.id_status', '=', 'b.id');
-        $query->select('a.*','c.status');
-        if (!empty($search)) {
+        $query->select('a.*', 'c.status');
+        if (! empty($search)) {
             $searchVal = strtolower($search['search']['value']);
             if (isset($search['filterBy'])) {
                 $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             } else {
                 $query->where(function (Builder $q) use ($searchVal) {
-                    $q->orWhere(DB::raw('lower(c.status)'), "like", "%{$searchVal}%");
+                    $q->orWhere(DB::raw('lower(c.status)'), 'like', "%{$searchVal}%");
                 });
             }
         }
         $query->orderByDesc('created_at');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

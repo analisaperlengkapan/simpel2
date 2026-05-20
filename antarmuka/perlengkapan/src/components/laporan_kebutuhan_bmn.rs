@@ -11,9 +11,7 @@ use phosphor_leptos::{FILE_PDF, FILE_XLS};
 /// matching request. The mock currently ignores the filters; this
 /// keying nonetheless lets the call-site benefit from leptos-fetch
 /// caching the moment the backend lands.
-async fn query_kebutuhan_bmn_list(
-    _key: (String, String),
-) -> Result<Vec<KebutuhanBmnItem>, String> {
+async fn query_kebutuhan_bmn_list(_key: (String, String)) -> Result<Vec<KebutuhanBmnItem>, String> {
     mock_fetch_kebutuhan_bmn_list().await
 }
 
@@ -47,10 +45,9 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
     let tahun = RwSignal::new("2025".to_string());
     let status_filter = RwSignal::new("semua".to_string());
     let client: QueryClient = expect_context();
-    let data = client.local_resource(
-        query_kebutuhan_bmn_list,
-        move || (tahun.get(), status_filter.get()),
-    );
+    let data = client.local_resource(query_kebutuhan_bmn_list, move || {
+        (tahun.get(), status_filter.get())
+    });
 
     view! {
         <div style="max-width: 1100px; margin: 0 auto;">

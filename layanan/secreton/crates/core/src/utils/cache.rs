@@ -73,7 +73,7 @@ impl SecretCacheManager {
         redis_url: &str,
     ) -> Result<Self, CoreError> {
         let redis_cache = RedisCache::new(redis_url, "secreton")
-            .map_err(|e| CoreError::internal(&e.to_string()))?;
+            .map_err(|e| CoreError::internal(e.to_string()))?;
 
         Ok(Self {
             secret_cache: SecretValueCache::new(secret_capacity),

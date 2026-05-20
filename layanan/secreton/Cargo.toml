@@ -3,7 +3,7 @@
 
 [package]
 name = "secreton"
-version = "0.1.0"
+version.workspace = true
 edition = "2024"
 authors = ["Cipherce Security Team <security@cipherce.io>"]
 license = "Apache-2.0"

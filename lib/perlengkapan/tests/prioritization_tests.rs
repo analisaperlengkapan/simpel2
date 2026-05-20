@@ -120,7 +120,7 @@ mod prioritization_tests {
 
     #[test]
     fn test_priority_ranking() {
-        let mut scores = vec![
+        let mut scores = [
             (
                 "Satker A",
                 calculate_priority_score(80, true, "Cabjari", 400),

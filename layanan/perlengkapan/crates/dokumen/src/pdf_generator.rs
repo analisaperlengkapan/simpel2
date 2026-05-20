@@ -167,7 +167,7 @@ impl PdfGenerator {
 
         for line in text_content.lines() {
             current_layer.use_text(line, 12.0, Mm(20.0), y_position, &font);
-            y_position = y_position - line_height;
+            y_position -= line_height;
 
             // Create new page if needed
             if y_position.0 < 20.0 {

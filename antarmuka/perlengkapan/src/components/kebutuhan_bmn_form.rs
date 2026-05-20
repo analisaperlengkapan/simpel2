@@ -180,7 +180,8 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                     toast.success("Data berhasil disimpan!");
                     gloo_timers::callback::Timeout::new(1500, move || {
                         form.finish_ok();
-                        navigate(routes::path::KEBUTUHAN_DAFTAR, Default::default());
+                        // Relative path supaya Leptos Router base tidak double-prefix.
+                        navigate("/kebutuhan-bmn/daftar", Default::default());
                     })
                     .forget();
                 }

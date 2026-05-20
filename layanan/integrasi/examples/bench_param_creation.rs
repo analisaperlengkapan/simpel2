@@ -43,7 +43,7 @@ fn main() {
             for col in &columns {
                 let value = obj.get(*col).unwrap_or(&Value::Null);
                 // Call the function
-                params.push(json_to_sql_param(value, *col));
+                params.push(json_to_sql_param(value, col));
             }
             param_count += params.len();
             // In the real code, these would be used in a query then dropped.

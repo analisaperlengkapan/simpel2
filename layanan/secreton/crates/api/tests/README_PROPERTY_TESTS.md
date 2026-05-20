@@ -86,6 +86,7 @@ This is a separate issue in `src/lib.rs` line 142 that needs to be fixed before 
 ### Test Coverage
 
 The property tests provide comprehensive coverage of:
+
 - ✅ Field presence/absence based on configuration
 - ✅ Provider-specific requirements (region vs endpoint)
 - ✅ JSON serialization/deserialization
@@ -97,6 +98,7 @@ The property tests provide comprehensive coverage of:
 ### Integration with Spec
 
 These tests directly validate:
+
 - **Requirement 2.1.9**: Health endpoint reports auto-unseal status
 - **Property 5**: Health endpoint auto-unseal status (from design document)
 

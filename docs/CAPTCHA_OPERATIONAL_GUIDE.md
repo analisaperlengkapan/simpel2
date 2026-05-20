@@ -49,28 +49,33 @@ The CAPTCHA system consists of the following components:
 ### Initial Deployment
 
 1. **Clone Configuration**:
+
    ```bash
    git clone <repository>
    cd simpelv2
    ```
 
 2. **Configure Environment**:
+
    ```bash
    cp .env.captcha.production .env.captcha
    # Edit .env.captcha with production values
    ```
 
 3. **Deploy Services**:
+
    ```bash
    docker-compose -f docker-compose.yml -f docker-compose.captcha.yml up -d
    ```
 
 4. **Initialize Database**:
+
    ```bash
    docker exec -it simpelv2-captcha-analytics-db psql -U captcha_user -d captcha_analytics -f /docker-entrypoint-initdb.d/001_captcha_schema.sql
    ```
 
 5. **Verify Deployment**:
+
    ```bash
    curl http://localhost:8088/api/v1/captcha/health
    ```
@@ -78,22 +83,26 @@ The CAPTCHA system consists of the following components:
 ### Rolling Updates
 
 1. **Prepare New Version**:
+
    ```bash
    docker pull simpelv2/authenc:latest
    ```
 
 2. **Update Configuration** (if needed):
+
    ```bash
    # Update configuration files
    # Restart configuration-dependent services
    ```
 
 3. **Rolling Update**:
+
    ```bash
    docker-compose -f docker-compose.yml -f docker-compose.captcha.yml up -d --no-deps authenc
    ```
 
 4. **Verify Update**:
+
    ```bash
    # Check health endpoints
    # Verify metrics
@@ -126,6 +135,7 @@ csrf_protection = true
 ```
 
 #### Performance Settings
+
 ```toml
 [captcha.performance]
 cache_enabled = true
@@ -136,6 +146,7 @@ max_concurrent_challenges = 1000
 ```
 
 #### Behavioral Analysis
+
 ```toml
 [captcha.behavioral_analysis]
 mouse_tracking = true
@@ -150,16 +161,19 @@ session_analysis = true
 Before applying configuration changes:
 
 1. **Validate Syntax**:
+
    ```bash
    toml-validator config/captcha.production.toml
    ```
 
 2. **Test Configuration**:
+
    ```bash
    docker run --rm -v $(pwd)/config:/config simpelv2/authenc:latest --config-test
    ```
 
 3. **Apply Changes**:
+
    ```bash
    docker-compose restart authenc
    ```
@@ -169,18 +183,21 @@ Before applying configuration changes:
 ### Key Metrics
 
 #### Performance Metrics
+
 - `captcha_challenge_generation_duration`: Time to generate challenges
 - `captcha_validation_duration`: Time to validate responses
 - `captcha_success_rate`: Percentage of successful validations
 - `captcha_failure_rate`: Percentage of failed validations
 
 #### Security Metrics
+
 - `captcha_bot_detection_rate`: Percentage of bot detections
 - `captcha_bot_detection_accuracy`: Accuracy of bot detection
 - `captcha_attack_attempts`: Number of attack attempts
 - `captcha_blocked_ips`: Number of blocked IP addresses
 
 #### Business Metrics
+
 - `captcha_abandonment_rate`: Percentage of abandoned challenges
 - `captcha_user_satisfaction_score`: User experience score
 - `captcha_accessibility_usage_rate`: Accessibility feature usage
@@ -198,6 +215,7 @@ Before applying configuration changes:
 ### Alert Channels
 
 Alerts are sent to:
+
 - Email: admin@kejaksaan.go.id, security@kejaksaan.go.id
 - Slack: #security-alerts, #ops-alerts
 - Webhook: Configured webhook endpoints
@@ -209,7 +227,6 @@ Alerts are sent to:
 
 The frontend widget now automatically requests a new challenge immediately after any incorrect submission. This reduces the window for automated scripts to brute-force answers. If users report that the captcha changes rapidly, verify that the backend service is reachable and not returning errors (network issues can trigger a fresh challenge on each failed attempt).
 
-
 ### Common Issues
 
 #### High Failure Rate
@@ -217,28 +234,34 @@ The frontend widget now automatically requests a new challenge immediately after
 **Symptoms**: CAPTCHA failure rate > 70%
 
 **Possible Causes**:
+
 - Difficulty level too high
 - Bot attack in progress
 - Service performance issues
 - Configuration problems
 
 **Resolution Steps**:
+
 1. Check current difficulty level:
+
    ```sql
    SELECT AVG(difficulty_level) FROM captcha_challenges WHERE created_at > NOW() - INTERVAL '1 hour';
    ```
 
 2. Review bot detection metrics:
+
    ```bash
    curl http://localhost:8088/api/v1/captcha/metrics | grep bot_detection
    ```
 
 3. Check service performance:
+
    ```bash
    docker stats simpelv2-authenc
    ```
 
 4. Temporarily reduce difficulty:
+
    ```sql
    UPDATE captcha_difficulty_adjustments SET difficulty_level = 2 WHERE active = true;
    ```
@@ -248,28 +271,34 @@ The frontend widget now automatically requests a new challenge immediately after
 **Symptoms**: Response time > 2 seconds
 
 **Possible Causes**:
+
 - Database performance issues
 - High concurrent load
 - Network latency
 - Resource constraints
 
 **Resolution Steps**:
+
 1. Check database performance:
+
    ```sql
    SELECT * FROM pg_stat_activity WHERE state = 'active';
    ```
 
 2. Monitor resource usage:
+
    ```bash
    docker stats
    ```
 
 3. Check cache hit rate:
+
    ```bash
    redis-cli info stats | grep keyspace_hits
    ```
 
 4. Scale services if needed:
+
    ```bash
    docker-compose up -d --scale authenc=3
    ```
@@ -279,13 +308,16 @@ The frontend widget now automatically requests a new challenge immediately after
 **Symptoms**: Secreton or Authenc connection errors
 
 **Resolution Steps**:
+
 1. Check service connectivity:
+
    ```bash
    curl -f http://secreton:8200/v1/sys/health
    curl -f http://authenc:8088/health
    ```
 
 2. Verify authentication:
+
    ```bash
    # Check Secreton token
    secreton auth -method=token
@@ -295,6 +327,7 @@ The frontend widget now automatically requests a new challenge immediately after
    ```
 
 3. Review logs:
+
    ```bash
    docker logs simpelv2-authenc | grep -i error
    ```
@@ -304,16 +337,19 @@ The frontend widget now automatically requests a new challenge immediately after
 #### Common Log Patterns
 
 **Bot Detection**:
+
 ```
 level=WARN msg="Bot behavior detected" ip=192.168.1.100 risk_score=0.95 classification=Bot
 ```
 
 **Rate Limiting**:
+
 ```
 level=INFO msg="Rate limit triggered" ip=192.168.1.100 attempts=5 window=60s
 ```
 
 **Performance Issues**:
+
 ```
 level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ```
@@ -321,6 +357,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 #### Log Queries
 
 **Elasticsearch Queries**:
+
 ```json
 {
   "query": {
@@ -390,11 +427,13 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Daily Tasks
 
 1. **Health Checks**:
+
    ```bash
    ./scripts/health-check.sh
    ```
 
 2. **Backup Verification**:
+
    ```bash
    ls -la /backups/captcha_backup_$(date +%Y%m%d)*.sql.gz
    ```
@@ -407,6 +446,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Weekly Tasks
 
 1. **Database Maintenance**:
+
    ```sql
    -- Clean up expired challenges
    SELECT cleanup_expired_captcha_challenges();
@@ -450,6 +490,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Database Optimization
 
 1. **Index Optimization**:
+
    ```sql
    -- Check index usage
    SELECT schemaname, tablename, attname, n_distinct, correlation
@@ -461,6 +502,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
    ```
 
 2. **Query Optimization**:
+
    ```sql
    -- Enable query logging
    ALTER SYSTEM SET log_statement = 'all';
@@ -476,6 +518,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Cache Optimization
 
 1. **Redis Tuning**:
+
    ```bash
    # Check memory usage
    redis-cli info memory
@@ -494,6 +537,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Application Tuning
 
 1. **Connection Pooling**:
+
    ```toml
    [captcha.performance]
    connection_pool_size = 20
@@ -516,6 +560,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
    - Log archival
 
 2. **Backup Verification**:
+
    ```bash
    # Test backup integrity
    pg_restore --list /backups/captcha_backup_latest.sql.gz
@@ -527,6 +572,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
 ### Recovery Procedures
 
 1. **Database Recovery**:
+
    ```bash
    # Stop services
    docker-compose stop authenc
@@ -539,6 +585,7 @@ level=WARN msg="Slow challenge generation" duration=3.2s challenge_type=Visual
    ```
 
 2. **Configuration Recovery**:
+
    ```bash
    # Restore configuration
    tar -xzf /backups/captcha_config_latest.tar.gz -C /

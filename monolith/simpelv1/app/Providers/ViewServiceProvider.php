@@ -28,7 +28,7 @@ class ViewServiceProvider extends ServiceProvider
     {
         //
         Facades\View::composer('*', function (View $view) {
-            $ms = new Master();
+            $ms = new Master;
             $userData = \Session::get('userData');
             if (isset($_GET['active_route'])) {
                 \Session::put('activeRoute', $_GET['active_route']);
@@ -57,7 +57,7 @@ class ViewServiceProvider extends ServiceProvider
             $menus = $ms->getMenus($userData['current_role']['ms_role_id'] ?? null);
 
             $logo = DB::table('ms_setting_qr as lg')->where('lg.id', '=', 1)->first();
-            //print_r($logo);exit;
+            // print_r($logo);exit;
 
             $view->with('userData', \Session::get('userData'));
             $view->with('menus', $menus);

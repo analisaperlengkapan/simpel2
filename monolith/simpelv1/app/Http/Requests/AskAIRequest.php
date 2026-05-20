@@ -17,4 +17,4 @@ class AskAIRequest extends FormRequest
             'question' => 'required|string|min:5',
         ];
     }
-} 
+}

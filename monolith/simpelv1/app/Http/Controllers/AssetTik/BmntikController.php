@@ -15,29 +15,33 @@ class BmntikController extends Controller
     /**
      * Display a listing of the resource.
      */
-
     protected $breadcums = ['Asset TIK'];
-    protected $columns = ['Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama' ,'Nilai Mutasi' ,'Nilai Perolehan' ,'Nilai Penyusutan' ,'Nilai Buku' ,'Kuantitas','Jml Foto','Status Penggunaan','Status Pengelolaan','No. PSP','Tgl PSP'];
-    protected $defColumns = [0,1,2,3,4,5,6];
+
+    protected $columns = ['Nama Satker', 'Kode Barang', 'Nama Barang', 'NUP', 'Kondisi', 'Merk/Tipe', 'Tgl Rekam Pertama', 'Tgl Perolehan', 'Nilai Perolehan Pertama', 'Nilai Mutasi', 'Nilai Perolehan', 'Nilai Penyusutan', 'Nilai Buku', 'Kuantitas', 'Jml Foto', 'Status Penggunaan', 'Status Pengelolaan', 'No. PSP', 'Tgl PSP'];
+
+    protected $defColumns = [0, 1, 2, 3, 4, 5, 6];
+
     protected $controller = '/asset-tik/bmntik';
 
     public function __construct()
     {
-        $this->breadcums = array_merge($this->breadcums, [['link'=>$this->controller,'title'=>'Daftar Aset BMN Khusus TIK']]);
+        $this->breadcums = array_merge($this->breadcums, [['link' => $this->controller, 'title' => 'Daftar Aset BMN Khusus TIK']]);
     }
 
     public function index()
     {
         $data = ['tableId' => 'dt-bmntik', 'breadcums' => $this->breadcums, 'columns' => $this->columns, 'defColumns' => $this->defColumns, 'controller' => $this->controller];
+
         return view('asset_tik.bmntik.bmntikV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Bmntik();
+        $model = new Bmntik;
         $pagingParams = $request->only(['start', 'length']);
-        $searchParams =  $request->only(['columns']);
+        $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -45,7 +49,7 @@ class BmntikController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -53,14 +57,14 @@ class BmntikController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Bmntik::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
             $model = $model->toArray();
             $isNew = false;
         }
-        if($readOnly){
+        if ($readOnly) {
             $breadcum = 'Detail';
         }
         $kondisi = ['Baik', 'Rusak Ringan', 'Rusak Berat'];
@@ -85,6 +89,7 @@ class BmntikController extends Controller
                 'selected' => $model['kdsatker_keu'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -94,6 +99,7 @@ class BmntikController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('asset_tik.hakcipta.hakciptaFormV', $data);
     }
 
@@ -111,7 +117,8 @@ class BmntikController extends Controller
             'nm_lisensi' => 'required',
         ], $customMessages);
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'asset_tik_hakcipta_seq');
-        Bmntik::updateOrCreate(['id' => $id],$request->input());
+        Bmntik::updateOrCreate(['id' => $id], $request->input());
+
         return $this->resSuccess();
     }
 
@@ -121,6 +128,7 @@ class BmntikController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('asset_tik.bmntik.bmntikFormV', $data);
     }
 
@@ -130,6 +138,7 @@ class BmntikController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('asset_tik.bmntik.bmntikFormV', $data);
     }
 
@@ -150,6 +159,7 @@ class BmntikController extends Controller
             DB::beginTransaction();
             Hakcipta::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -161,7 +171,7 @@ class BmntikController extends Controller
         $data = Hakcipta::findOne($id);
         $data = (array) $data;
         $pdf = MyHelper::generateLabelBankAsset($data);
+
         return $pdf->stream('label-asset-tak-berwujud.pdf');
     }
-
 }

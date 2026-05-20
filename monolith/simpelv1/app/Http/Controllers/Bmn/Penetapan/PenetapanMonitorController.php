@@ -18,6 +18,7 @@ class PenetapanMonitorController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Monitoring PSP'];
+
     public function index()
     {
         $columns = ['Nama Asset', 'Nama Barang', 'NUP', 'Nilai Perolehan', 'No PSP', 'Tgl PSP', 'SIMAN', 'Satker'];
@@ -26,17 +27,19 @@ class PenetapanMonitorController extends Controller
             'tableId' => 'dt-penetapan',
             'breadcums' => $this->breadcums,
             'columns' => $columns,
-            'defColumns' => $defColumns
+            'defColumns' => $defColumns,
         ];
+
         return view('bmn.penetapansk.penetapanmonitorV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGridMonitoring($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -44,7 +47,7 @@ class PenetapanMonitorController extends Controller
         ]);
     }
 
-    function getData($id = null, $readOnly = false)
+    public function getData($id = null, $readOnly = false)
     {
         $model = [];
         $isNew = true;
@@ -52,7 +55,7 @@ class PenetapanMonitorController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = PenetapanSk::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
 
@@ -84,6 +87,7 @@ class PenetapanMonitorController extends Controller
                 'selected' => $model['jenis_sk'] ?? null,
             ]),
         ];
+
         return $data;
     }
 
@@ -93,6 +97,7 @@ class PenetapanMonitorController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
 
@@ -128,18 +133,20 @@ class PenetapanMonitorController extends Controller
             if ($request->hasFile('file_sk')) {
                 $filepath = 'uploads/bmn/penetapansk';
                 $file = $request->file('file_sk');
-                $fileName = $id . '_sk' . '.' . $file->getClientOriginalExtension();
-                $filesave = $filepath . '/' . $fileName;
+                $fileName = $id.'_sk'.'.'.$file->getClientOriginalExtension();
+                $filesave = $filepath.'/'.$fileName;
                 $file->move($filepath, $fileName);
                 $data['file_sk'] = $filesave;
             }
             PenetapanSk::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -151,6 +158,7 @@ class PenetapanMonitorController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
 
@@ -160,16 +168,16 @@ class PenetapanMonitorController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.penetapansk.penetapanFormV', $data);
     }
 
     /**
      * Update the specified resource in storage.
      */
-
     public function cetakExcel(Request $request)
     {
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         // $searchParams = $request->only(['columns']);
         $paging['length'] = -1;
         $paging['start'] = 1;
@@ -178,6 +186,7 @@ class PenetapanMonitorController extends Controller
         $data = $model->getDataGridMonitoring($paging, []);
         $data = $data['data']->toArray();
         $columns = array_keys((array) $data[0]);
+
         return Excel::download(new ExportExcel($data, $columns, 'Monitoring PSP'), 'Monitoring PSP.xlsx', \Maatwebsite\Excel\Excel::XLSX);
     }
 
@@ -190,6 +199,7 @@ class PenetapanMonitorController extends Controller
             DB::beginTransaction();
             PenetapanSk::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();
@@ -198,7 +208,7 @@ class PenetapanMonitorController extends Controller
 
     public function exportExcel(Request $request)
     {
-        $model = new PenetapanSk();
+        $model = new PenetapanSk;
         $params = [
             'length' => -1,
             'start' => 0,
@@ -208,7 +218,7 @@ class PenetapanMonitorController extends Controller
         $data = $grid['data']->toArray();
         $columns = array_keys((array) $data[0]);
         $fileName = 'Monitoring PSP';
+
         return Excel::download(new ExportExcel($data, $columns, $fileName), "{$fileName}.xlsx", \Maatwebsite\Excel\Excel::XLSX);
     }
-
 }

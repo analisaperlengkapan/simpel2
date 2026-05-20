@@ -5,13 +5,12 @@ namespace App\Http\Controllers;
 use App\Helpers\MyHelper;
 use App\Helpers\RecaptchaHelper;
 use App\Models\Master;
-use App\Services\Grpc\AuthencGrpcClient;
-use App\Models\Master\MsSatker;
 use App\Models\MsSatker as ModelsMsSatker;
+use App\Models\Pengguna\Aktifitas;
 use App\Models\Pengguna\Level;
 use App\Models\Pengguna\Pengguna;
-use App\Models\Pengguna\Aktifitas;
 use App\Models\Suport\NotifikasiManual;
+use App\Services\Grpc\AuthencGrpcClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +32,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
 
-       // 1) Validasi input + reCAPTCHA jika diaktifkan
+        // 1) Validasi input + reCAPTCHA jika diaktifkan
         $rules = [
             'username' => 'required|string',
             'password' => 'required|string',
@@ -47,23 +46,23 @@ class AuthController extends Controller
         $request->validate($rules, $messages);
 
         // 2) Rate Limiting per username + IP
-        $username    = (string) $request->username;
-        $key         = Str::lower("login|{$username}|{$request->ip()}");
+        $username = (string) $request->username;
+        $key = Str::lower("login|{$username}|{$request->ip()}");
         $maxAttempts = 5;
-        $decaySecs   = 60;
+        $decaySecs = 60;
 
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
             $secs = RateLimiter::availableIn($key);
-       
+
             Log::warning('Login diblokir karena terlalu banyak percobaan', [
-                'ip'       => $request->ip(),
+                'ip' => $request->ip(),
                 'username' => $request->username,
-                'time'     => now(),
-                'seconds'  => $secs,
+                'time' => now(),
+                'seconds' => $secs,
             ]);
 
-            return back()->withErrors(["username" => "Terlalu banyak percobaan. Tunggu $secs detik."])
-                         ->onlyInput('username');
+            return back()->withErrors(['username' => "Terlalu banyak percobaan. Tunggu $secs detik."])
+                ->onlyInput('username');
         }
         RateLimiter::hit($key, $decaySecs);
 
@@ -90,15 +89,15 @@ class AuthController extends Controller
 
             // Catat aktivitas login
             Aktifitas::create([
-                'username'    => $user->username,
-                'operation'   => 'LOGIN',
-                'table'       => 'users',
+                'username' => $user->username,
+                'operation' => 'LOGIN',
+                'table' => 'users',
                 'ms_satker_id' => $user->ms_satker_id ?? null,
                 'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-                'pkey'        => $user->id,
-                'keterangan'  => 'Login ke sistem',
-                'ip_address'  => $request->ip(),
-                'user_agent'  => $request->userAgent(),
+                'pkey' => $user->id,
+                'keterangan' => 'Login ke sistem',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
             ]);
 
             // 2FA jika aktif
@@ -109,6 +108,7 @@ class AuthController extends Controller
                     '2fa:pending' => true,
                 ]);
                 Auth::logout();
+
                 return redirect()->route('2fa.index');
             }
 
@@ -128,21 +128,22 @@ class AuthController extends Controller
         // Gagal login
         sleep(1);
         Aktifitas::create([
-            'username'    => $request->username,
-            'operation'   => 'LOGIN_GAGAL',
-            'table'       => 'users',
+            'username' => $request->username,
+            'operation' => 'LOGIN_GAGAL',
+            'table' => 'users',
             'ms_satker_id' => null,
             'ms_satker_pusat_id' => null,
-            'pkey'        => null,
-            'keterangan'  => 'Login gagal: NIP/Password Salah',
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
+            'pkey' => null,
+            'keterangan' => 'Login gagal: NIP/Password Salah',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
         Log::warning('Login gagal', [
-            'ip'       => $request->ip(),
+            'ip' => $request->ip(),
             'username' => $request->username,
-            'time'     => now(),
+            'time' => now(),
         ]);
+
         return back()->withErrors(['username' => 'NIP/Password Salah!'])->onlyInput('username');
     }
 
@@ -160,33 +161,35 @@ class AuthController extends Controller
         DB::beginTransaction();
         try {
             $data = [
-                'username'           => $pegawai->peg_nip_baru,
-                'name'               => $pegawai->nama,
-                'email'              => $pegawai->pns_mail,
-                'pangkat'            => $pegawai->pangkat,
-                'jabatan'            => $pegawai->jabatan,
-                'ms_satker_id'       => $pegawai->inst_satkerkd,
-                'satker'             => $pegawai->satker,
+                'username' => $pegawai->peg_nip_baru,
+                'name' => $pegawai->nama,
+                'email' => $pegawai->pns_mail,
+                'pangkat' => $pegawai->pangkat,
+                'jabatan' => $pegawai->jabatan,
+                'ms_satker_id' => $pegawai->inst_satkerkd,
+                'satker' => $pegawai->satker,
                 'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
-                'foto'               => MyHelper::getFotoMysimkari($pegawai->foto),
-                'password'           => config('constants.default_password'),
+                'foto' => MyHelper::getFotoMysimkari($pegawai->foto),
+                'password' => config('constants.default_password'),
             ];
             $new = Pengguna::create($data);
 
             // assign role default
             $satker = ModelsMsSatker::where('inst_satkerkd', $pegawai->inst_satkerkd)->first();
-            (new Level())->delInsertUserRole($new->id, [
-                'ms_role_id'         => config('constants.pelaksana_satker_role_id'),
-                'ms_satker_id'       => $pegawai->inst_satkerkd,
+            (new Level)->delInsertUserRole($new->id, [
+                'ms_role_id' => config('constants.pelaksana_satker_role_id'),
+                'ms_satker_id' => $pegawai->inst_satkerkd,
                 'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
-                'ms_satker_id_keu'   => $satker->kdsatker_keu ?? null,
-                'user_id'            => $new->id,
+                'ms_satker_id_keu' => $satker->kdsatker_keu ?? null,
+                'user_id' => $new->id,
             ]);
 
             DB::commit();
+
             return 0;
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return 2;
         }
     }
@@ -197,15 +200,15 @@ class AuthController extends Controller
         // Catat aktivitas logout
         if ($user) {
             Aktifitas::create([
-                'username'    => $user->username,
-                'operation'   => 'LOGOUT',
-                'table'       => 'users',
+                'username' => $user->username,
+                'operation' => 'LOGOUT',
+                'table' => 'users',
                 'ms_satker_id' => $user->ms_satker_id ?? null,
                 'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-                'pkey'        => $user->id,
-                'keterangan'  => 'Logout dari sistem',
-                'ip_address'  => $request->ip(),
-                'user_agent'  => $request->userAgent(),
+                'pkey' => $user->id,
+                'keterangan' => 'Logout dari sistem',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
             ]);
         }
 
@@ -246,19 +249,20 @@ class AuthController extends Controller
     public function changeRole(int $roleId)
     {
         $role = Pengguna::isUserHasRole($roleId);
-        if (!$role) {
+        if (! $role) {
             return $this->resError('Tidak Memiliki Akses');
         }
 
         $role->satker_level = MyHelper::getSatkerLevel($role->ms_satker_id);
         session()->put('userData.current_role', (array) $role);
+
         return $this->resSuccess();
     }
 
     public function changeRoleMobile(int $roleId)
     {
         $role = Pengguna::isUserHasRole($roleId);
-        if (!$role) {
+        if (! $role) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized',
@@ -266,12 +270,13 @@ class AuthController extends Controller
         }
 
         $role->satker_level = MyHelper::getSatkerLevel($role->ms_satker_id);
-        $master = new Master();
+        $master = new Master;
         $menus = $master->getMenus($role->ms_role_id);
+
         return response()->json([
             'status' => 'success',
-                'role' => $role,
-                'menu' => $menus,
+            'role' => $role,
+            'menu' => $menus,
         ], 200);
     }
 
@@ -284,11 +289,11 @@ class AuthController extends Controller
         ]);
 
         $user = DB::table('users')->where(['id' => $request->input('user_id')])->first();
-        if (!$user) {
+        if (! $user) {
             return $this->resError('User Tidak ditemukan');
         }
 
-        if (!Hash::check($request->input('password_old'), $user->password)) {
+        if (! Hash::check($request->input('password_old'), $user->password)) {
             return $this->resError('Password Salah');
         }
 
@@ -297,15 +302,15 @@ class AuthController extends Controller
 
         // Log aktivitas ganti password
         \App\Models\Pengguna\Aktifitas::create([
-            'username'    => $user->username,
-            'operation'   => 'GANTI_PASSWORD',
-            'table'       => 'users',
+            'username' => $user->username,
+            'operation' => 'GANTI_PASSWORD',
+            'table' => 'users',
             'ms_satker_id' => $user->ms_satker_id ?? null,
             'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-            'pkey'        => $user->id,
-            'keterangan'  => 'Ganti password',
-            'ip_address'  => $request->ip(),
-            'user_agent'  => $request->userAgent(),
+            'pkey' => $user->id,
+            'keterangan' => 'Ganti password',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return $this->resSuccess('Berhasil merubah Password', ['type' => 'redirect', 'url' => url('pengguna/profil')]);
@@ -315,7 +320,7 @@ class AuthController extends Controller
     {
         try {
             $user = Pengguna::where('username', $request->input('nip'))->first();
-            if (!$user) {
+            if (! $user) {
                 return $this->resError('User tidak ditemukan');
             }
 
@@ -324,15 +329,15 @@ class AuthController extends Controller
 
             // Log aktivitas reset password
             \App\Models\Pengguna\Aktifitas::create([
-                'username'    => $user->username,
-                'operation'   => 'RESET_PASSWORD',
-                'table'       => 'users',
+                'username' => $user->username,
+                'operation' => 'RESET_PASSWORD',
+                'table' => 'users',
                 'ms_satker_id' => $user->ms_satker_id ?? null,
                 'ms_satker_pusat_id' => $user->ms_satker_pusat_id ?? null,
-                'pkey'        => $user->id,
-                'keterangan'  => 'Reset password oleh admin',
-                'ip_address'  => $request->ip(),
-                'user_agent'  => $request->userAgent(),
+                'pkey' => $user->id,
+                'keterangan' => 'Reset password oleh admin',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
             ]);
 
             return $this->resSuccess('Berhasil mereset Password', ['type' => 'redirect', 'url' => url('pengguna/profil')]);
@@ -348,7 +353,7 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
         $credentials = $request->only('username', 'password');
-        if (!$token = JWTAuth::attempt($credentials)) {
+        if (! $token = JWTAuth::attempt($credentials)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Unauthorized',
@@ -362,7 +367,7 @@ class AuthController extends Controller
         }
 
         $userData = Pengguna::setUserdata($user);
-        $master = new Master();
+        $master = new Master;
         $menus = $master->getMenus($userData['current_role']['ms_role_id']);
 
         return response()->json([
@@ -372,7 +377,7 @@ class AuthController extends Controller
             'authorisation' => [
                 'token' => $token,
                 'type' => 'bearer',
-            ]
+            ],
         ]);
     }
 
@@ -395,12 +400,13 @@ class AuthController extends Controller
         $selected = Pengguna::where('username', $request->input('username'))->first();
         $userInfo = Pengguna::setUserdata($selected);
         $request->session()->put('userData', $userInfo);
+
         return $this->resSuccess();
     }
 
     /**
      * OAuth Callback Handler dari Portal
-     * 
+     *
      * Menerima JWT token dari Portal, validate via Authenc gRPC,
      * kemudian create Laravel session
      */
@@ -420,24 +426,24 @@ class AuthController extends Controller
             // query string, which would mask the deprecation warning
             // below. Read body / header / query independently so we can
             // tell the source apart and audit query-string usage.
-            $bodyToken   = $request->isMethod('post') ? $request->post('token') : null;
+            $bodyToken = $request->isMethod('post') ? $request->post('token') : null;
             $headerToken = $request->bearerToken();
-            $queryToken  = $request->query('token');
-            $token       = $bodyToken ?? $headerToken ?? $queryToken;
+            $queryToken = $request->query('token');
+            $token = $bodyToken ?? $headerToken ?? $queryToken;
 
-            if (!$token) {
+            if (! $token) {
                 return redirect()->route('login')
                     ->with('error', 'Token tidak ditemukan');
             }
 
-            if (!$bodyToken && !$headerToken && $queryToken) {
+            if (! $bodyToken && ! $headerToken && $queryToken) {
                 // Audit so operators can track Portal migrations off the
                 // legacy `?token=` redirect to POST/auth-code. This is a
                 // tracking signal, not a hard rejection — breaking the
                 // existing Portal flow before it migrates would lock
                 // every user out of v1.
                 Log::notice('OAuth callback received token via query string (deprecated, migrate Portal to POST)', [
-                    'ip'         => $request->ip(),
+                    'ip' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                 ]);
             }
@@ -452,13 +458,14 @@ class AuthController extends Controller
             // so the callback refuses to log them in.
             $expectedState = $request->session()->pull('oauth_state');
             $providedState = $request->input('state') ?? $request->query('state');
-            if (!$expectedState || !$providedState || !hash_equals((string) $expectedState, (string) $providedState)) {
+            if (! $expectedState || ! $providedState || ! hash_equals((string) $expectedState, (string) $providedState)) {
                 Log::warning('OAuth callback rejected: invalid state', [
-                    'ip'        => $request->ip(),
+                    'ip' => $request->ip(),
                     'user_agent' => $request->userAgent(),
                     'has_expected' => (bool) $expectedState,
                     'has_provided' => (bool) $providedState,
                 ]);
+
                 return redirect()->route('login')
                     ->with('error', 'Sesi OAuth tidak valid, silakan login ulang');
             }
@@ -468,24 +475,24 @@ class AuthController extends Controller
             // Untuk sekarang, decode JWT secara manual (production harus via gRPC)
             $claims = $this->verifyJwtToken($token);
 
-            if (!$claims) {
+            if (! $claims) {
                 return redirect()->route('login')
                     ->with('error', 'Token tidak valid');
             }
 
             // Cari atau buat user di database
             $username = $claims['sub'] ?? null;
-            if (!$username) {
+            if (! $username) {
                 return redirect()->route('login')
                     ->with('error', 'Username tidak ditemukan di token');
             }
 
             $user = Pengguna::where('username', $username)->first();
 
-            if (!$user) {
+            if (! $user) {
                 // Auto-create user dari token jika belum ada
                 $pegawai = Master::getPegawaiByNip($username);
-                if (!$pegawai) {
+                if (! $pegawai) {
                     return redirect()->route('login')
                         ->with('error', 'User tidak ditemukan di sistem');
                 }
@@ -513,7 +520,7 @@ class AuthController extends Controller
 
                     // Assign default role
                     $satker = ModelsMsSatker::where('inst_satkerkd', $pegawai->inst_satkerkd)->first();
-                    (new Level())->delInsertUserRole($user->id, [
+                    (new Level)->delInsertUserRole($user->id, [
                         'ms_role_id' => config('constants.pelaksana_satker_role_id'),
                         'ms_satker_id' => $pegawai->inst_satkerkd,
                         'ms_satker_pusat_id' => $pegawai->mapped_unit_kerja,
@@ -557,6 +564,7 @@ class AuthController extends Controller
                     'auth_token' => $token,
                 ]);
                 Auth::logout();
+
                 return redirect()->route('2fa.index');
             }
 
@@ -604,6 +612,7 @@ class AuthController extends Controller
 
             if (! is_array($claims) || empty($claims)) {
                 Log::warning('Authenc gateway did not return claims for OAuth token');
+
                 return null;
             }
 
@@ -612,6 +621,7 @@ class AuthController extends Controller
             Log::warning('JWT token verification failed', [
                 'error' => $th->getMessage(),
             ]);
+
             return null;
         }
     }

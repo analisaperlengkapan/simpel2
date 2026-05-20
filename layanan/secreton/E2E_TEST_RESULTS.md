@@ -1,6 +1,7 @@
 # End-to-End Test Results
 
 ## Test Environment
+
 - **Container**: secreton:test
 - **Storage Backend**: Memory (fallback - raft feature disabled)
 - **Config**: secreton.toml (bootstrap config)
@@ -31,12 +32,14 @@
 ### 🔍 API Endpoints Tested
 
 #### Public Endpoints (No Auth Required)
+
 - ✅ `GET /health` - Health check
 - ✅ `GET /version` - Version info
 - ✅ `GET /metrics` - Prometheus metrics
 - ✅ `GET /v1/sys/seal-status` - Seal status
 
 #### Protected Endpoints (Require Unseal/Auth)
+
 - ⏸️ `POST /v1/sys/init` - Initialize engine (already initialized)
 - ⏸️ `POST /v1/sys/unseal` - Unseal engine (needs valid keys)
 - ⏸️ `POST /v1/sys/seal` - Seal engine (needs auth token)
@@ -48,6 +51,7 @@
 ## Migration Validation
 
 ### ✅ Configuration System
+
 - [x] Bootstrap config (`secreton.toml`) loads correctly
 - [x] Storage backend configured (raft with memory fallback)
 - [x] Listeners configured (HTTP + gRPC)
@@ -56,6 +60,7 @@
 - [x] No secrets in bootstrap config
 
 ### ✅ Service Initialization
+
 - [x] ServiceContainer created from BootstrapConfig
 - [x] Storage backend initialized
 - [x] SealService initialized
@@ -64,6 +69,7 @@
 - [x] Servers started successfully
 
 ### ✅ Security Model
+
 - [x] Secret Vault starts SEALED by default
 - [x] All secret operations blocked when sealed
 - [x] Shamir Secret Sharing configured (5 shares, 3 threshold)
@@ -73,6 +79,7 @@
 ## Docker Integration
 
 ### ✅ Build
+
 ```bash
 docker build -t secreton:test .
 # Status: SUCCESS
@@ -80,6 +87,7 @@ docker build -t secreton:test .
 ```
 
 ### ✅ Run
+
 ```bash
 docker run -d --name secreton-e2e \
   -p 8200:8200 -p 8201:8201 \
@@ -91,6 +99,7 @@ docker run -d --name secreton-e2e \
 ```
 
 ### ✅ Logs
+
 ```
 ✅ Bootstrap config loaded successfully
 ✅ Storage backend: Raft (fallback to memory)
@@ -105,6 +114,7 @@ docker run -d --name secreton-e2e \
 ## Conclusion
 
 ### ✅ Migration Success
+
 The migration from legacy config system to secure two-layer config system is **SUCCESSFUL**:
 
 1. **Legacy system removed** - No more `config/default.toml` or `config/production.toml`

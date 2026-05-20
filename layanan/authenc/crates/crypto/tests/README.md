@@ -7,6 +7,7 @@ This directory contains comprehensive unit tests and property-based tests for th
 ### Unit Tests (`crypto_tests.rs`)
 
 #### JWT Tests (18 tests)
+
 - ✅ Encode/decode roundtrip for access tokens
 - ✅ Encode/decode roundtrip for refresh tokens
 - ✅ Custom claims preservation
@@ -23,6 +24,7 @@ This directory contains comprehensive unit tests and property-based tests for th
 - ✅ Special characters in claims
 
 #### Password Hashing Tests (13 tests)
+
 - ✅ Hash/verify roundtrip
 - ✅ Wrong password rejection
 - ✅ PHC string format validation
@@ -38,6 +40,7 @@ This directory contains comprehensive unit tests and property-based tests for th
 - ✅ Custom parameters
 
 #### Encryption Tests (15 tests)
+
 - ✅ Encrypt/decrypt roundtrip
 - ✅ Empty data handling
 - ✅ Large data handling (1 MB)
@@ -56,6 +59,7 @@ This directory contains comprehensive unit tests and property-based tests for th
 - ✅ Encryption with derived key
 
 #### Edge Cases (5 tests)
+
 - ✅ Very long JWT subject (10,000 characters)
 - ✅ Special characters in JWT claims
 - ✅ Very long password (100,000 characters)
@@ -69,6 +73,7 @@ This directory contains comprehensive unit tests and property-based tests for th
 Property-based tests use `proptest` to verify cryptographic invariants across arbitrary inputs.
 
 #### JWT Properties (4 tests)
+
 1. **Encode/Decode Roundtrip**: Any valid token can be decoded back to original claims
    - Validates: REQ-TOKEN-001, REQ-TOKEN-003
 2. **Signature Verification**: Tokens signed with one key cannot be verified with another
@@ -79,6 +84,7 @@ Property-based tests use `proptest` to verify cryptographic invariants across ar
    - Validates: REQ-TOKEN-001
 
 #### Password Hashing Properties (5 tests)
+
 1. **Hash/Verify Roundtrip**: Any password can be hashed and verified
    - Validates: REQ-PASS-001, REQ-SEC-001
 2. **Hash Uniqueness**: Same password with different salts produces different hashes
@@ -91,6 +97,7 @@ Property-based tests use `proptest` to verify cryptographic invariants across ar
    - Validates: REQ-SEC-001
 
 #### Encryption Properties (7 tests)
+
 1. **Encrypt/Decrypt Roundtrip**: Any data can be encrypted and decrypted
    - Validates: REQ-SEC-005
 2. **Ciphertext Uniqueness**: Same plaintext produces different ciphertexts (nonce randomness)
@@ -107,6 +114,7 @@ Property-based tests use `proptest` to verify cryptographic invariants across ar
    - Validates: REQ-SEC-005
 
 #### Key Derivation Properties (4 tests)
+
 1. **Determinism**: Same password and salt produce same key
    - Validates: REQ-SEC-005
 2. **Key Length**: All derived keys are exactly 32 bytes
@@ -117,6 +125,7 @@ Property-based tests use `proptest` to verify cryptographic invariants across ar
    - Validates: REQ-SEC-005
 
 #### Cross-Component Properties (2 tests)
+
 1. **Encryption with Derived Key**: Deriving key from password and using for encryption
    - Validates: REQ-SEC-005
 2. **Multiple Encryptions**: Same derived key for multiple encryptions
@@ -127,26 +136,31 @@ Property-based tests use `proptest` to verify cryptographic invariants across ar
 ## Running Tests
 
 ### Run all tests
+
 ```bash
 cargo test --package authenc-crypto
 ```
 
 ### Run only unit tests
+
 ```bash
 cargo test --package authenc-crypto --test crypto_tests
 ```
 
 ### Run only property-based tests
+
 ```bash
 cargo test --package authenc-crypto --test property_tests
 ```
 
 ### Run specific test
+
 ```bash
 cargo test --package authenc-crypto test_jwt_encode_decode_roundtrip
 ```
 
 ### Run with output
+
 ```bash
 cargo test --package authenc-crypto -- --nocapture
 ```
@@ -175,18 +189,21 @@ This test suite validates the following requirements from the spec:
 ## Cryptographic Invariants Verified
 
 ### JWT Invariants
+
 1. **Roundtrip**: encode(claims) → decode → claims
 2. **Signature Security**: Different keys produce different signatures
 3. **Expiration**: Expired tokens remain expired
 4. **Claims Preservation**: All claims are preserved
 
 ### Password Hashing Invariants
+
 1. **Roundtrip**: hash(password) → verify(password) → true
 2. **Salt Uniqueness**: Same password + different salt → different hash
 3. **Determinism**: Same password + same salt → same hash
 4. **Security**: Different password → verify fails
 
 ### Encryption Invariants
+
 1. **Roundtrip**: encrypt(plaintext) → decrypt → plaintext
 2. **Nonce Uniqueness**: Same plaintext → different ciphertext (random nonce)
 3. **Authentication**: Tampered ciphertext → decryption fails

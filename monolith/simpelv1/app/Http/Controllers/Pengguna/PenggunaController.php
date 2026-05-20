@@ -20,9 +20,11 @@ class PenggunaController extends Controller
      */
     protected $breadcums = [
         'Pengguna',
-        ['link' => '/pengguna/pengguna', 'title' => 'Pengaturan Pengguna']
+        ['link' => '/pengguna/pengguna', 'title' => 'Pengaturan Pengguna'],
     ];
+
     protected $controller = '/pengguna/pengguna';
+
     public function index()
     {
         $columns = [
@@ -32,21 +34,23 @@ class PenggunaController extends Controller
             'Role',
         ];
         $defColumns = [0, 1, 2, 3];
+
         return view('pengguna.pengguna.penggunaV', [
             'columns' => $columns,
             'defColumns' => $defColumns,
             'tableId' => 'dt-user',
             'breadcums' => $this->breadcums,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ]);
     }
 
     public function gridData(Request $request)
     {
-        $user = new Pengguna();
+        $user = new Pengguna;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $user->getUserGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -54,7 +58,7 @@ class PenggunaController extends Controller
         ]);
     }
 
-    function getData($id = null)
+    public function getData($id = null)
     {
         $model = [];
         $roles = [];
@@ -65,7 +69,7 @@ class PenggunaController extends Controller
         if ($id) {
             $breadcum = 'Ubah';
             $model = Pengguna::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
             if (session('userData.current_role.ms_role_id') == config('constants.superadmin_role_id')) {
@@ -92,17 +96,19 @@ class PenggunaController extends Controller
                 'data' => $satkers,
                 'text' => 'inst_nama',
                 'value' => 'inst_satkerkd',
-                'selected' => $model['ms_satker_id'] ?? null
+                'selected' => $model['ms_satker_id'] ?? null,
             ]),
             'roleOptions' => MyHelper::generateSelectOptions([
                 'data' => Master::getRoles(),
                 'text' => 'name',
                 'value' => 'id',
-                'selected' => $selectedRoles ?? null
+                'selected' => $selectedRoles ?? null,
             ]),
         ];
+
         return $data;
     }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -110,6 +116,7 @@ class PenggunaController extends Controller
     {
         //
         $data = $this->getData();
+
         return view('pengguna.pengguna.penggunaFormV', $data);
     }
 
@@ -121,16 +128,16 @@ class PenggunaController extends Controller
         //
         $validasi = [
             'username' => 'required',
-            'roles' => 'required|array|min:1'
+            'roles' => 'required|array|min:1',
         ];
-        if (!$request->has('id')) { //nginsert
+        if (! $request->has('id')) { // nginsert
             $validasi['username'] = 'required|unique:users';
             $validasi['password'] = 'required';
         }
         $request->validate($validasi);
 
         try {
-            $roleModel = new Level();
+            $roleModel = new Level;
             $pegawai = Master::getPegawaiByNip($request->input('username'));
             if (empty($pegawai)) {
                 return $this->resError('Pegawai Tidak Ditemukan');
@@ -148,8 +155,9 @@ class PenggunaController extends Controller
                 'foto' => MyHelper::getFotoMysimkari($pegawai['foto']),
                 'satker_pusat' => $pegawai['mapped_unit_kerja_nama'],
             ];
-            if (!$request->has('id'))
+            if (! $request->has('id')) {
                 $newUser['password'] = $request->input('password');
+            }
 
             DB::beginTransaction();
             $user = Pengguna::updateOrCreate(['username' => $request->input('username')], $newUser);
@@ -167,9 +175,11 @@ class PenggunaController extends Controller
             }
             $roleModel->delInsertUserRole($user->id, $inputanRoles);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dismpan');
         } catch (\Throwable $th) {
             dd($th);
+
             return $this->resError('Gagal menyimpan data');
             // DB::rollBack();
         }
@@ -181,6 +191,7 @@ class PenggunaController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id);
+
         return view('pengguna.pengguna.penggunaFormV', $data);
     }
 
@@ -209,6 +220,7 @@ class PenggunaController extends Controller
             DB::beginTransaction();
             Pengguna::destroy($id);
             DB::commit();
+
             return $this->resSuccess('Berhasil Dihapus!');
         } catch (\Throwable $th) {
             DB::rollBack();

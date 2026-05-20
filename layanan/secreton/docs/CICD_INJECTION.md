@@ -5,6 +5,7 @@ This document describes how to use Secreton's CI/CD environment injection featur
 ## Overview
 
 The CI/CD injection feature provides:
+
 - **Secure Secret Injection**: Fetch secrets from Secreton and inject them as environment variables
 - **Automatic Cleanup**: Secrets are automatically cleaned up after a configurable TTL
 - **Session Tracking**: Track injection sessions for audit and monitoring
@@ -20,6 +21,7 @@ The CI/CD injection feature provides:
 Inject secrets as environment variables for a CI/CD job.
 
 **Request Body**:
+
 ```json
 {
   "secrets": [
@@ -40,6 +42,7 @@ Inject secrets as environment variables for a CI/CD job.
 ```
 
 **Parameters**:
+
 - `secrets` (array, required): List of secrets to inject
   - `path` (string, required): Path to the secret in Secreton
   - `key` (string, optional): Specific key within the secret (if omitted, all keys are injected)
@@ -50,6 +53,7 @@ Inject secrets as environment variables for a CI/CD job.
 - `format` (string, optional): Format for environment variables ("flat" or "nested", default: "flat")
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -73,6 +77,7 @@ Inject secrets as environment variables for a CI/CD job.
 Manually cleanup an injection session before it expires.
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -87,6 +92,7 @@ Manually cleanup an injection session before it expires.
 List all active injection sessions.
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -110,6 +116,7 @@ List all active injection sessions.
 Get details of a specific injection session.
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -180,7 +187,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
 
@@ -338,6 +345,7 @@ With flat format, all keys are prefixed with the specified prefix:
 ```
 
 Result:
+
 ```
 SECRET_DB_HOST=localhost
 SECRET_DB_PORT=5432
@@ -356,6 +364,7 @@ With nested format, the secret path is included in the variable name:
 ```
 
 For secret at `/secret/data/database/prod`:
+
 ```
 SECRET_DATABASE_PROD_DB_HOST=localhost
 SECRET_DATABASE_PROD_DB_PORT=5432

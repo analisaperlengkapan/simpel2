@@ -27,6 +27,7 @@ nano .env
 ```
 
 Minimal configuration:
+
 ```env
 DATABASE_URL=postgresql://localhost/monsakti
 MONSAKTI_TOKEN_ADM=your_token_here
@@ -59,6 +60,7 @@ FETCH_MODE=monsakti cargo run --example fetch_to_database
 ### ✅ Auto Token Reset
 
 Tidak perlu manual reset token lagi! Sistem otomatis:
+
 1. Detect token expired
 2. Call endpoint reset token
 3. Retry request dengan token baru
@@ -66,6 +68,7 @@ Tidak perlu manual reset token lagi! Sistem otomatis:
 ### ✅ Direct Database Insert
 
 Data langsung masuk database, tidak perlu:
+
 - Simpan ke file JSON
 - Import manual ke database
 - Cleanup file temporary
@@ -73,6 +76,7 @@ Data langsung masuk database, tidak perlu:
 ### ✅ Error Recovery
 
 Jika ada error:
+
 - Sistem lanjut ke endpoint berikutnya
 - Log detail error untuk debugging
 - Tidak stop seluruh proses
@@ -247,6 +251,7 @@ sudo systemctl status simpelv2-integrasi.service
 ## Performance Tips
 
 1. **Use Release Build:**
+
    ```bash
    cargo build --release
    ./target/release/examples/fetch_to_database
@@ -254,12 +259,14 @@ sudo systemctl status simpelv2-integrasi.service
 
 2. **Increase Database Connection Pool:**
    Edit `src/client.rs`:
+
    ```rust
    .pool_max_idle_per_host(20) // Dari 10 jadi 20
    ```
 
 3. **Batch Size:**
    Edit `src/db.rs`:
+
    ```rust
    for chunk in data.chunks(200) { // Dari 100 jadi 200
    ```
@@ -270,6 +277,7 @@ sudo systemctl status simpelv2-integrasi.service
 ## Support
 
 Untuk pertanyaan atau issue:
+
 1. Check logs untuk error details
 2. Verify token masih valid
 3. Check database connection

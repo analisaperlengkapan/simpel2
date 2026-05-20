@@ -6,8 +6,8 @@ use App\Exports\ExportExcel;
 use App\Helpers\MyHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Bmn\Wasdal\Pspbmn;
-use App\Models\Master;
 use App\Models\Files;
+use App\Models\Master;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
@@ -19,7 +19,9 @@ class PspbmnController extends Controller
      * Display a listing of the resource.
      */
     protected $breadcums = ['BMN', 'Wasdal PSP BMN'];
+
     protected $controller = '/bmn/wasdal/pspbmn';
+
     public function index()
     {
         $columns = ['Nama Satker', 'No. SK', 'Tgl. SK', 'Jenis Aset', 'Total BMN', 'Nilai Penetapan', 'Uraian', 'Tgl. Rekam'];
@@ -30,17 +32,19 @@ class PspbmnController extends Controller
             'columns' => $columns,
             'canChange' => $this->canChange(),
             'defColumns' => $defColumns,
-            'controller' => $this->controller
+            'controller' => $this->controller,
         ];
+
         return view('bmn.wasdal.pspbmnV', $data);
     }
 
     public function gridData(Request $request)
     {
-        $model = new Pspbmn();
+        $model = new Pspbmn;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
+
         return response()->json([
             'data' => $data['data'],
             'recordsTotal' => $data['total'],
@@ -48,11 +52,12 @@ class PspbmnController extends Controller
         ]);
     }
 
-    function canChange()
+    public function canChange()
     {
         return MyHelper::isSuperAdmin() || MyHelper::isValidatorPusat();
     }
-    function getData($id = null)
+
+    public function getData($id = null)
     {
         $model = [];
         $isNew = true;
@@ -60,12 +65,12 @@ class PspbmnController extends Controller
         if ($id) {
             $breadcum = 'Detail Data Wasdal PSP BMN';
             $model = Pspbmn::where('id', $id)->first();
-            if (!$model) {
+            if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
         }
         $satkers = Master::getSatkersKeu();
-        $pspbmn = new Pspbmn();
+        $pspbmn = new Pspbmn;
 
         $detail = $pspbmn->getDataDetail($model['id_sk']);
 
@@ -93,8 +98,9 @@ class PspbmnController extends Controller
             //     'selected' => $model['kode_barang'] ?? null,
             // ]),
             // 'listBarang' => Master::getBarangAset(),
-            
+
         ];
+
         return $data;
     }
 
@@ -104,6 +110,7 @@ class PspbmnController extends Controller
     public function create()
     {
         $data = $this->getData();
+
         return view('bmn.asuransi.asuransiFormV', $data);
     }
 
@@ -116,7 +123,7 @@ class PspbmnController extends Controller
 
         $id = $request->input('id') ?? MyHelper::getPk(date('Ymd'), 'asuransi_transaksi_id_seq');
         $validate = [
-            //'jenis_sk' => 'required',
+            // 'jenis_sk' => 'required',
             'polis_no' => 'required',
             'polis_tgl' => 'required',
             'polis_premi' => 'required',
@@ -129,7 +136,7 @@ class PspbmnController extends Controller
                 'dir' => 'bmn/asuransi',
                 'fileKey' => 'filename',
                 'required' => $isNew,
-                'pkey' => $id
+                'pkey' => $id,
             ];
             $file = Files::upload($request, $params);
             $inputan = $request->input();
@@ -140,10 +147,12 @@ class PspbmnController extends Controller
             $inputan['ms_satker_id'] = session('userData.current_role.ms_satker_id');
             $inputan = AsuransiTransaksi::updateOrCreate(['id_asset' => $inputan['id_asset']], $inputan);
             DB::commit();
+
             return $this->resSuccess();
         } catch (\Throwable $th) {
             DB::rollBack();
             $errorMessage = $th->getMessage();
+
             return $this->resError($errorMessage);
         }
 
@@ -155,6 +164,7 @@ class PspbmnController extends Controller
     public function show(string $id)
     {
         $data = $this->getData($id, true);
+
         return view('bmn.wasdal.pspbmnViewV', $data);
     }
 
@@ -164,21 +174,18 @@ class PspbmnController extends Controller
     public function edit(string $id)
     {
         $data = $this->getData($id);
+
         return view('bmn.wasdal.penertibanViewV', $data);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Asuransi $hakcipta)
-    {
-
-    }
+    public function update(Request $request, Asuransi $hakcipta) {}
 
     /**
      * Remove the specified resource from storage.
      */
-
     public function importExcel(Request $request)
     {
         $request->validate([
@@ -186,12 +193,13 @@ class PspbmnController extends Controller
         ]);
         $file = $request->file('excel_file');
         Excel::import(new AsuransiImport, $file);
+
         return $this->resSuccess('Berhasil Dismpan', ['type' => 'redirect', 'url' => $this->controller]);
     }
 
     public function exportExcel(Request $request)
     {
-        $model = new AsuransiTransaksi();
+        $model = new AsuransiTransaksi;
         $params = [
             'length' => -1,
             'start' => 0,
@@ -201,6 +209,7 @@ class PspbmnController extends Controller
         $data = $grid['data']->toArray();
         $columns = array_keys((array) $data[0]);
         $fileName = 'Objek Asuransi';
+
         return Excel::download(new ExportExcel($data, $columns, $fileName), "{$fileName}.xlsx", \Maatwebsite\Excel\Excel::XLSX);
     }
 }

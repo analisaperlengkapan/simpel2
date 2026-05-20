@@ -9,7 +9,12 @@ description = "Shared library for Perlengkapan domain - models, types, and valid
 [features]
 default = ["serde"]
 serde = ["dep:serde", "dep:serde_json", "chrono/serde", "uuid/serde"]
-backend = ["dep:tokio-postgres", "dep:async-trait", "dep:deadpool-postgres", "dep:regex"]
+backend = [
+  "dep:tokio-postgres",
+  "dep:async-trait",
+  "dep:deadpool-postgres",
+  "dep:regex",
+]
 frontend = []
 wasm = ["dep:wasm-bindgen", "uuid/js"]
 

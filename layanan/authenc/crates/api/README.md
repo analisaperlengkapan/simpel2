@@ -15,15 +15,18 @@ This crate provides public HTTP endpoints for microfrontends and external client
 ## Endpoints
 
 ### Authentication
+
 - `POST /api/v1/auth/login` - Username/password login
 - `POST /api/v1/auth/logout` - Session invalidation
 - `POST /api/v1/auth/refresh` - Refresh token exchange
 - `GET /api/v1/auth/me` - Get current user profile
 
 ### Token Validation
+
 - `POST /api/v1/auth/validate` - Validate JWT token
 
 ### OAuth2/OIDC
+
 - `GET /api/v1/oauth2/authorize` - Authorization endpoint
 - `POST /api/v1/oauth2/token` - Token endpoint
 - `GET /api/v1/oauth2/.well-known/openid-configuration` - Discovery
@@ -39,6 +42,7 @@ This crate provides public HTTP endpoints for microfrontends and external client
 ## Requirements
 
 Implements requirements:
+
 - REQ-API-001 (Public REST API)
 - REQ-AUTH-001 through REQ-AUTH-005 (Authentication endpoints)
 - REQ-OAUTH-001 through REQ-OAUTH-003 (OAuth2 endpoints)

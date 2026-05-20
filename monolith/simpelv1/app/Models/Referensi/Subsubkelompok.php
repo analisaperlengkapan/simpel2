@@ -2,19 +2,21 @@
 
 namespace App\Models\Referensi;
 
-use App\Traits\LogTrait;
 use App\Blameable;
+use App\Traits\LogTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Subsubkelompok extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
     use LogTrait;
+
     protected $table = 'ms_barang';
+
     const tableKet = 'Referensi Kode Barang Sub Sub Kelompok';
 
     /**
@@ -26,37 +28,39 @@ class Subsubkelompok extends Model
         'kdbrg',
         'deskripsi',
         'masa_manfaat_brg_baru',
-        'satuan'
+        'satuan',
     ];
 
-    function getDataGrid($paging, $search = [])
+    public function getDataGrid($paging, $search = [])
     {
         $query = DB::table($this->table)->select('*');
 
-        if(!empty($select)) $query->select($select);
-        if (!empty($search)) {
-            //$searchVal = strtolower($search['search']['value']);
+        if (! empty($select)) {
+            $query->select($select);
+        }
+        if (! empty($search)) {
+            // $searchVal = strtolower($search['search']['value']);
             $searchVal = $search['columns'];
-            //if (isset($search['filterBy'])) {
+            // if (isset($search['filterBy'])) {
             //    if($search['filterBy']=='kdbrg'){
             //        if(is_numeric($searchVal))
             //            $query->where(DB::raw($search['filterBy']), '=', "{$searchVal}");
             //    }else{
             //        $query->where(DB::raw("lower({$search['filterBy']})"), 'like', "%{$searchVal}%");
             //    }
-            //} else {
+            // } else {
             //    $query->where(function (Builder $q) use ($searchVal) {
             //        $q->orWhere(DB::raw("lower(deskripsi)"), 'like', "%{$searchVal}%");
             //             if($searchVal && is_numeric($searchVal))
             //            $q->orWhere('kdgol', "=", $searchVal);
             //    });
-            //}
+            // }
             $query->where(function (Builder $q) use ($searchVal) {
-                foreach($searchVal as $k => $v){
+                foreach ($searchVal as $k => $v) {
                     $value = $v['search']['value'];
                     $columnName = $v['data'];
                     $tableName = $this->table;
-                    if($value){
+                    if ($value) {
                         $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
                         if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
                             $q->where($columnName, '=', $value);
@@ -74,6 +78,7 @@ class Subsubkelompok extends Model
         $query->orderBy('kdbrg');
         $total = $query->count();
         $data = $query->limit($paging['length'])->skip($paging['start'])->get();
+
         return ['total' => $total, 'data' => $data];
     }
 }

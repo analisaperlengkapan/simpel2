@@ -5,13 +5,11 @@ namespace App\Models\Bmn;
 use App\Blameable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Query\Builder;
 
 class HibahFile extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'bmn_hibah_file';
 

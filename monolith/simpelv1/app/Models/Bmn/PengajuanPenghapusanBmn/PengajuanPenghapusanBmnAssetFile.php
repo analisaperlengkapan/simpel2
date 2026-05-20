@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 class PengajuanPenghapusanBmnAssetFile extends Model
 {
-    use HasFactory;
     use Blameable;
+    use HasFactory;
 
     protected $table = 'pengajuan_penghapusan_bmn_asset_file';
 
@@ -27,12 +27,13 @@ class PengajuanPenghapusanBmnAssetFile extends Model
         'tgl_sk',
     ];
 
-    static function getDetail($pengajuan_id, $jenis="")
+    public static function getDetail($pengajuan_id, $jenis = '')
     {
         $query = DB::table('pengajuan_penghapusan_bmn_asset_file as a');
         $query->select('a.*');
         $query->join('pengajuan_penghapusan_bmn_asset as b', 'a.pengajuan_asset_id', '=', 'b.id');
         $query->where('b.pengajuan_id', $pengajuan_id);
+
         return $query->get();
     }
 }

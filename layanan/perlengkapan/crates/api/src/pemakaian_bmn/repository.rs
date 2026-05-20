@@ -403,7 +403,7 @@ impl PemakaianBmnRepository {
         if let Some(ref satker_id) = query.satker_id {
             where_clauses.push(format!("pegawai_satker_id = ${}", param_count));
             param_count += 1;
-            params.push(Box::new(satker_id.clone()));
+            params.push(Box::new(*satker_id));
         }
 
         if let Some(ref search) = query.search {
@@ -690,7 +690,7 @@ impl PemakaianBmnRepository {
         if let Some(ref satker_id) = query.satker_id {
             where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
             param_idx += 1;
-            params.push(Box::new(satker_id.clone()));
+            params.push(Box::new(*satker_id));
         }
 
         if let Some(ref jenis_bmn) = query.jenis_bmn {

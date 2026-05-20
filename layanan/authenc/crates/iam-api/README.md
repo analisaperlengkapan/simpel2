@@ -17,6 +17,7 @@ This crate provides admin HTTP endpoints for the Portal IAM Microfrontend:
 ## Endpoints
 
 ### User Management
+
 - `GET /api/v1/iam/users` - List users with pagination
 - `POST /api/v1/iam/users` - Create user
 - `GET /api/v1/iam/users/{id}` - Get user details
@@ -26,12 +27,14 @@ This crate provides admin HTTP endpoints for the Portal IAM Microfrontend:
 - `POST /api/v1/iam/users/{id}/mfa/enable` - Enable MFA
 
 ### Realm Management
+
 - `GET /api/v1/iam/realms` - List realms
 - `POST /api/v1/iam/realms` - Create realm
 - `PUT /api/v1/iam/realms/{id}` - Update realm
 - `DELETE /api/v1/iam/realms/{id}` - Delete realm
 
 ### Client Management
+
 - `GET /api/v1/iam/clients` - List OAuth2 clients
 - `POST /api/v1/iam/clients` - Create client
 - `PUT /api/v1/iam/clients/{id}` - Update client
@@ -39,15 +42,18 @@ This crate provides admin HTTP endpoints for the Portal IAM Microfrontend:
 - `POST /api/v1/iam/clients/{id}/secret/regenerate` - Regenerate secret
 
 ### Role Management
+
 - `GET /api/v1/iam/roles` - List roles
 - `POST /api/v1/iam/roles` - Create role
 - `POST /api/v1/iam/users/{user_id}/roles/{role_id}` - Assign role
 
 ### Federation Management
+
 - `GET /api/v1/iam/identity-providers` - List identity providers
 - `POST /api/v1/iam/identity-providers` - Create identity provider
 
 ### Audit Logs
+
 - `GET /api/v1/iam/audit-logs` - List audit logs with filters
 - `GET /api/v1/iam/audit-logs/export` - Export audit logs
 
@@ -60,6 +66,7 @@ This crate provides admin HTTP endpoints for the Portal IAM Microfrontend:
 ## Requirements
 
 Implements requirements:
+
 - REQ-API-002 (IAM Admin API)
 - REQ-PORTAL-010 through REQ-PORTAL-016 (IAM admin features)
 - REQ-AUDIT-003 (Audit log querying)

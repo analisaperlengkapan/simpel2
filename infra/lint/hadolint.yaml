@@ -1,0 +1,28 @@
+# hadolint config — Dockerfile lint untuk SIMPEL
+# https://github.com/hadolint/hadolint
+
+ignored:
+  # DL3008: pin apt-get versions — tidak praktis untuk base image yang sering update
+  - DL3008
+  # DL3015: avoid additional packages — kadang perlu untuk debugging
+  - DL3015
+  # DL3018: pin apk versions — alpine package versioning unstable
+  - DL3018
+  # DL3059: multiple consecutive RUN — kadang perlu untuk readability
+  - DL3059
+  # SC2015 (info): `A && B || C` pattern. Used intentionally untuk
+  # workspace Cargo.toml patching dengan `|| true` masking expected
+  # idempotency failure (re-run on already-patched file).
+  - SC2015
+  # DL4006 (warning): `SHELL ["/bin/bash", "-o", "pipefail"]` before
+  # RUN with pipes. simpelv1 alpine image: busybox sh doesn't support
+  # pipefail; switching to /bin/ash for one pipe isn't worth it.
+  - DL4006
+
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - registry.access.redhat.com
+  - public.ecr.aws
+
+failure-threshold: warning

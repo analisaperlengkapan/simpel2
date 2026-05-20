@@ -46,8 +46,8 @@ tokio-rustls = { workspace = true }
 
 # Utilities
 uuid = { workspace = true }
-http-body-util = "0.1"
-bytes = "1.0"
+http-body-util = { workspace = true }
+bytes = { workspace = true }
 chrono = { workspace = true }
 
 # Metrics (optional, for production monitoring)

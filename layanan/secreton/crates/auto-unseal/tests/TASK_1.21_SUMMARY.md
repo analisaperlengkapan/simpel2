@@ -238,6 +238,7 @@ test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; fini
 ```
 
 This makes them ideal for:
+
 - Local development
 - Pre-commit hooks
 - CI/CD pipelines
@@ -275,12 +276,14 @@ Task 1.21 is **COMPLETE** with comprehensive integration test coverage:
 - ✅ All requirements validated
 
 The integration tests provide confidence that auto-unseal works correctly across all scenarios:
+
 - Normal operation
 - Failure scenarios
 - Configuration persistence
 - Multiple providers
 
 **Next Steps:**
+
 - Run real KMS provider tests with actual credentials
 - Integrate into CI/CD pipeline
 - Monitor test results in production deployments

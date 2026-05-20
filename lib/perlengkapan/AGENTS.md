@@ -24,6 +24,7 @@ graph TD
 ```
 
 **ATURAN WAJIB (MANDATORY RULES):**
+
 1. ⛔ **JANGAN** membuat model database *ORM-specific* (seperti `sea-query` entities atau `sqlx` structs) yang bocor ke dalam ekosistem WASM. Pisahkan menggunakan *feature flag* `backend`.
 2. ✅ **SELALU** gunakan penamaan bidang (*fields*) sesuai standar leksikal Kejaksaan (Misalnya `kode_satker`, bukan `office_code`; `kode_barang`, bukan `item_id`).
 3. ✅ Semua *Structs* harus di-*derive* dengan `serde::Serialize` dan `serde::Deserialize` (*by default*).
@@ -42,6 +43,7 @@ Jika Anda mengubah rumus komputasi di atas, selalu buat **Tests** yang sesuai di
 ## ✅ Validation Patterns
 
 ### Type-Safe Validation
+
 Gunakan `validator` crate untuk validasi yang type-safe dan komposabel:
 
 ```rust
@@ -71,6 +73,7 @@ fn validate_kode_satker(kode: &str) -> Result<(), validator::ValidationError> {
 ```
 
 ### Domain-Specific Validation Rules
+
 Validasi harus mengikuti standar regulasi Kejaksaan dan Kemenkeu:
 
 - **Kode Barang**: Format 10 digit sesuai standar DJKN (X.XX.XX.XX.XXX)
@@ -79,6 +82,7 @@ Validasi harus mengikuti standar regulasi Kejaksaan dan Kemenkeu:
 - **Nilai Aset**: Non-negative, dalam Rupiah
 
 ### Custom Validation Functions
+
 Untuk validasi kompleks yang spesifik domain:
 
 ```rust
@@ -103,6 +107,7 @@ pub fn validate_kode_barang(kode: &str) -> Result<(), ValidationError> {
 ```
 
 ### Validation Error Handling
+
 Kembalikan error yang informatif dengan field-level details:
 
 ```rust
@@ -125,6 +130,7 @@ pub enum ValidationError {
 ```
 
 ### Integration with Backend Validation
+
 Di backend, gunakan feature flag `backend` untuk ORM-specific validation:
 
 ```rust
@@ -142,6 +148,7 @@ pub async fn validate_unique_kode_barang(
 ```
 
 ### WASM Compatibility
+
 Pastikan semua validasi berjalan di WASM tanpa I/O sistem:
 
 ```rust

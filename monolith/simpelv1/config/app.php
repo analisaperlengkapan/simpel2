@@ -39,7 +39,7 @@ return [
     'ollama_host' => env('OLLAMA_HOST', 'http://localhost:11434'),
     'google_api_key' => env('GOOGLE_API_KEY', '123'),
     'google_cse_id' => env('GOOGLE_CSE_ID', '123'),
-    
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode
@@ -179,16 +179,16 @@ return [
     */
 
     'providers' => ServiceProvider::defaultProviders()->merge([
-            /*
+        /*
              * Package Service Providers...
              */
 
-            /*
+        /*
              * Application Service Providers...
              */
         App\Providers\AppServiceProvider::class,
         App\Providers\AuthServiceProvider::class,
-            // App\Providers\BroadcastServiceProvider::class,
+        // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
         App\Providers\ViewServiceProvider::class,
@@ -213,7 +213,7 @@ return [
         'MyHelper' => App\Helpers\MyHelper::class,
         'Excel' => Maatwebsite\Excel\Facades\Excel::class,
         'LaravelMpdf' => Mccarlosen\LaravelMpdf\Facades\LaravelMpdf::class,
-        'Terbilang' => Riskihajar\Terbilang\Facades\Terbilang::class
+        'Terbilang' => Riskihajar\Terbilang\Facades\Terbilang::class,
     ])->toArray(),
 
 ];

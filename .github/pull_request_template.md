@@ -27,9 +27,9 @@ Related to #
 
 <!-- Provide a detailed list of changes -->
 
-- 
-- 
-- 
+-
+-
+-
 
 ## Component Impact
 
@@ -122,25 +122,19 @@ cargo test --all
 
 **Performance notes:**
 
-
 ## Breaking Changes
 
 <!-- If this is a breaking change, describe the impact and migration path -->
 
 **Migration guide:**
 
-
 ## Screenshots/Videos
 
 <!-- If applicable, add screenshots or videos to demonstrate the changes -->
 
-
-
 ## Additional Notes
 
 <!-- Add any additional notes for reviewers -->
-
-
 
 ## Reviewer Notes
 
@@ -149,6 +143,7 @@ cargo test --all
 ---
 
 **By submitting this PR, I confirm that:**
+
 - [ ] I have read and followed the [Contributing Guidelines](../CONTRIBUTING.md)
 - [ ] My code adheres to the project's coding standards
 - [ ] I have tested my changes thoroughly

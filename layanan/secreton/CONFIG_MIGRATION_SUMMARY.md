@@ -5,6 +5,7 @@
 Secreton has migrated from a legacy single-file config system to a **secure two-layer config system** following HashiCorp Secret Vault's security model.
 
 ## Old System (REMOVED)
+
 ```
 config/
 ├── default.toml      ❌ Contained ALL config including secrets
@@ -12,6 +13,7 @@ config/
 ```
 
 ## New System (ACTIVE)
+
 ```
 secreton.toml         ✅ Bootstrap config (infrastructure only, NO SECRETS)
                       ✅ Application config encrypted in storage backend
@@ -20,12 +22,14 @@ secreton.toml         ✅ Bootstrap config (infrastructure only, NO SECRETS)
 ## Quick Start
 
 ### 1. Create Bootstrap Config
+
 ```bash
 cp secreton.toml.example secreton.toml
 # Edit secreton.toml - configure storage, listeners, seal
 ```
 
 ### 2. Start Secreton
+
 ```bash
 cargo run --bin api_server
 # or
@@ -33,6 +37,7 @@ docker-compose up -d
 ```
 
 ### 3. Initialize Secret Vault (First Time Only)
+
 ```bash
 curl -X POST http://localhost:8200/v1/sys/init \
   -d '{"secret_shares": 5, "secret_threshold": 3}'
@@ -41,6 +46,7 @@ curl -X POST http://localhost:8200/v1/sys/init \
 Save the unseal keys and root token securely!
 
 ### 4. Unseal Secret Vault
+
 ```bash
 # Provide 3 of 5 uns
 rl -X POST http://localhost:8200/v1/sys/unseal \
@@ -52,11 +58,13 @@ curl -X POST http://localhost:8200/v1/sys/unseal \
 ```
 
 ### 5. Application Config Loaded Automatically
+
 Once unsealed, application config (auth, database, MFA) is loaded from encrypted storage.
 
 ## Configuration Files
 
 ### `secreton.toml` (Bootstrap - Safe to Commit)
+
 ```toml
 [storage]
 backend = "raft"
@@ -85,6 +93,7 @@ threshold = 3
 **Does NOT contain:** Secrets, passwords, API keys
 
 ### Application Config (Encrypted in Storage)
+
 - Auth settings (JWT secrets)
 - Database credentials
 - MFA policies
