@@ -141,7 +141,7 @@ jsonwebtoken = { version = "10.3.0", default-features = false, features = [
   "use_pem",
 ] } # Updated to v10 with aws_lc_rs backend
 oauth2 = "5.0.0"
-rand = { version = "0.8.5", features = [
+rand = { version = "0.10.1", features = [
   "std",
   "std_rng",
 ] } # Pinned to 0.8.5 for crypto ecosystem compatibility (rand_core 0.6)
