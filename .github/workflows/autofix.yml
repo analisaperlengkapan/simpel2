@@ -1,11 +1,21 @@
-# autofix.yml — Auto-fix di pull_request ke main (rename dari autofix-pr.yml).
-# Apply yang bisa di-autofix:
-#   - cargo fmt + cargo fix + clippy --fix
-#   - Cargo versioning normalize (lockstep dengan workspace.package.version)
-#   - taplo fmt (TOML)
-#   - markdownlint-cli2 --fix (Markdown)
-#   - trim trailing whitespace di YAML/sh/md/json/toml
-# Untuk PR dari fork yang punya read-only token, patch di-upload sebagai artifact.
+# autofix.yml — Auto-fix di pull_request ke main.
+#
+# Design: setiap fixer berjalan di JOB TERPISAH yang paralel. Kegagalan
+# satu job tidak mempengaruhi yang lain (tiap job punya conclusion
+# sendiri di workflow UI). Job yang sukses tetap commit + push
+# perubahannya ke branch PR. Multiple paralel push di-handle dengan
+# retry-on-rejection-via-rebase loop di tiap job — kalau push ditolak
+# karena ada job lain push duluan, fetch + rebase + push lagi.
+#
+# Fixers:
+#   - rust       : cargo fmt + cargo fix + clippy --fix + Cargo versioning
+#   - toml       : taplo fmt
+#   - markdown   : markdownlint-cli2 --fix
+#   - php        : Laravel Pint (PSR-12 + Laravel preset)
+#   - whitespace : trim trailing whitespace untuk yaml/json/sh/sql
+#
+# Untuk PR dari fork (read-only token), push tidak bisa — patch
+# di-upload sebagai artifact di job `patch-for-fork`.
 
 name: Autofix PR
 
@@ -17,19 +27,22 @@ permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: autofix-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   DEBIAN_FRONTEND: noninteractive
 
 jobs:
-  autofix:
-    name: Auto-fix Workspace (Rust + TOML + Markdown + whitespace)
+  # ─────────────────────────────────────────────────────────
+  # Rust: cargo fmt + cargo fix + clippy --fix + Cargo versioning
+  # ─────────────────────────────────────────────────────────
+  rust:
+    name: Autofix (Rust)
     runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: autofix-rust-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v6
@@ -45,87 +58,166 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          cache-key: autofix-pr
+          cache-key: autofix-rust
 
-      - name: Validate toolchain health
+      - name: Apply cargo fmt + fix + clippy --fix
         shell: bash
         run: |
-          set -euo pipefail
-          CARGO_BIN=$(command -v cargo || echo "$HOME/.cargo/bin/cargo")
-          if ! [ -x "$CARGO_BIN" ]; then
-            echo "::error::cargo binary tidak ditemukan (PATH=$PATH)."
-            exit 1
-          fi
-          echo "Using cargo: $CARGO_BIN"
-
-          # Canary build — pastikan toolchain dan rustc berfungsi.
-          # Jika ini gagal, berarti runner/toolchain bermasalah, bukan kode.
-          echo "::group::Toolchain canary check"
-          if ! "$CARGO_BIN" check -p lib-core 2>&1; then
-            echo "::endgroup::"
-            echo "::error::Toolchain canary gagal — runner kemungkinan memiliki toolchain rusak atau cache korup. Bersihkan target/ di runner."
-            exit 1
-          fi
-          echo "::endgroup::"
-
-      - name: Apply fmt + fix + clippy --fix
-        shell: bash
-        run: |
-          # By design ini job adalah best-effort autofixer, BUKAN gate.
-          # fmt/fix/clippy boleh gagal (lint yang tidak bisa di-autofix).
-          # Gate enforcement ada di `lint-rust` job di ci.yml; di sini
-          # hanya commit perubahan yang berhasil di-autofix dan tampilkan
-          # warning jika ada yang tidak bisa di-fix supaya visible di
-          # PR sidebar (bukan tersembunyi seperti pakai `|| true` polos).
+          # Best-effort autofixer (bukan gate; gate ada di lint-rust di ci.yml).
+          # Tiap step boleh gagal (lint yang tidak bisa auto-fix); commit yang
+          # berhasil tetap di-push.
           fmt_exit=0; fix_exit=0; clippy_exit=0
-
           cargo fmt --all || fmt_exit=$?
           [ $fmt_exit -ne 0 ] && echo "::warning::cargo fmt exit code: $fmt_exit"
 
-          cargo fix \
-            --workspace --all-targets --all-features \
+          cargo fix --workspace --all-targets --all-features \
             --allow-dirty --allow-staged || fix_exit=$?
           [ $fix_exit -ne 0 ] && echo "::warning::cargo fix exit code: $fix_exit"
 
-          cargo clippy \
-            --workspace --all-targets --all-features \
-            --fix --allow-dirty --allow-staged \
-            -- -W clippy::all || clippy_exit=$?
+          cargo clippy --workspace --all-targets --all-features \
+            --fix --allow-dirty --allow-staged -- -W clippy::all || clippy_exit=$?
           [ $clippy_exit -ne 0 ] && echo "::warning::cargo clippy --fix exit code: $clippy_exit"
 
-          # Final fmt pass untuk memformat hasil fix/clippy. Emit warning
-          # daripada `|| true` polos supaya status di log eksplisit.
+          # Final fmt pass untuk reformat hasil fix/clippy.
           final_fmt_exit=0
           cargo fmt --all || final_fmt_exit=$?
           [ $final_fmt_exit -ne 0 ] && echo "::warning::final cargo fmt exit code: $final_fmt_exit"
 
       - name: Normalize Cargo versioning
-        run: python3 ./infra/scripts/check-cargo-versioning.py fix
+        shell: bash
+        run: python3 ./infra/scripts/check-cargo-versioning.py fix || echo "::warning::Cargo versioning normalize gagal"
 
-      - name: Apply taplo fmt (TOML)
+      - name: Commit & push (retry on rebase conflict)
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTOFIX_LABEL: "cargo fmt + cargo fix + clippy --fix + Cargo versioning"
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
+            exit 0
+          fi
+          echo "── git diff --stat ──"; git diff --stat; echo "──────────────────────"
+          git add -A
+          git commit -m "chore(autofix): $AUTOFIX_LABEL
+
+          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
+          # Retry: paralel autofix lain mungkin sudah push duluan ke
+          # branch PR sama. Push ditolak → fetch + rebase + retry.
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if git push origin "HEAD:${PR_HEAD_REF}"; then
+              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
+            fi
+            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
+            git fetch origin "${PR_HEAD_REF}"
+            if ! git rebase "origin/${PR_HEAD_REF}"; then
+              echo "::error::Rebase conflict — autofix job lain mengubah file yang sama dengan '$AUTOFIX_LABEL'."
+              git rebase --abort
+              exit 1
+            fi
+            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
+            sleep "$sleep_s"
+          done
+          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
+          exit 1
+
+  # ─────────────────────────────────────────────────────────
+  # TOML: taplo fmt
+  # ─────────────────────────────────────────────────────────
+  toml:
+    name: Autofix (TOML)
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: autofix-toml-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install taplo
         shell: bash
         run: |
-          # taplo auto-format semua .toml di workspace. Idempotent;
-          # tidak fail kalau tidak ada perubahan.
           if ! command -v taplo &>/dev/null; then
             mkdir -p "$HOME/.local/bin"
             curl -fsSL "https://github.com/tamasfe/taplo/releases/latest/download/taplo-full-linux-x86_64.gz" \
               | gunzip - > "$HOME/.local/bin/taplo"
             chmod +x "$HOME/.local/bin/taplo"
-            export PATH="$HOME/.local/bin:$PATH"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           fi
+
+      - name: taplo fmt
+        shell: bash
+        run: |
           taplo_exit=0
           taplo fmt || taplo_exit=$?
           [ $taplo_exit -ne 0 ] && echo "::warning::taplo fmt exit code: $taplo_exit"
 
-      - name: Apply markdownlint --fix (Markdown)
+      - name: Commit & push (retry on rebase conflict)
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTOFIX_LABEL: "taplo fmt (TOML)"
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
+            exit 0
+          fi
+          git diff --stat
+          git add -A
+          git commit -m "chore(autofix): $AUTOFIX_LABEL
+
+          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if git push origin "HEAD:${PR_HEAD_REF}"; then
+              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
+            fi
+            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
+            git fetch origin "${PR_HEAD_REF}"
+            if ! git rebase "origin/${PR_HEAD_REF}"; then
+              echo "::error::Rebase conflict pada '$AUTOFIX_LABEL'"; git rebase --abort; exit 1
+            fi
+            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
+            sleep "$sleep_s"
+          done
+          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
+          exit 1
+
+  # ─────────────────────────────────────────────────────────
+  # Markdown: markdownlint-cli2 --fix
+  # ─────────────────────────────────────────────────────────
+  markdown:
+    name: Autofix (Markdown)
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: autofix-markdown-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: markdownlint-cli2 --fix (via docker)
         shell: bash
         run: |
-          # markdownlint-cli2 --fix mengoreksi blanks-around-headings,
-          # heading whitespace, list indent, dst. Stylistic-only;
-          # konten teknis tidak diubah. Pakai v0.18 supaya match versi
-          # yang dipakai oleh DavidAnson/markdownlint-cli2-action@v18 di
-          # ci.yml.
           md_exit=0
           docker run --rm \
             -v "$PWD":/workdir \
@@ -142,47 +234,150 @@ jobs:
             || md_exit=$?
           [ $md_exit -ne 0 ] && echo "::warning::markdownlint --fix exit code (sisa lint issue yang tidak auto-fixable): $md_exit"
 
-      - name: Apply Laravel Pint (PHP)
+      - name: Commit & push (retry on rebase conflict)
         shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTOFIX_LABEL: "markdownlint --fix (Markdown)"
         run: |
-          # Pint auto-format style PHP di simpelv1 (PSR-12 + Laravel preset).
-          # Pakai serversideup/php image yang sama dengan ci.yml.
-          if [ -d monolith/simpelv1 ]; then
-            cd monolith/simpelv1
-            # composer install dulu kalau vendor/bin/pint belum ada
-            if [ ! -f vendor/bin/pint ]; then
-              docker run --rm \
-                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-                -e COMPOSER_HOME=/tmp/composer \
-                --entrypoint composer \
-                serversideup/php:8.2-cli \
-                install --prefer-dist --no-progress --no-interaction \
-                --ignore-platform-req=ext-gd \
-                || echo "::warning::composer install failed; skipping pint"
-            fi
-            if [ -f vendor/bin/pint ]; then
-              pint_exit=0
-              docker run --rm \
-                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-                --entrypoint vendor/bin/pint \
-                serversideup/php:8.2-cli \
-                || pint_exit=$?
-              [ $pint_exit -ne 0 ] && echo "::warning::pint exit code: $pint_exit"
-            fi
-            cd "$GITHUB_WORKSPACE"
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
+            exit 0
           fi
+          git diff --stat
+          git add -A
+          git commit -m "chore(autofix): $AUTOFIX_LABEL
 
-      - name: Strip trailing whitespace (YAML / shell / misc)
+          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if git push origin "HEAD:${PR_HEAD_REF}"; then
+              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
+            fi
+            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
+            git fetch origin "${PR_HEAD_REF}"
+            if ! git rebase "origin/${PR_HEAD_REF}"; then
+              echo "::error::Rebase conflict pada '$AUTOFIX_LABEL'"; git rebase --abort; exit 1
+            fi
+            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
+            sleep "$sleep_s"
+          done
+          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
+          exit 1
+
+  # ─────────────────────────────────────────────────────────
+  # PHP: Laravel Pint
+  # ─────────────────────────────────────────────────────────
+  php:
+    name: Autofix (PHP Pint)
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: autofix-php-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: composer install + Pint
         shell: bash
         run: |
-          # YAML, shell, dan script lainnya — buang trailing whitespace.
-          # Lewatkan Helm templates (`{{- }}` Go syntax bisa rusak kalau
-          # ada spasi yang berarti), node_modules, vendor, dan vendored
-          # JS libs di simpelv1.
+          if [ ! -d monolith/simpelv1 ]; then
+            echo "::warning::monolith/simpelv1 tidak ada — skip pint"
+            exit 0
+          fi
+          cd monolith/simpelv1
+          if [ ! -f vendor/bin/pint ]; then
+            docker run --rm \
+              -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+              -e COMPOSER_HOME=/tmp/composer \
+              --entrypoint composer \
+              serversideup/php:8.2-cli \
+              install --prefer-dist --no-progress --no-interaction \
+              --ignore-platform-req=ext-gd \
+              || { echo "::warning::composer install gagal; skip pint"; exit 0; }
+          fi
+          pint_exit=0
+          docker run --rm \
+            -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+            --entrypoint vendor/bin/pint \
+            serversideup/php:8.2-cli \
+            || pint_exit=$?
+          [ $pint_exit -ne 0 ] && echo "::warning::pint exit code: $pint_exit"
+
+      - name: Commit & push (retry on rebase conflict)
+        shell: bash
+        env:
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTOFIX_LABEL: "Laravel Pint (PHP)"
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
+            exit 0
+          fi
+          git diff --stat
+          git add -A
+          git commit -m "chore(autofix): $AUTOFIX_LABEL
+
+          Auto-applied by autofix.yml di PR #${PR_NUMBER}."
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if git push origin "HEAD:${PR_HEAD_REF}"; then
+              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
+            fi
+            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
+            git fetch origin "${PR_HEAD_REF}"
+            if ! git rebase "origin/${PR_HEAD_REF}"; then
+              echo "::error::Rebase conflict pada '$AUTOFIX_LABEL'"; git rebase --abort; exit 1
+            fi
+            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
+            sleep "$sleep_s"
+          done
+          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
+          exit 1
+
+  # ─────────────────────────────────────────────────────────
+  # Whitespace: trim trailing untuk yaml/json/sh/sql
+  # (file types yang BELUM dihandle tool spesifik di atas)
+  # ─────────────────────────────────────────────────────────
+  whitespace:
+    name: Autofix (Trailing whitespace)
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    concurrency:
+      group: autofix-whitespace-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Strip trailing whitespace
+        shell: bash
+        run: |
+          # Tipe file yang BELUM di-handle tool spesifik (taplo, pint,
+          # rustfmt, markdownlint sudah handle trailing-whitespace untuk
+          # masing-masing). Lewatkan Helm templates (`{{- }}` syntax
+          # bisa rusak kalau ada trailing yang berarti).
           find . \
             \( -name '*.yml' -o -name '*.yaml' \
-               -o -name '*.sh' -o -name '*.md' \
-               -o -name '*.toml' -o -name '*.json' \) \
+               -o -name '*.json' -o -name '*.sh' \
+               -o -name '*.sql' \) \
             -not -path './node_modules/*' \
             -not -path './*/node_modules/*' \
             -not -path './target/*' \
@@ -197,45 +392,121 @@ jobs:
           | xargs -0 -r sed -i 's/[[:space:]]\+$//'
           echo "Trailing whitespace stripped where applicable."
 
-      - name: Detect changes
-        id: changes
-        shell: bash
-        run: |
-          if git diff --quiet; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-            echo "Tidak ada perubahan dari fmt/fix/clippy."
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git diff --stat
-          fi
-
-      - name: Commit & push fixes ke branch PR
-        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+      - name: Commit & push (retry on rebase conflict)
         shell: bash
         env:
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          AUTOFIX_LABEL: "trim trailing whitespace (yaml/json/sh/sql)"
         run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "✓ No changes — nothing to commit for '$AUTOFIX_LABEL'"
+            exit 0
+          fi
+          git diff --stat
           git add -A
-          git commit -m "chore(autofix): cargo fmt + cargo fix + clippy --fix + taplo + markdownlint + trim trailing whitespace
+          git commit -m "chore(autofix): $AUTOFIX_LABEL
 
           Auto-applied by autofix.yml di PR #${PR_NUMBER}."
-          git push origin "HEAD:${PR_HEAD_REF}"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if git push origin "HEAD:${PR_HEAD_REF}"; then
+              echo "✓ Push sukses pada attempt ${attempt}"; exit 0
+            fi
+            echo "⟳ Push ditolak (attempt ${attempt}/8); fetch + rebase + retry"
+            git fetch origin "${PR_HEAD_REF}"
+            if ! git rebase "origin/${PR_HEAD_REF}"; then
+              echo "::error::Rebase conflict pada '$AUTOFIX_LABEL'"; git rebase --abort; exit 1
+            fi
+            sleep_s=$(( attempt < 5 ? (2 ** attempt) : 30 ))
+            sleep "$sleep_s"
+          done
+          echo "::error::Push gagal setelah 8 attempts untuk '$AUTOFIX_LABEL'"
+          exit 1
 
-      - name: Generate patch artifact (PR dari fork)
-        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name != github.repository
+  # ─────────────────────────────────────────────────────────
+  # PR dari fork — token read-only, push tidak bisa.
+  # Jalankan semua fixer berurutan, upload diff sebagai artifact.
+  # ─────────────────────────────────────────────────────────
+  patch-for-fork:
+    name: Autofix patch (PR dari fork)
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: rustfmt, clippy
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache-key: autofix-fork
+
+      - name: Run all autofixers (best-effort, capture diff)
+        shell: bash
+        run: |
+          set +e
+          # Rust
+          cargo fmt --all
+          cargo fix --workspace --all-targets --allow-dirty --allow-staged
+          cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged -- -W clippy::all
+          cargo fmt --all
+          python3 ./infra/scripts/check-cargo-versioning.py fix
+          # TOML
+          if ! command -v taplo &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL "https://github.com/tamasfe/taplo/releases/latest/download/taplo-full-linux-x86_64.gz" \
+              | gunzip - > "$HOME/.local/bin/taplo"
+            chmod +x "$HOME/.local/bin/taplo"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          taplo fmt
+          # Markdown
+          docker run --rm \
+            -v "$PWD":/workdir \
+            davidanson/markdownlint-cli2:v0.18.0 \
+            --fix --config /workdir/infra/lint/.markdownlint.jsonc \
+            '**/*.md' \
+            '!**/node_modules/**' '!**/vendor/**' '!**/target/**' '!**/dist/**' \
+            '!monolith/simpelv1/storage/**' '!monolith/simpelv1/public/assets/libs/**' \
+            '!**/CHANGELOG.md'
+          # PHP Pint
+          if [ -d monolith/simpelv1 ]; then
+            (cd monolith/simpelv1 && \
+              docker run --rm \
+                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+                -e COMPOSER_HOME=/tmp/composer \
+                --entrypoint composer \
+                serversideup/php:8.2-cli \
+                install --prefer-dist --no-progress --no-interaction --ignore-platform-req=ext-gd && \
+              docker run --rm \
+                -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+                --entrypoint vendor/bin/pint \
+                serversideup/php:8.2-cli)
+          fi
+
+      - name: Generate patch
         shell: bash
         run: |
           git diff > /tmp/autofix.patch
-          echo "PR dari fork — push tidak bisa. Patch di-upload sebagai artifact;"
-          echo "kontributor bisa download & apply via 'git apply autofix.patch'."
+          if [ -s /tmp/autofix.patch ]; then
+            echo "PR dari fork — push tidak bisa. Patch uploaded sebagai artifact."
+            echo "Kontributor: git apply autofix.patch"
+          else
+            echo "Tidak ada perubahan dari autofixers."
+          fi
 
       - name: Upload patch artifact
-        if: steps.changes.outputs.has_changes == 'true' && github.event.pull_request.head.repo.full_name != github.repository
         uses: actions/upload-artifact@v4
         with:
           name: autofix-patch
           path: /tmp/autofix.patch
           retention-days: 7
+          if-no-files-found: ignore

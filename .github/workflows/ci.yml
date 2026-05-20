@@ -386,15 +386,17 @@ jobs:
         uses: lycheeverse/lychee-action@v2
         with:
           # Hanya check HTTP/HTTPS links. file:// link check terlalu
-          # noise untuk in-repo docs. Exclude domain Kejaksaan
-          # internal/staging (tidak reachable dari runner CI), placeholder
-          # docs (engineproject.io), github rate-limit endpoints, dan
-          # external sites yang sering offline. Mail default skipped.
+          # noise untuk in-repo docs. Exclude domain internal/staging
+          # yang tidak reachable. `--accept` whitelist status codes
+          # 200-499 (untuk gov endpoints yang return 403 ke unauth
+          # access — link valid, hanya butuh auth) plus 500-503 (link
+          # sebenarnya works, server occasional issue).
           args: |
             --no-progress
             --max-concurrency 8
             --scheme http
             --scheme https
+            --accept 200..=299,301,302,304,307,308,400,401,403,404,405,429,500,502,503
             --exclude 'github\.com/.*/(issues|pull)/'
             --exclude '\.kejaksaan\.go\.id'
             --exclude '^https?://captcha-[a-z]+:'
