@@ -388,15 +388,17 @@ jobs:
           # Hanya check HTTP/HTTPS links. file:// link check terlalu
           # noise untuk in-repo docs. Exclude domain internal/staging
           # yang tidak reachable. `--accept` whitelist status codes
-          # 200-499 (untuk gov endpoints yang return 403 ke unauth
-          # access — link valid, hanya butuh auth) plus 500-503 (link
-          # sebenarnya works, server occasional issue).
+          # 200..=499 + selected 5xx (gov endpoints return 403 ke
+          # unauth access; 410 untuk vendored docs link yang sudah
+          # mati tapi tidak actionable kita). `--exclude-path` skip
+          # vendored 3rd-party docs (moment, prismjs, dst di monolith
+          # simpelv1) yang punya banyak link mati di-luar control kita.
           args: |
             --no-progress
             --max-concurrency 8
             --scheme http
             --scheme https
-            --accept 200..=299,301,302,304,307,308,400,401,403,404,405,429,500,502,503
+            --accept 200..=299,301,302,304,307,308,400,401,403,404,405,410,429,500,502,503
             --exclude 'github\.com/.*/(issues|pull)/'
             --exclude '\.kejaksaan\.go\.id'
             --exclude '^https?://captcha-[a-z]+:'
@@ -406,6 +408,12 @@ jobs:
             --exclude 'hpneo\.github\.com'
             --exclude 'localhost'
             --exclude '127\.0\.0\.1'
+            --exclude-path 'monolith/simpelv1/public/assets/libs'
+            --exclude-path 'monolith/simpelv1/vendor'
+            --exclude-path 'monolith/simpelv1/node_modules'
+            --exclude-path 'node_modules'
+            --exclude-path 'target'
+            --exclude-path 'dist'
             './**/*.md'
           fail: true
 
