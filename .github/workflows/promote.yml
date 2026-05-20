@@ -89,7 +89,7 @@ jobs:
           - simpelv1
     steps:
       - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to GHCR
         uses: docker/login-action@v3
