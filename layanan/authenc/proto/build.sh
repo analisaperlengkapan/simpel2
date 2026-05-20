@@ -47,7 +47,7 @@ if protoc \
     --rust_out="$OUT_DIR/rust" \
     --tonic_out="$OUT_DIR/rust" \
     "$SCRIPT_DIR"/*.proto 2>&1; then
-    
+
     RUST_FILES=$(find "$OUT_DIR/rust" -name "*.rs" 2>/dev/null | wc -l)
     echo -e "${GREEN}✓ Generated $RUST_FILES Rust files${NC}\n"
 else

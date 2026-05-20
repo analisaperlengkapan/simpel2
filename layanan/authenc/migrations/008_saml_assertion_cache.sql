@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS saml_assertion_cache (
 );
 
 -- Create index for efficient cleanup of expired assertions
-CREATE INDEX IF NOT EXISTS idx_saml_assertion_expires 
+CREATE INDEX IF NOT EXISTS idx_saml_assertion_expires
 ON saml_assertion_cache(expires_at);
 
 -- Comments for documentation

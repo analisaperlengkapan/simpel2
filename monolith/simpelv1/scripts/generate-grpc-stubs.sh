@@ -38,14 +38,14 @@ declare -a services=("authenc" "secreton" "integrasi")
 
 for service in "${services[@]}"; do
     echo -e "${BLUE}Generating stubs for $service...${NC}"
-    
+
     proto_files=$(find "$PROTO_DIR" -name "*.proto" | grep -E "(common|$service)" || true)
-    
+
     if [ -z "$proto_files" ]; then
         echo -e "${BLUE}No proto files found for $service, skipping...${NC}"
         continue
     fi
-    
+
     # Generate PHP stubs using protoc
     protoc \
         --php_out="$OUTPUT_DIR" \
@@ -53,7 +53,7 @@ for service in "${services[@]}"; do
         --plugin=protoc-gen-php-grpc="$VENDOR_BIN/grpc_php_plugin" \
         -I"$PROTO_DIR" \
         $proto_files
-    
+
     echo -e "${GREEN}✓ Stubs generated for $service${NC}"
 done
 
