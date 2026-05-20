@@ -533,6 +533,9 @@ jobs:
         with:
           cache-key: ci-build-${{ matrix.name }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo build --release -p ${{ matrix.package }}
         run: cargo build --release -p ${{ matrix.package }}
 
@@ -589,6 +592,9 @@ jobs:
         with:
           cache-key: ci-test-lib-core
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -604,6 +610,9 @@ jobs:
         with:
           cache-key: ci-test-lib-backend
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -619,6 +628,9 @@ jobs:
         with:
           cache-key: ci-test-lib-crypto
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -634,6 +646,9 @@ jobs:
         with:
           cache-key: ci-test-lib-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo test
         env:
           RUST_BACKTRACE: 1
@@ -666,6 +681,9 @@ jobs:
       # `unresolved import crate::sys::IoSourceState`. Trunk build di
       # release.yml validates wasm32 compile untuk antarmuka via real
       # build pipeline; CI duplikat di sini redundant.
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo build (host) — sanity check syntax
         env:
           RUST_BACKTRACE: 1
@@ -685,6 +703,9 @@ jobs:
       # Same reason — wasm32 test compile fails on tokio mio. Trunk
       # build di release.yml + ci.yml build-antarmuka-portal job
       # cover the wasm32 compile path.
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -701,6 +722,9 @@ jobs:
           targets: wasm32-unknown-unknown
           cache-key: ci-test-perlengkapan
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        run: cargo clean
       - name: cargo check (wasm32, no-test)
         env:
           RUST_BACKTRACE: 1
@@ -714,24 +738,41 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `-p authenc` di-skip — package `authenc` legacy di
+          # `layanan/authenc/Cargo.toml` di-commented dari workspace
+          # members (lihat root Cargo.toml). Yang ada hanya sub-crates.
           - tier: layanan-authenc
-            packages: '-p authenc -p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
+            packages: '-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
+            test_args: ''
           - tier: layanan-perlengkapan
             packages: '-p layanan-perlengkapan -p layanan-perlengkapan-api -p layanan-perlengkapan-bantuan -p layanan-perlengkapan-dokumen -p layanan-perlengkapan-notifikasi'
+            # `e2e_integration_tests` butuh PostgreSQL real; skip di CI
+            # unit-test job. Untuk run integration test, butuh pg service
+            # container atau jalankan manual dengan --include-ignored.
+            test_args: '-- --skip integration::'
           - tier: layanan-integrasi
             packages: '-p layanan-integrasi'
+            test_args: ''
           - tier: layanan-secreton
             packages: '-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication'
+            test_args: ''
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-${{ matrix.tier }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: cargo clean (avoid stale target cache corruption)
+        shell: bash
+        # Multiple paralel test jobs di runner host yang sama share
+        # ~/.cargo/registry. rust-cache@v2 restore target/ dari prior
+        # run — kalau partial/cancelled, dep info file (.d) hilang
+        # dan rustc gagal `No such file or directory`. Force-rebuild.
+        run: cargo clean
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
-        run: cargo test ${{ matrix.packages }} --no-fail-fast
+        run: cargo test ${{ matrix.packages }} --no-fail-fast ${{ matrix.test_args }}
 
   # NOTE: Test Monolith di-skip karena simpelv1 tidak punya Laravel
   # migrations (schema disimpan sebagai pgsql SQL dump di
