@@ -63,6 +63,29 @@ runs:
           echo "::warning::Binary 'ar' (binutils) tidak tersedia di runner. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal. Self-hosted runner harus pre-install: \`sudo apt install binutils build-essential\` once."
         fi
 
+    - name: Heal rustup if shared $HOME rotted
+      shell: bash
+      run: |
+        # Multiple paralel jobs di host yang sama share ~/.cargo dan
+        # ~/.rustup. Race condition / partial install dari job lain
+        # bisa bikin `cargo`/`rustc` symlink di ~/.cargo/bin/ menunjuk
+        # ke `rustup` yang sudah ke-hapus, dan cargo gagal dengan
+        # `could not execute process 'rustc -vV' (never executed)`.
+        # Detect kondisi ini dan reinstall rustup binary (idempotent;
+        # menjaga toolchain yang sudah ada di ~/.rustup intact).
+        if [ -L "$HOME/.cargo/bin/cargo" ] && [ ! -e "$HOME/.cargo/bin/cargo" ]; then
+          echo "::warning::~/.cargo/bin/cargo symlink rotted (rustup binary missing); reinstalling rustup"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- --default-toolchain none -y --no-modify-path
+        fi
+        if [ ! -x "$HOME/.cargo/bin/cargo" ]; then
+          echo "::warning::cargo not executable; reinstalling rustup"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- --default-toolchain none -y --no-modify-path
+        fi
+        # Ensure PATH includes cargo bin for subsequent steps
+        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
