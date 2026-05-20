@@ -75,11 +75,11 @@ rust-version = "1.95"
 # Axum Backend Dependencies - Latest Stable
 axum = { version = "0.8.9", features = ["macros", "multipart", "ws"] }
 axum-extra = { version = "0.12.6", features = ["typed-header"] }
-tokio = { version = "1.52.1", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 tower = { version = "0.5.3", features = ["full"] }
-tower-http = { version = "0.6.8", features = [
+tower-http = { version = "0.6.11", features = [
   "cors",
   "trace",
   "limit",
@@ -469,7 +469,7 @@ axum-server = { version = "0.8.0", features = ["tls-rustls"] }
 hyper = { version = "1.9.0", features = ["full"] }
 bytes = "1.11.1"
 
-tonic = { version = "0.14.5", features = [
+tonic = { version = "0.14.6", features = [
   "tls-webpki-roots",
   "transport",
   "channel",
@@ -503,9 +503,9 @@ rcgen = "0.13.0"
 pem = "3.0.6"
 der-parser = "10.0.0"
 warp = "0.4.2"
-tonic-build = "0.14.5"
-tonic-prost = "0.14.5"
-tonic-prost-build = "0.14.5"
+tonic-build = "0.14.6"
+tonic-prost = "0.14.6"
+tonic-prost-build = "0.14.6"
 prost = "0.14.3"
 prost-types = "0.14.3"
 openidconnect = "4.0.1"
