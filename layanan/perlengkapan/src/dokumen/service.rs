@@ -121,10 +121,20 @@ impl DokumenService {
                 let _ = tokio::fs::remove_file(&tmp_path).await;
                 Ok(bytes::Bytes::from(bytes))
             }
-            DocumentFormat::Excel => Err(ServiceError::not_found(
-                "Excel rendering not yet implemented for the trait path",
-            )),
-            DocumentFormat::Csv => Err(ServiceError::not_found(
+            DocumentFormat::Excel => {
+                let tmp_path = Self::storage_root().join(format!("preview-{}.xlsx", Uuid::new_v4()));
+                tokio::fs::create_dir_all(tmp_path.parent().unwrap_or(&Self::storage_root()))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
+                let bytes = self
+                    .excel_generator
+                    .generate_excel(&template, data, tmp_path.to_str().unwrap_or(""))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("Excel render failed: {}", e)))?;
+                let _ = tokio::fs::remove_file(&tmp_path).await;
+                Ok(bytes::Bytes::from(bytes))
+            }
+            DocumentFormat::Csv => Err(ServiceError::validation(
                 "CSV rendering not yet implemented for the trait path",
             )),
         }
