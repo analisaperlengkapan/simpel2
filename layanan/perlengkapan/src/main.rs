@@ -12,10 +12,11 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
 use layanan_perlengkapan::{
-    cache_strategy, dashboard, database, database_optimization, grpc_clients, health,
-    kebutuhan_bmn, logging, middleware, pakaian_dinas, pemakaian_bmn, penghapusan_bmn,
-    rate_limiting, roadmap_sarpras, routes, services, workflow,
+    cache_strategy, dashboard, database, database_optimization, dokumen, grpc_clients,
+    health, kebutuhan_bmn, logging, middleware, notifikasi, pakaian_dinas, pemakaian_bmn,
+    penghapusan_bmn, rate_limiting, roadmap_sarpras, routes, services, workflow,
 };
+use lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender};
 
 use cache_strategy::CacheManager;
 use dashboard::services::DashboardService;
@@ -169,6 +170,21 @@ async fn main() -> anyhow::Result<()> {
     // Create main service with repository wrapper
     let service = PerlengkapanService::new(Arc::new(db.clone()));
 
+    // ── Ports & adapters: dokumen + notifikasi service traits ────────────
+    let template_service = Arc::new(dokumen::TemplateService::new());
+    let pdf_generator =
+        Arc::new(dokumen::PdfGenerator::new(dokumen::TemplateService::new()));
+    let excel_generator = Arc::new(dokumen::excel_generator::ExcelGenerator::new());
+    let docs: Arc<dyn DocumentGenerator> = Arc::new(dokumen::service::DokumenService::new(
+        db.pool().clone(),
+        template_service.clone(),
+        pdf_generator,
+        excel_generator,
+    ));
+    let notifier: Arc<dyn NotificationSender> =
+        Arc::new(notifikasi::service::NotifikasiService::new(db.pool().clone()));
+    info!("DocumentGenerator + NotificationSender ports wired up");
+
     // Create Pakaian Dinas service
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
     let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
@@ -176,7 +192,9 @@ async fn main() -> anyhow::Result<()> {
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     let kebutuhan_bmn_workflow_engine =
-        crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+        crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
+            .with_document_generator(docs.clone())
+            .with_notification_sender(notifier.clone());
     let mut kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         authenc_client.clone(),
@@ -196,9 +214,13 @@ async fn main() -> anyhow::Result<()> {
     // Create Pemakaian BMN service
     let pemakaian_bmn_repo = pemakaian_bmn::PemakaianBmnRepository::new(db.pool().clone());
     let pemakaian_bmn_workflow_engine =
-        crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+        crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
+            .with_document_generator(docs.clone())
+            .with_notification_sender(notifier.clone());
     let pemakaian_bmn_service =
-        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine);
+        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine)
+            .with_document_generator(docs.clone())
+            .with_notification_sender(notifier.clone());
 
     // Start Pemakaian BMN scheduler for auto-expiry and notifications
     let pemakaian_bmn_scheduler =
@@ -206,10 +228,10 @@ async fn main() -> anyhow::Result<()> {
     pemakaian_bmn_scheduler.start();
     info!("Pemakaian BMN scheduler started");
 
-    // Start SLA escalation scheduler for workflow monitoring
-    let sla_scheduler = workflow::SlaEscalationScheduler::new(db.pool().clone());
-    // TODO: Add notifikasi client when available
-    // let sla_scheduler = sla_scheduler.with_notifikasi_client(notifikasi_client);
+    // Start SLA escalation scheduler for workflow monitoring — now wired to
+    // the NotificationSender port instead of the deleted gRPC client.
+    let sla_scheduler = workflow::SlaEscalationScheduler::new(db.pool().clone())
+        .with_notifier(notifier.clone());
     if let Err(e) = sla_scheduler.start() {
         error!("Failed to start SLA escalation scheduler: {}", e);
     } else {
@@ -218,7 +240,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Penghapusan BMN service
     let penghapusan_bmn_workflow_engine =
-        crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone());
+        crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
+            .with_document_generator(docs.clone())
+            .with_notification_sender(notifier.clone());
     let penghapusan_bmn_service = Arc::new(penghapusan_bmn::PenghapusanBmnService::new(
         db.pool().clone(),
         Arc::new(penghapusan_bmn_workflow_engine),
@@ -261,6 +285,8 @@ async fn main() -> anyhow::Result<()> {
         db_pool: db.pool().clone(),
         cache_manager,
         rate_limiter,
+        docs,
+        notifier,
     };
 
     // Build router

@@ -1,6 +1,8 @@
 use axum::extract::FromRef;
 use std::sync::Arc;
 
+use lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender};
+
 use crate::{
     cache_strategy::CacheManager, dashboard, dashboard::services::DashboardService,
     grpc_clients::AuthencClient, kebutuhan_bmn::KebutuhanBmnService,
@@ -23,6 +25,11 @@ pub struct AppState {
     pub db_pool: deadpool_postgres::Pool,
     pub cache_manager: Arc<CacheManager>,
     pub rate_limiter: Arc<RateLimiter>,
+    /// Document generator (port). Replaces the dropped `dokumen` gRPC client.
+    pub docs: Arc<dyn DocumentGenerator>,
+    /// Notification sender (port). Replaces the dropped `notifikasi` gRPC
+    /// client.
+    pub notifier: Arc<dyn NotificationSender>,
 }
 
 impl FromRef<AppState> for PerlengkapanService {
@@ -88,5 +95,17 @@ impl FromRef<AppState> for Arc<CacheManager> {
 impl FromRef<AppState> for Arc<RateLimiter> {
     fn from_ref(state: &AppState) -> Self {
         state.rate_limiter.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<dyn DocumentGenerator> {
+    fn from_ref(state: &AppState) -> Self {
+        state.docs.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<dyn NotificationSender> {
+    fn from_ref(state: &AppState) -> Self {
+        state.notifier.clone()
     }
 }
