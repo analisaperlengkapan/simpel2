@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use super::error::AppError;
 use deadpool_postgres::Pool;
 use serde_json::Value;
 use uuid::Uuid;

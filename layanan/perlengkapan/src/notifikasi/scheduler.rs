@@ -1,7 +1,7 @@
-use crate::email::EmailService;
-use crate::error::AppError;
-use crate::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
-use crate::preferences::NotificationPreferencesService;
+use super::email::EmailService;
+use super::error::AppError;
+use super::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
+use super::preferences::NotificationPreferencesService;
 use chrono::{Local, NaiveDate};
 use deadpool_postgres::Pool;
 use tokio_cron_scheduler::{Job, JobScheduler};

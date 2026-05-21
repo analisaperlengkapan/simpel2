@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use super::error::AppError;
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

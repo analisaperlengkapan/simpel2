@@ -2257,7 +2257,7 @@ version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2ce8604710f6733aa641a2b3731eaa1e8b3d9973d5e3565da11800813f997a9"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -2686,7 +2686,7 @@ dependencies = [
  "cranelift-assembler-x64-meta",
  "cranelift-codegen-shared",
  "cranelift-srcgen",
- "heck 0.5.0",
+ "heck",
  "pulley-interpreter",
 ]
 
@@ -4178,8 +4178,6 @@ checksum = "3a74b56a4039a46e8c91cc9d84e8a7df4e1f8b24239ca57d1304b3263cb599b9"
 dependencies = [
  "compact_str",
  "garde_derive",
- "once_cell",
- "regex",
  "serde",
  "smallvec",
 ]
@@ -4192,7 +4190,6 @@ checksum = "7224c08ec489e2840af29ed882b47f7f6ac8f4ce15c275d9fc0d6d1b94578ae6"
 dependencies = [
  "proc-macro2",
  "quote",
- "regex",
  "syn 2.0.117",
 ]
 
@@ -4942,12 +4939,6 @@ dependencies = [
 
 [[package]]
 name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-
-[[package]]
-name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
@@ -5466,17 +5457,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64e9829a50b42bb782c1df523f78d332fe371b10c661e78b7a3c34b0198e9fac"
 
 [[package]]
-name = "inherent"
-version = "1.0.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c727f80bfa4a6c6e2508d2f05b6f4bfce242030bd88ed15ae5331c5b5d30fba7"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5962,8 +5942,10 @@ dependencies = [
  "bigdecimal",
  "chrono",
  "clamav-client",
+ "dashmap",
  "deadpool-postgres",
  "dotenvy",
+ "futures",
  "handlebars",
  "hex",
  "http 1.4.0",
@@ -5971,6 +5953,7 @@ dependencies = [
  "http-body-util",
  "jsonwebtoken",
  "layanan-integrasi",
+ "lettre",
  "lib-backend",
  "lib-core",
  "lib-perlengkapan",
@@ -5980,6 +5963,7 @@ dependencies = [
  "prometheus",
  "prost",
  "rand 0.8.6",
+ "redis",
  "regex",
  "reqwest 0.13.3",
  "rust_xlsxwriter",
@@ -6043,60 +6027,6 @@ dependencies = [
  "tokio-stream",
  "tokio-test",
  "tokio-util",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "walkdir",
-]
-
-[[package]]
-name = "layanan-perlengkapan-notifikasi"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "assert-json-diff",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "dashmap",
- "deadpool-postgres",
- "dotenvy",
- "futures",
- "garde",
- "lettre",
- "lib-backend",
- "lib-core",
- "lib-perlengkapan",
- "mime",
- "mockall",
- "opentelemetry",
- "opentelemetry-otlp",
- "postgres-types",
- "prometheus",
- "prost",
- "redis",
- "reqwest 0.13.3",
- "sea-query",
- "sentry",
- "sentry-tracing",
- "serde",
- "serde_json",
- "serde_yaml",
- "serial_test",
- "tempfile",
- "thiserror 2.0.18",
- "time",
- "tokio",
- "tokio-cron-scheduler",
- "tokio-postgres",
- "tokio-stream",
- "tokio-util",
- "tonic",
- "tonic-prost",
- "tonic-prost-build",
  "tower",
  "tower-http",
  "tracing",
@@ -6273,7 +6203,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efea065f7c41c2268e1c8e7e9bf62bd7bda606855ef9ab13441e738c1d71fb34"
 dependencies = [
  "darling 0.23.0",
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -8294,7 +8224,7 @@ version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ca1dad89d9ffdbf78502fde418eeede499b87772d88be780478f7f76dc8d471f"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -8594,7 +8524,7 @@ version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "itertools 0.14.0",
  "log",
  "multimap",
@@ -9859,32 +9789,6 @@ name = "sdd"
 version = "3.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
-
-[[package]]
-name = "sea-query"
-version = "0.32.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a5d1c518eaf5eda38e5773f902b26ab6d5e9e9e2bb2349ca6c64cf96f80448c"
-dependencies = [
- "chrono",
- "inherent",
- "sea-query-derive",
- "uuid",
-]
-
-[[package]]
-name = "sea-query-derive"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bae0cbad6ab996955664982739354128c58d16e126114fe88c2a493642502aab"
-dependencies = [
- "darling 0.20.11",
- "heck 0.4.1",
- "proc-macro2",
- "quote",
- "syn 2.0.117",
- "thiserror 2.0.18",
-]
 
 [[package]]
 name = "seahash"
@@ -11294,7 +11198,7 @@ version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7695ce3845ea4b33927c055a39dc438a45b059f7c1b3d91d38d10355fb8cbca7"
 dependencies = [
- "heck 0.5.0",
+ "heck",
  "proc-macro2",
  "quote",
  "syn 2.0.117",
@@ -13150,7 +13054,7 @@ checksum = "1706803e83b9bae726a0f55e7c1bbf78a7421cf2da68c940c70978e91dfc0339"
 dependencies = [
  "anyhow",
  "bitflags 2.11.1",
- "heck 0.5.0",
+ "heck",
  "indexmap 2.14.0",
  "wit-parser 0.236.1",
 ]
@@ -13693,7 +13597,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea61de684c3ea68cb082b7a88508a8b27fcc8b797d738bfc99a82facf1d752dc"
 dependencies = [
  "anyhow",
- "heck 0.5.0",
+ "heck",
  "wit-parser 0.244.0",
 ]
 
@@ -13704,7 +13608,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7c566e0f4b284dd6561c786d9cb0142da491f46a9fbed79ea69cdad5db17f21"
 dependencies = [
  "anyhow",
- "heck 0.5.0",
+ "heck",
  "indexmap 2.14.0",
  "prettyplease",
  "syn 2.0.117",

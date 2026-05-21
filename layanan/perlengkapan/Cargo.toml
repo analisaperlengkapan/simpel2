@@ -107,6 +107,12 @@ hex = { workspace = true }
 regex = { workspace = true }
 clamav-client = { workspace = true, optional = true }
 
+# Notifikasi module (email/SMS/WhatsApp/push/in-app, queue, scheduler)
+lettre = { workspace = true }
+redis = { workspace = true }
+dashmap = { workspace = true }
+futures = { workspace = true }
+
 [build-dependencies]
 tonic-prost-build = { workspace = true }
 

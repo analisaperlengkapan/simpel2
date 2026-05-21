@@ -1,6 +1,6 @@
-use crate::config::AppConfig;
-use crate::error::AppError;
-use crate::models::{Notification, NotificationRecipient};
+use super::config::AppConfig;
+use super::error::AppError;
+use super::models::{Notification, NotificationRecipient};
 use deadpool_postgres::Pool;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox};
 use std::time::Duration;

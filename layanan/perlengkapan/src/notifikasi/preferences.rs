@@ -1,4 +1,4 @@
-use crate::error::AppError;
+use super::error::AppError;
 use chrono::{DateTime, NaiveTime, Utc};
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};

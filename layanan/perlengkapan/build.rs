@@ -12,11 +12,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Internal protos kept temporarily while the workflow ↔ dokumen /
     // notifikasi gRPC clients have not yet been replaced with
     // `lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender}`
-    // trait calls. They live in `proto/` (own) and `crates/notifikasi/proto/`
-    // (notifikasi sub-crate, pending fold), and will be deleted in the
-    // trait-wiring commit along with `workflow/{dokumen,notifikasi}_client.rs`.
+    // trait calls. They will be deleted in the trait-wiring commit along
+    // with `workflow/{dokumen,notifikasi}_client.rs`.
     let dokumen_proto_dir = PathBuf::from("proto");
-    let notifikasi_proto_dir = PathBuf::from("crates/notifikasi/proto");
+    let notifikasi_proto_dir = PathBuf::from("proto");
 
     // Verify proto directories exist
     if !authenc_proto_dir.exists() {

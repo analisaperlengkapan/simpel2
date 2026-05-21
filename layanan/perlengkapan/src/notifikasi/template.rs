@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::NotificationTemplate;
+use super::error::AppError;
+use super::models::NotificationTemplate;
 use deadpool_postgres::Pool;
 use serde_json::Value;
 use uuid::Uuid;

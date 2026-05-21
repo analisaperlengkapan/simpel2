@@ -1,13 +1,13 @@
-use crate::config::AppConfig;
-use crate::email::EmailService;
-use crate::error::AppError;
-use crate::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
-use crate::preferences::{NotificationPreferencesService, UpdatePreferencesRequest};
-use crate::push::PushService;
-use crate::security::RateLimitState;
-use crate::template::TemplateService;
-use crate::websocket::{self, WsState};
-use crate::whatsapp::WhatsAppService;
+use super::config::AppConfig;
+use super::email::EmailService;
+use super::error::AppError;
+use super::in_app::{InAppNotificationChannel, NotificationPriority, NotificationType};
+use super::preferences::{NotificationPreferencesService, UpdatePreferencesRequest};
+use super::push::PushService;
+use super::security::RateLimitState;
+use super::template::TemplateService;
+use super::websocket::{self, WsState};
+use super::whatsapp::WhatsAppService;
 use axum::{
     Router,
     extract::{Json, Path, Query, State},
