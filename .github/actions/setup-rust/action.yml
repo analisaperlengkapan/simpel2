@@ -56,35 +56,40 @@ runs:
           echo "::warning::Neither clang nor gcc found; cargo build mungkin fail untuk crate yang butuh C compiler."
         fi
         # pqcrypto-falcon dan beberapa crate C butuh `ar` (binutils).
-        # Warning saja kalau tidak ada — biar test/lint job lain yang
-        # tidak butuh ar tetap bisa jalan, dan kita lihat clear di log
-        # mana yang fail karena tooling absent.
         if ! command -v ar >/dev/null 2>&1; then
           echo "::warning::Binary 'ar' (binutils) tidak tersedia di runner. Cargo build crate native (pqcrypto-falcon, ring, dst) akan gagal. Self-hosted runner harus pre-install: \`sudo apt install binutils build-essential\` once."
         fi
 
-    - name: Heal rustup if shared $HOME rotted
+    - name: Isolate CARGO_HOME and RUSTUP_HOME per-job
       shell: bash
       run: |
-        # Multiple paralel jobs di host yang sama share ~/.cargo dan
-        # ~/.rustup. Race condition / partial install dari job lain
-        # bisa bikin `cargo`/`rustc` symlink di ~/.cargo/bin/ menunjuk
-        # ke `rustup` yang sudah ke-hapus, dan cargo gagal dengan
-        # `could not execute process 'rustc -vV' (never executed)`.
-        # Detect kondisi ini dan reinstall rustup binary (idempotent;
-        # menjaga toolchain yang sudah ada di ~/.rustup intact).
-        if [ -L "$HOME/.cargo/bin/cargo" ] && [ ! -e "$HOME/.cargo/bin/cargo" ]; then
-          echo "::warning::~/.cargo/bin/cargo symlink rotted (rustup binary missing); reinstalling rustup"
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- --default-toolchain none -y --no-modify-path
-        fi
-        if [ ! -x "$HOME/.cargo/bin/cargo" ]; then
-          echo "::warning::cargo not executable; reinstalling rustup"
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-            | sh -s -- --default-toolchain none -y --no-modify-path
-        fi
-        # Ensure PATH includes cargo bin for subsequent steps
-        echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+        # ROOT CAUSE FIX for the "rotted rustup" / "could not execute process
+        # 'rustc -vV'" / "could not parse/generate dep info" cascade of failures.
+        #
+        # Self-hosted runners on this host all execute as the same Unix user
+        # and therefore share $HOME — which means they share $HOME/.cargo and
+        # $HOME/.rustup. When N parallel matrix jobs each call `rustup install`
+        # (transitively, via dtolnay/rust-toolchain), they race-modify the
+        # rustup binary that the symlinks in $HOME/.cargo/bin/ point at.
+        # Mid-flight, those symlinks become dangling and `cargo --version`
+        # starts erroring out, including in the user's interactive shell on
+        # the same host (because $HOME is the same).
+        #
+        # The previous mitigation ("Heal rustup if shared $HOME rotted")
+        # patched the symptom reactively. This step removes the cause: each
+        # job gets its own CARGO_HOME and RUSTUP_HOME under runner.temp,
+        # which is exclusive to the job and wiped at job start/end.
+        #
+        # Cost: the rust toolchain is installed fresh per job (~20-40s).
+        # Mitigated by the Swatinem/rust-cache step below, which caches
+        # CARGO_HOME (including the toolchain bin) keyed on Cargo.lock +
+        # toolchain version.
+        JOB_RUST_HOME="${{ runner.temp }}/rust"
+        mkdir -p "$JOB_RUST_HOME/cargo/bin" "$JOB_RUST_HOME/rustup"
+        echo "CARGO_HOME=$JOB_RUST_HOME/cargo" >> "$GITHUB_ENV"
+        echo "RUSTUP_HOME=$JOB_RUST_HOME/rustup" >> "$GITHUB_ENV"
+        echo "$JOB_RUST_HOME/cargo/bin" >> "$GITHUB_PATH"
+        echo "::notice::Isolated Rust toolchain to $JOB_RUST_HOME (per-job, no shared \$HOME race)"
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -129,11 +134,8 @@ runs:
         key: ${{ inputs.cache-key }}
         workspaces: ". -> target"
         # cache-targets: false — JANGAN restore target/ dir antar runs.
-        # Self-hosted runners share ~/.cargo across jobs/instances, dan
-        # target/ cache yang ter-restore partial (job sebelumnya cancelled
-        # mid-save, atau paralel jobs writing concurrent) bikin cargo
-        # gagal dengan "could not parse/generate dep info at: X.d:
-        # No such file or directory". Compromise: hanya cache ~/.cargo/
-        # registry (download crates) yang aman + immutable. target/
-        # rebuild full per-job (~5-10 min, dapat diterima vs flaky).
+        # target/ rebuild full per-job (~5-10 min) lebih reliable daripada
+        # flaky stale .d files. CARGO_HOME yang sekarang per-job (di
+        # runner.temp) tetap di-cache by Swatinem — toolchain + registry
+        # restore tetap fast pada cache hit.
         cache-targets: false

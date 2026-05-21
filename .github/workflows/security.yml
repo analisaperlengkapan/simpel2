@@ -70,11 +70,11 @@ jobs:
             # Tarball contains a top-level
             # `cargo-audit-x86_64-unknown-linux-gnu-vX.Y.Z/` directory;
             # `--strip-components=1` flattens it so the binary lands at
-            # `$HOME/.cargo/bin/cargo-audit` (in PATH) rather than buried
-            # in a subdirectory. Previous extract produced
-            # "error: no such command: 'audit'" because the binary was
-            # never on PATH.
-            if curl -LsSf "$URL" | tar -xzf- --strip-components=1 -C "$HOME/.cargo/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
+            # `$CARGO_HOME/bin/cargo-audit` (in PATH) rather than buried
+            # in a subdirectory. CARGO_HOME is set by setup-rust action
+            # to a job-isolated path under runner.temp.
+            mkdir -p "$CARGO_HOME/bin"
+            if curl -LsSf "$URL" | tar -xzf- --strip-components=1 -C "$CARGO_HOME/bin/" cargo-audit-x86_64-unknown-linux-gnu-v${AUDIT_VERSION}/cargo-audit 2>/dev/null; then
               echo "Installed cargo-audit ${AUDIT_VERSION} from pre-built binary"
               cargo-audit --version
             else
