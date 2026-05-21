@@ -136,7 +136,7 @@ sea-query = { version = "0.32.7", features = [
 # Security & Authentication (Updated for latest security)
 # Ed25519 preferred over RSA for better security and performance
 argon2 = "0.5.3"
-jsonwebtoken = { version = "10.3.0", default-features = false, features = [
+jsonwebtoken = { version = "10.4.0", default-features = false, features = [
   "aws_lc_rs",
   "use_pem",
 ] } # Updated to v10 with aws_lc_rs backend
