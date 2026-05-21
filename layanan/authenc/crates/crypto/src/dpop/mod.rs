@@ -114,17 +114,13 @@ impl DPoPProof {
         // Sign the proof
         let header_b64 = base64ct::Base64UrlUnpadded::encode_string(
             serde_json::to_string(&header)
-                .map_err(|_| AuthencError::SerializationError {
-                    message: "Failed to serialize header".to_string(),
-                })?
+                .map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?
                 .as_bytes(),
         );
 
         let payload_b64 = base64ct::Base64UrlUnpadded::encode_string(
             serde_json::to_string(&payload)
-                .map_err(|_| AuthencError::SerializationError {
-                    message: "Failed to serialize payload".to_string(),
-                })?
+                .map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?
                 .as_bytes(),
         );
 
@@ -141,15 +137,11 @@ impl DPoPProof {
     /// Serialize DPoP proof to JWT string
     pub fn to_jwt_string(&self) -> Result<String, AuthencError> {
         let header_json =
-            serde_json::to_string(&self.header).map_err(|_| AuthencError::SerializationError {
-                message: "Failed to serialize header".to_string(),
-            })?;
+            serde_json::to_string(&self.header).map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
         let header_b64 = base64ct::Base64UrlUnpadded::encode_string(header_json.as_bytes());
 
         let payload_json =
-            serde_json::to_string(&self.payload).map_err(|_| AuthencError::SerializationError {
-                message: "Failed to serialize payload".to_string(),
-            })?;
+            serde_json::to_string(&self.payload).map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
         let payload_b64 = base64ct::Base64UrlUnpadded::encode_string(payload_json.as_bytes());
 
         let signature_b64 = base64ct::Base64UrlUnpadded::encode_string(&self.signature);
@@ -174,15 +166,11 @@ impl DPoPProof {
             .map_err(|_| AuthencError::internal("Invalid signature encoding"))?;
 
         let header: DPoPHeader = serde_json::from_slice(&header_bytes).map_err(|_| {
-            AuthencError::SerializationError {
-                message: "Invalid header format".to_string(),
-            }
+            AuthencError::validation("Invalid header format".to_string())
         })?;
 
         let payload: DPoPProofPayload = serde_json::from_slice(&payload_bytes).map_err(|_| {
-            AuthencError::SerializationError {
-                message: "Invalid payload format".to_string(),
-            }
+            AuthencError::validation("Invalid payload format".to_string())
         })?;
 
         Ok(Self {
@@ -204,13 +192,9 @@ impl DPoPProof {
     ) -> Result<(), AuthencError> {
         // Verify signature
         let header_json =
-            serde_json::to_string(&self.header).map_err(|_| AuthencError::SerializationError {
-                message: "Failed to serialize header".to_string(),
-            })?;
+            serde_json::to_string(&self.header).map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
         let payload_json =
-            serde_json::to_string(&self.payload).map_err(|_| AuthencError::SerializationError {
-                message: "Failed to serialize payload".to_string(),
-            })?;
+            serde_json::to_string(&self.payload).map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
 
         let message = format!(
             "{}.{}",
@@ -286,13 +270,13 @@ impl DPoPProof {
             .ok_or_else(|| AuthencError::validation("Missing x coordinate in JWK"))?;
 
         let x_bytes = base64ct::Base64UrlUnpadded::decode_vec(x_b64)
-            .map_err(|_| AuthencError::CryptographicError)?;
+            .map_err(|_| AuthencError::crypto("Cryptographic error"))?;
 
         let x_array: [u8; 32] = x_bytes
             .try_into()
             .map_err(|_| AuthencError::validation("Invalid public key length"))?;
 
-        VerifyingKey::from_bytes(&x_array).map_err(|_| AuthencError::CryptographicError)
+        VerifyingKey::from_bytes(&x_array).map_err(|_| AuthencError::crypto("Cryptographic error"))
     }
 }
 

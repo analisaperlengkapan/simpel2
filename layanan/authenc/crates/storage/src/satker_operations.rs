@@ -12,11 +12,11 @@
 
 use crate::database::Database;
 use authenc_types::AuthencError;
-// use crate::models::satker::{Satker, SatkerType}; // TODO: Migrate models
+use authenc_types::domain::Satker;
+use authenc_types::domain::satker::SatkerType;
 use chrono::Utc;
 use uuid::Uuid;
 
-/*
 impl Database {
     /// Get a satker by code
     pub async fn get_satker_by_code(&self, code: &str) -> Result<Option<Satker>, AuthencError> {
@@ -164,7 +164,8 @@ impl Database {
 
         let id = Uuid::new_v4();
         let now = Utc::now();
-        let satker_type_json = serde_json::to_value(&satker_type)?;
+        let satker_type_json = serde_json::to_value(&satker_type)
+            .map_err(|e| AuthencError::validation(e.to_string()))?;
 
         let query = "
             INSERT INTO satkers (id, code, name, description, parent_code, level, satker_type,
@@ -235,7 +236,8 @@ impl Database {
         let updated_satker_type = satker_type.unwrap_or(current.satker_type);
         let updated_attributes = attributes.or(current.attributes);
         let now = Utc::now();
-        let satker_type_json = serde_json::to_value(&updated_satker_type)?;
+        let satker_type_json = serde_json::to_value(&updated_satker_type)
+            .map_err(|e| AuthencError::validation(e.to_string()))?;
 
         let query = "
             UPDATE satkers
@@ -377,4 +379,3 @@ impl Database {
             .collect())
     }
 }
-*/

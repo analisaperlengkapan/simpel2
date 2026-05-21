@@ -214,7 +214,7 @@ impl WebAuthnCredentialProvider {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let challenge_bytes: Vec<u8> = (0..32).map(|_| rng.r#gen()).collect();
-        Ok(crate::utils::encoding::base64_encode_url(&challenge_bytes))
+        Ok(lib_core::encoding::base64_encode_url(&challenge_bytes))
     }
 
     /// Create registration options for a user with attestation support

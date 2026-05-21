@@ -32,6 +32,8 @@ lib-core = { workspace = true }
 regex = { workspace = true }
 axum = { workspace = true }
 config = { workspace = true }
+futures = { workspace = true }
+bincode = "1.3"
 
 # Crypto dependencies (versions match parent authenc/Cargo.toml)
 base32 = { workspace = true }

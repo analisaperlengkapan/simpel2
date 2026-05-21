@@ -243,7 +243,7 @@ impl SamlIdentityProvider {
     /// Parse SAML Response XML and extract assertion
     fn parse_saml_response(&self, saml_response: &str) -> Result<SamlAssertion> {
         // Decode base64 SAML response
-        let decoded = authenc_core::utils::encoding::base64_decode(saml_response.as_bytes())
+        let decoded = lib_core::encoding::base64_decode(saml_response.as_bytes())
             .map_err(|e| anyhow!("Failed to decode SAML response: {}", e))?;
 
         let xml = String::from_utf8(decoded)?;
@@ -539,7 +539,7 @@ impl IdentityProvider for SamlIdentityProvider {
     async fn authenticate(&self, request: &AuthRequest) -> Result<AuthResponse> {
         if let Some(saml_response) = &request.saml_assertion {
             // Decode base64 SAML response for validation
-            let xml = match authenc_core::utils::encoding::base64_decode(saml_response.as_bytes())
+            let xml = match lib_core::encoding::base64_decode(saml_response.as_bytes())
                 .map_err(|e| anyhow!("Base64 decode failed: {}", e))
                 .and_then(|bytes| {
                     String::from_utf8(bytes).map_err(|e| anyhow!("Invalid UTF-8: {}", e))

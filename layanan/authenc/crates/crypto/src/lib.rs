@@ -155,12 +155,10 @@ pub mod mtls;
 pub mod xmldsig;
 
 /// DPoP (Demonstrating Proof-of-Possession) for FAPI-2
-// TODO: Fix compilation errors in dpop module (Task 4.7+)
-// pub mod dpop;
+pub mod dpop;
 
 /// Selective Disclosure JWT for privacy-preserving credentials
-// TODO: Fix compilation errors in sdjwt module (Task 4.7+)
-// pub mod sdjwt;
+pub mod sdjwt;
 
 // ============================================================================
 // Core Cryptography Re-exports
@@ -241,20 +239,18 @@ pub use keys::{
 // ============================================================================
 
 // DPoP (Demonstrating Proof-of-Possession)
-// TODO: Fix compilation errors in dpop module (Task 4.7+)
-// pub use dpop::{
-//     DPoPProof, DPoPHeader, DPoPProofPayload,
-//     DPoPNonceManager, DPoPTokenBinder,
-// };
+pub use dpop::{
+    DPoPProof, DPoPHeader, DPoPProofPayload,
+    DPoPNonceManager, DPoPTokenBinder,
+};
 
 // Selective Disclosure JWT
-// TODO: Fix compilation errors in sdjwt module (Task 4.7+)
-// pub use sdjwt::{
-//     SdJwt, SdJwtSalt, Disclosure, DisclosureSpec,
-//     IssuerSignedJwt, SdJwtClaim, SdJwtArrayElement,
-//     SdJwtFacade, SdJwtVerificationContext,
-//     SdJwtUtils, VisibleSdJwtClaim,
-// };
+pub use sdjwt::{
+    SdJwt, SdJwtSalt, Disclosure, DisclosureSpec,
+    IssuerSignedJwt, SdJwtClaim, SdJwtArrayElement,
+    SdJwtFacade, SdJwtVerificationContext,
+    SdJwtUtils, VisibleSdJwtClaim,
+};
 
 // Post-Quantum Cryptography (types available when 'quantum' feature is enabled)
 // Note: PQC types are feature-gated and only available with the 'quantum' feature flag

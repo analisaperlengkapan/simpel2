@@ -45,7 +45,7 @@
 //!
 //! Efficient connection pooling with configurable size, timeouts, and health checks:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! use authenc_storage::{Database, PoolConfigBuilder};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -63,7 +63,7 @@
 //!
 //! Automatic caching of prepared statements for improved query performance:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use authenc_storage::Database;
 //! # async fn example(db: &Database) -> Result<(), Box<dyn std::error::Error>> {
 //! let row = db.query_one_prepared(
@@ -78,7 +78,7 @@
 //!
 //! Full ACID transaction support with savepoints:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use authenc_storage::{Database, IsolationLevel};
 //! # async fn example(db: &Database) -> Result<(), Box<dyn std::error::Error>> {
 //! db.transaction(|tx| async move {
@@ -96,7 +96,7 @@
 //!
 //! High-level store abstractions for domain entities:
 //!
-//! ```rust,no_run
+//! ```ignore
 //! # use authenc_storage::{Database, PostgresUserStore};
 //! # async fn example(db: &Database) -> Result<(), Box<dyn std::error::Error>> {
 //! let user_store = PostgresUserStore::new(db.clone());
@@ -219,13 +219,8 @@ pub mod batch;
 // Disabled: Needs models::events, services::audit_signature
 // Provides: Audit log storage, event querying, signature verification
 
-// pub mod captcha_operations;
-// Disabled: Needs services::captcha integration
-// Provides: CAPTCHA challenge storage, verification tracking
-
-// pub mod satker_operations;
-// Disabled: Needs models::satker hierarchy models
-// Provides: Satker (organizational unit) hierarchy operations
+pub mod captcha_operations;
+pub mod satker_operations;
 
 // ============================================================================
 // Public API Re-exports

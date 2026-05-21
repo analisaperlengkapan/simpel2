@@ -75,7 +75,7 @@ mod tests {
         );
 
         let app = create_routes().with_state(services);
-        TestServer::new(app).expect("Failed to start test server")
+        TestServer::new(app)
     }
 
     #[tokio::test]
@@ -124,7 +124,7 @@ mod tests {
         );
 
         let app = create_routes().with_state(services);
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         let response = server.get("/config").await;
         response.assert_status_ok();
@@ -207,7 +207,7 @@ mod tests {
 
         // Start server with these services
         let app = create_routes().with_state(services);
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         // Fetch the user via API
         let response = server.get(&format!("/users/{}", user.id)).await;
@@ -249,7 +249,7 @@ mod tests {
             .expect("Failed to create user");
 
         let app = create_routes().with_state(services);
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         let response = server.get(&format!("/users/{}", user.id)).await;
         response.assert_status_ok();
@@ -276,7 +276,7 @@ mod tests {
         );
 
         let app = create_routes().with_state(services);
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         // Random UUID
         let random_id = uuid::Uuid::new_v4();
@@ -340,7 +340,7 @@ mod tests {
             .expect("Failed to create user");
 
         let app = create_routes().with_state(services);
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         // Update request
         let update_req = UpdateUserRequest {
@@ -433,7 +433,7 @@ mod tests {
             .expect("seed incident");
 
         let app = create_routes().with_state(services.clone());
-        let server = TestServer::new(app).expect("Failed to start test server");
+        let server = TestServer::new(app);
 
         let response = server.get("/security/incidents").await;
         response.assert_status_ok();

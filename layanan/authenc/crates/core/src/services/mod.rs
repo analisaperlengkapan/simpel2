@@ -13,6 +13,7 @@ pub mod realm_management_service;
 pub mod risk_engine;
 pub mod role_management_service;
 pub mod satker_authorization;
+pub mod satker_management;
 pub mod session_store;
 pub mod sso_cookie;
 pub mod user_management_service;
@@ -94,6 +95,7 @@ pub mod par;
 pub mod group_store;
 pub mod oidc_client_store;
 pub mod software_statement_validator;
+pub mod captcha;
 
 pub use anomaly_detector::{AnomalyDetector, AnomalyDetectorTrait};
 pub use audit_service::AuditService;
@@ -197,3 +199,6 @@ pub use zero_trust::*;
 
 // FAPI-2 service exports (OPTIONAL)
 pub use par::*;
+
+pub use captcha::CaptchaService;
+pub use satker_management::SatkerManagementService;

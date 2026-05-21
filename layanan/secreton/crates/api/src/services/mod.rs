@@ -669,7 +669,7 @@ impl ServiceContainer {
                     let path = std::env::var("Secreton_CONSUL_PATH")
                         .unwrap_or_else(|_| "secreton/".to_string());
                     tracing::info!(
-                        "Using Consul storage backend at { with path {}",
+                        "Using Consul storage backend at {} with path {}",
                         address,
                         path
                     );

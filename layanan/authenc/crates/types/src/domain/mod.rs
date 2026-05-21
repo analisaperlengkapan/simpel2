@@ -43,6 +43,7 @@ pub mod dynamic_role;
 pub mod mfa;
 pub mod saml;
 pub mod webauthn;
+pub mod captcha;
 
 // Legacy models (simplified versions for backward compatibility)
 pub mod legacy_permission;
@@ -109,6 +110,7 @@ pub use dynamic_role::{RoleType, SatkerType};
 pub use mfa::*;
 pub use saml::*;
 pub use webauthn::*;
+pub use captcha::*;
 
 // Re-export legacy types (for backward compatibility) with aliases to avoid name conflicts
 // with the primary domain types (User, Realm, Role, Permission)

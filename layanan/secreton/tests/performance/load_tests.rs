@@ -25,7 +25,7 @@ async fn create_test_server() -> TestServer {
     );
 
     let app = create_routes().with_state(services);
-    TestServer::new(app).expect("Failed to create test server")
+    TestServer::new(app)
 }
 
 #[cfg(test)]
