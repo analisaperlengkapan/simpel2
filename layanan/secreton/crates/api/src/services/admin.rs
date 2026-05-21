@@ -876,9 +876,8 @@ mod tests {
     use super::*;
     use crate::audit::AuditLogger;
     use crate::config::AuthConfig;
-    use secreton_crypto::SecurityParams;
+
     use secreton_storage::MemoryBackend;
-    use serde::Deserialize;
 
     // Mock implementation of LeaseCleaner for testing
     pub struct MockLeaseCleaner {

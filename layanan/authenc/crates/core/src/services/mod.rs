@@ -92,10 +92,10 @@ pub mod zero_trust;
 pub mod par;
 
 // Store implementations
+pub mod captcha;
 pub mod group_store;
 pub mod oidc_client_store;
 pub mod software_statement_validator;
-pub mod captcha;
 
 pub use anomaly_detector::{AnomalyDetector, AnomalyDetectorTrait};
 pub use audit_service::AuditService;

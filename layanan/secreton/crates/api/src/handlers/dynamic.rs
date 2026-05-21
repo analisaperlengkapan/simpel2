@@ -851,7 +851,7 @@ mod tests {
         assert_eq!(default_max_connections(), 4);
         assert_eq!(default_max_idle(), 2);
         assert_eq!(default_max_lifetime(), 3600);
-        assert_eq!(default_verify(), true);
+        assert!(default_verify());
     }
 
     #[tokio::test]

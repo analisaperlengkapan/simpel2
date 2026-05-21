@@ -165,7 +165,7 @@ pub async fn list_users(
     };
 
     let total_pages = if total > 0 {
-        ((total as u32) + page_size - 1) / page_size
+        (total as u32).div_ceil(page_size)
     } else {
         0
     };

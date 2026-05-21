@@ -50,7 +50,8 @@ impl SdJwtSalt {
 
     /// Get salt as bytes
     pub fn as_bytes(&self) -> Result<Vec<u8>, AuthencError> {
-        Base64UrlUnpadded::decode_vec(&self.salt).map_err(|_| AuthencError::crypto("Cryptographic error"))
+        Base64UrlUnpadded::decode_vec(&self.salt)
+            .map_err(|_| AuthencError::crypto("Cryptographic error"))
     }
 }
 
@@ -79,9 +80,8 @@ impl Disclosure {
     pub fn new(spec: DisclosureSpec) -> Result<Self, AuthencError> {
         let disclosure_data = json!([spec.salt.salt, spec.claim_name, spec.claim_value]);
 
-        let disclosure_json = serde_json::to_string(&disclosure_data).map_err(|_| {
-            AuthencError::validation("Failed to serialize disclosure".to_string())
-        })?;
+        let disclosure_json = serde_json::to_string(&disclosure_data)
+            .map_err(|_| AuthencError::validation("Failed to serialize disclosure".to_string()))?;
 
         let disclosure_b64 = Base64UrlUnpadded::encode_string(disclosure_json.as_bytes());
 
@@ -109,13 +109,13 @@ impl Disclosure {
         let disclosure_bytes = Base64UrlUnpadded::decode_vec(&self.disclosure)
             .map_err(|_| AuthencError::crypto("Cryptographic error"))?;
 
-        let disclosure_data: Vec<Value> =
-            serde_json::from_slice(&disclosure_bytes).map_err(|_| {
-                AuthencError::validation("Invalid disclosure format".to_string())
-            })?;
+        let disclosure_data: Vec<Value> = serde_json::from_slice(&disclosure_bytes)
+            .map_err(|_| AuthencError::validation("Invalid disclosure format".to_string()))?;
 
         if disclosure_data.len() != 3 {
-            return Err(AuthencError::ValidationError("Invalid disclosure structure".to_string()));
+            return Err(AuthencError::ValidationError(
+                "Invalid disclosure structure".to_string(),
+            ));
         }
 
         let claim_name = disclosure_data[1]
@@ -155,7 +155,9 @@ impl DisclosureRedList {
     /// Add a disclosure hash to the red list
     pub fn add_disclosure(&mut self, hash: String) -> Result<(), AuthencError> {
         if self.disclosed_hashes.len() >= self.max_size {
-            return Err(AuthencError::ValidationError("Disclosure red list is full".to_string()));
+            return Err(AuthencError::ValidationError(
+                "Disclosure red list is full".to_string(),
+            ));
         }
         self.disclosed_hashes.insert(hash);
         Ok(())
@@ -451,13 +453,17 @@ impl SdJwt {
     pub fn from_string(sd_jwt_str: &str) -> Result<Self, AuthencError> {
         let parts: Vec<&str> = sd_jwt_str.split('~').collect();
         if parts.is_empty() {
-            return Err(AuthencError::ValidationError("Invalid SD-JWT format".to_string()));
+            return Err(AuthencError::ValidationError(
+                "Invalid SD-JWT format".to_string(),
+            ));
         }
 
         // Parse issuer-signed JWT
         let jwt_parts: Vec<&str> = parts[0].split('.').collect();
         if jwt_parts.len() != 3 {
-            return Err(AuthencError::ValidationError("Invalid JWT format".to_string()));
+            return Err(AuthencError::ValidationError(
+                "Invalid JWT format".to_string(),
+            ));
         }
 
         let header_bytes = Base64UrlUnpadded::decode_vec(jwt_parts[0])
@@ -466,15 +472,11 @@ impl SdJwt {
         let payload_bytes = Base64UrlUnpadded::decode_vec(jwt_parts[1])
             .map_err(|_| AuthencError::crypto("Cryptographic error"))?;
 
-        let header: HashMap<String, Value> =
-            serde_json::from_slice(&header_bytes).map_err(|_| {
-                AuthencError::validation("Invalid header format".to_string())
-            })?;
+        let header: HashMap<String, Value> = serde_json::from_slice(&header_bytes)
+            .map_err(|_| AuthencError::validation("Invalid header format".to_string()))?;
 
-        let payload: HashMap<String, SdJwtClaim> =
-            serde_json::from_slice(&payload_bytes).map_err(|_| {
-                AuthencError::validation("Invalid payload format".to_string())
-            })?;
+        let payload: HashMap<String, SdJwtClaim> = serde_json::from_slice(&payload_bytes)
+            .map_err(|_| AuthencError::validation("Invalid payload format".to_string()))?;
 
         let issuer_signed = IssuerSignedJwt {
             header,
@@ -539,7 +541,9 @@ impl SdJwt {
         // Verify disclosures
         for disclosure in &self.disclosures {
             if !disclosure.verify() {
-                return Err(AuthencError::ValidationError("Disclosure verification failed".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Disclosure verification failed".to_string(),
+                ));
             }
         }
 
@@ -774,7 +778,9 @@ impl SdJwtFacade {
             .red_list
             .is_disclosed(&disclosure.hash)
         {
-            return Err(AuthencError::ValidationError("Disclosure has already been used (red list)".to_string()));
+            return Err(AuthencError::ValidationError(
+                "Disclosure has already been used (red list)".to_string(),
+            ));
         }
 
         // Decode the disclosure
@@ -791,35 +797,41 @@ impl SdJwtFacade {
                             .red_list
                             .add_disclosure(disclosure.hash.clone())?;
                     } else {
-                        return Err(AuthencError::ValidationError("Disclosure hash does not match".to_string()));
+                        return Err(AuthencError::ValidationError(
+                            "Disclosure hash does not match".to_string(),
+                        ));
                     }
                 }
                 _ => {
-                    return Err(AuthencError::ValidationError("Claim is not undisclosed".to_string()));
+                    return Err(AuthencError::ValidationError(
+                        "Claim is not undisclosed".to_string(),
+                    ));
                 }
             }
         } else {
             // Check array claims
-            if let Some((array_name, index)) = self.parse_array_claim_name(&claim_name) {
-                if let Some(elements) = self.sd_jwt.issuer_signed.array_claims.get_mut(&array_name)
-                {
-                    if let Some(element) = elements.get_mut(index) {
-                        match element {
-                            SdJwtArrayElement::Undisclosed { sd_hash } => {
-                                if *sd_hash == disclosure.hash {
-                                    *element = SdJwtArrayElement::Disclosed(claim_value);
-                                    // Add to red list
-                                    self.verification_context
-                                        .red_list
-                                        .add_disclosure(disclosure.hash.clone())?;
-                                } else {
-                                    return Err(AuthencError::ValidationError("Disclosure hash does not match".to_string()));
-                                }
-                            }
-                            _ => {
-                                return Err(AuthencError::ValidationError("Array element is not undisclosed".to_string()));
-                            }
+            if let Some((array_name, index)) = self.parse_array_claim_name(&claim_name)
+                && let Some(elements) = self.sd_jwt.issuer_signed.array_claims.get_mut(&array_name)
+                && let Some(element) = elements.get_mut(index)
+            {
+                match element {
+                    SdJwtArrayElement::Undisclosed { sd_hash } => {
+                        if *sd_hash == disclosure.hash {
+                            *element = SdJwtArrayElement::Disclosed(claim_value);
+                            // Add to red list
+                            self.verification_context
+                                .red_list
+                                .add_disclosure(disclosure.hash.clone())?;
+                        } else {
+                            return Err(AuthencError::ValidationError(
+                                "Disclosure hash does not match".to_string(),
+                            ));
                         }
+                    }
+                    _ => {
+                        return Err(AuthencError::ValidationError(
+                            "Array element is not undisclosed".to_string(),
+                        ));
                     }
                 }
             }
@@ -843,7 +855,9 @@ impl SdJwtFacade {
         // Verify all disclosures are valid and not expired
         for disclosure in &self.sd_jwt.disclosures {
             if !disclosure.verify() {
-                return Err(AuthencError::ValidationError("Invalid disclosure signature".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Invalid disclosure signature".to_string(),
+                ));
             }
 
             // Check disclosure age if configured
@@ -863,7 +877,9 @@ impl SdJwtFacade {
                 .red_list
                 .is_disclosed(&disclosure.hash)
             {
-                return Err(AuthencError::ValidationError("Disclosure has been replayed (red list)".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Disclosure has been replayed (red list)".to_string(),
+                ));
             }
         }
         Ok(())
@@ -876,18 +892,24 @@ impl SdJwtFacade {
                     if let Some(issuer) = value.as_str() {
                         if issuer != expected_issuer {
                             return Err(AuthencError::ValidationError(format!(
-                                    "Issuer mismatch: expected {}, got {}",
-                                    expected_issuer, issuer
-                                )));
+                                "Issuer mismatch: expected {}, got {}",
+                                expected_issuer, issuer
+                            )));
                         }
                     } else {
-                        return Err(AuthencError::ValidationError("Issuer claim is not a string".to_string()));
+                        return Err(AuthencError::ValidationError(
+                            "Issuer claim is not a string".to_string(),
+                        ));
                     }
                 } else {
-                    return Err(AuthencError::ValidationError("Issuer claim is not disclosed".to_string()));
+                    return Err(AuthencError::ValidationError(
+                        "Issuer claim is not disclosed".to_string(),
+                    ));
                 }
             } else {
-                return Err(AuthencError::ValidationError("Missing issuer claim".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Missing issuer claim".to_string(),
+                ));
             }
         }
         Ok(())
@@ -900,18 +922,24 @@ impl SdJwtFacade {
                     if let Some(subject) = value.as_str() {
                         if subject != expected_subject {
                             return Err(AuthencError::ValidationError(format!(
-                                    "Subject mismatch: expected {}, got {}",
-                                    expected_subject, subject
-                                )));
+                                "Subject mismatch: expected {}, got {}",
+                                expected_subject, subject
+                            )));
                         }
                     } else {
-                        return Err(AuthencError::ValidationError("Subject claim is not a string".to_string()));
+                        return Err(AuthencError::ValidationError(
+                            "Subject claim is not a string".to_string(),
+                        ));
                     }
                 } else {
-                    return Err(AuthencError::ValidationError("Subject claim is not disclosed".to_string()));
+                    return Err(AuthencError::ValidationError(
+                        "Subject claim is not disclosed".to_string(),
+                    ));
                 }
             } else {
-                return Err(AuthencError::ValidationError("Missing subject claim".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Missing subject claim".to_string(),
+                ));
             }
         }
         Ok(())
@@ -924,18 +952,24 @@ impl SdJwtFacade {
                     if let Some(audience) = value.as_str() {
                         if audience != expected_audience {
                             return Err(AuthencError::ValidationError(format!(
-                                    "Audience mismatch: expected {}, got {}",
-                                    expected_audience, audience
-                                )));
+                                "Audience mismatch: expected {}, got {}",
+                                expected_audience, audience
+                            )));
                         }
                     } else {
-                        return Err(AuthencError::ValidationError("Audience claim is not a string".to_string()));
+                        return Err(AuthencError::ValidationError(
+                            "Audience claim is not a string".to_string(),
+                        ));
                     }
                 } else {
-                    return Err(AuthencError::ValidationError("Audience claim is not disclosed".to_string()));
+                    return Err(AuthencError::ValidationError(
+                        "Audience claim is not disclosed".to_string(),
+                    ));
                 }
             } else {
-                return Err(AuthencError::ValidationError("Missing audience claim".to_string()));
+                return Err(AuthencError::ValidationError(
+                    "Missing audience claim".to_string(),
+                ));
             }
         }
         Ok(())

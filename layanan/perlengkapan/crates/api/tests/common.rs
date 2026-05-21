@@ -1,4 +1,3 @@
-use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use layanan_perlengkapan_api::{
     cache_strategy::CacheManager,
     dashboard::services::DashboardService,
@@ -76,7 +75,7 @@ pub async fn setup_test_db() -> (Database, String) {
         for path in paths {
             if path.extension().and_then(|e| e.to_str()) == Some("sql") {
                 let sql = std::fs::read_to_string(&path).expect("Failed to read migration sql");
-                let mut client = db.pool().get().await.unwrap();
+                let client = db.pool().get().await.unwrap();
                 if let Err(e) = client.batch_execute(&sql).await {
                     let _ = client.batch_execute("ROLLBACK").await;
                     if let Some(db_err) = e.as_db_error() {

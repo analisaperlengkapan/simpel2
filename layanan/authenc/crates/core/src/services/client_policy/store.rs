@@ -389,12 +389,13 @@ impl ClientPolicyStore {
 
         // Check if profile is built-in (cannot be modified significantly)
         let existing = self.get_profile(profile_id).await?;
-        if let Some(profile) = existing {
-            if profile.is_builtin && request.name.is_some() {
-                return Err(AuthencError::validation(
-                    "Cannot modify name of built-in profiles".to_string(),
-                ));
-            }
+        if let Some(profile) = existing
+            && profile.is_builtin
+            && request.name.is_some()
+        {
+            return Err(AuthencError::validation(
+                "Cannot modify name of built-in profiles".to_string(),
+            ));
         }
 
         // Build dynamic SQL
@@ -454,12 +455,12 @@ impl ClientPolicyStore {
 
         // Check if profile is built-in (cannot be deleted)
         let existing = self.get_profile(profile_id).await?;
-        if let Some(profile) = existing {
-            if profile.is_builtin {
-                return Err(AuthencError::validation(
-                    "Cannot delete built-in profiles".to_string(),
-                ));
-            }
+        if let Some(profile) = existing
+            && profile.is_builtin
+        {
+            return Err(AuthencError::validation(
+                "Cannot delete built-in profiles".to_string(),
+            ));
         }
 
         let deleted = client

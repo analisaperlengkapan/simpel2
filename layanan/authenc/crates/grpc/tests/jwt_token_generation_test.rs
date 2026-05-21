@@ -147,7 +147,7 @@ fn test_token_expiration_configuration() {
     let now = chrono::Utc::now().timestamp();
     let exp_diff = claims.exp - now;
     assert!(
-        exp_diff >= 55 && exp_diff <= 65,
+        (55..=65).contains(&exp_diff),
         "Expiration should be ~60 seconds"
     );
 }

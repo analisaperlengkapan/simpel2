@@ -239,17 +239,12 @@ pub use keys::{
 // ============================================================================
 
 // DPoP (Demonstrating Proof-of-Possession)
-pub use dpop::{
-    DPoPProof, DPoPHeader, DPoPProofPayload,
-    DPoPNonceManager, DPoPTokenBinder,
-};
+pub use dpop::{DPoPHeader, DPoPNonceManager, DPoPProof, DPoPProofPayload, DPoPTokenBinder};
 
 // Selective Disclosure JWT
 pub use sdjwt::{
-    SdJwt, SdJwtSalt, Disclosure, DisclosureSpec,
-    IssuerSignedJwt, SdJwtClaim, SdJwtArrayElement,
-    SdJwtFacade, SdJwtVerificationContext,
-    SdJwtUtils, VisibleSdJwtClaim,
+    Disclosure, DisclosureSpec, IssuerSignedJwt, SdJwt, SdJwtArrayElement, SdJwtClaim, SdJwtFacade,
+    SdJwtSalt, SdJwtUtils, SdJwtVerificationContext, VisibleSdJwtClaim,
 };
 
 // Post-Quantum Cryptography (types available when 'quantum' feature is enabled)

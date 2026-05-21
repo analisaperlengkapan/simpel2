@@ -1153,7 +1153,7 @@ impl DataSubjectRightsService {
         // 5. Revoke all active sessions and tokens
         // 6. Remove from third-party systems
 
-        let erasure_actions = vec![
+        let erasure_actions = [
             "User account marked for deletion with deleted_at timestamp",
             "Active sessions and tokens revoked",
             "Personal identifiers anonymized in audit logs (retained for legal compliance)",

@@ -34,7 +34,7 @@ mod pemakaian_bmn_service_tests {
     #[test]
     fn test_bmn_availability_check() {
         // Simulate checking if BMN is available
-        let active_permits = vec!["123456", "789012"];
+        let active_permits = ["123456", "789012"];
         let requested_bmn = "345678";
 
         let is_available = !active_permits.contains(&requested_bmn);
@@ -44,7 +44,7 @@ mod pemakaian_bmn_service_tests {
     #[test]
     fn test_one_bmn_one_permit_rule() {
         // REQ-P004: One BMN = one active permit
-        let active_permits = vec![("123456", "ACTIVE"), ("789012", "ACTIVE")];
+        let active_permits = [("123456", "ACTIVE"), ("789012", "ACTIVE")];
 
         let bmn_to_check = "123456";
         let has_active_permit = active_permits

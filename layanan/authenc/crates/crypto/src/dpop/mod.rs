@@ -136,12 +136,12 @@ impl DPoPProof {
 
     /// Serialize DPoP proof to JWT string
     pub fn to_jwt_string(&self) -> Result<String, AuthencError> {
-        let header_json =
-            serde_json::to_string(&self.header).map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
+        let header_json = serde_json::to_string(&self.header)
+            .map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
         let header_b64 = base64ct::Base64UrlUnpadded::encode_string(header_json.as_bytes());
 
-        let payload_json =
-            serde_json::to_string(&self.payload).map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
+        let payload_json = serde_json::to_string(&self.payload)
+            .map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
         let payload_b64 = base64ct::Base64UrlUnpadded::encode_string(payload_json.as_bytes());
 
         let signature_b64 = base64ct::Base64UrlUnpadded::encode_string(&self.signature);
@@ -165,13 +165,11 @@ impl DPoPProof {
         let signature_bytes = base64ct::Base64UrlUnpadded::decode_vec(parts[2])
             .map_err(|_| AuthencError::internal("Invalid signature encoding"))?;
 
-        let header: DPoPHeader = serde_json::from_slice(&header_bytes).map_err(|_| {
-            AuthencError::validation("Invalid header format".to_string())
-        })?;
+        let header: DPoPHeader = serde_json::from_slice(&header_bytes)
+            .map_err(|_| AuthencError::validation("Invalid header format".to_string()))?;
 
-        let payload: DPoPProofPayload = serde_json::from_slice(&payload_bytes).map_err(|_| {
-            AuthencError::validation("Invalid payload format".to_string())
-        })?;
+        let payload: DPoPProofPayload = serde_json::from_slice(&payload_bytes)
+            .map_err(|_| AuthencError::validation("Invalid payload format".to_string()))?;
 
         Ok(Self {
             header,
@@ -191,10 +189,10 @@ impl DPoPProof {
         max_age_seconds: i64,
     ) -> Result<(), AuthencError> {
         // Verify signature
-        let header_json =
-            serde_json::to_string(&self.header).map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
-        let payload_json =
-            serde_json::to_string(&self.payload).map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
+        let header_json = serde_json::to_string(&self.header)
+            .map_err(|_| AuthencError::validation("Failed to serialize header".to_string()))?;
+        let payload_json = serde_json::to_string(&self.payload)
+            .map_err(|_| AuthencError::validation("Failed to serialize payload".to_string()))?;
 
         let message = format!(
             "{}.{}",

@@ -75,10 +75,10 @@ impl CodeStore {
     /// Take (consume) an authorization code, returning the user_id if valid
     pub async fn take(&self, code: &str, client_id: &str) -> authenc_types::Result<Option<String>> {
         let mut codes = self.codes.write().await;
-        if let Some(entry) = codes.remove(code) {
-            if entry.client_id == client_id {
-                return Ok(Some(entry.user_id));
-            }
+        if let Some(entry) = codes.remove(code)
+            && entry.client_id == client_id
+        {
+            return Ok(Some(entry.user_id));
         }
         Ok(None)
     }

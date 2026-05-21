@@ -1367,7 +1367,7 @@ impl AuthService {
 mod tests {
     use super::*;
     use crate::config::AuthConfig;
-    use secreton_crypto::{CryptoEngine, SecurityParams};
+    use secreton_crypto::CryptoEngine;
     use secreton_storage::MemoryBackend;
 
     #[tokio::test]
@@ -1731,7 +1731,7 @@ mod tests {
         let role1_perms = vec!["perm1".to_string(), "perm2".to_string()];
         let role2_perms = vec!["perm2".to_string(), "perm3".to_string()];
 
-        let role1 = auth_service
+        let _role1 = auth_service
             .create_role("role1", None, role1_perms.clone())
             .await
             .expect("create role1");

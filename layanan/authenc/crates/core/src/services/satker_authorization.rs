@@ -60,10 +60,10 @@ impl SatkerAuthorizationService {
         }
 
         // Check if user is an admin with appropriate level
-        if let Some(admin_level) = self.get_user_admin_level(user) {
-            if self.admin_can_access(&admin_level, target_satker_code, &hierarchy) {
-                return Ok(true);
-            }
+        if let Some(admin_level) = self.get_user_admin_level(user)
+            && self.admin_can_access(&admin_level, target_satker_code, &hierarchy)
+        {
+            return Ok(true);
         }
 
         Ok(false)
@@ -81,14 +81,12 @@ impl SatkerAuthorizationService {
                 return true;
             }
 
-            if scope.starts_with("wilayah:") {
-                let wilayah = &scope[8..];
+            if let Some(wilayah) = scope.strip_prefix("wilayah:") {
                 return target_satker_code.starts_with(wilayah)
                     || hierarchy.is_descendant(target_satker_code, wilayah);
             }
 
-            if scope.starts_with("satker:") {
-                let satker = &scope[7..];
+            if let Some(satker) = scope.strip_prefix("satker:") {
                 return satker == target_satker_code
                     || hierarchy.is_descendant(target_satker_code, satker);
             }
@@ -127,13 +125,11 @@ impl SatkerAuthorizationService {
             }
             val => {
                 // If value contains specific code
-                if val.starts_with("wilayah:") {
-                    let w = &val[8..];
+                if let Some(w) = val.strip_prefix("wilayah:") {
                     return target_satker_code.starts_with(w)
                         || hierarchy.is_descendant(target_satker_code, w);
                 }
-                if val.starts_with("satker:") {
-                    let s = &val[7..];
+                if let Some(s) = val.strip_prefix("satker:") {
                     return s == target_satker_code
                         || hierarchy.is_descendant(target_satker_code, s);
                 }
@@ -289,8 +285,7 @@ impl SatkerAuthorizationService {
                     return Ok(hierarchy.satkers.keys().cloned().collect());
                 }
 
-                if scope.starts_with("wilayah:") {
-                    let wilayah = &scope[8..];
+                if let Some(wilayah) = scope.strip_prefix("wilayah:") {
                     accessible.extend(
                         hierarchy
                             .satkers
@@ -298,8 +293,7 @@ impl SatkerAuthorizationService {
                             .filter(|code| code.starts_with(wilayah))
                             .cloned(),
                     );
-                } else if scope.starts_with("satker:") {
-                    let satker = &scope[7..];
+                } else if let Some(satker) = scope.strip_prefix("satker:") {
                     accessible.push(satker.to_string());
                     accessible.extend(hierarchy.get_descendants(satker));
                 }
@@ -331,12 +325,10 @@ impl SatkerAuthorizationService {
         match admin_level.as_str() {
             "pusat" | "eselon_i" => Ok(true),
             val => {
-                if val.starts_with("wilayah:") {
-                    let w = &val[8..];
+                if let Some(w) = val.strip_prefix("wilayah:") {
                     Ok(target_satker_code.starts_with(w)
                         || hierarchy.is_descendant(target_satker_code, w))
-                } else if val.starts_with("satker:") {
-                    let s = &val[7..];
+                } else if let Some(s) = val.strip_prefix("satker:") {
                     Ok(s == target_satker_code || hierarchy.is_descendant(target_satker_code, s))
                 } else {
                     // Fallback: If managed_by is just "wilayah", we can't check efficiently here without more context

@@ -4,7 +4,6 @@ use secreton_core::storage::sealed_keys::{
     PostgresSealedKeyStorage, ProviderType, SealedKeyStorage, SealedMasterKey,
 };
 use std::sync::Arc;
-use uuid::Uuid;
 
 /// Helper function to create a test database pool
 async fn create_test_pool() -> Arc<deadpool_postgres::Pool> {

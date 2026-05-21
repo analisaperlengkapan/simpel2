@@ -135,10 +135,10 @@ impl MfaFallbackConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.enabled {
             // Check if storage directory exists or can be created
-            if let Some(parent) = self.storage_path.parent() {
-                if !parent.exists() {
-                    return Err(format!("Storage directory does not exist: {:?}", parent));
-                }
+            if let Some(parent) = self.storage_path.parent()
+                && !parent.exists()
+            {
+                return Err(format!("Storage directory does not exist: {:?}", parent));
             }
 
             // Validate sync interval

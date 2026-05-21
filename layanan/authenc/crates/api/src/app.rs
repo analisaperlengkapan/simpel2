@@ -100,6 +100,7 @@ impl AxumApp {
 }
 
 /// Application configuration
+#[derive(Default)]
 pub struct AppConfig {
     /// CORS configuration
     pub cors: middleware::CorsConfig,
@@ -109,16 +110,6 @@ pub struct AppConfig {
 
     /// CSRF protection configuration
     pub csrf: middleware::CsrfConfig,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            cors: middleware::CorsConfig::default(),
-            rate_limit: middleware::RateLimitConfig::default(),
-            csrf: middleware::CsrfConfig::default(),
-        }
-    }
 }
 
 /// Handle graceful shutdown

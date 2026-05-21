@@ -588,11 +588,11 @@ pub async fn logout_handler(
     };
 
     // Extract session_id from the token's sid claim
-    if let Some(sid_str) = &claims.sid {
-        if let Ok(session_uuid) = uuid::Uuid::parse_str(sid_str) {
-            let session_id = SessionId(session_uuid);
-            let _ = state.auth_service.logout(session_id).await;
-        }
+    if let Some(sid_str) = &claims.sid
+        && let Ok(session_uuid) = uuid::Uuid::parse_str(sid_str)
+    {
+        let session_id = SessionId(session_uuid);
+        let _ = state.auth_service.logout(session_id).await;
     }
 
     axum::http::StatusCode::NO_CONTENT.into_response()

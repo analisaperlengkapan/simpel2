@@ -64,11 +64,7 @@ impl RealmManagementServiceImpl {
         }
 
         // Must start with a letter
-        if !name
-            .chars()
-            .next()
-            .map_or(false, |c| c.is_ascii_lowercase())
-        {
+        if !name.chars().next().is_some_and(|c| c.is_ascii_lowercase()) {
             return Err(AuthencError::ValidationError(
                 "Realm name must start with a lowercase letter".to_string(),
             ));
@@ -177,13 +173,10 @@ impl RealmManagementServiceImpl {
             .create_realm(name.clone(), display_name)
             .await
             .map_err(|e| {
-                if let AuthencError::DatabaseError(ref msg) = e {
-                    if msg.contains("duplicate key") || msg.contains("unique") {
-                        return AuthencError::Conflict(format!(
-                            "Realm name '{}' already exists",
-                            name
-                        ));
-                    }
+                if let AuthencError::DatabaseError(ref msg) = e
+                    && (msg.contains("duplicate key") || msg.contains("unique"))
+                {
+                    return AuthencError::Conflict(format!("Realm name '{}' already exists", name));
                 }
                 e
             })?;
@@ -267,13 +260,13 @@ impl RealmManagementServiceImpl {
         );
 
         // Prevent disabling the master realm
-        if *realm_id.as_uuid() == Realm::MASTER_ID {
-            if let Some(false) = enabled {
-                warn!("Attempt to disable the master realm was rejected");
-                return Err(AuthencError::AuthorizationFailed(
-                    "Cannot disable the master realm".to_string(),
-                ));
-            }
+        if *realm_id.as_uuid() == Realm::MASTER_ID
+            && let Some(false) = enabled
+        {
+            warn!("Attempt to disable the master realm was rejected");
+            return Err(AuthencError::AuthorizationFailed(
+                "Cannot disable the master realm".to_string(),
+            ));
         }
 
         // Step 1: Validate new display name if provided

@@ -325,7 +325,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     }
 
     // Create Satker management and authorization services
-    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new((*db).clone()));
+    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new(
+        (*db).clone(),
+    ));
     let all_satkers = match db.get_all_satkers().await {
         Ok(s) => s,
         Err(e) => {
@@ -333,7 +335,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
             Vec::new()
         }
     };
-    let satker_auth_service = Arc::new(authenc_core::services::SatkerAuthorizationService::new(all_satkers));
+    let satker_auth_service = Arc::new(authenc_core::services::SatkerAuthorizationService::new(
+        all_satkers,
+    ));
 
     // IAM API - create state and router for admin endpoints
     let iam_state = IamApiState::new(

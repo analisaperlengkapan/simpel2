@@ -813,11 +813,11 @@ impl AppConfig {
     /// Load configuration from a TOML file
     pub fn from_file(path: &str) -> Result<Self> {
         let contents = std::fs::read_to_string(path).map_err(|e| {
-            AuthencError::validation(&format!("Failed to read config file {}: {}", path, e))
+            AuthencError::validation(format!("Failed to read config file {}: {}", path, e))
         })?;
 
         toml::from_str(&contents).map_err(|e| {
-            AuthencError::validation(&format!("Failed to parse config file {}: {}", path, e))
+            AuthencError::validation(format!("Failed to parse config file {}: {}", path, e))
         })
     }
 
@@ -917,10 +917,10 @@ impl AppConfig {
                 if let Some(password) = url.password() {
                     self.database.password = password.to_string();
                 }
-                if let Some(mut segments) = url.path_segments() {
-                    if let Some(db) = segments.next() {
-                        self.database.database = db.trim_start_matches('/').to_string();
-                    }
+                if let Some(mut segments) = url.path_segments()
+                    && let Some(db) = segments.next()
+                {
+                    self.database.database = db.trim_start_matches('/').to_string();
                 }
             }
         }
@@ -929,10 +929,10 @@ impl AppConfig {
         if let Ok(host) = env::var("DB_HOST") {
             self.database.host = host;
         }
-        if let Ok(port) = env::var("DB_PORT") {
-            if let Ok(p) = port.parse() {
-                self.database.port = p;
-            }
+        if let Ok(port) = env::var("DB_PORT")
+            && let Ok(p) = port.parse()
+        {
+            self.database.port = p;
         }
         if let Ok(user) = env::var("DB_USER") {
             self.database.username = user;
@@ -957,10 +957,10 @@ impl AppConfig {
         }
 
         // Observability configuration
-        if let Ok(log_level) = env::var("LOG_LEVEL") {
-            if let Ok(level) = log_level.parse::<Level>() {
-                self.observability.log_level = level;
-            }
+        if let Ok(log_level) = env::var("LOG_LEVEL")
+            && let Ok(level) = log_level.parse::<Level>()
+        {
+            self.observability.log_level = level;
         }
 
         // Feature flags

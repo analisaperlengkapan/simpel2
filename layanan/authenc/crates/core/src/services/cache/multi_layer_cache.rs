@@ -141,13 +141,13 @@ impl Cache for MultiLayerCache {
         let start = std::time::Instant::now();
 
         // Try L1 cache first (fast path)
-        if self.config.l1_enabled {
-            if let Some(value) = self.l1.get(key).await? {
-                debug!("Multi-layer cache: L1 hit for key: {}", key);
-                self.metrics.record_hit();
-                self.metrics.record_get(start.elapsed());
-                return Ok(Some(value));
-            }
+        if self.config.l1_enabled
+            && let Some(value) = self.l1.get(key).await?
+        {
+            debug!("Multi-layer cache: L1 hit for key: {}", key);
+            self.metrics.record_hit();
+            self.metrics.record_get(start.elapsed());
+            return Ok(Some(value));
         }
 
         // Try L2 cache (Redis)
@@ -157,10 +157,10 @@ impl Cache for MultiLayerCache {
                     debug!("Multi-layer cache: L2 hit for key: {}", key);
 
                     // Populate L1 cache with shorter TTL
-                    if self.config.l1_enabled {
-                        if let Err(e) = self.l1.set(key, &value, self.config.l1_ttl).await {
-                            warn!("Failed to populate L1 cache from L2: {}", e);
-                        }
+                    if self.config.l1_enabled
+                        && let Err(e) = self.l1.set(key, &value, self.config.l1_ttl).await
+                    {
+                        warn!("Failed to populate L1 cache from L2: {}", e);
                     }
 
                     self.metrics.record_hit();
@@ -188,12 +188,12 @@ impl Cache for MultiLayerCache {
         let start = std::time::Instant::now();
 
         // Write to L2 first (source of truth)
-        if self.config.l2_enabled {
-            if let Err(e) = self.l2.set(key, value, ttl).await {
-                warn!("Failed to set L2 cache for key {}: {}", key, e);
-                self.metrics.record_error();
-                // Continue to L1 even if L2 fails
-            }
+        if self.config.l2_enabled
+            && let Err(e) = self.l2.set(key, value, ttl).await
+        {
+            warn!("Failed to set L2 cache for key {}: {}", key, e);
+            self.metrics.record_error();
+            // Continue to L1 even if L2 fails
         }
 
         // Write to L1 with shorter TTL
@@ -217,17 +217,17 @@ impl Cache for MultiLayerCache {
         let start = std::time::Instant::now();
 
         // Delete from both layers
-        if self.config.l1_enabled {
-            if let Err(e) = self.l1.delete(key).await {
-                warn!("Failed to delete from L1 cache for key {}: {}", key, e);
-            }
+        if self.config.l1_enabled
+            && let Err(e) = self.l1.delete(key).await
+        {
+            warn!("Failed to delete from L1 cache for key {}: {}", key, e);
         }
 
-        if self.config.l2_enabled {
-            if let Err(e) = self.l2.delete(key).await {
-                warn!("Failed to delete from L2 cache for key {}: {}", key, e);
-                self.metrics.record_error();
-            }
+        if self.config.l2_enabled
+            && let Err(e) = self.l2.delete(key).await
+        {
+            warn!("Failed to delete from L2 cache for key {}: {}", key, e);
+            self.metrics.record_error();
         }
 
         debug!("Multi-layer cache: delete for key: {}", key);
@@ -258,11 +258,11 @@ impl Cache for MultiLayerCache {
             }
         }
 
-        if self.config.l2_enabled {
-            if let Err(e) = self.l2.expire(key, ttl).await {
-                warn!("Failed to update L2 expiration for key {}: {}", key, e);
-                self.metrics.record_error();
-            }
+        if self.config.l2_enabled
+            && let Err(e) = self.l2.expire(key, ttl).await
+        {
+            warn!("Failed to update L2 expiration for key {}: {}", key, e);
+            self.metrics.record_error();
         }
 
         Ok(())
@@ -279,10 +279,10 @@ impl Cache for MultiLayerCache {
         };
 
         // Invalidate L1 cache to ensure consistency
-        if self.config.l1_enabled {
-            if let Err(e) = self.l1.delete(key).await {
-                warn!("Failed to invalidate L1 cache after increment: {}", e);
-            }
+        if self.config.l1_enabled
+            && let Err(e) = self.l1.delete(key).await
+        {
+            warn!("Failed to invalidate L1 cache after increment: {}", e);
         }
 
         Ok(new_value)

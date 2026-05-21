@@ -15,8 +15,8 @@ async fn test_fresh_engine_not_initialized() {
     // Check status before initialization
     let status = service.status().await;
 
-    assert_eq!(
-        status.initialized, false,
+    assert!(
+        !status.initialized,
         "CRITICAL BUG: Fresh engine should NOT be initialized"
     );
     assert!(service.is_sealed().await, "Fresh engine should be sealed");
@@ -31,8 +31,8 @@ async fn test_engine_initialized_after_init() {
 
     // Verify NOT initialized before init
     let status_before = service.status().await;
-    assert_eq!(
-        status_before.initialized, false,
+    assert!(
+        !status_before.initialized,
         "Engine should NOT be initialized before init"
     );
 
@@ -41,8 +41,8 @@ async fn test_engine_initialized_after_init() {
 
     // Verify initialized after init
     let status_after = service.status().await;
-    assert_eq!(
-        status_after.initialized, true,
+    assert!(
+        status_after.initialized,
         "Engine should be initialized after init"
     );
 
@@ -62,18 +62,15 @@ async fn test_engine_initialized_persists_across_restarts() {
     let service1 = SealService::with_storage(config.clone(), storage.clone());
 
     let status_before = service1.status().await;
-    assert_eq!(
-        status_before.initialized, false,
+    assert!(
+        !status_before.initialized,
         "Should not be initialized initially"
     );
 
     let _shares = service1.initialize().await.expect("Failed to initialize");
 
     let status_after = service1.status().await;
-    assert_eq!(
-        status_after.initialized, true,
-        "Should be initialized after init"
-    );
+    assert!(status_after.initialized, "Should be initialized after init");
 
     // Simulate restart - create new service instance with same storage
     let service2 = SealService::with_storage(config, storage);
@@ -84,8 +81,8 @@ async fn test_engine_initialized_persists_across_restarts() {
 
     // Verify initialized status persists
     let status_restarted = service2.status().await;
-    assert_eq!(
-        status_restarted.initialized, true,
+    assert!(
+        status_restarted.initialized,
         "Initialized status should persist across restarts"
     );
 
@@ -108,7 +105,7 @@ async fn test_cannot_initialize_twice() {
 
     // Engine is now initialized but sealed
     let status = service.status().await;
-    assert_eq!(status.initialized, true);
+    assert!(status.initialized);
     assert!(service.is_sealed().await);
 
     // Second initialization attempt
@@ -127,8 +124,8 @@ async fn test_cannot_initialize_twice() {
 
     // But the important thing is: initialized status remains true
     let status_after = service.status().await;
-    assert_eq!(
-        status_after.initialized, true,
+    assert!(
+        status_after.initialized,
         "Initialized status should remain true"
     );
 }

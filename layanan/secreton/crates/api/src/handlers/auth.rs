@@ -56,23 +56,23 @@ mod tests {
         next: axum::middleware::Next,
     ) -> axum::response::Response {
         let mut req = req;
-        if let Some(user_id) = req.headers().get("X-Test-User-Id") {
-            if let Ok(user_id_str) = user_id.to_str() {
-                let context = RequestContext {
-                    request_id: "test-req".to_string(),
-                    user_id: Some(user_id_str.to_string()),
-                    user_email: None,
-                    user_roles: vec![],
-                    user_permissions: vec![],
-                    start_time: std::time::Instant::now(),
-                    jwt_claims: None,
-                    auth_token: None,
-                    client_ip: None,
-                    user_agent: None,
-                    policy_names: vec![],
-                };
-                req.extensions_mut().insert(context);
-            }
+        if let Some(user_id) = req.headers().get("X-Test-User-Id")
+            && let Ok(user_id_str) = user_id.to_str()
+        {
+            let context = RequestContext {
+                request_id: "test-req".to_string(),
+                user_id: Some(user_id_str.to_string()),
+                user_email: None,
+                user_roles: vec![],
+                user_permissions: vec![],
+                start_time: std::time::Instant::now(),
+                jwt_claims: None,
+                auth_token: None,
+                client_ip: None,
+                user_agent: None,
+                policy_names: vec![],
+            };
+            req.extensions_mut().insert(context);
         }
         next.run(req).await
     }

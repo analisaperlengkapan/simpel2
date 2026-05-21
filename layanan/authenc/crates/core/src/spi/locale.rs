@@ -252,19 +252,18 @@ impl LocaleProvider for DefaultLocaleProvider {
         let locale = locale.unwrap_or(&self.default_locale);
 
         // Try the requested locale first
-        if let Some(locale_messages) = self.messages.get(locale) {
-            if let Some(message) = locale_messages.get(key) {
-                return Ok(message.clone());
-            }
+        if let Some(locale_messages) = self.messages.get(locale)
+            && let Some(message) = locale_messages.get(key)
+        {
+            return Ok(message.clone());
         }
 
         // Fallback to English if locale not found or message not found
-        if locale != "en" {
-            if let Some(en_messages) = self.messages.get("en") {
-                if let Some(message) = en_messages.get(key) {
-                    return Ok(message.clone());
-                }
-            }
+        if locale != "en"
+            && let Some(en_messages) = self.messages.get("en")
+            && let Some(message) = en_messages.get(key)
+        {
+            return Ok(message.clone());
         }
 
         // Return key if message not found

@@ -56,7 +56,7 @@ pub fn generate_access_token(
     additional_claims: Option<&HashMap<String, serde_json::Value>>,
 ) -> String {
     let mut claims_map = serde_json::to_value(claims)
-        .and_then(|v| serde_json::from_value::<HashMap<String, serde_json::Value>>(v))
+        .and_then(serde_json::from_value::<HashMap<String, serde_json::Value>>)
         .unwrap_or_default();
 
     if let Some(additional) = additional_claims {

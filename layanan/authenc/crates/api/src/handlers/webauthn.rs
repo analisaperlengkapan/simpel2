@@ -290,7 +290,7 @@ pub async fn finish_authentication_handler(
     let session_id = uuid::Uuid::new_v4().to_string();
 
     // Fetch user to build custom claims
-    let user = state.user_service.get_user(user_id.clone()).await.map_err(|e| {
+    let user = state.user_service.get_user(user_id).await.map_err(|e| {
         tracing::error!(error = %e, "Failed to fetch user details for passkey token claims — refusing to issue JWT without claims");
         ErrorResponse {
             status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,

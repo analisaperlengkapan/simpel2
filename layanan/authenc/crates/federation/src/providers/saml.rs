@@ -118,15 +118,15 @@ impl IdentityProvider for SamlIdentityProvider {
     async fn authenticate(&self, request: &AuthRequest) -> Result<AuthResponse> {
         if let Some(saml_response) = &request.saml_assertion {
             // Phase 4 stub: XML security validation only (basic size check)
-            if let Some(validator) = &self.security_validator {
-                if let Err(e) = validator.validate_xml_security(saml_response) {
-                    tracing::warn!("XML security validation failed: {}", e);
-                    return Ok(AuthResponse {
-                        success: false,
-                        error: Some(format!("XML security validation failed: {}", e)),
-                        ..AuthResponse::default()
-                    });
-                }
+            if let Some(validator) = &self.security_validator
+                && let Err(e) = validator.validate_xml_security(saml_response)
+            {
+                tracing::warn!("XML security validation failed: {}", e);
+                return Ok(AuthResponse {
+                    success: false,
+                    error: Some(format!("XML security validation failed: {}", e)),
+                    ..AuthResponse::default()
+                });
             }
 
             // TODO(Phase 4): Implement full SAML assertion parsing and validation

@@ -28,7 +28,7 @@ pub struct SecondaryNode {
 }
 
 /// Metadata about a secondary node
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NodeMetadata {
     /// Node name (human-readable)
     pub name: Option<String>,
@@ -117,18 +117,6 @@ impl SecondaryNode {
         (now - self.last_sync)
             .to_std()
             .unwrap_or(Duration::from_secs(0))
-    }
-}
-
-impl Default for NodeMetadata {
-    fn default() -> Self {
-        Self {
-            name: None,
-            region: None,
-            zone: None,
-            version: None,
-            tags: std::collections::HashMap::new(),
-        }
     }
 }
 

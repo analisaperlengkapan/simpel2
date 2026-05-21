@@ -238,7 +238,7 @@ mod tests {
 
     #[test]
     fn test_compression_ratio() {
-        let mut metadata = BackupMetadata {
+        let metadata = BackupMetadata {
             id: "test".to_string(),
             timestamp: Utc::now(),
             version: "0.1.0".to_string(),

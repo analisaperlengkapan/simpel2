@@ -249,14 +249,11 @@ impl ClientPolicyEnforcer {
             if policy
                 .executors
                 .contains(&"pkce-enforcer-executor".to_string())
+                && let Some(config) = policy.executor_config.get("pkce-enforcer-executor")
+                && let Some(enforce) = config.get("enforce_pkce")
+                && enforce.as_bool() == Some(true)
             {
-                if let Some(config) = policy.executor_config.get("pkce-enforcer-executor") {
-                    if let Some(enforce) = config.get("enforce_pkce") {
-                        if enforce.as_bool() == Some(true) {
-                            return Ok(true);
-                        }
-                    }
-                }
+                return Ok(true);
             }
         }
 
@@ -271,14 +268,11 @@ impl ClientPolicyEnforcer {
             if policy
                 .executors
                 .contains(&"dpop-bind-enforcer-executor".to_string())
+                && let Some(config) = policy.executor_config.get("dpop-bind-enforcer-executor")
+                && let Some(enforce) = config.get("enforce_dpop")
+                && enforce.as_bool() == Some(true)
             {
-                if let Some(config) = policy.executor_config.get("dpop-bind-enforcer-executor") {
-                    if let Some(enforce) = config.get("enforce_dpop") {
-                        if enforce.as_bool() == Some(true) {
-                            return Ok(true);
-                        }
-                    }
-                }
+                return Ok(true);
             }
         }
 
@@ -293,14 +287,11 @@ impl ClientPolicyEnforcer {
             if policy
                 .executors
                 .contains(&"consent-required-executor".to_string())
+                && let Some(config) = policy.executor_config.get("consent-required-executor")
+                && let Some(require) = config.get("require_consent")
+                && require.as_bool() == Some(true)
             {
-                if let Some(config) = policy.executor_config.get("consent-required-executor") {
-                    if let Some(require) = config.get("require_consent") {
-                        if require.as_bool() == Some(true) {
-                            return Ok(true);
-                        }
-                    }
-                }
+                return Ok(true);
             }
         }
 
@@ -316,17 +307,14 @@ impl ClientPolicyEnforcer {
             if policy
                 .conditions
                 .contains(&"grant-type-condition".to_string())
+                && let Some(config) = policy.condition_config.get("grant-type-condition")
+                && let Some(allowed) = config.get("allowed_grant_types")
+                && let Some(grant_types) = allowed.as_array()
             {
-                if let Some(config) = policy.condition_config.get("grant-type-condition") {
-                    if let Some(allowed) = config.get("allowed_grant_types") {
-                        if let Some(grant_types) = allowed.as_array() {
-                            return Ok(grant_types
-                                .iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect());
-                        }
-                    }
-                }
+                return Ok(grant_types
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect());
             }
         }
 

@@ -9,22 +9,17 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 /// MFA requirement level
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum MfaRequirement {
     /// MFA is disabled
     Disabled,
     /// MFA is optional (user can choose)
+    #[default]
     Optional,
     /// MFA is required for all users
     Required,
     /// MFA is required for admin users only
     RequiredForAdmins,
-}
-
-impl Default for MfaRequirement {
-    fn default() -> Self {
-        Self::Optional
-    }
 }
 
 /// MFA policy configuration

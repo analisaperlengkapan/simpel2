@@ -161,24 +161,23 @@ impl BackupStorage for LocalStorage {
             let path = entry.path();
 
             // Only process metadata files
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
-                    if file_name.ends_with(".metadata.json") {
-                        // Read metadata file
-                        let mut file = fs::File::open(&path).await.map_err(|e| {
-                            BackupError::Storage(format!("Failed to open metadata file: {}", e))
-                        })?;
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Some(file_name) = path.file_name().and_then(|s| s.to_str())
+                && file_name.ends_with(".metadata.json")
+            {
+                // Read metadata file
+                let mut file = fs::File::open(&path).await.map_err(|e| {
+                    BackupError::Storage(format!("Failed to open metadata file: {}", e))
+                })?;
 
-                        let mut metadata_data = Vec::new();
-                        file.read_to_end(&mut metadata_data).await.map_err(|e| {
-                            BackupError::Storage(format!("Failed to read metadata file: {}", e))
-                        })?;
+                let mut metadata_data = Vec::new();
+                file.read_to_end(&mut metadata_data).await.map_err(|e| {
+                    BackupError::Storage(format!("Failed to read metadata file: {}", e))
+                })?;
 
-                        // Deserialize metadata
-                        let metadata: BackupMetadata = serde_json::from_slice(&metadata_data)?;
-                        metadata_list.push(metadata);
-                    }
-                }
+                // Deserialize metadata
+                let metadata: BackupMetadata = serde_json::from_slice(&metadata_data)?;
+                metadata_list.push(metadata);
             }
         }
 

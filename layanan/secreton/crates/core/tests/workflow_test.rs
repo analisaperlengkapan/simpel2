@@ -86,7 +86,7 @@ mod workflow_tests {
         for method in auth_methods {
             println!("Testing auth method: {}", method);
             // Each method should have proper configuration structures
-            assert!(method.len() > 0);
+            assert!(!method.is_empty());
         }
 
         println!("✅ All authentication methods verified");
@@ -128,7 +128,7 @@ mod workflow_tests {
         for backend in backends {
             println!("Testing storage backend: {}", backend);
             // Each backend should have proper implementation files
-            assert!(backend.len() > 0);
+            assert!(!backend.is_empty());
         }
 
         println!("✅ All storage backends verified");
@@ -305,7 +305,7 @@ mod workflow_tests {
         // 3. Secret retrieval
         // 4. Secret deletion
 
-        let steps = vec![
+        let steps = [
             "authentication",
             "secret_creation",
             "secret_retrieval",

@@ -131,14 +131,13 @@ impl SamlIdentityProvider {
                 let entry = entry?;
                 let path = entry.path();
 
-                if path.is_file() {
-                    if let Some(ext) = path.extension()
-                        && (ext == "pem" || ext == "crt")
-                        && let Ok(pem_data) = std::fs::read(&path)
-                        && let Ok(certs) = X509::stack_from_pem(&pem_data)
-                    {
-                        all_certs.extend(certs.into_iter());
-                    }
+                if path.is_file()
+                    && let Some(ext) = path.extension()
+                    && (ext == "pem" || ext == "crt")
+                    && let Ok(pem_data) = std::fs::read(&path)
+                    && let Ok(certs) = X509::stack_from_pem(&pem_data)
+                {
+                    all_certs.extend(certs);
                 }
             }
 
@@ -184,55 +183,55 @@ impl SamlIdentityProvider {
         }
 
         // Parse numeric settings
-        if let Some(val) = config.get("crl_cache_duration_secs") {
-            if let Ok(secs) = val.parse() {
-                security_config.crl_cache_duration_secs = secs;
-            }
+        if let Some(val) = config.get("crl_cache_duration_secs")
+            && let Ok(secs) = val.parse()
+        {
+            security_config.crl_cache_duration_secs = secs;
         }
 
-        if let Some(val) = config.get("crl_max_size_bytes") {
-            if let Ok(bytes) = val.parse() {
-                security_config.crl_max_size_bytes = bytes;
-            }
+        if let Some(val) = config.get("crl_max_size_bytes")
+            && let Ok(bytes) = val.parse()
+        {
+            security_config.crl_max_size_bytes = bytes;
         }
 
-        if let Some(val) = config.get("ocsp_cache_duration_secs") {
-            if let Ok(secs) = val.parse() {
-                security_config.ocsp_cache_duration_secs = secs;
-            }
+        if let Some(val) = config.get("ocsp_cache_duration_secs")
+            && let Ok(secs) = val.parse()
+        {
+            security_config.ocsp_cache_duration_secs = secs;
         }
 
-        if let Some(val) = config.get("ocsp_timeout_secs") {
-            if let Ok(secs) = val.parse() {
-                security_config.ocsp_timeout_secs = secs;
-            }
+        if let Some(val) = config.get("ocsp_timeout_secs")
+            && let Ok(secs) = val.parse()
+        {
+            security_config.ocsp_timeout_secs = secs;
         }
 
         // Parse XML security limits
         let mut xml_limits = XmlSecurityLimits::default();
 
-        if let Some(val) = config.get("xml_max_document_size") {
-            if let Ok(size) = val.parse() {
-                xml_limits.max_document_size = size;
-            }
+        if let Some(val) = config.get("xml_max_document_size")
+            && let Ok(size) = val.parse()
+        {
+            xml_limits.max_document_size = size;
         }
 
-        if let Some(val) = config.get("xml_max_element_depth") {
-            if let Ok(depth) = val.parse() {
-                xml_limits.max_element_depth = depth;
-            }
+        if let Some(val) = config.get("xml_max_element_depth")
+            && let Ok(depth) = val.parse()
+        {
+            xml_limits.max_element_depth = depth;
         }
 
-        if let Some(val) = config.get("xml_max_elements") {
-            if let Ok(elements) = val.parse() {
-                xml_limits.max_elements = elements;
-            }
+        if let Some(val) = config.get("xml_max_elements")
+            && let Ok(elements) = val.parse()
+        {
+            xml_limits.max_elements = elements;
         }
 
-        if let Some(val) = config.get("xml_max_entity_expansions") {
-            if let Ok(expansions) = val.parse() {
-                xml_limits.max_entity_expansions = expansions;
-            }
+        if let Some(val) = config.get("xml_max_entity_expansions")
+            && let Ok(expansions) = val.parse()
+        {
+            xml_limits.max_entity_expansions = expansions;
         }
 
         security_config.xml_limits = xml_limits;
@@ -307,13 +306,12 @@ impl SamlIdentityProvider {
                         }
                         b"saml:AudienceRestriction" | b"AudienceRestriction" if in_conditions => {
                             // Read audience value
-                            if let Ok(Event::Start(e)) = reader.read_event_into(&mut buf) {
-                                if e.name().as_ref() == b"saml:Audience"
-                                    || e.name().as_ref() == b"Audience"
-                                {
-                                    let text = reader.read_text(e.name())?;
-                                    assertion.audience = Some(text.to_string());
-                                }
+                            if let Ok(Event::Start(e)) = reader.read_event_into(&mut buf)
+                                && (e.name().as_ref() == b"saml:Audience"
+                                    || e.name().as_ref() == b"Audience")
+                            {
+                                let text = reader.read_text(e.name())?;
+                                assertion.audience = Some(text.to_string());
                             }
                         }
                         b"saml:AttributeStatement" | b"AttributeStatement" => {

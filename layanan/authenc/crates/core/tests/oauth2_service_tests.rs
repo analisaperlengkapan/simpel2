@@ -292,7 +292,7 @@ async fn test_authorization_code_flow_with_pkce_s256() {
     };
 
     let auth_response = service.authorize(auth_request).await.unwrap();
-    assert!(auth_response.code.len() > 0);
+    assert!(!auth_response.code.is_empty());
     assert_eq!(auth_response.state, Some("random-state".to_string()));
 
     // Verify code was stored
@@ -316,7 +316,7 @@ async fn test_authorization_code_flow_with_pkce_s256() {
     };
 
     let token_response = service.token(token_request).await.unwrap();
-    assert!(token_response.access_token.len() > 0);
+    assert!(!token_response.access_token.is_empty());
     assert!(token_response.refresh_token.is_some());
     assert_eq!(token_response.token_type, "Bearer");
     assert_eq!(token_response.expires_in, 900);
@@ -507,7 +507,7 @@ async fn test_client_credentials_flow_success() {
     };
 
     let token_response = service.token(token_request).await.unwrap();
-    assert!(token_response.access_token.len() > 0);
+    assert!(!token_response.access_token.is_empty());
     assert!(token_response.refresh_token.is_none()); // No refresh token for client credentials
     assert_eq!(token_response.token_type, "Bearer");
 }
@@ -607,7 +607,7 @@ async fn test_refresh_token_flow_success() {
     };
 
     let token_response = service.token(token_request).await.unwrap();
-    assert!(token_response.access_token.len() > 0);
+    assert!(!token_response.access_token.is_empty());
     assert!(token_response.refresh_token.is_some()); // New refresh token (rotation)
     assert_ne!(token_response.refresh_token.unwrap(), "refresh_token_123"); // Rotated
 }

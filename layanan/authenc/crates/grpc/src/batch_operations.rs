@@ -180,7 +180,7 @@ mod tests {
     async fn test_batch_permission_check_structure() {
         // This test verifies the structure compiles correctly
         // Actual testing would require a test database setup
-        let checks = vec![
+        let checks = [
             ("resource1".to_string(), "read".to_string()),
             ("resource2".to_string(), "write".to_string()),
         ];

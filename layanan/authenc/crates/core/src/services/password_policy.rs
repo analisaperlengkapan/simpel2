@@ -164,13 +164,13 @@ impl PasswordPolicyService {
         }
 
         // Check for username in password
-        if self.config.prevent_username_in_password {
-            if let Some(uname) = username {
-                if !uname.is_empty() && password.to_lowercase().contains(&uname.to_lowercase()) {
-                    errors.push("Password must not contain your username".to_string());
-                    strength_score = strength_score.saturating_sub(30);
-                }
-            }
+        if self.config.prevent_username_in_password
+            && let Some(uname) = username
+            && !uname.is_empty()
+            && password.to_lowercase().contains(&uname.to_lowercase())
+        {
+            errors.push("Password must not contain your username".to_string());
+            strength_score = strength_score.saturating_sub(30);
         }
 
         // Check for common weak patterns

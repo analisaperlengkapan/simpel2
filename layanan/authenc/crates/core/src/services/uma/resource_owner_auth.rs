@@ -266,10 +266,10 @@ impl ResourceOwnerAuthService {
         }
 
         // Check resource match
-        if let Some(ref policy_resource_id) = policy.resource_id {
-            if policy_resource_id != resource_id {
-                return Ok(false);
-            }
+        if let Some(ref policy_resource_id) = policy.resource_id
+            && policy_resource_id != resource_id
+        {
+            return Ok(false);
         }
 
         // Check if requesting party is a delegate
@@ -287,16 +287,16 @@ impl ResourceOwnerAuthService {
         // Check validity period
         let now = Utc::now().timestamp();
 
-        if let Some(valid_from) = policy.valid_from {
-            if now < valid_from {
-                return Ok(false);
-            }
+        if let Some(valid_from) = policy.valid_from
+            && now < valid_from
+        {
+            return Ok(false);
         }
 
-        if let Some(valid_until) = policy.valid_until {
-            if now > valid_until {
-                return Ok(false);
-            }
+        if let Some(valid_until) = policy.valid_until
+            && now > valid_until
+        {
+            return Ok(false);
         }
 
         // Check conditions

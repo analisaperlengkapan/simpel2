@@ -151,7 +151,7 @@ impl Cache for InMemoryCache {
             // Checking expired every time is expensive.
             // But doing it every 100 times requires shared state counter or random.
             // Using random is good.
-            if rand::random::<u8>() % 100 == 0 {
+            if rand::random::<u8>().is_multiple_of(100) {
                 self.evict_expired();
             }
         }
@@ -262,7 +262,7 @@ impl Cache for InMemoryCache {
     }
 
     async fn exists(&self, key: &str) -> Result<bool> {
-        let mut cache = self.cache.lock().unwrap();
+        let cache = self.cache.lock().unwrap();
         // peek() does not update LRU
         let exists = cache
             .peek(key)
@@ -324,13 +324,13 @@ impl Cache for InMemoryCache {
         let mut cache = self.cache.lock().unwrap();
 
         // Check if key exists and is not expired
-        if let Some(entry) = cache.get(key) {
-            if !entry.is_expired() {
-                debug!("L1 cache set_nx failed (key exists) for key: {}", key);
-                return Ok(false);
-            }
-            // If expired, we proceed to overwrite it.
+        if let Some(entry) = cache.get(key)
+            && !entry.is_expired()
+        {
+            debug!("L1 cache set_nx failed (key exists) for key: {}", key);
+            return Ok(false);
         }
+        // If expired, we proceed to overwrite it.
 
         // Put overwrites
         // Metrics logic similar to set

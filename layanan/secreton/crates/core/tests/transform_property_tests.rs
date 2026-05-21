@@ -46,7 +46,7 @@ proptest! {
         // Property 3: Format is different from input (unless by chance)
         // We can't guarantee this for all inputs, but for most it should differ
         // This is a weak property check - just verify encryption happened
-        prop_assert!(ciphertext.len() > 0, "Ciphertext should not be empty");
+        prop_assert!(!ciphertext.is_empty(), "Ciphertext should not be empty");
     }
 
     #[test]
@@ -127,14 +127,14 @@ proptest! {
             ).await.expect("Encoding should succeed");
 
             // Decode
-            let decoded = engine.decode(
+
+
+            engine.decode(
                 "test-role",
                 "test-fpe",
                 &encoded,
                 tweak.as_deref(),
-            ).await.expect("Decoding should succeed");
-
-            decoded
+            ).await.expect("Decoding should succeed")
         });
 
         // Property: Round-trip preserves original value

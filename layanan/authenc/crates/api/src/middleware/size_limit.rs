@@ -21,26 +21,24 @@ pub async fn request_size_limit_middleware(
     next: Next,
 ) -> Result<Response, Response> {
     // Check Content-Length header if present
-    if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH) {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                if length > MAX_REQUEST_BODY_SIZE {
-                    tracing::warn!(
-                        "Request body too large: {} bytes (max: {} bytes)",
-                        length,
-                        MAX_REQUEST_BODY_SIZE
-                    );
-                    return Err((
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        format!(
-                            "Request body too large. Maximum size is {} bytes (1MB)",
-                            MAX_REQUEST_BODY_SIZE
-                        ),
-                    )
-                        .into_response());
-                }
-            }
-        }
+    if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
+        && let Ok(length_str) = content_length.to_str()
+        && let Ok(length) = length_str.parse::<usize>()
+        && length > MAX_REQUEST_BODY_SIZE
+    {
+        tracing::warn!(
+            "Request body too large: {} bytes (max: {} bytes)",
+            length,
+            MAX_REQUEST_BODY_SIZE
+        );
+        return Err((
+            StatusCode::PAYLOAD_TOO_LARGE,
+            format!(
+                "Request body too large. Maximum size is {} bytes (1MB)",
+                MAX_REQUEST_BODY_SIZE
+            ),
+        )
+            .into_response());
     }
 
     // For chunked encoding or missing Content-Length, we need to check during body reading
@@ -121,26 +119,21 @@ pub mod layer {
 
             Box::pin(async move {
                 // Check Content-Length header
-                if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH) {
-                    if let Ok(length_str) = content_length.to_str() {
-                        if let Ok(length) = length_str.parse::<usize>() {
-                            if length > max_size {
-                                tracing::warn!(
-                                    "Request body too large: {} bytes (max: {} bytes)",
-                                    length,
-                                    max_size
-                                );
-                                return Ok((
-                                    StatusCode::PAYLOAD_TOO_LARGE,
-                                    format!(
-                                        "Request body too large. Maximum size is {} bytes",
-                                        max_size
-                                    ),
-                                )
-                                    .into_response());
-                            }
-                        }
-                    }
+                if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
+                    && let Ok(length_str) = content_length.to_str()
+                    && let Ok(length) = length_str.parse::<usize>()
+                    && length > max_size
+                {
+                    tracing::warn!(
+                        "Request body too large: {} bytes (max: {} bytes)",
+                        length,
+                        max_size
+                    );
+                    return Ok((
+                        StatusCode::PAYLOAD_TOO_LARGE,
+                        format!("Request body too large. Maximum size is {} bytes", max_size),
+                    )
+                        .into_response());
                 }
 
                 // Pass through - Content-Length check above is sufficient

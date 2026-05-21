@@ -342,7 +342,7 @@ impl ConflictResolver {
         // Group operations by path
         for op in operations {
             let path = self.extract_path(&op);
-            path_ops.entry(path).or_insert_with(Vec::new).push(op);
+            path_ops.entry(path).or_default().push(op);
         }
 
         // Resolve conflicts for each path

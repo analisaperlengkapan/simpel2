@@ -312,15 +312,12 @@ mod wal_streaming_tests {
                 assert_eq!(deserialized.operation_type, operation.operation_type, "Type must match");
 
                 // Verify data integrity
-                match (&operation.data, &deserialized.data) {
-                    (
+                if let (
                         OperationData::Secret { path: p1, data: d1, .. },
                         OperationData::Secret { path: p2, data: d2, .. },
-                    ) => {
-                        assert_eq!(p1, p2, "Path must match");
-                        assert_eq!(d1, d2, "Data must match");
-                    }
-                    _ => {}
+                    ) = (&operation.data, &deserialized.data) {
+                    assert_eq!(p1, p2, "Path must match");
+                    assert_eq!(d1, d2, "Data must match");
                 }
             }
         }
@@ -407,13 +404,11 @@ mod wal_streaming_tests {
         fn prop_wal_operation_types(
             num_operations in 1usize..50usize,
         ) {
-            let operation_types = vec![
-                OperationType::SecretWrite,
+            let operation_types = [OperationType::SecretWrite,
                 OperationType::SecretDelete,
                 OperationType::PolicyWrite,
                 OperationType::PolicyDelete,
-                OperationType::ConfigUpdate,
-            ];
+                OperationType::ConfigUpdate];
 
             let operations: Vec<ReplicationOperation> = (0..num_operations)
                 .map(|i| {
@@ -429,7 +424,7 @@ mod wal_streaming_tests {
                         },
                         OperationType::PolicyWrite => OperationData::Policy {
                             name: format!("policy-{}", i),
-                            policy: format!("path \"secret/*\" {{ capabilities = [\"read\"] }}"),
+                            policy: "path \"secret/*\" { capabilities = [\"read\"] }".to_string(),
                         },
                         OperationType::PolicyDelete => OperationData::PolicyDeletion {
                             name: format!("policy-{}", i),

@@ -70,15 +70,11 @@ pub async fn replication_metrics_handler(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::{
-        body::Body,
-        http::{Request, StatusCode},
-    };
-    use tower::ServiceExt;
+    use axum::http::StatusCode;
 
     #[tokio::test]
     async fn test_metrics_handler() {
-        let response = metrics_handler().await;
+        let _response = metrics_handler().await;
 
         // Check that response is OK
         // Note: We can't easily test the actual metrics content

@@ -200,12 +200,12 @@ mod tests {
         }
 
         async fn update_backup_code(&self, user_id: UserId, code: &str, used: bool) -> Result<()> {
-            if let Some(codes) = self.codes.write().await.get_mut(&user_id) {
-                if let Some(backup_code) = codes.iter_mut().find(|c| c.code == code) {
-                    backup_code.used = used;
-                    if used {
-                        backup_code.used_at = Some(chrono::Utc::now());
-                    }
+            if let Some(codes) = self.codes.write().await.get_mut(&user_id)
+                && let Some(backup_code) = codes.iter_mut().find(|c| c.code == code)
+            {
+                backup_code.used = used;
+                if used {
+                    backup_code.used_at = Some(chrono::Utc::now());
                 }
             }
             Ok(())

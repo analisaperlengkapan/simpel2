@@ -2,8 +2,8 @@
 
 use authenc_core::services::group_store::GroupStore;
 use authenc_core::services::{
-    OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
-    SatkerManagementService, SatkerAuthorizationService,
+    OAuth2ServiceImpl, RealmManagementServiceImpl, SatkerAuthorizationService,
+    SatkerManagementService, UserManagementServiceImpl,
 };
 use authenc_crypto::jwt::JwtService;
 use std::sync::Arc;

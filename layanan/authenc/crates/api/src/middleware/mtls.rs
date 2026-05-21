@@ -14,21 +14,12 @@ pub struct ClientCertInfo {
 }
 
 /// mTLS configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MtlsConfig {
     /// Whether mTLS is required
     pub required: bool,
     /// Trusted CA certificate paths
     pub trusted_ca_paths: Vec<String>,
-}
-
-impl Default for MtlsConfig {
-    fn default() -> Self {
-        Self {
-            required: false,
-            trusted_ca_paths: Vec::new(),
-        }
-    }
 }
 
 /// mTLS middleware - validates client certificates
