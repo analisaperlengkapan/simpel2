@@ -16,6 +16,7 @@ pub mod logging;
 pub mod mapping_kodefikasi;
 pub mod metrics;
 pub mod middleware;
+pub mod migrations;
 pub mod models;
 pub mod notifikasi;
 pub mod pakaian_dinas;

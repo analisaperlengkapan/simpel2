@@ -159,8 +159,14 @@ async fn main() -> anyhow::Result<()> {
     info!("Connecting to database...");
     let db = Database::new(&database_url).await?;
 
-    // Run migrations
-    info!("Running database migrations...");
+    // Run migrations:
+    // 1. Refinery against the SQL files under `migrations/` (real schema).
+    // 2. Legacy hand-coded `CREATE TABLE` statements in
+    //    `Database::migrate` — kept for now until every table they create
+    //    has a corresponding refinery migration.
+    info!("Running refinery migrations...");
+    layanan_perlengkapan::migrations::run(db.pool()).await?;
+    info!("Running legacy bootstrap tables (Database::migrate)...");
     db.migrate().await?;
 
     // Add essential indexes for performance optimization
