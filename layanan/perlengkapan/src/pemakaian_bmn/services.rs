@@ -21,8 +21,8 @@ use super::repository::PemakaianBmnRepository;
 pub struct PemakaianBmnService {
     repository: Arc<PemakaianBmnRepository>,
     workflow_engine: Arc<WorkflowEngine>,
-    notifikasi_client: Option<Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>>,
-    dokumen_client: Option<Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>>,
+    notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
+    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
 }
 
 impl PemakaianBmnService {
@@ -33,26 +33,26 @@ impl PemakaianBmnService {
         Self {
             repository: Arc::new(repository),
             workflow_engine: Arc::new(workflow_engine),
-            notifikasi_client: None,
-            dokumen_client: None,
+            notifier: None,
+            docs: None,
         }
     }
 
-    /// Set the notifikasi service client
-    pub fn with_notifikasi_client(
+    /// Inject the notification sender (replaces the deleted gRPC client).
+    pub fn with_notification_sender(
         mut self,
-        client: Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>,
+        notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
     ) -> Self {
-        self.notifikasi_client = Some(client);
+        self.notifier = Some(notifier);
         self
     }
 
-    /// Set the dokumen service client
-    pub fn with_dokumen_client(
+    /// Inject the document generator (replaces the deleted gRPC client).
+    pub fn with_document_generator(
         mut self,
-        client: Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>,
+        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
     ) -> Self {
-        self.dokumen_client = Some(client);
+        self.docs = Some(docs);
         self
     }
 
@@ -429,10 +429,10 @@ impl PemakaianBmnService {
             .await?;
 
         // Generate permit document (REQ-P006)
-        if let Some(dokumen_client) = &self.dokumen_client {
+        if let Some(docs) = &self.docs {
             info!("Generating permit document for permit {}", id);
 
-            match self.generate_permit_document(&permit, dokumen_client).await {
+            match self.generate_permit_document(&permit, docs.as_ref()).await {
                 Ok((document_id, document_url)) => {
                     info!(
                         "Successfully generated document {} for permit {}",
@@ -456,7 +456,7 @@ impl PemakaianBmnService {
             }
         } else {
             warn!(
-                "Dokumen client not configured, skipping document generation for permit {}",
+                "Document generator not configured, skipping document generation for permit {}",
                 id
             );
         }
@@ -464,16 +464,16 @@ impl PemakaianBmnService {
         Ok(permit)
     }
 
-    /// Generate permit document via dokumen service
+    /// Generate permit document via the [`DocumentGenerator`] port.
     ///
     /// Requirements: REQ-P006, REQ-D002, REQ-D004
     async fn generate_permit_document(
         &self,
         permit: &IzinPemakaianBmn,
-        dokumen_client: &Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>,
+        docs: &dyn lib_perlengkapan::contracts::DocumentGenerator,
     ) -> AppResult<(Uuid, String)> {
         // Prepare document data
-        let document_data = serde_json::json!({
+        let mut document_data = serde_json::json!({
             "nomor_izin": permit.nomor_izin,
             "pegawai_nip": permit.pegawai_nip,
             "pegawai_nama": permit.pegawai_nama,
@@ -500,41 +500,38 @@ impl PemakaianBmnService {
             "approved_by_nama": permit.approved_by_nama,
             "approved_at": permit.approved_at.map(|d| d.to_rfc3339()),
         });
-
-        let metadata = serde_json::json!({
-            "entity_type": "pemakaian_bmn",
-            "entity_id": permit.id.to_string(),
-            "document_type": "surat_izin_pemakaian",
-        });
+        if let Some(obj) = document_data.as_object_mut() {
+            obj.insert(
+                "_workflow_meta".to_string(),
+                serde_json::json!({
+                    "entity_type": "pemakaian_bmn",
+                    "entity_id": permit.id.to_string(),
+                    "document_type": "surat_izin_pemakaian",
+                }),
+            );
+        }
 
         // TODO: Get template_id from configuration
         // For now, use a placeholder UUID
         let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")
             .map_err(|e| AppError::Internal(format!("Invalid template UUID: {}", e)))?;
 
-        // Call dokumen service with retry logic
+        // Call the document generator with retry logic
         let mut retry_count = 0;
         let max_retries = 3;
 
         loop {
-            let mut client_guard = dokumen_client.lock().await;
+            let request = lib_perlengkapan::contracts::DocumentRequest {
+                template_id: template_id.to_string(),
+                format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+                data: document_data.clone(),
+                locale: None,
+                requested_by: None,
+            };
 
-            match client_guard
-                .generate_document(
-                    template_id,
-                    document_data.clone(),
-                    Some("pdf".to_string()),
-                    Some(metadata.clone()),
-                )
-                .await
-            {
-                Ok(response) => {
-                    let result = crate::workflow::DocumentGenerationResult::try_from(response)
-                        .map_err(|e| {
-                            AppError::Internal(format!("Invalid document response: {}", e))
-                        })?;
-
-                    return Ok((result.document_id, result.download_url));
+            match docs.generate(request).await {
+                Ok(artifact) => {
+                    return Ok((artifact.document_id, artifact.storage_key));
                 }
                 Err(e) => {
                     retry_count += 1;
@@ -739,9 +736,7 @@ impl PemakaianBmnService {
         permit: &IzinPemakaianBmn,
         days_remaining: i32,
     ) -> AppResult<()> {
-        if let Some(client) = &self.notifikasi_client {
-            let mut client = client.lock().await;
-
+        if let Some(notifier) = &self.notifier {
             // Create notification data
             let notification_type = crate::workflow::WorkflowNotificationType::WorkflowTransition {
                 entity_type: "pemakaian_bmn".to_string(),
@@ -759,21 +754,17 @@ impl PemakaianBmnService {
                 )),
             };
 
-            // Send notification to permit holder
-            match client
-                .send_notification(
-                    permit.created_by,
-                    notification_type,
-                    crate::workflow::NotificationPriority::High,
-                )
-                .await
-            {
+            let msg = crate::workflow::to_notification_message(
+                permit.created_by,
+                &notification_type,
+                crate::workflow::NotificationPriority::High,
+            );
+            match notifier.send(msg).await {
                 Ok(_) => {
                     info!(
                         "Sent H-{} expiry reminder for permit {} to user {}",
                         days_remaining, permit.id, permit.created_by
                     );
-                    // Record success metric
                     let days_label = days_remaining.to_string();
                     crate::metrics::permit_expiry_reminders_sent_total()
                         .with_label_values(&[days_label.as_str(), "success"])
@@ -784,7 +775,6 @@ impl PemakaianBmnService {
                         "Failed to send expiry reminder for permit {}: {}",
                         permit.id, e
                     );
-                    // Record error metric
                     let days_label = days_remaining.to_string();
                     crate::metrics::permit_expiry_reminders_sent_total()
                         .with_label_values(&[days_label.as_str(), "error"])
@@ -792,11 +782,10 @@ impl PemakaianBmnService {
                     crate::metrics::permit_expiry_reminder_errors_total()
                         .with_label_values(&["notification_failed"])
                         .inc();
-                    // Don't fail the job if notification fails
                 }
             }
         } else {
-            warn!("Notification client not configured, skipping expiry reminder");
+            warn!("Notification sender not configured, skipping expiry reminder");
         }
 
         Ok(())
@@ -806,9 +795,7 @@ impl PemakaianBmnService {
     ///
     /// Requirements: REQ-P007, REQ-N008
     pub async fn send_expiry_notification(&self, permit: &IzinPemakaianBmn) -> AppResult<()> {
-        if let Some(client) = &self.notifikasi_client {
-            let mut client = client.lock().await;
-
+        if let Some(notifier) = &self.notifier {
             // Create notification data
             let notification_type = crate::workflow::WorkflowNotificationType::WorkflowTransition {
                 entity_type: "pemakaian_bmn".to_string(),
@@ -825,21 +812,17 @@ impl PemakaianBmnService {
                 )),
             };
 
-            // Send notification to permit holder
-            match client
-                .send_notification(
-                    permit.created_by,
-                    notification_type,
-                    crate::workflow::NotificationPriority::Urgent,
-                )
-                .await
-            {
+            let msg = crate::workflow::to_notification_message(
+                permit.created_by,
+                &notification_type,
+                crate::workflow::NotificationPriority::Urgent,
+            );
+            match notifier.send(msg).await {
                 Ok(_) => {
                     info!(
                         "Sent expiry notification for permit {} to user {}",
                         permit.id, permit.created_by
                     );
-                    // Record success metric
                     crate::metrics::permit_expiry_notifications_sent_total()
                         .with_label_values(&["success"])
                         .inc();
@@ -849,18 +832,16 @@ impl PemakaianBmnService {
                         "Failed to send expiry notification for permit {}: {}",
                         permit.id, e
                     );
-                    // Record error metric
                     crate::metrics::permit_expiry_notifications_sent_total()
                         .with_label_values(&["error"])
                         .inc();
                     crate::metrics::permit_expiry_reminder_errors_total()
                         .with_label_values(&["notification_failed"])
                         .inc();
-                    // Don't fail the job if notification fails
                 }
             }
         } else {
-            warn!("Notification client not configured, skipping expiry notification");
+            warn!("Notification sender not configured, skipping expiry notification");
         }
 
         Ok(())

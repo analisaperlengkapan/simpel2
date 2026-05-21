@@ -90,11 +90,12 @@ pub struct WorkflowEngine {
     /// Database connection pool
     db_pool: Pool,
 
-    /// Optional dokumen service client
-    dokumen_client: Option<Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>>,
+    /// Document generator (port). Optional because document generation is
+    /// only meaningful for entity types that produce SK/surat after approval.
+    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
 
-    /// Optional notifikasi service client
-    notifikasi_client: Option<Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>>,
+    /// Notification sender (port).
+    notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
 }
 
 impl WorkflowEngine {
@@ -103,26 +104,26 @@ impl WorkflowEngine {
         Self {
             config,
             db_pool,
-            dokumen_client: None,
-            notifikasi_client: None,
+            docs: None,
+            notifier: None,
         }
     }
 
-    /// Set the dokumen service client
-    pub fn with_dokumen_client(
+    /// Inject a document generator (replaces the deleted gRPC client).
+    pub fn with_document_generator(
         mut self,
-        client: Arc<tokio::sync::Mutex<crate::workflow::DokumenClient>>,
+        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
     ) -> Self {
-        self.dokumen_client = Some(client);
+        self.docs = Some(docs);
         self
     }
 
-    /// Set the notifikasi service client
-    pub fn with_notifikasi_client(
+    /// Inject a notification sender (replaces the deleted gRPC client).
+    pub fn with_notification_sender(
         mut self,
-        client: Arc<tokio::sync::Mutex<crate::workflow::NotifikasiClient>>,
+        notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
     ) -> Self {
-        self.notifikasi_client = Some(client);
+        self.notifier = Some(notifier);
         self
     }
 
@@ -240,7 +241,7 @@ impl WorkflowEngine {
         // 10. Generate document if transitioning to APPROVED state and dokumen client is available
         let mut document_url: Option<String> = None;
 
-        if request.to_state == "APPROVED" && self.dokumen_client.is_some() {
+        if request.to_state == "APPROVED" && self.docs.is_some() {
             match self
                 .generate_document_for_entity(&request.entity_id, entity_type)
                 .await
@@ -280,7 +281,7 @@ impl WorkflowEngine {
         }
 
         // 10.5. Send notifications after state transition
-        if self.notifikasi_client.is_some() {
+        if self.notifier.is_some() {
             match self
                 .send_workflow_notifications(&request, entity_type, document_url.as_deref())
                 .await
@@ -515,8 +516,8 @@ impl WorkflowEngine {
         entity_id: &Uuid,
         entity_type: &str,
     ) -> Result<(Uuid, String)> {
-        let dokumen_client = self.dokumen_client.as_ref().ok_or_else(|| {
-            WorkflowError::InvalidState("Dokumen client not configured".to_string())
+        let docs = self.docs.as_ref().ok_or_else(|| {
+            WorkflowError::InvalidState("Document generator not configured".to_string())
         })?;
 
         // Fetch entity data from database
@@ -581,29 +582,37 @@ impl WorkflowEngine {
             }
         };
 
-        // Call dokumen service to generate document
-        let mut client_guard = dokumen_client.lock().await;
-        let response = client_guard
-            .generate_document(
-                template_id,
-                entity_data,
-                Some("pdf".to_string()),
-                Some(serde_json::json!({
+        // Build a DocumentRequest and dispatch through the trait. Metadata
+        // about the originating workflow (entity_type/entity_id/generated_at)
+        // is folded into `data` so templates can reference it.
+        let mut data = entity_data;
+        if let Some(obj) = data.as_object_mut() {
+            obj.insert(
+                "_workflow_meta".to_string(),
+                serde_json::json!({
                     "entity_type": entity_type,
                     "entity_id": entity_id.to_string(),
                     "generated_by": "workflow_engine",
                     "generated_at": chrono::Utc::now().to_rfc3339(),
-                })),
-            )
-            .await
-            .map_err(|e| {
-                WorkflowError::InvalidState(format!("Document generation failed: {}", e))
-            })?;
+                }),
+            );
+        }
 
-        let document_id = Uuid::parse_str(&response.document_id)
-            .map_err(|e| WorkflowError::InvalidState(format!("Invalid document_id: {}", e)))?;
+        let request = lib_perlengkapan::contracts::DocumentRequest {
+            template_id: template_id.to_string(),
+            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            data,
+            locale: None,
+            requested_by: None,
+        };
 
-        Ok((document_id, response.download_url))
+        let artifact = docs.generate(request).await.map_err(|e| {
+            WorkflowError::InvalidState(format!("Document generation failed: {}", e))
+        })?;
+
+        // The artifact's storage_key stands in as the download URL for now —
+        // a follow-up commit will swap to DocumentStorage::presigned_url.
+        Ok((artifact.document_id, artifact.storage_key))
     }
 
     /// Send workflow notifications after state transition
@@ -618,8 +627,8 @@ impl WorkflowEngine {
         entity_type: &str,
         document_url: Option<&str>,
     ) -> Result<usize> {
-        let notifikasi_client = self.notifikasi_client.as_ref().ok_or_else(|| {
-            WorkflowError::InvalidState("Notifikasi client not configured".to_string())
+        let notifier = self.notifier.as_ref().ok_or_else(|| {
+            WorkflowError::InvalidState("Notification sender not configured".to_string())
         })?;
 
         // Determine notification recipients and type based on state transition
@@ -637,16 +646,27 @@ impl WorkflowEngine {
             return Ok(0);
         }
 
-        // Send notifications to all recipients
-        let mut client_guard = notifikasi_client.lock().await;
-        let responses = client_guard
-            .send_notification_to_multiple(recipients.clone(), notification_type, priority)
-            .await
-            .map_err(|e| {
-                WorkflowError::NotificationError(format!("Failed to send notifications: {}", e))
-            })?;
+        // Dispatch one message per recipient through the trait. Failures on a
+        // single recipient are logged but do not abort the others — matches
+        // the prior gRPC client's send_notification_to_multiple semantics.
+        let mut sent = 0usize;
+        for recipient in &recipients {
+            let msg = crate::workflow::to_notification_message(
+                *recipient,
+                &notification_type,
+                priority,
+            );
+            match notifier.send(msg).await {
+                Ok(_) => sent += 1,
+                Err(e) => tracing::error!(
+                    user_id = %recipient,
+                    error = %e,
+                    "Failed to send notification to user"
+                ),
+            }
+        }
 
-        Ok(responses.len())
+        Ok(sent)
     }
 
     /// Determine notification recipients, type, and priority based on state transition

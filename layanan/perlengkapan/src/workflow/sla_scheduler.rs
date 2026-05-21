@@ -5,9 +5,10 @@
 // ============================================================================
 
 use crate::workflow::config::WorkflowConfig;
-use crate::workflow::notifikasi_client::NotifikasiClient;
 use crate::workflow::sla::SlaMonitor;
 use deadpool_postgres::Pool;
+use lib_perlengkapan::contracts::NotificationSender;
+use std::sync::Arc;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info, warn};
 
@@ -53,7 +54,7 @@ impl SlaSchedulerConfig {
 pub struct SlaEscalationScheduler {
     config: SlaSchedulerConfig,
     db_pool: Pool,
-    notifikasi_client: Option<NotifikasiClient>,
+    notifier: Option<Arc<dyn NotificationSender>>,
 }
 
 impl SlaEscalationScheduler {
@@ -62,7 +63,7 @@ impl SlaEscalationScheduler {
         Self {
             config: SlaSchedulerConfig::from_env(),
             db_pool,
-            notifikasi_client: None,
+            notifier: None,
         }
     }
 
@@ -71,13 +72,13 @@ impl SlaEscalationScheduler {
         Self {
             config,
             db_pool,
-            notifikasi_client: None,
+            notifier: None,
         }
     }
 
-    /// Set the notifikasi service client for sending escalation notifications
-    pub fn with_notifikasi_client(mut self, client: NotifikasiClient) -> Self {
-        self.notifikasi_client = Some(client);
+    /// Inject the notification sender used for escalation notifications.
+    pub fn with_notifier(mut self, notifier: Arc<dyn NotificationSender>) -> Self {
+        self.notifier = Some(notifier);
         self
     }
 
@@ -99,11 +100,11 @@ impl SlaEscalationScheduler {
         );
 
         let db_pool = self.db_pool.clone();
-        let notifikasi_client = self.notifikasi_client.clone();
+        let notifier = self.notifier.clone();
         let cron_expr = self.config.check_interval_cron.clone();
 
         tokio::spawn(async move {
-            match Self::run_scheduler(db_pool, notifikasi_client, cron_expr).await {
+            match Self::run_scheduler(db_pool, notifier, cron_expr).await {
                 Ok(_) => {
                     info!("SLA escalation scheduler stopped gracefully");
                 }
@@ -119,21 +120,21 @@ impl SlaEscalationScheduler {
     /// Run the scheduler loop
     async fn run_scheduler(
         db_pool: Pool,
-        notifikasi_client: Option<NotifikasiClient>,
+        notifier: Option<Arc<dyn NotificationSender>>,
         cron_expr: String,
     ) -> anyhow::Result<()> {
         let scheduler = JobScheduler::new().await?;
 
         // Create the SLA check job
         let db_pool_clone = db_pool.clone();
-        let notifikasi_clone = notifikasi_client.clone();
+        let notifier_clone = notifier.clone();
 
         let job = Job::new_async(cron_expr.as_str(), move |_uuid, _lock| {
             let db_pool = db_pool_clone.clone();
-            let notifikasi = notifikasi_clone.clone();
+            let notifier = notifier_clone.clone();
 
             Box::pin(async move {
-                if let Err(e) = Self::check_and_escalate_sla_breaches(db_pool, notifikasi).await {
+                if let Err(e) = Self::check_and_escalate_sla_breaches(db_pool, notifier).await {
                     error!("SLA check job failed: {}", e);
                 }
             })
@@ -161,7 +162,7 @@ impl SlaEscalationScheduler {
     /// Requirements: REQ-W003, REQ-N008, NFR-M004
     async fn check_and_escalate_sla_breaches(
         db_pool: Pool,
-        notifikasi_client: Option<NotifikasiClient>,
+        notifier: Option<Arc<dyn NotificationSender>>,
     ) -> anyhow::Result<()> {
         info!("Starting SLA breach check and escalation");
 
@@ -174,7 +175,7 @@ impl SlaEscalationScheduler {
             "kebutuhan_bmn",
             WorkflowConfig::default_kebutuhan_bmn(),
             db_pool.clone(),
-            notifikasi_client.clone(),
+            notifier.clone(),
         )
         .await
         {
@@ -196,7 +197,7 @@ impl SlaEscalationScheduler {
             "pemakaian_bmn",
             WorkflowConfig::default_pemakaian_bmn(),
             db_pool.clone(),
-            notifikasi_client.clone(),
+            notifier.clone(),
         )
         .await
         {
@@ -218,7 +219,7 @@ impl SlaEscalationScheduler {
             "penghapusan_bmn",
             WorkflowConfig::default_penghapusan_bmn(),
             db_pool.clone(),
-            notifikasi_client.clone(),
+            notifier.clone(),
         )
         .await
         {
@@ -265,11 +266,11 @@ impl SlaEscalationScheduler {
         workflow_type: &str,
         config: WorkflowConfig,
         db_pool: Pool,
-        notifikasi_client: Option<NotifikasiClient>,
+        notifier: Option<Arc<dyn NotificationSender>>,
     ) -> anyhow::Result<(usize, usize)> {
         // Create SLA monitor
-        let monitor = if let Some(client) = notifikasi_client {
-            SlaMonitor::with_notifikasi(config, db_pool, client)
+        let monitor = if let Some(notifier) = notifier {
+            SlaMonitor::with_notifier(config, db_pool, notifier)
         } else {
             SlaMonitor::new(config, db_pool)
         };

@@ -6,12 +6,14 @@
 
 use crate::metrics;
 use crate::workflow::config::WorkflowConfig;
-use crate::workflow::notifikasi_client::{
-    NotificationPriority, NotifikasiClient, WorkflowNotificationType,
+use crate::workflow::notification_types::{
+    NotificationPriority, WorkflowNotificationType, to_notification_message,
 };
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Pool;
+use lib_perlengkapan::contracts::NotificationSender;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// SLA breach information
@@ -47,8 +49,9 @@ pub struct SlaMonitor {
     /// Database connection pool
     db_pool: Pool,
 
-    /// Notification service client (optional - for production use)
-    notifikasi_client: Option<NotifikasiClient>,
+    /// Notification sender (port). Optional for tests/dev; production wiring
+    /// passes a concrete [`NotifikasiService`](crate::notifikasi::service::NotifikasiService).
+    notifier: Option<Arc<dyn NotificationSender>>,
 }
 
 impl SlaMonitor {
@@ -57,20 +60,20 @@ impl SlaMonitor {
         Self {
             config,
             db_pool,
-            notifikasi_client: None,
+            notifier: None,
         }
     }
 
-    /// Create a new SLA monitor with notification service
-    pub fn with_notifikasi(
+    /// Create a new SLA monitor with notification sender
+    pub fn with_notifier(
         config: WorkflowConfig,
         db_pool: Pool,
-        notifikasi_client: NotifikasiClient,
+        notifier: Arc<dyn NotificationSender>,
     ) -> Self {
         Self {
             config,
             db_pool,
-            notifikasi_client: Some(notifikasi_client),
+            notifier: Some(notifier),
         }
     }
 
@@ -228,8 +231,8 @@ impl SlaMonitor {
         // Get approver and requester user IDs
         let (approver_id, requester_id) = self.get_approver_and_requester(breach.entity_id).await?;
 
-        // Send notification via notification service if available
-        if let Some(mut client) = self.notifikasi_client.clone() {
+        // Send notifications via the NotificationSender port if wired up.
+        if let Some(notifier) = self.notifier.as_ref() {
             // Send escalation notification to approver
             let escalation_notification = WorkflowNotificationType::SlaBreachEscalation {
                 entity_type: "kebutuhan_bmn".to_string(),
@@ -240,19 +243,17 @@ impl SlaMonitor {
                 days_overdue: (breach.breach_duration_minutes / (24 * 60)) as i32,
             };
 
-            match client
-                .send_notification(
-                    approver_id,
-                    escalation_notification.clone(),
-                    NotificationPriority::Urgent,
-                )
-                .await
-            {
-                Ok(response) => {
+            let escalation_msg = to_notification_message(
+                approver_id,
+                &escalation_notification,
+                NotificationPriority::Urgent,
+            );
+            match notifier.send(escalation_msg).await {
+                Ok(receipt) => {
                     tracing::info!(
                         entity_id = %breach.entity_id,
                         approver_id = %approver_id,
-                        notification_id = %response.notification_id,
+                        notification_id = %receipt.notification_id,
                         "SLA breach escalation notification sent to approver"
                     );
 
@@ -287,19 +288,17 @@ impl SlaMonitor {
                 breach_duration_minutes: breach.breach_duration_minutes,
             };
 
-            match client
-                .send_notification(
-                    requester_id,
-                    requester_notification,
-                    NotificationPriority::Normal,
-                )
-                .await
-            {
-                Ok(response) => {
+            let requester_msg = to_notification_message(
+                requester_id,
+                &requester_notification,
+                NotificationPriority::Normal,
+            );
+            match notifier.send(requester_msg).await {
+                Ok(receipt) => {
                     tracing::info!(
                         entity_id = %breach.entity_id,
                         requester_id = %requester_id,
-                        notification_id = %response.notification_id,
+                        notification_id = %receipt.notification_id,
                         "SLA breach informational notification sent to requester"
                     );
                 }
