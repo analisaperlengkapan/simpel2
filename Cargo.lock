@@ -649,7 +649,7 @@ dependencies = [
  "base32",
  "base64 0.22.1",
  "bcrypt",
- "bincode 1.3.3",
+ "bincode 2.0.1",
  "chrono",
  "config",
  "dashmap",
@@ -6616,6 +6616,7 @@ name = "lib-perlengkapan"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "bytes",
  "chrono",
  "deadpool-postgres",
  "regex",
