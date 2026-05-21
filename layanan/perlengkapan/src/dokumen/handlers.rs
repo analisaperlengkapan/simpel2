@@ -1,11 +1,11 @@
-use crate::archive::ArchiveService;
-use crate::audit::insert_audit_log;
-use crate::classify::ClassifyService;
-use crate::config::AppConfig;
-use crate::error::AppError;
-use crate::models::*;
-use crate::ocr::OcrService;
-use crate::storage::StorageService;
+use super::archive::ArchiveService;
+use super::audit::insert_audit_log;
+use super::classify::ClassifyService;
+use super::config::AppConfig;
+use super::error::AppError;
+use super::models::*;
+use super::ocr::OcrService;
+use super::storage::StorageService;
 use axum::extract::Multipart;
 use axum::http::{StatusCode, header};
 use axum::{
@@ -440,7 +440,7 @@ pub async fn get_audit_logs(
         .as_str()
         .and_then(|s| Uuid::parse_str(s).ok());
     let limit = params["limit"].as_i64().unwrap_or(20);
-    let logs = crate::audit::query_audit_logs(&state.pool, document_id, user_id, limit).await?;
+    let logs = super::audit::query_audit_logs(&state.pool, document_id, user_id, limit).await?;
     Ok(Json(logs))
 }
 
@@ -497,7 +497,7 @@ pub async fn get_archived_document(
 /// Search archived documents with filters
 pub async fn search_archived_documents(
     State(state): State<HandlerState>,
-    Query(filters): Query<crate::archive::ArchiveSearchFilters>,
+    Query(filters): Query<super::archive::ArchiveSearchFilters>,
 ) -> Result<impl IntoResponse, AppError> {
     use std::path::PathBuf;
     let archive_service = ArchiveService::new(PathBuf::from(&state.config.archive_storage_path));

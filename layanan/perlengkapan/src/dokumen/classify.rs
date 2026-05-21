@@ -1,6 +1,6 @@
-use crate::config::AppConfig;
-use crate::error::AppError;
-use crate::models::DocumentTag;
+use super::config::AppConfig;
+use super::error::AppError;
+use super::models::DocumentTag;
 use reqwest::Client;
 use uuid::Uuid;
 

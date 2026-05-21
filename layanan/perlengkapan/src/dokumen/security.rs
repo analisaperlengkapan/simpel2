@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::DocumentPermission;
+use super::error::AppError;
+use super::models::DocumentPermission;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

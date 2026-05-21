@@ -4,7 +4,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 // Re-export template models
-pub use crate::template_models::*;
+pub use super::template_models::*;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Document {

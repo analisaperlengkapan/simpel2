@@ -1,5 +1,5 @@
-use crate::config::AppConfig;
-use crate::error::AppError;
+use super::config::AppConfig;
+use super::error::AppError;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce, aead::Aead};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
@@ -173,7 +173,7 @@ impl StorageService {
         query: &str,
         limit: i64,
         offset: i64,
-    ) -> Result<Vec<crate::models::Document>, AppError> {
+    ) -> Result<Vec<super::models::Document>, AppError> {
         let search_pattern = format!("%{}%", query);
         let client = pool.get().await?;
         let rows = client
@@ -183,7 +183,7 @@ impl StorageService {
             )
             .await?;
 
-        Ok(rows.iter().map(crate::models::Document::from).collect())
+        Ok(rows.iter().map(super::models::Document::from).collect())
     }
 
     /// List all versions of a document
@@ -191,7 +191,7 @@ impl StorageService {
         &self,
         pool: &deadpool_postgres::Pool,
         document_id: Uuid,
-    ) -> Result<Vec<crate::models::DocumentVersion>, AppError> {
+    ) -> Result<Vec<super::models::DocumentVersion>, AppError> {
         let client = pool.get().await?;
         let rows = client
             .query(
@@ -202,7 +202,7 @@ impl StorageService {
 
         Ok(rows
             .iter()
-            .map(crate::models::DocumentVersion::from)
+            .map(super::models::DocumentVersion::from)
             .collect())
     }
 

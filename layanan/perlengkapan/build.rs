@@ -9,11 +9,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let authenc_proto_dir = PathBuf::from("../../layanan/authenc/proto");
     let secreton_proto_dir = PathBuf::from("../../layanan/secreton/proto");
     let integrasi_proto_dir = PathBuf::from("../../layanan/integrasi/proto");
-    // Internal protos kept temporarily while the workflow ↔ dokumen / notifikasi
-    // gRPC clients have not yet been replaced with direct trait calls. Once the
-    // contract-based wiring lands they will be deleted along with the proto
-    // files in the dokumen/notifikasi sub-crates.
-    let dokumen_proto_dir = PathBuf::from("crates/dokumen/proto");
+    // Internal protos kept temporarily while the workflow ↔ dokumen /
+    // notifikasi gRPC clients have not yet been replaced with
+    // `lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender}`
+    // trait calls. They live in `proto/` (own) and `crates/notifikasi/proto/`
+    // (notifikasi sub-crate, pending fold), and will be deleted in the
+    // trait-wiring commit along with `workflow/{dokumen,notifikasi}_client.rs`.
+    let dokumen_proto_dir = PathBuf::from("proto");
     let notifikasi_proto_dir = PathBuf::from("crates/notifikasi/proto");
 
     // Verify proto directories exist

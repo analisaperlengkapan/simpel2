@@ -1,6 +1,6 @@
-use crate::config::AppConfig;
-use crate::error::AppError;
-use crate::models::OcrResult;
+use super::config::AppConfig;
+use super::error::AppError;
+use super::models::OcrResult;
 use reqwest::Client;
 use uuid::Uuid;
 

@@ -5,6 +5,7 @@ pub mod connection_config;
 pub mod dashboard;
 pub mod database;
 pub mod database_optimization;
+pub mod dokumen;
 pub mod errors;
 pub mod grpc_clients;
 pub mod handlers;

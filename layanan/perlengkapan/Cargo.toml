@@ -18,6 +18,8 @@ path = "src/lib.rs"
 [features]
 default = []
 integration-tests = []
+# Enables the optional clamav virus-scanning hook in dokumen::security.
+virus-scan = ["dep:clamav-client"]
 
 [dependencies]
 # Web framework
@@ -94,6 +96,16 @@ tokio-cron-scheduler = { workspace = true }
 
 # Excel generation (dipakai by export modules; akan dishare lintas modul)
 rust_xlsxwriter = { workspace = true }
+
+# Document generation (dokumen module)
+handlebars = { workspace = true }
+printpdf = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+regex = { workspace = true }
+clamav-client = { workspace = true, optional = true }
 
 [build-dependencies]
 tonic-prost-build = { workspace = true }

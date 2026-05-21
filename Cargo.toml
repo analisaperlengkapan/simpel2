@@ -17,13 +17,11 @@ members = [
   "antarmuka/portal",
   "antarmuka/perlengkapan",
 
-  # Perlengkapan Backend (unified crate; dokumen/notifikasi/bantuan
-  # sub-crates are temporarily kept until their content is folded into
-  # `layanan/perlengkapan/src/{dokumen,notifikasi,bantuan}` in a follow-up
-  # commit, then removed from this list).
+  # Perlengkapan Backend (unified crate; notifikasi/bantuan sub-crates
+  # are temporarily kept until their content is folded into
+  # `layanan/perlengkapan/src/{notifikasi,bantuan}`).
   "layanan/perlengkapan",
   "layanan/integrasi",
-  "layanan/perlengkapan/crates/dokumen",
   "layanan/perlengkapan/crates/notifikasi",
   "layanan/perlengkapan/crates/bantuan",
 

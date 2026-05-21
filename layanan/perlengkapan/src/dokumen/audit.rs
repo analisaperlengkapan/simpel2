@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::AuditLog;
+use super::error::AppError;
+use super::models::AuditLog;
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
