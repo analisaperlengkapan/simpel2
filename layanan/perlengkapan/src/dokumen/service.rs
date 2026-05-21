@@ -1,37 +1,133 @@
 //! In-process [`DocumentGenerator`] implementation for the dokumen module.
 //!
-//! Wraps the existing template / generator / storage primitives so that the
+//! Wraps [`TemplateService`] + [`PdfGenerator`] + [`ExcelGenerator`] so the
 //! workflow module (and any future caller) can request document generation
 //! through the [`lib_perlengkapan::contracts::DocumentGenerator`] trait
 //! instead of the dropped internal gRPC client.
+//!
+//! Storage strategy: files land under `${DOCUMENT_STORAGE_PATH:-/tmp/perlengkapan/docs}/<uuid>.<ext>`
+//! and the artifact's `storage_key` carries that relative path. The proper
+//! [`DocumentStorage`](lib_perlengkapan::contracts::DocumentStorage)
+//! adapter (filesystem now, S3 later) lands in a follow-up commit;
+//! `storage_key` is forward-compatible with that swap.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use chrono::Utc;
+use deadpool_postgres::Pool;
 use lib_perlengkapan::ServiceError;
 use lib_perlengkapan::contracts::{
-    DocumentArtifact, DocumentGenerator, DocumentRequest,
+    DocumentArtifact, DocumentFormat, DocumentGenerator, DocumentRequest,
 };
+use uuid::Uuid;
 
+use super::excel_generator::ExcelGenerator;
+use super::pdf_generator::PdfGenerator;
 use super::template_service::TemplateService;
 
+const DEFAULT_STORAGE_ROOT: &str = "/tmp/perlengkapan/docs";
+
 /// Concrete service that fulfils the [`DocumentGenerator`] contract.
-///
-/// The actual orchestration of [`TemplateService`], the PDF/Excel generators,
-/// and the storage layer lives in their existing modules; this struct is the
-/// adapter that exposes them as a single trait surface.
 #[derive(Clone)]
 pub struct DokumenService {
+    pool: Pool,
     template_service: Arc<TemplateService>,
+    pdf_generator: Arc<PdfGenerator>,
+    excel_generator: Arc<ExcelGenerator>,
 }
 
 impl DokumenService {
-    pub fn new(template_service: Arc<TemplateService>) -> Self {
-        Self { template_service }
+    pub fn new(
+        pool: Pool,
+        template_service: Arc<TemplateService>,
+        pdf_generator: Arc<PdfGenerator>,
+        excel_generator: Arc<ExcelGenerator>,
+    ) -> Self {
+        Self {
+            pool,
+            template_service,
+            pdf_generator,
+            excel_generator,
+        }
     }
 
-    pub fn template_service(&self) -> &Arc<TemplateService> {
-        &self.template_service
+    fn storage_root() -> PathBuf {
+        std::env::var("DOCUMENT_STORAGE_PATH")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(DEFAULT_STORAGE_ROOT))
+    }
+
+    fn ext_for(format: DocumentFormat) -> &'static str {
+        match format {
+            DocumentFormat::Pdf => "pdf",
+            DocumentFormat::Excel => "xlsx",
+            DocumentFormat::Html => "html",
+            DocumentFormat::Csv => "csv",
+        }
+    }
+
+    fn content_type_for(format: DocumentFormat) -> &'static str {
+        match format {
+            DocumentFormat::Pdf => "application/pdf",
+            DocumentFormat::Excel => {
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+            DocumentFormat::Html => "text/html; charset=utf-8",
+            DocumentFormat::Csv => "text/csv; charset=utf-8",
+        }
+    }
+
+    /// Render `template_id` against `data` to raw bytes, without persisting.
+    async fn render_bytes(
+        &self,
+        template_id: &str,
+        format: DocumentFormat,
+        data: &serde_json::Value,
+    ) -> Result<bytes::Bytes, ServiceError> {
+        let template_uuid = Uuid::parse_str(template_id).map_err(|e| {
+            ServiceError::validation(format!("Invalid template_id (expected UUID): {}", e))
+        })?;
+
+        let template = self
+            .template_service
+            .get_template(&self.pool, template_uuid)
+            .await
+            .map_err(|e| ServiceError::storage(format!("Template fetch failed: {}", e)))?;
+
+        match format {
+            DocumentFormat::Html => {
+                let html = self
+                    .template_service
+                    .render_template(&template.content, data)
+                    .map_err(|e| {
+                        ServiceError::validation(format!("Template render failed: {}", e))
+                    })?;
+                Ok(bytes::Bytes::from(html.into_bytes()))
+            }
+            DocumentFormat::Pdf => {
+                // pdf_generator writes a temp file on disk as a side effect; use
+                // a discardable path under the storage root.
+                let tmp_path = Self::storage_root().join(format!("preview-{}.pdf", Uuid::new_v4()));
+                tokio::fs::create_dir_all(tmp_path.parent().unwrap_or(&Self::storage_root()))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
+                let bytes = self
+                    .pdf_generator
+                    .generate_pdf(&template, data, tmp_path.to_str().unwrap_or(""))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("PDF render failed: {}", e)))?;
+                let _ = tokio::fs::remove_file(&tmp_path).await;
+                Ok(bytes::Bytes::from(bytes))
+            }
+            DocumentFormat::Excel => Err(ServiceError::not_found(
+                "Excel rendering not yet implemented for the trait path",
+            )),
+            DocumentFormat::Csv => Err(ServiceError::not_found(
+                "CSV rendering not yet implemented for the trait path",
+            )),
+        }
     }
 }
 
@@ -39,26 +135,41 @@ impl DokumenService {
 impl DocumentGenerator for DokumenService {
     async fn generate(
         &self,
-        _request: DocumentRequest,
+        request: DocumentRequest,
     ) -> Result<DocumentArtifact, ServiceError> {
-        // TODO(perlengkapan-unified): wire to TemplateService::render_document
-        // + the PDF/Excel generators + StorageService::store. Returning a
-        // placeholder error so the trait can be wired into AppState while the
-        // call-site migration in workflow::engine and workflow::sla is in
-        // flight.
-        Err(ServiceError::internal(
-            "DocumentGenerator::generate not yet wired to dokumen pipeline",
-        ))
+        let document_id = Uuid::new_v4();
+        let bytes = self
+            .render_bytes(&request.template_id, request.format, &request.data)
+            .await?;
+
+        let ext = Self::ext_for(request.format);
+        let storage_root = Self::storage_root();
+        tokio::fs::create_dir_all(&storage_root)
+            .await
+            .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
+
+        let filename = format!("{}.{}", document_id, ext);
+        let storage_path = storage_root.join(&filename);
+        let storage_key = storage_path.to_string_lossy().into_owned();
+        tokio::fs::write(&storage_path, &bytes)
+            .await
+            .map_err(|e| ServiceError::storage(format!("write {:?}: {}", storage_path, e)))?;
+
+        Ok(DocumentArtifact {
+            document_id,
+            filename,
+            content_type: Self::content_type_for(request.format).to_string(),
+            size_bytes: bytes.len() as u64,
+            storage_key,
+            generated_at: Utc::now(),
+        })
     }
 
     async fn preview(
         &self,
-        _request: DocumentRequest,
+        request: DocumentRequest,
     ) -> Result<bytes::Bytes, ServiceError> {
-        // TODO(perlengkapan-unified): produce the rendered bytes without
-        // persisting them — used by the /admin/templates Preview button.
-        Err(ServiceError::internal(
-            "DocumentGenerator::preview not yet wired to dokumen pipeline",
-        ))
+        self.render_bytes(&request.template_id, request.format, &request.data)
+            .await
     }
 }
