@@ -630,9 +630,11 @@ impl FipsKeyStoreManager {
         // This implementation stores secrets in a separate encrypted file alongside the keystore
 
         let secret_file = format!("{}.secrets", self.keystore_path);
-        let mut secrets = if std::path::Path::new(&secret_file).exists() {
+        let mut secrets: HashMap<String, String> = if std::path::Path::new(&secret_file).exists() {
             let data = fs::read(&secret_file)?;
-            bincode::deserialize(&data).unwrap_or_else(|_| HashMap::new())
+            bincode::serde::decode_from_slice(&data, bincode::config::standard())
+                .map(|(v, _)| v)
+                .unwrap_or_else(|_| HashMap::new())
         } else {
             HashMap::new()
         };
@@ -655,7 +657,7 @@ impl FipsKeyStoreManager {
         secrets.insert(alias.to_string(), encrypted_b64);
 
         // Serialize and save
-        let data = bincode::serialize(&secrets)?;
+        let data = bincode::serde::encode_to_vec(&secrets, bincode::config::standard())?;
         fs::write(&secret_file, data)?;
 
         tracing::info!("Stored secret '{}' in FIPS keystore", alias);
@@ -672,7 +674,8 @@ impl FipsKeyStoreManager {
         }
 
         let data = fs::read(&secret_file)?;
-        let secrets: HashMap<String, String> = bincode::deserialize(&data)?;
+        let (secrets, _): (HashMap<String, String>, _) =
+            bincode::serde::decode_from_slice(&data, bincode::config::standard())?;
 
         if let Some(encrypted_b64) = secrets.get(alias) {
             // Decrypt the secret
