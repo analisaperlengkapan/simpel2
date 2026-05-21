@@ -280,6 +280,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let iam_oauth2_service = oauth2_service.clone();
     let iam_jwt_service = jwt_service.clone();
 
+    // CAPTCHA service
+    let captcha_service = Arc::new(authenc_core::services::CaptchaService::new((*db).clone()));
+
     // API state
     let mut state = ApiState::new(
         jwt_service,
@@ -291,7 +294,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         webauthn_service,
         None,
         webauthn_session_store,
-        db,
+        db.clone(),
+        captcha_service,
     );
 
     // Integrasi gRPC client (optional, enabled via INTEGRASI_GRPC_URL env var)
@@ -320,12 +324,25 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // Create Satker management and authorization services
+    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new((*db).clone()));
+    let all_satkers = match db.get_all_satkers().await {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to retrieve satkers from database: {}", e);
+            Vec::new()
+        }
+    };
+    let satker_auth_service = Arc::new(authenc_core::services::SatkerAuthorizationService::new(all_satkers));
+
     // IAM API - create state and router for admin endpoints
     let iam_state = IamApiState::new(
         iam_user_service,
         iam_realm_service,
         iam_oauth2_service,
         iam_jwt_service,
+        satker_service,
+        satker_auth_service,
     );
     let iam_router = create_iam_router(Arc::new(iam_state));
 

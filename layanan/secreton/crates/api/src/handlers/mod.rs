@@ -242,7 +242,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app).expect("Failed to create TestServer");
+        let server = TestServer::new(app);
 
         let response = server.get("/").await;
         response.assert_status_ok();
@@ -262,7 +262,7 @@ mod tests {
         );
 
         let app = create_router(&config, services);
-        let server = TestServer::new(app).expect("Failed to create TestServer");
+        let server = TestServer::new(app);
 
         let response = server.get("/version").await;
         response.assert_status_ok();

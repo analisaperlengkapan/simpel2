@@ -296,9 +296,7 @@ impl EventRetentionService {
 
             // Serialize events to JSON
             let json_data =
-                serde_json::to_vec_pretty(&events).map_err(|e| Error::InternalError {
-                    message: format!("Failed to serialize events: {}", e),
-                })?;
+                serde_json::to_vec_pretty(&events).map_err(|e| Error::internal(format!("Failed to serialize events: {}", e)))?;
 
             // Upload to S3/MinIO
             let put_result = s3_client
@@ -330,9 +328,7 @@ impl EventRetentionService {
                 }
                 Err(e) => {
                     tracing::error!("Failed to archive events to {}: {}", archive_key, e);
-                    return Err(Error::InternalError {
-                        message: format!("Failed to archive events: {}", e),
-                    });
+                    return Err(Error::internal(format!("Failed to archive events: {}", e)));
                 }
             }
 

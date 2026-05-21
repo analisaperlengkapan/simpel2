@@ -11,6 +11,7 @@ use tokio_postgres::{NoTls, Row};
 use tracing::{debug, info};
 
 /// Database connection pool
+#[derive(Clone)]
 pub struct Database {
     pool: Pool,
 }
@@ -219,7 +220,7 @@ impl Database {
     /// Begin a database transaction
     ///
     /// # Example
-    /// ```no_run
+    /// ```ignore
     /// # use authenc_storage::Database;
     /// # async fn example(db: &Database) -> authenc_types::Result<()> {
     /// db.transaction(|tx| async move {

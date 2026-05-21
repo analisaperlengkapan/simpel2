@@ -3,6 +3,7 @@
 use authenc_core::services::group_store::GroupStore;
 use authenc_core::services::{
     OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
+    SatkerManagementService, SatkerAuthorizationService,
 };
 use authenc_crypto::jwt::JwtService;
 use std::sync::Arc;
@@ -24,6 +25,12 @@ pub struct IamApiState {
 
     /// Group management service
     pub group_service: Option<Arc<GroupStore>>,
+
+    /// Satker management service
+    pub satker_service: Arc<SatkerManagementService>,
+
+    /// Satker authorization service
+    pub satker_auth_service: Arc<SatkerAuthorizationService>,
     // TODO: Add missing services for full IAM API functionality
     // These services are required by the migrated admin handlers:
 
@@ -39,13 +46,8 @@ pub struct IamApiState {
     // pub organization_service: Arc<OrganizationService>,
     // Required by: organizations.rs
 
-    // TODO: Add satker service when implemented
-    // pub satker_service: Arc<SatkerManagementService>,
-    // pub satker_auth_service: Arc<SatkerAuthorizationService>,
-    // Required by: satker.rs
-
     // TODO: Add JIT provisioning service when implemented
-    // pub jit_service: Arc<JitProvisioningService>,
+    // pub JIT_service: Arc<JitProvisioningService>,
     // Required by: jit_admin.rs
 
     // TODO: Add client registration service when implemented
@@ -88,6 +90,8 @@ impl IamApiState {
         realm_service: Arc<RealmManagementServiceImpl>,
         client_service: Arc<OAuth2ServiceImpl>,
         jwt_service: Arc<JwtService>,
+        satker_service: Arc<SatkerManagementService>,
+        satker_auth_service: Arc<SatkerAuthorizationService>,
     ) -> Self {
         Self {
             user_service,
@@ -95,6 +99,8 @@ impl IamApiState {
             client_service,
             jwt_service,
             group_service: None,
+            satker_service,
+            satker_auth_service,
         }
     }
 

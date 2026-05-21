@@ -31,9 +31,7 @@ impl KafkaEventListener {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", brokers)
             .create()
-            .map_err(|e| crate::error::AuthencError::InternalError {
-                message: format!("Failed to create Kafka producer: {}", e),
-            })?;
+            .map_err(|e| crate::error::AuthencError::internal(format!("Failed to create Kafka producer: {}", e)))?;
 
         Ok(Self {
             producer,
@@ -50,9 +48,7 @@ impl KafkaEventListener {
         key: &str,
     ) -> Result<()> {
         let payload = serde_json::to_string(event).map_err(|e| {
-            crate::error::AuthencError::InternalError {
-                message: format!("Failed to serialize event: {}", e),
-            }
+            crate::error::AuthencError::internal(format!("Failed to serialize event: {}", e))
         })?;
 
         let record = FutureRecord::to(topic).payload(&payload).key(key);
@@ -65,9 +61,7 @@ impl KafkaEventListener {
             }
             Err((e, _)) => {
                 tracing::error!("Failed to send event to Kafka topic {}: {}", topic, e);
-                Err(crate::error::AuthencError::InternalError {
-                    message: format!("Kafka send error: {}", e),
-                })
+                Err(crate::error::AuthencError::internal(format!("Kafka send error: {}", e)))
             }
         }
     }

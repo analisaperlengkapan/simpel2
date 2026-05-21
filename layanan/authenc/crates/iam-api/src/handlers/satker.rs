@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::error::ApiResult;
+use crate::error::{ApiResult, ApiError};
 use crate::state::IamApiState;
 use authenc_types::AuthencError;
 
@@ -112,112 +112,269 @@ pub struct CrossSatkerValidation {
     pub reason: String,
 }
 
-/// GET /api/v1/iam/satkers/{code} - Get a satker by code
+// ============================================================
+// Helper Mapping Functions
+// ============================================================
+
+fn map_api_type_to_domain(api_type: SatkerType) -> authenc_types::domain::satker::SatkerType {
+    match api_type {
+        SatkerType::Kejaksaan => authenc_types::domain::satker::SatkerType::Pusat,
+        SatkerType::Kejati => authenc_types::domain::satker::SatkerType::KejaksaanTinggi,
+        SatkerType::Kejari => authenc_types::domain::satker::SatkerType::KejaksaanNegeri,
+        SatkerType::Cabang => authenc_types::domain::satker::SatkerType::Cabang,
+    }
+}
+
+fn map_domain_type_to_api(domain_type: authenc_types::domain::satker::SatkerType) -> SatkerType {
+    match domain_type {
+        authenc_types::domain::satker::SatkerType::Pusat => SatkerType::Kejaksaan,
+        authenc_types::domain::satker::SatkerType::KejaksaanTinggi => SatkerType::Kejati,
+        authenc_types::domain::satker::SatkerType::KejaksaanNegeri => SatkerType::Kejari,
+        authenc_types::domain::satker::SatkerType::Cabang => SatkerType::Cabang,
+        authenc_types::domain::satker::SatkerType::UnitKhusus => SatkerType::Kejaksaan,
+    }
+}
+
+fn map_domain_to_response(satker: authenc_types::domain::satker::Satker) -> SatkerResponse {
+    SatkerResponse {
+        id: satker.id,
+        code: satker.code,
+        name: satker.name,
+        description: satker.description,
+        parent_code: satker.parent_code,
+        level: satker.level,
+        satker_type: map_domain_type_to_api(satker.satker_type),
+        active: satker.active,
+        attributes: satker.attributes,
+        created_at: satker.created_at,
+        updated_at: satker.updated_at,
+    }
+}
+
+fn map_hierarchy_info_to_api(info: authenc_core::services::SatkerHierarchyInfo) -> SatkerHierarchyInfo {
+    SatkerHierarchyInfo {
+        satker_code: info.satker.code,
+        ancestors: info.ancestors.into_iter().map(|s| s.code).collect(),
+        descendants: info.descendants.into_iter().map(|s| s.code).collect(),
+        level: info.level,
+    }
+}
+
+// ============================================================
+// HTTP Handlers
+// ============================================================
+
+/// GET /api/v1/iam/satker/{id} - Get a satker by code
 pub async fn get_satker(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_code): Path<String>,
+    State(state): State<Arc<IamApiState>>,
+    Path(code): Path<String>,
 ) -> ApiResult<Json<SatkerResponse>> {
-    // TODO: Implement get satker
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let satker = state
+        .satker_service
+        .get_satker(&code)
+        .await
+        .map_err(ApiError)?
+        .ok_or_else(|| ApiError(AuthencError::not_found(format!("Satker '{}' tidak ditemukan", code))))?;
+
+    Ok(Json(map_domain_to_response(satker)))
 }
 
-/// GET /api/v1/iam/satkers - List satkers with optional filtering
+/// GET /api/v1/iam/satker - List satkers with optional filtering
 pub async fn list_satkers(
-    State(_state): State<Arc<IamApiState>>,
-    Query(_query): Query<ListSatkersQuery>,
+    State(state): State<Arc<IamApiState>>,
+    Query(query): Query<ListSatkersQuery>,
 ) -> ApiResult<Json<Vec<SatkerResponse>>> {
-    // TODO: Implement list satkers
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let satkers = state
+        .satker_service
+        .list_satkers(query.parent_code, query.level, query.search)
+        .await
+        .map_err(ApiError)?;
+
+    let response = satkers.into_iter().map(map_domain_to_response).collect();
+    Ok(Json(response))
 }
 
-/// POST /api/v1/iam/satkers - Create a new satker
+/// POST /api/v1/iam/satker - Create a new satker
 pub async fn create_satker(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_request): Json<CreateSatkerRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Json(request): Json<CreateSatkerRequest>,
 ) -> ApiResult<(StatusCode, Json<SatkerResponse>)> {
-    // TODO: Implement create satker
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let domain_type = map_api_type_to_domain(request.satker_type);
+    let satker = state
+        .satker_service
+        .create_satker(
+            request.code,
+            request.name,
+            request.description,
+            request.parent_code,
+            request.level,
+            domain_type,
+            request.attributes,
+        )
+        .await
+        .map_err(ApiError)?;
+
+    Ok((StatusCode::CREATED, Json(map_domain_to_response(satker))))
 }
 
-/// PUT /api/v1/iam/satkers/{code} - Update a satker
+/// PUT /api/v1/iam/satker/{id} - Update a satker
 pub async fn update_satker(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_code): Path<String>,
-    Json(_request): Json<UpdateSatkerRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Path(code): Path<String>,
+    Json(request): Json<UpdateSatkerRequest>,
 ) -> ApiResult<Json<SatkerResponse>> {
-    // TODO: Implement update satker
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let domain_type = request.satker_type.map(map_api_type_to_domain);
+    let satker = state
+        .satker_service
+        .update_satker(
+            &code,
+            request.name,
+            request.description,
+            request.parent_code,
+            request.level,
+            domain_type,
+            request.attributes,
+        )
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(map_domain_to_response(satker)))
 }
 
-/// GET /api/v1/iam/satkers/{code}/hierarchy - Get satker hierarchy information
+/// GET /api/v1/iam/satker/{id}/hierarchy - Get satker hierarchy information
 pub async fn get_satker_hierarchy(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_code): Path<String>,
+    State(state): State<Arc<IamApiState>>,
+    Path(code): Path<String>,
 ) -> ApiResult<Json<SatkerHierarchyInfo>> {
-    // TODO: Implement get hierarchy
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let info = state
+        .satker_service
+        .get_satker_hierarchy_info(&code)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(map_hierarchy_info_to_api(info)))
 }
 
-/// GET /api/v1/iam/satkers/roots - Get root satkers
+/// GET /api/v1/iam/satker/roots - Get root satkers
 pub async fn get_root_satkers(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<Vec<SatkerResponse>>> {
-    // TODO: Implement get root satkers
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker management not yet implemented. Requires satker_service in IamApiState.",
-    )))
+    let satkers = state
+        .satker_service
+        .get_root_satkers()
+        .await
+        .map_err(ApiError)?;
+
+    let response = satkers.into_iter().map(map_domain_to_response).collect();
+    Ok(Json(response))
 }
 
-/// POST /api/v1/iam/satkers/check-access - Check if a user can access a target satker
+/// POST /api/v1/iam/satker/{id}/authorization - Check if a user can access a target satker
 pub async fn check_satker_access(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_request): Json<CheckAccessRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Path(code): Path<String>,
+    Json(request): Json<CheckAccessRequest>,
 ) -> ApiResult<Json<CheckAccessResponse>> {
-    // TODO: Implement check access
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker authorization not yet implemented. Requires satker_auth_service in IamApiState.",
-    )))
+    let user = state
+        .user_service
+        .get_user(authenc_types::domain_types::UserId(request.user_id))
+        .await
+        .map_err(ApiError)?;
+
+    let allowed = state
+        .satker_auth_service
+        .can_access_satker(&user, &code)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(CheckAccessResponse {
+        allowed,
+        reason: if allowed {
+            Some("Akses diizinkan berdasarkan hierarki Satker".to_string())
+        } else {
+            Some("Akses ditolak: User tidak berada dalam hierarki Satker target".to_string())
+        },
+    }))
 }
 
-/// POST /api/v1/iam/satkers/validate-cross-operation - Validate a cross-satker operation
+/// POST /api/v1/iam/satker/validate-cross-operation - Validate a cross-satker operation
 pub async fn validate_cross_satker_operation(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_request): Json<CrossSatkerOperationRequest>,
+    State(state): State<Arc<IamApiState>>,
+    Json(request): Json<CrossSatkerOperationRequest>,
 ) -> ApiResult<Json<CrossSatkerValidation>> {
-    // TODO: Implement validate cross-satker operation
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker authorization not yet implemented. Requires satker_auth_service in IamApiState.",
-    )))
+    let user = state
+        .user_service
+        .get_user(authenc_types::domain_types::UserId(request.user_id))
+        .await
+        .map_err(ApiError)?;
+
+    let validation = state
+        .satker_auth_service
+        .validate_cross_satker_operation(
+            &user,
+            &request.source_satker,
+            &request.target_satker,
+            &request.operation,
+            &request.resource_type,
+        )
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(CrossSatkerValidation {
+        allowed: validation.allowed,
+        requires_approval: !validation.allowed && !validation.involved_satkers.is_empty(),
+        approval_level: if !validation.allowed {
+            Some("wilayah".to_string())
+        } else {
+            None
+        },
+        reason: validation.reason,
+    }))
 }
 
-/// GET /api/v1/iam/satkers/users/{user_id}/accessible - Get accessible satkers for a user
+/// GET /api/v1/iam/satker/users/{user_id}/accessible - Get accessible satkers for a user
 pub async fn get_accessible_satkers(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_user_id): Path<Uuid>,
+    State(state): State<Arc<IamApiState>>,
+    Path(user_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<String>>> {
-    // TODO: Implement get accessible satkers
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker authorization not yet implemented. Requires satker_auth_service in IamApiState.",
-    )))
+    let user = state
+        .user_service
+        .get_user(authenc_types::domain_types::UserId(user_id))
+        .await
+        .map_err(ApiError)?;
+
+    let accessible = state
+        .satker_auth_service
+        .get_accessible_satkers(&user)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(accessible))
 }
 
-/// GET /api/v1/iam/satkers/users/{user_id}/can-manage/{satker_code} - Check if a user can manage a target satker
+/// GET /api/v1/iam/satker/users/{user_id}/can-manage/{satker_code} - Check if a user can manage a target satker
 pub async fn check_satker_management(
-    State(_state): State<Arc<IamApiState>>,
-    Path((_user_id, _satker_code)): Path<(Uuid, String)>,
+    State(state): State<Arc<IamApiState>>,
+    Path((user_id, satker_code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<CheckAccessResponse>> {
-    // TODO: Implement check management
-    Err(crate::error::ApiError(AuthencError::not_implemented(
-        "Satker authorization not yet implemented. Requires satker_auth_service in IamApiState.",
-    )))
+    let user = state
+        .user_service
+        .get_user(authenc_types::domain_types::UserId(user_id))
+        .await
+        .map_err(ApiError)?;
+
+    let allowed = state
+        .satker_auth_service
+        .can_manage_satker(&user, &satker_code)
+        .await
+        .map_err(ApiError)?;
+
+    Ok(Json(CheckAccessResponse {
+        allowed,
+        reason: if allowed {
+            Some("User memiliki hak akses manajemen untuk Satker ini".to_string())
+        } else {
+            Some("User tidak memiliki hak akses manajemen untuk Satker ini".to_string())
+        },
+    }))
 }

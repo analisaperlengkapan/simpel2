@@ -297,7 +297,7 @@ mod tests {
         );
 
         let app = create_routes().with_state(services);
-        TestServer::new(app).expect("failed to start test server")
+        TestServer::new(app)
     }
 
     #[tokio::test]

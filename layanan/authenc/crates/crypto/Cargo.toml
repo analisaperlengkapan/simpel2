@@ -32,6 +32,8 @@ rand = { workspace = true }
 base64 = { workspace = true }
 base64ct = { workspace = true }
 once_cell = { workspace = true }
+subtle = { workspace = true }
+hkdf = { workspace = true }
 
 # Advanced cryptography dependencies
 axum = { workspace = true }        # For mTLS middleware
@@ -46,9 +48,20 @@ reqwest = { workspace = true }     # For xmldsig OCSP/CRL fetching
 # Shared library dependencies
 lib-crypto = { workspace = true }
 
+# Post-Quantum Cryptography dependencies (optional, enabled via 'quantum' feature)
+pqcrypto-mldsa = { workspace = true, optional = true }
+pqcrypto-mlkem = { workspace = true, optional = true }
+pqcrypto-falcon = { workspace = true, optional = true }
+pqcrypto-traits = { workspace = true, optional = true }
+
 [features]
 default = []
-quantum = []
+quantum = [
+    "dep:pqcrypto-mldsa",
+    "dep:pqcrypto-mlkem",
+    "dep:pqcrypto-falcon",
+    "dep:pqcrypto-traits",
+]
 secreton = []
 
 # Declare expected cfg values to silence unexpected-cfg warnings in xmldsig.rs

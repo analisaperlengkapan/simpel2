@@ -638,7 +638,7 @@ impl FipsKeyStoreManager {
         };
 
         // Encrypt the secret using AES-256
-        use crate::crypto::aes_gcm::AesGcmService;
+        use authenc_crypto::aes_gcm::AesGcmService;
 
         // Derive key from password
         let mut salt = [0u8; 16];
@@ -650,7 +650,7 @@ impl FipsKeyStoreManager {
         let encrypted = aes_service.encrypt(secret.as_bytes())?;
         let encrypted_json = serde_json::to_string(&encrypted)?;
         let encrypted_json_bytes = encrypted_json.as_bytes();
-        let encrypted_b64 = crate::utils::encoding::base64_encode(encrypted_json_bytes);
+        let encrypted_b64 = lib_core::encoding::base64_encode(encrypted_json_bytes);
 
         secrets.insert(alias.to_string(), encrypted_b64);
 
@@ -676,10 +676,10 @@ impl FipsKeyStoreManager {
 
         if let Some(encrypted_b64) = secrets.get(alias) {
             // Decrypt the secret
-            let encrypted_json_bytes = crate::utils::encoding::base64_decode(encrypted_b64)?;
+            let encrypted_json_bytes = lib_core::encoding::base64_decode(encrypted_b64)?;
             let encrypted_json = String::from_utf8(encrypted_json_bytes)?;
 
-            use crate::crypto::aes_gcm::{AesGcmService, EncryptedData};
+            use authenc_crypto::aes_gcm::{AesGcmService, EncryptedData};
             let encrypted_data: EncryptedData = serde_json::from_str(&encrypted_json)?;
 
             // Derive key from password (same salt used during encryption)

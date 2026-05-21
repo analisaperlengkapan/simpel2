@@ -37,7 +37,7 @@ async fn create_test_server(
 
     let app = create_routes().with_state(services);
 
-    let server = TestServer::new(app).expect("Failed to create test server");
+    let server = TestServer::new(app);
     (server, crypto)
 }
 

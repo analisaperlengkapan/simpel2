@@ -124,9 +124,7 @@ impl EventPublisher {
             .set("queue.buffering.max.kbytes", "1048576")
             .set("compression.type", "snappy")
             .create()
-            .map_err(|e| AuthencError::InternalError {
-                message: format!("Failed to create Kafka producer: {}", e),
-            })?;
+            .map_err(|e| AuthencError::internal(format!("Failed to create Kafka producer: {}", e)))?;
 
         let metrics_enabled = config.enable_metrics;
 
@@ -334,9 +332,7 @@ impl EventPublisher {
             }
         }
 
-        Err(AuthencError::InternalError {
-            message: "Event publishing failed after all retries".to_string(),
-        })
+        Err(AuthencError::internal("Event publishing failed after all retries"))
     }
 
     /// Send event to Kafka
@@ -347,9 +343,7 @@ impl EventPublisher {
 
         match producer.send(record, Duration::from_secs(5)).await {
             Ok(_) => Ok(()),
-            Err((e, _)) => Err(AuthencError::InternalError {
-                message: format!("Kafka send error: {}", e),
-            }),
+            Err((e, _)) => Err(AuthencError::internal(format!("Kafka send error: {}", e))),
         }
     }
 
@@ -360,9 +354,7 @@ impl EventPublisher {
         dlq_entry: &DlqEntry,
     ) -> Result<()> {
         let payload =
-            serde_json::to_string(dlq_entry).map_err(|e| AuthencError::InternalError {
-                message: format!("Failed to serialize DLQ entry: {}", e),
-            })?;
+            serde_json::to_string(dlq_entry).map_err(|e| AuthencError::internal(format!("Failed to serialize DLQ entry: {}", e)))?;
 
         let record = FutureRecord::to(dlq_topic)
             .payload(&payload)
@@ -370,9 +362,7 @@ impl EventPublisher {
 
         match producer.send(record, Duration::from_secs(5)).await {
             Ok(_) => Ok(()),
-            Err((e, _)) => Err(AuthencError::InternalError {
-                message: format!("DLQ send error: {}", e),
-            }),
+            Err((e, _)) => Err(AuthencError::internal(format!("DLQ send error: {}", e))),
         }
     }
 

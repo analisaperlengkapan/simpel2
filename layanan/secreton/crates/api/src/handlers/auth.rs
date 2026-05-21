@@ -103,7 +103,7 @@ mod tests {
             .with_state(services)
             .layer(axum::middleware::from_fn(mock_auth_middleware));
 
-        TestServer::new(app).expect("Failed to create test server")
+        TestServer::new(app)
     }
 
     #[tokio::test]
@@ -134,7 +134,7 @@ mod tests {
             .with_state(services)
             .layer(axum::middleware::from_fn(mock_auth_middleware));
 
-        let server = TestServer::new(app).expect("Failed to create test server");
+        let server = TestServer::new(app);
 
         let request = LoginRequest {
             username: "alice".to_string(),
@@ -245,7 +245,7 @@ mod tests {
             .with_state(services)
             .layer(axum::middleware::from_fn(mock_auth_middleware));
 
-        let server = TestServer::new(app).expect("Failed to create test server");
+        let server = TestServer::new(app);
 
         let response = server.get("/oauth/github").await;
         response.assert_status_ok();

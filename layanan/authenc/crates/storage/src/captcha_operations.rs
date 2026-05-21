@@ -1,94 +1,54 @@
-//! CAPTCHA Database Operations
-//!
-//! Database operations for CAPTCHA challenge storage, validation, and analytics
-//!
-//! **Status**: MIGRATED BUT DISABLED
-//! **Reason**: Depends on models and services not yet migrated:
-//! - `services::captcha::metrics::{BotDetectionMetrics, PerformanceMetrics, SecurityEventMetrics, UserExperienceMetrics}`
-//! - `services::captcha::{BehaviorClassification, BehavioralMetrics, Challenge, ChallengeType, RiskLevel}`
-//! - `services::captcha::{BrowserFingerprint, TimingAnalysis}`
-//!
-//! **TODO**: Enable after Phase 3 (models migration) and Phase 4 (services migration)
-
-#![allow(dead_code, unused_imports)]
-
 use crate::database::Database;
-use authenc_types::{AuthencError, Result};
-// use crate::services::captcha::metrics::{...}; // TODO: Migrate services
-// use crate::services::captcha::{...}; // TODO: Migrate services
-use serde_json;
+use authenc_types::{
+    Result,
+    domain::captcha::{Challenge, ChallengeType},
+};
+use chrono::{DateTime, Utc};
 use std::net::IpAddr;
-use std::time::{SystemTime, UNIX_EPOCH};
-use time::OffsetDateTime;
-use tokio_postgres::Row;
 use uuid::Uuid;
 
-/*
-/// CAPTCHA database operations
-pub struct CaptchaOperations {
-    db: Database,
-}
-
-impl CaptchaOperations {
-    /// Create new CAPTCHA operations instance
-    pub fn new(db: Database) -> Self {
-        Self { db }
-    }
-
-    /// Store a new CAPTCHA challenge
-    pub async fn store_challenge(&self, challenge: &Challenge) -> Result<()> {
-        let created_at: chrono::DateTime<chrono::Utc> = challenge.created_at.into();
-        let expires_at: chrono::DateTime<chrono::Utc> = challenge.expires_at.into();
+impl Database {
+    /// Store a new CAPTCHA challenge in the database
+    pub async fn store_captcha_challenge(
+        &self,
+        challenge: &Challenge,
+        ip_address: IpAddr,
+        raw_data: String,
+    ) -> Result<()> {
+        let client = self.get_connection().await?;
 
         let challenge_type_str = match challenge.challenge_type {
             ChallengeType::Visual => "Visual",
-            ChallengeType::Audio => "Audio",
-            ChallengeType::Behavioral => "Behavioral",
             ChallengeType::Logical => "Logical",
-            ChallengeType::Hybrid => "Hybrid",
         };
 
-        // Parse UUID from string ID
-        let challenge_uuid = Uuid::parse_str(&challenge.id)
-            .map_err(|_| AuthencError::validation("Invalid challenge ID format"))?;
-
-        // Parse IP address
-        let ip_addr: IpAddr = challenge
-            .ip_address
-            .parse()
-            .map_err(|_| AuthencError::validation("Invalid IP address format"))?;
-
-        // Difficulty as i16 for PostgreSQL
-        let difficulty: i16 = challenge.difficulty_level as i16;
+        let difficulty = challenge.difficulty as i16;
 
         let query = r#"
             INSERT INTO captcha_challenges (
                 id, challenge_type, difficulty_level, encrypted_data,
-                expected_answer_hash, created_at, expires_at, session_id, ip_address
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                expected_answer_hash, created_at, expires_at, session_id, ip_address,
+                solved, solved_at, attempts, max_attempts
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         "#;
 
-        tracing::info!(
-            "Storing challenge: id={}, type={}, difficulty={}, ip={}",
-            challenge_uuid,
-            challenge_type_str,
-            difficulty,
-            ip_addr
-        );
-
-        self.db
+        client
             .execute(
                 query,
                 &[
-                    &challenge_uuid,
+                    &challenge.id,
                     &challenge_type_str,
                     &difficulty,
-                    &challenge.encrypted_data,
-                    &challenge.expected_answer_hash,
-                    &created_at,
-                    &expires_at,
+                    &raw_data,
+                    &challenge.answer_hash,
+                    &challenge.created_at,
+                    &challenge.expires_at,
                     &challenge.session_id,
-                    &ip_addr,
+                    &ip_address,
+                    &challenge.verified, // solved
+                    &None::<DateTime<Utc>>, // solved_at
+                    &0_i32, // attempts
+                    &3_i32, // max_attempts
                 ],
             )
             .await?;
@@ -96,46 +56,99 @@ impl CaptchaOperations {
         Ok(())
     }
 
-    // ... rest of implementation commented out ...
-    // See original file for full implementation
-}
+    /// Retrieve a CAPTCHA challenge by ID
+    pub async fn get_captcha_challenge(&self, id: Uuid) -> Result<Option<Challenge>> {
+        let client = self.get_connection().await?;
 
-/// CAPTCHA analytics summary
-#[derive(Debug, Clone)]
-pub struct CaptchaAnalyticsSummary {
-    /// Total number of CAPTCHA challenges issued
-    pub total_challenges: u64,
-    /// Number of challenges successfully solved
-    pub solved_challenges: u64,
-    /// Success rate as a percentage (0.0 to 1.0)
-    pub success_rate: f64,
-    /// Average difficulty score of challenges
-    pub avg_difficulty: f64,
-    /// Rate of detected bot attempts
-    pub bot_detection_rate: f64,
-    /// Number of unique IP addresses
-    pub unique_ips: u64,
-    /// Number of high-risk validation attempts
-    pub high_risk_attempts: u64,
-}
+        let query = r#"
+            SELECT id, challenge_type, expected_answer_hash, difficulty_level,
+                   expires_at, solved, session_id, created_at
+            FROM captcha_challenges
+            WHERE id = $1
+        "#;
 
-/// Validation attempt record
-#[derive(Debug, Clone)]
-pub struct ValidationAttempt {
-    /// Unique identifier for the validation attempt
-    pub id: Uuid,
-    /// ID of the CAPTCHA challenge being validated
-    pub challenge_id: Uuid,
-    /// Whether the validation was successful
-    pub success: bool,
-    /// Confidence score of the validation (0.0 to 1.0)
-    pub confidence_score: Option<f64>,
-    /// Risk assessment level
-    pub risk_assessment: RiskLevel,
-    /// Timestamp when the attempt was made
-    pub created_at: chrono::DateTime<chrono::Utc>,
-}
+        let row_opt = client.query_opt(query, &[&id]).await?;
 
-// Full implementation is commented out - see original file
-// This file contains ~800 lines of CAPTCHA operations
-*/
+        if let Some(row) = row_opt {
+            let type_str: String = row.get("challenge_type");
+            let challenge_type = match type_str.as_str() {
+                "Logical" => ChallengeType::Logical,
+                _ => ChallengeType::Visual,
+            };
+
+            let difficulty: i16 = row.get("difficulty_level");
+
+            Ok(Some(Challenge {
+                id: row.get("id"),
+                challenge_type,
+                answer_hash: row.get("expected_answer_hash"),
+                difficulty: difficulty as u32,
+                expires_at: row.get("expires_at"),
+                verified: row.get("solved"),
+                session_id: row.get("session_id"),
+                created_at: row.get("created_at"),
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Mark a CAPTCHA challenge as solved
+    pub async fn mark_captcha_challenge_verified(&self, id: Uuid) -> Result<()> {
+        let client = self.get_connection().await?;
+
+        let query = r#"
+            UPDATE captcha_challenges
+            SET solved = true, solved_at = NOW()
+            WHERE id = $1
+        "#;
+
+        client.execute(query, &[&id]).await?;
+
+        Ok(())
+    }
+
+    /// Record a CAPTCHA validation attempt using the stored procedure
+    pub async fn record_captcha_validation_attempt(
+        &self,
+        challenge_id: Uuid,
+        ip_address: IpAddr,
+        user_agent: Option<String>,
+        answer_provided: String,
+        success: bool,
+        risk_score: Option<f32>,
+    ) -> Result<Uuid> {
+        let client = self.get_connection().await?;
+
+        let confidence_score = risk_score.map(|s| 1.0 - s as f64);
+        let risk_assessment = match risk_score {
+            Some(s) if s > 0.8 => "Critical",
+            Some(s) if s > 0.5 => "High",
+            Some(s) if s > 0.25 => "Medium",
+            _ => "Low",
+        };
+
+        let query = r#"
+            SELECT record_captcha_validation($1, $2, $3, $4, $5, $6, $7, $8) as attempt_id
+        "#;
+
+        let row = client
+            .query_one(
+                query,
+                &[
+                    &challenge_id,
+                    &ip_address,
+                    &user_agent,
+                    &answer_provided,
+                    &success,
+                    &confidence_score,
+                    &risk_assessment,
+                    &None::<Uuid>, // behavioral_metrics_id
+                ],
+            )
+            .await?;
+
+        let attempt_id: Uuid = row.get("attempt_id");
+        Ok(attempt_id)
+    }
+}

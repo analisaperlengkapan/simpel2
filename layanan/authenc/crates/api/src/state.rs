@@ -47,6 +47,9 @@ pub struct ApiState {
     /// Database connection for direct access when needed
     pub database: Arc<Database>,
 
+    /// CAPTCHA service for generating/verifying challenges
+    pub captcha_service: Arc<authenc_core::services::CaptchaService>,
+
     /// gRPC client for layanan-integrasi (pegawai/satker data)
     pub integrasi_client: Option<Arc<IntegrasiGrpcClient>>,
 }
@@ -65,6 +68,7 @@ impl ApiState {
         mfa_service: Option<Arc<dyn MfaApiService>>,
         session_store: SessionStore,
         database: Arc<Database>,
+        captcha_service: Arc<authenc_core::services::CaptchaService>,
     ) -> Self {
         Self {
             jwt_service,
@@ -77,6 +81,7 @@ impl ApiState {
             mfa_service,
             session_store,
             database,
+            captcha_service,
             integrasi_client: None,
         }
     }
