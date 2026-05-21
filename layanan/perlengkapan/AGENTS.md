@@ -285,7 +285,7 @@ request.validate().map_err(AppError::Validation)?;
 ### 3. Add gRPC Service Method
 
 1. Update proto file in `proto/`
-2. Regenerate code: `cargo build -p layanan-perlengkapan-api`
+2. Regenerate code: `cargo build -p layanan-perlengkapan`
 3. Implement service in `crates/api/src/grpc/`
 4. Add to router
 
@@ -366,19 +366,19 @@ request.validate().map_err(AppError::Validation)?;
 ### Unit Tests
 
 ```bash
-cargo test -p layanan-perlengkapan-api
+cargo test -p layanan-perlengkapan
 ```
 
 ### Integration Tests
 
 ```bash
-cargo test -p layanan-perlengkapan-api --features integration-tests
+cargo test -p layanan-perlengkapan --features integration-tests
 ```
 
 ### Build
 
 ```bash
-cargo build -p layanan-perlengkapan-api --release
+cargo build -p layanan-perlengkapan --release
 ```
 
 ---
@@ -395,13 +395,13 @@ cargo run
 ### Production Build
 
 ```bash
-cargo build -p layanan-perlengkapan-api --release
+cargo build -p layanan-perlengkapan --release
 ```
 
 ### Docker Build
 
 ```bash
-docker build -t layanan-perlengkapan-api:latest .
+docker build -t layanan-perlengkapan:latest .
 ```
 
 ---
@@ -414,7 +414,7 @@ docker build -t layanan-perlengkapan-api:latest .
 antarmuka/perlengkapan (WASM)
   → reads JWT from localStorage key `auth_token`
   → calls REST API at /api/pembinaan/perlengkapan/*
-  → layanan-perlengkapan-api (Axum)
+  → layanan-perlengkapan (Axum)
     → validates JWT via gRPC → authenc-grpc
     → fetches secrets via gRPC → secreton-grpc
     → queries PostgreSQL via deadpool-postgres

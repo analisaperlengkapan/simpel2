@@ -30,7 +30,7 @@ scrape_configs:
   - job_name: 'perlengkapan-api'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['layanan-perlengkapan-api:8093']
+      - targets: ['layanan-perlengkapan:8093']
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance

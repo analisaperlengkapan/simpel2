@@ -556,8 +556,8 @@ e2e:api-fast:
     - cd -
 
     # Start backend service
-    - chmod +x target/release/layanan-perlengkapan-api
-    - nohup ./target/release/layanan-perlengkapan-api > api.log 2>&1 &
+    - chmod +x target/release/layanan-perlengkapan
+    - nohup ./target/release/layanan-perlengkapan > api.log 2>&1 &
     - API_PID=$!
     - echo "Started API with PID $API_PID"
 
@@ -627,8 +627,8 @@ e2e:api-business:
     - cd -
 
     # Start backend service
-    - chmod +x target/release/layanan-perlengkapan-api
-    - nohup ./target/release/layanan-perlengkapan-api > api.log 2>&1 &
+    - chmod +x target/release/layanan-perlengkapan
+    - nohup ./target/release/layanan-perlengkapan > api.log 2>&1 &
     - API_PID=$!
 
     # Wait for API
@@ -697,8 +697,8 @@ e2e:ui-tests:
     - cd -
 
     # Start backend
-    - chmod +x target/release/layanan-perlengkapan-api
-    - nohup ./target/release/layanan-perlengkapan-api > api.log 2>&1 &
+    - chmod +x target/release/layanan-perlengkapan
+    - nohup ./target/release/layanan-perlengkapan > api.log 2>&1 &
     - API_PID=$!
 
     # Wait for API

@@ -64,7 +64,7 @@ This module provides a comprehensive workflow engine for managing approval proce
 The scheduler is automatically started in `main.rs`:
 
 ```rust
-use layanan_perlengkapan_api::workflow::SlaEscalationScheduler;
+use layanan_perlengkapan::workflow::SlaEscalationScheduler;
 
 // Create scheduler
 let sla_scheduler = SlaEscalationScheduler::new(db_pool.clone());
@@ -121,7 +121,7 @@ Examples:
 You can also manually check SLA for a specific entity:
 
 ```rust
-use layanan_perlengkapan_api::workflow::{SlaMonitor, WorkflowConfig};
+use layanan_perlengkapan::workflow::{SlaMonitor, WorkflowConfig};
 
 let config = WorkflowConfig::default_kebutuhan_bmn();
 let monitor = SlaMonitor::new(config, db_pool.clone());
@@ -229,10 +229,10 @@ Run the workflow tests:
 
 ```bash
 # Unit tests
-cargo test -p layanan-perlengkapan-api --lib workflow
+cargo test -p layanan-perlengkapan --lib workflow
 
 # Integration tests
-cargo test -p layanan-perlengkapan-api --test sla_scheduler_test
+cargo test -p layanan-perlengkapan --test sla_scheduler_test
 ```
 
 ## Architecture

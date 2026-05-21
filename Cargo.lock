@@ -5953,10 +5953,6 @@ dependencies = [
 [[package]]
 name = "layanan-perlengkapan"
 version = "0.1.0"
-
-[[package]]
-name = "layanan-perlengkapan-api"
-version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",

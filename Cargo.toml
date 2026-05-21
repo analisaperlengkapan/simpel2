@@ -17,9 +17,11 @@ members = [
   "antarmuka/portal",
   "antarmuka/perlengkapan",
 
-  # Perlengkapan Backend
+  # Perlengkapan Backend (unified crate; dokumen/notifikasi/bantuan
+  # sub-crates are temporarily kept until their content is folded into
+  # `layanan/perlengkapan/src/{dokumen,notifikasi,bantuan}` in a follow-up
+  # commit, then removed from this list).
   "layanan/perlengkapan",
-  "layanan/perlengkapan/crates/api",
   "layanan/integrasi",
   "layanan/perlengkapan/crates/dokumen",
   "layanan/perlengkapan/crates/notifikasi",
@@ -61,7 +63,7 @@ members = [
 default-members = [
   "antarmuka/portal",
   "antarmuka/perlengkapan",
-  "layanan/perlengkapan/crates/api",
+  "layanan/perlengkapan",
 ]
 
 [workspace.package]

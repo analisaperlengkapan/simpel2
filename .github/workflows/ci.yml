@@ -515,7 +515,7 @@ jobs:
           - name: layanan-authenc
             package: authenc
           - name: layanan-perlengkapan
-            package: layanan-perlengkapan-api
+            package: layanan-perlengkapan
           - name: layanan-integrasi
             package: layanan-integrasi
           - name: layanan-secreton
@@ -771,7 +771,7 @@ jobs:
             packages: '-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
             test_args: ''
           - tier: layanan-perlengkapan
-            packages: '-p layanan-perlengkapan -p layanan-perlengkapan-api -p layanan-perlengkapan-bantuan -p layanan-perlengkapan-dokumen -p layanan-perlengkapan-notifikasi'
+            packages: '-p layanan-perlengkapan -p layanan-perlengkapan-bantuan -p layanan-perlengkapan-dokumen -p layanan-perlengkapan-notifikasi'
             # `e2e_integration_tests` butuh PostgreSQL real; skip di CI
             # unit-test job. Untuk run integration test, butuh pg service
             # container atau jalankan manual dengan --include-ignored.

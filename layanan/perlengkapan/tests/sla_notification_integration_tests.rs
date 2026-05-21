@@ -11,7 +11,7 @@ use tokio_postgres::NoTls;
 use uuid::Uuid;
 
 // Import workflow modules
-use layanan_perlengkapan_api::workflow::{
+use layanan_perlengkapan::workflow::{
     config::WorkflowConfig, notifikasi_client::NotifikasiClient, sla::SlaMonitor,
 };
 
@@ -130,7 +130,7 @@ async fn test_sla_breach_detection() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA for entity
-    let result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> =
+    let result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
         monitor.check_sla(entity_id).await;
     assert!(result.is_ok());
 
@@ -162,7 +162,7 @@ async fn test_sla_no_breach() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA for entity
-    let result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> =
+    let result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
         monitor.check_sla(entity_id).await;
     assert!(result.is_ok());
 
@@ -187,7 +187,7 @@ async fn test_sla_check_all() {
     let entity3 = create_test_kebutuhan(&pool, "REVIEWED", Utc::now() - Duration::days(2)).await;
 
     // Test: Check all SLAs
-    let result: Result<Vec<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> =
+    let result: Result<Vec<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
         monitor.check_all_sla().await;
     assert!(result.is_ok());
 
@@ -237,7 +237,7 @@ async fn test_sla_escalation_with_notification() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Check SLA and escalate
-    let breach_result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> =
+    let breach_result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
         monitor.check_sla(entity_id).await;
     assert!(breach_result.is_ok());
 
@@ -310,13 +310,13 @@ async fn test_sla_status_normal() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Get SLA status
-    let result: Result<layanan_perlengkapan_api::workflow::sla::SlaStatus, _> =
+    let result: Result<layanan_perlengkapan::workflow::sla::SlaStatus, _> =
         monitor.get_sla_status(entity_id).await;
     assert!(result.is_ok());
 
     let status = result.unwrap();
     match status {
-        layanan_perlengkapan_api::workflow::sla::SlaStatus::Normal { remaining_minutes } => {
+        layanan_perlengkapan::workflow::sla::SlaStatus::Normal { remaining_minutes } => {
             assert!(
                 remaining_minutes > 0,
                 "Remaining minutes should be positive"
@@ -342,13 +342,13 @@ async fn test_sla_status_breached() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Test: Get SLA status
-    let result: Result<layanan_perlengkapan_api::workflow::sla::SlaStatus, _> =
+    let result: Result<layanan_perlengkapan::workflow::sla::SlaStatus, _> =
         monitor.get_sla_status(entity_id).await;
     assert!(result.is_ok());
 
     let status = result.unwrap();
     match status {
-        layanan_perlengkapan_api::workflow::sla::SlaStatus::Breached {
+        layanan_perlengkapan::workflow::sla::SlaStatus::Breached {
             breach_duration_minutes,
         } => {
             assert!(
@@ -376,16 +376,16 @@ async fn test_sla_metrics_recorded() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Get initial metric values
-    let initial_breaches = layanan_perlengkapan_api::metrics::workflow_sla_breaches_total()
+    let initial_breaches = layanan_perlengkapan::metrics::workflow_sla_breaches_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
         .get();
 
-    let initial_escalations = layanan_perlengkapan_api::metrics::workflow_escalations_total()
+    let initial_escalations = layanan_perlengkapan::metrics::workflow_escalations_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
         .get();
 
     // Test: Check SLA and escalate
-    let breach_result: Result<Option<layanan_perlengkapan_api::workflow::sla::SlaBreachInfo>, _> =
+    let breach_result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
         monitor.check_sla(entity_id).await;
     assert!(breach_result.is_ok());
 
@@ -397,11 +397,11 @@ async fn test_sla_metrics_recorded() {
     assert!(escalate_result.is_ok());
 
     // Verify metrics were incremented
-    let final_breaches = layanan_perlengkapan_api::metrics::workflow_sla_breaches_total()
+    let final_breaches = layanan_perlengkapan::metrics::workflow_sla_breaches_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
         .get();
 
-    let final_escalations = layanan_perlengkapan_api::metrics::workflow_escalations_total()
+    let final_escalations = layanan_perlengkapan::metrics::workflow_escalations_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
         .get();
 

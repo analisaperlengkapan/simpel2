@@ -11,7 +11,7 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-use layanan_perlengkapan_api::{
+use layanan_perlengkapan::{
     cache_strategy, dashboard, database, database_optimization, grpc_clients, health,
     kebutuhan_bmn, logging, middleware, pakaian_dinas, pemakaian_bmn, penghapusan_bmn,
     rate_limiting, roadmap_sarpras, routes, services, workflow,
@@ -28,7 +28,7 @@ use rate_limiting::{RateLimitConfig, RateLimiter};
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
-use layanan_perlengkapan_api::AppState;
+use layanan_perlengkapan::AppState;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize structured logging

@@ -1,5 +1,5 @@
 // Integration test for SLA escalation scheduler
-use layanan_perlengkapan_api::workflow::{SlaEscalationScheduler, SlaSchedulerConfig};
+use layanan_perlengkapan::workflow::{SlaEscalationScheduler, SlaSchedulerConfig};
 use std::time::Duration;
 use tokio_postgres::NoTls;
 

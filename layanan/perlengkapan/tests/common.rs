@@ -1,4 +1,4 @@
-use layanan_perlengkapan_api::{
+use layanan_perlengkapan::{
     cache_strategy::CacheManager,
     dashboard::services::DashboardService,
     database::Database,
@@ -201,7 +201,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::from_env())),
     };
 
-    let app = layanan_perlengkapan_api::routes::create_routes(state);
+    let app = layanan_perlengkapan::routes::create_routes(state);
 
     (app, db, db_name)
 }
