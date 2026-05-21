@@ -33,7 +33,6 @@ This document provides the comprehensive technical design for the unified perlen
 | **Scheduler** | tokio-cron-scheduler | Latest | Background jobs |
 | **WebSocket** | Axum WS | 0.8.x | Real-time notifications |
 
-
 ## Architecture
 
 ### High-Level System Architecture
@@ -101,7 +100,6 @@ flowchart TB
     style Core fill:#fce4ec
     style Data fill:#e8f5e9
 ```
-
 
 ### Module Organization
 
@@ -235,7 +233,6 @@ layanan/perlengkapan/
     └── integration_tests.rs
 ```
 
-
 ### Communication Flow
 
 ```mermaid
@@ -274,7 +271,6 @@ sequenceDiagram
     Router-->>FE: HTTP Response
 ```
 
-
 ## Components and Interfaces
 
 ### 1. Application Entry Point (main.rs)
@@ -289,6 +285,7 @@ sequenceDiagram
 - Start HTTP server with graceful shutdown
 
 **Key Functions:**
+
 ```rust
 async fn main() -> Result<()>
 async fn load_config() -> Result<Config>
@@ -306,6 +303,7 @@ async fn run_migrations(pool: &Pool) -> Result<()>
 2. Secreton vault (production via Kubernetes auth)
 
 **Configuration Structure:**
+
 ```rust
 pub struct Config {
     pub server: ServerConfig,
@@ -340,12 +338,12 @@ pub struct DatabaseConfig {
 - Descriptive errors for missing/invalid configuration
 - Secrets never logged
 
-
 ### 3. Infrastructure Layer
 
 #### Database (infrastructure/database.rs)
 
 **Connection Pooling:**
+
 ```rust
 pub struct DatabasePool {
     pool: Pool<PostgresConnectionManager<NoTls>>,
@@ -367,6 +365,7 @@ impl DatabasePool {
 #### gRPC Clients (infrastructure/grpc_clients.rs)
 
 **Client Management:**
+
 ```rust
 pub struct GrpcClients {
     pub authenc: AuthencClient,
@@ -396,6 +395,7 @@ impl AuthencClient {
 #### Middleware (infrastructure/middleware/)
 
 **Authentication Middleware (auth.rs):**
+
 ```rust
 pub async fn auth_middleware(
     State(state): State<AppState>,
@@ -425,10 +425,10 @@ pub async fn auth_middleware(
 - Performance metrics
 - Sanitize sensitive data
 
-
 #### Error Handling (infrastructure/errors.rs)
 
 **Error Type Hierarchy:**
+
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
@@ -480,12 +480,12 @@ impl IntoResponse for AppError {
 }
 ```
 
-
 ### 4. Module Pattern
 
 Each business module follows a consistent pattern:
 
 #### Module Structure
+
 ```rust
 // mod.rs - Public API
 pub mod handlers;
@@ -505,6 +505,7 @@ pub fn routes() -> Router<AppState> {
 ```
 
 #### Handlers (handlers.rs)
+
 - HTTP request/response handling
 - Input validation
 - Call service layer
@@ -527,6 +528,7 @@ pub async fn create_asset(
 ```
 
 #### Models (models.rs)
+
 - Request/response DTOs
 - Domain models
 - Validation rules
@@ -557,6 +559,7 @@ pub struct AssetResponse {
 ```
 
 #### Repository (repository.rs)
+
 - Database operations
 - Query building
 - Transaction management
@@ -587,6 +590,7 @@ impl AssetRepository {
 ```
 
 #### Services (services.rs)
+
 - Business logic
 - Authorization checks
 - Cache management
@@ -621,12 +625,12 @@ impl AssetService {
 }
 ```
 
-
 ## Data Models
 
 ### Core Domain Models
 
 #### Asset (BMN)
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Asset {
@@ -662,6 +666,7 @@ pub enum AssetStatus {
 ```
 
 #### Workflow Instance
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowInstance {
@@ -707,6 +712,7 @@ pub enum ApprovalAction {
 ```
 
 #### Document
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Document {
@@ -732,6 +738,7 @@ pub enum DocumentClassification {
 ```
 
 #### Notification
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Notification {
@@ -765,6 +772,7 @@ pub enum NotificationPriority {
 ```
 
 #### Ticket
+
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ticket {
@@ -805,7 +813,6 @@ pub enum TicketStatus {
     Closed,
 }
 ```
-
 
 ### Database Schema
 
@@ -949,10 +956,10 @@ erDiagram
     }
 ```
 
-
 ### Database Indexes
 
 **Performance-Critical Indexes:**
+
 ```sql
 -- Assets
 CREATE INDEX idx_assets_satker_id ON assets(satker_id);
@@ -999,7 +1006,6 @@ CREATE INDEX idx_tickets_created_by ON tickets(created_by);
 - Log migration progress
 - Support rollback for failed migrations
 
-
 ## API Endpoint Structure
 
 ### REST API Design
@@ -1011,6 +1017,7 @@ CREATE INDEX idx_tickets_created_by ON tickets(created_by);
 ### Endpoint Groups
 
 #### 1. Bank Aset (Asset Management)
+
 ```
 GET    /api/pembinaan/perlengkapan/assets              # List assets (paginated, filtered)
 POST   /api/pembinaan/perlengkapan/assets              # Create asset
@@ -1023,6 +1030,7 @@ GET    /api/pembinaan/perlengkapan/assets/export       # Export to Excel
 ```
 
 #### 2. Kebutuhan BMN (Needs Planning)
+
 ```
 GET    /api/pembinaan/perlengkapan/kebutuhan           # List needs
 POST   /api/pembinaan/perlengkapan/kebutuhan           # Create need
@@ -1033,6 +1041,7 @@ POST   /api/pembinaan/perlengkapan/kebutuhan/:id/submit # Submit for approval
 ```
 
 #### 3. Pemakaian BMN (Usage Tracking)
+
 ```
 GET    /api/pembinaan/perlengkapan/pemakaian           # List usage records
 POST   /api/pembinaan/perlengkapan/pemakaian           # Record usage
@@ -1042,6 +1051,7 @@ POST   /api/pembinaan/perlengkapan/pemakaian/:id/return # Return asset
 ```
 
 #### 4. Penghapusan BMN (Asset Disposal)
+
 ```
 GET    /api/pembinaan/perlengkapan/penghapusan         # List disposal requests
 POST   /api/pembinaan/perlengkapan/penghapusan         # Create disposal request
@@ -1051,6 +1061,7 @@ POST   /api/pembinaan/perlengkapan/penghapusan/:id/submit # Submit for approval
 ```
 
 #### 5. Pakaian Dinas (Uniform Management)
+
 ```
 GET    /api/pembinaan/perlengkapan/pakaian-dinas       # List uniforms
 POST   /api/pembinaan/perlengkapan/pakaian-dinas       # Create uniform record
@@ -1060,6 +1071,7 @@ POST   /api/pembinaan/perlengkapan/pakaian-dinas/distribute # Distribute uniform
 ```
 
 #### 6. Workflow & Approval
+
 ```
 GET    /api/pembinaan/perlengkapan/workflows           # List workflow definitions
 GET    /api/pembinaan/perlengkapan/workflows/:id       # Get workflow definition
@@ -1076,6 +1088,7 @@ GET    /api/pembinaan/perlengkapan/approvals/pending   # My pending approvals
 ```
 
 #### 7. Dashboard & Reporting
+
 ```
 GET    /api/pembinaan/perlengkapan/dashboard           # Dashboard statistics
 GET    /api/pembinaan/perlengkapan/dashboard/kpis      # Key performance indicators
@@ -1086,6 +1099,7 @@ GET    /api/pembinaan/perlengkapan/charts/:type        # Chart data
 ```
 
 #### 8. Admin & User Management
+
 ```
 GET    /api/pembinaan/perlengkapan/admin/users         # List users
 POST   /api/pembinaan/perlengkapan/admin/users         # Create user
@@ -1099,6 +1113,7 @@ PUT    /api/pembinaan/perlengkapan/admin/roles/:id     # Update role
 ```
 
 #### 9. Document Management
+
 ```
 GET    /api/pembinaan/perlengkapan/documents           # List documents
 POST   /api/pembinaan/perlengkapan/documents           # Upload document
@@ -1112,6 +1127,7 @@ POST   /api/pembinaan/perlengkapan/documents/generate-excel # Generate Excel rep
 ```
 
 #### 10. Notifications
+
 ```
 GET    /api/pembinaan/perlengkapan/notifications       # List notifications
 GET    /api/pembinaan/perlengkapan/notifications/unread-count # Unread count
@@ -1124,6 +1140,7 @@ WS     /api/pembinaan/perlengkapan/notifications/ws    # WebSocket for real-time
 ```
 
 #### 11. Help/Ticket System
+
 ```
 GET    /api/pembinaan/perlengkapan/tickets             # List tickets
 POST   /api/pembinaan/perlengkapan/tickets             # Create ticket
@@ -1141,6 +1158,7 @@ GET    /api/pembinaan/perlengkapan/kb/:id              # Get article
 ```
 
 #### 12. Health & Monitoring
+
 ```
 GET    /health                                          # Health check
 GET    /health/ready                                    # Readiness probe
@@ -1148,10 +1166,10 @@ GET    /health/live                                     # Liveness probe
 GET    /metrics                                         # Prometheus metrics
 ```
 
-
 ### API Response Format
 
 **Success Response:**
+
 ```json
 {
   "data": {
@@ -1163,6 +1181,7 @@ GET    /metrics                                         # Prometheus metrics
 ```
 
 **List Response (Paginated):**
+
 ```json
 {
   "data": [
@@ -1179,6 +1198,7 @@ GET    /metrics                                         # Prometheus metrics
 ```
 
 **Error Response:**
+
 ```json
 {
   "error": {
@@ -1195,6 +1215,7 @@ GET    /metrics                                         # Prometheus metrics
 ### Request/Response Examples
 
 **Create Asset:**
+
 ```http
 POST /api/pembinaan/perlengkapan/assets
 Authorization: Bearer <jwt_token>
@@ -1213,6 +1234,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```http
 HTTP/1.1 201 Created
 Content-Type: application/json
@@ -1236,7 +1258,6 @@ Content-Type: application/json
 }
 ```
 
-
 ## Integration Points
 
 ### 1. Authenc Integration (gRPC)
@@ -1244,6 +1265,7 @@ Content-Type: application/json
 **Purpose:** Authentication and authorization
 
 **gRPC Service Definition:**
+
 ```protobuf
 service AuthService {
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
@@ -1273,6 +1295,7 @@ message CheckPermissionResponse {
 ```
 
 **Usage Pattern:**
+
 ```rust
 // In auth middleware
 let token_info = state.authenc_client
@@ -1295,6 +1318,7 @@ let allowed = state.authenc_client
 3. Use client token to fetch secrets from vault
 
 **Secrets Path Structure:**
+
 ```
 kv/data/postgres/perlengkapan     # Database credentials
 kv/data/redis/perlengkapan        # Redis credentials
@@ -1304,6 +1328,7 @@ kv/data/sms/perlengkapan          # SMS gateway credentials
 ```
 
 **Usage Pattern:**
+
 ```rust
 // At startup
 let secreton_client = SecretonClient::new_with_k8s_auth(
@@ -1322,6 +1347,7 @@ let db_password = secreton_client
 **Purpose:** Sync with external systems (MySIMKARI, SIMAN)
 
 **gRPC Service Definition:**
+
 ```protobuf
 service IntegrasiService {
   rpc SyncAssetToMySIMKARI(SyncAssetRequest) returns (SyncAssetResponse);
@@ -1342,6 +1368,7 @@ message SyncAssetResponse {
 ```
 
 **Usage Pattern:**
+
 ```rust
 // After asset creation/update
 let sync_result = state.integrasi_client
@@ -1362,6 +1389,7 @@ if !sync_result.success {
 - Real-time: WebSocket for notifications
 
 **Frontend API Client:**
+
 ```rust
 // In Leptos frontend
 use gloo_net::http::Request;
@@ -1382,6 +1410,7 @@ pub async fn create_asset(token: &str, request: CreateAssetRequest) -> Result<As
 ```
 
 **WebSocket Integration:**
+
 ```rust
 // Frontend WebSocket connection
 let ws = WebSocket::new("/api/pembinaan/perlengkapan/notifications/ws")?;
@@ -1393,7 +1422,6 @@ ws.set_onmessage(Some(Closure::wrap(Box::new(move |e: MessageEvent| {
     }
 }))));
 ```
-
 
 ## Correctness Properties
 
@@ -1425,6 +1453,7 @@ After analyzing all acceptance criteria, the following properties were identifie
 **Rationale:** This property ensures data integrity across the API boundary. If serialization is not bijective, data corruption can occur when frontend and backend exchange information.
 
 **Test Implementation:**
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -1450,6 +1479,7 @@ mod tests {
 **Rationale:** Excel import/export is critical for bulk operations. Data loss or corruption during round-trip would cause serious operational issues.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1470,6 +1500,7 @@ proptest! {
 **Rationale:** Configuration errors can cause runtime failures or security issues. This property ensures configuration is correctly loaded and accessible.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1491,6 +1522,7 @@ proptest! {
 **Rationale:** Token extraction is the first step in authentication. Incorrect extraction would break all authenticated requests.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1511,6 +1543,7 @@ proptest! {
 **Rationale:** Inconsistent permission checks would create security vulnerabilities. Authorization decisions must be deterministic.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1535,6 +1568,7 @@ proptest! {
 **Rationale:** Security audit trails are critical for compliance and incident response. Missing logs would prevent security analysis.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1563,6 +1597,7 @@ proptest! {
 **Rationale:** Workflow state corruption would cause approval processes to fail or skip required steps, violating business rules.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1601,6 +1636,7 @@ proptest! {
 **Rationale:** Non-deterministic routing would cause unpredictable approval flows, violating business process requirements.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1624,6 +1660,7 @@ proptest! {
 **Rationale:** Missing notifications would cause approval delays and SLA breaches. Every approval requirement must trigger notification.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1653,6 +1690,7 @@ proptest! {
 **Rationale:** Partial updates would corrupt data integrity. Transactions must be atomic (all-or-nothing).
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1689,6 +1727,7 @@ proptest! {
 **Rationale:** Cache inconsistency would cause users to see stale or incorrect data. Cache must be transparent.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1718,6 +1757,7 @@ proptest! {
 **Rationale:** Pagination bugs would cause data loss or duplication in list views. All data must be accessible through pagination.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1753,6 +1793,7 @@ proptest! {
 **Rationale:** Stateful behavior would break horizontal scaling and cause inconsistent user experience.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1783,6 +1824,7 @@ proptest! {
 **Rationale:** Inconsistent validation would allow invalid data into the system, causing data corruption or business rule violations.
 
 **Test Implementation:**
+
 ```rust
 proptest! {
     #[test]
@@ -1799,7 +1841,6 @@ proptest! {
     }
 }
 ```
-
 
 ## Error Handling
 
@@ -2072,7 +2113,6 @@ impl CircuitBreaker {
 }
 ```
 
-
 ## Testing Strategy
 
 ### Testing Pyramid
@@ -2102,6 +2142,7 @@ impl CircuitBreaker {
 - `tokio-test` for async tests
 
 **Example:**
+
 ```rust
 #[cfg(test)]
 mod tests {
@@ -2145,6 +2186,7 @@ mod tests {
 **Tag Format:** `Feature: perlengkapan-unified-refactoring, Property {number}: {property_text}`
 
 **Example:**
+
 ```rust
 #[cfg(test)]
 mod property_tests {
@@ -2200,6 +2242,7 @@ mod property_tests {
 - Mock gRPC servers
 
 **Example:**
+
 ```rust
 #[cfg(test)]
 mod integration_tests {
@@ -2240,6 +2283,7 @@ mod integration_tests {
 - API versioning tests
 
 **Example:**
+
 ```rust
 #[test]
 fn test_asset_response_schema() {
@@ -2276,6 +2320,7 @@ fn test_asset_response_schema() {
 - Handle 10,000 requests per minute
 
 **Example:**
+
 ```rust
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
@@ -2313,6 +2358,7 @@ criterion_main!(benches);
 ### Test Data Management
 
 **Fixtures:**
+
 ```rust
 pub fn create_test_asset() -> Asset {
     Asset {
@@ -2334,6 +2380,7 @@ pub fn create_test_asset() -> Asset {
 ```
 
 **Database Fixtures:**
+
 ```rust
 pub async fn setup_test_database() -> Pool {
     let pool = create_test_pool().await;
@@ -2360,6 +2407,7 @@ pub async fn cleanup_test_database(pool: &Pool) {
 ### CI/CD Integration
 
 **GitHub Actions Workflow:**
+
 ```yaml
 name: Test
 
@@ -2422,12 +2470,12 @@ jobs:
 - Test utilities
 - Main entry point
 
-
 ## Deployment Architecture
 
 ### Container Strategy
 
 **Multi-Stage Dockerfile:**
+
 ```dockerfile
 # Stage 1: Build
 FROM rust:1.95-slim as builder
@@ -2473,6 +2521,7 @@ CMD ["/app/layanan-perlengkapan"]
 ### Kubernetes Deployment
 
 **Deployment Manifest:**
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -2574,6 +2623,7 @@ spec:
 ```
 
 **Service Manifest:**
+
 ```yaml
 apiVersion: v1
 kind: Service
@@ -2591,6 +2641,7 @@ spec:
 ```
 
 **HorizontalPodAutoscaler:**
+
 ```yaml
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
@@ -2636,6 +2687,7 @@ infra/helm/simpel/
 ```
 
 **Helm Values (values.yaml):**
+
 ```yaml
 layananPerlengkapan:
   enabled: true
@@ -2689,6 +2741,7 @@ layananPerlengkapan:
 ### Health Checks
 
 **Liveness Probe:**
+
 ```rust
 pub async fn health_live() -> impl IntoResponse {
     // Basic health check - is the service running?
@@ -2697,6 +2750,7 @@ pub async fn health_live() -> impl IntoResponse {
 ```
 
 **Readiness Probe:**
+
 ```rust
 pub async fn health_ready(
     State(state): State<AppState>,
@@ -2761,7 +2815,6 @@ async fn shutdown_signal() {
 }
 ```
 
-
 ## Security Considerations
 
 ### Zero-Trust Security Model
@@ -2804,6 +2857,7 @@ sequenceDiagram
 ### Secret Management
 
 **Secreton Integration:**
+
 ```rust
 pub async fn fetch_secrets_from_secreton() -> Result<Secrets> {
     // Authenticate using Kubernetes service account token
@@ -2848,6 +2902,7 @@ pub async fn fetch_secrets_from_secreton() -> Result<Secrets> {
 4. **SQL Injection Prevention**: Prepared statements only
 
 **Example:**
+
 ```rust
 #[derive(Debug, Serialize, Deserialize, Validate)]
 pub struct CreateAssetRequest {
@@ -2874,6 +2929,7 @@ fn validate_kategori_exists(kategori_id: &Uuid) -> Result<(), ValidationError> {
 ### SQL Injection Prevention
 
 **Always Use Prepared Statements:**
+
 ```rust
 // ✅ GOOD: Prepared statement
 let row = client.query_one(
@@ -2889,6 +2945,7 @@ let row = client.query_one(&query, &[]).await?;
 ### CSRF Protection
 
 **Token-Based CSRF Protection:**
+
 ```rust
 pub async fn csrf_middleware(
     State(state): State<AppState>,
@@ -2912,6 +2969,7 @@ pub async fn csrf_middleware(
 ### Rate Limiting
 
 **Redis-Backed Rate Limiter:**
+
 ```rust
 pub struct RateLimiter {
     redis: RedisClient,
@@ -2962,6 +3020,7 @@ pub async fn rate_limit_middleware(
 - Certificate management via cert-manager
 
 **Application-Level Encryption:**
+
 ```rust
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use aes_gcm::aead::{Aead, NewAead};
@@ -2999,6 +3058,7 @@ impl FieldEncryption {
 ### Audit Logging
 
 **Security Event Logging:**
+
 ```rust
 pub async fn log_security_event(
     event_type: SecurityEventType,
@@ -3028,6 +3088,7 @@ pub enum SecurityEventType {
 ### Security Headers
 
 **HTTP Security Headers:**
+
 ```rust
 pub async fn security_headers_middleware(
     req: Request,
@@ -3046,7 +3107,6 @@ pub async fn security_headers_middleware(
 }
 ```
 
-
 ## Performance Optimization
 
 ### Caching Strategy
@@ -3057,6 +3117,7 @@ pub async fn security_headers_middleware(
 3. **Database Query Cache**: PostgreSQL query result cache
 
 **Cache Invalidation:**
+
 ```rust
 pub struct CacheManager {
     redis: RedisClient,
@@ -3108,6 +3169,7 @@ impl CacheManager {
 ```
 
 **Cache Keys:**
+
 ```
 assets:list:{satker_id}:{page}:{per_page}
 assets:detail:{asset_id}
@@ -3126,6 +3188,7 @@ dashboard:stats:{satker_id}:{date}
 ### Database Optimization
 
 **Connection Pooling:**
+
 ```rust
 pub struct DatabaseConfig {
     pub max_connections: u32,      // 20
@@ -3137,6 +3200,7 @@ pub struct DatabaseConfig {
 ```
 
 **Query Optimization:**
+
 ```rust
 // Use indexes for frequently queried columns
 CREATE INDEX idx_assets_satker_status ON assets(satker_id, status);
@@ -3153,6 +3217,7 @@ LIMIT 20 OFFSET 0;
 ```
 
 **Prepared Statements:**
+
 ```rust
 pub struct AssetRepository {
     pool: DatabasePool,
@@ -3176,6 +3241,7 @@ impl AssetRepository {
 ```
 
 **Batch Operations:**
+
 ```rust
 pub async fn bulk_insert_assets(&self, assets: Vec<CreateAssetRequest>) -> Result<Vec<Asset>> {
     let client = self.pool.get_connection().await?;
@@ -3205,6 +3271,7 @@ pub async fn bulk_insert_assets(&self, assets: Vec<CreateAssetRequest>) -> Resul
 ### API Response Optimization
 
 **Pagination:**
+
 ```rust
 #[derive(Debug, Deserialize)]
 pub struct PaginationParams {
@@ -3230,6 +3297,7 @@ impl PaginationParams {
 ```
 
 **Field Selection:**
+
 ```rust
 #[derive(Debug, Deserialize)]
 pub struct FieldSelection {
@@ -3253,6 +3321,7 @@ pub async fn list_assets(
 ```
 
 **Response Compression:**
+
 ```rust
 use tower_http::compression::CompressionLayer;
 
@@ -3264,6 +3333,7 @@ let app = Router::new()
 ### Async Processing
 
 **Background Jobs:**
+
 ```rust
 use tokio_cron_scheduler::{JobScheduler, Job};
 
@@ -3298,6 +3368,7 @@ pub async fn setup_background_jobs() -> Result<JobScheduler> {
 ```
 
 **Async Notifications:**
+
 ```rust
 pub async fn send_notification_async(notification: Notification) {
     tokio::spawn(async move {
@@ -3311,6 +3382,7 @@ pub async fn send_notification_async(notification: Notification) {
 ### Monitoring and Metrics
 
 **Prometheus Metrics:**
+
 ```rust
 use prometheus::{Registry, Counter, Histogram, Gauge};
 
@@ -3365,6 +3437,7 @@ pub async fn metrics_middleware(
 ```
 
 **OpenTelemetry Tracing:**
+
 ```rust
 use opentelemetry::trace::{Tracer, SpanKind};
 use tracing_opentelemetry::OpenTelemetryLayer;
@@ -3404,7 +3477,6 @@ pub fn setup_tracing() -> Result<()> {
 - Memory: 2GB per pod
 - Database connections: 20 per pod
 
-
 ## Migration Strategy
 
 ### From Planned Multi-Crate to Unified Structure
@@ -3422,6 +3494,7 @@ The original plan was to build separate crates (api, dokumen, notifikasi, bantua
 ### Workspace Integration
 
 **Update Root Cargo.toml:**
+
 ```toml
 [workspace]
 members = [
@@ -3436,6 +3509,7 @@ members = [
 ```
 
 **Unified Crate Cargo.toml:**
+
 ```toml
 [package]
 name = "layanan-perlengkapan"
@@ -3460,6 +3534,7 @@ axum-test = { workspace = true }
 ### CI/CD Updates
 
 **GitHub Actions Workflow:**
+
 ```yaml
 # .github/workflows/ci.yml
 jobs:
@@ -3479,6 +3554,7 @@ jobs:
 ```
 
 **Docker Build:**
+
 ```yaml
 # .github/workflows/docker.yml
 jobs:
@@ -3516,6 +3592,7 @@ jobs:
 ### Cleanup Tasks
 
 **Remove Old Structure:**
+
 ```bash
 # After migration is complete
 rm -rf layanan/perlengkapan/crates/
@@ -3679,4 +3756,3 @@ This design document provides a comprehensive blueprint for building the unified
 - **Testability**: Comprehensive testing strategy with property-based tests
 
 The unified crate approach simplifies development, deployment, and maintenance while providing all the benefits of modular architecture through Rust's module system.
-
