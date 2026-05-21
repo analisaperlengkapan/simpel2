@@ -12,7 +12,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
 use tracing::{Level, info};
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

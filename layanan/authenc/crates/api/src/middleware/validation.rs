@@ -122,15 +122,13 @@ pub async fn input_validation_middleware(
     }
 
     // Check request body size
-    if let Some(content_length) = request.headers().get("content-length") {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                if length > config.max_request_body_size {
-                    warn!("Request body too large: {} bytes", length);
-                    return Err(StatusCode::PAYLOAD_TOO_LARGE);
-                }
-            }
-        }
+    if let Some(content_length) = request.headers().get("content-length")
+        && let Ok(length_str) = content_length.to_str()
+        && let Ok(length) = length_str.parse::<usize>()
+        && length > config.max_request_body_size
+    {
+        warn!("Request body too large: {} bytes", length);
+        return Err(StatusCode::PAYLOAD_TOO_LARGE);
     }
 
     debug!("Input validation passed");
@@ -168,10 +166,10 @@ fn contains_suspicious_patterns(input: &str) -> bool {
         .chain(path_patterns.iter());
 
     for pattern in all_patterns {
-        if let Ok(regex) = Regex::new(pattern) {
-            if regex.is_match(input) {
-                return true;
-            }
+        if let Ok(regex) = Regex::new(pattern)
+            && regex.is_match(input)
+        {
+            return true;
         }
     }
 

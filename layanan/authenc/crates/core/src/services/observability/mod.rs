@@ -729,6 +729,7 @@ impl PerformanceMonitor {
 }
 
 /// Main observability service that combines health checks, metrics, and monitoring
+#[derive(Default)]
 pub struct ObservabilityService {
     /// Health check registry
     health_registry: HealthCheckRegistry,
@@ -736,16 +737,6 @@ pub struct ObservabilityService {
     metrics_registry: MetricsRegistry,
     /// Performance monitor
     performance_monitor: PerformanceMonitor,
-}
-
-impl Default for ObservabilityService {
-    fn default() -> Self {
-        Self {
-            health_registry: HealthCheckRegistry::new(),
-            metrics_registry: MetricsRegistry::new(),
-            performance_monitor: PerformanceMonitor::new(),
-        }
-    }
 }
 
 impl ObservabilityService {

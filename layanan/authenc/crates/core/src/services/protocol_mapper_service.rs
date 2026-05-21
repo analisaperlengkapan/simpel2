@@ -232,20 +232,20 @@ impl ProtocolMapperService {
 
         if let Some(ref attr_name) = mapper.config.user_attribute {
             // Check if user has this attribute
-            if let Some(ref attributes) = user.attributes {
-                if let Some(attr_value) = attributes.get(attr_name) {
-                    // Handle multivalued attributes
-                    if mapper.config.multivalued.unwrap_or(false) {
-                        claims.insert(mapper.config.claim_name.clone(), attr_value.clone());
+            if let Some(ref attributes) = user.attributes
+                && let Some(attr_value) = attributes.get(attr_name)
+            {
+                // Handle multivalued attributes
+                if mapper.config.multivalued.unwrap_or(false) {
+                    claims.insert(mapper.config.claim_name.clone(), attr_value.clone());
+                } else {
+                    // For single-valued, extract first value if array
+                    let value = if let Some(arr) = attr_value.as_array() {
+                        arr.first().cloned().unwrap_or(attr_value.clone())
                     } else {
-                        // For single-valued, extract first value if array
-                        let value = if let Some(arr) = attr_value.as_array() {
-                            arr.first().cloned().unwrap_or(attr_value.clone())
-                        } else {
-                            attr_value.clone()
-                        };
-                        claims.insert(mapper.config.claim_name.clone(), value);
-                    }
+                        attr_value.clone()
+                    };
+                    claims.insert(mapper.config.claim_name.clone(), value);
                 }
             }
         }
@@ -445,35 +445,28 @@ impl ProtocolMapperService {
 
         // Type-specific validation
         match mapper_type {
-            ProtocolMapperType::UserProperty => {
-                if config.user_property.is_none() {
-                    return Err(AuthencError::validation(
-                        "user_property is required for UserProperty mapper",
-                    ));
-                }
+            ProtocolMapperType::UserProperty if config.user_property.is_none() => {
+                return Err(AuthencError::validation(
+                    "user_property is required for UserProperty mapper",
+                ));
             }
-            ProtocolMapperType::UserAttribute => {
-                if config.user_attribute.is_none() {
-                    return Err(AuthencError::validation(
-                        "user_attribute is required for UserAttribute mapper",
-                    ));
-                }
+            ProtocolMapperType::UserAttribute if config.user_attribute.is_none() => {
+                return Err(AuthencError::validation(
+                    "user_attribute is required for UserAttribute mapper",
+                ));
             }
-            ProtocolMapperType::HardcodedClaim => {
-                if config.claim_value.is_none() {
-                    return Err(AuthencError::validation(
-                        "claim_value is required for HardcodedClaim mapper",
-                    ));
-                }
+            ProtocolMapperType::HardcodedClaim if config.claim_value.is_none() => {
+                return Err(AuthencError::validation(
+                    "claim_value is required for HardcodedClaim mapper",
+                ));
             }
-            ProtocolMapperType::Audience => {
+            ProtocolMapperType::Audience
                 if config.included_custom_audience.is_none()
-                    && config.included_client_audience.is_none()
-                {
-                    return Err(AuthencError::validation(
-                        "Either included_custom_audience or included_client_audience is required for Audience mapper",
-                    ));
-                }
+                    && config.included_client_audience.is_none() =>
+            {
+                return Err(AuthencError::validation(
+                    "Either included_custom_audience or included_client_audience is required for Audience mapper",
+                ));
             }
             _ => {
                 // Other mappers don't have strict requirements

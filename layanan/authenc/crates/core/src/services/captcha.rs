@@ -152,7 +152,9 @@ impl CaptchaService {
 
         if is_correct {
             // Update challenge status to verified
-            self.db.mark_captcha_challenge_verified(challenge_id).await?;
+            self.db
+                .mark_captcha_challenge_verified(challenge_id)
+                .await?;
             Ok(true)
         } else {
             Ok(false)
@@ -212,8 +214,7 @@ fn generate_math_challenge(difficulty: u8) -> (String, String) {
 
     let visual = format!("{} {} {}", a, op, b);
     let instructions = format!("Berapa hasil dari {} {} {}?", a, op, b);
-    let options_json: Vec<serde_json::Value> =
-        options.iter().map(|o| json!(*o)).collect();
+    let options_json: Vec<serde_json::Value> = options.iter().map(|o| json!(*o)).collect();
 
     let challenge_data = json!({
         "challenge_type": "math",
@@ -338,9 +339,9 @@ fn generate_captcha_svg(text: &str, rng: &mut impl Rng, difficulty: u8) -> Strin
         let sx = rng.gen_range(0..(width / 4));
         let sy = rng.gen_range(10..height - 10);
         let cx1 = rng.gen_range(width / 4..width / 2) as i32;
-        let cy1 = rng.gen_range(0..height) as i32;
+        let cy1 = rng.gen_range(0..height);
         let cx2 = rng.gen_range(width / 2..3 * width / 4) as i32;
-        let cy2 = rng.gen_range(0..height) as i32;
+        let cy2 = rng.gen_range(0..height);
         let ex = rng.gen_range(3 * width / 4..width);
         let ey = rng.gen_range(10..height - 10);
         let sw: f64 = rng.gen_range(1.0..2.5);
@@ -380,7 +381,7 @@ fn generate_captcha_svg(text: &str, rng: &mut impl Rng, difficulty: u8) -> Strin
         let x1 = rng.gen_range(10..width - 10);
         let y1 = rng.gen_range(20..height - 20);
         let x2 = x1 as i32 + rng.gen_range(-60..60);
-        let y2 = y1 as i32 + rng.gen_range(-15..15);
+        let y2 = y1 + rng.gen_range(-15..15);
         let sw: f64 = rng.gen_range(0.8..2.0);
         let opacity: f64 = rng.gen_range(0.3..0.65);
         svg.push_str(&format!(

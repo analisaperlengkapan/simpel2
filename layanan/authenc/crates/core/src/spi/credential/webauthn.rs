@@ -52,9 +52,10 @@ pub struct WebAuthnCredentialData {
 }
 
 /// Attestation conveyance preference for WebAuthn registration
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum AttestationPreference {
     /// No attestation statement is provided (privacy-focused)
+    #[default]
     None,
     /// Indirect attestation (anonymized attestation)
     Indirect,
@@ -62,12 +63,6 @@ pub enum AttestationPreference {
     Direct,
     /// Enterprise attestation (for enterprise use cases)
     Enterprise,
-}
-
-impl Default for AttestationPreference {
-    fn default() -> Self {
-        AttestationPreference::None
-    }
 }
 
 impl From<AttestationPreference> for AttestationConveyancePreference {
@@ -161,13 +156,13 @@ impl WebAuthnCredentialProvider {
     pub fn new(rp_id: String, rp_name: String, rp_origin: String) -> Result<Self> {
         // WebauthnBuilder expects a Url for the relying party origin
         let rp_origin_url = Url::parse(&rp_origin)
-            .map_err(|e| Error::internal(&format!("Invalid WebAuthn RP origin: {}", e)))?;
+            .map_err(|e| Error::internal(format!("Invalid WebAuthn RP origin: {}", e)))?;
 
         let webauthn = WebauthnBuilder::new(&rp_id, &rp_origin_url)
-            .map_err(|e| Error::internal(&format!("Failed to create WebAuthn builder: {}", e)))?
+            .map_err(|e| Error::internal(format!("Failed to create WebAuthn builder: {}", e)))?
             .rp_name(&rp_name)
             .build()
-            .map_err(|e| Error::internal(&format!("Failed to build WebAuthn instance: {}", e)))?;
+            .map_err(|e| Error::internal(format!("Failed to build WebAuthn instance: {}", e)))?;
 
         Ok(Self {
             rp_id,
@@ -263,9 +258,7 @@ impl WebAuthnCredentialProvider {
                 user_display_name,
                 Some(exclude_credentials),
             )
-            .map_err(|e| {
-                Error::internal(&format!("Failed to start passkey registration: {}", e))
-            })?;
+            .map_err(|e| Error::internal(format!("Failed to start passkey registration: {}", e)))?;
 
         Ok((challenge_response, registration_state))
     }
@@ -306,9 +299,7 @@ impl WebAuthnCredentialProvider {
         let passkey = self
             .webauthn
             .finish_passkey_registration(&registration_response, registration_state)
-            .map_err(|e| {
-                Error::unauthorized(&format!("Registration verification failed: {}", e))
-            })?;
+            .map_err(|e| Error::unauthorized(format!("Registration verification failed: {}", e)))?;
 
         // Extract attestation data
         let attestation_data = self.extract_attestation_data(&registration_response, &passkey)?;
@@ -368,7 +359,7 @@ impl WebAuthnCredentialProvider {
             .webauthn
             .finish_passkey_authentication(&authentication_response, authentication_state)
             .map_err(|e| {
-                Error::unauthorized(&format!("Authentication verification failed: {}", e))
+                Error::unauthorized(format!("Authentication verification failed: {}", e))
             })?;
 
         Ok(auth_result)

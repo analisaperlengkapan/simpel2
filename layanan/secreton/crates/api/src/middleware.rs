@@ -538,18 +538,17 @@ pub async fn auth_middleware(
     let mut policy_names: Vec<String> = user.policies.iter().cloned().collect();
 
     // If no explicit policies, check metadata for 'policy_names' or 'policies'
-    if policy_names.is_empty() {
-        if let Some(p) = user
+    if policy_names.is_empty()
+        && let Some(p) = user
             .metadata
             .get("policy_names")
             .or_else(|| user.metadata.get("policies"))
-        {
-            policy_names = p
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
-                .collect();
-        }
+    {
+        policy_names = p
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
     }
 
     // If still no policies, fallback to role-based policies
@@ -888,12 +887,11 @@ fn extract_namespace_from_path(path: &str) -> Option<String> {
     }
 
     match parts.next()? {
-        "secret" => {
+        "secret"
             // /v1/secret/data/{namespace}/...
-            if parts.next()? == "data" {
+            if parts.next()? == "data" => {
                 return parts.next().map(|s| s.to_string());
             }
-        }
         "transit" => {
             // /v1/transit/{operation}/{namespace}/...
             // Skip operation
@@ -1345,7 +1343,7 @@ mod tests {
         use std::collections::HashMap;
 
         // Test satker
-        let mut claims = JwtClaims {
+        let claims = JwtClaims {
             sub: "user".into(),
             name: "User".into(),
             email: "user@example.com".into(),
@@ -1632,8 +1630,8 @@ mod certificate_tests {
     fn test_validate_client_certificate_integration() {
         init_certificate_cache(60);
         // Using a dummy DER (not a real cert, parsing will fail but we check cache flow)
-        let _dummy_der = vec![0x30, 0x82, 0x01];
-        let _allowed = vec!["CN=test".to_string()];
+        let _dummy_der = [0x30, 0x82, 0x01];
+        let _allowed = ["CN=test".to_string()];
 
         // Verify that get_cache_hit_rate() is safe to call.
         let rate = get_cache_hit_rate();
@@ -1652,7 +1650,7 @@ mod certificate_tests {
 mod middleware_tests {
     use super::*;
     use axum::http::Request;
-    use secreton_core::services::seal::{SealConfig, SealService};
+
     use std::sync::Arc;
     use tower::ServiceExt;
 

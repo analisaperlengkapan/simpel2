@@ -11,20 +11,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use axum::extract::ConnectInfo;
 use axum::{
     Json,
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
-use axum::extract::ConnectInfo;
+use uuid::Uuid;
 
-use crate::state::ApiState;
 use super::auth::ErrorResponse;
+use crate::state::ApiState;
 
 // ============================================
 // Types
@@ -91,22 +91,19 @@ pub struct VerifyResponse {
 /// Extract the real client IP address, handling proxy headers
 fn get_client_ip(headers: &HeaderMap, addr: SocketAddr) -> IpAddr {
     // 1. Try X-Forwarded-For header
-    if let Some(xff) = headers.get("x-forwarded-for") {
-        if let Ok(xff_str) = xff.to_str() {
-            if let Some(first_ip) = xff_str.split(',').next() {
-                if let Ok(ip) = first_ip.trim().parse::<IpAddr>() {
-                    return ip;
-                }
-            }
-        }
+    if let Some(xff) = headers.get("x-forwarded-for")
+        && let Ok(xff_str) = xff.to_str()
+        && let Some(first_ip) = xff_str.split(',').next()
+        && let Ok(ip) = first_ip.trim().parse::<IpAddr>()
+    {
+        return ip;
     }
     // 2. Try X-Real-IP header
-    if let Some(xri) = headers.get("x-real-ip") {
-        if let Ok(xri_str) = xri.to_str() {
-            if let Ok(ip) = xri_str.trim().parse::<IpAddr>() {
-                return ip;
-            }
-        }
+    if let Some(xri) = headers.get("x-real-ip")
+        && let Ok(xri_str) = xri.to_str()
+        && let Ok(ip) = xri_str.trim().parse::<IpAddr>()
+    {
+        return ip;
     }
     // 3. Fallback to connection info IP
     addr.ip()
@@ -193,14 +190,12 @@ pub async fn captcha_verify_handler(
                 risk_score: Some(0.1),
             }))
         }
-        Ok(false) => {
-            Ok(Json(VerifyResponse {
-                success: false,
-                token: None,
-                message: "Jawaban salah, silakan coba lagi".to_string(),
-                risk_score: Some(0.6),
-            }))
-        }
+        Ok(false) => Ok(Json(VerifyResponse {
+            success: false,
+            token: None,
+            message: "Jawaban salah, silakan coba lagi".to_string(),
+            risk_score: Some(0.6),
+        })),
         Err(e) => {
             // CaptchaService verification failed with validation error (expired, already solved, etc)
             Ok(Json(VerifyResponse {

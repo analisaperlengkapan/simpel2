@@ -259,14 +259,14 @@ impl ReplicationManager {
         }
 
         // Check namespace filtering
-        if let Some(namespace) = self.extract_namespace(&operation) {
-            if !self.config.should_replicate_namespace(&namespace) {
-                debug!(
-                    "Skipping operation {} for filtered namespace {}",
-                    operation.id, namespace
-                );
-                return Ok(());
-            }
+        if let Some(namespace) = self.extract_namespace(&operation)
+            && !self.config.should_replicate_namespace(&namespace)
+        {
+            debug!(
+                "Skipping operation {} for filtered namespace {}",
+                operation.id, namespace
+            );
+            return Ok(());
         }
 
         let secondaries = self.secondaries.read().await;

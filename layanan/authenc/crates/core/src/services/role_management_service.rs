@@ -402,10 +402,10 @@ impl RoleManagementServiceImpl {
             match context.get(key) {
                 Some(context_value) => {
                     // Simple string comparison for now
-                    if let Some(condition_str) = value.as_str() {
-                        if context_value != condition_str {
-                            return false;
-                        }
+                    if let Some(condition_str) = value.as_str()
+                        && context_value != condition_str
+                    {
+                        return false;
                     }
                 }
                 None => {
@@ -478,10 +478,10 @@ mod tests {
             match context.get(key) {
                 Some(context_value) => {
                     // Simple string comparison
-                    if let Some(condition_str) = value.as_str() {
-                        if context_value != condition_str {
-                            return false;
-                        }
+                    if let Some(condition_str) = value.as_str()
+                        && context_value != condition_str
+                    {
+                        return false;
                     }
                 }
                 None => {

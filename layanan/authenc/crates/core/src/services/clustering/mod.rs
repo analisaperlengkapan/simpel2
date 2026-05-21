@@ -428,7 +428,7 @@ impl RaftConsensus {
         *voted_for = Some(self.node_id.clone());
 
         // Request votes from peers
-        let votes_needed = (self.peers.len() + 1) / 2 + 1;
+        let votes_needed = self.peers.len().div_ceil(2) + 1;
         let votes = 1; // Vote for self
 
         // In a real implementation, we'd send vote requests to peers
@@ -908,16 +908,16 @@ impl SessionReplicationService {
                 }
             }
             "update_session" => {
-                if let Some(session_id) = msg.get("session_id").and_then(|s| s.as_str()) {
-                    if let Some(updates_data) = msg.get("updates") {
-                        let updates: HashMap<String, String> =
-                            serde_json::from_value(updates_data.clone())?;
-                        let mut sessions = self.sessions.write().await;
-                        if let Some(session) = sessions.get_mut(session_id) {
-                            session.data.extend(updates);
-                            if let Some(version) = msg.get("version").and_then(|v| v.as_u64()) {
-                                session.version = version;
-                            }
+                if let Some(session_id) = msg.get("session_id").and_then(|s| s.as_str())
+                    && let Some(updates_data) = msg.get("updates")
+                {
+                    let updates: HashMap<String, String> =
+                        serde_json::from_value(updates_data.clone())?;
+                    let mut sessions = self.sessions.write().await;
+                    if let Some(session) = sessions.get_mut(session_id) {
+                        session.data.extend(updates);
+                        if let Some(version) = msg.get("version").and_then(|v| v.as_u64()) {
+                            session.version = version;
                         }
                     }
                 }
@@ -966,9 +966,10 @@ pub struct ClusterConfig {
 }
 
 /// Cluster communication types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum ClusterCommunicationType {
     /// Infinispan-based communication
+    #[default]
     Infinispan,
     /// JGroups-based communication
     JGroups,
@@ -976,16 +977,11 @@ pub enum ClusterCommunicationType {
     Custom,
 }
 
-impl Default for ClusterCommunicationType {
-    fn default() -> Self {
-        Self::Infinispan
-    }
-}
-
 /// Cluster membership types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum ClusterMembershipType {
     /// Kubernetes-based membership
+    #[default]
     Kubernetes,
     /// Static membership configuration
     Static,
@@ -995,16 +991,11 @@ pub enum ClusterMembershipType {
     Custom,
 }
 
-impl Default for ClusterMembershipType {
-    fn default() -> Self {
-        Self::Kubernetes
-    }
-}
-
 /// Cluster consensus types
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub enum ClusterConsensusType {
     /// Raft consensus algorithm
+    #[default]
     Raft,
     /// Paxos consensus algorithm
     Paxos,
@@ -1012,12 +1003,6 @@ pub enum ClusterConsensusType {
     Infinispan,
     /// Custom consensus implementation
     Custom,
-}
-
-impl Default for ClusterConsensusType {
-    fn default() -> Self {
-        Self::Raft
-    }
 }
 
 /// Multi-cluster federation service
@@ -1058,7 +1043,7 @@ impl MultiClusterFederationService {
         // Find matching federation rule
         let mut target_cluster = "local";
 
-        for (_, rule) in &self.federation_rules {
+        for rule in self.federation_rules.values() {
             // Check if all conditions match
             let mut all_conditions_match = true;
             for (key, value) in &rule.conditions {

@@ -124,7 +124,9 @@ impl EventPublisher {
             .set("queue.buffering.max.kbytes", "1048576")
             .set("compression.type", "snappy")
             .create()
-            .map_err(|e| AuthencError::internal(format!("Failed to create Kafka producer: {}", e)))?;
+            .map_err(|e| {
+                AuthencError::internal(format!("Failed to create Kafka producer: {}", e))
+            })?;
 
         let metrics_enabled = config.enable_metrics;
 
@@ -332,7 +334,9 @@ impl EventPublisher {
             }
         }
 
-        Err(AuthencError::internal("Event publishing failed after all retries"))
+        Err(AuthencError::internal(
+            "Event publishing failed after all retries",
+        ))
     }
 
     /// Send event to Kafka
@@ -353,8 +357,8 @@ impl EventPublisher {
         dlq_topic: &str,
         dlq_entry: &DlqEntry,
     ) -> Result<()> {
-        let payload =
-            serde_json::to_string(dlq_entry).map_err(|e| AuthencError::internal(format!("Failed to serialize DLQ entry: {}", e)))?;
+        let payload = serde_json::to_string(dlq_entry)
+            .map_err(|e| AuthencError::internal(format!("Failed to serialize DLQ entry: {}", e)))?;
 
         let record = FutureRecord::to(dlq_topic)
             .payload(&payload)

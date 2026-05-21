@@ -240,7 +240,7 @@ impl UmaDelegationPolicyStore {
                 &[
                     &policy.id,
                     &policy.owner_id,
-                    &policy.resource_id.as_ref().map(|s| Uuid::parse_str(s).ok()).flatten(),
+                    &policy.resource_id.as_ref().and_then(|s| Uuid::parse_str(s).ok()),
                     &policy.scopes,
                     &policy.delegates,
                     &serde_json::to_value(&policy.conditions).map_err(|e| {

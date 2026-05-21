@@ -283,7 +283,7 @@ impl MfaQueryAnalyzer {
     pub fn record_query(&mut self, query_type: &str, execution_time: Duration) {
         self.query_times
             .entry(query_type.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(execution_time);
     }
 

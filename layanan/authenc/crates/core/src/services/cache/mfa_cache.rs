@@ -392,7 +392,7 @@ mod tests {
         // Test retrieving cached MFA status
         let cached_status = mfa_cache.get_mfa_status(user_id).await.unwrap();
         assert!(cached_status.is_some());
-        assert_eq!(cached_status.unwrap().enabled, true);
+        assert!(cached_status.unwrap().enabled);
 
         // Test OTP replay protection
         let otp_code = "123456";

@@ -220,17 +220,17 @@ async fn test_request_id_differs_from_correlation_id() {
         .and(path("/v1/auth/authenticate"))
         .respond_with(move |req: &wiremock::Request| {
             // Capture headers
-            if let Some(corr_id) = req.headers.get("x-correlation-id") {
-                if let Some(req_id) = req.headers.get("x-request-id") {
-                    tokio::spawn({
-                        let headers = received_headers_clone.clone();
-                        let corr = corr_id.to_str().unwrap().to_string();
-                        let req = req_id.to_str().unwrap().to_string();
-                        async move {
-                            headers.write().await.push((corr, req));
-                        }
-                    });
-                }
+            if let Some(corr_id) = req.headers.get("x-correlation-id")
+                && let Some(req_id) = req.headers.get("x-request-id")
+            {
+                tokio::spawn({
+                    let headers = received_headers_clone.clone();
+                    let corr = corr_id.to_str().unwrap().to_string();
+                    let req = req_id.to_str().unwrap().to_string();
+                    async move {
+                        headers.write().await.push((corr, req));
+                    }
+                });
             }
 
             ResponseTemplate::new(200).set_body_json(serde_json::json!({

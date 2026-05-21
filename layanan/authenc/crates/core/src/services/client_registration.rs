@@ -117,15 +117,16 @@ impl ProductionClientRegistrationService {
     async fn validate_initial_access_token(&self, token: &str) -> Result<bool> {
         let token_hash = self.hash_token(token)?;
 
-        if let Some(iat) = db_ops::get_initial_access_token_by_hash(&self.db, &token_hash).await? {
-            if iat.remaining_count > 0 && !iat.revoked {
-                if let Some(expires_at) = iat.expires_at {
-                    if expires_at < chrono::Utc::now() {
-                        return Ok(false);
-                    }
-                }
-                return Ok(true);
+        if let Some(iat) = db_ops::get_initial_access_token_by_hash(&self.db, &token_hash).await?
+            && iat.remaining_count > 0
+            && !iat.revoked
+        {
+            if let Some(expires_at) = iat.expires_at
+                && expires_at < chrono::Utc::now()
+            {
+                return Ok(false);
             }
+            return Ok(true);
         }
         Ok(false)
     }
@@ -237,13 +238,13 @@ impl ProductionClientRegistrationService {
             ));
         }
 
-        if let Some(max_uris) = policy.max_redirect_uris {
-            if request.redirect_uris.len() > max_uris as usize {
-                return Err(AuthencError::validation(format!(
-                    "Maximum {} redirect URIs allowed",
-                    max_uris
-                )));
-            }
+        if let Some(max_uris) = policy.max_redirect_uris
+            && request.redirect_uris.len() > max_uris as usize
+        {
+            return Err(AuthencError::validation(format!(
+                "Maximum {} redirect URIs allowed",
+                max_uris
+            )));
         }
 
         for uri in &request.redirect_uris {
@@ -251,29 +252,29 @@ impl ProductionClientRegistrationService {
         }
 
         // Validate grant types
-        if let Some(grant_types) = &request.grant_types {
-            if let Some(allowed) = &policy.allowed_grant_types {
-                for gt in grant_types {
-                    if !allowed.contains(gt) {
-                        return Err(AuthencError::validation(format!(
-                            "Grant type '{}' not allowed",
-                            gt
-                        )));
-                    }
+        if let Some(grant_types) = &request.grant_types
+            && let Some(allowed) = &policy.allowed_grant_types
+        {
+            for gt in grant_types {
+                if !allowed.contains(gt) {
+                    return Err(AuthencError::validation(format!(
+                        "Grant type '{}' not allowed",
+                        gt
+                    )));
                 }
             }
         }
 
         // Validate response types
-        if let Some(response_types) = &request.response_types {
-            if let Some(allowed) = &policy.allowed_response_types {
-                for rt in response_types {
-                    if !allowed.contains(rt) {
-                        return Err(AuthencError::validation(format!(
-                            "Response type '{}' not allowed",
-                            rt
-                        )));
-                    }
+        if let Some(response_types) = &request.response_types
+            && let Some(allowed) = &policy.allowed_response_types
+        {
+            for rt in response_types {
+                if !allowed.contains(rt) {
+                    return Err(AuthencError::validation(format!(
+                        "Response type '{}' not allowed",
+                        rt
+                    )));
                 }
             }
         }
@@ -284,17 +285,18 @@ impl ProductionClientRegistrationService {
         }
 
         // Validate URIs
-        for uri_field in [
+        for uri in [
             &request.logo_uri,
             &request.client_uri,
             &request.policy_uri,
             &request.tos_uri,
             &request.jwks_uri,
-        ] {
-            if let Some(uri) = uri_field {
-                url::Url::parse(uri)
-                    .map_err(|e| AuthencError::validation(format!("Invalid URI: {}", e)))?;
-            }
+        ]
+        .into_iter()
+        .flatten()
+        {
+            url::Url::parse(uri)
+                .map_err(|e| AuthencError::validation(format!("Invalid URI: {}", e)))?;
         }
 
         Ok(())

@@ -125,7 +125,7 @@ impl ConfigManager {
                 version = version + 1
         "#;
 
-        let user_uuid = user_id.map(|id| uuid::Uuid::parse_str(id).ok()).flatten();
+        let user_uuid = user_id.and_then(|id| uuid::Uuid::parse_str(id).ok());
 
         self.database
             .execute(query, &[&key, &value.to_string(), &user_uuid])
@@ -294,7 +294,7 @@ impl ConfigManager {
             WHERE key = $1
         "#;
 
-        let user_uuid = user_id.map(|id| uuid::Uuid::parse_str(id).ok()).flatten();
+        let user_uuid = user_id.and_then(|id| uuid::Uuid::parse_str(id).ok());
 
         self.database
             .execute(

@@ -1536,9 +1536,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_retention_policy() {
-        use crate::metadata::{Backup, BackupMetadata};
+        use crate::metadata::Backup;
 
-        let (manager, temp_dir) = create_test_manager().await;
+        let (manager, _temp_dir) = create_test_manager().await;
 
         // Create backups directly using storage (bypass pg_dump)
         let mut backup_ids = Vec::new();

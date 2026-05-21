@@ -992,10 +992,9 @@ pub struct HashResult {
 #[cfg(all(test, feature = "enable-inline-tests"))]
 mod tests {
     use super::*;
-    use crate::config::AuthConfig;
-    use crate::services::auth::AuthService;
+
     use secreton_core::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
-    use secreton_crypto::SecurityParams;
+
     use secreton_storage::MemoryBackend;
 
     #[tokio::test]

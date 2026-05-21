@@ -1049,7 +1049,6 @@ mod tests_no_quantum {
 #[cfg(feature = "quantum")]
 mod tests_quantum {
     use super::*;
-    use rand::rngs::OsRng;
 
     #[test]
     fn test_mldsa_key_generation() {

@@ -406,28 +406,28 @@ impl PolicyEngine {
         };
 
         let now = chrono::DateTime::<Utc>::from_timestamp(context.environment.time, 0)
-            .unwrap_or_else(|| Utc::now());
+            .unwrap_or_else(Utc::now);
         let hour = now.hour() as i32;
         let weekday = now.weekday().num_days_from_sunday() as i32;
 
         // Check hour constraints
-        if let Some(not_before) = time_config.not_before {
-            if hour < not_before {
-                return PolicyDecision::Deny;
-            }
+        if let Some(not_before) = time_config.not_before
+            && hour < not_before
+        {
+            return PolicyDecision::Deny;
         }
 
-        if let Some(not_after) = time_config.not_after {
-            if hour > not_after {
-                return PolicyDecision::Deny;
-            }
+        if let Some(not_after) = time_config.not_after
+            && hour > not_after
+        {
+            return PolicyDecision::Deny;
         }
 
         // Check day of week
-        if let Some(ref days) = time_config.days_of_week {
-            if !days.contains(&weekday) {
-                return PolicyDecision::Deny;
-            }
+        if let Some(ref days) = time_config.days_of_week
+            && !days.contains(&weekday)
+        {
+            return PolicyDecision::Deny;
         }
 
         PolicyDecision::Permit
@@ -443,7 +443,7 @@ impl PolicyEngine {
             return PolicyDecision::NotApplicable;
         }
 
-        for (_key, condition) in &config.attributes {
+        for condition in config.attributes.values() {
             let attribute_value = context
                 .subject
                 .attributes

@@ -37,9 +37,10 @@ impl Default for LoadMetrics {
 }
 
 /// Security threat levels for adaptive security posture
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ThreatLevel {
     /// Normal operations - standard security measures
+    #[default]
     Low,
     /// Elevated threat - enhanced monitoring and validation
     Medium,
@@ -49,27 +50,16 @@ pub enum ThreatLevel {
     Critical,
 }
 
-impl Default for ThreatLevel {
-    fn default() -> Self {
-        ThreatLevel::Low
-    }
-}
-
 /// Cryptographic modes for post-quantum transition
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CryptoMode {
     /// Classical cryptography (Ed25519, AES-256-GCM)
+    #[default]
     Classical,
     /// Hybrid classical + post-quantum
     Hybrid,
     /// Pure post-quantum cryptography
     PostQuantum,
-}
-
-impl Default for CryptoMode {
-    fn default() -> Self {
-        CryptoMode::Classical
-    }
 }
 
 impl std::fmt::Display for CryptoMode {
@@ -84,22 +74,17 @@ impl std::fmt::Display for CryptoMode {
 }
 
 /// Performance profiles for different operational modes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum PerformanceProfile {
     /// Optimized for low latency
     LowLatency,
     /// Balanced performance and security
+    #[default]
     Balanced,
     /// Optimized for high throughput
     HighThroughput,
     /// Maximum security, performance secondary
     MaxSecurity,
-}
-
-impl Default for PerformanceProfile {
-    fn default() -> Self {
-        PerformanceProfile::Balanced
-    }
 }
 
 /// Cache configuration with adaptive TTL
@@ -374,7 +359,7 @@ impl DynamicConfigManager {
         config.adapt_to_load(load_metrics);
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(config.clone()) {
+        if self.update_sender.send(config.clone()).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -391,7 +376,7 @@ impl DynamicConfigManager {
         config.update_security_posture(threat_level);
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(config.clone()) {
+        if self.update_sender.send(config.clone()).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -413,7 +398,7 @@ impl DynamicConfigManager {
         *config = new_config.clone();
 
         // Notify subscribers of the update
-        if let Err(_) = self.update_sender.send(new_config) {
+        if self.update_sender.send(new_config).is_err() {
             warn!("No subscribers for dynamic config updates");
         }
 
@@ -456,10 +441,8 @@ impl PerformanceProfiler {
             *count += 1;
         }
 
-        if is_error {
-            if let Ok(mut count) = self.error_count.write() {
-                *count += 1;
-            }
+        if is_error && let Ok(mut count) = self.error_count.write() {
+            *count += 1;
         }
 
         if let Ok(mut times) = self.response_times.write() {

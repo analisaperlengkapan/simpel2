@@ -3,7 +3,6 @@
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::json;
-use uuid::Uuid;
 
 /// Helper to generate auth headers
 fn auth_headers(

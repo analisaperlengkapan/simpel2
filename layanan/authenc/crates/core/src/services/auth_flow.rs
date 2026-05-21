@@ -328,7 +328,7 @@ impl AuthenticationSessionManager {
         session_id: &str,
     ) -> Result<&AuthenticationSessionModel, AuthencError> {
         self.sessions.get(session_id).ok_or_else(|| {
-            AuthencError::validation(&format!("Authentication session not found: {}", session_id))
+            AuthencError::validation(format!("Authentication session not found: {}", session_id))
         })
     }
 
@@ -347,7 +347,7 @@ impl AuthenticationSessionManager {
             session.completed = true;
             Ok(())
         } else {
-            Err(AuthencError::validation(&format!(
+            Err(AuthencError::validation(format!(
                 "Authentication session not found: {}",
                 session_id
             )))
@@ -432,7 +432,7 @@ impl AuthenticationManager {
             .iter()
             .find(|f| f.id == session.flow_id)
             .ok_or_else(|| {
-                AuthencError::validation(&format!("Flow not found: {}", session.flow_id))
+                AuthencError::validation(format!("Flow not found: {}", session.flow_id))
             })?;
 
         // Determine next execution

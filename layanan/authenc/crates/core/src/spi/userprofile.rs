@@ -335,27 +335,27 @@ impl UserProfileProvider for DefaultUserProfileProvider {
                     for validation in &attr.validations {
                         match validation.validator.as_str() {
                             "length" => {
-                                if let Some(min_str) = validation.config.get("min") {
-                                    if let Ok(min) = min_str.parse::<usize>() {
-                                        for value in values {
-                                            if value.len() < min {
-                                                errors
-                                                    .entry(attr.name.clone())
-                                                    .or_insert_with(Vec::new)
-                                                    .push(format!("Minimum length is {}", min));
-                                            }
+                                if let Some(min_str) = validation.config.get("min")
+                                    && let Ok(min) = min_str.parse::<usize>()
+                                {
+                                    for value in values {
+                                        if value.len() < min {
+                                            errors
+                                                .entry(attr.name.clone())
+                                                .or_insert_with(Vec::new)
+                                                .push(format!("Minimum length is {}", min));
                                         }
                                     }
                                 }
-                                if let Some(max_str) = validation.config.get("max") {
-                                    if let Ok(max) = max_str.parse::<usize>() {
-                                        for value in values {
-                                            if value.len() > max {
-                                                errors
-                                                    .entry(attr.name.clone())
-                                                    .or_insert_with(Vec::new)
-                                                    .push(format!("Maximum length is {}", max));
-                                            }
+                                if let Some(max_str) = validation.config.get("max")
+                                    && let Ok(max) = max_str.parse::<usize>()
+                                {
+                                    for value in values {
+                                        if value.len() > max {
+                                            errors
+                                                .entry(attr.name.clone())
+                                                .or_insert_with(Vec::new)
+                                                .push(format!("Maximum length is {}", max));
                                         }
                                     }
                                 }

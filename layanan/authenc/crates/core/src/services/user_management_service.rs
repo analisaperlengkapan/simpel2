@@ -206,10 +206,7 @@ impl UserManagementServiceImpl {
         }
 
         // Resolve realm_id to RealmId (default to new if None)
-        let realm_id = request
-            .realm_id
-            .map(RealmId::from_uuid)
-            .unwrap_or_else(RealmId::new);
+        let realm_id = request.realm_id.map(RealmId::from_uuid).unwrap_or_default();
 
         // Step 4: Check username uniqueness
         if self
@@ -687,10 +684,11 @@ mod tests {
 
         async fn get_user_by_username(&self, username: &str, realm_id: RealmId) -> Result<User> {
             let users_by_username = self.users_by_username.lock().await;
-            let user_uuid = users_by_username
+            let user_uuid = *users_by_username
                 .get(&(username.to_string(), realm_id))
-                .ok_or_else(|| AuthencError::UserNotFound(format!("User {} not found", username)))?
-                .clone();
+                .ok_or_else(|| {
+                    AuthencError::UserNotFound(format!("User {} not found", username))
+                })?;
 
             let users = self.users.lock().await;
             users
@@ -701,12 +699,11 @@ mod tests {
 
         async fn get_user_by_email(&self, email: &str, realm_id: RealmId) -> Result<User> {
             let users_by_email = self.users_by_email.lock().await;
-            let user_uuid = users_by_email
+            let user_uuid = *users_by_email
                 .get(&(email.to_string(), realm_id))
                 .ok_or_else(|| {
                     AuthencError::UserNotFound(format!("User with email {} not found", email))
-                })?
-                .clone();
+                })?;
 
             let users = self.users.lock().await;
             users.get(&user_uuid).cloned().ok_or_else(|| {
@@ -724,10 +721,7 @@ mod tests {
             );
             user.enabled = req.enabled.unwrap_or(true);
 
-            let realm_id = user
-                .realm_id
-                .map(RealmId::from_uuid)
-                .unwrap_or_else(RealmId::new);
+            let realm_id = user.realm_id.map(RealmId::from_uuid).unwrap_or_default();
 
             let mut users = self.users.lock().await;
             users.insert(user.id, user.clone());
@@ -838,7 +832,7 @@ mod tests {
                 .cloned()
                 .collect();
 
-            realm_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            realm_users.sort_by_key(|a| a.created_at);
 
             Ok(realm_users.into_iter().skip(offset).take(limit).collect())
         }
@@ -881,11 +875,11 @@ mod tests {
                 .values()
                 .filter(|u| {
                     u.realm_id == Some(*realm_id.as_uuid())
-                        && enabled.map_or(true, |e| u.enabled == e)
+                        && enabled.is_none_or(|e| u.enabled == e)
                 })
                 .cloned()
                 .collect();
-            realm_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            realm_users.sort_by_key(|a| a.created_at);
             Ok(realm_users.into_iter().skip(offset).take(limit).collect())
         }
 
@@ -899,7 +893,7 @@ mod tests {
                 .values()
                 .filter(|u| {
                     u.realm_id == Some(*realm_id.as_uuid())
-                        && enabled.map_or(true, |e| u.enabled == e)
+                        && enabled.is_none_or(|e| u.enabled == e)
                 })
                 .count() as i64)
         }
@@ -918,7 +912,7 @@ mod tests {
                 .values()
                 .filter(|u| {
                     u.realm_id == Some(*realm_id.as_uuid())
-                        && enabled.map_or(true, |e| u.enabled == e)
+                        && enabled.is_none_or(|e| u.enabled == e)
                 })
                 .filter(|u| {
                     u.username.to_lowercase().contains(&query_lower)
@@ -935,7 +929,7 @@ mod tests {
                 .cloned()
                 .collect();
 
-            matched_users.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            matched_users.sort_by_key(|a| a.created_at);
             Ok(matched_users.into_iter().skip(offset).take(limit).collect())
         }
 
@@ -951,7 +945,7 @@ mod tests {
                 .values()
                 .filter(|u| {
                     u.realm_id == Some(*realm_id.as_uuid())
-                        && enabled.map_or(true, |e| u.enabled == e)
+                        && enabled.is_none_or(|e| u.enabled == e)
                 })
                 .filter(|u| {
                     u.username.to_lowercase().contains(&query_lower)

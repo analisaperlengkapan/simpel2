@@ -212,7 +212,7 @@ pub async fn rate_limit_middleware(
             let response = next.run(request).await;
             Ok(response)
         }
-        Err(AuthencError::RateLimitExceeded { .. }) => {
+        Err(AuthencError::RateLimitExceeded) => {
             // Apply progressive delay if enabled
             if state.config.progressive_delays {
                 let delay = state.calculate_progressive_delay(&ip, path);
@@ -296,7 +296,7 @@ where
         Box::pin(async move {
             match state.check_rate_limit(&path, &ip) {
                 Ok(_) => future.await,
-                Err(AuthencError::RateLimitExceeded { .. }) => {
+                Err(AuthencError::RateLimitExceeded) => {
                     let retry_after = 60; // 1 minute
                     Ok((
                         StatusCode::TOO_MANY_REQUESTS,

@@ -36,6 +36,6 @@ impl std::fmt::Display for ContentEncoding {
 pub async fn compression_middleware(request: Request<Body>, next: Next) -> Response {
     // The actual compression is handled by tower_http::compression::CompressionLayer
     // applied in the router. This middleware can add custom headers or logic.
-    let response = next.run(request).await;
-    response
+
+    next.run(request).await
 }

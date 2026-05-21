@@ -275,16 +275,16 @@ impl MfaSecurityMonitor {
         tracking_info.failed_attempts += 1;
         tracking_info.last_activity = now;
 
-        if let Some(ua) = user_agent {
-            if !tracking_info.user_agents.contains(&ua) {
-                tracking_info.user_agents.push(ua);
-            }
+        if let Some(ua) = user_agent
+            && !tracking_info.user_agents.contains(&ua)
+        {
+            tracking_info.user_agents.push(ua);
         }
 
-        if let Some(uid) = user_id {
-            if !tracking_info.targeted_users.contains(&uid) {
-                tracking_info.targeted_users.push(uid);
-            }
+        if let Some(uid) = user_id
+            && !tracking_info.targeted_users.contains(&uid)
+        {
+            tracking_info.targeted_users.push(uid);
         }
 
         // Check for excessive failed attempts
@@ -815,7 +815,7 @@ impl MfaSecurityMonitor {
             "CRITICAL"
         } else if anomalies.len() > 1 {
             "HIGH"
-        } else if anomalies.len() > 0 {
+        } else if !anomalies.is_empty() {
             "MEDIUM"
         } else {
             "LOW"

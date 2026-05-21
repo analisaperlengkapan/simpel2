@@ -295,8 +295,8 @@ impl EventRetentionService {
             );
 
             // Serialize events to JSON
-            let json_data =
-                serde_json::to_vec_pretty(&events).map_err(|e| Error::internal(format!("Failed to serialize events: {}", e)))?;
+            let json_data = serde_json::to_vec_pretty(&events)
+                .map_err(|e| Error::internal(format!("Failed to serialize events: {}", e)))?;
 
             // Upload to S3/MinIO
             let put_result = s3_client

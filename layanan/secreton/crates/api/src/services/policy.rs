@@ -98,11 +98,11 @@ impl PolicyService {
 
             for name in names {
                 let key = Self::cache_key(namespace, name);
-                if let Some(entry) = cache.get(&key) {
-                    if entry.fetched_at.elapsed() < CACHE_TTL {
-                        all_rules.extend(entry.rules.clone());
-                        continue;
-                    }
+                if let Some(entry) = cache.get(&key)
+                    && entry.fetched_at.elapsed() < CACHE_TTL
+                {
+                    all_rules.extend(entry.rules.clone());
+                    continue;
                 }
                 missing_names.push(name.clone());
             }
@@ -158,11 +158,11 @@ impl PolicyService {
         }
 
         // 3. Update cache
-        if !cache_update.is_empty() {
-            if let Ok(mut cache) = self.cache.write() {
-                for (k, v) in cache_update {
-                    cache.insert(k, v);
-                }
+        if !cache_update.is_empty()
+            && let Ok(mut cache) = self.cache.write()
+        {
+            for (k, v) in cache_update {
+                cache.insert(k, v);
             }
         }
 

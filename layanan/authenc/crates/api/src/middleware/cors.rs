@@ -135,7 +135,7 @@ mod tests {
     #[test]
     fn test_cors_config_default() {
         let config = CorsConfig::default();
-        assert!(config.allowed_origins.len() > 0);
+        assert!(!config.allowed_origins.is_empty());
         assert!(config.allow_credentials);
         assert_eq!(config.environment, Environment::Production);
     }

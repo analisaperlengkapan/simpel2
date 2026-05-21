@@ -824,7 +824,7 @@ mod tests {
 
     #[test]
     fn test_seal_status_conversion() {
-        use secreton_core::services::seal::{SealConfig, SealState, SealStatus};
+        use secreton_core::services::seal::{SealState, SealStatus};
 
         let seal_status = SealStatus {
             state: SealState::Sealed,

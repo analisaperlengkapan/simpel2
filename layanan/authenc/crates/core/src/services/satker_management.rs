@@ -7,9 +7,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use authenc_storage::Database;
-use authenc_types::domain::satker::{Satker, SatkerType, SatkerHierarchy};
-use authenc_types::error::AuthencError;
 use authenc_types::Result;
+use authenc_types::domain::satker::{Satker, SatkerHierarchy, SatkerType};
+use authenc_types::error::AuthencError;
 
 /// Service for managing Satker organizational structures
 pub struct SatkerManagementService {
@@ -51,17 +51,14 @@ impl SatkerManagementService {
         // Apply text search if specified
         if let Some(query) = search {
             let query_lower = query.to_lowercase();
-            filtered = filtered
-                .into_iter()
-                .filter(|s| {
-                    s.code.to_lowercase().contains(&query_lower)
-                        || s.name.to_lowercase().contains(&query_lower)
-                        || s.description
-                            .as_ref()
-                            .map(|d| d.to_lowercase().contains(&query_lower))
-                            .unwrap_or(false)
-                })
-                .collect();
+            filtered.retain(|s| {
+                s.code.to_lowercase().contains(&query_lower)
+                    || s.name.to_lowercase().contains(&query_lower)
+                    || s.description
+                        .as_ref()
+                        .map(|d| d.to_lowercase().contains(&query_lower))
+                        .unwrap_or(false)
+            });
         }
 
         Ok(filtered)
@@ -84,7 +81,15 @@ impl SatkerManagementService {
         attributes: Option<serde_json::Value>,
     ) -> Result<Satker> {
         self.db
-            .create_satker(code, name, description, parent_code, level, satker_type, attributes)
+            .create_satker(
+                code,
+                name,
+                description,
+                parent_code,
+                level,
+                satker_type,
+                attributes,
+            )
             .await
     }
 
@@ -100,7 +105,15 @@ impl SatkerManagementService {
         attributes: Option<serde_json::Value>,
     ) -> Result<Satker> {
         self.db
-            .update_satker(code, name, description, parent_code, level, satker_type, attributes)
+            .update_satker(
+                code,
+                name,
+                description,
+                parent_code,
+                level,
+                satker_type,
+                attributes,
+            )
             .await
     }
 

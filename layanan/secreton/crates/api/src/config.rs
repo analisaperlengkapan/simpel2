@@ -899,10 +899,10 @@ impl From<RaftConfig> for secreton_storage::raft::RaftClusterConfig {
     fn from(api_config: RaftConfig) -> Self {
         let mut peers = std::collections::HashMap::new();
         for peer in &api_config.peers {
-            if let Some((id_str, addr)) = peer.split_once('=') {
-                if let Ok(id) = id_str.trim().parse::<u64>() {
-                    peers.insert(id, addr.trim().to_string());
-                }
+            if let Some((id_str, addr)) = peer.split_once('=')
+                && let Ok(id) = id_str.trim().parse::<u64>()
+            {
+                peers.insert(id, addr.trim().to_string());
             }
         }
 

@@ -364,7 +364,7 @@ mod tests {
         assert_eq!(updated_user.id, user.id.to_string());
         assert_eq!(updated_user.email, "updated@example.com");
         assert_eq!(updated_user.full_name, Some("Updated Name".to_string()));
-        assert_eq!(updated_user.enabled, false);
+        assert!(!updated_user.enabled);
         assert_eq!(
             updated_user.metadata.get("key").map(|s| s.as_str()),
             Some("value")

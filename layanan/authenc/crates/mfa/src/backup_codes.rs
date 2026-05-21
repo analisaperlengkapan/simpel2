@@ -154,12 +154,12 @@ impl<S: BackupCodesStore> BackupCodesService<S> {
             .ok_or_else(|| AuthencError::not_found("Backup codes not found"))?;
 
         // Normalize input code (remove spaces AND dashes, uppercase)
-        let normalized_code = code.replace(' ', "").replace('-', "").to_uppercase();
+        let normalized_code = code.replace([' ', '-'], "").to_uppercase();
 
         // Find matching code (also normalize stored code)
         let matching_code = codes
             .iter()
-            .find(|c| c.code.replace('-', "").replace(' ', "").to_uppercase() == normalized_code);
+            .find(|c| c.code.replace(['-', ' '], "").to_uppercase() == normalized_code);
 
         match matching_code {
             Some(backup_code) if !backup_code.used => {
@@ -241,12 +241,12 @@ mod tests {
         }
 
         async fn update_backup_code(&self, user_id: UserId, code: &str, used: bool) -> Result<()> {
-            if let Some(codes) = self.codes.write().await.get_mut(&user_id) {
-                if let Some(backup_code) = codes.iter_mut().find(|c| c.code == code) {
-                    backup_code.used = used;
-                    if used {
-                        backup_code.used_at = Some(Utc::now());
-                    }
+            if let Some(codes) = self.codes.write().await.get_mut(&user_id)
+                && let Some(backup_code) = codes.iter_mut().find(|c| c.code == code)
+            {
+                backup_code.used = used;
+                if used {
+                    backup_code.used_at = Some(Utc::now());
                 }
             }
             Ok(())

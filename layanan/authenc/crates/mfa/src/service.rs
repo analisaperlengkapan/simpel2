@@ -164,10 +164,10 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
-                tracing::warn!("Failed to invalidate MFA status cache after setup: {}", e);
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await
+        {
+            tracing::warn!("Failed to invalidate MFA status cache after setup: {}", e);
         }
 
         Ok(())
@@ -176,11 +176,11 @@ impl MfaService {
     /// Verify MFA code during authentication
     pub async fn verify_mfa(&self, user_id: Uuid, code: &str) -> Result<()> {
         // Check for OTP replay attack if cache is available
-        if let Some(cache) = &self.mfa_cache {
-            if cache.is_otp_recently_used(user_id, code).await? {
-                tracing::warn!("OTP replay attack detected for user: {}", user_id);
-                return Err(AuthencError::invalid_otp_code());
-            }
+        if let Some(cache) = &self.mfa_cache
+            && cache.is_otp_recently_used(user_id, code).await?
+        {
+            tracing::warn!("OTP replay attack detected for user: {}", user_id);
+            return Err(AuthencError::invalid_otp_code());
         }
 
         // Use secreton MfaManager for verification with replay protection
@@ -189,11 +189,11 @@ impl MfaService {
             .await?;
 
         // Mark OTP as used in cache to prevent replay
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.mark_otp_as_used(user_id, code).await {
-                tracing::warn!("Failed to mark OTP as used in cache: {}", e);
-                // Don't fail the verification, just log the warning
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.mark_otp_as_used(user_id, code).await
+        {
+            tracing::warn!("Failed to mark OTP as used in cache: {}", e);
+            // Don't fail the verification, just log the warning
         }
 
         // Update last used timestamp in database
@@ -212,10 +212,10 @@ impl MfaService {
             .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status to ensure fresh data on next request
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
-                tracing::warn!("Failed to invalidate MFA status cache: {}", e);
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await
+        {
+            tracing::warn!("Failed to invalidate MFA status cache: {}", e);
         }
 
         Ok(())
@@ -224,22 +224,22 @@ impl MfaService {
     /// Get MFA status for a user
     pub async fn get_mfa_status(&self, user_id: Uuid) -> Result<MfaStatus> {
         // Try to get from cache first
-        if let Some(cache) = &self.mfa_cache {
-            if let Some(cached_status) = cache.get_mfa_status(user_id).await? {
-                tracing::debug!("MFA status cache hit for user: {}", user_id);
-                return Ok(cached_status);
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Some(cached_status) = cache.get_mfa_status(user_id).await?
+        {
+            tracing::debug!("MFA status cache hit for user: {}", user_id);
+            return Ok(cached_status);
         }
 
         // Cache miss or no cache - fetch from database using optimized function
         let status = self.get_mfa_status_from_db(user_id).await?;
 
         // Cache the result for future requests
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.cache_mfa_status(user_id, &status).await {
-                tracing::warn!("Failed to cache MFA status: {}", e);
-                // Don't fail the request, just log the warning
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.cache_mfa_status(user_id, &status).await
+        {
+            tracing::warn!("Failed to cache MFA status: {}", e);
+            // Don't fail the request, just log the warning
         }
 
         Ok(status)
@@ -271,10 +271,10 @@ impl MfaService {
         .map_err(|e| AuthencError::database(e.to_string()))?;
 
         // Invalidate cached MFA status
-        if let Some(cache) = &self.mfa_cache {
-            if let Err(e) = cache.invalidate_mfa_status(user_id).await {
-                tracing::warn!("Failed to invalidate MFA status cache after disable: {}", e);
-            }
+        if let Some(cache) = &self.mfa_cache
+            && let Err(e) = cache.invalidate_mfa_status(user_id).await
+        {
+            tracing::warn!("Failed to invalidate MFA status cache after disable: {}", e);
         }
 
         Ok(())
@@ -383,7 +383,7 @@ impl MfaService {
             let db_results = self.batch_get_mfa_status_from_db(&missing_ids).await?;
 
             // Cache the results we fetched from database
-            let cache_items: Vec<(Uuid, MfaStatus)> = db_results.iter().cloned().collect();
+            let cache_items: Vec<(Uuid, MfaStatus)> = db_results.to_vec();
             if let Err(e) = cache.batch_cache_mfa_status(&cache_items).await {
                 tracing::warn!("Failed to batch cache MFA status: {}", e);
             }

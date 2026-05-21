@@ -122,7 +122,7 @@ mod database_integration_tests {
     fn test_isolation_levels() {
         use authenc_storage::IsolationLevel;
 
-        let levels = vec![
+        let levels = [
             IsolationLevel::ReadUncommitted,
             IsolationLevel::ReadCommitted,
             IsolationLevel::RepeatableRead,

@@ -51,6 +51,12 @@ pub trait GeolocationService: Send + Sync {
 
 /// No-op geolocation service for environments without geo lookup
 pub struct SimpleGeolocationService;
+impl Default for SimpleGeolocationService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimpleGeolocationService {
     pub fn new() -> Self {
         Self
@@ -170,32 +176,32 @@ impl EnhancedAuditService {
             event.session_id = Some(session_id.clone());
         }
 
-        if let Some(ref geo) = context.geolocation {
-            if let Ok(geo_json) = serde_json::to_value(geo) {
-                event
-                    .details
-                    .insert("geolocation".to_string(), geo_json.to_string());
-            }
+        if let Some(ref geo) = context.geolocation
+            && let Ok(geo_json) = serde_json::to_value(geo)
+        {
+            event
+                .details
+                .insert("geolocation".to_string(), geo_json.to_string());
         }
 
         if let Some(ref ua) = context.request_context.user_agent {
             event.details.insert("user_agent".to_string(), ua.clone());
         }
 
-        if let Some(ref req_payload) = context.request_payload {
-            if let Ok(payload_str) = serde_json::to_string(req_payload) {
-                event
-                    .details
-                    .insert("request_payload".to_string(), payload_str);
-            }
+        if let Some(ref req_payload) = context.request_payload
+            && let Ok(payload_str) = serde_json::to_string(req_payload)
+        {
+            event
+                .details
+                .insert("request_payload".to_string(), payload_str);
         }
 
-        if let Some(ref resp_payload) = context.response_payload {
-            if let Ok(payload_str) = serde_json::to_string(resp_payload) {
-                event
-                    .details
-                    .insert("response_payload".to_string(), payload_str);
-            }
+        if let Some(ref resp_payload) = context.response_payload
+            && let Ok(payload_str) = serde_json::to_string(resp_payload)
+        {
+            event
+                .details
+                .insert("response_payload".to_string(), payload_str);
         }
 
         event.details.insert(
@@ -230,18 +236,15 @@ impl EnhancedAuditService {
             event.auth_details.user_agent = Some(ua.clone());
         }
 
-        if let Some(ref geo) = context.geolocation {
-            if let Ok(geo_json) = serde_json::to_value(geo) {
-                if let Some(ref mut repr) = event.representation {
-                    if let Ok(mut repr_json) = serde_json::from_str::<Value>(repr) {
-                        if let Some(obj) = repr_json.as_object_mut() {
-                            obj.insert("geolocation".to_string(), geo_json);
-                            if let Ok(updated) = serde_json::to_string(&repr_json) {
-                                event.representation = Some(updated);
-                            }
-                        }
-                    }
-                }
+        if let Some(ref geo) = context.geolocation
+            && let Ok(geo_json) = serde_json::to_value(geo)
+            && let Some(ref mut repr) = event.representation
+            && let Ok(mut repr_json) = serde_json::from_str::<Value>(repr)
+            && let Some(obj) = repr_json.as_object_mut()
+        {
+            obj.insert("geolocation".to_string(), geo_json);
+            if let Ok(updated) = serde_json::to_string(&repr_json) {
+                event.representation = Some(updated);
             }
         }
 

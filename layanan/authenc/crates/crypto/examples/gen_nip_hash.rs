@@ -21,7 +21,7 @@ fn main() {
     let password_hash = argon2
         .hash_password(password.as_bytes(), &salt)
         .expect("Failed to hash");
-    println!("New hash (t=3): {}", password_hash.to_string());
+    println!("New hash (t=3): {}", password_hash);
 
     // Also verify the admin hash (t=10) works
     let admin_hash_str = "$argon2id$v=19$m=65536,t=10,p=4$8MuAQnFGugABncdYFSRtbQ$8NwOF/oRK5AOJkJpQXFvyXidQgCr8C1V7fH4KWS5YiE";

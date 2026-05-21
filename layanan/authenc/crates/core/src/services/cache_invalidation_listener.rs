@@ -31,19 +31,13 @@ impl CacheInvalidationListener {
     /// Handle cache invalidation for an event
     async fn handle_invalidation(&self, event: &Event) -> Result<()> {
         match event.event_type {
-            EventType::UpdateProfile
-            | EventType::UpdateEmail
-            | EventType::UpdateCredential => {
+            EventType::UpdateProfile | EventType::UpdateEmail | EventType::UpdateCredential => {
                 if let Some(user_id) = &event.user_id {
                     debug!("Invalidating cache for user update: {}", user_id);
-                    self.invalidation_service
-                        .invalidate_user(user_id)
-                        .await?;
+                    self.invalidation_service.invalidate_user(user_id).await?;
                 }
             }
-            EventType::MfaSetup
-            | EventType::MfaDisabled
-            | EventType::MfaReset => {
+            EventType::MfaSetup | EventType::MfaDisabled | EventType::MfaReset => {
                 if let Some(user_id) = &event.user_id {
                     debug!("Invalidating MFA cache for user: {}", user_id);
                     self.invalidation_service
@@ -86,7 +80,11 @@ impl EventListenerProvider for CacheInvalidationListener {
         self.handle_invalidation(event).await
     }
 
-    async fn on_admin_event(&self, _event: &AdminEvent, _include_representation: bool) -> Result<()> {
+    async fn on_admin_event(
+        &self,
+        _event: &AdminEvent,
+        _include_representation: bool,
+    ) -> Result<()> {
         // Admin events currently don't trigger cache invalidation
         Ok(())
     }
@@ -149,11 +147,8 @@ mod tests {
             }
         };
 
-        let event = Event::new(
-            EventType::UpdateProfile,
-            "test-realm".to_string(),
-        )
-        .user_id(Uuid::new_v4().to_string());
+        let event = Event::new(EventType::UpdateProfile, "test-realm".to_string())
+            .user_id(Uuid::new_v4().to_string());
 
         let result = listener.on_event(&event).await;
         assert!(result.is_ok());

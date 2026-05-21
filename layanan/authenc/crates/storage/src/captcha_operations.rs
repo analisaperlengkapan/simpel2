@@ -45,10 +45,10 @@ impl Database {
                     &challenge.expires_at,
                     &challenge.session_id,
                     &ip_address,
-                    &challenge.verified, // solved
+                    &challenge.verified,    // solved
                     &None::<DateTime<Utc>>, // solved_at
-                    &0_i32, // attempts
-                    &3_i32, // max_attempts
+                    &0_i32,                 // attempts
+                    &3_i32,                 // max_attempts
                 ],
             )
             .await?;

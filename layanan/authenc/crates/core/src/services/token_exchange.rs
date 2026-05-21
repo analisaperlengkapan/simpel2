@@ -377,11 +377,11 @@ impl TokenExchangeService {
             .unwrap_or_default();
 
         let mut claims_map = HashMap::new();
-        if let Ok(value) = serde_json::to_value(&claims) {
-            if let Some(obj) = value.as_object() {
-                for (k, v) in obj {
-                    claims_map.insert(k.clone(), v.clone());
-                }
+        if let Ok(value) = serde_json::to_value(&claims)
+            && let Some(obj) = value.as_object()
+        {
+            for (k, v) in obj {
+                claims_map.insert(k.clone(), v.clone());
             }
         }
 
@@ -411,10 +411,10 @@ impl TokenExchangeService {
             .ok_or_else(|| AuthencError::unauthorized("Invalid refresh token"))?;
 
         // Check expiration
-        if let Some(refresh_expires_at) = token_data.refresh_expires_at {
-            if refresh_expires_at < Utc::now() {
-                return Err(AuthencError::unauthorized("Refresh token expired"));
-            }
+        if let Some(refresh_expires_at) = token_data.refresh_expires_at
+            && refresh_expires_at < Utc::now()
+        {
+            return Err(AuthencError::unauthorized("Refresh token expired"));
         }
 
         // Check revocation
@@ -463,11 +463,11 @@ impl TokenExchangeService {
             .unwrap_or_else(|| vec!["openid".to_string()]);
 
         let mut claims_map = HashMap::new();
-        if let Ok(value) = serde_json::to_value(&claims) {
-            if let Some(obj) = value.as_object() {
-                for (k, v) in obj {
-                    claims_map.insert(k.clone(), v.clone());
-                }
+        if let Ok(value) = serde_json::to_value(&claims)
+            && let Some(obj) = value.as_object()
+        {
+            for (k, v) in obj {
+                claims_map.insert(k.clone(), v.clone());
             }
         }
 
@@ -514,11 +514,11 @@ impl TokenExchangeService {
                     .unwrap_or_default();
 
                 let mut claims_map = HashMap::new();
-                if let Ok(value) = serde_json::to_value(&claims) {
-                    if let Some(obj) = value.as_object() {
-                        for (k, v) in obj {
-                            claims_map.insert(k.clone(), v.clone());
-                        }
+                if let Ok(value) = serde_json::to_value(&claims)
+                    && let Some(obj) = value.as_object()
+                {
+                    for (k, v) in obj {
+                        claims_map.insert(k.clone(), v.clone());
                     }
                 }
 
@@ -596,7 +596,7 @@ impl TokenExchangeService {
             .scope
             .as_ref()
             .map(|s| s.split_whitespace().map(String::from).collect())
-            .unwrap_or_else(Vec::new);
+            .unwrap_or_default();
 
         if requested_scopes.is_empty() {
             // No specific scopes requested, use subject's scopes

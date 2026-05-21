@@ -52,7 +52,7 @@ mod kebutuhan_bmn_service_tests {
 
     #[test]
     fn test_eligible_bmn_validation() {
-        let eligible_bmn = vec!["3.1.01.01.001", "3.2.01.01.001"];
+        let eligible_bmn = ["3.1.01.01.001", "3.2.01.01.001"];
         let requested_bmn = "3.1.01.01.001";
 
         assert!(eligible_bmn.contains(&requested_bmn));
@@ -60,7 +60,7 @@ mod kebutuhan_bmn_service_tests {
 
     #[test]
     fn test_eligible_satker_validation() {
-        let eligible_satkers = vec!["0100", "0200", "3400"];
+        let eligible_satkers = ["0100", "0200", "3400"];
         let requesting_satker = "0100";
 
         assert!(eligible_satkers.contains(&requesting_satker));

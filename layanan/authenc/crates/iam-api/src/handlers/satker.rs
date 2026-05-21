@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::error::{ApiResult, ApiError};
+use crate::error::{ApiError, ApiResult};
 use crate::state::IamApiState;
 use authenc_types::AuthencError;
 
@@ -151,7 +151,9 @@ fn map_domain_to_response(satker: authenc_types::domain::satker::Satker) -> Satk
     }
 }
 
-fn map_hierarchy_info_to_api(info: authenc_core::services::SatkerHierarchyInfo) -> SatkerHierarchyInfo {
+fn map_hierarchy_info_to_api(
+    info: authenc_core::services::SatkerHierarchyInfo,
+) -> SatkerHierarchyInfo {
     SatkerHierarchyInfo {
         satker_code: info.satker.code,
         ancestors: info.ancestors.into_iter().map(|s| s.code).collect(),
@@ -174,7 +176,12 @@ pub async fn get_satker(
         .get_satker(&code)
         .await
         .map_err(ApiError)?
-        .ok_or_else(|| ApiError(AuthencError::not_found(format!("Satker '{}' tidak ditemukan", code))))?;
+        .ok_or_else(|| {
+            ApiError(AuthencError::not_found(format!(
+                "Satker '{}' tidak ditemukan",
+                code
+            )))
+        })?;
 
     Ok(Json(map_domain_to_response(satker)))
 }

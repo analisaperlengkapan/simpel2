@@ -628,6 +628,19 @@ impl SnapshotCreator {
     }
 }
 
+// Implement Clone for SecondaryReadHandler for testing
+impl Clone for SecondaryReadHandler {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+            last_applied_sequence: self.last_applied_sequence.clone(),
+            primary_sequence: self.primary_sequence.clone(),
+            staleness_threshold_ms: self.staleness_threshold_ms,
+            last_sync: self.last_sync.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -897,18 +910,5 @@ mod tests {
 
         handler.set_staleness_threshold_ms(500);
         assert_eq!(handler.staleness_threshold_ms(), 500);
-    }
-}
-
-// Implement Clone for SecondaryReadHandler for testing
-impl Clone for SecondaryReadHandler {
-    fn clone(&self) -> Self {
-        Self {
-            storage: self.storage.clone(),
-            last_applied_sequence: self.last_applied_sequence.clone(),
-            primary_sequence: self.primary_sequence.clone(),
-            staleness_threshold_ms: self.staleness_threshold_ms,
-            last_sync: self.last_sync.clone(),
-        }
     }
 }

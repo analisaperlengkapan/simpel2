@@ -502,7 +502,7 @@ impl OAuth2ServiceTrait for OAuth2ServiceImpl {
                 let mut hasher = Sha256::new();
                 hasher.update(code_verifier.as_bytes());
                 let hash = hasher.finalize();
-                URL_SAFE_NO_PAD.encode(&hash)
+                URL_SAFE_NO_PAD.encode(hash)
             }
             "plain" => {
                 // Plain code_verifier

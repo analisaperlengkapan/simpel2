@@ -217,10 +217,10 @@ impl CapabilityChecker {
         // Check cache first
         {
             let cache = self.cache.read().await;
-            if let Some(cached) = cache.get(user_id) {
-                if cached.cached_at.elapsed() < self.cache_ttl {
-                    return Ok(cached.capabilities.clone());
-                }
+            if let Some(cached) = cache.get(user_id)
+                && cached.cached_at.elapsed() < self.cache_ttl
+            {
+                return Ok(cached.capabilities.clone());
             }
         }
 

@@ -67,14 +67,13 @@ pub async fn admin_auth_middleware(
         .unwrap_or_default();
 
     // If JWT has no roles, look up from DB via user_service
-    if roles.is_empty() {
-        if let Ok(user) = state
+    if roles.is_empty()
+        && let Ok(user) = state
             .user_service
             .get_user(authenc_types::UserId::from_uuid(user_id))
             .await
-        {
-            roles = user.roles.iter().map(|r| r.name.clone()).collect();
-        }
+    {
+        roles = user.roles.iter().map(|r| r.name.clone()).collect();
     }
 
     // Check for admin role

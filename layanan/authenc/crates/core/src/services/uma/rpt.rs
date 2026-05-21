@@ -298,8 +298,8 @@ mod tests {
             .expect("Failed to create RPT");
 
         assert!(!rpt.is_expired());
-        assert!(rpt.has_permission("resource-123", &vec!["read".to_string()]));
-        assert!(!rpt.has_permission("resource-999", &vec!["read".to_string()]));
+        assert!(rpt.has_permission("resource-123", &["read".to_string()]));
+        assert!(!rpt.has_permission("resource-999", &["read".to_string()]));
     }
 
     #[test]
@@ -379,7 +379,7 @@ mod tests {
             .expect("Failed to upgrade RPT");
 
         assert_eq!(upgraded_rpt.permissions().len(), 2);
-        assert!(upgraded_rpt.has_permission("resource-123", &vec!["read".to_string()]));
-        assert!(upgraded_rpt.has_permission("resource-456", &vec!["write".to_string()]));
+        assert!(upgraded_rpt.has_permission("resource-123", &["read".to_string()]));
+        assert!(upgraded_rpt.has_permission("resource-456", &["write".to_string()]));
     }
 }

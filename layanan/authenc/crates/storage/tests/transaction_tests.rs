@@ -78,7 +78,7 @@ mod transaction_tests {
         // Test that we understand different isolation levels
         // PostgreSQL default is READ COMMITTED
 
-        let isolation_levels = vec![
+        let isolation_levels = [
             "READ UNCOMMITTED",
             "READ COMMITTED",
             "REPEATABLE READ",
