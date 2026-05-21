@@ -57,10 +57,10 @@ pqcrypto-traits = { workspace = true, optional = true }
 [features]
 default = []
 quantum = [
-    "dep:pqcrypto-mldsa",
-    "dep:pqcrypto-mlkem",
-    "dep:pqcrypto-falcon",
-    "dep:pqcrypto-traits",
+  "dep:pqcrypto-mldsa",
+  "dep:pqcrypto-mlkem",
+  "dep:pqcrypto-falcon",
+  "dep:pqcrypto-traits",
 ]
 secreton = []
 
