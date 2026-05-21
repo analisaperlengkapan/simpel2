@@ -18,6 +18,7 @@ pub mod pdf_generator;
 pub mod scheduler;
 pub mod security;
 pub mod storage;
+pub mod service;
 pub mod template_models;
 pub mod template_service;
 

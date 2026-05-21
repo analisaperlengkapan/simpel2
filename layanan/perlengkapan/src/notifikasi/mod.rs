@@ -25,6 +25,7 @@ pub mod queue;
 pub mod queue_processor;
 pub mod scheduler;
 pub mod security;
+pub mod service;
 pub mod sms;
 pub mod template;
 pub mod websocket;

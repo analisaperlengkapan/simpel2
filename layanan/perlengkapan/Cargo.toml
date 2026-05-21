@@ -113,6 +113,9 @@ redis = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 
+# Trait contract DTOs (DocumentArtifact carries `bytes::Bytes` in preview())
+bytes = { workspace = true }
+
 [build-dependencies]
 tonic-prost-build = { workspace = true }
 

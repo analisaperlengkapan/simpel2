@@ -5627,6 +5627,7 @@ dependencies = [
  "axum",
  "axum-test",
  "bigdecimal",
+ "bytes",
  "chrono",
  "clamav-client",
  "dashmap",
