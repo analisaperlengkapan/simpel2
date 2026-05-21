@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::{FaqArticle, FaqCategory};
+use super::error::AppError;
+use super::models::{FaqArticle, FaqCategory};
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 

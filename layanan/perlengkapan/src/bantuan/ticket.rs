@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::{SupportTicket, TicketComment};
+use super::error::AppError;
+use super::models::{SupportTicket, TicketComment};
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 

@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::{FaqArticle, KnowledgeArticle, SupportTicket};
+use super::error::AppError;
+use super::models::{FaqArticle, KnowledgeArticle, SupportTicket};
 use chrono::Utc;
 use deadpool_postgres::Pool;
 use serde_json::Value;

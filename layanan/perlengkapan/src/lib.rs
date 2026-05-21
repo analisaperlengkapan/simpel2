@@ -1,5 +1,6 @@
 pub mod admin;
 pub mod bank_aset;
+pub mod bantuan;
 pub mod cache_strategy;
 pub mod connection_config;
 pub mod dashboard;

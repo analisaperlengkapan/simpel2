@@ -17,11 +17,9 @@ members = [
   "antarmuka/portal",
   "antarmuka/perlengkapan",
 
-  # Perlengkapan Backend (unified crate; bantuan sub-crate temporarily
-  # kept until its content is folded into `layanan/perlengkapan/src/bantuan`).
+  # Perlengkapan Backend (unified crate)
   "layanan/perlengkapan",
   "layanan/integrasi",
-  "layanan/perlengkapan/crates/bantuan",
 
   # Infrastructure Services
   # "layanan/authenc",  # Legacy - migrated to crates/

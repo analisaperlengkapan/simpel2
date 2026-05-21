@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::ChatbotMessage;
+use super::error::AppError;
+use super::models::ChatbotMessage;
 use deadpool_postgres::Pool;
 use reqwest::Client;
 use serde_json::json;

@@ -1,13 +1,13 @@
-use crate::analytics::AnalyticsService;
-use crate::chatbot::ChatbotService;
-use crate::config::AppConfig;
-use crate::error::AppError;
-use crate::export_import::ExportImportService;
-use crate::faq::FaqService;
-use crate::gdpr::GdprService;
-use crate::knowledge::KnowledgeService;
-use crate::ticket::TicketService;
-use crate::webhook::WebhookService;
+use super::analytics::AnalyticsService;
+use super::chatbot::ChatbotService;
+use super::config::AppConfig;
+use super::error::AppError;
+use super::export_import::ExportImportService;
+use super::faq::FaqService;
+use super::gdpr::GdprService;
+use super::knowledge::KnowledgeService;
+use super::ticket::TicketService;
+use super::webhook::WebhookService;
 use axum::{
     Router,
     extract::{Json, Path, Query, State},
@@ -695,7 +695,7 @@ pub async fn get_audit_logs(
     let action = params.get("action").and_then(|v| v.as_str());
     let resource = params.get("resource").and_then(|v| v.as_str());
     let limit = params.get("limit").and_then(|v| v.as_u64()).unwrap_or(20) as i64;
-    let logs = crate::audit::query_audit_logs(&pool, user_id, action, resource, limit).await?;
+    let logs = super::audit::query_audit_logs(&pool, user_id, action, resource, limit).await?;
     Ok(Json(logs))
 }
 pub async fn list_webhook_events(

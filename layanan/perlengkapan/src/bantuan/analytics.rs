@@ -1,5 +1,5 @@
-use crate::error::AppError;
-use crate::models::HelpAnalytics;
+use super::error::AppError;
+use super::models::HelpAnalytics;
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 
