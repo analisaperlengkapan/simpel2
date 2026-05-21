@@ -11,9 +11,7 @@ use tokio_postgres::NoTls;
 use uuid::Uuid;
 
 // Import workflow modules
-use layanan_perlengkapan::workflow::{
-    config::WorkflowConfig, notifikasi_client::NotifikasiClient, sla::SlaMonitor,
-};
+use layanan_perlengkapan::workflow::{config::WorkflowConfig, sla::SlaMonitor};
 
 /// Helper function to create a test database pool
 async fn create_test_pool() -> Pool {
@@ -222,15 +220,13 @@ async fn test_sla_escalation_with_notification() {
     let pool = create_test_pool().await;
     let config = WorkflowConfig::default_kebutuhan_bmn();
 
-    // Create notification client
-    let notifikasi_endpoint =
-        env::var("NOTIFIKASI_GRPC_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
+    // Stand up the in-process NotifikasiService (no gRPC server needed).
+    let notifier: std::sync::Arc<dyn lib_perlengkapan::contracts::NotificationSender> =
+        std::sync::Arc::new(
+            layanan_perlengkapan::notifikasi::service::NotifikasiService::new(pool.clone()),
+        );
 
-    let notifikasi_client = NotifikasiClient::new(&notifikasi_endpoint)
-        .await
-        .expect("Failed to create notification client");
-
-    let monitor = SlaMonitor::with_notifikasi(config, pool.clone(), notifikasi_client);
+    let monitor = SlaMonitor::with_notifier(config, pool.clone(), notifier);
 
     // Create entity with SLA breach
     let created_at = Utc::now() - Duration::days(3);

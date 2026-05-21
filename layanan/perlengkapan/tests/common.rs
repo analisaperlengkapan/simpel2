@@ -186,6 +186,31 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
 
     let (dashboard_tx, _) = tokio::sync::broadcast::channel(100);
 
+    // Ports & adapters: stand up real DokumenService + NotifikasiService so
+    // the integration tests exercise the same trait surface production uses.
+    let template_service = std::sync::Arc::new(
+        layanan_perlengkapan::dokumen::TemplateService::new(),
+    );
+    let pdf_generator = std::sync::Arc::new(
+        layanan_perlengkapan::dokumen::PdfGenerator::new(
+            layanan_perlengkapan::dokumen::TemplateService::new(),
+        ),
+    );
+    let excel_generator = std::sync::Arc::new(
+        layanan_perlengkapan::dokumen::excel_generator::ExcelGenerator::new(),
+    );
+    let docs: std::sync::Arc<dyn lib_perlengkapan::contracts::DocumentGenerator> =
+        std::sync::Arc::new(layanan_perlengkapan::dokumen::service::DokumenService::new(
+            db.pool().clone(),
+            template_service,
+            pdf_generator,
+            excel_generator,
+        ));
+    let notifier: std::sync::Arc<dyn lib_perlengkapan::contracts::NotificationSender> =
+        std::sync::Arc::new(
+            layanan_perlengkapan::notifikasi::service::NotifikasiService::new(db.pool().clone()),
+        );
+
     let state = AppState {
         service,
         authenc: AuthencClient::dummy(),
@@ -199,6 +224,8 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         db_pool: db.pool().clone(),
         cache_manager: Arc::new(CacheManager::new()),
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::from_env())),
+        docs,
+        notifier,
     };
 
     let app = layanan_perlengkapan::routes::create_routes(state);
