@@ -35,7 +35,7 @@ once_cell = { workspace = true }
 
 # Advanced cryptography dependencies
 axum = { workspace = true }        # For mTLS middleware
-openssl = { version = "0.10.74" }  # For xmldsig
+openssl = { version = "0.10.80" }  # For xmldsig
 quick-xml = { workspace = true }   # For xmldsig
 anyhow = { workspace = true }      # For error handling in advanced modules
 sha2 = { workspace = true }        # For hashing in mtls and other modules
