@@ -37,6 +37,9 @@ use crate::error::ServiceResult;
 pub enum DocumentFormat {
     Pdf,
     Excel,
+    /// Microsoft Word `.docx`. Generated alongside PDF for konsep surat / SK
+    /// so users can edit before signing.
+    Docx,
     Html,
     Csv,
 }

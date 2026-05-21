@@ -181,11 +181,14 @@ async fn main() -> anyhow::Result<()> {
     let pdf_generator =
         Arc::new(dokumen::PdfGenerator::new(dokumen::TemplateService::new()));
     let excel_generator = Arc::new(dokumen::excel_generator::ExcelGenerator::new());
+    let docx_generator =
+        Arc::new(dokumen::DocxGenerator::new(dokumen::TemplateService::new()));
     let docs: Arc<dyn DocumentGenerator> = Arc::new(dokumen::service::DokumenService::new(
         db.pool().clone(),
         template_service.clone(),
         pdf_generator,
         excel_generator,
+        docx_generator,
     ));
     let notifier: Arc<dyn NotificationSender> =
         Arc::new(notifikasi::service::NotifikasiService::new(db.pool().clone()));

@@ -9,6 +9,7 @@ pub mod archive;
 pub mod audit;
 pub mod classify;
 pub mod config;
+pub mod docx_generator;
 pub mod error;
 pub mod excel_generator;
 pub mod handlers;
@@ -22,6 +23,7 @@ pub mod service;
 pub mod template_models;
 pub mod template_service;
 
+pub use docx_generator::DocxGenerator;
 pub use excel_generator::ExcelGenerator;
 pub use pdf_generator::PdfGenerator;
 pub use scheduler::DocumentScheduler;

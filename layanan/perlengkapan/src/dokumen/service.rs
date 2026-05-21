@@ -23,6 +23,7 @@ use lib_perlengkapan::contracts::{
 };
 use uuid::Uuid;
 
+use super::docx_generator::DocxGenerator;
 use super::excel_generator::ExcelGenerator;
 use super::pdf_generator::PdfGenerator;
 use super::template_service::TemplateService;
@@ -36,6 +37,7 @@ pub struct DokumenService {
     template_service: Arc<TemplateService>,
     pdf_generator: Arc<PdfGenerator>,
     excel_generator: Arc<ExcelGenerator>,
+    docx_generator: Arc<DocxGenerator>,
 }
 
 impl DokumenService {
@@ -44,12 +46,14 @@ impl DokumenService {
         template_service: Arc<TemplateService>,
         pdf_generator: Arc<PdfGenerator>,
         excel_generator: Arc<ExcelGenerator>,
+        docx_generator: Arc<DocxGenerator>,
     ) -> Self {
         Self {
             pool,
             template_service,
             pdf_generator,
             excel_generator,
+            docx_generator,
         }
     }
 
@@ -63,6 +67,7 @@ impl DokumenService {
         match format {
             DocumentFormat::Pdf => "pdf",
             DocumentFormat::Excel => "xlsx",
+            DocumentFormat::Docx => "docx",
             DocumentFormat::Html => "html",
             DocumentFormat::Csv => "csv",
         }
@@ -73,6 +78,9 @@ impl DokumenService {
             DocumentFormat::Pdf => "application/pdf",
             DocumentFormat::Excel => {
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            }
+            DocumentFormat::Docx => {
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             }
             DocumentFormat::Html => "text/html; charset=utf-8",
             DocumentFormat::Csv => "text/csv; charset=utf-8",
@@ -131,6 +139,19 @@ impl DokumenService {
                     .generate_excel(&template, data, tmp_path.to_str().unwrap_or(""))
                     .await
                     .map_err(|e| ServiceError::storage(format!("Excel render failed: {}", e)))?;
+                let _ = tokio::fs::remove_file(&tmp_path).await;
+                Ok(bytes::Bytes::from(bytes))
+            }
+            DocumentFormat::Docx => {
+                let tmp_path = Self::storage_root().join(format!("preview-{}.docx", Uuid::new_v4()));
+                tokio::fs::create_dir_all(tmp_path.parent().unwrap_or(&Self::storage_root()))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
+                let bytes = self
+                    .docx_generator
+                    .generate_docx(&template, data, tmp_path.to_str().unwrap_or(""))
+                    .await
+                    .map_err(|e| ServiceError::storage(format!("DOCX render failed: {}", e)))?;
                 let _ = tokio::fs::remove_file(&tmp_path).await;
                 Ok(bytes::Bytes::from(bytes))
             }

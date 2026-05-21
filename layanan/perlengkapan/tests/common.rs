@@ -199,12 +199,18 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let excel_generator = std::sync::Arc::new(
         layanan_perlengkapan::dokumen::excel_generator::ExcelGenerator::new(),
     );
+    let docx_generator = std::sync::Arc::new(
+        layanan_perlengkapan::dokumen::DocxGenerator::new(
+            layanan_perlengkapan::dokumen::TemplateService::new(),
+        ),
+    );
     let docs: std::sync::Arc<dyn lib_perlengkapan::contracts::DocumentGenerator> =
         std::sync::Arc::new(layanan_perlengkapan::dokumen::service::DokumenService::new(
             db.pool().clone(),
             template_service,
             pdf_generator,
             excel_generator,
+            docx_generator,
         ));
     let notifier: std::sync::Arc<dyn lib_perlengkapan::contracts::NotificationSender> =
         std::sync::Arc::new(

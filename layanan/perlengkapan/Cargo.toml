@@ -100,6 +100,7 @@ rust_xlsxwriter = { workspace = true }
 # Document generation (dokumen module)
 handlebars = { workspace = true }
 printpdf = { workspace = true }
+docx-rs = { workspace = true }
 aes-gcm = { workspace = true }
 rand = { workspace = true }
 sha2 = { workspace = true }
