@@ -5,7 +5,7 @@
 //! No proposal/verification workflow.
 
 use crate::AppState;
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use crate::mapping_kodefikasi::models::*;
 use crate::mapping_kodefikasi::services::MappingService;
 use axum::{

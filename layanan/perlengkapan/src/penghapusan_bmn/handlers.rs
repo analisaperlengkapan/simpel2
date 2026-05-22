@@ -20,8 +20,8 @@
 
 use super::models::*;
 use super::services::PenghapusanBmnService;
-use crate::errors::AppError;
-use crate::middleware::Claims;
+use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 use axum::{
     Json,
     extract::{Path, Query, State},

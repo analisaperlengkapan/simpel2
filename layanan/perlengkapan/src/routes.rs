@@ -7,10 +7,7 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::{
-    AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas,
-    pemakaian_bmn, roadmap_sarpras,
-};
+use crate::{AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn, roadmap_sarpras};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()

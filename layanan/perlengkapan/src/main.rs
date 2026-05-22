@@ -12,20 +12,22 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
 use layanan_perlengkapan::{
-    cache_strategy, dashboard, database, database_optimization, dokumen, grpc_clients,
-    health, kebutuhan_bmn, logging, middleware, notifikasi, pakaian_dinas, pemakaian_bmn,
-    penghapusan_bmn, rate_limiting, roadmap_sarpras, routes, services, workflow,
+    dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn,
+    penghapusan_bmn, roadmap_sarpras, routes, services, workflow,
+};
+use layanan_perlengkapan::shared::{
+    cache::CacheManager,
+    db::Database,
+    grpc::clients::{AuthencClient, IntegrasiClient, SecretonClient},
+    middleware,
+    rate_limit::{RateLimitConfig, RateLimiter},
 };
 use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
 
-use cache_strategy::CacheManager;
 use dashboard::services::DashboardService;
-use database::Database;
-use grpc_clients::{AuthencClient, IntegrasiClient, SecretonClient};
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
-use rate_limiting::{RateLimitConfig, RateLimiter};
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
@@ -33,7 +35,7 @@ use layanan_perlengkapan::AppState;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize structured logging
-    logging::init_structured_logging();
+    layanan_perlengkapan::shared::logging::init_structured_logging();
 
     info!("Starting Layanan Pembinaan Perlengkapan Service");
 
@@ -171,7 +173,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Add essential indexes for performance optimization
     info!("Adding essential database indexes...");
-    database_optimization::add_essential_indexes(db.pool()).await?;
+    layanan_perlengkapan::shared::db_optimization::add_essential_indexes(db.pool()).await?;
 
     // Create main service with repository wrapper
     let service = PerlengkapanService::new(Arc::new(db.clone()));
@@ -283,7 +285,7 @@ async fn main() -> anyhow::Result<()> {
     // Start rate limiter cleanup task
     let rate_limiter_cleanup = Arc::clone(&rate_limiter);
     tokio::spawn(async move {
-        rate_limiting::cleanup_task(rate_limiter_cleanup).await;
+        layanan_perlengkapan::shared::rate_limit::cleanup_task(rate_limiter_cleanup).await;
     });
 
     // Create AppState
@@ -346,9 +348,9 @@ fn build_router(state: AppState) -> Router {
 
     // Health check routes (no auth or rate limiting required)
     let health_routes = Router::new()
-        .route("/health", get(health::health_check))
-        .route("/health/ready", get(health::readiness_check))
-        .route("/health/live", get(health::liveness_check))
+        .route("/health", get(layanan_perlengkapan::shared::health::health_check))
+        .route("/health/ready", get(layanan_perlengkapan::shared::health::readiness_check))
+        .route("/health/live", get(layanan_perlengkapan::shared::health::liveness_check))
         .route("/metrics", get(middleware::metrics::metrics_handler))
         .with_state(Arc::new(state.clone()));
 
@@ -364,7 +366,7 @@ fn build_router(state: AppState) -> Router {
         ))
         .layer(axum::middleware::from_fn_with_state(
             Arc::clone(&state.rate_limiter),
-            rate_limiting::rate_limit_middleware,
+            layanan_perlengkapan::shared::rate_limit::rate_limit_middleware,
         ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)

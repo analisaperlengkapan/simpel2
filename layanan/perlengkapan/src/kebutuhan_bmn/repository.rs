@@ -10,7 +10,7 @@ use tracing::{error, info};
 use uuid::Uuid;
 
 use super::models::*;
-use crate::errors::{AppError, AppResult};
+use crate::shared::error::{AppError, AppResult};
 
 // ============================================================================
 // Repository Trait

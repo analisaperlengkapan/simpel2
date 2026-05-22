@@ -7,7 +7,7 @@
 //! safe — it only applies what is new.
 //!
 //! Wired from `main.rs` after the deadpool-postgres pool is initialised and
-//! before [`Database::migrate`](crate::database::Database::migrate)'s legacy
+//! before [`Database::migrate`](crate::shared::db::Database::migrate)'s legacy
 //! hand-coded `CREATE TABLE` statements. Eventually the legacy code path
 //! will be removed entirely and the embedded migrations become the single
 //! source of truth.

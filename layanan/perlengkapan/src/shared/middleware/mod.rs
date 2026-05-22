@@ -11,7 +11,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{errors::AppError, grpc_clients::AuthencClient};
+use crate::shared::error::AppError;
+use crate::shared::grpc::clients::AuthencClient;
 
 /// Axum extractor for the originating client IP, used by audit log /
 /// workflow transition records.

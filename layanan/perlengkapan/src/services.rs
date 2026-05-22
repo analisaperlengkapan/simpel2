@@ -2,7 +2,8 @@
 //!
 //! Business logic for the Perlengkapan service
 
-use crate::{errors::*, models::*, repository::PerlengkapanRepository};
+use crate::{models::*, repository::PerlengkapanRepository};
+use crate::shared::error::*;
 use std::sync::Arc;
 use uuid::Uuid;
 use validator::Validate;

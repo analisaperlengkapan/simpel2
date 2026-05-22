@@ -21,12 +21,12 @@ pub async fn track_metrics(req: Request, next: Next) -> Response {
     let status = response.status().as_u16().to_string();
 
     // Record HTTP request duration
-    crate::metrics::http_request_duration()
+    crate::shared::metrics::http_request_duration()
         .with_label_values(&[&method, &path, &status])
         .observe(duration);
 
     // Increment HTTP request counter
-    crate::metrics::http_requests_total()
+    crate::shared::metrics::http_requests_total()
         .with_label_values(&[&method, &path, &status])
         .inc();
 
@@ -35,7 +35,7 @@ pub async fn track_metrics(req: Request, next: Next) -> Response {
 
 /// Handler for Prometheus metrics endpoint
 pub async fn metrics_handler() -> impl IntoResponse {
-    match crate::metrics::export_metrics() {
+    match crate::shared::metrics::export_metrics() {
         Ok(metrics) => (StatusCode::OK, metrics),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,

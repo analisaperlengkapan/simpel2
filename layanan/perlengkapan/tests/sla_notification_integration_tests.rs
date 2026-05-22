@@ -372,11 +372,11 @@ async fn test_sla_metrics_recorded() {
     let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
 
     // Get initial metric values
-    let initial_breaches = layanan_perlengkapan::metrics::workflow_sla_breaches_total()
+    let initial_breaches = layanan_perlengkapan::shared::metrics::workflow_sla_breaches_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
         .get();
 
-    let initial_escalations = layanan_perlengkapan::metrics::workflow_escalations_total()
+    let initial_escalations = layanan_perlengkapan::shared::metrics::workflow_escalations_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
         .get();
 
@@ -393,11 +393,11 @@ async fn test_sla_metrics_recorded() {
     assert!(escalate_result.is_ok());
 
     // Verify metrics were incremented
-    let final_breaches = layanan_perlengkapan::metrics::workflow_sla_breaches_total()
+    let final_breaches = layanan_perlengkapan::shared::metrics::workflow_sla_breaches_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
         .get();
 
-    let final_escalations = layanan_perlengkapan::metrics::workflow_escalations_total()
+    let final_escalations = layanan_perlengkapan::shared::metrics::workflow_escalations_total()
         .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
         .get();
 

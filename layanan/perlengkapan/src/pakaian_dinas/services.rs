@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::repository::PakaianDinasRepository;
-use crate::errors::{AppResult, bad_request};
+use crate::shared::error::{AppResult, bad_request};
 
 /// Service for Pakaian Dinas business logic
 #[derive(Clone)]

@@ -3,7 +3,7 @@
 //! Implements Simple Moving Average (SMA), Weighted Moving Average (WMA),
 //! and Exponential Smoothing with confidence intervals.
 
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use chrono::Utc;
 use lib_perlengkapan::models::{
     ForecastMethod, ForecastRequest, ForecastResult, ForecastSnapshot, ForecastSummary,

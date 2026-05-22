@@ -11,8 +11,8 @@ use axum::{
 use tracing::info;
 use uuid::Uuid;
 
-use crate::errors::AppError;
-use crate::middleware::{Claims, ClientIp};
+use crate::shared::error::AppError;
+use crate::shared::middleware::{Claims, ClientIp};
 use crate::models::ApiResponse;
 
 use super::models::*;

@@ -1,17 +1,37 @@
 //! Cross-cutting infrastructure shared across every domain module.
 //!
-//! Per the refactor plan (Bagian A.3), most cross-cutting modules
-//! (errors / database / cache / rate_limit / grpc_clients / health /
-//! middleware / metrics / logging) currently live at the crate root
-//! (`crate::errors`, `crate::database`, …). Moving them under
-//! `crate::shared::*` is the structural cleanup the plan describes — to be
-//! done as a focused PR with a single mechanical sweep of import paths.
+//! Per the refactor plan (Bagian A.1 / A.3) the modules below were
+//! collected here so domain code (`bank_aset`, `kebutuhan_bmn`, `dokumen`,
+//! `notifikasi`, `bantuan`, …) imports its plumbing from one canonical
+//! location instead of from a long flat list at the crate root. Each entry
+//! corresponds to a section of the plan:
 //!
-//! For now this module exposes only the pieces that need to land **before**
-//! the full sweep can happen, because other modules depend on them:
-//! - [`audit`] — concrete `PgAuditSink` implementing
-//!   [`lib_perlengkapan::contracts::AuditSink`]. Plumbed into `AppState`
-//!   and consumed by bantuan + notifikasi handlers to replace the
-//!   `// TODO: Audit log` markers.
+//! - [`audit`] — concrete `PgAuditSink` impl of
+//!   [`lib_perlengkapan::contracts::AuditSink`].
+//! - [`cache`] — cache manager wrapping deadpool-redis (`cache_strategy`
+//!   originally).
+//! - [`connection_config`] — db connection options helper.
+//! - [`db`] — deadpool-postgres pool + `Database` wrapper.
+//! - [`db_optimization`] — boot-time index maintenance.
+//! - [`error`] — `AppError` + `AppResult` + `IntoResponse` mapping for
+//!   the unified crate.
+//! - [`grpc`] — backend↔backend clients (authenc + secreton + integrasi).
+//! - [`health`] — `/health`, `/health/ready`, `/health/live` handlers.
+//! - [`logging`] — `tracing-subscriber` init.
+//! - [`metrics`] — Prometheus registry + helpers.
+//! - [`middleware`] — JWT extractor (`Claims`), `ClientIp` extractor,
+//!   prometheus middleware, RBAC helpers.
+//! - [`rate_limit`] — token-bucket per-IP rate limiter middleware.
 
 pub mod audit;
+pub mod cache;
+pub mod connection_config;
+pub mod db;
+pub mod db_optimization;
+pub mod error;
+pub mod grpc;
+pub mod health;
+pub mod logging;
+pub mod metrics;
+pub mod middleware;
+pub mod rate_limit;

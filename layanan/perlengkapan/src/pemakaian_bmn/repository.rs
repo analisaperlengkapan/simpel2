@@ -6,7 +6,7 @@
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult};
+use crate::shared::error::{AppError, AppResult};
 
 use super::models::*;
 

@@ -1,7 +1,7 @@
 // Dashboard repository for database queries
 
 use crate::dashboard::models::*;
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use deadpool_postgres::Pool;
 use std::collections::HashMap;
 

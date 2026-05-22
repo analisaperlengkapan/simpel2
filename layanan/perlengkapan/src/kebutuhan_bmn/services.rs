@@ -14,10 +14,10 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::errors::{AppError, AppResult};
-use crate::grpc_clients::AuthencClient;
-use crate::grpc_clients::IntegrasiClient;
-use crate::grpc_clients::integrasi::v1::{DataSource, SyncState};
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::grpc::clients::AuthencClient;
+use crate::shared::grpc::clients::IntegrasiClient;
+use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 
 use super::models::*;

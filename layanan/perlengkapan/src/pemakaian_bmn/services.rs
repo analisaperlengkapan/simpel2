@@ -10,7 +10,7 @@ use tracing::{info, warn};
 use uuid::Uuid;
 use validator::Validate;
 
-use crate::errors::{AppError, AppResult};
+use crate::shared::error::{AppError, AppResult};
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 
 use super::models::*;
@@ -879,7 +879,7 @@ impl PemakaianBmnService {
                         days_remaining, permit.id, permit.created_by
                     );
                     let days_label = days_remaining.to_string();
-                    crate::metrics::permit_expiry_reminders_sent_total()
+                    crate::shared::metrics::permit_expiry_reminders_sent_total()
                         .with_label_values(&[days_label.as_str(), "success"])
                         .inc();
                 }
@@ -889,10 +889,10 @@ impl PemakaianBmnService {
                         permit.id, e
                     );
                     let days_label = days_remaining.to_string();
-                    crate::metrics::permit_expiry_reminders_sent_total()
+                    crate::shared::metrics::permit_expiry_reminders_sent_total()
                         .with_label_values(&[days_label.as_str(), "error"])
                         .inc();
-                    crate::metrics::permit_expiry_reminder_errors_total()
+                    crate::shared::metrics::permit_expiry_reminder_errors_total()
                         .with_label_values(&["notification_failed"])
                         .inc();
                 }
@@ -936,7 +936,7 @@ impl PemakaianBmnService {
                         "Sent expiry notification for permit {} to user {}",
                         permit.id, permit.created_by
                     );
-                    crate::metrics::permit_expiry_notifications_sent_total()
+                    crate::shared::metrics::permit_expiry_notifications_sent_total()
                         .with_label_values(&["success"])
                         .inc();
                 }
@@ -945,10 +945,10 @@ impl PemakaianBmnService {
                         "Failed to send expiry notification for permit {}: {}",
                         permit.id, e
                     );
-                    crate::metrics::permit_expiry_notifications_sent_total()
+                    crate::shared::metrics::permit_expiry_notifications_sent_total()
                         .with_label_values(&["error"])
                         .inc();
-                    crate::metrics::permit_expiry_reminder_errors_total()
+                    crate::shared::metrics::permit_expiry_reminder_errors_total()
                         .with_label_values(&["notification_failed"])
                         .inc();
                 }

@@ -4,7 +4,7 @@
 // Requirements: REQ-W003
 // ============================================================================
 
-use crate::metrics;
+use crate::shared::metrics;
 use crate::workflow::config::WorkflowConfig;
 use crate::workflow::notification_types::{
     NotificationPriority, WorkflowNotificationType, to_notification_message,

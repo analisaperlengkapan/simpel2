@@ -8,7 +8,7 @@ use serde_json::json;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult};
+use crate::shared::error::{AppError, AppResult};
 
 use super::models::{AuditFilter, AuditLogEntry, MasterRecord, MasterSource};
 

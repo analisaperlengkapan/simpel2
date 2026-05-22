@@ -16,8 +16,8 @@ use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult};
-use crate::middleware::{Claims, ClientIp};
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::middleware::{Claims, ClientIp};
 use crate::models::ApiResponse;
 use crate::state::AppState;
 

@@ -3,7 +3,7 @@
 //! Simplified read-only business logic for mapping kodefikasi.
 //! Lists standard/non-standard BMN codes and provides CSV export.
 
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use crate::mapping_kodefikasi::models::*;
 use crate::mapping_kodefikasi::repository::MappingRepository;
 use deadpool_postgres::Pool;

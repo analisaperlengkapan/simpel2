@@ -1,4 +1,5 @@
-use crate::{errors::AppResult, models::*, repository::PerlengkapanRepository};
+use crate::{models::*, repository::PerlengkapanRepository};
+use crate::shared::error::AppResult;
 use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;

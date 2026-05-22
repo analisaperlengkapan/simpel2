@@ -14,7 +14,7 @@
 
 use super::models::*;
 use super::repository::PenghapusanBmnRepository;
-use crate::errors::AppResult;
+use crate::shared::error::AppResult;
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
@@ -115,7 +115,7 @@ impl PenghapusanBmnService {
             status,
             PenghapusanBmnStatus::Draft | PenghapusanBmnStatus::ReturnedToOperator
         ) {
-            return Err(crate::errors::AppError::WorkflowError(
+            return Err(crate::shared::error::AppError::WorkflowError(
                 "Hanya bisa diubah saat status Draft atau Dikembalikan ke Operator".into(),
             ));
         }
@@ -129,7 +129,7 @@ impl PenghapusanBmnService {
         let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::Draft) {
-            return Err(crate::errors::AppError::WorkflowError(
+            return Err(crate::shared::error::AppError::WorkflowError(
                 "Hanya bisa dihapus saat status Draft".into(),
             ));
         }
@@ -227,13 +227,13 @@ impl PenghapusanBmnService {
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::VerifikasiPusat) {
-            return Err(crate::errors::AppError::WorkflowError(
+            return Err(crate::shared::error::AppError::WorkflowError(
                 "Konsep SK hanya bisa digenerate saat status Verifikasi Pusat".into(),
             ));
         }
 
         let docs = self.docs.as_ref().ok_or_else(|| {
-            crate::errors::AppError::Internal(
+            crate::shared::error::AppError::Internal(
                 "DocumentGenerator port not wired into PenghapusanBmnService".into(),
             )
         })?;
@@ -254,7 +254,7 @@ impl PenghapusanBmnService {
             .unwrap_or_else(|_| "/tmp/perlengkapan/docs".to_string());
         let dir = format!("{}/penghapusan-bmn/{}", storage_root, id);
         tokio::fs::create_dir_all(&dir).await.map_err(|e| {
-            crate::errors::AppError::Internal(format!("mkdir {}: {}", dir, e))
+            crate::shared::error::AppError::Internal(format!("mkdir {}: {}", dir, e))
         })?;
         let docx_path = format!("{}/konsep-sk.docx", dir);
         let pdf_path = format!("{}/konsep-sk.pdf", dir);
@@ -275,17 +275,17 @@ impl PenghapusanBmnService {
         };
 
         let docx_bytes = docs.preview(docx_request).await.map_err(|e| {
-            crate::errors::AppError::Internal(format!("konsep SK DOCX render failed: {}", e))
+            crate::shared::error::AppError::Internal(format!("konsep SK DOCX render failed: {}", e))
         })?;
         tokio::fs::write(&docx_path, &docx_bytes).await.map_err(|e| {
-            crate::errors::AppError::Internal(format!("write {}: {}", docx_path, e))
+            crate::shared::error::AppError::Internal(format!("write {}: {}", docx_path, e))
         })?;
 
         let pdf_bytes = docs.preview(pdf_request).await.map_err(|e| {
-            crate::errors::AppError::Internal(format!("konsep SK PDF render failed: {}", e))
+            crate::shared::error::AppError::Internal(format!("konsep SK PDF render failed: {}", e))
         })?;
         tokio::fs::write(&pdf_path, &pdf_bytes).await.map_err(|e| {
-            crate::errors::AppError::Internal(format!("write {}: {}", pdf_path, e))
+            crate::shared::error::AppError::Internal(format!("write {}: {}", pdf_path, e))
         })?;
 
         let docx_url = format!(
@@ -325,7 +325,7 @@ impl PenghapusanBmnService {
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::KonsepSKGenerated) {
-            return Err(crate::errors::AppError::WorkflowError(
+            return Err(crate::shared::error::AppError::WorkflowError(
                 "SK hanya bisa diupload setelah konsep SK digenerate".into(),
             ));
         }
@@ -379,7 +379,7 @@ impl PenghapusanBmnService {
         self.workflow_engine
             .transition(transition_request)
             .await
-            .map_err(|e| crate::errors::AppError::WorkflowError(e.to_string()))?;
+            .map_err(|e| crate::shared::error::AppError::WorkflowError(e.to_string()))?;
 
         self.repository.update_status(id, &to_state).await?;
         self.repository.get_by_id(id).await

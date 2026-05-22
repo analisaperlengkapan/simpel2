@@ -12,8 +12,8 @@ use serde::Deserialize;
 use tracing::{debug, info};
 use uuid::Uuid;
 
-use crate::errors::{AppError, bad_request};
-use crate::middleware::{Claims, ClientIp};
+use crate::shared::error::{AppError, bad_request};
+use crate::shared::middleware::{Claims, ClientIp};
 use crate::models::{ApiResponse, PaginatedResponse};
 
 use super::models::*;

@@ -9,11 +9,9 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    AppState,
-    errors::AppError,
-    workflow::monitoring::{WorkflowMonitor, WorkflowSummary},
-};
+use crate::AppState;
+use crate::shared::error::AppError;
+use crate::workflow::monitoring::{WorkflowMonitor, WorkflowSummary};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Response Types

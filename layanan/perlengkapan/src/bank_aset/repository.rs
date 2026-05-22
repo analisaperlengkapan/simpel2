@@ -4,7 +4,7 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 use super::models::*;
-use crate::errors::{AppError, AppResult, not_found};
+use crate::shared::error::{AppError, AppResult, not_found};
 
 #[derive(Clone)]
 pub struct BankAsetRepository {

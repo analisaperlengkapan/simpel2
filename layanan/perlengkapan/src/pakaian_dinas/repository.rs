@@ -7,7 +7,7 @@ use deadpool_postgres::Pool;
 use uuid::Uuid;
 
 use super::models::*;
-use crate::errors::{AppError, AppResult, bad_request};
+use crate::shared::error::{AppError, AppResult, bad_request};
 
 /// Repository for Pakaian Dinas database operations
 #[derive(Clone)]

@@ -3,13 +3,10 @@ use std::sync::Arc;
 
 use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
 
-use crate::{
-    cache_strategy::CacheManager, dashboard, dashboard::services::DashboardService,
-    grpc_clients::AuthencClient, kebutuhan_bmn::KebutuhanBmnService,
-    pakaian_dinas::PakaianDinasService, pemakaian_bmn::PemakaianBmnService,
-    penghapusan_bmn::PenghapusanBmnService, rate_limiting::RateLimiter,
-    roadmap_sarpras::RoadmapService, services::PerlengkapanService,
-};
+use crate::{dashboard, dashboard::services::DashboardService, kebutuhan_bmn::KebutuhanBmnService, pakaian_dinas::PakaianDinasService, pemakaian_bmn::PemakaianBmnService, penghapusan_bmn::PenghapusanBmnService, roadmap_sarpras::RoadmapService, services::PerlengkapanService};
+use crate::shared::cache::CacheManager;
+use crate::shared::grpc::clients::AuthencClient;
+use crate::shared::rate_limit::RateLimiter;
 
 #[derive(Clone)]
 pub struct AppState {

@@ -11,8 +11,8 @@ use axum::{
 };
 use deadpool_postgres::Pool;
 
-use crate::errors::{AppError, AppResult};
-use crate::middleware::Claims;
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::middleware::Claims;
 use crate::models::{ApiResponse, PaginatedResponse};
 
 use super::models::{

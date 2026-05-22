@@ -6,8 +6,8 @@
 // Requirements: NFR-P001, NFR-P002
 // ============================================================================
 
-use crate::cache_strategy::{CacheKey, CacheManager};
-use crate::errors::AppError;
+use crate::shared::cache::{CacheKey, CacheManager};
+use crate::shared::error::AppError;
 use deadpool_postgres::Pool;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;

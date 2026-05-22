@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::warn;
 
-use crate::errors::{AppError, AppResult};
+use crate::shared::error::{AppError, AppResult};
 
 /// Information about an existing asset from SIMAN
 #[derive(Debug, Clone, Serialize, Deserialize)]

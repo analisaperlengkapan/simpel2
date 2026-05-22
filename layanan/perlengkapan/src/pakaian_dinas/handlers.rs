@@ -13,9 +13,9 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::services::PakaianDinasService;
-use crate::errors::*;
+use crate::shared::error::*;
 use crate::handlers::PaginationQuery;
-use crate::middleware::Claims;
+use crate::shared::middleware::Claims;
 use crate::models::{ApiResponse, PaginatedResponse};
 
 // ============ Query Parameters ============

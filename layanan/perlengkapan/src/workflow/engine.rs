@@ -187,7 +187,7 @@ impl WorkflowEngine {
         // Verify current state matches expected state
         if current_status != request.from_state {
             // Record failed transition metric
-            crate::metrics::workflow_transitions_total()
+            crate::shared::metrics::workflow_transitions_total()
                 .with_label_values(&[
                     entity_type,
                     &request.from_state,
@@ -312,7 +312,7 @@ impl WorkflowEngine {
         let duration = start.elapsed().as_secs_f64();
 
         // Record successful transition
-        crate::metrics::workflow_transitions_total()
+        crate::shared::metrics::workflow_transitions_total()
             .with_label_values(&[
                 entity_type,
                 &request.from_state,
@@ -322,7 +322,7 @@ impl WorkflowEngine {
             .inc();
 
         // Record transition duration
-        crate::metrics::workflow_transition_duration()
+        crate::shared::metrics::workflow_transition_duration()
             .with_label_values(&[entity_type, &request.from_state, &request.to_state])
             .observe(duration);
 

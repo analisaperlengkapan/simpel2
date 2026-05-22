@@ -26,8 +26,8 @@ use crate::dokumen::template_models::{
     DocumentTemplate, ListTemplatesQuery, ListTemplatesResponse,
 };
 use crate::dokumen::TemplateService;
-use crate::errors::{AppError, AppResult};
-use crate::middleware::Claims;
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::middleware::Claims;
 use crate::models::ApiResponse;
 use crate::state::AppState;
 

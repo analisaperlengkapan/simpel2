@@ -7,7 +7,7 @@
 
 use super::models::{LaporanDaftarPegawai, LaporanFilter, LaporanRekapUkuran};
 use super::services::PakaianDinasService;
-use crate::errors::*;
+use crate::shared::error::*;
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook};
 use uuid::Uuid;
 

@@ -9,7 +9,7 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 
 use super::models::{
     ForecastCompareQuery, ForecastCompareResponse, ForecastExportQuery, ForecastQuery,

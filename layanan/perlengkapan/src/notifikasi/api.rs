@@ -13,8 +13,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::errors::{AppError, AppResult};
-use crate::middleware::Claims;
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::middleware::Claims;
 use crate::models::ApiResponse;
 use crate::notifikasi::in_app::InAppNotificationChannel;
 use crate::state::AppState;

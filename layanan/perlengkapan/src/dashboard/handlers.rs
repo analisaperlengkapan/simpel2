@@ -2,7 +2,7 @@
 
 use crate::AppState;
 use crate::dashboard::models::*;
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use axum::{
     Json,
     extract::{Query, State},

@@ -2,7 +2,7 @@
 
 use crate::dashboard::models::*;
 use crate::dashboard::repository;
-use crate::errors::AppError;
+use crate::shared::error::AppError;
 use deadpool_postgres::Pool;
 use rust_xlsxwriter::*;
 

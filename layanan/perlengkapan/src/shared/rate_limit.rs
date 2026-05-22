@@ -250,7 +250,7 @@ pub async fn rate_limit_middleware(
     // Extract user ID from request extensions (set by auth middleware)
     let user_id = request
         .extensions()
-        .get::<crate::middleware::Claims>()
+        .get::<crate::shared::middleware::Claims>()
         .map(|claims| claims.user_id)
         .unwrap_or_else(Uuid::nil); // Use nil UUID for unauthenticated requests
 

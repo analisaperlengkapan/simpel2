@@ -10,7 +10,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::{AppState, errors::AppError, workflow::config::WorkflowConfig};
+use crate::{AppState, workflow::config::WorkflowConfig};
+use crate::shared::error::AppError;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Request/Response Types

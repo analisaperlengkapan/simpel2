@@ -2,8 +2,8 @@
 //!
 //! Queries historical kebutuhan_bmn data and manages forecast snapshots.
 
-use crate::database::Database;
-use crate::errors::AppError;
+use crate::shared::db::Database;
+use crate::shared::error::AppError;
 use lib_perlengkapan::models::{ForecastSnapshot, YearlyData};
 use uuid::Uuid;
 

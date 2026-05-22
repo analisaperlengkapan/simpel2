@@ -8,11 +8,9 @@ use deadpool_postgres::Pool;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::{
-    errors::{AppError, AppResult, not_found},
-    models::*,
-    repository::PerlengkapanRepository,
-};
+use crate::models::*;
+use crate::repository::PerlengkapanRepository;
+use crate::shared::error::{AppError, AppResult, not_found};
 
 #[derive(Debug, Clone)]
 pub struct Database {

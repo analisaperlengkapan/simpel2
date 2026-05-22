@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::{errors::AppResult, models::*};
+use crate::{models::*};
+use crate::shared::error::AppResult;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]

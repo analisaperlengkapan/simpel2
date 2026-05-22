@@ -1,7 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::tests::MockRepository; // Accessing MockRepository from parent tests module
-    use crate::{handlers::*, middleware::Claims, models::*, services::PerlengkapanService};
+    use crate::{handlers::*, models::*, services::PerlengkapanService};
+use crate::shared::middleware::Claims;
     use axum::Json;
     use axum::extract::{Path, Query, State};
     use chrono::Utc;

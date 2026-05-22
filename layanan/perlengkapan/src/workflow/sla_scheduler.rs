@@ -251,10 +251,10 @@ impl SlaEscalationScheduler {
         }
 
         // Record metrics
-        crate::metrics::workflow_sla_check_duration()
+        crate::shared::metrics::workflow_sla_check_duration()
             .with_label_values(&["all"])
             .observe(duration.as_secs_f64());
-        crate::metrics::workflow_sla_check_total()
+        crate::shared::metrics::workflow_sla_check_total()
             .with_label_values(&["success"])
             .inc();
 
