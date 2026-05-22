@@ -15,45 +15,30 @@ use phosphor_leptos::{
 use crate::api;
 use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
 
-/// leptos-fetch query keyed by `(search, role)`. The body still
-/// returns the static demo row until the backend endpoint lands;
-/// keying on the filter inputs means swapping back to a previous
-/// search/role combination is instant once that combination has
-/// been seen.
+/// leptos-fetch query keyed by `(search, role)`. Calls the real
+/// `GET /admin/users` endpoint backed by the `v_user_role_summary`
+/// view (migration V018). Empty list on failure so the UI keeps
+/// rendering and the operator sees the error toast instead of a panic.
 async fn query_admin_users(key: (String, Option<String>)) -> Vec<UserRoleAssignment> {
-    let (_search, _role) = key;
-    // In production: api::fetch_admin_users(search, role).await
-    vec![UserRoleAssignment {
-        nip: "199203142014031001".to_string(),
-        nama: "Admin".to_string(),
-        jabatan: "Kasubag Perlengkapan".to_string(),
-        golongan: "III/c".to_string(),
-        satker_code: "0100000".to_string(),
-        satker_name: "Kejaksaan Agung RI".to_string(),
-        assigned_roles: vec![
-            "operator_satker".to_string(),
-            "validator_wilayah".to_string(),
-            "validator_pusat".to_string(),
-            "admin".to_string(),
-        ],
-        active_role: Some("admin".to_string()),
-        status: "active".to_string(),
-    }]
+    let (search, role) = key;
+    let filter = crate::api::admin::AdminUsersFilter {
+        search: (!search.trim().is_empty()).then(|| search.clone()),
+        role,
+        satker_code: None,
+    };
+    match crate::api::admin::fetch_admin_users(&filter).await {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!(error = %e, "fetch_admin_users failed");
+            Vec::new()
+        }
+    }
 }
 
-/// User role assignment data
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct UserRoleAssignment {
-    pub nip: String,
-    pub nama: String,
-    pub jabatan: String,
-    pub golongan: String,
-    pub satker_code: String,
-    pub satker_name: String,
-    pub assigned_roles: Vec<String>,
-    pub active_role: Option<String>,
-    pub status: String,
-}
+/// User role assignment DTO — re-export of the canonical shape declared in
+/// the admin API client. Kept as a local alias so existing views in this
+/// module don't need to touch every reference.
+pub use crate::api::admin::UserRoleAssignment;
 
 /// Admin Users Management Page
 #[component]

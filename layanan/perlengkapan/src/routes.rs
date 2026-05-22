@@ -552,5 +552,17 @@ pub fn create_routes(state: AppState) -> Router {
             "/admin/templates/{id}/preview",
             post(crate::admin::preview_template),
         )
+        // User catalog + role assignments — backed by v_user_role_summary
+        // (migration V018).
+        .route("/admin/users", get(crate::admin::list_users))
+        .route("/admin/users/{nip}", get(crate::admin::get_user))
+        .route(
+            "/admin/users/{nip}/roles",
+            post(crate::admin::assign_role),
+        )
+        .route(
+            "/admin/users/{nip}/roles/{role}",
+            delete(crate::admin::unassign_role),
+        )
         .with_state(state)
 }
