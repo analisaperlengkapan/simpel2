@@ -1,7 +1,7 @@
 use axum::extract::FromRef;
 use std::sync::Arc;
 
-use lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender};
+use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
 
 use crate::{
     cache_strategy::CacheManager, dashboard, dashboard::services::DashboardService,
@@ -30,6 +30,9 @@ pub struct AppState {
     /// Notification sender (port). Replaces the dropped `notifikasi` gRPC
     /// client.
     pub notifier: Arc<dyn NotificationSender>,
+    /// Cross-module audit sink. Concrete impl writes to
+    /// `perlengkapan.audit_log` (see `shared::audit::PgAuditSink`).
+    pub audit_sink: Arc<dyn AuditSink>,
     /// Wall-clock instant the service finished bootstrapping; surfaced by
     /// the health endpoints as `uptime_seconds`. Cheap to clone (`Instant`
     /// is `Copy`).
@@ -111,5 +114,11 @@ impl FromRef<AppState> for Arc<dyn DocumentGenerator> {
 impl FromRef<AppState> for Arc<dyn NotificationSender> {
     fn from_ref(state: &AppState) -> Self {
         state.notifier.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<dyn AuditSink> {
+    fn from_ref(state: &AppState) -> Self {
+        state.audit_sink.clone()
     }
 }

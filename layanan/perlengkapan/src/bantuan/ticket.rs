@@ -1,8 +1,9 @@
 use super::error::AppError;
 use super::models::{SupportTicket, TicketComment};
 use deadpool_postgres::Pool;
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use lib_perlengkapan::contracts::{
-    NotificationChannel, NotificationMessage, NotificationPriority, NotificationSender,
+    AuditSink, NotificationChannel, NotificationMessage, NotificationPriority, NotificationSender,
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -11,9 +12,13 @@ use uuid::Uuid;
 /// comments. Optionally fans out user-facing notifications (in-app) on key
 /// events through the [`NotificationSender`] port — same plumbing the
 /// workflow engine uses, so /notifikasi center surfaces them uniformly.
+/// Also optionally writes audit rows through [`AuditSink`] so the cross-
+/// module `perlengkapan.audit_log` table captures who-did-what-when on
+/// every ticket lifecycle event.
 pub struct TicketService {
     pub pool: Pool,
     notifier: Option<Arc<dyn NotificationSender>>,
+    audit: Option<Arc<dyn AuditSink>>,
 }
 
 impl TicketService {
@@ -21,6 +26,7 @@ impl TicketService {
         Self {
             pool,
             notifier: None,
+            audit: None,
         }
     }
 
@@ -29,6 +35,45 @@ impl TicketService {
     pub fn with_notification_sender(mut self, notifier: Arc<dyn NotificationSender>) -> Self {
         self.notifier = Some(notifier);
         self
+    }
+
+    /// Inject the audit sink. Without this, ticket lifecycle events are not
+    /// written to `perlengkapan.audit_log` (useful for tests / dev).
+    pub fn with_audit_sink(mut self, audit: Arc<dyn AuditSink>) -> Self {
+        self.audit = Some(audit);
+        self
+    }
+
+    /// Best-effort audit emission. Failures are logged inside the sink and
+    /// never propagate — losing one row must not abort a ticket transition.
+    fn audit_event(
+        &self,
+        action: AuditAction,
+        action_name: Option<&str>,
+        actor: Uuid,
+        ticket_id: Uuid,
+        success: bool,
+        message: Option<String>,
+    ) {
+        let audit = match self.audit.as_ref() {
+            Some(a) => a.clone(),
+            None => return,
+        };
+        let mut event = AuditEvent::new("bantuan", action, "tiket")
+            .actor(actor, format!("user:{actor}"))
+            .resource_id(ticket_id.to_string());
+        if let Some(name) = action_name {
+            event.action_name = Some(name.to_string());
+        }
+        event.success = success;
+        if let Some(m) = message {
+            event.message = Some(m);
+        }
+        tokio::spawn(async move {
+            if let Err(e) = audit.log(event).await {
+                tracing::warn!(error = %e, "bantuan ticket audit dispatch failed");
+            }
+        });
     }
 
     fn notify_event(
@@ -93,6 +138,16 @@ impl TicketService {
             NotificationPriority::Medium,
         );
 
+        // Audit: a new bantuan ticket has been created.
+        self.audit_event(
+            AuditAction::Create,
+            Some("tiket.create"),
+            ticket.user_id,
+            ticket.id,
+            true,
+            Some(format!("subject={}", ticket.subject)),
+        );
+
         Ok(ticket)
     }
     pub async fn get_ticket(&self, id: Uuid) -> Result<SupportTicket, AppError> {
@@ -134,6 +189,16 @@ impl TicketService {
             NotificationPriority::Low,
         );
 
+        // Audit: ticket fields / status changed.
+        self.audit_event(
+            AuditAction::Update,
+            Some("tiket.update"),
+            ticket.user_id,
+            ticket.id,
+            true,
+            Some(format!("status={}", ticket.status)),
+        );
+
         Ok(ticket)
     }
     pub async fn delete_ticket(&self, id: Uuid) -> Result<(), AppError> {
@@ -144,6 +209,18 @@ impl TicketService {
                 &[&id],
             )
             .await?;
+        // Audit: a ticket has been hard-deleted. Actor isn't visible at this
+        // call site so we record `Uuid::nil()` as the actor — the handler
+        // layer is the right place to plug in the real claims.user_id once
+        // bantuan routes get mounted into the unified app.
+        self.audit_event(
+            AuditAction::Delete,
+            Some("tiket.delete"),
+            Uuid::nil(),
+            id,
+            true,
+            None,
+        );
         Ok(())
     }
     pub async fn list_tickets(
@@ -201,6 +278,16 @@ impl TicketService {
             }
         }
 
+        // Audit: a new comment was posted on this ticket by `user_id`.
+        self.audit_event(
+            AuditAction::Custom,
+            Some("tiket.comment.create"),
+            user_id,
+            ticket_id,
+            true,
+            None,
+        );
+
         Ok(comment)
     }
     pub async fn list_comments(&self, ticket_id: Uuid) -> Result<Vec<TicketComment>, AppError> {
@@ -240,6 +327,27 @@ impl TicketService {
                 format!("Tiket #{} {}", ticket.id, label),
                 format!("Tiket bantuan \"{}\" telah {}.", ticket.subject, label),
                 NotificationPriority::High,
+            );
+        }
+
+        // Audit: terminal status transitions (resolved / closed) earn their
+        // own audit row; intermediate moves are covered by `update_ticket`.
+        let action = match status {
+            "resolved" => Some((AuditAction::Approve, "tiket.resolved")),
+            "closed" => Some((AuditAction::Cancel, "tiket.closed")),
+            "open" | "in_progress" | "pending" => {
+                Some((AuditAction::Update, "tiket.status_change"))
+            }
+            _ => None,
+        };
+        if let Some((kind, name)) = action {
+            self.audit_event(
+                kind,
+                Some(name),
+                ticket.user_id,
+                ticket.id,
+                true,
+                Some(format!("status={status}")),
             );
         }
 

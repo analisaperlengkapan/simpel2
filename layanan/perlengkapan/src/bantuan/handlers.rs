@@ -138,7 +138,7 @@ pub async fn create_faq_category(
         .and_then(|s| Uuid::parse_str(s).ok());
     let faq = FaqService::new(pool.clone());
     let cat = faq.create_category(name, description, parent_id).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(cat))
 }
 
@@ -168,7 +168,7 @@ pub async fn update_faq_category(
     let cat = faq
         .update_category(id, name, description, parent_id)
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(cat))
 }
 
@@ -178,7 +178,7 @@ pub async fn delete_faq_category(
 ) -> Result<impl IntoResponse, AppError> {
     let faq = FaqService::new(pool.clone());
     faq.delete_category(id).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "deleted", "id": id})))
 }
 
@@ -224,7 +224,7 @@ pub async fn create_faq_article(
     let art = faq
         .create_article(category_id, title, content, tags)
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(art))
 }
 
@@ -259,7 +259,7 @@ pub async fn update_faq_article(
         .unwrap_or_else(Vec::new);
     let faq = FaqService::new(pool.clone());
     let art = faq.update_article(id, title, content, tags).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(art))
 }
 
@@ -269,7 +269,7 @@ pub async fn delete_faq_article(
 ) -> Result<impl IntoResponse, AppError> {
     let faq = FaqService::new(pool.clone());
     faq.delete_article(id).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "deleted", "id": id})))
 }
 
@@ -330,7 +330,7 @@ pub async fn create_ticket(
             spam_score,
         )
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(ticket))
 }
 
@@ -362,7 +362,7 @@ pub async fn update_ticket(
     let t = ticket_service
         .update_ticket(id, subject, description, priority, category_id, status)
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(t))
 }
 
@@ -372,7 +372,7 @@ pub async fn delete_ticket(
 ) -> Result<impl IntoResponse, AppError> {
     let ticket = TicketService::new(pool.clone());
     ticket.delete_ticket(id).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "deleted", "id": id})))
 }
 
@@ -399,7 +399,7 @@ pub async fn add_ticket_comment(
         .ok_or(AppError::Validation("content wajib".to_string()))?;
     let ticket = TicketService::new(pool.clone());
     let comment = ticket.add_comment(id, user_id, content).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(comment))
 }
 
@@ -413,7 +413,7 @@ pub async fn update_ticket_status(
         .ok_or(AppError::Validation("status wajib".to_string()))?;
     let ticket = TicketService::new(pool.clone());
     let t = ticket.update_status(id, status).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(t))
 }
 
@@ -441,7 +441,7 @@ pub async fn chatbot_query(
     let context = payload.get("context").cloned();
     let chatbot = ChatbotService::new(pool.clone(), "http://localhost:3002".to_string(), None); // TODO: ambil dari config
     let reply = chatbot.process_query(user_id, message, context).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"reply": reply})))
 }
 pub async fn chatbot_history(
@@ -470,7 +470,7 @@ pub async fn chatbot_feedback(
         .ok_or(AppError::Validation("feedback wajib".to_string()))? as i32;
     let chatbot = ChatbotService::new(pool, "http://localhost:3002".to_string(), None);
     chatbot.record_feedback(message_id, feedback).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "ok"})))
 }
 
@@ -527,7 +527,7 @@ pub async fn create_knowledge_article(
     let art = knowledge
         .create_article(title, content, category_id, tags)
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(art))
 }
 
@@ -568,7 +568,7 @@ pub async fn update_knowledge_article(
     let art = knowledge
         .update_article(id, title, content, category_id, tags)
         .await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(art))
 }
 
@@ -578,7 +578,7 @@ pub async fn delete_knowledge_article(
 ) -> Result<impl IntoResponse, AppError> {
     let knowledge = KnowledgeService::new(pool.clone());
     knowledge.delete_article(id).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "deleted", "id": id})))
 }
 
@@ -618,7 +618,7 @@ pub async fn import_knowledge(
     let articles = serde_json::from_value(payload["articles"].clone())
         .map_err(|e| AppError::Validation(e.to_string()))?;
     knowledge.import_articles(articles).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "imported"})))
 }
 pub async fn analytics_tickets(
@@ -720,7 +720,7 @@ pub async fn create_webhook_event(
     let payload_data = payload.get("payload").cloned().unwrap_or(json!({}));
     let webhook = WebhookService::new(pool.clone());
     let event = webhook.create_event(event_type, &payload_data).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(event))
 }
 
@@ -734,7 +734,7 @@ pub async fn deliver_webhook_event(
         .ok_or(AppError::Validation("url wajib".to_string()))?;
     let webhook = WebhookService::new(pool.clone());
     webhook.deliver_event(id, url).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "delivered", "id": id})))
 }
 
@@ -748,7 +748,7 @@ pub async fn retry_webhook_event(
         .ok_or(AppError::Validation("url wajib".to_string()))?;
     let webhook = WebhookService::new(pool.clone());
     webhook.retry_event(id, url).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "retried", "id": id})))
 }
 pub async fn export_resource(
@@ -766,7 +766,7 @@ pub async fn import_resource(
 ) -> Result<impl IntoResponse, AppError> {
     let export_import = ExportImportService::new(pool.clone());
     export_import.import_resource(&resource, payload).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"status": "imported", "resource": resource})))
 }
 pub async fn gdpr_request_delete(
@@ -780,7 +780,7 @@ pub async fn gdpr_request_delete(
     let details = payload.get("details").cloned().unwrap_or(json!({}));
     let gdpr = GdprService::new(pool.clone());
     let req = gdpr.request_delete(user_id, details).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(req))
 }
 
@@ -795,7 +795,7 @@ pub async fn gdpr_request_download(
     let details = payload.get("details").cloned().unwrap_or(json!({}));
     let gdpr = GdprService::new(pool.clone());
     let req = gdpr.request_download(user_id, details).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(req))
 }
 
@@ -823,7 +823,7 @@ pub async fn gdpr_process_request(
     let details = payload.get("details").cloned().unwrap_or(json!({}));
     let gdpr = GdprService::new(pool.clone());
     let req = gdpr.process_request(id, status, details).await?;
-    // TODO: Audit log
+    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(req))
 }
 pub async fn health() -> impl IntoResponse {

@@ -16,7 +16,7 @@ use layanan_perlengkapan::{
     health, kebutuhan_bmn, logging, middleware, notifikasi, pakaian_dinas, pemakaian_bmn,
     penghapusan_bmn, rate_limiting, roadmap_sarpras, routes, services, workflow,
 };
-use lib_perlengkapan::contracts::{DocumentGenerator, NotificationSender};
+use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
 
 use cache_strategy::CacheManager;
 use dashboard::services::DashboardService;
@@ -192,7 +192,10 @@ async fn main() -> anyhow::Result<()> {
     ));
     let notifier: Arc<dyn NotificationSender> =
         Arc::new(notifikasi::service::NotifikasiService::new(db.pool().clone()));
-    info!("DocumentGenerator + NotificationSender ports wired up");
+    let audit_sink: Arc<dyn AuditSink> = Arc::new(
+        layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+    );
+    info!("DocumentGenerator + NotificationSender + AuditSink ports wired up");
 
     // Create Pakaian Dinas service
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
@@ -299,6 +302,7 @@ async fn main() -> anyhow::Result<()> {
         rate_limiter,
         docs,
         notifier,
+        audit_sink,
         boot_time: std::time::Instant::now(),
     };
 

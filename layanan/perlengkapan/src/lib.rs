@@ -27,6 +27,7 @@ pub mod repository;
 pub mod roadmap_sarpras;
 pub mod routes;
 pub mod services;
+pub mod shared;
 pub mod state;
 pub mod workflow;
 

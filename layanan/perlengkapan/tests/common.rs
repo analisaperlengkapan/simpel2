@@ -232,6 +232,9 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::from_env())),
         docs,
         notifier,
+        audit_sink: std::sync::Arc::new(
+            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        ),
         boot_time: std::time::Instant::now(),
     };
 
