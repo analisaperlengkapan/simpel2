@@ -30,6 +30,10 @@ pub struct AppState {
     /// Notification sender (port). Replaces the dropped `notifikasi` gRPC
     /// client.
     pub notifier: Arc<dyn NotificationSender>,
+    /// Wall-clock instant the service finished bootstrapping; surfaced by
+    /// the health endpoints as `uptime_seconds`. Cheap to clone (`Instant`
+    /// is `Copy`).
+    pub boot_time: std::time::Instant,
 }
 
 impl FromRef<AppState> for PerlengkapanService {

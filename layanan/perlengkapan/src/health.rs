@@ -45,35 +45,27 @@ pub async fn liveness_check() -> impl IntoResponse {
     (StatusCode::OK, "alive")
 }
 
-/// Readiness check - returns 200 if service is ready to accept traffic
+/// Readiness check — K8s probe. Returns 200 if the service is ready to
+/// accept traffic; 503 when any hard dependency (DB, Authenc) is down. We
+/// treat Redis failures as `Degraded` (still serve, just with cold cache).
 pub async fn readiness_check(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     let start = Instant::now();
 
-    // Check database connectivity
     let db_health = check_database_health(&state).await;
-
-    // Check Redis connectivity
     let redis_health = check_redis_health(&state).await;
+    // Authenc is on the request hot path (every authenticated request hits
+    // `validate_token`), so it belongs in readiness — same spec as DB.
+    let authenc_health = check_authenc_health(&state).await;
 
-    // Determine overall status
-    let overall_status = if db_health.status == HealthStatus::Healthy
-        && redis_health.status == HealthStatus::Healthy
-    {
-        HealthStatus::Healthy
-    } else if db_health.status == HealthStatus::Unhealthy
-        || redis_health.status == HealthStatus::Unhealthy
-    {
-        HealthStatus::Unhealthy
-    } else {
-        HealthStatus::Degraded
-    };
+    let components = vec![db_health, redis_health, authenc_health];
+    let overall_status = determine_overall_status(&components);
 
     let response = HealthCheckResponse {
         status: overall_status.clone(),
         timestamp: chrono::Utc::now().to_rfc3339(),
-        uptime_seconds: 0, // TODO: Track actual uptime
+        uptime_seconds: state.boot_time.elapsed().as_secs(),
         version: env!("CARGO_PKG_VERSION").to_string(),
-        components: vec![db_health, redis_health],
+        components,
     };
 
     let status_code = match overall_status {
@@ -108,7 +100,7 @@ pub async fn health_check(State(state): State<Arc<AppState>>) -> impl IntoRespon
     let response = HealthCheckResponse {
         status: overall_status.clone(),
         timestamp: chrono::Utc::now().to_rfc3339(),
-        uptime_seconds: 0, // TODO: Track actual uptime
+        uptime_seconds: state.boot_time.elapsed().as_secs(),
         version: env!("CARGO_PKG_VERSION").to_string(),
         components,
     };

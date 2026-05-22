@@ -299,6 +299,7 @@ async fn main() -> anyhow::Result<()> {
         rate_limiter,
         docs,
         notifier,
+        boot_time: std::time::Instant::now(),
     };
 
     // Build router

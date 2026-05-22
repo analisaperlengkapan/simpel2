@@ -232,6 +232,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::from_env())),
         docs,
         notifier,
+        boot_time: std::time::Instant::now(),
     };
 
     let app = layanan_perlengkapan::routes::create_routes(state);
