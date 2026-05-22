@@ -178,11 +178,16 @@ jobs:
             fi
           done < <(find . -name 'AGENTS.md' -not -path './.git/*' | sed 's|^\./||')
 
-          # ── 5. Every layanan must have Cargo.toml + Dockerfile ──
+          # ── 5. Every layanan must have a top-level Cargo.toml + Dockerfile ──
+          # Per refactor plan A.1: every service runs as a single Cargo
+          # package at `layanan/<svc>/Cargo.toml`. The previous fallback for
+          # virtual-workspace layouts (`crates/` only, no top-level
+          # `Cargo.toml`) is gone — perlengkapan was the last service using
+          # it and now has a unified top-level manifest.
           for svc in layanan/*/; do
             svc_name=$(basename "$svc")
-            if [[ ! -f "${svc}Cargo.toml" ]] && [[ ! -d "${svc}crates" ]]; then
-              echo "::error::Service layanan/${svc_name} missing Cargo.toml (or crates/ directory)"
+            if [[ ! -f "${svc}Cargo.toml" ]]; then
+              echo "::error::Service layanan/${svc_name} missing Cargo.toml at top level"
               errors=$((errors+1))
             fi
             if [[ ! -f "${svc}Dockerfile" ]]; then
