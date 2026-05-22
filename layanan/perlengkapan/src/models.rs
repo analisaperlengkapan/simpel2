@@ -209,50 +209,11 @@ pub struct CreatePenghapusanRequest {
 }
 
 // ============ Response Models ============
+//
+// `ApiResponse<T>` + `PaginatedResponse<T>` live in `lib_perlengkapan` so
+// the frontend (Leptos WASM) and the backend share one definition + one
+// wire format. The constructors are inherent impls on the lib types, so
+// callers keep using `ApiResponse::success(...)` / `PaginatedResponse::new(...)`
+// unchanged after the re-export.
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
-
-impl<T> ApiResponse<T> {
-    pub fn success(data: T, message: String) -> Self {
-        Self {
-            success: true,
-            data,
-            message,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PaginatedResponse<T> {
-    pub success: bool,
-    pub data: Vec<T>,
-    pub total: i64,
-    pub page: i32,
-    pub per_page: i32,
-    pub total_pages: i32,
-    pub message: String,
-}
-
-impl<T> PaginatedResponse<T> {
-    pub fn new(data: Vec<T>, total: i64, page: i32, per_page: i32, message: String) -> Self {
-        let total_pages = if per_page > 0 {
-            ((total as f64) / (per_page as f64)).ceil() as i32
-        } else {
-            0
-        };
-        Self {
-            success: true,
-            data,
-            total,
-            page,
-            per_page,
-            total_pages,
-            message,
-        }
-    }
-}
+pub use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
