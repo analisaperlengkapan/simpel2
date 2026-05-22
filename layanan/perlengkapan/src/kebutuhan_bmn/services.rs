@@ -207,6 +207,7 @@ impl KebutuhanBmnService {
         request: WorkflowTransitionRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<PengajuanKebutuhanBmn> {
         let current = self.repository.get_pengajuan_by_id(id).await?;
         let target_status = KebutuhanBmnStatus::from_code(request.target_status)
@@ -255,7 +256,7 @@ impl KebutuhanBmnService {
             to_state: to_state.to_string(),
             user_id: user_id.unwrap_or_else(Uuid::nil),
             catatan: request.komentar.clone(),
-            ip_address: "0.0.0.0".to_string(), // TODO: Get from request context
+            ip_address: client_ip.clone(),
         };
 
         // Execute transition through workflow engine
@@ -1201,6 +1202,7 @@ impl KebutuhanBmnService {
         request: super::models::BatchApproveRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<super::models::BatchOperationResponse> {
         use super::models::{BatchOperationItemResult, BatchOperationResponse};
         use chrono::Utc;
@@ -1238,6 +1240,7 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
+                    client_ip.clone(),
                 )
                 .await
             {
@@ -1301,6 +1304,7 @@ impl KebutuhanBmnService {
         request: super::models::BatchRejectRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<super::models::BatchOperationResponse> {
         use super::models::{BatchOperationItemResult, BatchOperationResponse};
         use chrono::Utc;
@@ -1338,6 +1342,7 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
+                    client_ip.clone(),
                 )
                 .await
             {
@@ -1401,6 +1406,7 @@ impl KebutuhanBmnService {
         request: super::models::BatchUpdateStatusRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<super::models::BatchOperationResponse> {
         use super::models::{BatchOperationItemResult, BatchOperationResponse};
         use chrono::Utc;
@@ -1444,6 +1450,7 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
+                    client_ip.clone(),
                 )
                 .await
             {
@@ -1512,14 +1519,21 @@ impl KebutuhanBmnService {
         komentar: &Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status: KebutuhanBmnStatus::Approved.to_code(),
             komentar: komentar.clone(),
         };
 
-        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
-            .await?;
+        self.transition_pengajuan_status(
+            kebutuhan_id,
+            transition_request,
+            user_id,
+            user_info,
+            client_ip,
+        )
+        .await?;
 
         Ok(())
     }
@@ -1531,14 +1545,21 @@ impl KebutuhanBmnService {
         komentar: &str,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status: KebutuhanBmnStatus::Rejected.to_code(),
             komentar: Some(komentar.to_string()),
         };
 
-        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
-            .await?;
+        self.transition_pengajuan_status(
+            kebutuhan_id,
+            transition_request,
+            user_id,
+            user_info,
+            client_ip,
+        )
+        .await?;
 
         Ok(())
     }
@@ -1551,14 +1572,21 @@ impl KebutuhanBmnService {
         komentar: &Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status,
             komentar: komentar.clone(),
         };
 
-        self.transition_pengajuan_status(kebutuhan_id, transition_request, user_id, user_info)
-            .await?;
+        self.transition_pengajuan_status(
+            kebutuhan_id,
+            transition_request,
+            user_id,
+            user_info,
+            client_ip,
+        )
+        .await?;
 
         Ok(())
     }

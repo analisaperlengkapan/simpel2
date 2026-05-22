@@ -13,7 +13,7 @@ use tracing::{debug, info};
 use uuid::Uuid;
 
 use crate::errors::{AppError, bad_request};
-use crate::middleware::Claims;
+use crate::middleware::{Claims, ClientIp};
 use crate::models::{ApiResponse, PaginatedResponse};
 
 use super::models::*;
@@ -240,6 +240,7 @@ pub async fn transition_pengajuan_status(
     State(service): State<KebutuhanBmnService>,
     Path(id): Path<Uuid>,
     claims: Claims,
+    ClientIp(ip): ClientIp,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
     info!(
@@ -251,7 +252,7 @@ pub async fn transition_pengajuan_status(
     let user_info = Some(extract_user_info(&claims));
 
     let pengajuan = service
-        .transition_pengajuan_status(id, request, user_id, user_info)
+        .transition_pengajuan_status(id, request, user_id, user_info, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -753,6 +754,7 @@ pub async fn get_search_suggestions(
 pub async fn batch_approve_kebutuhan(
     State(service): State<KebutuhanBmnService>,
     claims: Claims,
+    ClientIp(ip): ClientIp,
     Json(request): Json<super::models::BatchApproveRequest>,
 ) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
@@ -772,7 +774,7 @@ pub async fn batch_approve_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_approve_kebutuhan(request, user_id, user_info)
+        .batch_approve_kebutuhan(request, user_id, user_info, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -786,6 +788,7 @@ pub async fn batch_approve_kebutuhan(
 pub async fn batch_reject_kebutuhan(
     State(service): State<KebutuhanBmnService>,
     claims: Claims,
+    ClientIp(ip): ClientIp,
     Json(request): Json<super::models::BatchRejectRequest>,
 ) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
@@ -805,7 +808,7 @@ pub async fn batch_reject_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_reject_kebutuhan(request, user_id, user_info)
+        .batch_reject_kebutuhan(request, user_id, user_info, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -819,6 +822,7 @@ pub async fn batch_reject_kebutuhan(
 pub async fn batch_update_status(
     State(service): State<KebutuhanBmnService>,
     claims: Claims,
+    ClientIp(ip): ClientIp,
     Json(request): Json<super::models::BatchUpdateStatusRequest>,
 ) -> Result<Json<ApiResponse<super::models::BatchOperationResponse>>, AppError> {
     use validator::Validate;
@@ -839,7 +843,7 @@ pub async fn batch_update_status(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_update_status(request, user_id, user_info)
+        .batch_update_status(request, user_id, user_info, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

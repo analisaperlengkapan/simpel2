@@ -12,7 +12,7 @@ use tracing::info;
 use uuid::Uuid;
 
 use crate::errors::AppError;
-use crate::middleware::Claims;
+use crate::middleware::{Claims, ClientIp};
 use crate::models::ApiResponse;
 
 use super::models::*;
@@ -96,6 +96,7 @@ pub async fn transition_permit_status(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
     claims: Claims,
+    ClientIp(ip): ClientIp,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
     info!(
@@ -104,7 +105,7 @@ pub async fn transition_permit_status(
     );
 
     let permit = service
-        .transition_permit_status(id, request, claims.user_id)
+        .transition_permit_status(id, request, claims.user_id, ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

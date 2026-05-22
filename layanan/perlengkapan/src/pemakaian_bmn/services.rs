@@ -94,11 +94,15 @@ impl PemakaianBmnService {
     /// - Activity tracking
     ///
     /// Requirements: REQ-P004, REQ-W004, REQ-W005
+    /// Caller (handler) supplies the originating client IP so the workflow
+    /// activity log gets a real address instead of a placeholder. Use the
+    /// `ClientIp` axum extractor on the handler side.
     pub async fn transition_permit_status(
         &self,
         id: Uuid,
         request: WorkflowTransitionRequest,
         user_id: Uuid,
+        client_ip: String,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
         let current_status =
@@ -153,7 +157,7 @@ impl PemakaianBmnService {
             to_state: to_state.to_string(),
             user_id,
             catatan: request.catatan.clone(),
-            ip_address: "0.0.0.0".to_string(), // TODO: Get from request context
+            ip_address: client_ip.clone(),
         };
 
         // Execute transition through workflow engine
@@ -510,8 +514,16 @@ impl PemakaianBmnService {
             catatan: Some(format!("Izin diaktifkan dengan nomor {}", nomor_izin)),
         };
 
+        // System-driven activation — pass a sentinel IP so the audit row
+        // is unambiguous about the originator. Any human-driven transition
+        // arrives through the handler with a real ClientIp.
         let mut permit = self
-            .transition_permit_status(id, transition_request, user_id)
+            .transition_permit_status(
+                id,
+                transition_request,
+                user_id,
+                "system".to_string(),
+            )
             .await?;
 
         // Generate permit document (REQ-P006)
@@ -597,10 +609,20 @@ impl PemakaianBmnService {
             );
         }
 
-        // TODO: Get template_id from configuration
-        // For now, use a placeholder UUID
-        let template_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001")
-            .map_err(|e| AppError::Internal(format!("Invalid template UUID: {}", e)))?;
+        // Template ID is config-driven. Operators seed the real template
+        // UUID into `dokumen.document_templates` (template_type =
+        // `surat_izin_pemakaian`) and expose its UUID via the environment
+        // variable below. The fallback UUID is a well-known sentinel used
+        // by integration tests / dev seeds; production deployments must
+        // override it.
+        let template_id_str = std::env::var("PEMAKAIAN_SURAT_IZIN_TEMPLATE_ID")
+            .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000001".to_string());
+        let template_id = Uuid::parse_str(&template_id_str).map_err(|e| {
+            AppError::Internal(format!(
+                "Invalid PEMAKAIAN_SURAT_IZIN_TEMPLATE_ID ({}): {}",
+                template_id_str, e
+            ))
+        })?;
 
         // Call the document generator with retry logic
         let mut retry_count = 0;

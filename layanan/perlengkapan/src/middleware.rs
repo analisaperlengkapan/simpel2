@@ -6,12 +6,60 @@ pub mod metrics;
 
 use axum::{
     extract::{FromRef, FromRequestParts},
-    http::{header::AUTHORIZATION, request::Parts},
+    http::{HeaderMap, header::AUTHORIZATION, request::Parts},
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{errors::AppError, grpc_clients::AuthencClient};
+
+/// Axum extractor for the originating client IP, used by audit log /
+/// workflow transition records.
+///
+/// Tries headers in order, falls back to `"unknown"` if none are present:
+///   1. `X-Forwarded-For` (first IP in the comma-separated list — the
+///      original client, before any proxies)
+///   2. `X-Real-IP` (single IP set by nginx-style reverse proxies)
+///
+/// `ConnectInfo<SocketAddr>` is intentionally NOT consulted here — behind
+/// a k8s ingress / nginx the connect-info is always the proxy IP, not the
+/// real client, and trusting it would silently log the wrong value.
+pub struct ClientIp(pub String);
+
+impl ClientIp {
+    pub fn from_headers(headers: &HeaderMap) -> Self {
+        if let Some(xff) = headers.get("x-forwarded-for") {
+            if let Ok(s) = xff.to_str() {
+                if let Some(first) = s.split(',').next() {
+                    let ip = first.trim();
+                    if !ip.is_empty() {
+                        return ClientIp(ip.to_string());
+                    }
+                }
+            }
+        }
+        if let Some(real) = headers.get("x-real-ip") {
+            if let Ok(s) = real.to_str() {
+                let ip = s.trim();
+                if !ip.is_empty() {
+                    return ClientIp(ip.to_string());
+                }
+            }
+        }
+        ClientIp("unknown".to_string())
+    }
+}
+
+impl<S> FromRequestParts<S> for ClientIp
+where
+    S: Send + Sync,
+{
+    type Rejection = std::convert::Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(ClientIp::from_headers(&parts.headers))
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
