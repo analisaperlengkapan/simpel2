@@ -158,6 +158,22 @@ pub async fn api_post_empty<T: DeserializeOwned>(path: &str) -> AppResult<T> {
     parse_response(resp).await
 }
 
+/// PATCH with no request body (e.g. flipping a flag on the server). Used by
+/// the notifikasi center to mark a single notification as read.
+pub async fn api_patch_empty<T: DeserializeOwned>(path: &str) -> AppResult<T> {
+    let token = require_auth_token()?;
+    let url = full_url(path);
+
+    let resp = Request::patch(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(AppError::from)?;
+
+    parse_response(resp).await
+}
+
 pub async fn api_put<B: Serialize + ?Sized, T: DeserializeOwned>(
     path: &str,
     body: &B,

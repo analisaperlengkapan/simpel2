@@ -8,6 +8,7 @@ pub mod common;
 pub mod dashboard;
 pub mod dokumen;
 pub mod kebutuhan_bmn_api;
+pub mod notifikasi;
 pub mod kebutuhan_bmn_types;
 pub mod pakaian_dinas;
 pub mod pemakaian_bmn;

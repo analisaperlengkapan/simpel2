@@ -12,6 +12,7 @@
 #![allow(dead_code)]
 #![allow(async_fn_in_trait)]
 
+pub mod api;
 pub mod audit;
 pub mod config;
 pub mod email;

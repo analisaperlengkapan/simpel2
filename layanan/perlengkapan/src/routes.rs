@@ -523,6 +523,23 @@ pub fn create_routes(state: AppState) -> Router {
             "/admin/master/{source}/{id}",
             put(crate::admin::update_master_record).delete(crate::admin::delete_master_record),
         )
+        // ============ Notifikasi Center ============
+        // Per-user inbox surfaced from `notifikasi.in_app_notifications`.
+        // `NotifikasiService::send` is the canonical writer; these endpoints
+        // are the reader half.
+        .route(
+            "/notifikasi/unread-count",
+            get(crate::notifikasi::api::unread_count),
+        )
+        .route("/notifikasi", get(crate::notifikasi::api::list_notifikasi))
+        .route(
+            "/notifikasi/{id}/read",
+            axum::routing::patch(crate::notifikasi::api::mark_read),
+        )
+        .route(
+            "/notifikasi/read-all",
+            post(crate::notifikasi::api::mark_all_read),
+        )
         .route("/admin/templates", get(crate::admin::list_templates))
         .route(
             "/admin/templates/{id}",
