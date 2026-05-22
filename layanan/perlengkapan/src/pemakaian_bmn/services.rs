@@ -290,7 +290,21 @@ impl PemakaianBmnService {
         Ok(permit)
     }
 
-    /// Generate konsep surat izin pemakaian BMN (DOCX)
+    /// Filesystem path the konsep-surat route handler streams from.
+    /// `format` is "docx" or "pdf".
+    pub async fn konsep_surat_path(
+        &self,
+        id: Uuid,
+        format: &str,
+    ) -> AppResult<Option<String>> {
+        self.repository.konsep_surat_path(id, format).await
+    }
+
+    /// Generate konsep surat izin pemakaian BMN in BOTH DOCX (editable) and
+    /// PDF (final) formats. Both files land under
+    /// `${DOCUMENT_STORAGE_PATH}/pemakaian-bmn/{id}/konsep-surat.{ext}` and
+    /// their public download URLs are written to
+    /// `konsep_surat_url` (DOCX) and `konsep_surat_pdf_url` (PDF).
     ///
     /// Requirements: REQ-P006
     pub async fn generate_konsep_surat(
@@ -315,15 +329,87 @@ impl PemakaianBmnService {
             ));
         }
 
-        // Generate DOCX URL
-        let konsep_url = format!(
+        let docs = self.docs.as_ref().ok_or_else(|| {
+            AppError::Internal("DocumentGenerator port not wired into PemakaianBmnService".into())
+        })?;
+
+        // Template variables fed into both renders. We reuse the existing
+        // permit payload so DOCX and PDF stay structurally identical.
+        let template_id = std::env::var("KONSEP_SURAT_TEMPLATE_ID").unwrap_or_else(|_| {
+            // Placeholder UUID used until the production template is seeded.
+            "00000000-0000-0000-0000-000000000001".to_string()
+        });
+        let data = serde_json::json!({
+            "nomor_izin": current.nomor_izin,
+            "pegawai_nip": current.pegawai_nip,
+            "pegawai_nama": current.pegawai_nama,
+            "pegawai_jabatan": current.pegawai_jabatan,
+            "pegawai_satker_nama": current.pegawai_satker_nama,
+            "jenis_bmn": current.jenis_bmn,
+            "bmn_nup": current.bmn_nup,
+            "bmn_kode_barang": current.bmn_kode_barang,
+            "bmn_nama_barang": current.bmn_nama_barang,
+            "tanggal_mulai": current.tanggal_mulai.to_string(),
+            "tanggal_selesai": current.tanggal_selesai.to_string(),
+            "keperluan": current.keperluan,
+            "lokasi_pemakaian": current.lokasi_pemakaian,
+        });
+
+        let storage_root = std::env::var("DOCUMENT_STORAGE_PATH")
+            .unwrap_or_else(|_| "/tmp/perlengkapan/docs".to_string());
+        let dir = format!("{}/pemakaian-bmn/{}", storage_root, id);
+        tokio::fs::create_dir_all(&dir)
+            .await
+            .map_err(|e| AppError::Internal(format!("mkdir {}: {}", dir, e)))?;
+        let docx_path = format!("{}/konsep-surat.docx", dir);
+        let pdf_path = format!("{}/konsep-surat.pdf", dir);
+
+        let docx_request = lib_perlengkapan::contracts::DocumentRequest {
+            template_id: template_id.clone(),
+            format: lib_perlengkapan::contracts::DocumentFormat::Docx,
+            data: data.clone(),
+            locale: None,
+            requested_by: None,
+        };
+        let pdf_request = lib_perlengkapan::contracts::DocumentRequest {
+            template_id: template_id.clone(),
+            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            data,
+            locale: None,
+            requested_by: None,
+        };
+
+        let docx_bytes = docs.preview(docx_request).await.map_err(|e| {
+            AppError::Internal(format!("konsep surat DOCX render failed: {}", e))
+        })?;
+        tokio::fs::write(&docx_path, &docx_bytes)
+            .await
+            .map_err(|e| AppError::Internal(format!("write {}: {}", docx_path, e)))?;
+
+        let pdf_bytes = docs.preview(pdf_request).await.map_err(|e| {
+            AppError::Internal(format!("konsep surat PDF render failed: {}", e))
+        })?;
+        tokio::fs::write(&pdf_path, &pdf_bytes)
+            .await
+            .map_err(|e| AppError::Internal(format!("write {}: {}", pdf_path, e)))?;
+
+        let docx_url = format!(
             "/api/pembinaan/perlengkapan/pemakaian-bmn/{}/konsep-surat.docx",
             id
         );
+        let pdf_url = format!(
+            "/api/pembinaan/perlengkapan/pemakaian-bmn/{}/konsep-surat.pdf",
+            id
+        );
 
-        self.repository.update_konsep_surat(id, &konsep_url).await?;
+        self.repository
+            .update_konsep_surat(id, &docx_url, &docx_path, &pdf_url, &pdf_path)
+            .await?;
 
-        info!("Generated konsep surat for permit {}", id);
+        info!(
+            "Generated konsep surat (DOCX + PDF) for permit {} at {}",
+            id, dir
+        );
         self.repository.get_by_id(id).await
     }
 

@@ -252,10 +252,13 @@ async fn main() -> anyhow::Result<()> {
         crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
             .with_notification_sender(notifier.clone());
-    let penghapusan_bmn_service = Arc::new(penghapusan_bmn::PenghapusanBmnService::new(
-        db.pool().clone(),
-        Arc::new(penghapusan_bmn_workflow_engine),
-    ));
+    let penghapusan_bmn_service = Arc::new(
+        penghapusan_bmn::PenghapusanBmnService::new(
+            db.pool().clone(),
+            Arc::new(penghapusan_bmn_workflow_engine),
+        )
+        .with_document_generator(docs.clone()),
+    );
     info!("Penghapusan BMN service initialized");
 
     // Create broadcast channel for dashboard updates (capacity: 100 messages)

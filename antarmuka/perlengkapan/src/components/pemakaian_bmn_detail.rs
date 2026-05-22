@@ -403,7 +403,8 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                                             <h3 class="text-lg font-semibold text-gray-800 mb-4">"Dokumen"</h3>
                                             <div class="space-y-3">
-                                                // Konsep surat
+                                                // Konsep surat — DOCX (editable) + PDF (final)
+                                                // produced side-by-side by the backend.
                                                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                                     <div class="flex items-center gap-3">
                                                         <span class="text-blue-500 text-lg"><AppIcon icon=FILE_DOC /></span>
@@ -417,11 +418,24 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                         </div>
                                                     </div>
                                                     {move || {
-                                                        if let Some(url) = izin.konsep_surat_url.clone() {
+                                                        let docx_url = izin.konsep_surat_url.clone();
+                                                        let pdf_url = izin.konsep_surat_pdf_url.clone();
+                                                        if docx_url.is_some() || pdf_url.is_some() {
                                                             view! {
-                                                                <a href=url target="_blank" class="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1">
-                                                                    <AppIcon icon=DOWNLOAD_SIMPLE /> "Download"
-                                                                </a>
+                                                                <div class="flex items-center gap-3">
+                                                                    {docx_url.map(|u| view! {
+                                                                        <a href=u target="_blank"
+                                                                           class="text-cyan-700 hover:text-cyan-900 text-sm flex items-center gap-1">
+                                                                            <AppIcon icon=DOWNLOAD_SIMPLE /> "DOCX"
+                                                                        </a>
+                                                                    })}
+                                                                    {pdf_url.map(|u| view! {
+                                                                        <a href=u target="_blank"
+                                                                           class="text-rose-700 hover:text-rose-900 text-sm flex items-center gap-1">
+                                                                            <AppIcon icon=DOWNLOAD_SIMPLE /> "PDF"
+                                                                        </a>
+                                                                    })}
+                                                                </div>
                                                             }.into_any()
                                                         } else if detail.can_generate_konsep.unwrap_or(false) {
                                                             view! {

@@ -152,10 +152,13 @@ pub async fn get_permit_document(
         ));
     }
 
-    // Check if document exists - try new konsep_surat_url, then legacy document_url
+    // Redirect to the DOCX konsep (editable). Use `/konsep-surat.pdf` to grab
+    // the PDF variant directly. `document_url` is the post-signature artifact
+    // and is the right pick once the user has uploaded the signed PDF.
     let document_url = permit
         .izin
         .konsep_surat_url
+        .or(permit.izin.signed_pdf_url)
         .or(permit.izin.document_url)
         .ok_or_else(|| AppError::NotFound("Document not found for this permit".to_string()))?;
 
@@ -164,7 +167,8 @@ pub async fn get_permit_document(
 }
 
 /// POST /pemakaian-bmn/:id/generate-konsep-surat
-/// Generate konsep surat izin pemakaian BMN (DOCX)
+/// Generate konsep surat izin pemakaian BMN — produces BOTH the editable
+/// DOCX and the final PDF side-by-side.
 pub async fn generate_konsep_surat(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
@@ -174,8 +178,64 @@ pub async fn generate_konsep_surat(
 
     Ok(Json(crate::models::ApiResponse::success(
         permit,
-        "Konsep surat izin pemakaian BMN berhasil digenerate".to_string(),
+        "Konsep surat izin pemakaian BMN berhasil digenerate (DOCX + PDF)".to_string(),
     )))
+}
+
+/// GET /pemakaian-bmn/:id/konsep-surat.docx
+/// GET /pemakaian-bmn/:id/konsep-surat.pdf
+///
+/// Stream the on-disk konsep surat artifact. `format` is "docx" or "pdf".
+/// Path is read from the permit row written by `generate_konsep_surat`.
+pub async fn serve_konsep_surat(
+    State(service): State<PemakaianBmnService>,
+    Path((id, format)): Path<(Uuid, String)>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::body::Body;
+    use axum::http::header;
+    use axum::response::IntoResponse;
+
+    let format = format.as_str();
+    if format != "docx" && format != "pdf" {
+        return Err(AppError::BadRequest(format!(
+            "format harus 'docx' atau 'pdf', dapat: '{}'",
+            format
+        )));
+    }
+
+    let path = service
+        .konsep_surat_path(id, format)
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Konsep surat ({}) belum digenerate untuk permit {}",
+                format, id
+            ))
+        })?;
+
+    let bytes = tokio::fs::read(&path)
+        .await
+        .map_err(|e| AppError::Internal(format!("read {}: {}", path, e)))?;
+
+    let mime = match format {
+        "pdf" => "application/pdf",
+        _ => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+    let filename = format!("konsep-surat-{}.{}", id, format);
+
+    let resp = (
+        [
+            (header::CONTENT_TYPE, mime),
+            (
+                header::CONTENT_DISPOSITION,
+                &format!("inline; filename=\"{}\"", filename),
+            ),
+        ],
+        Body::from(bytes),
+    )
+        .into_response();
+    Ok(resp)
 }
 
 /// POST /pemakaian-bmn/:id/upload-signed-pdf

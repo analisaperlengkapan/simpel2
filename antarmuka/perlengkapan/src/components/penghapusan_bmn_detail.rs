@@ -344,21 +344,35 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                     </div>
                                 </div>
 
-                                // SK Document Section
-                                {(d.penghapusan.konsep_sk_url.is_some() || d.penghapusan.signed_sk_pdf_url.is_some()).then(|| {
-                                    let konsep = d.penghapusan.konsep_sk_url.clone();
+                                // SK Document Section — konsep is produced as both DOCX
+                                // (editable) and PDF (final) side-by-side, signed PDF is
+                                // the post-signature upload.
+                                {(d.penghapusan.konsep_sk_url.is_some()
+                                    || d.penghapusan.konsep_sk_pdf_url.is_some()
+                                    || d.penghapusan.signed_sk_pdf_url.is_some()).then(|| {
+                                    let konsep_docx = d.penghapusan.konsep_sk_url.clone();
+                                    let konsep_pdf = d.penghapusan.konsep_sk_pdf_url.clone();
                                     let signed = d.penghapusan.signed_sk_pdf_url.clone();
                                     view! {
                                         <div class="bg-white rounded-lg shadow p-4">
                                             <h3 class="font-semibold text-gray-700 mb-3">"Dokumen SK"</h3>
-                                            <div class="flex gap-4">
-                                                {konsep.map(|url| view! {
+                                            <div class="flex flex-wrap gap-4">
+                                                {konsep_docx.map(|url| view! {
                                                     <a href={url} target="_blank"
                                                        class="inline-flex items-center px-4 py-2 bg-cyan-50 text-cyan-700 rounded-lg hover:bg-cyan-100">
                                                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                                                         </svg>
                                                         "Konsep SK (DOCX)"
+                                                    </a>
+                                                })}
+                                                {konsep_pdf.map(|url| view! {
+                                                    <a href={url} target="_blank"
+                                                       class="inline-flex items-center px-4 py-2 bg-rose-50 text-rose-700 rounded-lg hover:bg-rose-100">
+                                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                                        </svg>
+                                                        "Konsep SK (PDF)"
                                                     </a>
                                                 })}
                                                 {signed.map(|url| view! {

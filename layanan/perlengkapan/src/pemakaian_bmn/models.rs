@@ -222,8 +222,10 @@ pub struct IzinPemakaianBmn {
     // Document Generation & Upload
     pub document_id: Option<Uuid>,
     pub document_url: Option<String>,
-    pub konsep_surat_url: Option<String>, // Generated DOCX concept
+    pub konsep_surat_url: Option<String>, // Generated DOCX concept (editable)
     pub konsep_surat_generated_at: Option<DateTime<Utc>>,
+    pub konsep_surat_pdf_url: Option<String>, // Generated PDF concept (final, side-by-side with DOCX)
+    pub konsep_surat_pdf_generated_at: Option<DateTime<Utc>>,
     pub signed_pdf_url: Option<String>, // Uploaded signed PDF
     pub signed_pdf_uploaded_at: Option<DateTime<Utc>>,
     pub is_completed: bool,
@@ -381,11 +383,11 @@ pub struct UploadSignedPdfRequest {
     pub signed_pdf_url: String,
 }
 
-/// Request to generate DOCX concept surat
-#[derive(Debug, Clone, Deserialize)]
-pub struct GenerateKonsepSuratRequest {
-    pub format: Option<String>, // "docx" default
-}
+/// Request to generate konsep surat. Both DOCX and PDF are always produced
+/// side-by-side; callers pick which artifact to download via the URL
+/// extension (`konsep-surat.docx` vs `konsep-surat.pdf`).
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct GenerateKonsepSuratRequest {}
 
 /// Request to update an existing permit (only in DRAFT status)
 #[derive(Debug, Clone, Deserialize, Validate)]

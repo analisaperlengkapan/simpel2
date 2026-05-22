@@ -314,7 +314,8 @@ pub async fn validator_wilayah_action(
     }
 }
 
-/// Validator Pusat generates konsep SK DOCX
+/// Validator Pusat generates konsep SK in BOTH DOCX (editable) and PDF
+/// (final) formats side-by-side.
 pub async fn generate_konsep_sk(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
@@ -324,8 +325,60 @@ pub async fn generate_konsep_sk(
 
     Ok(Json(ApiResponse::success(
         penghapusan,
-        "Konsep Usulan SK Penghapusan BMN berhasil digenerate".to_string(),
+        "Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string(),
     )))
+}
+
+/// GET /penghapusan-bmn/:id/konsep-sk.docx
+/// GET /penghapusan-bmn/:id/konsep-sk.pdf
+///
+/// Stream the on-disk konsep SK artifact. `format` is "docx" or "pdf".
+pub async fn serve_konsep_sk(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path((id, format)): Path<(Uuid, String)>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::body::Body;
+    use axum::http::header;
+    use axum::response::IntoResponse;
+
+    let format = format.as_str();
+    if format != "docx" && format != "pdf" {
+        return Err(AppError::BadRequest(format!(
+            "format harus 'docx' atau 'pdf', dapat: '{}'",
+            format
+        )));
+    }
+
+    let path = service.konsep_sk_path(id, format).await?.ok_or_else(|| {
+        AppError::NotFound(format!(
+            "Konsep SK ({}) belum digenerate untuk penghapusan {}",
+            format, id
+        ))
+    })?;
+
+    let bytes = tokio::fs::read(&path)
+        .await
+        .map_err(|e| AppError::Internal(format!("read {}: {}", path, e)))?;
+
+    let mime = match format {
+        "pdf" => "application/pdf",
+        _ => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    };
+    let filename = format!("konsep-sk-{}.{}", id, format);
+
+    let resp = (
+        [
+            (header::CONTENT_TYPE, mime),
+            (
+                header::CONTENT_DISPOSITION,
+                &format!("inline; filename=\"{}\"", filename),
+            ),
+        ],
+        Body::from(bytes),
+    )
+        .into_response();
+    Ok(resp)
 }
 
 /// Validator Pusat uploads signed SK PDF

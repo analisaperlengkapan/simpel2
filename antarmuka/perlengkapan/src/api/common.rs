@@ -369,13 +369,14 @@ pub struct PenghapusanBmnWorkflow {
     pub validator_pusat_id: Option<String>,
     pub tanggal_submit_pusat: Option<String>,
     pub tanggal_verifikasi_pusat: Option<String>,
-    // SK Document
+    // SK Document — DOCX (editable) + PDF (final) produced side-by-side.
     pub konsep_sk_url: Option<String>,
     pub konsep_sk_generated_at: Option<String>,
+    pub konsep_sk_pdf_url: Option<String>,
+    pub konsep_sk_pdf_generated_at: Option<String>,
     pub signed_sk_pdf_url: Option<String>,
     pub signed_sk_pdf_uploaded_at: Option<String>,
     pub is_completed: bool,
-    // Legacy
     pub document_id: Option<String>,
     pub document_url: Option<String>,
     pub created_by: String,

@@ -24,6 +24,7 @@ use uuid::Uuid;
 pub struct PenghapusanBmnService {
     repository: PenghapusanBmnRepository,
     workflow_engine: Arc<WorkflowEngine>,
+    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
 }
 
 impl PenghapusanBmnService {
@@ -31,7 +32,17 @@ impl PenghapusanBmnService {
         Self {
             repository: PenghapusanBmnRepository::new(pool),
             workflow_engine,
+            docs: None,
         }
+    }
+
+    /// Inject the document generator (used by the konsep SK dual-format flow).
+    pub fn with_document_generator(
+        mut self,
+        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
+    ) -> Self {
+        self.docs = Some(docs);
+        self
     }
 
     /// Create a new Usulan SK Penghapusan BMN (by Operator Satker)
@@ -192,7 +203,21 @@ impl PenghapusanBmnService {
         .await
     }
 
-    /// Validator Pusat generates konsep SK (DOCX)
+    /// Filesystem path the konsep-sk route handler streams from. `format` is
+    /// "docx" or "pdf".
+    pub async fn konsep_sk_path(
+        &self,
+        id: Uuid,
+        format: &str,
+    ) -> AppResult<Option<String>> {
+        self.repository.konsep_sk_path(id, format).await
+    }
+
+    /// Validator Pusat generates konsep SK in BOTH DOCX (editable) and PDF
+    /// (final) formats. Files land under
+    /// `${DOCUMENT_STORAGE_PATH}/penghapusan-bmn/{id}/konsep-sk.{ext}`; the
+    /// public download URLs are persisted in `konsep_sk_url` (DOCX) and
+    /// `konsep_sk_pdf_url` (PDF).
     pub async fn generate_konsep_sk(
         &self,
         id: Uuid,
@@ -207,13 +232,74 @@ impl PenghapusanBmnService {
             ));
         }
 
-        // Generate DOCX via document service
-        let konsep_url = format!(
+        let docs = self.docs.as_ref().ok_or_else(|| {
+            crate::errors::AppError::Internal(
+                "DocumentGenerator port not wired into PenghapusanBmnService".into(),
+            )
+        })?;
+
+        let template_id = std::env::var("KONSEP_SK_TEMPLATE_ID").unwrap_or_else(|_| {
+            "00000000-0000-0000-0000-000000000002".to_string()
+        });
+        let data = serde_json::json!({
+            "id": id.to_string(),
+            "satker_id": penghapusan.satker_id,
+            "nama_barang": penghapusan.nama_barang,
+            "alasan": penghapusan.alasan,
+            "status": penghapusan.status,
+            "approval_date": chrono::Utc::now().format("%d %B %Y").to_string(),
+        });
+
+        let storage_root = std::env::var("DOCUMENT_STORAGE_PATH")
+            .unwrap_or_else(|_| "/tmp/perlengkapan/docs".to_string());
+        let dir = format!("{}/penghapusan-bmn/{}", storage_root, id);
+        tokio::fs::create_dir_all(&dir).await.map_err(|e| {
+            crate::errors::AppError::Internal(format!("mkdir {}: {}", dir, e))
+        })?;
+        let docx_path = format!("{}/konsep-sk.docx", dir);
+        let pdf_path = format!("{}/konsep-sk.pdf", dir);
+
+        let docx_request = lib_perlengkapan::contracts::DocumentRequest {
+            template_id: template_id.clone(),
+            format: lib_perlengkapan::contracts::DocumentFormat::Docx,
+            data: data.clone(),
+            locale: None,
+            requested_by: None,
+        };
+        let pdf_request = lib_perlengkapan::contracts::DocumentRequest {
+            template_id,
+            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            data,
+            locale: None,
+            requested_by: None,
+        };
+
+        let docx_bytes = docs.preview(docx_request).await.map_err(|e| {
+            crate::errors::AppError::Internal(format!("konsep SK DOCX render failed: {}", e))
+        })?;
+        tokio::fs::write(&docx_path, &docx_bytes).await.map_err(|e| {
+            crate::errors::AppError::Internal(format!("write {}: {}", docx_path, e))
+        })?;
+
+        let pdf_bytes = docs.preview(pdf_request).await.map_err(|e| {
+            crate::errors::AppError::Internal(format!("konsep SK PDF render failed: {}", e))
+        })?;
+        tokio::fs::write(&pdf_path, &pdf_bytes).await.map_err(|e| {
+            crate::errors::AppError::Internal(format!("write {}: {}", pdf_path, e))
+        })?;
+
+        let docx_url = format!(
             "/api/pembinaan/perlengkapan/penghapusan-bmn/{}/konsep-sk.docx",
             id
         );
+        let pdf_url = format!(
+            "/api/pembinaan/perlengkapan/penghapusan-bmn/{}/konsep-sk.pdf",
+            id
+        );
 
-        self.repository.update_konsep_sk(id, &konsep_url).await?;
+        self.repository
+            .update_konsep_sk(id, &docx_url, &docx_path, &pdf_url, &pdf_path)
+            .await?;
 
         // Transition to KonsepSKGenerated
         self.transition(
@@ -222,7 +308,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
-            Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate".to_string()),
+            Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string()),
             "generate_konsep_sk".to_string(),
         )
         .await

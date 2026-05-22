@@ -304,20 +304,56 @@ impl PenghapusanBmnRepository {
         Ok(())
     }
 
-    /// Update konsep SK URL (after DOCX generation)
-    pub async fn update_konsep_sk(&self, id: Uuid, konsep_sk_url: &str) -> AppResult<()> {
+    /// Update both DOCX and PDF konsep SK URLs and their on-disk paths in
+    /// one statement. This is the only konsep-SK write path — DOCX + PDF
+    /// are always produced together.
+    pub async fn update_konsep_sk(
+        &self,
+        id: Uuid,
+        docx_url: &str,
+        docx_path: &str,
+        pdf_url: &str,
+        pdf_path: &str,
+    ) -> AppResult<()> {
         let client = self.pool.get().await?;
-
         let query = r#"
             UPDATE perlengkapan.penghapusan_bmn
             SET konsep_sk_url = $1,
+                konsep_sk_docx_path = $2,
                 konsep_sk_generated_at = NOW(),
+                konsep_sk_pdf_url = $3,
+                konsep_sk_pdf_path = $4,
+                konsep_sk_pdf_generated_at = NOW(),
                 updated_at = NOW()
-            WHERE id = $2
+            WHERE id = $5
         "#;
-
-        client.execute(query, &[&konsep_sk_url, &id]).await?;
+        client
+            .execute(
+                query,
+                &[&docx_url, &docx_path, &pdf_url, &pdf_path, &id],
+            )
+            .await?;
         Ok(())
+    }
+
+    /// Fetch the on-disk path the route handler should stream from.
+    pub async fn konsep_sk_path(
+        &self,
+        id: Uuid,
+        format: &str,
+    ) -> AppResult<Option<String>> {
+        let column = match format {
+            "docx" => "konsep_sk_docx_path",
+            "pdf" => "konsep_sk_pdf_path",
+            _ => return Ok(None),
+        };
+        let client = self.pool.get().await?;
+        let query = format!(
+            "SELECT {} FROM perlengkapan.penghapusan_bmn WHERE id = $1",
+            column
+        );
+        let row = client.query_opt(&query, &[&id]).await?;
+        Ok(row.and_then(|r| r.try_get::<_, Option<String>>(0).ok().flatten()))
     }
 
     /// Update signed SK PDF URL

@@ -110,6 +110,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/penghapusan-bmn/{id}/generate-konsep-sk",
             post(crate::penghapusan_bmn::generate_konsep_sk),
         )
+        // Stream the konsep SK in either DOCX (editable) or PDF (final) form.
+        // {format} = "docx" | "pdf".
+        .route(
+            "/penghapusan-bmn/{id}/konsep-sk.{format}",
+            get(crate::penghapusan_bmn::serve_konsep_sk),
+        )
         .route(
             "/penghapusan-bmn/{id}/upload-signed-sk",
             post(crate::penghapusan_bmn::upload_signed_sk),
@@ -414,6 +420,12 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pemakaian-bmn/{id}/generate-konsep-surat",
             post(pemakaian_bmn::generate_konsep_surat),
+        )
+        // Stream the konsep surat in either DOCX (editable) or PDF (final)
+        // form. {format} = "docx" | "pdf".
+        .route(
+            "/pemakaian-bmn/{id}/konsep-surat.{format}",
+            get(pemakaian_bmn::serve_konsep_surat),
         )
         .route(
             "/pemakaian-bmn/{id}/upload-signed-pdf",

@@ -1094,8 +1094,17 @@ impl PemakaianBmnRepository {
         Ok(rows.iter().map(PemakaianBmnItem::from_row).collect())
     }
 
-    /// Update konsep surat URL
-    pub async fn update_konsep_surat(&self, id: Uuid, konsep_surat_url: &str) -> AppResult<()> {
+    /// Update both DOCX and PDF konsep surat URLs and the matching on-disk
+    /// paths in a single statement. This is the only konsep-surat write
+    /// path — DOCX + PDF are always produced together.
+    pub async fn update_konsep_surat(
+        &self,
+        id: Uuid,
+        docx_url: &str,
+        docx_path: &str,
+        pdf_url: &str,
+        pdf_path: &str,
+    ) -> AppResult<()> {
         let client = self
             .pool
             .get()
@@ -1107,16 +1116,47 @@ impl PemakaianBmnRepository {
                 r#"
                 UPDATE perlengkapan.izin_pemakaian_bmn
                 SET konsep_surat_url = $1,
+                    konsep_surat_docx_path = $2,
                     konsep_surat_generated_at = NOW(),
+                    konsep_surat_pdf_url = $3,
+                    konsep_surat_pdf_path = $4,
+                    konsep_surat_pdf_generated_at = NOW(),
                     updated_at = NOW()
-                WHERE id = $2
+                WHERE id = $5
                 "#,
-                &[&konsep_surat_url, &id],
+                &[&docx_url, &docx_path, &pdf_url, &pdf_path, &id],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    /// Fetch the on-disk path the route handler should stream from.
+    pub async fn konsep_surat_path(
+        &self,
+        id: Uuid,
+        format: &str,
+    ) -> AppResult<Option<String>> {
+        let column = match format {
+            "docx" => "konsep_surat_docx_path",
+            "pdf" => "konsep_surat_pdf_path",
+            _ => return Ok(None),
+        };
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let query = format!(
+            "SELECT {} FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1",
+            column
+        );
+        let row = client
+            .query_opt(&query, &[&id])
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(row.and_then(|r| r.try_get::<_, Option<String>>(0).ok().flatten()))
     }
 
     /// Update signed PDF URL and mark as completed
@@ -1186,6 +1226,11 @@ impl PemakaianBmnRepository {
             document_url: row.get("document_url"),
             konsep_surat_url: row.try_get("konsep_surat_url").ok().flatten(),
             konsep_surat_generated_at: row.try_get("konsep_surat_generated_at").ok().flatten(),
+            konsep_surat_pdf_url: row.try_get("konsep_surat_pdf_url").ok().flatten(),
+            konsep_surat_pdf_generated_at: row
+                .try_get("konsep_surat_pdf_generated_at")
+                .ok()
+                .flatten(),
             signed_pdf_url: row.try_get("signed_pdf_url").ok().flatten(),
             signed_pdf_uploaded_at: row.try_get("signed_pdf_uploaded_at").ok().flatten(),
             is_completed: row.try_get("is_completed").unwrap_or(false),
