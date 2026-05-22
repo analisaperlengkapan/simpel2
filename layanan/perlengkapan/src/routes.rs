@@ -512,7 +512,7 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/monitoring/bottlenecks",
             get(crate::workflow::handlers::get_bottlenecks),
         )
-        // ============ Admin Routes (audit + master data) ============
+        // ============ Admin Routes (audit + master data + templates) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
         .route("/admin/master", get(crate::admin::list_master_sources))
         .route(
@@ -522,6 +522,18 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/admin/master/{source}/{id}",
             put(crate::admin::update_master_record).delete(crate::admin::delete_master_record),
+        )
+        .route("/admin/templates", get(crate::admin::list_templates))
+        .route(
+            "/admin/templates/{id}",
+            get(crate::admin::get_template),
+        )
+        // POST renders a live preview of the template without persisting.
+        // `?format=pdf|docx|xlsx|html|csv`; body `{ "data": {...} }` overrides
+        // the template's stored sample_data.
+        .route(
+            "/admin/templates/{id}/preview",
+            post(crate::admin::preview_template),
         )
         .with_state(state)
 }

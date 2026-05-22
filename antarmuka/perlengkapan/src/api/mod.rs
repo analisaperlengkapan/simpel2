@@ -6,6 +6,7 @@ pub mod bank_aset;
 pub mod client;
 pub mod common;
 pub mod dashboard;
+pub mod dokumen;
 pub mod kebutuhan_bmn_api;
 pub mod kebutuhan_bmn_types;
 pub mod pakaian_dinas;
