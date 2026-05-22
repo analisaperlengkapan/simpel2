@@ -161,7 +161,11 @@ where
                     .parse::<Uuid>()
                     .map_err(|_| AppError::Authentication("Invalid user_id format".to_string()))?;
 
-                // TODO: Enhance Authenc ValidateTokenResponse to return more user info (username, role)
+                // TODO(authenc-claims): Authenc's `ValidateTokenResponse` only
+                // carries user_id today; widen it to include username + role
+                // + satker_id so this middleware can stop synthesising
+                // placeholder values. Tracking dep: a separate PR against
+                // layanan/authenc/proto/authenc.proto.
                 // For now, we stub or infer based on scopes if available, or fetch user info
                 // In production, ValidateToken should return richer context or we call GetUser.
                 // Assuming "scopes" contains role info for now.

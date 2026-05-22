@@ -785,7 +785,10 @@ pub async fn cetak_laporan(
             Ok((headers, buffer).into_response())
         }
         ("rekap", "pdf") | ("daftar", "pdf") => {
-            // TODO: PDF generation with printpdf (to be implemented)
+            // TODO(pakaian-dinas-pdf): dispatch through `state.docs.preview()`
+            // (`DocumentFormat::Pdf`) once the `pakaian_dinas_laporan`
+            // template lands in `dokumen.document_templates`. The port is
+            // already plumbed via `AppState.docs`.
             Err(bad_request(
                 "PDF export belum tersedia, gunakan Excel terlebih dahulu",
             ))

@@ -394,8 +394,11 @@ impl DashboardService {
         // For now, return a simple text-based PDF
         // You would integrate with printpdf or similar library here
 
-        // Placeholder: return HTML as bytes (not a real PDF)
-        // TODO: Implement proper PDF generation
+        // Placeholder: return HTML as bytes (not a real PDF).
+        // TODO(dashboard-pdf-export): route through the unified
+        // `Arc<dyn DocumentGenerator>` port (see crate::dokumen::service)
+        // once a `dashboard_perlengkapan` template is seeded. Until then
+        // the dashboard export emits HTML bytes so callers don't 500.
         Ok(html.as_bytes().to_vec())
     }
 }

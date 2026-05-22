@@ -81,7 +81,13 @@ pub async fn upload_document(
 
     let client = state.pool.get().await?;
     let doc_id = Uuid::new_v4();
-    let owner_id = Uuid::nil(); // TODO: Get from auth context
+    // TODO(dokumen-handlers-unified-state): these standalone dokumen
+    // handlers use a private `HandlerState { pool, config }` instead of
+    // the unified `crate::state::AppState` (which carries Claims via the
+    // axum middleware). Migrate them to the unified router so this
+    // owner_id projection drops out — `Uuid::nil()` is a sentinel for
+    // unit tests / dev only.
+    let owner_id = Uuid::nil();
     let size = file_bytes.len() as i64;
     let row = client
         .query_one(

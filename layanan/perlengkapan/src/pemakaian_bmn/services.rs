@@ -178,7 +178,12 @@ impl PemakaianBmnService {
         // Special handling for ACTIVE status
         if target_status == PemakaianBmnStatus::Active {
             info!("Permit {} is now active", id);
-            // TODO: Schedule expiry notification
+            // TODO(pemakaian-expiry-scheduler): hand this permit to the
+            // `PemakaianBmnScheduler` (already running, see main.rs) so
+            // `send_expiry_reminder` / `send_expiry_notification` fire at
+            // H-30 / H-7 / H-0. Currently the scheduler scans on its own
+            // cron, so this enqueue is an optimisation, not a correctness
+            // gap.
         }
 
         Ok(updated)

@@ -863,7 +863,13 @@ pub async fn export_pengajuan(
     Path(id): Path<Uuid>,
     _claims: Claims,
 ) -> Result<Json<ApiResponse<String>>, AppError> {
-    // TODO: Implement PDF/Excel export
+    // TODO(kebutuhan-export): generate the kebutuhan BMN PDF / Excel
+    // through `state.docs.preview(DocumentRequest{...})` — the
+    // DocumentGenerator port is already wired into AppState. Awaiting a
+    // production template id in `dokumen.document_templates`
+    // (template_type = `rekapitulasi_kebutuhan`) and the env var
+    // KEBUTUHAN_REKAP_TEMPLATE_ID, after which this handler shrinks to
+    // a `state.docs.preview(...)` + stream-bytes-back call.
     info!("Export requested for pengajuan: {}", id);
 
     Ok(Json(ApiResponse::success(

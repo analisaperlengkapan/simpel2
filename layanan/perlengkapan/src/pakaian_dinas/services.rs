@@ -283,11 +283,11 @@ impl PakaianDinasService {
         let _next_status =
             self.determine_next_status(satker.aktivitas_id, &request.aksi, user_role)?;
 
-        // TODO: Update satker status and log activity
-        // This would require additional repository methods
-
-        // For now, just return the current satker
-        // In production, this would update the database
+        // TODO(pakaian-dinas-satker-status): after the pengajuan is finalised,
+        // propagate the new status onto the satker-status table and record
+        // an audit row via `state.audit_sink` (module = `pakaian_dinas`,
+        // action = AuditAction::Update). Blocked on the satker-status
+        // schema review.
         Ok(satker)
     }
 

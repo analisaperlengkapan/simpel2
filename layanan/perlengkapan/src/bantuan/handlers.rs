@@ -439,7 +439,12 @@ pub async fn chatbot_query(
         .as_str()
         .ok_or(AppError::Validation("message wajib".to_string()))?;
     let context = payload.get("context").cloned();
-    let chatbot = ChatbotService::new(pool.clone(), "http://localhost:3002".to_string(), None); // TODO: ambil dari config
+    // TODO(bantuan-chatbot-config): build ChatbotService from the bantuan
+    // `AppConfig` (already loaded in `routes()`) instead of hard-coded
+    // `http://localhost:3002`. Drops out automatically once the bantuan
+    // router gets mounted into the unified app and `State<Pool>` is
+    // replaced with `AppState` that already exposes bantuan config.
+    let chatbot = ChatbotService::new(pool.clone(), "http://localhost:3002".to_string(), None);
     let reply = chatbot.process_query(user_id, message, context).await?;
     // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
     Ok(Json(json!({"reply": reply})))
