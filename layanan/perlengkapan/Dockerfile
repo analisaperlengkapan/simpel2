@@ -20,12 +20,12 @@ RUN apt-get update && apt-get install -y \
 RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
-# Patch Cargo.toml
+# Patch Cargo.toml to trim workspace members to just what's needed for this image
 RUN sed -i '/members\s*=\s*\[/,/\]/d' Cargo.toml && \
-    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "lib/perlengkapan", "layanan/integrasi", "layanan/perlengkapan/crates/api"]' Cargo.toml || true
+    sed -i '/\[workspace\]/a members = ["lib/core", "lib/backend", "lib/crypto", "lib/perlengkapan", "layanan/integrasi", "layanan/perlengkapan"]' Cargo.toml || true
 
 # Build release
-RUN cargo build --release -p layanan-perlengkapan-api
+RUN cargo build --release -p layanan-perlengkapan
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -42,7 +42,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 appuser
 
 # Copy binary
-COPY --from=builder /workspace/target/release/layanan-perlengkapan-api /app/perlengkapan
+COPY --from=builder /workspace/target/release/layanan-perlengkapan /app/perlengkapan
 
 # Set ownership
 RUN chown -R appuser:appuser /app

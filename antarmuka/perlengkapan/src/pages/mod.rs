@@ -5,6 +5,7 @@ pub mod dashboard_perlengkapan;
 pub mod kebutuhan_bmn;
 pub mod login;
 pub mod not_found;
+pub mod notifikasi;
 pub mod pakaian_dinas;
 pub mod pemakaian_bmn;
 pub mod penghapusan_bmn;

@@ -1,15 +1,19 @@
-//! Build script for compiling Protocol Buffer definitions
+//! Build script for compiling Protocol Buffer definitions.
 //!
-//! Compiles authenc.proto, secreton.proto, and integrasi.proto for gRPC client generation.
+//! Compiles only the **external** protos the unified perlengkapan service
+//! still needs as gRPC clients: authenc, secreton, integrasi. The previously
+//! internal `dokumen.proto` / `notifikasi.proto` are gone — workflow now
+//! talks to those modules through the
+//! [`lib_perlengkapan::contracts::DocumentGenerator`] and
+//! [`lib_perlengkapan::contracts::NotificationSender`] traits.
 
 use std::path::PathBuf;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let authenc_proto_dir = PathBuf::from("../../../layanan/authenc/proto");
-    let secreton_proto_dir = PathBuf::from("../../../layanan/secreton/proto");
-    let integrasi_proto_dir = PathBuf::from("../../daskrimti/integrasi/proto");
+    let authenc_proto_dir = PathBuf::from("../../layanan/authenc/proto");
+    let secreton_proto_dir = PathBuf::from("../../layanan/secreton/proto");
+    let integrasi_proto_dir = PathBuf::from("../../layanan/integrasi/proto");
 
-    // Verify proto directories exist
     if !authenc_proto_dir.exists() {
         eprintln!(
             "Warning: Authenc proto directory not found: {:?}",
@@ -25,7 +29,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         authenc_proto_dir.join("common.proto"),
     ];
 
-    // Add integrasi proto if exists
     let integrasi_proto = integrasi_proto_dir.join("integrasi.proto");
     if integrasi_proto.exists() {
         proto_files.push(integrasi_proto);
@@ -37,14 +40,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // Verify proto files exist
     for proto_file in &proto_files {
         if !proto_file.exists() {
             eprintln!("Warning: Proto file not found: {:?}", proto_file);
         }
     }
 
-    // Configure tonic-prost-build - client only (no server)
     tonic_prost_build::configure()
         .build_server(false)
         .build_client(true)
@@ -52,13 +53,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile_protos(
             &proto_files,
             &[
+                // integrasi_proto_dir must come before authenc to avoid
+                // shadowing (both contain integrasi.proto)
+                integrasi_proto_dir,
                 authenc_proto_dir.clone(),
                 secreton_proto_dir,
-                integrasi_proto_dir,
             ],
         )?;
 
-    // Tell Cargo to rerun this build script if proto files change
     for proto_file in &proto_files {
         if proto_file.exists() {
             println!("cargo:rerun-if-changed={}", proto_file.display());

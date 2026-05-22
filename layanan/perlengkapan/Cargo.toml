@@ -1,20 +1,131 @@
-# Perlengkapan
-#
-# The actual sub-crates (crates/api, crates/dokumen, etc.) are listed as
-# members of the **root** workspace at /Cargo.toml and inherit all
-# dependencies from there.
-#
-# Do NOT add [workspace] here — it would shadow the root workspace and
-# break `{ workspace = true }` dependency resolution for the sub-crates.
-
 [package]
 name = "layanan-perlengkapan"
 version.workspace = true
 edition.workspace = true
-publish = false
-authors.workspace = true
+authors = ["SIMPEL Team"]
 license.workspace = true
-# The build.rs at this level has incorrect paths (it was a leftover from
-# when this was a virtual workspace manifest and was never executed).
-# Proto compilation is handled by crates/api/build.rs instead.
-build = false
+description = "Unified Perlengkapan service (BMN, workflow, dokumen, notifikasi, bantuan)"
+publish = false
+
+[[bin]]
+name = "layanan-perlengkapan"
+path = "src/main.rs"
+
+[lib]
+name = "layanan_perlengkapan"
+path = "src/lib.rs"
+
+[features]
+default = []
+integration-tests = []
+# Enables the optional clamav virus-scanning hook in dokumen::security.
+virus-scan = ["dep:clamav-client"]
+
+[dependencies]
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["cors", "trace", "fs"] }
+
+# Async runtime
+tokio = { workspace = true, features = ["full"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Database
+tokio-postgres = { workspace = true }
+deadpool-postgres = { workspace = true }
+
+# UUID and time
+uuid = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+
+# Authentication & JWT
+jsonwebtoken = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# Environment variables
+dotenvy = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+bigdecimal = { workspace = true }
+
+# Shared libraries
+lib-core = { workspace = true }
+lib-backend = { workspace = true, features = [
+  "jwt",
+  "telemetry",
+  "db",
+  "axum",
+] }
+lib-perlengkapan = { workspace = true, features = ["backend", "contracts"] }
+
+# Sibling services. The alias keeps the historical import path
+# `layanan_perlengkapan_integrasi` working in the moved kebutuhan_bmn code; it
+# can be renamed once the call sites are touched in a follow-up commit.
+layanan-perlengkapan-integrasi = { package = "layanan-integrasi", path = "../integrasi" }
+
+# gRPC (clients to authenc, secreton, integrasi — backend↔backend external)
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+http = { workspace = true }
+http-body = { workspace = true }
+http-body-util = { workspace = true }
+
+async-trait = { workspace = true }
+
+# Metrics
+prometheus = { workspace = true }
+
+# Scheduler
+tokio-cron-scheduler = { workspace = true }
+
+# Excel generation (dipakai by export modules; akan dishare lintas modul)
+rust_xlsxwriter = { workspace = true }
+
+# Document generation (dokumen module)
+handlebars = { workspace = true }
+printpdf = { workspace = true }
+docx-rs = { workspace = true }
+aes-gcm = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
+regex = { workspace = true }
+clamav-client = { workspace = true, optional = true }
+
+# Notifikasi module (email/SMS/WhatsApp/push/in-app, queue, scheduler)
+lettre = { workspace = true }
+redis = { workspace = true }
+dashmap = { workspace = true }
+futures = { workspace = true }
+
+# Trait contract DTOs (DocumentArtifact carries `bytes::Bytes` in preview())
+bytes = { workspace = true }
+
+# Migrations runner (embeds migrations/V*.sql at compile time)
+refinery = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
+
+[dev-dependencies]
+mockall = { workspace = true }
+mime = { workspace = true }
+axum-test = { workspace = true }
+tempfile = { workspace = true }
+proptest = { workspace = true }

@@ -369,13 +369,14 @@ pub struct PenghapusanBmnWorkflow {
     pub validator_pusat_id: Option<String>,
     pub tanggal_submit_pusat: Option<String>,
     pub tanggal_verifikasi_pusat: Option<String>,
-    // SK Document
+    // SK Document — DOCX (editable) + PDF (final) produced side-by-side.
     pub konsep_sk_url: Option<String>,
     pub konsep_sk_generated_at: Option<String>,
+    pub konsep_sk_pdf_url: Option<String>,
+    pub konsep_sk_pdf_generated_at: Option<String>,
     pub signed_sk_pdf_url: Option<String>,
     pub signed_sk_pdf_uploaded_at: Option<String>,
     pub is_completed: bool,
-    // Legacy
     pub document_id: Option<String>,
     pub document_url: Option<String>,
     pub created_by: String,
@@ -518,17 +519,13 @@ pub struct CreatePemeliharaanRequest {
 }
 
 // ============ Response Wrappers ============
+//
+// `ApiResponse<T>` + `PaginatedResponse<T>` live in `lib_perlengkapan::response`
+// so the backend (axum) and the frontend (Leptos WASM) share one definition
+// and a single on-wire shape. Re-export here so existing call sites that
+// reference `crate::api::common::ApiResponse` keep compiling.
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PaginatedResponse<T> {
-    pub success: bool,
-    pub data: Vec<T>,
-    pub total: i64,
-    pub page: i32,
-    pub per_page: i32,
-    pub total_pages: i32,
-    pub message: String,
-}
+pub use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DashboardStats {
@@ -547,12 +544,9 @@ pub struct CategoryStat {
     pub value: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse<T> {
-    pub success: bool,
-    pub data: T,
-    pub message: String,
-}
+// `ApiResponse` is re-exported from `lib_perlengkapan::response` above
+// (see "Response Wrappers" section), so this previously-local definition
+// is gone — single source of truth shared with the backend.
 
 // ============ API Client Functions ============
 

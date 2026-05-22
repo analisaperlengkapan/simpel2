@@ -48,9 +48,13 @@ pub struct IzinPemakaianBmn {
     pub is_renewal: bool,
     pub previous_permit_id: Option<String>,
     pub file_pendukung: Option<Value>,
-    // Document generation fields
+    // Document generation fields — both DOCX (editable) and PDF (final) are
+    // produced side-by-side; URLs point at the streaming routes
+    // `…/{id}/konsep-surat.docx` and `.pdf`.
     pub konsep_surat_url: Option<String>,
     pub konsep_surat_generated_at: Option<String>,
+    pub konsep_surat_pdf_url: Option<String>,
+    pub konsep_surat_pdf_generated_at: Option<String>,
     pub signed_pdf_url: Option<String>,
     pub signed_pdf_uploaded_at: Option<String>,
     pub is_completed: Option<bool>,

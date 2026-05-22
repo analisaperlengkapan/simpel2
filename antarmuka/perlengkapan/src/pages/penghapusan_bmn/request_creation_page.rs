@@ -14,6 +14,8 @@ use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::features::auth::AuthService;
+
 // ============================================================================
 // API Models
 // ============================================================================
@@ -124,12 +126,31 @@ pub fn RequestCreationPage() -> impl IntoView {
             return;
         }
 
+        // Project satker_id from the JWT-backed session. Refuse the
+        // submission with a user-facing message if the claim is missing —
+        // the backend will reject the request anyway, so failing early on
+        // the client gives a cleaner UX.
+        let satker_id = match AuthService::load_session()
+            .and_then(|s| s.satker_id)
+            .and_then(|s| Uuid::parse_str(&s).ok())
+        {
+            Some(id) => id,
+            None => {
+                set_error.set(Some(
+                    "Anda belum terdaftar di satker manapun (satker_id kosong). \
+                     Hubungi admin perlengkapan untuk pemetaan satker."
+                        .to_string(),
+                ));
+                return;
+            }
+        };
+
         spawn_local(async move {
             set_loading.set(true);
             set_error.set(None);
 
             let request = CreatePenghapusanRequest {
-                satker_id: Uuid::new_v4(), // TODO: Get from auth context
+                satker_id,
                 alasan: alasan.clone(),
                 metode_penghapusan: metode.get(),
             };

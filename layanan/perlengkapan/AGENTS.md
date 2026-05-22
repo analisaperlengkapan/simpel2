@@ -48,40 +48,67 @@ Service ini berkomunikasi dengan:
 
 ### Crate Structure
 
+Per refactor `refactor/perlengkapan-unified`: a single package owns every
+domain. The previous `crates/{api,dokumen,notifikasi,bantuan}` split is
+gone — modules now sit as siblings under `src/` and depend on each other
+through ports & adapters (traits in `lib-perlengkapan::contracts`).
+
 ```
 layanan/perlengkapan/
-├── Cargo.toml              # Virtual manifest (build = false)
+├── Cargo.toml              # unified package: layanan-perlengkapan
 ├── Dockerfile
-├── build.rs
-└── crates/
-    ├── api/                # Main REST API service
-    │   ├── src/
-    │   │   ├── main.rs    # Entry point
-    │   │   ├── lib.rs     # Library exports
-    │   │   ├── handlers/  # HTTP handlers
-    │   │   ├── models/    # Data models
-    │   │   └── config.rs  # Configuration
-    │   ├── build.rs      # Proto compilation
-    │   └── Cargo.toml
-    ├── dokumen/           # Document management service
-    │   ├── src/
-    │   │   ├── lib.rs
-    │   │   ├── handlers/
-    │   │   └── storage/
-    │   └── Cargo.toml
-    ├── notifikasi/        # Notification service
-    │   ├── src/
-    │   │   ├── lib.rs
-    │   │   ├── handlers/
-    │   │   └── channels/
-    │   └── Cargo.toml
-    └── bantuan/           # Help/ticket system
-        ├── src/
-        │   ├── lib.rs
-        │   ├── handlers/
-        │   └── workflow/
-        └── Cargo.toml
+├── build.rs                # compiles authenc/secreton/integrasi protos
+├── migrations/             # V001..V0XX SQL, embedded via refinery
+└── src/
+    ├── main.rs             # bin entrypoint, wires AppState
+    ├── lib.rs              # module declarations
+    ├── state.rs            # AppState (carries Arc<dyn DocumentGenerator>
+    │                       #            + Arc<dyn NotificationSender>)
+    ├── routes.rs           # axum router composition
+    ├── handlers.rs         # shared handler scaffolding
+    ├── migrations.rs       # refinery::embed_migrations! runner
+    │
+    ├── grpc_clients.rs     # authenc/secreton/integrasi clients (external)
+    │
+    ├── bank_aset/          # BMN catalog
+    ├── kebutuhan_bmn/      # needs assessment + SIMAN integration
+    ├── pakaian_dinas/      # uniform allocation
+    ├── pemakaian_bmn/      # usage permits + scheduler
+    ├── penghapusan_bmn/    # asset disposal
+    ├── roadmap_sarpras/    # facilities roadmap
+    ├── mapping_kodefikasi/ # asset coding
+    ├── dashboard/          # KPI dashboard + WebSocket
+    ├── admin/              # user/role admin (local to perlengkapan)
+    ├── workflow/           # approval state machine + SLA monitor
+    │   ├── engine.rs       # holds Arc<dyn DocumentGenerator>
+    │   │                   #     + Arc<dyn NotificationSender>
+    │   ├── sla.rs          # idem
+    │   ├── sla_scheduler.rs
+    │   └── notification_types.rs  # WorkflowNotificationType +
+    │                                # to_notification_message() adapter
+    │
+    ├── dokumen/            # templates + PDF/Excel generators + storage
+    │   └── service.rs      # impl DocumentGenerator (real prod wiring)
+    ├── notifikasi/         # email/SMS/whatsapp/push/in-app + queue
+    │   └── service.rs      # impl NotificationSender (in-app real, others stub)
+    └── bantuan/            # FAQ, ticketing, knowledge base, chatbot
+        └── ticket.rs       # injects NotificationSender for tiket events
 ```
+
+### Why this shape
+
+- **Ports & adapters**: cross-module calls go through trait contracts in
+  `lib-perlengkapan::contracts` (`DocumentGenerator`, `NotificationSender`,
+  `AuditSink`, `DocumentStorage`). The workflow engine no longer takes a
+  concrete `DokumenClient` — it takes `Arc<dyn DocumentGenerator>`, so the
+  module can be replaced or extracted to its own crate later without
+  touching call sites.
+- **No internal gRPC**: the old workflow → dokumen / workflow → notifikasi
+  proto-over-Tonic clients are gone. Direct in-process trait dispatch
+  removes the serialization hop and the second binary.
+- **Migrations**: `migrations/V*.sql` is the source of truth, applied by
+  refinery on startup. The legacy hand-coded `Database::migrate` runs
+  after, for tables that don't have a refinery file yet.
 
 ### Communication Flow
 
@@ -285,7 +312,7 @@ request.validate().map_err(AppError::Validation)?;
 ### 3. Add gRPC Service Method
 
 1. Update proto file in `proto/`
-2. Regenerate code: `cargo build -p layanan-perlengkapan-api`
+2. Regenerate code: `cargo build -p layanan-perlengkapan`
 3. Implement service in `crates/api/src/grpc/`
 4. Add to router
 
@@ -366,19 +393,19 @@ request.validate().map_err(AppError::Validation)?;
 ### Unit Tests
 
 ```bash
-cargo test -p layanan-perlengkapan-api
+cargo test -p layanan-perlengkapan
 ```
 
 ### Integration Tests
 
 ```bash
-cargo test -p layanan-perlengkapan-api --features integration-tests
+cargo test -p layanan-perlengkapan --features integration-tests
 ```
 
 ### Build
 
 ```bash
-cargo build -p layanan-perlengkapan-api --release
+cargo build -p layanan-perlengkapan --release
 ```
 
 ---
@@ -395,13 +422,13 @@ cargo run
 ### Production Build
 
 ```bash
-cargo build -p layanan-perlengkapan-api --release
+cargo build -p layanan-perlengkapan --release
 ```
 
 ### Docker Build
 
 ```bash
-docker build -t layanan-perlengkapan-api:latest .
+docker build -t layanan-perlengkapan:latest .
 ```
 
 ---
@@ -414,7 +441,7 @@ docker build -t layanan-perlengkapan-api:latest .
 antarmuka/perlengkapan (WASM)
   → reads JWT from localStorage key `auth_token`
   → calls REST API at /api/pembinaan/perlengkapan/*
-  → layanan-perlengkapan-api (Axum)
+  → layanan-perlengkapan (Axum)
     → validates JWT via gRPC → authenc-grpc
     → fetches secrets via gRPC → secreton-grpc
     → queries PostgreSQL via deadpool-postgres

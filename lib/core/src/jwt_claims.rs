@@ -32,6 +32,21 @@ pub struct Claims {
     #[serde(default)]
     pub satker_code: Option<String>,
 
+    /// Satker UUID — paired with `satker_code` so frontends that need a
+    /// stable foreign key (request payloads, BMN ownership checks) can
+    /// project it directly without a round-trip lookup. Optional because
+    /// some legacy users in authenc still lack the mapping; callers must
+    /// handle `None` (typically by surfacing an "Anda belum terdaftar di
+    /// satker manapun" error before submission).
+    #[serde(default)]
+    pub satker_id: Option<String>,
+
+    /// Human-readable satker name. Convenience field for surfaces like
+    /// `pemakaian_bmn_form` that want to display the satker name without
+    /// fetching it again.
+    #[serde(default)]
+    pub satker_nama: Option<String>,
+
     /// Realm access (roles)
     #[serde(default)]
     pub realm_access: Option<RealmAccess>,

@@ -127,7 +127,7 @@ cd antarmuka/perlengkapan && trunk serve --port 8081 --open
 **Backend API:**
 
 ```bash
-cargo run --bin layanan-perlengkapan-api
+cargo run --bin layanan-perlengkapan
 cargo run --bin authenc
 cargo run --bin secreton
 ```

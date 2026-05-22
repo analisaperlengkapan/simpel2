@@ -96,6 +96,34 @@ pub async fn api_get_binary(path: &str) -> AppResult<Vec<u8>> {
     resp.binary().await.map_err(AppError::from)
 }
 
+/// POST a JSON body and consume the response as raw bytes. Used by the
+/// `/admin/templates/{id}/preview` flow where the response is a rendered
+/// PDF/DOCX/XLSX blob the caller drops into a blob URL + `<iframe>`.
+pub async fn api_post_binary<B: Serialize + ?Sized>(
+    path: &str,
+    body: &B,
+) -> AppResult<Vec<u8>> {
+    let token = require_auth_token()?;
+    let url = full_url(path);
+
+    let resp = Request::post(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Content-Type", "application/json")
+        .json(body)
+        .map_err(AppError::from)?
+        .send()
+        .await
+        .map_err(AppError::from)?;
+
+    let status = resp.status();
+    if !(200..300).contains(&status) {
+        let body = resp.text().await.unwrap_or_default();
+        return Err(AppError::from_status(status, &body));
+    }
+
+    resp.binary().await.map_err(AppError::from)
+}
+
 pub async fn api_post<B: Serialize + ?Sized, T: DeserializeOwned>(
     path: &str,
     body: &B,
@@ -121,6 +149,22 @@ pub async fn api_post_empty<T: DeserializeOwned>(path: &str) -> AppResult<T> {
     let url = full_url(path);
 
     let resp = Request::post(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(AppError::from)?;
+
+    parse_response(resp).await
+}
+
+/// PATCH with no request body (e.g. flipping a flag on the server). Used by
+/// the notifikasi center to mark a single notification as read.
+pub async fn api_patch_empty<T: DeserializeOwned>(path: &str) -> AppResult<T> {
+    let token = require_auth_token()?;
+    let url = full_url(path);
+
+    let resp = Request::patch(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .header("Accept", "application/json")
         .send()

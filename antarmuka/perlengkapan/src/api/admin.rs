@@ -209,3 +209,113 @@ pub async fn delete_master_record(source: &str, id: &str) -> AppResult<()> {
     let url = format!("{API_BASE}/admin/master/{source}/{id}");
     api_delete_empty(&url).await
 }
+
+// ═════════════════════════════════════════════════════════════════════════
+// User catalog + role assignments
+// ═════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserRoleAssignment {
+    pub nip: String,
+    pub nama: String,
+    pub jabatan: Option<String>,
+    pub golongan: Option<String>,
+    pub satker_code: Option<String>,
+    pub satker_name: Option<String>,
+    #[serde(default)]
+    pub assigned_roles: Vec<String>,
+    pub active_role: Option<String>,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AdminUsersFilter {
+    pub search: Option<String>,
+    pub role: Option<String>,
+    pub satker_code: Option<String>,
+}
+
+fn url_encode(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+            out.push(ch);
+        } else {
+            for byte in ch.to_string().as_bytes() {
+                out.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    out
+}
+
+/// `GET /admin/users?search=&role=&satker_code=`
+pub async fn fetch_admin_users(
+    filter: &AdminUsersFilter,
+) -> AppResult<Vec<UserRoleAssignment>> {
+    let mut url = format!("{API_BASE}/admin/users?");
+    let mut first = true;
+    let mut push = |key: &str, val: &str| {
+        if !val.is_empty() {
+            if !first {
+                url.push('&');
+            }
+            url.push_str(key);
+            url.push('=');
+            url.push_str(&url_encode(val));
+            first = false;
+        }
+    };
+    push("search", filter.search.as_deref().unwrap_or(""));
+    push("role", filter.role.as_deref().unwrap_or(""));
+    push("satker_code", filter.satker_code.as_deref().unwrap_or(""));
+
+    let resp: Wrap<Vec<UserRoleAssignment>> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}
+
+/// `GET /admin/users/{nip}`
+pub async fn fetch_admin_user(nip: &str) -> AppResult<UserRoleAssignment> {
+    let url = format!("{API_BASE}/admin/users/{}", url_encode(nip));
+    let resp: Wrap<UserRoleAssignment> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct AssignRoleBody<'a> {
+    pub role: &'a str,
+}
+
+/// `POST /admin/users/{nip}/roles` — assign a role. Returns the refreshed
+/// user row.
+pub async fn assign_admin_role(
+    nip: &str,
+    role: &str,
+) -> AppResult<UserRoleAssignment> {
+    let url = format!("{API_BASE}/admin/users/{}/roles", url_encode(nip));
+    let body = AssignRoleBody { role };
+    let resp: Wrap<UserRoleAssignment> = api_post(&url, &body).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}
+
+/// `DELETE /admin/users/{nip}/roles/{role}`
+pub async fn unassign_admin_role(
+    nip: &str,
+    role: &str,
+) -> AppResult<()> {
+    let url = format!(
+        "{API_BASE}/admin/users/{}/roles/{}",
+        url_encode(nip),
+        url_encode(role)
+    );
+    api_delete_empty(&url).await
+}
