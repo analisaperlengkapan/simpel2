@@ -26,9 +26,10 @@ pub async fn insert_audit_log(
     ip_address: Option<&str>,
     user_agent: Option<&str>,
 ) -> Result<(), AppError> {
-    let client = pool.get().await.map_err(|e| {
-        AppError::Validation(format!("audit pool: {e}").into_boxed_str())
-    })?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| AppError::Validation(format!("audit pool: {e}").into_boxed_str()))?;
 
     // Combine user_agent (a request-context hint) into metadata so the
     // shared schema keeps one JSONB column for free-form context.
@@ -79,9 +80,10 @@ pub async fn query_audit_logs(
     limit: i64,
 ) -> Result<Vec<serde_json::Value>, AppError> {
     let limit = limit.clamp(1, 500);
-    let client = pool.get().await.map_err(|e| {
-        AppError::Validation(format!("audit pool: {e}").into_boxed_str())
-    })?;
+    let client = pool
+        .get()
+        .await
+        .map_err(|e| AppError::Validation(format!("audit pool: {e}").into_boxed_str()))?;
 
     let rows = if let Some(nid) = notification_id {
         let nid_str = nid.to_string();

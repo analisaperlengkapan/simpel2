@@ -11,10 +11,6 @@ use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
 
-use layanan_perlengkapan::{
-    dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn,
-    penghapusan_bmn, roadmap_sarpras, routes, services, workflow,
-};
 use layanan_perlengkapan::shared::{
     cache::CacheManager,
     db::Database,
@@ -22,7 +18,13 @@ use layanan_perlengkapan::shared::{
     middleware,
     rate_limit::{RateLimitConfig, RateLimiter},
 };
-use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
+use layanan_perlengkapan::{
+    dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn, penghapusan_bmn,
+    roadmap_sarpras, routes, services, workflow,
+};
+use lib_perlengkapan::contracts::{
+    AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
+};
 
 use dashboard::services::DashboardService;
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
@@ -180,24 +182,32 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Ports & adapters: dokumen + notifikasi service traits ────────────
     let template_service = Arc::new(dokumen::TemplateService::new());
-    let pdf_generator =
-        Arc::new(dokumen::PdfGenerator::new(dokumen::TemplateService::new()));
+    let pdf_generator = Arc::new(dokumen::PdfGenerator::new(dokumen::TemplateService::new()));
     let excel_generator = Arc::new(dokumen::excel_generator::ExcelGenerator::new());
-    let docx_generator =
-        Arc::new(dokumen::DocxGenerator::new(dokumen::TemplateService::new()));
-    let docs: Arc<dyn DocumentGenerator> = Arc::new(dokumen::service::DokumenService::new(
-        db.pool().clone(),
-        template_service.clone(),
-        pdf_generator,
-        excel_generator,
-        docx_generator,
-    ));
-    let notifier: Arc<dyn NotificationSender> =
-        Arc::new(notifikasi::service::NotifikasiService::new(db.pool().clone()));
+    let docx_generator = Arc::new(dokumen::DocxGenerator::new(dokumen::TemplateService::new()));
+    let document_storage_for_docs: Arc<dyn DocumentStorage> =
+        Arc::new(dokumen::FilesystemStorage::from_env());
+    let docs: Arc<dyn DocumentGenerator> = Arc::new(
+        dokumen::service::DokumenService::new(
+            db.pool().clone(),
+            template_service.clone(),
+            pdf_generator,
+            excel_generator,
+            docx_generator,
+        )
+        .with_storage(document_storage_for_docs.clone()),
+    );
+    let notifier: Arc<dyn NotificationSender> = Arc::new(
+        notifikasi::service::NotifikasiService::new(db.pool().clone()),
+    );
     let audit_sink: Arc<dyn AuditSink> = Arc::new(
         layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
     );
-    info!("DocumentGenerator + NotificationSender + AuditSink ports wired up");
+    // Re-use the same storage adapter on AppState so external callers
+    // (e.g. handlers that want to stream by storage_key) hit the same
+    // backend the generator wrote to.
+    let document_storage: Arc<dyn DocumentStorage> = document_storage_for_docs;
+    info!("DocumentGenerator + NotificationSender + AuditSink + DocumentStorage ports wired up");
 
     // Create Pakaian Dinas service
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
@@ -244,8 +254,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Start SLA escalation scheduler for workflow monitoring — now wired to
     // the NotificationSender port instead of the deleted gRPC client.
-    let sla_scheduler = workflow::SlaEscalationScheduler::new(db.pool().clone())
-        .with_notifier(notifier.clone());
+    let sla_scheduler =
+        workflow::SlaEscalationScheduler::new(db.pool().clone()).with_notifier(notifier.clone());
     if let Err(e) = sla_scheduler.start() {
         error!("Failed to start SLA escalation scheduler: {}", e);
     } else {
@@ -305,6 +315,7 @@ async fn main() -> anyhow::Result<()> {
         docs,
         notifier,
         audit_sink,
+        document_storage,
         boot_time: std::time::Instant::now(),
     };
 
@@ -348,9 +359,18 @@ fn build_router(state: AppState) -> Router {
 
     // Health check routes (no auth or rate limiting required)
     let health_routes = Router::new()
-        .route("/health", get(layanan_perlengkapan::shared::health::health_check))
-        .route("/health/ready", get(layanan_perlengkapan::shared::health::readiness_check))
-        .route("/health/live", get(layanan_perlengkapan::shared::health::liveness_check))
+        .route(
+            "/health",
+            get(layanan_perlengkapan::shared::health::health_check),
+        )
+        .route(
+            "/health/ready",
+            get(layanan_perlengkapan::shared::health::readiness_check),
+        )
+        .route(
+            "/health/live",
+            get(layanan_perlengkapan::shared::health::liveness_check),
+        )
         .route("/metrics", get(middleware::metrics::metrics_handler))
         .with_state(Arc::new(state.clone()));
 

@@ -1,10 +1,8 @@
 //! Bantuan module — FAQ, ticketing, knowledge base, chatbot, analytics,
-//! rate limiting, captcha, GDPR export/import.
-//!
-//! Previously a separate crate (`layanan-perlengkapan-bantuan`); folded into
-//! the unified service. The original standalone `main.rs` is gone; the
-//! unified `src/main.rs` wires up bantuan handlers via the shared AppState
-//! once the trait integration with notifikasi lands.
+//! rate limiting, captcha, GDPR export/import. Notifikasi integration goes
+//! through the [`lib_perlengkapan::contracts::NotificationSender`] +
+//! [`lib_perlengkapan::contracts::AuditSink`] traits wired into
+//! [`AppState`](crate::state::AppState).
 
 #![allow(dead_code)]
 
@@ -38,4 +36,3 @@ pub struct AppState {
     pub metrics_registry: prometheus::Registry,
     pub rate_limit: rate_limit::RateLimitState,
 }
-

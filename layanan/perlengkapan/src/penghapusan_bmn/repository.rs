@@ -328,20 +328,13 @@ impl PenghapusanBmnRepository {
             WHERE id = $5
         "#;
         client
-            .execute(
-                query,
-                &[&docx_url, &docx_path, &pdf_url, &pdf_path, &id],
-            )
+            .execute(query, &[&docx_url, &docx_path, &pdf_url, &pdf_path, &id])
             .await?;
         Ok(())
     }
 
     /// Fetch the on-disk path the route handler should stream from.
-    pub async fn konsep_sk_path(
-        &self,
-        id: Uuid,
-        format: &str,
-    ) -> AppResult<Option<String>> {
+    pub async fn konsep_sk_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
         let column = match format {
             "docx" => "konsep_sk_docx_path",
             "pdf" => "konsep_sk_pdf_path",

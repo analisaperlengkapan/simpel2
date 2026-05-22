@@ -1,12 +1,19 @@
 use axum::extract::FromRef;
 use std::sync::Arc;
 
-use lib_perlengkapan::contracts::{AuditSink, DocumentGenerator, NotificationSender};
+use lib_perlengkapan::contracts::{
+    AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
+};
 
-use crate::{dashboard, dashboard::services::DashboardService, kebutuhan_bmn::KebutuhanBmnService, pakaian_dinas::PakaianDinasService, pemakaian_bmn::PemakaianBmnService, penghapusan_bmn::PenghapusanBmnService, roadmap_sarpras::RoadmapService, services::PerlengkapanService};
 use crate::shared::cache::CacheManager;
 use crate::shared::grpc::clients::AuthencClient;
 use crate::shared::rate_limit::RateLimiter;
+use crate::{
+    dashboard, dashboard::services::DashboardService, kebutuhan_bmn::KebutuhanBmnService,
+    pakaian_dinas::PakaianDinasService, pemakaian_bmn::PemakaianBmnService,
+    penghapusan_bmn::PenghapusanBmnService, roadmap_sarpras::RoadmapService,
+    services::PerlengkapanService,
+};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -30,6 +37,10 @@ pub struct AppState {
     /// Cross-module audit sink. Concrete impl writes to
     /// `perlengkapan.audit_log` (see `shared::audit::PgAuditSink`).
     pub audit_sink: Arc<dyn AuditSink>,
+    /// Document storage adapter. Filesystem-backed today
+    /// (`dokumen::FilesystemStorage`); swappable for an S3 adapter in a
+    /// follow-up without touching call sites.
+    pub document_storage: Arc<dyn DocumentStorage>,
     /// Wall-clock instant the service finished bootstrapping; surfaced by
     /// the health endpoints as `uptime_seconds`. Cheap to clone (`Instant`
     /// is `Copy`).
@@ -117,5 +128,11 @@ impl FromRef<AppState> for Arc<dyn NotificationSender> {
 impl FromRef<AppState> for Arc<dyn AuditSink> {
     fn from_ref(state: &AppState) -> Self {
         state.audit_sink.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<dyn DocumentStorage> {
+    fn from_ref(state: &AppState) -> Self {
+        state.document_storage.clone()
     }
 }

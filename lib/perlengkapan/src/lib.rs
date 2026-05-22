@@ -46,7 +46,7 @@ pub use error::{ServiceError, ServiceResult};
 pub use gap_analysis::*;
 pub use kode_barang::*;
 pub use models::*;
-pub use pagination::{PageParams, PageResult, DEFAULT_PER_PAGE, MAX_PER_PAGE};
+pub use pagination::{DEFAULT_PER_PAGE, MAX_PER_PAGE, PageParams, PageResult};
 pub use prioritization::*;
 pub use response::{ApiResponse, ErrorBody, ErrorDetail, PageMeta, PaginatedResponse};
 pub use search::*;

@@ -73,7 +73,11 @@ pub struct AuditEvent {
 }
 
 impl AuditEvent {
-    pub fn new(module: impl Into<String>, action: AuditAction, resource_type: impl Into<String>) -> Self {
+    pub fn new(
+        module: impl Into<String>,
+        action: AuditAction,
+        resource_type: impl Into<String>,
+    ) -> Self {
         Self {
             id: Uuid::new_v4(),
             occurred_at: Utc::now(),

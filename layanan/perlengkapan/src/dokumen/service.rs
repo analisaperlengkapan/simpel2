@@ -1,15 +1,14 @@
 //! In-process [`DocumentGenerator`] implementation for the dokumen module.
 //!
-//! Wraps [`TemplateService`] + [`PdfGenerator`] + [`ExcelGenerator`] so the
-//! workflow module (and any future caller) can request document generation
-//! through the [`lib_perlengkapan::contracts::DocumentGenerator`] trait
-//! instead of the dropped internal gRPC client.
-//!
-//! Storage strategy: files land under `${DOCUMENT_STORAGE_PATH:-/tmp/perlengkapan/docs}/<uuid>.<ext>`
-//! and the artifact's `storage_key` carries that relative path. The proper
-//! [`DocumentStorage`](lib_perlengkapan::contracts::DocumentStorage)
-//! adapter (filesystem now, S3 later) lands in a follow-up commit;
-//! `storage_key` is forward-compatible with that swap.
+//! Wraps [`TemplateService`] + [`PdfGenerator`] + [`ExcelGenerator`] +
+//! [`DocxGenerator`] so the workflow module (and any future caller) can
+//! request document generation through the
+//! [`lib_perlengkapan::contracts::DocumentGenerator`] trait instead of
+//! the dropped internal gRPC client. Persisted artifacts go through the
+//! [`DocumentStorage`] port (filesystem today via
+//! [`super::FilesystemStorage`], S3 in a follow-up), so this service
+//! never touches `tokio::fs` directly — same code path swaps to any
+//! storage backend.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -19,7 +18,7 @@ use chrono::Utc;
 use deadpool_postgres::Pool;
 use lib_perlengkapan::ServiceError;
 use lib_perlengkapan::contracts::{
-    DocumentArtifact, DocumentFormat, DocumentGenerator, DocumentRequest,
+    DocumentArtifact, DocumentFormat, DocumentGenerator, DocumentRequest, DocumentStorage,
 };
 use uuid::Uuid;
 
@@ -38,6 +37,12 @@ pub struct DokumenService {
     pdf_generator: Arc<PdfGenerator>,
     excel_generator: Arc<ExcelGenerator>,
     docx_generator: Arc<DocxGenerator>,
+    /// Storage backend used by `generate()`. Optional so older test
+    /// harnesses that constructed `DokumenService` without one still
+    /// compile; when `None`, `generate()` falls back to a local
+    /// [`super::FilesystemStorage`] built from env (same default behaviour
+    /// the service had before the trait extraction).
+    storage: Option<Arc<dyn DocumentStorage>>,
 }
 
 impl DokumenService {
@@ -54,7 +59,15 @@ impl DokumenService {
             pdf_generator,
             excel_generator,
             docx_generator,
+            storage: None,
         }
+    }
+
+    /// Inject the document storage backend. The unified `AppState` wires
+    /// this to the `Arc<dyn DocumentStorage>` it constructs once at boot.
+    pub fn with_storage(mut self, storage: Arc<dyn DocumentStorage>) -> Self {
+        self.storage = Some(storage);
+        self
     }
 
     fn storage_root() -> PathBuf {
@@ -130,7 +143,8 @@ impl DokumenService {
                 Ok(bytes::Bytes::from(bytes))
             }
             DocumentFormat::Excel => {
-                let tmp_path = Self::storage_root().join(format!("preview-{}.xlsx", Uuid::new_v4()));
+                let tmp_path =
+                    Self::storage_root().join(format!("preview-{}.xlsx", Uuid::new_v4()));
                 tokio::fs::create_dir_all(tmp_path.parent().unwrap_or(&Self::storage_root()))
                     .await
                     .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
@@ -143,7 +157,8 @@ impl DokumenService {
                 Ok(bytes::Bytes::from(bytes))
             }
             DocumentFormat::Docx => {
-                let tmp_path = Self::storage_root().join(format!("preview-{}.docx", Uuid::new_v4()));
+                let tmp_path =
+                    Self::storage_root().join(format!("preview-{}.docx", Uuid::new_v4()));
                 tokio::fs::create_dir_all(tmp_path.parent().unwrap_or(&Self::storage_root()))
                     .await
                     .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
@@ -180,42 +195,49 @@ impl DokumenService {
 
 #[async_trait]
 impl DocumentGenerator for DokumenService {
-    async fn generate(
-        &self,
-        request: DocumentRequest,
-    ) -> Result<DocumentArtifact, ServiceError> {
+    async fn generate(&self, request: DocumentRequest) -> Result<DocumentArtifact, ServiceError> {
         let document_id = Uuid::new_v4();
+        let format = request.format;
         let bytes = self
-            .render_bytes(&request.template_id, request.format, &request.data)
+            .render_bytes(&request.template_id, format, &request.data)
             .await?;
 
-        let ext = Self::ext_for(request.format);
-        let storage_root = Self::storage_root();
-        tokio::fs::create_dir_all(&storage_root)
-            .await
-            .map_err(|e| ServiceError::storage(format!("create_dir_all: {}", e)))?;
+        let ext = Self::ext_for(format);
+        let content_type = Self::content_type_for(format);
+        // Storage key uses a stable, predictable layout that the matching
+        // route handler can later resolve back to the file: per-document
+        // folder keyed by the new UUID, plus an extension that reflects
+        // the rendered format.
+        let storage_key = format!("generated/{}/{}.{}", document_id, document_id, ext);
 
-        let filename = format!("{}.{}", document_id, ext);
-        let storage_path = storage_root.join(&filename);
-        let storage_key = storage_path.to_string_lossy().into_owned();
-        tokio::fs::write(&storage_path, &bytes)
-            .await
-            .map_err(|e| ServiceError::storage(format!("write {:?}: {}", storage_path, e)))?;
+        // Delegate persistence to the storage port. Without one wired we
+        // fall back to a local FilesystemStorage built from env — the
+        // adapter writes to the same layout the prior inline code did.
+        let handle = match self.storage.as_ref() {
+            Some(storage) => {
+                storage
+                    .put(&storage_key, bytes.clone(), content_type)
+                    .await?
+            }
+            None => {
+                let fallback = super::FilesystemStorage::new(Self::storage_root(), None);
+                fallback
+                    .put(&storage_key, bytes.clone(), content_type)
+                    .await?
+            }
+        };
 
         Ok(DocumentArtifact {
             document_id,
-            filename,
-            content_type: Self::content_type_for(request.format).to_string(),
-            size_bytes: bytes.len() as u64,
-            storage_key,
+            filename: format!("{}.{}", document_id, ext),
+            content_type: handle.content_type,
+            size_bytes: handle.size_bytes,
+            storage_key: handle.key,
             generated_at: Utc::now(),
         })
     }
 
-    async fn preview(
-        &self,
-        request: DocumentRequest,
-    ) -> Result<bytes::Bytes, ServiceError> {
+    async fn preview(&self, request: DocumentRequest) -> Result<bytes::Bytes, ServiceError> {
         self.render_bytes(&request.template_id, request.format, &request.data)
             .await
     }

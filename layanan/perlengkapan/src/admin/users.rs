@@ -16,9 +16,9 @@ use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::models::ApiResponse;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::{Claims, ClientIp};
-use crate::models::ApiResponse;
 use crate::state::AppState;
 
 fn require_admin(claims: &Claims) -> AppResult<()> {
@@ -202,7 +202,12 @@ pub async fn assign_role(
 ) -> AppResult<Json<ApiResponse<UserRoleAssignment>>> {
     require_admin(&claims)?;
 
-    const ALLOWED: &[&str] = &["operator_satker", "validator_wilayah", "validator_pusat", "admin"];
+    const ALLOWED: &[&str] = &[
+        "operator_satker",
+        "validator_wilayah",
+        "validator_pusat",
+        "admin",
+    ];
     if !ALLOWED.contains(&body.role.as_str()) {
         return Err(AppError::BadRequest(format!(
             "role tidak valid; pakai salah satu dari {ALLOWED:?}"
@@ -232,7 +237,11 @@ pub async fn assign_role(
             let nama: String = r.get("nama");
             (id, nama)
         }
-        None => return Err(AppError::NotFound(format!("User NIP={nip} tidak ditemukan"))),
+        None => {
+            return Err(AppError::NotFound(format!(
+                "User NIP={nip} tidak ditemukan"
+            )));
+        }
     };
 
     let role_id = Uuid::new_v4();

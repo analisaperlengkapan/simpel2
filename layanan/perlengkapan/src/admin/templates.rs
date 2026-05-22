@@ -18,17 +18,15 @@ use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use lib_perlengkapan::contracts::{
-    DocumentFormat, DocumentGenerator, DocumentRequest,
-};
+use lib_perlengkapan::contracts::{DocumentFormat, DocumentGenerator, DocumentRequest};
 
+use crate::dokumen::TemplateService;
 use crate::dokumen::template_models::{
     DocumentTemplate, ListTemplatesQuery, ListTemplatesResponse,
 };
-use crate::dokumen::TemplateService;
+use crate::models::ApiResponse;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::Claims;
-use crate::models::ApiResponse;
 use crate::state::AppState;
 
 fn require_admin(claims: &Claims) -> AppResult<()> {

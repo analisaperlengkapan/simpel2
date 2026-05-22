@@ -9,8 +9,7 @@
 //! trait consumes.
 
 use lib_perlengkapan::contracts::{
-    NotificationChannel, NotificationMessage,
-    NotificationPriority as ContractPriority,
+    NotificationChannel, NotificationMessage, NotificationPriority as ContractPriority,
 };
 use uuid::Uuid;
 

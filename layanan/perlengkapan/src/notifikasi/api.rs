@@ -13,10 +13,10 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::shared::error::{AppError, AppResult};
-use crate::shared::middleware::Claims;
 use crate::models::ApiResponse;
 use crate::notifikasi::in_app::InAppNotificationChannel;
+use crate::shared::error::{AppError, AppResult};
+use crate::shared::middleware::Claims;
 use crate::state::AppState;
 
 /// Serializable DTO mirroring the `notifikasi.in_app_notifications` columns

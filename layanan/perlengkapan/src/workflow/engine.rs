@@ -651,11 +651,8 @@ impl WorkflowEngine {
         // the prior gRPC client's send_notification_to_multiple semantics.
         let mut sent = 0usize;
         for recipient in &recipients {
-            let msg = crate::workflow::to_notification_message(
-                *recipient,
-                &notification_type,
-                priority,
-            );
+            let msg =
+                crate::workflow::to_notification_message(*recipient, &notification_type, priority);
             match notifier.send(msg).await {
                 Ok(_) => sent += 1,
                 Err(e) => tracing::error!(

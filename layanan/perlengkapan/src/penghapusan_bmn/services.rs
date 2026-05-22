@@ -205,11 +205,7 @@ impl PenghapusanBmnService {
 
     /// Filesystem path the konsep-sk route handler streams from. `format` is
     /// "docx" or "pdf".
-    pub async fn konsep_sk_path(
-        &self,
-        id: Uuid,
-        format: &str,
-    ) -> AppResult<Option<String>> {
+    pub async fn konsep_sk_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
         self.repository.konsep_sk_path(id, format).await
     }
 
@@ -238,9 +234,8 @@ impl PenghapusanBmnService {
             )
         })?;
 
-        let template_id = std::env::var("KONSEP_SK_TEMPLATE_ID").unwrap_or_else(|_| {
-            "00000000-0000-0000-0000-000000000002".to_string()
-        });
+        let template_id = std::env::var("KONSEP_SK_TEMPLATE_ID")
+            .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000002".to_string());
         let data = serde_json::json!({
             "id": id.to_string(),
             "satker_id": penghapusan.satker_id,
@@ -277,9 +272,11 @@ impl PenghapusanBmnService {
         let docx_bytes = docs.preview(docx_request).await.map_err(|e| {
             crate::shared::error::AppError::Internal(format!("konsep SK DOCX render failed: {}", e))
         })?;
-        tokio::fs::write(&docx_path, &docx_bytes).await.map_err(|e| {
-            crate::shared::error::AppError::Internal(format!("write {}: {}", docx_path, e))
-        })?;
+        tokio::fs::write(&docx_path, &docx_bytes)
+            .await
+            .map_err(|e| {
+                crate::shared::error::AppError::Internal(format!("write {}: {}", docx_path, e))
+            })?;
 
         let pdf_bytes = docs.preview(pdf_request).await.map_err(|e| {
             crate::shared::error::AppError::Internal(format!("konsep SK PDF render failed: {}", e))

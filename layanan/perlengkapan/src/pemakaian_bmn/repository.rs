@@ -1133,11 +1133,7 @@ impl PemakaianBmnRepository {
     }
 
     /// Fetch the on-disk path the route handler should stream from.
-    pub async fn konsep_surat_path(
-        &self,
-        id: Uuid,
-        format: &str,
-    ) -> AppResult<Option<String>> {
+    pub async fn konsep_surat_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
         let column = match format {
             "docx" => "konsep_surat_docx_path",
             "pdf" => "konsep_surat_pdf_path",

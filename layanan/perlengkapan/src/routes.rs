@@ -7,7 +7,10 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
-use crate::{AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn, roadmap_sarpras};
+use crate::{
+    AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas,
+    pemakaian_bmn, roadmap_sarpras,
+};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
@@ -35,10 +38,7 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/assets/{id}", get(get_asset_by_id))
         // Bank Aset (unified SIMAN façade)
         .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
-        .route(
-            "/bank-aset/lookup",
-            get(crate::bank_aset::lookup_bank_aset),
-        )
+        .route("/bank-aset/lookup", get(crate::bank_aset::lookup_bank_aset))
         .route(
             "/bank-aset/dashboard",
             get(crate::bank_aset::get_bank_aset_dashboard),
@@ -538,10 +538,7 @@ pub fn create_routes(state: AppState) -> Router {
             post(crate::notifikasi::api::mark_all_read),
         )
         .route("/admin/templates", get(crate::admin::list_templates))
-        .route(
-            "/admin/templates/{id}",
-            get(crate::admin::get_template),
-        )
+        .route("/admin/templates/{id}", get(crate::admin::get_template))
         // POST renders a live preview of the template without persisting.
         // `?format=pdf|docx|xlsx|html|csv`; body `{ "data": {...} }` overrides
         // the template's stored sample_data.
@@ -553,10 +550,7 @@ pub fn create_routes(state: AppState) -> Router {
         // (migration V018).
         .route("/admin/users", get(crate::admin::list_users))
         .route("/admin/users/{nip}", get(crate::admin::get_user))
-        .route(
-            "/admin/users/{nip}/roles",
-            post(crate::admin::assign_role),
-        )
+        .route("/admin/users/{nip}/roles", post(crate::admin::assign_role))
         .route(
             "/admin/users/{nip}/roles/{role}",
             delete(crate::admin::unassign_role),

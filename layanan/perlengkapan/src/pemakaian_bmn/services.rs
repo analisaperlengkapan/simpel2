@@ -301,11 +301,7 @@ impl PemakaianBmnService {
 
     /// Filesystem path the konsep-surat route handler streams from.
     /// `format` is "docx" or "pdf".
-    pub async fn konsep_surat_path(
-        &self,
-        id: Uuid,
-        format: &str,
-    ) -> AppResult<Option<String>> {
+    pub async fn konsep_surat_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
         self.repository.konsep_surat_path(id, format).await
     }
 
@@ -388,16 +384,18 @@ impl PemakaianBmnService {
             requested_by: None,
         };
 
-        let docx_bytes = docs.preview(docx_request).await.map_err(|e| {
-            AppError::Internal(format!("konsep surat DOCX render failed: {}", e))
-        })?;
+        let docx_bytes = docs
+            .preview(docx_request)
+            .await
+            .map_err(|e| AppError::Internal(format!("konsep surat DOCX render failed: {}", e)))?;
         tokio::fs::write(&docx_path, &docx_bytes)
             .await
             .map_err(|e| AppError::Internal(format!("write {}: {}", docx_path, e)))?;
 
-        let pdf_bytes = docs.preview(pdf_request).await.map_err(|e| {
-            AppError::Internal(format!("konsep surat PDF render failed: {}", e))
-        })?;
+        let pdf_bytes = docs
+            .preview(pdf_request)
+            .await
+            .map_err(|e| AppError::Internal(format!("konsep surat PDF render failed: {}", e)))?;
         tokio::fs::write(&pdf_path, &pdf_bytes)
             .await
             .map_err(|e| AppError::Internal(format!("write {}: {}", pdf_path, e)))?;
@@ -523,12 +521,7 @@ impl PemakaianBmnService {
         // is unambiguous about the originator. Any human-driven transition
         // arrives through the handler with a real ClientIp.
         let mut permit = self
-            .transition_permit_status(
-                id,
-                transition_request,
-                user_id,
-                "system".to_string(),
-            )
+            .transition_permit_status(id, transition_request, user_id, "system".to_string())
             .await?;
 
         // Generate permit document (REQ-P006)

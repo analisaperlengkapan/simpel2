@@ -113,7 +113,10 @@ pub async fn lookup_bank_aset(
             item,
             "BMN lookup retrieved successfully".to_string(),
         ))),
-        None => Err(AppError::NotFound(format!("BMN dengan NUP {} tidak ditemukan", q.nup))),
+        None => Err(AppError::NotFound(format!(
+            "BMN dengan NUP {} tidak ditemukan",
+            q.nup
+        ))),
     }
 }
 

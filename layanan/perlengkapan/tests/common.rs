@@ -1,3 +1,9 @@
+use layanan_perlengkapan::shared::{
+    cache::CacheManager,
+    db::Database,
+    grpc::clients::AuthencClient,
+    rate_limit::{RateLimitConfig, RateLimiter},
+};
 use layanan_perlengkapan::{
     dashboard::services::DashboardService,
     kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository},
@@ -8,12 +14,6 @@ use layanan_perlengkapan::{
     services::PerlengkapanService,
     state::AppState,
     workflow::engine::WorkflowEngine,
-};
-use layanan_perlengkapan::shared::{
-    cache::CacheManager,
-    db::Database,
-    grpc::clients::AuthencClient,
-    rate_limit::{RateLimitConfig, RateLimiter},
 };
 use std::sync::Arc;
 use tokio_postgres::{Config, NoTls};
@@ -190,22 +190,16 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
 
     // Ports & adapters: stand up real DokumenService + NotifikasiService so
     // the integration tests exercise the same trait surface production uses.
-    let template_service = std::sync::Arc::new(
+    let template_service =
+        std::sync::Arc::new(layanan_perlengkapan::dokumen::TemplateService::new());
+    let pdf_generator = std::sync::Arc::new(layanan_perlengkapan::dokumen::PdfGenerator::new(
         layanan_perlengkapan::dokumen::TemplateService::new(),
-    );
-    let pdf_generator = std::sync::Arc::new(
-        layanan_perlengkapan::dokumen::PdfGenerator::new(
-            layanan_perlengkapan::dokumen::TemplateService::new(),
-        ),
-    );
-    let excel_generator = std::sync::Arc::new(
-        layanan_perlengkapan::dokumen::excel_generator::ExcelGenerator::new(),
-    );
-    let docx_generator = std::sync::Arc::new(
-        layanan_perlengkapan::dokumen::DocxGenerator::new(
-            layanan_perlengkapan::dokumen::TemplateService::new(),
-        ),
-    );
+    ));
+    let excel_generator =
+        std::sync::Arc::new(layanan_perlengkapan::dokumen::excel_generator::ExcelGenerator::new());
+    let docx_generator = std::sync::Arc::new(layanan_perlengkapan::dokumen::DocxGenerator::new(
+        layanan_perlengkapan::dokumen::TemplateService::new(),
+    ));
     let docs: std::sync::Arc<dyn lib_perlengkapan::contracts::DocumentGenerator> =
         std::sync::Arc::new(layanan_perlengkapan::dokumen::service::DokumenService::new(
             db.pool().clone(),
@@ -234,8 +228,11 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         rate_limiter: Arc::new(RateLimiter::new(RateLimitConfig::from_env())),
         docs,
         notifier,
-        audit_sink: std::sync::Arc::new(
-            layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
+        audit_sink: std::sync::Arc::new(layanan_perlengkapan::shared::audit::PgAuditSink::new(
+            db.pool().clone(),
+        )),
+        document_storage: std::sync::Arc::new(
+            layanan_perlengkapan::dokumen::FilesystemStorage::from_env(),
         ),
         boot_time: std::time::Instant::now(),
     };

@@ -3,8 +3,8 @@
 //! Simplified read-only database operations for mapping kodefikasi.
 //! No proposal/verification CRUD — only queries for standard/non-standard codes.
 
-use crate::shared::error::AppError;
 use crate::mapping_kodefikasi::models::*;
+use crate::shared::error::AppError;
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 

@@ -18,8 +18,8 @@ use chrono::Utc;
 use deadpool_postgres::Pool;
 use lib_perlengkapan::ServiceError;
 use lib_perlengkapan::contracts::{
-    NotificationChannel, NotificationMessage, NotificationPriority,
-    NotificationReceipt, NotificationSender,
+    NotificationChannel, NotificationMessage, NotificationPriority, NotificationReceipt,
+    NotificationSender,
 };
 use uuid::Uuid;
 

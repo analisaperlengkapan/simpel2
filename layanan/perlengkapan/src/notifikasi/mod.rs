@@ -1,10 +1,8 @@
 //! Notifikasi module — email/SMS/WhatsApp/push/in-app delivery, templates,
-//! preferences, queue processing, WebSocket fan-out.
-//!
-//! Previously a separate crate (`layanan-perlengkapan-notifikasi`); folded
-//! into the unified service. The internal gRPC server (`grpc_service`) was
-//! dropped because workflow/bantuan no longer call notifikasi via gRPC — they
-//! use the [`lib_perlengkapan::contracts::NotificationSender`] trait.
+//! preferences, queue processing, WebSocket fan-out. Cross-module callers
+//! (workflow, bantuan) reach this module through the
+//! [`lib_perlengkapan::contracts::NotificationSender`] trait wired into
+//! [`AppState`](crate::state::AppState).
 
 // Many services and queue processors contain placeholder/stub fields with
 // unused variables and dead code that will be cleaned up incrementally.
