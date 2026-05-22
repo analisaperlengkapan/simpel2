@@ -21,6 +21,20 @@ pub struct BankAsetItem {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Slim lookup response used by the pemakaian-bmn form when the user types a
+/// NUP — the frontend auto-fills `bmn_kode_barang` + `bmn_nama_barang`.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BankAsetLookup {
+    pub id: Uuid,
+    pub nup: String,
+    pub kode_barang: Option<String>,
+    pub nama_barang: Option<String>,
+    pub merk: Option<String>,
+    pub tahun_perolehan: Option<String>,
+    pub kondisi: Option<String>,
+    pub satker: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BankAsetDetail {
     #[serde(flatten)]

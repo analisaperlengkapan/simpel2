@@ -12,8 +12,9 @@
 
 use crate::api::{
     BmnAvailabilityResponse, CreateBmnItemRequest, CreateIzinPemakaianRequest,
-    check_bmn_availability, create_pemakaian_bmn,
+    bank_aset::lookup_by_nup, check_bmn_availability, create_pemakaian_bmn,
 };
+use crate::features::auth::AuthService;
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::hooks::use_navigate;
@@ -27,6 +28,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     let (bmn_nup, set_bmn_nup) = signal("".to_string());
     let (bmn_availability, set_bmn_availability) = signal(None::<BmnAvailabilityResponse>);
     let (checking_availability, set_checking_availability) = signal(false);
+
+    // Auto-filled from `GET /bank-aset/lookup?nup=...` when the operator enters
+    // a NUP; pre-loaded into the request payload so the operator doesn't have
+    // to retype the catalog data.
+    let (bmn_kode_barang, set_bmn_kode_barang) = signal(String::new());
+    let (bmn_nama_barang, set_bmn_nama_barang) = signal(String::new());
+    let (bmn_merk, set_bmn_merk) = signal(String::new());
+    let (bmn_tahun_perolehan, set_bmn_tahun_perolehan) = signal(String::new());
 
     // Pegawai info
     let (pegawai_nip, set_pegawai_nip) = signal("".to_string());
@@ -67,7 +76,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let navigate = use_navigate();
 
-    // Check BMN availability when NUP changes
+    // Check BMN availability + auto-fill catalog fields (kode_barang,
+    // nama_barang, merk, tahun_perolehan) when the operator enters a NUP.
+    // Both calls are kicked off in parallel from the same handler so the UI
+    // only has one "check" button.
     let check_availability = move |_| {
         let nup = bmn_nup.get();
         if nup.is_empty() {
@@ -76,9 +88,16 @@ pub fn PemakaianBmnForm() -> impl IntoView {
 
         set_checking_availability.set(true);
         set_bmn_availability.set(None);
+        // Reset previous lookup so the operator sees a clean slate while
+        // the new query is in flight.
+        set_bmn_kode_barang.set(String::new());
+        set_bmn_nama_barang.set(String::new());
+        set_bmn_merk.set(String::new());
+        set_bmn_tahun_perolehan.set(String::new());
 
+        let nup_for_avail = nup.clone();
         leptos::task::spawn_local(async move {
-            match check_bmn_availability(&nup).await {
+            match check_bmn_availability(&nup_for_avail).await {
                 Ok(response) => {
                     set_bmn_availability.set(Some(response.data));
                 }
@@ -87,6 +106,26 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 }
             }
             set_checking_availability.set(false);
+        });
+
+        leptos::task::spawn_local(async move {
+            match lookup_by_nup(&nup).await {
+                Ok(Some(item)) => {
+                    set_bmn_kode_barang.set(item.kode_barang.unwrap_or_default());
+                    set_bmn_nama_barang.set(item.nama_barang.unwrap_or_default());
+                    set_bmn_merk.set(item.merk.unwrap_or_default());
+                    set_bmn_tahun_perolehan.set(item.tahun_perolehan.unwrap_or_default());
+                }
+                Ok(None) => {
+                    // Don't surface this as a hard error — the availability
+                    // check above will tell the user whether the NUP exists
+                    // in any meaningful sense.
+                    tracing::warn!(nup = %nup, "NUP not found in bank-aset lookup");
+                }
+                Err(e) => {
+                    tracing::warn!(nup = %nup, error = %e, "bank-aset lookup failed");
+                }
+            }
         });
     };
 
@@ -114,12 +153,31 @@ pub fn PemakaianBmnForm() -> impl IntoView {
         set_error.set(None);
         set_success.set(false);
 
+        // Pull satker context from the JWT-backed session. The operator MUST
+        // be attached to a satker on the authenc side for the permit to be
+        // valid — surface a clear error if the mapping hasn't synced yet.
+        let session = AuthService::load_session();
+        let satker_id = session.as_ref().and_then(|s| s.satker_id.clone());
+        let satker_nama = session.as_ref().and_then(|s| s.satker_nama.clone());
+        let satker_id = match satker_id {
+            Some(id) => id,
+            None => {
+                set_error.set(Some(
+                    "Anda belum terdaftar di satker manapun (satker_id kosong). \
+                     Hubungi admin perlengkapan untuk pemetaan satker."
+                        .to_string(),
+                ));
+                set_loading.set(false);
+                return;
+            }
+        };
+
         // Build request based on jenis_bmn
         let request = CreateIzinPemakaianRequest {
             pegawai_nip: pegawai_nip.get(),
             pegawai_nama: pegawai_nama.get(),
-            pegawai_satker_id: "".to_string(), // TODO: Get from user context
-            pegawai_satker_nama: "".to_string(), // TODO: Get from user context
+            pegawai_satker_id: satker_id,
+            pegawai_satker_nama: satker_nama.unwrap_or_default(),
             pegawai_jabatan: None,
             pegawai_golongan: if pegawai_golongan.get().is_empty() {
                 None
@@ -143,10 +201,17 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             },
             jenis_bmn: jenis_bmn.get(),
             bmn_nup: bmn_nup.get(),
-            bmn_kode_barang: "".to_string(), // TODO: Get from BMN data when NUP is entered
-            bmn_nama_barang: "".to_string(), // TODO: Get from BMN data when NUP is entered
-            bmn_merk: None,
-            bmn_tahun_perolehan: None,
+            bmn_kode_barang: bmn_kode_barang.get(),
+            bmn_nama_barang: bmn_nama_barang.get(),
+            bmn_merk: if bmn_merk.get().is_empty() {
+                None
+            } else {
+                Some(bmn_merk.get())
+            },
+            bmn_tahun_perolehan: bmn_tahun_perolehan
+                .get()
+                .parse::<i32>()
+                .ok(),
             no_polisi: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
                 Some(no_polisi.get())
             } else {
@@ -259,9 +324,14 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     </select>
                 </div>
 
-                // Pegawai Information
-                // NOTE: Operator Satker fills this on behalf of employee
-                // TODO: Add pegawai dropdown from MySIMKARI integration
+                // Pegawai Information.
+                // NOTE: Operator Satker fills this on behalf of employee.
+                // TODO(pegawai-lookup): replace manual NIP entry with an
+                // autocomplete that hits
+                // `GET /admin/pegawai?satker_id={session.satker_id}&q={query}`
+                // (driven by the MySIMKARI sync in layanan/integrasi). Until
+                // that endpoint + the satker→pegawai cache land, operators
+                // type NIP/nama by hand below.
                 <div class="border-t pt-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">
                         "Informasi Pegawai yang Akan Menggunakan BMN"

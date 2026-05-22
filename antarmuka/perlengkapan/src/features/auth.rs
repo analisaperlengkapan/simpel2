@@ -27,6 +27,13 @@ pub struct UserSession {
     pub nip: Option<String>,
     pub jabatan: Option<String>,
     pub satker_code: Option<String>,
+    /// Satker UUID — projected from the matching JWT claim. Required for
+    /// any request payload that ties a record back to the satker (permit
+    /// creation, penghapusan submission, etc.). `None` means the user is
+    /// not yet attached to a satker on the authenc side.
+    pub satker_id: Option<String>,
+    /// Display-only satker name. `None` when authenc has not populated it.
+    pub satker_nama: Option<String>,
     /// All realm roles from the JWT (`realm_access.roles`). Order matches the
     /// issuer — no filtering, no aliasing. Callers ask about specific roles.
     pub roles: Vec<String>,
@@ -188,6 +195,8 @@ impl AuthService {
             nip: claims.nip,
             jabatan: claims.jabatan,
             satker_code: claims.satker_code,
+            satker_id: claims.satker_id,
+            satker_nama: claims.satker_nama,
             roles,
             role: primary,
             expires_at: Some(claims.exp as i64),

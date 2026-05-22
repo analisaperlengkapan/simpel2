@@ -155,8 +155,24 @@ impl DokumenService {
                 let _ = tokio::fs::remove_file(&tmp_path).await;
                 Ok(bytes::Bytes::from(bytes))
             }
+            // TODO(csv-export): wire CSV as an alternative export format
+            // alongside XLSX. Intended use is the same export endpoints that
+            // currently emit `.xlsx` (bank-aset dashboard, dashboard
+            // perlengkapan export, pakaian dinas laporan) — callers will be
+            // able to pick `?format=csv` instead. Implementation steps:
+            //   1. Add `CsvGenerator` next to `ExcelGenerator` (each export
+            //      template knows its column projection; the renderer can
+            //      reuse those projections rather than re-deriving rows).
+            //   2. Hold `Arc<CsvGenerator>` on `DokumenService`; dispatch
+            //      this branch through it analogously to the Excel branch.
+            //   3. Surface a "Cetak CSV" button next to "Cetak Excel" in
+            //      `pakaian_dinas_laporan.rs` + `mapping_kodefikasi_
+            //      dashboard.rs`.
+            // Until that lands, returning a validation error keeps the
+            // trait honest — callers see a clear "not yet" rather than a
+            // 5xx from the deeper pipeline.
             DocumentFormat::Csv => Err(ServiceError::validation(
-                "CSV rendering not yet implemented for the trait path",
+                "CSV export not yet implemented — see TODO(csv-export) in dokumen::service",
             )),
         }
     }

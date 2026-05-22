@@ -187,6 +187,55 @@ pub async fn fetch_detail(id: &str) -> AppResult<BankAsetDetail> {
     Ok(resp.data)
 }
 
+/// Slim BMN lookup by NUP. Mirrors the `BankAsetLookup` payload the
+/// backend emits at `GET /bank-aset/lookup?nup=<nup>`. Used by the
+/// pemakaian-bmn form to auto-fill `bmn_kode_barang` + `bmn_nama_barang`.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BankAsetLookup {
+    pub id: String,
+    pub nup: String,
+    pub kode_barang: Option<String>,
+    pub nama_barang: Option<String>,
+    pub merk: Option<String>,
+    pub tahun_perolehan: Option<String>,
+    pub kondisi: Option<String>,
+    pub satker: Option<String>,
+}
+
+/// Returns `Ok(Some(_))` on a hit, `Ok(None)` on a 404 (NUP not in
+/// `integrasi.siman_aset`), and `Err(_)` on a transport / server error so
+/// callers can surface the right UX.
+pub async fn lookup_by_nup(nup: &str) -> AppResult<Option<BankAsetLookup>> {
+    let encoded = urlencoding_simple(nup);
+    let url = format!("{API_BASE}/bank-aset/lookup?nup={}", encoded);
+    let resp: ApiResponseWrap<BankAsetLookup> = match api_get(&url).await {
+        Ok(r) => r,
+        Err(AppError::NotFound(_)) => return Ok(None),
+        Err(e) => return Err(e),
+    };
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(Some(resp.data))
+}
+
+/// Minimal URL-encoder for the NUP query parameter — covers the characters
+/// present in a real NUP (digits, dashes) plus the small set of safe
+/// fallbacks. Avoids pulling in a heavyweight URL crate.
+fn urlencoding_simple(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
+            out.push(ch);
+        } else {
+            for byte in ch.to_string().as_bytes() {
+                out.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    out
+}
+
 pub async fn fetch_dashboard() -> AppResult<BankAsetDashboard> {
     let url = format!("{API_BASE}/bank-aset/dashboard");
     let resp: ApiResponseWrap<BankAsetDashboard> = api_get(&url).await?;

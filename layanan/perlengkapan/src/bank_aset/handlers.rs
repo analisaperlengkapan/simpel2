@@ -91,6 +91,34 @@ pub async fn get_bank_aset_detail(
     )))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LookupQuery {
+    pub nup: String,
+}
+
+/// GET /bank-aset/lookup?nup={nup}
+///
+/// Slim lookup used by the pemakaian-bmn form to auto-fill `kode_barang` +
+/// `nama_barang` (and a few display extras) the moment the operator types
+/// a NUP. Returns 404 if the NUP isn't present in `integrasi.siman_aset`.
+pub async fn lookup_bank_aset(
+    State(state): State<AppState>,
+    Query(q): Query<LookupQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<BankAsetLookup>>, AppError> {
+    if q.nup.trim().is_empty() {
+        return Err(bad_request("nup query parameter is required"));
+    }
+    let repo = BankAsetRepository::new(state.db_pool.clone());
+    match repo.find_lookup_by_nup(q.nup.trim()).await? {
+        Some(item) => Ok(Json(ApiResponse::success(
+            item,
+            "BMN lookup retrieved successfully".to_string(),
+        ))),
+        None => Err(AppError::NotFound(format!("BMN dengan NUP {} tidak ditemukan", q.nup))),
+    }
+}
+
 pub async fn get_bank_aset_dashboard(
     State(state): State<AppState>,
     _claims: Claims,

@@ -114,6 +114,44 @@ impl BankAsetRepository {
         Ok((items, total))
     }
 
+    /// Find the slim lookup record for a NUP. Used by the pemakaian-bmn
+    /// form to auto-fill `kode_barang` + `nama_barang` (+ a few extras the
+    /// UI may want to display) the moment the user types a NUP. Returns
+    /// `None` when no asset with that NUP exists.
+    pub async fn find_lookup_by_nup(&self, nup: &str) -> AppResult<Option<BankAsetLookup>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
+
+        let row = client
+            .query_opt(
+                "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker
+                 FROM integrasi.siman_aset
+                 WHERE nup = $1
+                 LIMIT 1",
+                &[&nup],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(row.map(|r| BankAsetLookup {
+            id: r.get::<_, Uuid>("id"),
+            nup: r
+                .try_get::<_, Option<String>>("nup")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| nup.to_string()),
+            kode_barang: r.try_get::<_, Option<String>>("kd_brg").ok().flatten(),
+            nama_barang: r.try_get::<_, Option<String>>("nama").ok().flatten(),
+            merk: r.try_get::<_, Option<String>>("merk").ok().flatten(),
+            tahun_perolehan: r.try_get::<_, Option<String>>("tgl_perlh").ok().flatten(),
+            kondisi: r.try_get::<_, Option<String>>("ur_kondisi").ok().flatten(),
+            satker: r.try_get::<_, Option<String>>("nama_satker").ok().flatten(),
+        }))
+    }
+
     pub async fn get(&self, id: Uuid) -> AppResult<BankAsetItem> {
         let client = self
             .pool

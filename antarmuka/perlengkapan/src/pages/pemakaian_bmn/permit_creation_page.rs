@@ -16,6 +16,8 @@ use lib_ui::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::features::auth::AuthService;
+
 // ============================================================================
 // API Models
 // ============================================================================
@@ -151,13 +153,32 @@ pub fn PermitCreationPage() -> impl IntoView {
             return;
         }
 
+        // Pull satker context from the JWT-backed session. `satker_id` is
+        // required for permit creation; bail out with a user-facing message
+        // if the user is not yet attached to a satker on the authenc side
+        // (e.g. a freshly-onboarded operator whose mapping hasn't synced).
+        let satker_id = match AuthService::load_session()
+            .and_then(|s| s.satker_id)
+            .and_then(|s| Uuid::parse_str(&s).ok())
+        {
+            Some(id) => id,
+            None => {
+                set_error.set(Some(
+                    "Anda belum terdaftar di satker manapun (satker_id kosong). \
+                     Hubungi admin perlengkapan untuk pemetaan satker."
+                        .to_string(),
+                ));
+                return;
+            }
+        };
+
         spawn_local(async move {
             set_loading.set(true);
             set_error.set(None);
 
             // Create permit
             let request = CreatePermitRequest {
-                satker_id: Uuid::new_v4(), // TODO: Get from auth context
+                satker_id,
                 pegawai_nip: pegawai.nip.clone(),
                 pegawai_nama: pegawai.nama.clone(),
                 tanggal_mulai: NaiveDate::parse_from_str(&start, "%Y-%m-%d").unwrap(),

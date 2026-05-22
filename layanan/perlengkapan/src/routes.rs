@@ -39,6 +39,10 @@ pub fn create_routes(state: AppState) -> Router {
         // Bank Aset (unified SIMAN façade)
         .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
         .route(
+            "/bank-aset/lookup",
+            get(crate::bank_aset::lookup_bank_aset),
+        )
+        .route(
             "/bank-aset/dashboard",
             get(crate::bank_aset::get_bank_aset_dashboard),
         )
