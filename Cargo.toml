@@ -183,7 +183,7 @@ amqprs = { version = "2.1.5", features = ["tls"] }
 tokio-stream = "0.1.18"
 
 # Configuration & Templates (Updated)
-config = { version = "0.15.22", default-features = false, features = [
+config = { version = "0.15.23", default-features = false, features = [
   "toml",
   "json",
   "yaml",
