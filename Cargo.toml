@@ -335,7 +335,7 @@ serde_yaml = "0.9.34"
 toml = "1.1.2"
 csv = "1.4.0"              # CSV parsing
 calamine = "0.34.0"        # Excel reading
-rust_xlsxwriter = "0.94.0" # Excel writing
+rust_xlsxwriter = "0.94.1" # Excel writing
 
 # Utility libraries
 tokio-util = "0.7.18"
