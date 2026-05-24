@@ -323,7 +323,7 @@ bigdecimal = { version = "0.4.10", features = ["serde"] }
 clamav-client = "2.2.0"
 
 # Template engines
-handlebars = "6.4.0"
+handlebars = "6.4.1"
 
 # PDF generation
 printpdf = "0.7.0"
