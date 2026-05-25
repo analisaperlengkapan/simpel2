@@ -216,6 +216,7 @@ pub fn to_notification_message(
         body: notification.body(),
         variables: serde_json::to_value(notification).ok(),
         deeplink: None,
+        recipient_email: None,
     }
 }
 

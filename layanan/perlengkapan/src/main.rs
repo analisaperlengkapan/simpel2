@@ -61,29 +61,36 @@ async fn main() -> anyhow::Result<()> {
     let integrasi_url =
         std::env::var("INTEGRASI_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
 
-    if database_url.is_none() {
-        info!("Connecting to Secreton at {}", secreton_url);
-        match SecretonClient::connect(secreton_url).await {
+    // Connect to Secreton once and keep the handle around so we can fetch
+    // both the DB URL (boot-time) and runtime credentials (SMTP for the
+    // notifikasi module). Failure here is non-fatal in dev — we fall back
+    // to environment variables — but production should rely on this path.
+    let secreton_client: Option<SecretonClient> =
+        match SecretonClient::connect(secreton_url.clone()).await {
             Ok(client) => {
-                info!("Connected to Secreton");
-
-                // Fetch DB URL
-                match client.get_secret("perlengkapan/db").await {
-                    Ok(data) => {
-                        if let Some(url) = data.get("url") {
-                            database_url = Some(url.clone());
-                            info!("Fetched DATABASE_URL from Secreton");
-                        }
-                    }
-                    Err(e) => error!("Failed to fetch db secret: {:?}", e),
-                }
+                info!("Connected to Secreton at {}", secreton_url);
+                Some(client)
             }
             Err(e) => {
                 error!(
-                    "Failed to connect to Secreton: {}. Falling back to environment variables.",
-                    e
+                    "Failed to connect to Secreton at {}: {}. Falling back to environment variables.",
+                    secreton_url, e
                 );
+                None
             }
+        };
+
+    if database_url.is_none()
+        && let Some(client) = secreton_client.as_ref()
+    {
+        match client.get_secret("perlengkapan/db").await {
+            Ok(data) => {
+                if let Some(url) = data.get("url") {
+                    database_url = Some(url.clone());
+                    info!("Fetched DATABASE_URL from Secreton");
+                }
+            }
+            Err(e) => error!("Failed to fetch db secret: {:?}", e),
         }
     }
 
@@ -217,9 +224,52 @@ async fn main() -> anyhow::Result<()> {
         )
         .with_storage(document_storage_for_docs.clone()),
     );
-    let notifier: Arc<dyn NotificationSender> = Arc::new(
-        notifikasi::service::NotifikasiService::new(db.pool().clone()),
-    );
+    // Try to bring up an EmailService backed by Secreton-fetched SMTP creds.
+    // The host/port/from-address still come from `notifikasi::AppConfig`
+    // (env), since those aren't secrets and benefit from being grep-able in
+    // values.yaml. Production deployments must succeed here; dev profiles
+    // can run without an email channel and only the in-app notifications
+    // will land.
+    let email_service: Option<Arc<notifikasi::email::EmailService>> = {
+        let notif_config = notifikasi::config::AppConfig::from_env();
+        if notif_config.smtp_host.is_empty() {
+            info!("SMTP_HOST unset — skipping EmailService wiring");
+            None
+        } else if let Some(client) = secreton_client.as_ref() {
+            match notifikasi::email::EmailService::new_with_secreton(
+                notif_config.clone(),
+                db.pool().clone(),
+                client,
+                "perlengkapan/notifikasi/smtp",
+            )
+            .await
+            {
+                Ok(svc) => {
+                    info!("EmailService wired with credentials from Secreton");
+                    Some(Arc::new(svc))
+                }
+                Err(e) if is_production => {
+                    return Err(anyhow::anyhow!(
+                        "EmailService init failed in production: {}",
+                        e
+                    ));
+                }
+                Err(e) => {
+                    error!("EmailService init failed: {} (continuing without email)", e);
+                    None
+                }
+            }
+        } else {
+            info!("No Secreton connection — skipping EmailService wiring");
+            None
+        }
+    };
+
+    let mut notifikasi_service = notifikasi::service::NotifikasiService::new(db.pool().clone());
+    if let Some(email) = email_service {
+        notifikasi_service = notifikasi_service.with_email(email);
+    }
+    let notifier: Arc<dyn NotificationSender> = Arc::new(notifikasi_service);
     let audit_sink: Arc<dyn AuditSink> = Arc::new(
         layanan_perlengkapan::shared::audit::PgAuditSink::new(db.pool().clone()),
     );

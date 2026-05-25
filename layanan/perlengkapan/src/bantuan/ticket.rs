@@ -98,6 +98,7 @@ impl TicketService {
             body,
             variables: serde_json::to_value(ticket).ok(),
             deeplink: Some(format!("/bantuan/tiket/{}", ticket.id)),
+            recipient_email: None,
         };
         // Fire and forget — failures are logged inside NotifikasiService::send;
         // a ticket transition must never fail just because the notifier is
