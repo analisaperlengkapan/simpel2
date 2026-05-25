@@ -394,13 +394,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             .await
             .map_err(|e| Status::internal(format!("Encryption failed: {}", e)))?;
 
-        // TODO: Implement get_key_version in TransitEngine
-        // Get key version from transit service
-        // let key_version = self.transit
-        //     .get_key_version(&req.key_name)
-        //     .await
-        //     .unwrap_or(1);
-        let key_version = 1; // Placeholder
+        let key_version = self
+            .transit
+            .get_key_version(&req.key_name)
+            .await
+            .unwrap_or(1);
 
         let response = EncryptResponse {
             ciphertext,
@@ -456,13 +454,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
             .await
             .map_err(|e| Status::internal(format!("Signing failed: {}", e)))?;
 
-        // TODO: Implement get_key_version in TransitEngine
-        // Get key version from transit service
-        // let key_version = self.transit
-        //     .get_key_version(&req.key_name)
-        //     .await
-        //     .unwrap_or(1);
-        let key_version = 1; // Placeholder
+        let key_version = self
+            .transit
+            .get_key_version(&req.key_name)
+            .await
+            .unwrap_or(1);
 
         let response = SignResponse {
             signature,
@@ -513,18 +509,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         info!("Rotating key: {}", req.key_name);
 
-        self.transit
+        let new_version = self
+            .transit
             .rotate_key(&req.key_name)
             .await
             .map_err(|e| Status::internal(format!("Key rotation failed: {}", e)))?;
-
-        // TODO: Implement get_key_version in TransitEngine
-        // Get new version after rotation
-        // let new_version = self.transit
-        //     .get_key_version(&req.key_name)
-        //     .await
-        //     .unwrap_or(2);
-        let new_version = 2; // Placeholder
 
         let response = RotateKeyResponse {
             new_version,
