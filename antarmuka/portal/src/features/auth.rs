@@ -825,13 +825,16 @@ impl AuthService {
         let closure = Closure::wrap(Box::new(move |event: web_sys::StorageEvent| {
             if let Some(key) = event.key() {
                 match key.as_str() {
-                    "user_session" => {
-                        // Session changed in another tab
+                    // Canonical: any tab (Portal or Perlengkapan MFE) that
+                    // refreshes the access token writes `auth_token`. Reload
+                    // the session so this tab picks up the new JWT claims
+                    // (expiry, roles, satker) without waiting for the next
+                    // refresh tick.
+                    "auth_token" | "user_session" => {
                         let session = Self::load_session();
                         on_session_change(session);
                     }
                     "logout_event" => {
-                        // Logout triggered in another tab
                         on_session_change(None);
                     }
                     _ => {}

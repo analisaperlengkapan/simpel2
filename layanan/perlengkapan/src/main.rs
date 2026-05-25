@@ -90,7 +90,21 @@ async fn main() -> anyhow::Result<()> {
     let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
 
     // Initialize Authenc Client with Retry Logic (optional for dev)
+    // `APP_ENV=production` flips Authenc connectivity from "best-effort" to
+    // "required". In dev/staging we still allow the dummy fallback so the
+    // service is usable when authenc is intentionally offline. In production
+    // a missing IdP is a hard failure — a service that silently accepts every
+    // token is worse than one that refuses to start.
+    let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let is_production = app_env.eq_ignore_ascii_case("production");
     let skip_authenc = std::env::var("SKIP_AUTHENC").unwrap_or_default() == "true";
+
+    if skip_authenc && is_production {
+        return Err(anyhow::anyhow!(
+            "SKIP_AUTHENC=true is forbidden when APP_ENV=production"
+        ));
+    }
+
     let authenc_client = if skip_authenc {
         info!("SKIP_AUTHENC=true, using dummy Authenc client (dev mode)");
         AuthencClient::dummy()
@@ -119,6 +133,12 @@ async fn main() -> anyhow::Result<()> {
         }
         match client {
             Some(c) => c,
+            None if is_production => {
+                return Err(anyhow::anyhow!(
+                    "Could not connect to Authenc at {} after retries; refusing to start in production",
+                    authenc_url
+                ));
+            }
             None => {
                 error!("Could not connect to Authenc after retries, starting with dummy client");
                 AuthencClient::dummy()
