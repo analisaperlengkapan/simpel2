@@ -737,6 +737,7 @@ impl RaftCluster {
         let config = self.snapshot_config.clone();
         let _node_id = self.config.node_id;
         let mut shutdown_rx = self.shutdown_tx.subscribe();
+        let metrics_collector = Arc::clone(&self.metrics_collector);
 
         tokio::spawn(async move {
             let interval = Duration::from_secs(config.interval_secs);
@@ -766,6 +767,8 @@ impl RaftCluster {
                     match raft.trigger().snapshot().await {
                         Ok(_) => {
                             tracing::info!("Snapshot created successfully at index {}", log_size);
+
+                            metrics_collector.write().await.record_snapshot_created();
 
                             #[cfg(feature = "metrics")]
                             {
@@ -841,7 +844,10 @@ impl RaftCluster {
     /// Get metrics snapshot for monitoring
     pub async fn get_metrics(&self) -> StorageResult<RaftMetrics> {
         let raft_metrics = self.raft.metrics().borrow().clone();
-        let avg_latency = self.metrics_collector.read().await.avg_commit_latency();
+        let collector = self.metrics_collector.read().await;
+        let avg_latency = collector.avg_commit_latency();
+        let snapshots_created = collector.snapshots_created();
+        drop(collector);
 
         Ok(RaftMetrics {
             node_id: self.config.node_id,
@@ -859,7 +865,7 @@ impl RaftCluster {
                 .count(),
             committed_entries: raft_metrics.last_applied.map(|l| l.index).unwrap_or(0),
             avg_commit_latency_ms: avg_latency,
-            snapshots_created: 0, // TODO: Track snapshots
+            snapshots_created,
             last_snapshot_index: raft_metrics.snapshot.map(|meta| meta.index),
             health: if raft_metrics.current_leader.is_some() {
                 metrics::HealthStatus::Healthy

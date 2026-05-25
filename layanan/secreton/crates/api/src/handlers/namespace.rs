@@ -880,8 +880,13 @@ pub async fn get_namespace_stats(
             .map(|max| quota_usage.leases_count >= max)
             .unwrap_or(false);
 
-    // TODO: Query storage backend for active leases count
-    let active_leases = 0u64;
+    let active_leases = state
+        .lease_manager
+        .count_leases(None, Some(id.clone()), None, Some("active".to_string()))
+        .await
+        .map_err(|e| ApiError::Internal {
+            message: format!("Failed to count active leases: {}", e),
+        })?;
 
     // Get active policies count
     let active_policies = namespace.policies.len();

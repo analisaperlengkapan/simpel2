@@ -141,6 +141,9 @@ pub struct MetricsCollector {
 
     /// Max samples to keep
     max_samples: usize,
+
+    /// Total number of snapshots created since startup
+    snapshots_created: u64,
 }
 
 impl MetricsCollector {
@@ -149,6 +152,7 @@ impl MetricsCollector {
         Self {
             commit_latencies: Vec::new(),
             max_samples: 1000,
+            snapshots_created: 0,
         }
     }
 
@@ -160,6 +164,16 @@ impl MetricsCollector {
         if self.commit_latencies.len() > self.max_samples {
             self.commit_latencies.drain(0..self.max_samples / 2);
         }
+    }
+
+    /// Record that a snapshot was successfully created
+    pub fn record_snapshot_created(&mut self) {
+        self.snapshots_created = self.snapshots_created.saturating_add(1);
+    }
+
+    /// Get total number of snapshots created since startup (or last reset)
+    pub fn snapshots_created(&self) -> u64 {
+        self.snapshots_created
     }
 
     /// Get average commit latency
@@ -189,6 +203,7 @@ impl MetricsCollector {
     /// Reset metrics
     pub fn reset(&mut self) {
         self.commit_latencies.clear();
+        self.snapshots_created = 0;
     }
 }
 
@@ -243,5 +258,19 @@ mod tests {
 
         let avg = collector.avg_commit_latency().unwrap();
         assert!((19.0..=21.0).contains(&avg)); // ~20ms average
+    }
+
+    #[test]
+    fn test_snapshot_tracking() {
+        let mut collector = MetricsCollector::new();
+        assert_eq!(collector.snapshots_created(), 0);
+
+        collector.record_snapshot_created();
+        collector.record_snapshot_created();
+        collector.record_snapshot_created();
+        assert_eq!(collector.snapshots_created(), 3);
+
+        collector.reset();
+        assert_eq!(collector.snapshots_created(), 0);
     }
 }

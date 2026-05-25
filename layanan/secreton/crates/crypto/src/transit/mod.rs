@@ -120,6 +120,15 @@ impl TransitEngine {
         Ok(key.info())
     }
 
+    /// Get the latest version number for a key
+    pub async fn get_key_version(&self, name: &str) -> CryptoResult<u32> {
+        let keys = self.keys.read().await;
+        let key = keys
+            .get(name)
+            .ok_or_else(|| CryptoError::KeyNotFound(name.to_string()))?;
+        Ok(key.info().latest_version)
+    }
+
     /// Rotate a transit key (create new version)
     pub async fn rotate_key(&self, name: &str) -> CryptoResult<u32> {
         let mut keys = self.keys.write().await;
@@ -396,5 +405,33 @@ impl AuditLogger for DefaultAuditLogger {
             "AUDIT: Verification - key: {}, data_len: {}, valid: {}",
             key_name, data_len, result
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transit::keys::KeyType;
+
+    #[tokio::test]
+    async fn test_get_key_version_returns_latest() {
+        let engine = TransitEngine::new();
+        engine
+            .create_key("k1".to_string(), KeyType::Aes256Gcm, None)
+            .await
+            .unwrap();
+
+        assert_eq!(engine.get_key_version("k1").await.unwrap(), 1);
+
+        let after_rotate = engine.rotate_key("k1").await.unwrap();
+        assert_eq!(after_rotate, 2);
+        assert_eq!(engine.get_key_version("k1").await.unwrap(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_get_key_version_missing_key_errors() {
+        let engine = TransitEngine::new();
+        let err = engine.get_key_version("nope").await.unwrap_err();
+        assert!(matches!(err, CryptoError::KeyNotFound(_)));
     }
 }
