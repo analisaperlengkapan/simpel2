@@ -1,11 +1,17 @@
 //! Realm Settings Page (Admin)
 //!
-//! Comprehensive realm configuration with 9 tabs matching Keycloak's Realm Settings.
+//! Comprehensive realm configuration with 9 tabs matching Keycloak's Realm
+//! Settings. The **General** tab is wired to `iam_update_realm` (real API);
+//! the other tabs are UI previews until the backend lands the matching
+//! settings endpoints (separate epic — see plan/Phase 5 deferred items).
 //! REQ-PORTAL-019
 
+use crate::components::feedback::ErrorBanner;
 use crate::components::layout::main_layout::MainLayout;
-use crate::utils::app_state::use_main_layout_session_and_logout;
+use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
+use crate::utils::authenc_api::{RealmInfo, UpdateRealmRequest};
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 /// Active tab enum
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -68,8 +74,42 @@ impl RealmSettingsTab {
 /// Realm settings page
 #[component]
 pub fn RealmSettingsPage() -> impl IntoView {
+    let api = use_api_client();
     let (active_tab, set_active_tab) = signal(RealmSettingsTab::General);
     let (session, on_logout) = use_main_layout_session_and_logout();
+
+    // Realm state — we manage the *first* realm returned by the IAM admin
+    // API (typically "master"). The list endpoint already supports realm
+    // pagination; a realm-picker dropdown is a follow-up.
+    let (realm, set_realm) = signal::<Option<RealmInfo>>(None);
+    let (loading, set_loading) = signal(true);
+    let (load_error, set_load_error) = signal::<Option<String>>(None);
+
+    {
+        let api = api.clone();
+        Effect::new(move || {
+            let api = api.clone();
+            set_loading.set(true);
+            set_load_error.set(None);
+            spawn_local(async move {
+                match api.iam_list_realms().await {
+                    Ok(realms) => {
+                        // Prefer the realm explicitly named "master"; fall
+                        // back to whatever the IAM API returns first so the
+                        // page is still useful on greenfield deployments.
+                        let chosen = realms
+                            .iter()
+                            .find(|r| r.name == "master")
+                            .cloned()
+                            .or_else(|| realms.into_iter().next());
+                        set_realm.set(chosen);
+                    }
+                    Err(e) => set_load_error.set(Some(format!("Gagal memuat realm: {}", e))),
+                }
+                set_loading.set(false);
+            });
+        });
+    }
 
     view! {
         <MainLayout user_session=session.clone() on_logout=on_logout>
@@ -103,36 +143,33 @@ pub fn RealmSettingsPage() -> impl IntoView {
                     </div>
 
                     <div class="p-6">
-                        // === General ===
-                        <Show when=move || active_tab.get() == RealmSettingsTab::General>
-                            <div class="space-y-5">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Realm"</label>
-                                        <input type="text" value="master" class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500" disabled=true />
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
-                                        <input type="text" placeholder="Nama tampilan realm" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan HTML"</label>
-                                        <input type="text" placeholder="<strong>Realm</strong>" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"URL Frontend"</label>
-                                        <input type="url" placeholder="https://auth.example.com" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500" />
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-3">
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" checked=true class="sr-only peer" />
-                                        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
-                                        <span class="ms-3 text-sm font-medium text-gray-700">"Realm Aktif"</span>
-                                    </label>
-                                </div>
-                                <button class="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm">"Simpan"</button>
+                        // Honesty banner: non-General tabs are mock-up
+                        // previews because the matching backend endpoints
+                        // aren't shipped yet. Surfaced explicitly so admins
+                        // don't think they're saving real settings.
+                        <Show when=move || active_tab.get() != RealmSettingsTab::General>
+                            <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                                "⚠ Pratinjau UI — tab ini belum tersambung ke backend. Hanya tab "
+                                <strong>"Umum"</strong>
+                                " yang menyimpan perubahan secara nyata saat ini."
                             </div>
+                        </Show>
+
+                        // === General — wired to /api/v1/iam/realms ===
+                        <Show when=move || active_tab.get() == RealmSettingsTab::General>
+                            {move || load_error.get().map(|msg| view! {
+                                <ErrorBanner message=msg />
+                            })}
+                            <Show
+                                when=move || !loading.get() && realm.get().is_some()
+                                fallback=move || view! {
+                                    <div class="text-sm text-gray-500 py-12 text-center">
+                                        {move || if loading.get() { "Memuat realm..." } else { "Realm tidak ditemukan." }}
+                                    </div>
+                                }
+                            >
+                                <GeneralTabForm realm=realm set_realm=set_realm />
+                            </Show>
                         </Show>
 
                         // === Login ===
@@ -307,5 +344,131 @@ pub fn RealmSettingsPage() -> impl IntoView {
                 </div>
             </div>
         </MainLayout>
+    }
+}
+
+/// General tab form. Lifts realm state up to the parent so re-fetches
+/// triggered by a successful save propagate to the rest of the page.
+#[component]
+fn GeneralTabForm(
+    realm: ReadSignal<Option<RealmInfo>>,
+    set_realm: WriteSignal<Option<RealmInfo>>,
+) -> impl IntoView {
+    let api = use_api_client();
+    let initial = realm.get_untracked().expect("Show fallback guards None case");
+
+    let (display_name, set_display_name) =
+        signal(initial.display_name.clone().unwrap_or_default());
+    let (enabled, set_enabled) = signal(initial.enabled);
+    let (saving, set_saving) = signal(false);
+    let (save_error, set_save_error) = signal::<Option<String>>(None);
+    let (save_success, set_save_success) = signal(false);
+
+    let realm_id = initial.id.clone();
+    let realm_name = initial.name.clone();
+    let created_at = initial.created_at.clone();
+
+    let submit = move |ev: web_sys::SubmitEvent| {
+        ev.prevent_default();
+        let id = realm_id.clone();
+        let req = UpdateRealmRequest {
+            display_name: {
+                let v = display_name.get();
+                if v.trim().is_empty() {
+                    None
+                } else {
+                    Some(v)
+                }
+            },
+            enabled: Some(enabled.get()),
+        };
+
+        set_saving.set(true);
+        set_save_error.set(None);
+        set_save_success.set(false);
+        let api = api.clone();
+        spawn_local(async move {
+            match api.iam_update_realm(&id, &req).await {
+                Ok(updated) => {
+                    set_realm.set(Some(updated));
+                    set_save_success.set(true);
+                    set_saving.set(false);
+                }
+                Err(e) => {
+                    set_save_error.set(Some(format!("Gagal menyimpan: {}", e)));
+                    set_saving.set(false);
+                }
+            }
+        });
+    };
+
+    view! {
+        <form class="space-y-5" on:submit=submit>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Realm"</label>
+                    <input
+                        type="text"
+                        value=realm_name
+                        class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500"
+                        disabled=true
+                    />
+                    <p class="text-xs text-gray-400 mt-1">"Nama realm tidak dapat diubah."</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
+                    <input
+                        type="text"
+                        placeholder="Nama tampilan realm"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                        prop:value=move || display_name.get()
+                        on:input=move |e| set_display_name.set(event_target_value(&e))
+                    />
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">"Dibuat"</label>
+                    <input
+                        type="text"
+                        value=created_at
+                        class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500"
+                        disabled=true
+                    />
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        class="sr-only peer"
+                        prop:checked=move || enabled.get()
+                        on:change=move |e| {
+                            let input: web_sys::HtmlInputElement = event_target(&e);
+                            set_enabled.set(input.checked());
+                        }
+                    />
+                    <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                    <span class="ms-3 text-sm font-medium text-gray-700">"Realm Aktif"</span>
+                </label>
+            </div>
+
+            {move || save_error.get().map(|msg| view! {
+                <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {msg}
+                </div>
+            })}
+            {move || save_success.get().then(|| view! {
+                <div class="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                    "Perubahan realm tersimpan."
+                </div>
+            })}
+
+            <button
+                type="submit"
+                prop:disabled=move || saving.get()
+                class="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+                {move || if saving.get() { "Menyimpan..." } else { "Simpan" }}
+            </button>
+        </form>
     }
 }

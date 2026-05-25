@@ -99,6 +99,16 @@ pub fn PermissionsManagementPage() -> impl IntoView {
                     </div>
 
                     <div class="p-6">
+                        // Honesty banner — the Authorization Services backend
+                        // (resource servers, scopes, policies, permissions
+                        // evaluation) is a multi-week feature in its own
+                        // epic. The UI below is a deliberate preview so admins
+                        // know what's coming without thinking the form is live.
+                        <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                            "⚠ Pratinjau UI — modul Authorization Services belum diaktifkan. "
+                            "Tombol simpan dan kotak input pada halaman ini belum mengirim apa pun ke backend."
+                        </div>
+
                         // Search bar
                         <div class="mb-6">
                             <input
