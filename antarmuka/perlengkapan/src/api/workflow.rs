@@ -361,3 +361,174 @@ pub async fn delete_workflow_step(
         "Server-side stub".to_string(),
     ))
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Delegation types & API
+// ═══════════════════════════════════════════════════════════════════════════
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DelegationStatus {
+    Active,
+    Expired,
+    Revoked,
+    Scheduled,
+}
+
+impl DelegationStatus {
+    pub fn as_label(&self) -> &'static str {
+        match self {
+            Self::Active => "Aktif",
+            Self::Expired => "Kedaluwarsa",
+            Self::Revoked => "Dicabut",
+            Self::Scheduled => "Dijadwalkan",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Delegation {
+    pub id: String,
+    pub delegator_user_id: String,
+    pub delegate_user_id: String,
+    pub role: String,
+    pub valid_from: String,
+    pub valid_until: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+    pub status: DelegationStatus,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateDelegationBody {
+    pub delegate_user_id: String,
+    pub role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub valid_from: Option<String>,
+    pub valid_until: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+/// Fetch delegations the caller is involved in.
+/// `as_delegate=true` → delegations granted *to* the caller.
+/// `as_delegate=false` (default) → delegations the caller *created*.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_delegations(
+    as_delegate: bool,
+) -> Result<ApiResponse<Vec<Delegation>>, crate::api::AppError> {
+    use crate::api::client::API_BASE;
+    use gloo_net::http::Request;
+
+    let url = format!(
+        "{}/workflow/delegations?as_delegate={}",
+        API_BASE, as_delegate
+    );
+    let token = require_auth_token()?;
+
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+
+    if !resp.ok() {
+        return Err(format!("API error: HTTP {}", resp.status()).into());
+    }
+    resp.json::<ApiResponse<Vec<Delegation>>>()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_delegations(
+    _as_delegate: bool,
+) -> Result<ApiResponse<Vec<Delegation>>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: vec![],
+        message: "Server-side stub".to_string(),
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn create_delegation(
+    body: CreateDelegationBody,
+) -> Result<ApiResponse<Delegation>, crate::api::AppError> {
+    use crate::api::client::API_BASE;
+    use gloo_net::http::Request;
+
+    let url = format!("{}/workflow/delegations", API_BASE);
+    let token = require_auth_token()?;
+
+    let resp = Request::post(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .map_err(|e| crate::api::AppError::Unknown(format!("Serialize error: {}", e)))?
+        .send()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+
+    if !resp.ok() {
+        let status = resp.status();
+        // Try to surface backend's structured error message
+        let body_text = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP {}: {}",
+            status, body_text
+        )));
+    }
+    resp.json::<ApiResponse<Delegation>>()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn create_delegation(
+    _body: CreateDelegationBody,
+) -> Result<ApiResponse<Delegation>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn revoke_delegation(
+    delegation_id: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    use crate::api::client::API_BASE;
+    use gloo_net::http::Request;
+
+    let url = format!("{}/workflow/delegations/{}/revoke", API_BASE, delegation_id);
+    let token = require_auth_token()?;
+
+    let resp = Request::post(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+
+    if !resp.ok() {
+        let status = resp.status();
+        let body_text = resp.text().await.unwrap_or_default();
+        return Err(crate::api::AppError::Unknown(format!(
+            "HTTP {}: {}",
+            status, body_text
+        )));
+    }
+    resp.json::<ApiResponse<()>>()
+        .await
+        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn revoke_delegation(
+    _delegation_id: &str,
+) -> Result<ApiResponse<()>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}

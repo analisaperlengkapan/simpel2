@@ -1,22 +1,23 @@
-//! `/notifikasi` — in-app notification center.
+//! `/notifikasi` — in-app notification inbox.
 //!
 //! Lists notifications written by the backend `NotifikasiService::send`
 //! into `notifikasi.in_app_notifications`. Two filters: all / unread.
 //! Each row exposes a "Tandai dibaca" button (calls
 //! `PATCH /notifikasi/{id}/read`) and the page header has a
 //! "Tandai semua dibaca" action (`POST /notifikasi/read-all`).
+//!
+//! Naming: keep the user-facing label to plain "Notifikasi" — "Center" /
+//! "Pusat" was an English-ism that didn't fit the Indonesian context.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
-use crate::api::notifikasi::{
-    list_notifikasi, mark_all_read, mark_read, NotifikasiItem,
-};
+use crate::api::notifikasi::{NotifikasiItem, list_notifikasi, mark_all_read, mark_read};
 
 const PAGE_SIZE: i64 = 50;
 
 #[component]
-pub fn NotifikasiCenterPage() -> impl IntoView {
+pub fn NotifikasiInboxPage() -> impl IntoView {
     let (items, set_items) = signal::<Vec<NotifikasiItem>>(Vec::new());
     let (unread_only, set_unread_only) = signal(false);
     let (loading, set_loading) = signal(false);
@@ -83,7 +84,7 @@ pub fn NotifikasiCenterPage() -> impl IntoView {
         <div class="max-w-4xl mx-auto p-6">
             <div class="flex items-center justify-between mb-4">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">"Pusat Notifikasi"</h1>
+                    <h1 class="text-2xl font-bold text-gray-800">"Notifikasi"</h1>
                     <p class="text-sm text-gray-500">
                         "Notifikasi sistem (workflow, tiket bantuan, SLA)."
                     </p>
