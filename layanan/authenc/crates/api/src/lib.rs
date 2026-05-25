@@ -37,6 +37,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod router;
 pub mod routes;
+pub mod services;
 pub mod session_store;
 pub mod state;
 

@@ -283,6 +283,19 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     // CAPTCHA service
     let captcha_service = Arc::new(authenc_core::services::CaptchaService::new((*db).clone()));
 
+    // MFA adapter — Postgres-backed TOTP + backup codes wired into the
+    // REST `MfaApiService` trait. Without this the handlers in
+    // `handlers::mfa` always returned `mfa_not_configured` and the Portal
+    // /mfa-setup page bounced off a 503. Phase 1.3 of the stabilization plan.
+    let mfa_service: Arc<dyn authenc_api::handlers::mfa::MfaApiService> = {
+        let totp_store = Arc::new(authenc_api::services::PgTotpStore::new(db.clone()));
+        let backup_store = Arc::new(authenc_api::services::PgBackupCodesStore::new(db.clone()));
+        Arc::new(authenc_api::services::LocalMfaApi::with_defaults(
+            totp_store,
+            backup_store,
+        ))
+    };
+
     // API state
     let mut state = ApiState::new(
         jwt_service,
@@ -292,7 +305,7 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         realm_service,
         client_service,
         webauthn_service,
-        None,
+        Some(mfa_service),
         webauthn_session_store,
         db.clone(),
         captcha_service,
