@@ -61,3 +61,56 @@ mindmap
 | `lib-ui/` | Leptos WASM | Hanya khusus komponen visual. Bebas dari logika *fetching* HTTP spesifik (gunakan callbacks). |
 
 Masing-masing pustaka memiliki file `AGENTS.md` yang lebih detail di dalam direktorinya. Cek file tersebut saat masuk ke folder bersangkutan!
+
+## 📋 Common Tasks
+
+### 1. Add a new UI component to `lib-ui/`
+
+1. Drop a new file under `lib/ui/src/components/<kategori>/<name>.rs`
+   (atau jadi sub-modul kalau sudah punya keluarga komponen — lihat
+   `components/floating/` sebagai contoh modular).
+2. Export dari `lib/ui/src/components/<kategori>/mod.rs` lalu
+   re-export di `lib/ui/src/components/mod.rs` atau `lib/ui/src/lib.rs`
+   sesuai pola yang sudah ada.
+3. **Props convention**: pakai `#[prop(into)] Callback<T>` untuk event
+   handler, `#[prop(optional, default = ...)]` untuk opsi dengan
+   default. Hindari prop berbentuk `Box<dyn Fn() -> View>` kecuali
+   benar-benar perlu (Callback lebih reactive-friendly).
+4. **Styling**: Tailwind utility classes — `lib-ui` tidak punya CSS
+   global sendiri. Gunakan token desain dari Portal/Perlengkapan
+   (`bg-app-gradient`, `text-gold-400`, dll) supaya komponen terlihat
+   konsisten antar MFE.
+5. **Test**: kalau ada logic non-trivial (sort, filter, dll), tulis
+   pure-Rust unit test di file komponen — `#[cfg(test)]` tidak
+   memerlukan browser.
+
+### 2. Verify a `lib/` crate stays WASM-safe
+
+Bug yang paling sering muncul: developer menambahkan `tokio::spawn`
+atau `axum::response::IntoResponse` ke crate yang dipakai MFE. Build
+WASM gagal cryptically. Cara cepat membuktikan crate masih clean:
+
+```bash
+# WASM-only check; gagal cepat kalau ada dep async/std-net yang tidak compatible
+cargo +1.95.0 check -p lib-core --target wasm32-unknown-unknown
+cargo +1.95.0 check -p lib-crypto --target wasm32-unknown-unknown
+cargo +1.95.0 check -p lib-ui --target wasm32-unknown-unknown
+cargo +1.95.0 check -p lib-perlengkapan --target wasm32-unknown-unknown --features wasm
+```
+
+Jika perlu trait/util yang membutuhkan tokio atau koneksi DB, taruh
+di `lib-backend`. Jika perlu sharing antar backend service tanpa async,
+tetap WASM-safe — taruh di `lib-core`.
+
+### 3. Decide where new code belongs
+
+Diagram cepat keputusan:
+
+- Dipakai oleh MFE **dan** backend, tanpa async/IO → `lib-core`.
+- Dipakai oleh MFE, butuh komponen visual → `lib-ui`.
+- Dipakai oleh MFE atau backend, primitif kripto → `lib-crypto`.
+- Dipakai backend saja, axum/tokio/db/grpc → `lib-backend`
+  (gate dengan feature flag — `axum`, `db`, `grpc`, dll).
+- Domain BMN (model, validation, contract) → `lib-perlengkapan`.
+- Domain authenc/secreton → **JANGAN** di `lib/`, pakai crates internal
+  service (`layanan/authenc/crates/*`, `layanan/secreton/crates/*`).

@@ -156,6 +156,100 @@ let debounced_search = Memo::new(move |_| {
 
 ---
 
+## 📋 Common Tasks
+
+### 1. Add a new MFE route with auth guard
+
+Both Portal and Perlengkapan MFE use `leptos_router` with parent-route
+layouts as guards (Next.js-style `layout.tsx`). The shape:
+
+```rust
+// In `src/lib.rs` of the MFE:
+<ParentRoute path=path!("/") view=AuthenticatedLayout>
+    <Route path=path!("/dashboard") view=DashboardHome />
+    // ↑ AuthenticatedLayout reads UserSession from context, redirects
+    //   to /login if absent — childless routes get the guard for free.
+</ParentRoute>
+
+<ParentRoute path=path!("/admin") view=AdminLayout>
+    <Route path=path!("/workflow") view=WorkflowConfigManagement />
+    // ↑ AdminLayout asserts is_admin() — non-admins get a "Forbidden"
+    //   page rather than the child view.
+</ParentRoute>
+```
+
+For a route that needs **session context** to render (e.g. derive
+NIP/name from the JWT instead of receiving as a prop), use a wrapper
+component — see
+`antarmuka/perlengkapan/src/lib.rs::UkuranPegawaiCurrentUser` for the
+canonical pattern.
+
+### 2. Consume a new backend endpoint
+
+The fetch flow is the same across both MFEs:
+
+1. **Client function** in `src/api/<modul>.rs` — gate the
+   `wasm32` body with `#[cfg(target_arch = "wasm32")]` and provide a
+   stub for the non-wasm build so `cargo check` from `tests/` etc.
+   still type-checks. Pattern:
+
+   ```rust
+   #[cfg(target_arch = "wasm32")]
+   pub async fn fetch_thing(id: &str) -> Result<ApiResponse<Thing>, AppError> {
+       use crate::api::client::get_auth_token;
+       use gloo_net::http::Request;
+       let url = format!("{}/things/{}", API_BASE, id);
+       let token = get_auth_token().ok_or_else(|| AppError::Auth("…".into()))?;
+       let resp = Request::get(&url)
+           .header("Authorization", &format!("Bearer {}", token))
+           .send().await?;
+       if !resp.ok() { return Err(/* HTTP error */); }
+       resp.json::<ApiResponse<Thing>>().await.map_err(|e| /* … */)
+   }
+
+   #[cfg(not(target_arch = "wasm32"))]
+   pub async fn fetch_thing(_id: &str) -> Result<ApiResponse<Thing>, AppError> {
+       Err(AppError::Unknown("Server-side stub".into()))
+   }
+   ```
+
+2. **Caching** — for read-heavy endpoints prefer
+   `leptos_fetch::QueryClient::local_resource` so re-renders hit cache
+   instead of refetching. See
+   `pages/workflow/config_management.rs` for the convention.
+
+3. **POST/PUT/DELETE** — surface backend's structured error: read the
+   response body on non-2xx and bubble up via `AppError::Unknown(format!("HTTP {}: {}", status, body))`
+   so the user sees the actual reason, not just "500".
+
+### 3. Run a single MFE locally
+
+```bash
+# Portal (default port 8080)
+cd antarmuka/portal && trunk serve --open
+
+# Perlengkapan (different port to coexist with Portal)
+cd antarmuka/perlengkapan && trunk serve --port 8082
+
+# Or both at once via docker-compose (recommended for cross-MFE flows):
+docker-compose up portal-mfe perlengkapan-mfe
+```
+
+`trunk serve` watches `index.html` + Rust sources and re-builds on
+change. For backend-dependent pages you need the matching `layanan/*`
+service running — easiest path is docker-compose so DB + Authenc +
+Perlengkapan are all wired up.
+
+To test cross-MFE token sync manually:
+1. Login on Portal tab → confirm `auth_token` set in DevTools →
+   Application → Local Storage.
+2. Open Perlengkapan in a separate tab same origin → confirm session
+   loads without re-auth.
+3. Hit logout on Portal → Perlengkapan tab should redirect within
+   ~2 seconds via the `logout_event` listener.
+
+---
+
 ## 🔐 Secret Boundary (Frontend NEVER Touches Secreton)
 
 - Frontend Leptos **TIDAK** memanggil Secreton (gRPC/HTTP) langsung. Semua secret hidup di server-side (backend Rust / authenc / Secreton).

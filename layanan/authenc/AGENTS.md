@@ -43,6 +43,20 @@ admin_console = ["dep:leptos"]
 quantum = ["dep:pqcrypto-mldsa", "dep:pqcrypto-mlkem", "dep:pqcrypto-falcon"]
 ```
 
+### Authentication Method Status
+
+| Method | Status | Notes |
+|--------|--------|-------|
+| Password (`POST /api/v1/auth/login`) | ✅ Production | Argon2 hashing, lockout via captcha |
+| JWT bearer + refresh | ✅ Production | HS256 with rotation; `lib_core::jwt_claims::Claims` |
+| WebAuthn / Passkeys | ✅ Production | `crates/webauthn` — primary 2FA |
+| MFA TOTP + backup codes | ✅ Production (Phase 1.3) | Backed by `services::LocalMfaApi` + Postgres stores (migration 049). TOTP secrets are base32 plaintext — encryption-at-rest is a follow-up. |
+| OAuth2 Authorization Code + PKCE | ✅ Production | Standard authz code with optional PKCE |
+| Dynamic Client Registration (DCR) | ✅ Production | RFC 7591 |
+| Device Authorization Grant | 🔴 Deferred | Handler skeleton only |
+| SAML 2.0 federation | 🔴 Deferred | No demand yet |
+| Social login (Google, etc.) | 🔴 Deferred | Identity Providers crate exists; surface UI not wired |
+
 ## 🏗️ Architecture
 
 Authenc menggunakan arsitektur **multi-crate** di bawah workspace utama:
@@ -185,6 +199,63 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
 
 - Check server time sync: `timedatectl status`
 - Verify TOTP secret encoding (base32)
+
+## 📋 Common Tasks
+
+### 1. Wire a new MFA method (alongside TOTP)
+
+TOTP + backup codes are live (Phase 1.3). The REST adapter at
+`crates/api/src/services/mfa_api.rs::LocalMfaApi` implements
+`MfaApiService` by composing `authenc_mfa::TotpService` and
+`BackupCodesService`. To add a second method (WebAuthn step-up, SMS
+OTP, etc.):
+
+1. **Trait** — extend `crates/api/src/handlers/mfa.rs::MfaApiService`
+   with the new methods (`setup_<method>`, `verify_<method>`, etc.).
+2. **Adapter** — implement them on `LocalMfaApi`. Add new stores in
+   `services::mfa_store` if you need persistent state. For shared
+   state with TOTP (failed-attempt counters, lockout) use the existing
+   `users.mfa_*` columns from migration `021_mfa_fields.sql`.
+3. **Routes** — register handlers in `crates/api/src/router.rs`. Keep
+   verb conventions consistent: `POST .../setup`, `POST .../verify`,
+   `DELETE .../disable`.
+4. **Frontend** — Portal already polls `GET /api/v1/auth/mfa/status`;
+   surface the new method as an additional card on the MFA setup page.
+5. **gRPC** — if backend services should be able to verify this method
+   over gRPC, mirror the change into `crates/grpc/src/mfa_facade.rs`.
+
+### 2. Add a new claim to `ValidateTokenResponse`
+
+When perlengkapan (or any downstream backend) needs a new piece of
+identity info inside JWTs:
+
+1. **Proto** — add the field to
+   `proto/authenc.proto::ValidateTokenResponse`. Use the next free
+   field number; never reuse a deleted one.
+2. **Issuer** — populate it in `crates/core/src/services/token/`
+   wherever the JWT is minted, sourcing from the canonical column on
+   `authenc.users`.
+3. **gRPC service** — populate it in
+   `crates/grpc/src/service.rs::validate_token` and in the
+   `AuthencClient::dummy()` shim in
+   `layanan/perlengkapan/src/shared/grpc/clients.rs` so dev builds
+   without authenc still type-check.
+4. **Consumer** — surface it on `lib_core::jwt_claims::Claims` if any
+   MFE needs it, then thread through the storage listener so the
+   `UserSession` projection stays current.
+5. **Tests** — proto fields default to "0" / empty string when missing,
+   so add a migration test that asserts existing clients don't break.
+
+### 3. Add or rotate a JWT signing key
+
+`AUTHENC_JWT_SECRET` is loaded from Secreton on boot. Rotation:
+
+1. Generate a new 32-byte key (`openssl rand -hex 32`).
+2. Update `kv/authenc/jwt` in Secreton; restart pods so the env
+   re-reads. **Existing tokens stay valid until expiry** — clients
+   re-authenticate naturally; no big-bang invalidation required.
+3. If you must invalidate everyone (compromise), rotate then drop the
+   sessions table to force re-login.
 
 ## 📚 Key Files Reference
 

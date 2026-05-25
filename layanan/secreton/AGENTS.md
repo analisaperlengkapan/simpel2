@@ -517,3 +517,96 @@ Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokume
 
 - Production: client (consumer pod) WAJIB pakai gRPC mTLS (port 9000) atau HTTPS (port 8200 dengan cert dari Secreton PKI engine).
 - Staging: HTTP plain port 8200 boleh untuk debugging (tapi mtls.mode=PERMISSIVE harus tetap aktif via Istio sidecar).
+
+## 📋 Common Tasks (Operator Perspective)
+
+### 1. Onboard a new consumer service
+
+Misal service `layanan-arsip` baru perlu baca KV path `kv/arsip/*`:
+
+1. **Helm values** — `infra/helm/simpel/values.yaml`:
+   ```yaml
+   secretonAuth:
+     policies:
+       layanan-arsip:
+         - "kv/data/arsip/*"
+         - "kv/data/postgres/arsip"
+   ```
+   `policies.yaml` ConfigMap template otomatis render policy ACL.
+
+2. **Kubernetes auth role** — sama file, di
+   `secretonAuth.kubernetesRoles` (cek `templates/secreton/auth-config.yaml`):
+   ```yaml
+   kubernetesRoles:
+     layanan-arsip:
+       boundServiceAccountNames: ["layanan-arsip"]
+       boundServiceAccountNamespaces: ["simpelv2-{{ env }}"]
+       policies: ["layanan-arsip"]
+       tokenTTL: 3600
+   ```
+
+3. **Service workload** — `_workload.tpl` injects env var
+   (`SECRETON_AUTH_ROLE=layanan-arsip`) saat secretonAuth enabled.
+   Service code pakai `SecretonClient::connect()` lalu Kubernetes
+   auth login flow.
+
+4. **Seed secrets**:
+   ```bash
+   ./infra/helm/seed-secrets.sh staging arsip
+   # atau manual:
+   kubectl exec secreton-0 -- secreton kv put kv/arsip/api api_key=xxx
+   ```
+
+5. **Verify**: `kubectl logs deploy/layanan-arsip | grep -i "fetched secret"`.
+
+### 2. Rotate a secret without downtime
+
+Skenario: `kv/perlengkapan/notifikasi/smtp` perlu rotate password
+karena bocor.
+
+1. **Tulis nilai baru** ke Secreton — TIDAK menghapus yang lama
+   dulu:
+   ```bash
+   kubectl exec secreton-0 -- secreton kv put kv/perlengkapan/notifikasi/smtp \
+       username=current_user password=NEW_PASSWORD host=smtp.kejaksaan.go.id port=587
+   ```
+   Secreton KV-v2 menyimpan **versi**; consumer terakhir baca versi
+   N+1 setelah cache TTL expired (default 60 detik).
+
+2. **Force re-fetch** di consumer pods (kalau tidak mau tunggu cache):
+   ```bash
+   kubectl rollout restart deploy/layanan-perlengkapan -n simpelv2-prod
+   ```
+   Pod baru baca versi terbaru saat start; pod lama exit graceful.
+
+3. **Update sistem eksternal** (mis. SMTP provider) supaya menerima
+   password baru — bisa sebelum atau sesudah langkah 1 selama window
+   transisi pendek.
+
+4. **Audit verifikasi**:
+   ```bash
+   kubectl exec secreton-0 -- secreton kv metadata get kv/perlengkapan/notifikasi/smtp
+   # → cek current_version naik, created_time match
+   ```
+
+5. **Cleanup**: setelah 24-48 jam tanpa regression, hapus versi lama:
+   ```bash
+   kubectl exec secreton-0 -- secreton kv metadata delete-versions \
+       -versions=N kv/perlengkapan/notifikasi/smtp
+   ```
+   (N = versi lama yang mau dihapus). Versi tersedia untuk
+   rollback selama tidak di-delete eksplisit.
+
+### 3. Bootstrap di environment baru
+
+Lihat `infra/AGENTS.md` → Common Tasks #1 untuk flow lengkap
+microk8s + Helm + `bootstrap-secreton.sh`. Highlight Secreton-specific:
+
+- **Shamir share**: init dengan `-shamir-shares=5 -shamir-threshold=3`.
+  Simpan 5 share di **5 lokasi terpisah** (per personnel terpisah
+  juga ideal). Threshold 3 = quorum untuk unseal.
+- **Root token**: revoke setelah K8s auth backend di-setup dan
+  policies sudah live. Root cuma untuk bootstrap, JANGAN dipakai
+  untuk runtime.
+- **Audit backend**: enable sejak hari pertama (`secreton audit enable file path=/secreton/logs/audit.log`)
+  — log gak bisa di-replay retroaktif.
