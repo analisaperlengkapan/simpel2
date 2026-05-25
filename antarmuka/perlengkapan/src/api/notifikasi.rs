@@ -3,7 +3,7 @@
 //! Mirrors the slim `NotifikasiItem` payload the backend emits — title,
 //! message, category etc. are pre-formatted server-side so the page just
 //! renders rows. Used by:
-//! - `pages::notifikasi::NotifikasiCenterPage` for the inbox.
+//! - `pages::notifikasi::NotifikasiInboxPage` for the inbox.
 //! - `app_chrome` for the toolbar unread-count badge (poll every 30s).
 
 use serde::{Deserialize, Serialize};

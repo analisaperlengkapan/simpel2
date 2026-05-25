@@ -122,6 +122,16 @@ pub struct NotificationMessage {
     pub variables: Option<String>,
     /// Optional deeplink URL the in-app/push notification opens.
     pub deeplink: Option<String>,
+    /// SMTP destination. Required when [`NotificationChannel::Email`] is in
+    /// `channels`; the dispatcher skips the email channel with a log line
+    /// when this is `None` rather than scanning the DB for a fallback. Keep
+    /// this populated upstream wherever you already have the user record in
+    /// hand (workflow engine, ticket service, etc.).
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub recipient_email: Option<String>,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

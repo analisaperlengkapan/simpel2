@@ -13,19 +13,19 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateDelegationRequest {
     /// User who is delegating (delegator)
-    pub delegator_id: Uuid,
+    pub delegator_user_id: Uuid,
 
     /// User who receives the delegation (delegate)
-    pub delegate_id: Uuid,
+    pub delegate_user_id: Uuid,
 
     /// Role being delegated
     pub role: String,
 
     /// Start date of delegation
-    pub start_date: DateTime<Utc>,
+    pub valid_from: DateTime<Utc>,
 
     /// End date of delegation
-    pub end_date: DateTime<Utc>,
+    pub valid_until: DateTime<Utc>,
 
     /// Reason for delegation
     pub reason: Option<String>,
@@ -38,19 +38,19 @@ pub struct Delegation {
     pub id: Uuid,
 
     /// User who is delegating (delegator)
-    pub delegator_id: Uuid,
+    pub delegator_user_id: Uuid,
 
     /// User who receives the delegation (delegate)
-    pub delegate_id: Uuid,
+    pub delegate_user_id: Uuid,
 
     /// Role being delegated
     pub role: String,
 
     /// Start date of delegation
-    pub start_date: DateTime<Utc>,
+    pub valid_from: DateTime<Utc>,
 
     /// End date of delegation
-    pub end_date: DateTime<Utc>,
+    pub valid_until: DateTime<Utc>,
 
     /// Reason for delegation
     pub reason: Option<String>,
@@ -102,19 +102,19 @@ impl DelegationManager {
         request: CreateDelegationRequest,
     ) -> Result<Delegation, DelegationError> {
         // Validate request
-        if request.delegator_id == request.delegate_id {
+        if request.delegator_user_id == request.delegate_user_id {
             return Err(DelegationError::InvalidRequest(
                 "Cannot delegate to yourself".to_string(),
             ));
         }
 
-        if request.end_date <= request.start_date {
+        if request.valid_until <= request.valid_from {
             return Err(DelegationError::InvalidRequest(
                 "End date must be after start date".to_string(),
             ));
         }
 
-        if request.end_date <= Utc::now() {
+        if request.valid_until <= Utc::now() {
             return Err(DelegationError::InvalidRequest(
                 "End date must be in the future".to_string(),
             ));
@@ -125,16 +125,21 @@ impl DelegationManager {
 
         // Determine initial status
         let now = Utc::now();
-        let status = if request.start_date > now {
+        let status = if request.valid_from > now {
             DelegationStatus::Scheduled
         } else {
             DelegationStatus::Active
         };
 
+        // The V007 schema declares `reason` as NOT NULL; the API still
+        // accepts `Option<String>` from the frontend, so coalesce to "" when
+        // the caller didn't supply one rather than failing the INSERT.
+        let reason_val = request.reason.clone().unwrap_or_default();
+
         let query = r#"
-            INSERT INTO perlengkapan.delegations
-            (id, delegator_id, delegate_id, role, start_date, end_date,
-             reason, status, created_at, updated_at)
+            INSERT INTO perlengkapan.workflow_delegations
+            (id, delegator_user_id, delegate_user_id, delegator_role,
+             valid_from, valid_until, reason, status, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
             RETURNING created_at, updated_at
         "#;
@@ -144,12 +149,12 @@ impl DelegationManager {
                 query,
                 &[
                     &delegation_id,
-                    &request.delegator_id,
-                    &request.delegate_id,
+                    &request.delegator_user_id,
+                    &request.delegate_user_id,
                     &request.role,
-                    &request.start_date,
-                    &request.end_date,
-                    &request.reason,
+                    &request.valid_from,
+                    &request.valid_until,
+                    &reason_val,
                     &format!("{:?}", status).to_uppercase(),
                 ],
             )
@@ -157,22 +162,22 @@ impl DelegationManager {
 
         tracing::info!(
             delegation_id = %delegation_id,
-            delegator_id = %request.delegator_id,
-            delegate_id = %request.delegate_id,
+            delegator_user_id = %request.delegator_user_id,
+            delegate_user_id = %request.delegate_user_id,
             role = %request.role,
-            start_date = %request.start_date,
-            end_date = %request.end_date,
+            valid_from = %request.valid_from,
+            valid_until = %request.valid_until,
             status = ?status,
             "Delegation created"
         );
 
         Ok(Delegation {
             id: delegation_id,
-            delegator_id: request.delegator_id,
-            delegate_id: request.delegate_id,
+            delegator_user_id: request.delegator_user_id,
+            delegate_user_id: request.delegate_user_id,
             role: request.role,
-            start_date: request.start_date,
-            end_date: request.end_date,
+            valid_from: request.valid_from,
+            valid_until: request.valid_until,
             reason: request.reason,
             status,
             created_at: row.get("created_at"),
@@ -185,9 +190,9 @@ impl DelegationManager {
         let client = self.db_pool.get().await?;
 
         let query = r#"
-            SELECT id, delegator_id, delegate_id, role, start_date, end_date,
+            SELECT id, delegator_user_id, delegate_user_id, delegator_role AS role, valid_from, valid_until,
                    reason, status, created_at, updated_at
-            FROM perlengkapan.delegations
+            FROM perlengkapan.workflow_delegations
             WHERE id = $1
         "#;
 
@@ -209,13 +214,13 @@ impl DelegationManager {
         let client = self.db_pool.get().await?;
 
         let query = r#"
-            SELECT id, delegator_id, delegate_id, role, start_date, end_date,
+            SELECT id, delegator_user_id, delegate_user_id, delegator_role AS role, valid_from, valid_until,
                    reason, status, created_at, updated_at
-            FROM perlengkapan.delegations
-            WHERE delegate_id = $1
+            FROM perlengkapan.workflow_delegations
+            WHERE delegate_user_id = $1
               AND status = 'ACTIVE'
-              AND start_date <= NOW()
-              AND end_date > NOW()
+              AND valid_from <= NOW()
+              AND valid_until > NOW()
             ORDER BY created_at DESC
         "#;
 
@@ -230,19 +235,19 @@ impl DelegationManager {
     /// Get all delegations created by a user (as delegator)
     pub async fn get_delegations_by_delegator(
         &self,
-        delegator_id: Uuid,
+        delegator_user_id: Uuid,
     ) -> Result<Vec<Delegation>, DelegationError> {
         let client = self.db_pool.get().await?;
 
         let query = r#"
-            SELECT id, delegator_id, delegate_id, role, start_date, end_date,
+            SELECT id, delegator_user_id, delegate_user_id, delegator_role AS role, valid_from, valid_until,
                    reason, status, created_at, updated_at
-            FROM perlengkapan.delegations
-            WHERE delegator_id = $1
+            FROM perlengkapan.workflow_delegations
+            WHERE delegator_user_id = $1
             ORDER BY created_at DESC
         "#;
 
-        let rows = client.query(query, &[&delegator_id]).await?;
+        let rows = client.query(query, &[&delegator_user_id]).await?;
 
         Ok(rows
             .into_iter()
@@ -262,12 +267,12 @@ impl DelegationManager {
 
         let query = r#"
             SELECT COUNT(*) as count
-            FROM perlengkapan.delegations
-            WHERE delegate_id = $1
-              AND role = $2
+            FROM perlengkapan.workflow_delegations
+            WHERE delegate_user_id = $1
+              AND delegator_role = $2
               AND status = 'ACTIVE'
-              AND start_date <= NOW()
-              AND end_date > NOW()
+              AND valid_from <= NOW()
+              AND valid_until > NOW()
         "#;
 
         let row = client.query_one(query, &[&user_id, &role]).await?;
@@ -288,8 +293,8 @@ impl DelegationManager {
 
         // Verify delegation exists and is active
         let check_query = r#"
-            SELECT delegator_id, status
-            FROM perlengkapan.delegations
+            SELECT delegator_user_id, status
+            FROM perlengkapan.workflow_delegations
             WHERE id = $1
         "#;
 
@@ -298,11 +303,11 @@ impl DelegationManager {
             .await?
             .ok_or_else(|| DelegationError::DelegationNotFound(delegation_id))?;
 
-        let delegator_id: Uuid = row.get("delegator_id");
+        let delegator_user_id: Uuid = row.get("delegator_user_id");
         let status: String = row.get("status");
 
         // Only the delegator can revoke
-        if delegator_id != revoked_by {
+        if delegator_user_id != revoked_by {
             return Err(DelegationError::Unauthorized(
                 "Only the delegator can revoke the delegation".to_string(),
             ));
@@ -317,7 +322,7 @@ impl DelegationManager {
 
         // Revoke the delegation
         let update_query = r#"
-            UPDATE perlengkapan.delegations
+            UPDATE perlengkapan.workflow_delegations
             SET status = 'REVOKED', updated_at = NOW()
             WHERE id = $1
         "#;
@@ -342,10 +347,10 @@ impl DelegationManager {
         let client = self.db_pool.get().await?;
 
         let query = r#"
-            UPDATE perlengkapan.delegations
+            UPDATE perlengkapan.workflow_delegations
             SET status = 'EXPIRED', updated_at = NOW()
             WHERE status IN ('ACTIVE', 'SCHEDULED')
-              AND end_date <= NOW()
+              AND valid_until <= NOW()
         "#;
 
         let rows_affected = client.execute(query, &[]).await? as usize;
@@ -367,11 +372,11 @@ impl DelegationManager {
         let client = self.db_pool.get().await?;
 
         let query = r#"
-            UPDATE perlengkapan.delegations
+            UPDATE perlengkapan.workflow_delegations
             SET status = 'ACTIVE', updated_at = NOW()
             WHERE status = 'SCHEDULED'
-              AND start_date <= NOW()
-              AND end_date > NOW()
+              AND valid_from <= NOW()
+              AND valid_until > NOW()
         "#;
 
         let rows_affected = client.execute(query, &[]).await? as usize;
@@ -409,11 +414,11 @@ impl DelegationManager {
 
         Delegation {
             id: row.get("id"),
-            delegator_id: row.get("delegator_id"),
-            delegate_id: row.get("delegate_id"),
+            delegator_user_id: row.get("delegator_user_id"),
+            delegate_user_id: row.get("delegate_user_id"),
             role: row.get("role"),
-            start_date: row.get("start_date"),
-            end_date: row.get("end_date"),
+            valid_from: row.get("valid_from"),
+            valid_until: row.get("valid_until"),
             reason: row.get("reason"),
             status,
             created_at: row.get("created_at"),
@@ -468,15 +473,15 @@ mod tests {
         let future = now + chrono::Duration::days(7);
 
         let request = CreateDelegationRequest {
-            delegator_id: user1,
-            delegate_id: user2,
+            delegator_user_id: user1,
+            delegate_user_id: user2,
             role: "admin_pusat".to_string(),
-            start_date: now,
-            end_date: future,
+            valid_from: now,
+            valid_until: future,
             reason: Some("Vacation".to_string()),
         };
 
-        assert_ne!(request.delegator_id, request.delegate_id);
-        assert!(request.end_date > request.start_date);
+        assert_ne!(request.delegator_user_id, request.delegate_user_id);
+        assert!(request.valid_until > request.valid_from);
     }
 }

@@ -50,3 +50,61 @@ Aplikasi ini bertindak sebagai *web application* tradisional dan tidak boleh dic
 - Gunakan perintah `composer install`, `php artisan`, dsb. hanya di dalam direktori `monolith/simpelv1` jika sedang berfokus pada Laravel backend.
 - Konfigurasi *Docker build* di root harus mampu membangun modul ini secara spesifik pada image Docker yang mendukung eksekusi PHP (FPM/Octane).
 - Menerapkan *Zero-Trust Security* terhadap *request* API yang ke dan dari *service* monolith ini menggunakan JWT Authentication sesuai protokol Authenc.
+
+## 🧭 v1 ↔ v2 Boundary
+
+Status per Mei 2026: v2 (Rust) **belum** production-ready secara
+end-to-end. simpelv1 + simpelv2 jalan **paralel** di staging — user
+masih mengandalkan v1 untuk fitur yang stabil sambil v2 menyusul fitur
+demi fitur.
+
+**Default**: bug yang ditemukan operator → fix di-tempatnya di
+simpelv1 (PHP). Jangan menunggu rewrite ke v2; tidak ada timeline
+hard-cutover.
+
+**Modul yang TETAP di v1 (no migration scheduled)**:
+
+| Modul | Alasan |
+|-------|--------|
+| Pengadaan tender | Workflow stabil, user familiar. Rebuild di v2 di-defer per keputusan Mei 2026. |
+| BMN Wasdal (10 jenis: Sewa, Pinjam, KSP, BSG, BGS, dll) | Per-jenis semantics berbeda; konsolidasi ke polymorphic state-machine di v2 prematur. |
+| Pakaian Dinas (modul stabil v1) | Sudah jalan baik di v1. Versi v2 (`layanan/perlengkapan/src/pakaian_dinas/`) sedang dilengkapi tapi belum jadi default user. |
+| Asset CRUD (18 controller) | Mature, banyak data historis. Migrasi data masih open question. |
+| Master data | Sumber kebenaran tetap di v1 sementara. |
+
+**Modul YANG sudah ada di v2** (paralel, user dapat akses keduanya):
+Kebutuhan BMN, Pemakaian BMN, Penghapusan BMN, Analitik Roadmap
+Sarpras, Notifikasi, Workflow (definitions / monitoring / delegation).
+
+**Kapan port ke v2**: hanya kalau ada keputusan eksplisit dari product
+owner. Jangan port sendiri "karena rapi" — kontrak data v1 ↔ v2 belum
+final (mis. lookup tabel master di v2 belum lengkap), risiko data
+drift tinggi.
+
+## 📋 Common Tasks
+
+### 1. Fix bug di simpelv1 tanpa breaking session
+
+Session storage Laravel v1 = Redis (`SESSION_DRIVER=redis`,
+`SESSION_CONNECTION=default`). Aturan amannya:
+
+1. **Jangan ubah `APP_KEY`** sebagai bagian dari bugfix biasa —
+   rotation invalidate semua session (lihat section 5 di atas).
+2. **Migrasi DB**: pakai `php artisan migrate --pretend` dulu untuk
+   review SQL, lalu jalankan di staging sebelum production.
+3. **Cache clear setelah deploy**: `php artisan config:clear` +
+   `php artisan view:clear` + (kalau OPcache enabled) restart
+   php-fpm. Tanpa cache clear, perubahan config bisa kelihatan
+   tidak nyata.
+4. **OPcache**: `simpelv1` Dockerfile umumnya enable OPcache
+   `validate_timestamps=0` di production → kode lama "stuck" sampai
+   restart container. Kalau bugfix kelihatan tidak efektif, ini
+   tersangka pertama.
+5. **Asset compilation**: `npm run build` (Mix/Vite) kalau perubahan
+   menyangkut `resources/js` atau `resources/sass`. Asset hash baru
+   wajib agar browser fetch ulang (jangan andalkan F5).
+
+Untuk hot-fix produksi cepat: `kubectl exec` ke pod simpelv1 →
+`php artisan tinker` untuk diagnosa interaktif, **tapi** semua
+perubahan akhir tetap harus melalui git + helm upgrade (tidak boleh
+patch in-place di pod).

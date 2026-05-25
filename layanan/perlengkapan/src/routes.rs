@@ -509,6 +509,16 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/monitoring/bottlenecks",
             get(crate::workflow::handlers::get_bottlenecks),
         )
+        // ============ Workflow Delegation Routes ============
+        .route(
+            "/workflow/delegations",
+            get(crate::workflow::delegation_handlers::list_delegations_handler)
+                .post(crate::workflow::delegation_handlers::create_delegation_handler),
+        )
+        .route(
+            "/workflow/delegations/{id}/revoke",
+            post(crate::workflow::delegation_handlers::revoke_delegation_handler),
+        )
         // ============ Admin Routes (audit + master data + templates) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
         .route("/admin/master", get(crate::admin::list_master_sources))
@@ -520,7 +530,7 @@ pub fn create_routes(state: AppState) -> Router {
             "/admin/master/{source}/{id}",
             put(crate::admin::update_master_record).delete(crate::admin::delete_master_record),
         )
-        // ============ Notifikasi Center ============
+        // ============ Notifikasi Inbox ============
         // Per-user inbox surfaced from `notifikasi.in_app_notifications`.
         // `NotifikasiService::send` is the canonical writer; these endpoints
         // are the reader half.

@@ -125,7 +125,8 @@ flowchart TB
 
 ## ✅ Pre-Implementation Checklist
 
-1. **Auth-related?** → Gunakan Portal + `use_auth()` hook. Flow: MFE → REST → gRPC.
-2. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`. Untuk simpelv1 (PHP/Laravel): init container `fetch-secrets` generate `.env` ke emptyDir saat pod start.
-3. **Reusable UI?** → Masukkan ke `lib/ui/`, lalu impor.
-4. **New dependency?** → Tambahkan ke root `Cargo.toml` `[workspace.dependencies]` terlebih dahulu.
+1. **Domain playbook?** → Sebelum mulai, baca `AGENTS.md` di direktori yang Anda kerjakan (`layanan/<svc>/`, `antarmuka/`, `lib/`, dll) untuk playbook konkret (wiring endpoint, fetch secret, nambah workflow, dst). File `AGENTS.md` per-domain menyimpan resep spesifik supaya root tetap ringkas.
+2. **Auth-related?** → Gunakan Portal + `use_auth()` hook. Flow: MFE → REST → gRPC.
+3. **Needs secrets?** → Gunakan Secreton client di backend dengan **Kubernetes Auth Backend** (BUKAN `SECRETON_TOKEN` env). Pod project SA token → exchange ke Secreton token → fetch dari `kv/<service>/...`. Untuk simpelv1 (PHP/Laravel): init container `fetch-secrets` generate `.env` ke emptyDir saat pod start.
+4. **Reusable UI?** → Masukkan ke `lib/ui/`, lalu impor.
+5. **New dependency?** → Tambahkan ke root `Cargo.toml` `[workspace.dependencies]` terlebih dahulu.

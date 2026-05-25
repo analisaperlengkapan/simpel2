@@ -10,6 +10,7 @@ license.workspace = true
 authenc-types = { path = "../types" }
 authenc-core = { path = "../core" }
 authenc-crypto = { path = "../crypto" }
+authenc-mfa = { path = "../mfa" }
 authenc-storage = { path = "../storage" }
 authenc-webauthn = { path = "../webauthn" }
 authenc-federation = { path = "../federation" }
@@ -35,6 +36,7 @@ urlencoding = { workspace = true }
 jsonwebtoken = { workspace = true }
 once_cell = { workspace = true }
 base64 = { workspace = true }
+tokio-postgres = { workspace = true }
 argon2 = { workspace = true }
 dashmap = { workspace = true }
 ed25519-dalek = { workspace = true }

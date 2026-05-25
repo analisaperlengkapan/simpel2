@@ -8,11 +8,13 @@
 //!
 //! Channel coverage:
 //! - `InApp`   — writes a row into `notifikasi.in_app_notifications` (real).
-//! - `Email` / `Sms` / `Whatsapp` / `Push` — logged but not yet dispatched;
-//!   they require SMTP / provider credentials wired through shared config.
-//!   They will be implemented as the existing `notifikasi::email`,
-//!   `notifikasi::sms`, etc. modules get connected in a follow-up.
+//! - `Email`   — relayed through [`super::email::EmailService`] when one is
+//!   attached via [`NotifikasiService::with_email`]. Falls back to a log-only
+//!   skip if email isn't wired (dev profiles without SMTP/Secreton).
+//! - `Sms` / `Whatsapp` / `Push` — still logged-and-skipped pending their own
+//!   wiring (next iteration).
 
+use super::email::EmailService;
 use async_trait::async_trait;
 use chrono::Utc;
 use deadpool_postgres::Pool;
@@ -21,17 +23,27 @@ use lib_perlengkapan::contracts::{
     NotificationChannel, NotificationMessage, NotificationPriority, NotificationReceipt,
     NotificationSender,
 };
+use std::sync::Arc;
 use uuid::Uuid;
 
 /// Concrete service that fulfils the [`NotificationSender`] contract.
 #[derive(Clone)]
 pub struct NotifikasiService {
     pool: Pool,
+    email: Option<Arc<EmailService>>,
 }
 
 impl NotifikasiService {
     pub fn new(pool: Pool) -> Self {
-        Self { pool }
+        Self { pool, email: None }
+    }
+
+    /// Attach an [`EmailService`] so SMTP-channel messages actually leave the
+    /// service. Without this, requests for `NotificationChannel::Email` are
+    /// dropped with a warning (matches the previous behaviour).
+    pub fn with_email(mut self, email: Arc<EmailService>) -> Self {
+        self.email = Some(email);
+        self
     }
 
     fn priority_as_str(p: NotificationPriority) -> &'static str {
@@ -115,8 +127,40 @@ impl NotificationSender for NotifikasiService {
                         last_err = Some(e);
                     }
                 },
-                NotificationChannel::Email
-                | NotificationChannel::Sms
+                NotificationChannel::Email => match (&self.email, &message.recipient_email) {
+                    (Some(email), Some(to)) => {
+                        match email.send_email(to, &message.title, &message.body).await {
+                            Ok(_) => dispatched.push(*channel),
+                            Err(e) => {
+                                tracing::warn!(
+                                    recipient = %message.recipient_user_id,
+                                    to = %to,
+                                    error = %e,
+                                    "email dispatch failed"
+                                );
+                                last_err = Some(ServiceError::ExternalService(format!(
+                                    "email send: {}",
+                                    e
+                                )));
+                            }
+                        }
+                    }
+                    (Some(_), None) => {
+                        tracing::info!(
+                            recipient = %message.recipient_user_id,
+                            event = %message.event,
+                            "email channel requested but message lacks recipient_email"
+                        );
+                    }
+                    (None, _) => {
+                        tracing::info!(
+                            recipient = %message.recipient_user_id,
+                            event = %message.event,
+                            "email channel not wired (no EmailService attached); skipped"
+                        );
+                    }
+                },
+                NotificationChannel::Sms
                 | NotificationChannel::Whatsapp
                 | NotificationChannel::Push => {
                     tracing::info!(

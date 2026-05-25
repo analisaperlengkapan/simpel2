@@ -82,9 +82,12 @@ mod handler_verification {
     #[test]
     #[allow(unused_imports)]
     fn test_totp_handlers_exist() {
-        // Verify TOTP handlers are accessible
-        use authenc_api::handlers::totp::{
-            disable_totp_handler, enable_totp_handler, verify_totp_handler,
+        // The dedicated `totp` handler module was deleted as dead code
+        // (its three stubs were never routed). The live TOTP endpoints
+        // are now served from `handlers::mfa` via the `MfaApiService`
+        // adapter.
+        use authenc_api::handlers::mfa::{
+            totp_disable_handler, totp_enable_handler, totp_verify_handler,
         };
     }
 

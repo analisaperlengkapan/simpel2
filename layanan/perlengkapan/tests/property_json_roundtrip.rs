@@ -217,6 +217,7 @@ proptest! {
             body,
             variables: Some(serde_json::json!({"k": "v"})),
             deeplink,
+            recipient_email: None,
         };
         roundtrip(&value);
     }

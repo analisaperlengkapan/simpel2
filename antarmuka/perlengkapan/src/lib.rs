@@ -31,7 +31,7 @@ use components::sidebar::Sidebar;
 use features::auth::AuthService;
 use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminTemplatesPage};
-use pages::notifikasi::NotifikasiCenterPage;
+use pages::notifikasi::NotifikasiInboxPage;
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
     BankAsetSebaranPage,
@@ -47,6 +47,7 @@ use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
 use pages::placeholder::PlaceholderPage;
 use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
+use pages::workflow::delegation::WorkflowDelegationPage;
 use pages::workflow::monitoring::WorkflowMonitoring;
 
 // Migrated business components
@@ -75,6 +76,40 @@ use components::qrcode_generator::QrCodeGenerator;
 
 // ── Version ──────────────────────────────────────────────────────────────
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Route view for `/pakaian-dinas/ukuran` — the "my own size" page.
+///
+/// The previous declaration hard-coded `pegawai_id="0"`, which made the
+/// page render someone else's identity and broke the per-user cache.
+/// Here we read the live `UserSession` from context (the same value the
+/// guards check) and project NIP/name straight from the JWT claims.
+#[component]
+fn UkuranPegawaiCurrentUser() -> impl IntoView {
+    let session = expect_context::<ReadSignal<Option<features::auth::UserSession>>>();
+    move || match session.get() {
+        Some(s) => {
+            let nip = s.nip.clone().unwrap_or_default();
+            // Use the authenc user_id as the QueryClient cache key — it is
+            // unique per identity and never empty, so we never collide
+            // across two pegawai sharing a workstation.
+            let cache_key = s.user_id.clone();
+            view! {
+                <UkuranPegawai
+                    pegawai_id=cache_key
+                    pegawai_nama=s.name.clone()
+                    pegawai_nip=nip
+                />
+            }
+            .into_any()
+        }
+        None => view! {
+            <div class="p-6 text-center text-slate-300">
+                "Sesi tidak tersedia. Silakan login kembali."
+            </div>
+        }
+        .into_any(),
+    }
+}
 
 // ═════════════════════════════════════════════════════════════════════════
 // Root App — routes grouped by auth level using ParentRoute layout guards
@@ -106,6 +141,12 @@ pub fn App() -> impl IntoView {
             AuthService::setup_storage_listener(move |session| {
                 set_user_session.set(session);
             });
+        });
+
+        // Self-refresh: don't rely on Portal being open. See
+        // `features::session_monitor` for the rationale.
+        Effect::new(move |_| {
+            features::session_monitor::spawn_refresh_loop(set_user_session);
         });
     }
 
@@ -223,7 +264,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=path!("/pakaian-dinas/jenis") view=PakaianDinasJenisList />
                                 <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=SpesifikasiPage />
                                 <Route path=path!("/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
-                                <Route path=path!("/pakaian-dinas/ukuran") view=move || view! { <UkuranPegawai pegawai_id="0".to_string() pegawai_nama="Pegawai".to_string() pegawai_nip="000".to_string() /> } />
+                                <Route path=path!("/pakaian-dinas/ukuran") view=UkuranPegawaiCurrentUser />
                                 <Route path=path!("/pakaian-dinas/laporan") view=PakaianDinasLaporan />
                                 <Route path=path!("/pakaian-dinas/laporan/rekap") view=PakaianDinasLaporan />
 
@@ -251,7 +292,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=path!("/analitik/kodefikasi") view=MappingKodefikasiDashboard />
 
                                 // ── Notifikasi ───────────────────────
-                                <Route path=path!("/notifikasi") view=NotifikasiCenterPage />
+                                <Route path=path!("/notifikasi") view=NotifikasiInboxPage />
 
                                 // ── Bantuan ──────────────────────────
                                 <Route path=path!("/bantuan/panduan") view=PanduanPengguna />
@@ -271,6 +312,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=path!("/templates") view=AdminTemplatesPage />
                                 <Route path=path!("/workflow") view=WorkflowConfigManagement />
                                 <Route path=path!("/workflow-monitoring") view=WorkflowMonitoring />
+                                <Route path=path!("/workflow-delegation") view=WorkflowDelegationPage />
                             </ParentRoute>
                         </Routes>
                     </main>

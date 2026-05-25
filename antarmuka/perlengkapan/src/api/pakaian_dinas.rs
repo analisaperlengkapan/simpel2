@@ -1000,20 +1000,20 @@ pub async fn process_validator_action(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_pegawai_ukuran(
-    pegawai_id: String,
+    // Kept for QueryClient cache-keying. The backend resolves the pegawai
+    // from the NIP claim inside the JWT, so the value is not sent on the
+    // wire — but caching `()` would collide across users on shared devices.
+    _pegawai_id: String,
 ) -> Result<ApiResponse<Option<PegawaiPakaianDinas>>, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai/{}",
-        pegawai_id
-    );
+    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
 
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
-    let resp = Request::get(&url)
+    let resp = Request::get(url)
         .header("Authorization", &format!("Bearer {}", token))
         .send()
         .await?;

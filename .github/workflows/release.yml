@@ -378,6 +378,51 @@ jobs:
             image-${{ matrix.image.name }}.digest
           retention-days: 90
 
+  # Self-hosted runner housekeeping. setup-buildx-action `cleanup: true` (in
+  # build-docker above) only removes the per-job buildkit *container*, not
+  # base images pulled by the build, dangling layers from previous tags, or
+  # cache volumes left by cancelled jobs. Without this step the runner host
+  # accumulated multi-TB across releases (see comment at lines 252-257).
+  #
+  # The shape here is deliberately conservative:
+  #   - `prune --keep-storage 20gb` is a no-op until the host actually
+  #     needs space back, so recent cache survives across consecutive
+  #     releases (cargo-chef layers, base distroless images).
+  #   - `image prune --until 168h` only drops dangling images older than a
+  #     week — anything still tagged or recently used is kept.
+  #   - `if: always()` ensures the cleanup runs even when build-docker
+  #     fails, which is precisely when stale buildkit volumes pile up.
+  cleanup-runner:
+    name: Runner cache trim
+    needs: [build-docker]
+    if: always()
+    runs-on: self-hosted
+    steps:
+      - name: Trim BuildKit cache & dangling Docker images
+        shell: bash
+        run: |
+          set +e
+          echo "=== Disk before cleanup ==="
+          df -h /var/lib/docker || df -h /
+
+          # Trim BuildKit cache (any builder on this host) down to 20 GB
+          # ceiling. Older layers go first; recent cache that materially
+          # affects build times is preserved.
+          docker buildx prune --force --keep-storage 20gb
+
+          # Remove dangling (untagged) images older than 7 days. Doesn't
+          # touch tagged images or images currently used by containers.
+          docker image prune --force --filter "until=168h"
+
+          # Catch buildkit volumes whose container was reaped without the
+          # post-job hook completing (cancelled job, runner crash). The
+          # `--filter dangling=true` keeps us from yanking a volume that a
+          # parallel matrix job is still using.
+          docker volume prune --force --filter "label=builder=buildx"
+
+          echo "=== Disk after cleanup ==="
+          df -h /var/lib/docker || df -h /
+
   publish:
     name: Publish GitHub Release
     needs: [validate, build-backend, build-frontend, build-docker]

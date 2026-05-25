@@ -134,6 +134,7 @@ secretonAuth:
     layanan-perlengkapan:
       - "kv/data/postgres/perlengkapan"
       - "kv/data/postgres/integrasi"        # read-only ke DB integrasi
+      - "kv/data/perlengkapan/notifikasi/*" # SMTP/SMS/WhatsApp creds
     simpelv1:
       - "kv/data/simpelv1/*"
       - "kv/data/postgres/simpelv2"

@@ -91,6 +91,14 @@ impl ApiState {
         self.integrasi_client = Some(client);
         self
     }
+
+    /// Attach the REST MFA adapter so `handlers::mfa` stops returning
+    /// `mfa_not_configured`. Wired from `main.rs` once the Postgres-backed
+    /// `TotpStore` and `BackupCodesStore` are available.
+    pub fn with_mfa_service(mut self, mfa: Arc<dyn MfaApiService>) -> Self {
+        self.mfa_service = Some(mfa);
+        self
+    }
 }
 
 #[cfg(test)]

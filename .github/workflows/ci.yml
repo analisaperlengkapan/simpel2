@@ -1010,3 +1010,60 @@ jobs:
             exit 1
           fi
           echo "All required jobs passed."
+
+  # Per-CI-run cleanup. Per-job target/ wipe-at-start (see comments around
+  # line 537) covers correctness, but the matching post-job cleanup is
+  # missing — when a runner sits idle between PRs the leaked target/ and
+  # trunk dist/ from the previous run persist until the next wipe-at-start.
+  # This job runs once at end of CI with `if: always()` so it fires even
+  # on cancelled or failed runs (precisely when the leak is worst).
+  #
+  # Limitation: it only cleans the runner *this* job lands on; with
+  # multiple self-hosted runners, cleanup distribution is statistical.
+  # `maintenance.yml::runner-health` (daily cron) is the catch-all backstop
+  # that covers every runner over time.
+  cleanup-runner:
+    name: Per-run cleanup (target / dist / dangling images)
+    if: always()
+    needs:
+      - build-antarmuka-portal
+      - build-antarmuka-perlengkapan
+      - build-backend
+      - build-monolith-assets
+      - build-docker
+      - test-lib-core
+      - test-lib-backend
+      - test-lib-crypto
+      - test-lib-perlengkapan
+      - test-lib-ui
+      - test-antarmuka-portal
+      - test-antarmuka-perlengkapan
+      - test-services
+      - test-monolith
+      - e2e-playwright
+    runs-on: self-hosted
+    steps:
+      - name: Trim CI artifacts from this runner
+        shell: bash
+        run: |
+          set +e
+          echo "=== Disk before cleanup ==="
+          df -h "$RUNNER_WORKSPACE" || df -h /
+
+          # Only touch caches from runs older than 6h on this runner — keeps
+          # ad-hoc cache hits intact for back-to-back PR pushes while still
+          # reaping the previous-day leak.
+          WORK_DIR="${RUNNER_WORKSPACE%/*}"
+          if [ -d "$WORK_DIR" ]; then
+            find "$WORK_DIR" -maxdepth 4 -type d \( -name target -o -name dist \) \
+              -mmin +360 -print -exec rm -rf {} + 2>/dev/null || true
+          fi
+
+          # Dangling Docker images from `docker run` pulls during this CI.
+          # Tagged images (cargo-chef, base distroless) stay.
+          if command -v docker &>/dev/null; then
+            docker image prune --force --filter "until=24h"
+          fi
+
+          echo "=== Disk after cleanup ==="
+          df -h "$RUNNER_WORKSPACE" || df -h /

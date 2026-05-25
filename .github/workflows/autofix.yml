@@ -503,3 +503,45 @@ jobs:
           path: /tmp/autofix.patch
           retention-days: 7
           if-no-files-found: ignore
+
+  # Per-run cleanup mirroring ci.yml::cleanup-runner. The `rust` job runs
+  # cargo fmt + fix + clippy --fix end to end, building target/ from scratch
+  # and leaving multi-GB behind on the runner. Six docker pulls (markdown,
+  # toml, php, etc.) add image layers. This sweep keeps the leak bounded
+  # without losing recent-job cache. The daily
+  # `maintenance.yml::runner-health` is still the cross-runner backstop.
+  cleanup-runner:
+    name: Per-run cleanup (autofix target / docker images)
+    if: always()
+    needs:
+      - rust
+      - toml
+      - markdown
+      - php
+      - whitespace
+      - patch-for-fork
+    runs-on: self-hosted
+    steps:
+      - name: Trim autofix artifacts from this runner
+        shell: bash
+        run: |
+          set +e
+          echo "=== Disk before cleanup ==="
+          df -h "$RUNNER_WORKSPACE" || df -h /
+
+          WORK_DIR="${RUNNER_WORKSPACE%/*}"
+          if [ -d "$WORK_DIR" ]; then
+            # Reap target/ older than 6h on this runner. Recent caches stay
+            # to avoid cold rebuilds on quick follow-up pushes.
+            find "$WORK_DIR" -maxdepth 4 -type d -name target \
+              -mmin +360 -print -exec rm -rf {} + 2>/dev/null || true
+          fi
+
+          # Dangling images from `docker run` autofix steps (markdownlint,
+          # taplo, shellcheck, etc.). Tagged ones used recently stay.
+          if command -v docker &>/dev/null; then
+            docker image prune --force --filter "until=24h"
+          fi
+
+          echo "=== Disk after cleanup ==="
+          df -h "$RUNNER_WORKSPACE" || df -h /

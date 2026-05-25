@@ -144,3 +144,98 @@ layananIntegrasi:
 - `helm rollback simpel -n simpelv2-<env>` saat regresi.
 - Jalankan `bootstrap-secreton.sh` SEKALI per env saat fresh deploy (sebelum flip `secretonAuth.enabled=true`).
 - Pakai semver tag (`v0.1.0`, `v1.2.3-rc1`); release via tag `git push origin v<MAJOR>.<MINOR>.<PATCH>` → trigger `release.yml`.
+
+## 📋 Common Tasks
+
+### 1. Deploy ke environment microk8s baru
+
+Prerequisite di host: microk8s ≥ 1.30, kubectl alias, snap `helm`,
+plugin `helm-diff`.
+
+```bash
+# 1. Enable addons (dns/storage/istio/metallb/longhorn cukup untuk staging)
+microk8s enable dns storage istio metallb:10.64.140.43-10.64.140.49
+
+# 2. MetalLB pre-bootstrap (chart-driven, idempoten)
+./infra/helm/deploy.sh staging metallb-install
+
+# 3. Helm install — values-staging.yaml dengan `secretonAuth.enabled=false`
+#    untuk first boot (bootstrap loop)
+./infra/helm/deploy.sh staging template     # ← review dulu
+./infra/helm/deploy.sh staging install
+
+# 4. Tunggu sampai pods Ready (≤ 5 menit di staging)
+kubectl -n simpelv2-staging get pods -w
+
+# 5. Bootstrap Secreton (init + unseal + K8s auth + seed KV)
+./infra/helm/bootstrap-secreton.sh staging
+
+# 6. Flip `secretonAuth.enabled=true` di values-staging.yaml lalu upgrade
+./infra/helm/deploy.sh staging upgrade
+
+# 7. Verify zero-trust: pods restart, log "fetched secret from secreton"
+kubectl -n simpelv2-staging logs deploy/layanan-perlengkapan | grep -i secreton
+```
+
+Production identik kecuali: backup 5 Shamir share **dulu** ke 5 lokasi
+terpisah sebelum `bootstrap-secreton.sh` dijalankan; revoke root
+token hanya setelah konfirmasi unseal share tersimpan dengan benar.
+
+### 2. Rollback Helm release
+
+```bash
+# Lihat history:
+helm history simpel -n simpelv2-staging
+
+# Rollback ke revision tertentu (nilai dari history --output table):
+helm rollback simpel <revision> -n simpelv2-staging --wait
+
+# Atau ke previous revision saja:
+helm rollback simpel -n simpelv2-staging --wait
+```
+
+CronJob, scheduler, dan StatefulSet (`secreton`, `postgres`) di-roll
+dengan PVC tetap utuh — rollback tidak menghapus data, hanya
+mengembalikan spek manifest. Untuk schema migration regression, perlu
+**manual** rollback DB migration via `refinery` CLI; chart tidak
+mengontrol skema DB.
+
+### 3. Update values tanpa restart workload yang tidak butuh
+
+Default `helm upgrade` me-rolling-restart semua Deployment yang
+manifest-nya berubah. Untuk perubahan **ConfigMap saja** (mis. update
+log level, feature flag) yang sudah punya hot-reload, hindari restart
+dengan template hook eksplisit:
+
+```yaml
+# Di template Deployment, hapus checksum annotation untuk komponen yang
+# punya reload:
+metadata:
+  annotations:
+    # checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+```
+
+Hapus baris ini supaya ubah ConfigMap tidak men-trigger pod hash
+mismatch. Lebih aman: simpan dynamic config di Secreton dan baca via
+client polling (`SecretonClient::get_secret`) — pod tidak perlu
+restart sama sekali.
+
+### 4. Debug pod yang gagal start setelah deploy
+
+```bash
+# Step 1: lihat events scheduler-level (image pull, OOM, dll)
+kubectl -n simpelv2-<env> describe pod <pod-name> | tail -40
+
+# Step 2: log init container (kebanyakan masalah di sini — fetch-secrets,
+# migration)
+kubectl -n simpelv2-<env> logs <pod-name> -c <init-container-name>
+
+# Step 3: main container
+kubectl -n simpelv2-<env> logs <pod-name>
+
+# Step 4: jika fetch-secrets fail karena Secreton sealed, unseal dulu:
+kubectl -n simpelv2-<env> exec -it secreton-0 -- secreton operator unseal
+```
+
+`fetch-secrets` init container sengaja FAIL daripada start dengan
+stale cred — bukan bug, melainkan defense in depth.

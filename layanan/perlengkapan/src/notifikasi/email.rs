@@ -1,6 +1,7 @@
 use super::config::AppConfig;
 use super::error::AppError;
 use super::models::{Notification, NotificationRecipient};
+use crate::shared::grpc::clients::SecretonClient;
 use deadpool_postgres::Pool;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor, message::Mailbox};
 use std::time::Duration;
@@ -48,41 +49,36 @@ impl EmailService {
         }
     }
 
-    /// Create EmailService with credentials from Secreton (recommended for production)
+    /// Create EmailService with SMTP credentials fetched from Secreton.
     ///
-    /// # Arguments
-    /// * `config` - Application configuration
-    /// * `pool` - Database connection pool
-    /// * `secreton_client` - Secreton gRPC client for fetching credentials
-    ///
-    /// # Example
-    /// ```ignore
-    /// let email_service = EmailService::new_with_secreton(
-    ///     config,
-    ///     pool,
-    ///     secreton_client,
-    /// ).await?;
-    /// ```
-    #[allow(dead_code)]
+    /// `secreton_path` points at a Secreton KV bundle (e.g.
+    /// `"perlengkapan/notifikasi/smtp"`) that holds `username` and `password`
+    /// keys. Host, port, and `from` address still come from `config` — those
+    /// are not secret and benefit from being declared in plain values.yaml so
+    /// ops can grep them. Returns an error if the bundle is missing either
+    /// credential or if Secreton is unreachable.
     pub async fn new_with_secreton(
         config: AppConfig,
         pool: Pool,
-        secreton_client: &mut impl SecretonClient,
+        secreton_client: &SecretonClient,
+        secreton_path: &str,
     ) -> Result<Self, AppError> {
-        // Fetch SMTP credentials from Secreton
-        let smtp_username = secreton_client
-            .get_secret("smtp/username")
-            .await
-            .map_err(|e| {
-                AppError::Config(format!("Failed to fetch SMTP username: {}", e).into_boxed_str())
-            })?;
+        let bundle = secreton_client.get_secret(secreton_path).await.map_err(|e| {
+            AppError::Config(
+                format!("fetch secreton {}: {}", secreton_path, e).into_boxed_str(),
+            )
+        })?;
 
-        let smtp_password = secreton_client
-            .get_secret("smtp/password")
-            .await
-            .map_err(|e| {
-                AppError::Config(format!("Failed to fetch SMTP password: {}", e).into_boxed_str())
-            })?;
+        let smtp_username = bundle.get("username").cloned().ok_or_else(|| {
+            AppError::Config(
+                format!("secreton {}: missing key `username`", secreton_path).into_boxed_str(),
+            )
+        })?;
+        let smtp_password = bundle.get("password").cloned().ok_or_else(|| {
+            AppError::Config(
+                format!("secreton {}: missing key `password`", secreton_path).into_boxed_str(),
+            )
+        })?;
 
         let creds =
             lettre::transport::smtp::authentication::Credentials::new(smtp_username, smtp_password);
@@ -513,23 +509,9 @@ impl EmailService {
     }
 }
 
-/// Trait for Secreton client abstraction
-/// This allows for easier testing and mocking
-pub trait SecretonClient {
-    async fn get_secret(&mut self, path: &str) -> Result<String, Box<dyn std::error::Error>>;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    struct MockSecretonClient;
-
-    impl SecretonClient for MockSecretonClient {
-        async fn get_secret(&mut self, _path: &str) -> Result<String, Box<dyn std::error::Error>> {
-            Ok("mock_secret".to_string())
-        }
-    }
 
     #[tokio::test]
     async fn test_template_rendering() {

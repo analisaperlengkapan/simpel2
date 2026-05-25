@@ -1,5 +1,5 @@
-//! Notifikasi center pages.
+//! User-facing notification inbox.
 
-pub mod center_page;
+pub mod inbox;
 
-pub use center_page::NotifikasiCenterPage;
+pub use inbox::NotifikasiInboxPage;

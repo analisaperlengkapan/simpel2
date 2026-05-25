@@ -5,7 +5,6 @@ pub mod auth;
 pub mod auth_helpers;
 pub mod mfa;
 pub mod session;
-pub mod totp;
 pub mod webauthn;
 
 // OAuth2/OIDC handlers
@@ -64,11 +63,6 @@ pub use oauth2::{
 pub use session::{
     ListSessionsResponse, SessionInfo, list_sessions_handler,
     logout_handler as session_logout_handler,
-};
-
-pub use totp::{
-    DisableTotpResponse, EnableTotpRequest, EnableTotpResponse, VerifyTotpRequest,
-    VerifyTotpResponse, disable_totp_handler, enable_totp_handler, verify_totp_handler,
 };
 
 pub use mfa::{

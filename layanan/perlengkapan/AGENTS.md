@@ -275,16 +275,37 @@ pub async fn create_perlengkapan(
 
 ### 1. Add New API Endpoint
 
-1. Add route in `crates/api/src/lib.rs`:
+Perlengkapan is a *single-crate* service (flat `src/`, no `crates/api/` —
+that pattern lives in authenc, not here). End-to-end:
 
-```rust
-.route("/api/v1/perlengkapan", get(list_perlengkapan).post(create_perlengkapan))
-.route("/api/v1/perlengkapan/{id}", get(get_perlengkapan).put(update_perlengkapan))
-```
+1. **Route** — register in `src/routes.rs`. Example layout (see the
+   `Workflow Delegation Routes` block circa line 510 for a fresh
+   reference):
 
-2. Implement handler in `crates/api/src/handlers/perlengkapan.rs`
-3. Add tests in `crates/api/tests/`
-4. Update documentation
+   ```rust
+   .route(
+       "/workflow/delegations",
+       get(crate::workflow::delegation_handlers::list_delegations_handler)
+           .post(crate::workflow::delegation_handlers::create_delegation_handler),
+   )
+   ```
+
+2. **Handler** — drop the function in the per-domain `handlers.rs` (or
+   `<module>/handlers.rs` for larger surfaces). Extractor ordering
+   matters in axum: `State` first, then custom extractors (`Claims`),
+   then `Path` / `Query`, with `Json(body)` last.
+
+3. **Service / repository** — keep the handler thin; business rules and
+   DB I/O go in `<module>/service.rs` and `<module>/repository.rs`. The
+   handler wires through `AppState`.
+
+4. **Migration** — schema lives under `migrations/` as `V###__name.sql`
+   and runs through `refinery` from `main.rs` (`migrations::run()`).
+   Never `ALTER` an existing migration after merge — append a new file.
+
+5. **Test** — unit tests next to the service; cross-module flows go in
+   `tests/`. Backend lib tests must run serial (`--test-threads=1`)
+   because they share a Docker Postgres.
 
 ### 2. Add Validation Rule
 
@@ -309,7 +330,61 @@ pub struct CreatePerlengkapanRequest {
 request.validate().map_err(AppError::Validation)?;
 ```
 
-### 3. Add gRPC Service Method
+### 3. Add a Workflow Definition or Delegation
+
+The workflow engine lives in `src/workflow/`. Two ways to extend it:
+
+- **New workflow definition (a new approval flow)** — add a `default_*`
+  fn to `workflow/config.rs::WorkflowConfig` that returns
+  `WorkflowConfig { states, transitions, sla_minutes, roles, ... }`,
+  then wire `WorkflowEngine::for_<entity>` in `main.rs`. Once shipped,
+  the admin UI at `/admin/workflow` displays it for inspection without
+  any frontend change. Add a refinery migration only if the new
+  workflow needs entity-specific columns (most don't — the engine
+  tables are polymorphic).
+
+- **Delegation (validator hands off to another user)** — the model is
+  already wired (`workflow/delegation.rs` + `delegation_handlers.rs`
+  routes at `/workflow/delegations`). The hot path is:
+  `POST /workflow/delegations` → `DelegationManager::create_delegation`
+  inserts into `perlengkapan.workflow_delegations`. Status transitions
+  (`Scheduled` → `Active` → `Expired`) are driven by
+  `DelegationManager::process_delegation_lifecycle()`; hook it into
+  the SLA scheduler if you add a separate cron loop. Frontend lives at
+  `antarmuka/perlengkapan/src/pages/workflow/delegation.rs`.
+
+### 4. Add a Secreton-backed Service Credential
+
+`main.rs` already creates a single `SecretonClient` and keeps it alive
+for the duration of the process — reuse it instead of opening a new
+gRPC channel per service. Worked example: SMTP credentials for
+`notifikasi::email::EmailService`:
+
+```rust
+// 1. Construct service with `new_with_secreton`, passing the live
+//    Secreton client and a KV path. The path resolves under
+//    `kv/data/<path>` in Secreton's REST API.
+let email = EmailService::new_with_secreton(
+    notif_config,
+    db.pool().clone(),
+    secreton_client_ref,         // &SecretonClient (kept across boot)
+    "perlengkapan/notifikasi/smtp", // bundle with `username` + `password` keys
+).await?;
+
+// 2. Production hardening: under `APP_ENV=production` the Err arm
+//    must abort start-up (anyhow::bail!) instead of degrading silently.
+```
+
+The KV bundle must be readable by the SA role declared in
+`infra/helm/simpel/values.yaml` under
+`secretonAuth.policies.layanan-perlengkapan`. Add new globs there for
+new bundles — current entries:
+
+- `kv/data/postgres/perlengkapan`
+- `kv/data/postgres/integrasi`
+- `kv/data/perlengkapan/notifikasi/*`
+
+### 5. Add gRPC Service Method
 
 1. Update proto file in `proto/`
 2. Regenerate code: `cargo build -p layanan-perlengkapan`
@@ -465,10 +540,23 @@ See root `AGENTS.md` → "Canonical localStorage Keys" for the full key table.
 
 ### Known Integration Gaps
 
-| Gap | Impact | Priority |
-|-----|--------|----------|
-| `authenc-core` has 127 compilation errors | Blocks gRPC token validation in integration tests | 🔴 CRITICAL |
-| IAM API handlers return `NOT_IMPLEMENTED` | Portal admin pages (Users, Roles, etc.) non-functional | 🟡 HIGH |
+Snapshot as of the May 2026 stabilization sweep (Phase 1–2 of the
+`tolong-bantu-saya-saya-tender-flamingo` plan).
+
+| Gap | Status | Notes |
+|-----|--------|-------|
+| Cross-MFE token refresh (Portal ↔ Perlengkapan) | ✅ Wired | `features::session_monitor::spawn_refresh_loop` in Perlengkapan refreshes ahead of expiry; Portal listener now reacts to `auth_token` storage events too. ADR `docs/adr/0003-cross-mfe-token-sync.md`. |
+| Email notification via SMTP | ✅ Wired | `EmailService::new_with_secreton` reads `perlengkapan/notifikasi/smtp` bundle; `NotifikasiService::with_email()` dispatches the Email channel. Helm policy adds `kv/data/perlengkapan/notifikasi/*`. |
+| MFA TOTP REST endpoints | ✅ Wired | `services::LocalMfaApi` adapter in authenc-api drives `setup`/`verify`/`disable` against Postgres-backed stores (migration `049_totp_backup_codes.sql`). TOTP secrets stored as base32 plaintext — wrap with `authenc-crypto` envelope encryption in a follow-up. |
+| Hardcoded `pegawai_id="0"` on `/pakaian-dinas/ukuran` | ✅ Removed | Route now reads `UserSession` from context. `fetch_pegawai_ukuran` no longer appends a path-param; backend resolves pegawai from JWT NIP claim. |
+| Portal admin: Roles CRUD | ✅ Wired | Create + Delete modals in `antarmuka/portal/src/pages/admin/roles.rs`. |
+| Portal admin: Realm General settings | ✅ Wired | Editable form bound to `iam_update_realm`. Other 8 tabs carry a "Pratinjau — belum tersambung" banner pending backend endpoints. |
+| Workflow delegation (`/workflow/delegations`) | ✅ Wired | Backend handlers + REST routes added; `delegation.rs` table refs corrected to V007 schema (`workflow_delegations`). Frontend at `/admin/workflow-delegation`. |
+| SMS / WhatsApp / Push channels | 🟡 Deferred | `NotifikasiService` still logs-and-skips these; SMTP-style adapter scaffolding can be ported once provider creds are minted into Secreton. |
+| Authorization Services (Keycloak parity: resource servers, scopes, policies, evaluate) | 🔴 Pending epic | `antarmuka/portal/src/pages/admin/permissions.rs` shows a labelled "Pratinjau" UI; no backend endpoints yet. |
+| Realm Settings tabs other than General | 🔴 Pending epic | Login/Email/Themes/Keys/Sessions/Tokens/Security/Localization need authenc settings endpoints. |
+| TOTP secret encryption-at-rest | 🟡 Follow-up | Tracked in migration 049 comment; wrap with envelope encryption from `authenc-crypto`. |
+| Pengadaan tender, BMN Wasdal | 🟡 Stays on v1 | Per the plan, v1 PHP keeps these — bug fixes in `monolith/simpelv1/`, no v2 rebuild scheduled. |
 
 ---
 
