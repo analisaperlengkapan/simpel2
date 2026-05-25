@@ -525,6 +525,7 @@ Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokume
 Misal service `layanan-arsip` baru perlu baca KV path `kv/arsip/*`:
 
 1. **Helm values** — `infra/helm/simpel/values.yaml`:
+
    ```yaml
    secretonAuth:
      policies:
@@ -532,10 +533,12 @@ Misal service `layanan-arsip` baru perlu baca KV path `kv/arsip/*`:
          - "kv/data/arsip/*"
          - "kv/data/postgres/arsip"
    ```
+
    `policies.yaml` ConfigMap template otomatis render policy ACL.
 
 2. **Kubernetes auth role** — sama file, di
    `secretonAuth.kubernetesRoles` (cek `templates/secreton/auth-config.yaml`):
+
    ```yaml
    kubernetesRoles:
      layanan-arsip:
@@ -551,6 +554,7 @@ Misal service `layanan-arsip` baru perlu baca KV path `kv/arsip/*`:
    auth login flow.
 
 4. **Seed secrets**:
+
    ```bash
    ./infra/helm/seed-secrets.sh staging arsip
    # atau manual:
@@ -566,17 +570,21 @@ karena bocor.
 
 1. **Tulis nilai baru** ke Secreton — TIDAK menghapus yang lama
    dulu:
+
    ```bash
    kubectl exec secreton-0 -- secreton kv put kv/perlengkapan/notifikasi/smtp \
        username=current_user password=NEW_PASSWORD host=smtp.kejaksaan.go.id port=587
    ```
+
    Secreton KV-v2 menyimpan **versi**; consumer terakhir baca versi
    N+1 setelah cache TTL expired (default 60 detik).
 
 2. **Force re-fetch** di consumer pods (kalau tidak mau tunggu cache):
+
    ```bash
    kubectl rollout restart deploy/layanan-perlengkapan -n simpelv2-prod
    ```
+
    Pod baru baca versi terbaru saat start; pod lama exit graceful.
 
 3. **Update sistem eksternal** (mis. SMTP provider) supaya menerima
@@ -584,16 +592,19 @@ karena bocor.
    transisi pendek.
 
 4. **Audit verifikasi**:
+
    ```bash
    kubectl exec secreton-0 -- secreton kv metadata get kv/perlengkapan/notifikasi/smtp
    # → cek current_version naik, created_time match
    ```
 
 5. **Cleanup**: setelah 24-48 jam tanpa regression, hapus versi lama:
+
    ```bash
    kubectl exec secreton-0 -- secreton kv metadata delete-versions \
        -versions=N kv/perlengkapan/notifikasi/smtp
    ```
+
    (N = versi lama yang mau dihapus). Versi tersedia untuk
    rollback selama tidak di-delete eksplisit.
 
