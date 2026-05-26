@@ -96,6 +96,11 @@ pub struct WorkflowEngine {
 
     /// Notification sender (port).
     notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
+
+    /// Audit sink (port). Optional — dev/test boleh tanpa, produksi wajib
+    /// terinjeksi agar setiap transisi tercatat di `perlengkapan.audit_log`
+    /// (BPK-ready).
+    audit_sink: Option<Arc<dyn lib_perlengkapan::contracts::AuditSink>>,
 }
 
 impl WorkflowEngine {
@@ -106,6 +111,7 @@ impl WorkflowEngine {
             db_pool,
             docs: None,
             notifier: None,
+            audit_sink: None,
         }
     }
 
@@ -124,6 +130,16 @@ impl WorkflowEngine {
         notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
     ) -> Self {
         self.notifier = Some(notifier);
+        self
+    }
+
+    /// Inject the audit sink (typically `PgAuditSink`). Setiap transisi
+    /// sukses akan mem-publish AuditEvent ke sink ini.
+    pub fn with_audit_sink(
+        mut self,
+        audit_sink: Arc<dyn lib_perlengkapan::contracts::AuditSink>,
+    ) -> Self {
+        self.audit_sink = Some(audit_sink);
         self
     }
 
@@ -326,7 +342,7 @@ impl WorkflowEngine {
             .with_label_values(&[entity_type, &request.from_state, &request.to_state])
             .observe(duration);
 
-        // 11. Log to audit (in production, this would call lib-common audit logger)
+        // 11. Log to audit
         tracing::info!(
             entity_id = %request.entity_id,
             from_state = %request.from_state,
@@ -335,6 +351,37 @@ impl WorkflowEngine {
             duration_ms = duration * 1000.0,
             "Workflow transition completed"
         );
+
+        // Publish AuditEvent ke sink jika ter-inject. Failure di-swallow
+        // di dalam sink (lihat PgAuditSink) — kegagalan audit tidak boleh
+        // membatalkan transisi yg sudah committed.
+        if let Some(sink) = &self.audit_sink {
+            use lib_perlengkapan::audit::{AuditAction, AuditEvent};
+            let event = AuditEvent::new(entity_type, AuditAction::Custom, entity_type)
+                .action_name("workflow.transition")
+                .actor(request.user_id, "")
+                .ip(&request.ip_address)
+                .resource_id(request.entity_id.to_string())
+                .message(
+                    request
+                        .catatan
+                        .clone()
+                        .unwrap_or_else(|| format!("{} → {}", request.from_state, request.to_state)),
+                )
+                .metadata(serde_json::json!({
+                    "from_state": request.from_state,
+                    "to_state": request.to_state,
+                    "duration_ms": duration * 1000.0,
+                    "activity_id": activity_record_id,
+                }));
+            if let Err(e) = sink.log(event).await {
+                tracing::warn!(
+                    error = %e,
+                    entity_id = %request.entity_id,
+                    "audit_sink.log failed for workflow transition; continuing"
+                );
+            }
+        }
 
         // 12. Return result
         Ok(TransitionResult {

@@ -288,7 +288,8 @@ async fn main() -> anyhow::Result<()> {
     let kebutuhan_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let mut kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         authenc_client.clone(),
@@ -310,7 +311,8 @@ async fn main() -> anyhow::Result<()> {
     let pemakaian_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let pemakaian_bmn_service =
         PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine)
             .with_document_generator(docs.clone())
@@ -336,7 +338,8 @@ async fn main() -> anyhow::Result<()> {
     let penghapusan_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let penghapusan_bmn_service = Arc::new(
         penghapusan_bmn::PenghapusanBmnService::new(
             db.pool().clone(),
