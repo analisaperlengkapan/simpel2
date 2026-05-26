@@ -125,6 +125,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/penghapusan-bmn/{id}/document",
             get(crate::penghapusan_bmn::get_penghapusan_document),
         )
+        // File upload (Fase 0.6): Surat Usulan + Lampiran[]
+        .route(
+            "/penghapusan-bmn/{id}/lampiran",
+            get(crate::penghapusan_bmn::list_lampiran)
+                .post(crate::penghapusan_bmn::upload_lampiran),
+        )
         // ============ Pakaian Dinas Routes ============
         // Master: Jenis Pakaian Dinas
         .route(

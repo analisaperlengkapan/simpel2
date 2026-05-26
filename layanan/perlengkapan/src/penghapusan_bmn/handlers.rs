@@ -24,13 +24,36 @@ use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
 };
+use lib_perlengkapan::contracts::DocumentStorage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
 use validator::Validate;
+
+/// Sanitize a user-supplied filename so it cannot escape its storage key
+/// segment. Strips path separators & control chars, collapses spaces.
+fn sanitize_filename(input: &str) -> String {
+    let cleaned: String = input
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim_matches('_').to_string();
+    if cleaned.is_empty() {
+        "file".to_string()
+    } else {
+        cleaned
+    }
+}
 
 /// Pagination query parameters
 #[derive(Debug, Deserialize, Validate)]
@@ -399,6 +422,140 @@ pub async fn upload_signed_sk(
     )))
 }
 
+/// Upload Surat Usulan (1 file) dan/atau Lampiran pendukung (multi-file)
+/// untuk Usulan SK Penghapusan BMN. Multipart fields:
+/// - `surat_usulan` (opsional, 1x): file Surat Usulan
+/// - `lampiran` (opsional, 0..N): file lampiran pendukung
+///
+/// Minimal satu dari kedua field wajib ada. URL hasil upload disimpan di
+/// `surat_usulan_file_url` (entity) dan rows di `penghapusan_bmn_lampiran`.
+pub async fn upload_lampiran(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    State(storage): State<Arc<dyn DocumentStorage>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    mut multipart: Multipart,
+) -> Result<Json<ApiResponse<UploadLampiranResponse>>, AppError> {
+    // Verifikasi entity ada — biarkan repository pertanggungjawab; lookup
+    // di sini juga memastikan FK constraint nantinya tidak gagal di insert.
+    let _existing = service.get_by_id(id).await?;
+
+    // Presigned URL TTL: 1 tahun. FilesystemStorage abaikan TTL & emit
+    // static URL; S3 adapter akan rotate sendiri.
+    let url_ttl = Duration::from_secs(60 * 60 * 24 * 365);
+
+    let mut surat_usulan_url: Option<String> = None;
+    let mut lampirans: Vec<PenghapusanBmnLampiran> = Vec::new();
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("Multipart error: {}", e)))?
+    {
+        let field_name = field.name().unwrap_or("").to_string();
+        let original_name = field
+            .file_name()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "file".to_string());
+        let content_type = field.content_type().map(|s| s.to_string());
+        let bytes = field
+            .bytes()
+            .await
+            .map_err(|e| AppError::BadRequest(format!("Gagal membaca file: {}", e)))?;
+        let size = bytes.len() as i64;
+        let safe_name = sanitize_filename(&original_name);
+
+        match field_name.as_str() {
+            "surat_usulan" => {
+                let key = format!(
+                    "penghapusan-bmn/{}/surat-usulan/{}-{}",
+                    id,
+                    Uuid::new_v4(),
+                    safe_name
+                );
+                let handle = storage
+                    .put(
+                        &key,
+                        bytes,
+                        content_type.as_deref().unwrap_or("application/octet-stream"),
+                    )
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
+                let url = storage
+                    .presigned_url(&handle.key, url_ttl)
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Presigned URL: {}", e)))?;
+                service.set_surat_usulan_url(id, &url).await?;
+                surat_usulan_url = Some(url);
+            }
+            "lampiran" => {
+                let key = format!(
+                    "penghapusan-bmn/{}/lampiran/{}-{}",
+                    id,
+                    Uuid::new_v4(),
+                    safe_name
+                );
+                let handle = storage
+                    .put(
+                        &key,
+                        bytes,
+                        content_type.as_deref().unwrap_or("application/octet-stream"),
+                    )
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
+                let url = storage
+                    .presigned_url(&handle.key, url_ttl)
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Presigned URL: {}", e)))?;
+                let lampiran = service
+                    .add_lampiran(
+                        id,
+                        &original_name,
+                        &url,
+                        content_type.as_deref(),
+                        Some(size),
+                        Some(claims.user_id),
+                    )
+                    .await?;
+                lampirans.push(lampiran);
+            }
+            other => {
+                // Unknown field — log silently and skip rather than fail
+                // the whole upload (forward-compat dgn front-end yg add
+                // metadata fields).
+                tracing::debug!("upload_lampiran: ignored unknown field '{}'", other);
+            }
+        }
+    }
+
+    if surat_usulan_url.is_none() && lampirans.is_empty() {
+        return Err(AppError::BadRequest(
+            "Tidak ada file di-upload. Sertakan field 'surat_usulan' atau 'lampiran'.".into(),
+        ));
+    }
+
+    Ok(Json(ApiResponse::success(
+        UploadLampiranResponse {
+            surat_usulan_file_url: surat_usulan_url,
+            lampiran: lampirans,
+        },
+        "File berhasil di-upload".to_string(),
+    )))
+}
+
+/// List lampiran pendukung utk satu penghapusan.
+pub async fn list_lampiran(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PenghapusanBmnLampiran>>>, AppError> {
+    let items = service.list_lampiran(id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Lampiran retrieved successfully".to_string(),
+    )))
+}
+
 /// Legacy: Generic workflow transition
 #[derive(Debug, Deserialize, Validate)]
 pub struct TransitionRequest {
@@ -451,4 +608,31 @@ pub async fn get_penghapusan_document(
         document_url,
         "Document URL retrieved successfully".to_string(),
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_filename;
+
+    #[test]
+    fn sanitize_filename_strips_path_separators() {
+        assert_eq!(
+            sanitize_filename("../../etc/passwd"),
+            ".._.._etc_passwd"
+        );
+        assert_eq!(sanitize_filename("foo bar.pdf"), "foo_bar.pdf");
+        assert_eq!(sanitize_filename("a/b/c.txt"), "a_b_c.txt");
+    }
+
+    #[test]
+    fn sanitize_filename_preserves_safe_chars() {
+        assert_eq!(sanitize_filename("Surat_Usulan-001.pdf"), "Surat_Usulan-001.pdf");
+        assert_eq!(sanitize_filename("file.DOCX"), "file.DOCX");
+    }
+
+    #[test]
+    fn sanitize_filename_handles_empty() {
+        assert_eq!(sanitize_filename(""), "file");
+        assert_eq!(sanitize_filename("///"), "file");
+    }
 }

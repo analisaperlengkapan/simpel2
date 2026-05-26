@@ -407,4 +407,79 @@ impl PenghapusanBmnRepository {
 
         Ok(())
     }
+
+    // ========================================================================
+    // V030: File upload — Surat Usulan + Lampiran[]
+    // ========================================================================
+
+    /// Set Surat Usulan file URL (1 file per penghapusan; overwrite jika
+    /// sudah ada).
+    pub async fn set_surat_usulan_url(&self, id: Uuid, file_url: &str) -> AppResult<()> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .execute(
+                r#"UPDATE perlengkapan.penghapusan_bmn
+                   SET surat_usulan_file_url = $1,
+                       surat_usulan_uploaded_at = NOW(),
+                       updated_at = NOW()
+                   WHERE id = $2"#,
+                &[&file_url, &id],
+            )
+            .await?;
+        if rows == 0 {
+            return Err(AppError::NotFound(format!(
+                "Penghapusan BMN not found: {}",
+                id
+            )));
+        }
+        Ok(())
+    }
+
+    /// Insert satu entry lampiran pendukung.
+    pub async fn insert_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+        nama: &str,
+        file_url: &str,
+        content_type: Option<&str>,
+        size_bytes: Option<i64>,
+        uploaded_by: Option<Uuid>,
+    ) -> AppResult<PenghapusanBmnLampiran> {
+        let client = self.pool.get().await?;
+        let row = client
+            .query_one(
+                r#"INSERT INTO perlengkapan.penghapusan_bmn_lampiran
+                   (penghapusan_id, nama, file_url, content_type, size_bytes, uploaded_by)
+                   VALUES ($1, $2, $3, $4, $5, $6)
+                   RETURNING id, penghapusan_id, nama, file_url, content_type, size_bytes, uploaded_by, uploaded_at"#,
+                &[
+                    &penghapusan_id,
+                    &nama,
+                    &file_url,
+                    &content_type,
+                    &size_bytes,
+                    &uploaded_by,
+                ],
+            )
+            .await?;
+        Ok(PenghapusanBmnLampiran::from_row(&row))
+    }
+
+    /// List semua lampiran utk satu penghapusan.
+    pub async fn list_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+    ) -> AppResult<Vec<PenghapusanBmnLampiran>> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                r#"SELECT id, penghapusan_id, nama, file_url, content_type, size_bytes, uploaded_by, uploaded_at
+                   FROM perlengkapan.penghapusan_bmn_lampiran
+                   WHERE penghapusan_id = $1
+                   ORDER BY uploaded_at ASC"#,
+                &[&penghapusan_id],
+            )
+            .await?;
+        Ok(rows.iter().map(PenghapusanBmnLampiran::from_row).collect())
+    }
 }

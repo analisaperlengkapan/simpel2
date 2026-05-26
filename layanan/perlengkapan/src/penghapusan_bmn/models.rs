@@ -181,6 +181,10 @@ pub struct PenghapusanBmn {
     pub signed_sk_pdf_uploaded_at: Option<DateTime<Utc>>,
     pub is_completed: bool,
 
+    // Surat Usulan file upload (V030)
+    pub surat_usulan_file_url: Option<String>,
+    pub surat_usulan_uploaded_at: Option<DateTime<Utc>>,
+
     // Legacy fields
     pub document_id: Option<Uuid>,
     pub document_url: Option<String>,
@@ -323,6 +327,8 @@ impl PenghapusanBmn {
             signed_sk_pdf_url: row.try_get("signed_sk_pdf_url").ok().flatten(),
             signed_sk_pdf_uploaded_at: row.try_get("signed_sk_pdf_uploaded_at").ok().flatten(),
             is_completed: row.try_get("is_completed").unwrap_or(false),
+            surat_usulan_file_url: row.try_get("surat_usulan_file_url").ok().flatten(),
+            surat_usulan_uploaded_at: row.try_get("surat_usulan_uploaded_at").ok().flatten(),
             document_id: row.get("document_id"),
             document_url: row.get("document_url"),
             created_by: row.get("created_by"),
@@ -330,6 +336,48 @@ impl PenghapusanBmn {
             updated_at: row.get("updated_at"),
         }
     }
+}
+
+/// Lampiran pendukung Usulan SK Penghapusan BMN (V030).
+///
+/// Multi-file opsional; file disimpan via `DocumentStorage`, baris ini
+/// hanya metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanBmnLampiran {
+    pub id: Uuid,
+    pub penghapusan_id: Uuid,
+    pub nama: String,
+    pub file_url: String,
+    pub content_type: Option<String>,
+    pub size_bytes: Option<i64>,
+    pub uploaded_by: Option<Uuid>,
+    pub uploaded_at: DateTime<Utc>,
+}
+
+impl PenghapusanBmnLampiran {
+    pub fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            id: row.get("id"),
+            penghapusan_id: row.get("penghapusan_id"),
+            nama: row.get("nama"),
+            file_url: row.get("file_url"),
+            content_type: row.try_get("content_type").ok().flatten(),
+            size_bytes: row.try_get("size_bytes").ok().flatten(),
+            uploaded_by: row.try_get("uploaded_by").ok().flatten(),
+            uploaded_at: row.get("uploaded_at"),
+        }
+    }
+}
+
+/// Response untuk endpoint upload lampiran multipart.
+#[derive(Debug, Clone, Serialize)]
+pub struct UploadLampiranResponse {
+    /// URL Surat Usulan (jika field `surat_usulan` ikut di-upload pada
+    /// request ini). `None` jika tidak ada — caller dpt menggabungkan
+    /// dgn nilai yg sudah ada di entity.
+    pub surat_usulan_file_url: Option<String>,
+    /// Lampiran pendukung yg baru di-upload pada request ini.
+    pub lampiran: Vec<PenghapusanBmnLampiran>,
 }
 
 #[cfg(test)]

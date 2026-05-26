@@ -138,6 +138,47 @@ impl PenghapusanBmnService {
         self.repository.list(filters, page, per_page).await
     }
 
+    // ========================================================================
+    // V030: File upload — Surat Usulan + Lampiran[]
+    // ========================================================================
+
+    /// Set Surat Usulan file URL setelah file di-upload via DocumentStorage.
+    /// Hanya entity yg sudah ada yg boleh — caller wajib pastikan ID valid.
+    pub async fn set_surat_usulan_url(&self, id: Uuid, file_url: &str) -> AppResult<()> {
+        self.repository.set_surat_usulan_url(id, file_url).await
+    }
+
+    /// Insert satu entry lampiran pendukung. `nama` biasanya adalah
+    /// nama file asli; `file_url` adalah URL hasil
+    /// `DocumentStorage::presigned_url`.
+    pub async fn add_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+        nama: &str,
+        file_url: &str,
+        content_type: Option<&str>,
+        size_bytes: Option<i64>,
+        uploaded_by: Option<Uuid>,
+    ) -> AppResult<PenghapusanBmnLampiran> {
+        self.repository
+            .insert_lampiran(
+                penghapusan_id,
+                nama,
+                file_url,
+                content_type,
+                size_bytes,
+                uploaded_by,
+            )
+            .await
+    }
+
+    pub async fn list_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+    ) -> AppResult<Vec<PenghapusanBmnLampiran>> {
+        self.repository.list_lampiran(penghapusan_id).await
+    }
+
     /// Update penghapusan BMN (only in Draft/ReturnedToOperator status)
     pub async fn update(
         &self,
