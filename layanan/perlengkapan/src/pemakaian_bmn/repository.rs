@@ -7,6 +7,7 @@ use deadpool_postgres::Pool;
 use uuid::Uuid;
 
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::repo::PoolExt;
 
 use super::models::*;
 
@@ -30,11 +31,7 @@ impl PemakaianBmnRepository {
         created_by: Uuid,
         created_by_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let id = Uuid::new_v4();
         let is_renewal = request.is_renewal.unwrap_or(false);
@@ -108,11 +105,7 @@ impl PemakaianBmnRepository {
     /// Get permit by ID
     /// Requirements: REQ-P001
     pub async fn get_by_id(&self, id: Uuid) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT * FROM perlengkapan.izin_pemakaian_bmn
@@ -137,11 +130,7 @@ impl PemakaianBmnRepository {
         updated_by: Uuid,
         updated_by_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // First check if permit is in DRAFT status
         let current = self.get_by_id(id).await?;
@@ -195,11 +184,7 @@ impl PemakaianBmnRepository {
         user_nama: String,
         catatan: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = match status {
             "APPROVED" => {
@@ -272,11 +257,7 @@ impl PemakaianBmnRepository {
         expected_version: i32,
         catatan: Option<&str>,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row_opt = client
             .query_opt(
                 r#"
@@ -321,11 +302,7 @@ impl PemakaianBmnRepository {
                 "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
             ));
         }
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row_opt = client
             .query_opt(
                 r#"
@@ -367,11 +344,7 @@ impl PemakaianBmnRepository {
         expected_version: i32,
         catatan: Option<&str>,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row_opt = client
             .query_opt(
                 r#"
@@ -426,11 +399,7 @@ impl PemakaianBmnRepository {
                 "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
             ));
         }
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row_opt = client
             .query_opt(
                 r#"
@@ -470,11 +439,7 @@ impl PemakaianBmnRepository {
         operator_nama: &str,
         expected_version: i32,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row_opt = client
             .query_opt(
                 r#"
@@ -510,11 +475,7 @@ impl PemakaianBmnRepository {
     /// identik → UNIQUE conflict atau nomor lompat. Mitigasi:
     /// `pg_advisory_xact_lock` dgn kunci per-bulan agar generator berurutan.
     pub async fn generate_permit_number(&self, id: Uuid) -> AppResult<String> {
-        let mut client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let mut client = self.pool.client().await?;
 
         let tx = client
             .transaction()
@@ -567,11 +528,7 @@ impl PemakaianBmnRepository {
         document_id: Uuid,
         document_url: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
@@ -596,11 +553,7 @@ impl PemakaianBmnRepository {
 
     /// Lookup pegawai dari cache MySIMKARI by NIP.
     pub async fn find_pegawai_by_nip(&self, nip: &str) -> AppResult<Option<PegawaiInfo>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let row = client
             .query_opt(
                 r#"
@@ -628,11 +581,7 @@ impl PemakaianBmnRepository {
         &self,
         nip: &str,
     ) -> AppResult<Vec<PemakaianAktifEntry>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let rows = client
             .query(
                 r#"
@@ -666,11 +615,7 @@ impl PemakaianBmnRepository {
         nip: &str,
         limit: i64,
     ) -> AppResult<Vec<PemakaianHistoriEntry>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let rows = client
             .query(
                 r#"
@@ -709,11 +654,7 @@ impl PemakaianBmnRepository {
         tgl_mulai: chrono::NaiveDate,
         tgl_selesai: chrono::NaiveDate,
     ) -> AppResult<BmnCheckStatus> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         // Cari izin ACTIVE utk NUP ini, urutkan tanggal_selesai DESC agar
         // izin paling baru di atas. Kita evaluasi overlap thd usulan
         // periode operator.
@@ -773,11 +714,7 @@ impl PemakaianBmnRepository {
         &self,
         bmn_nup: &str,
     ) -> AppResult<BmnAvailabilityResponse> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT id, nomor_izin, pegawai_nama, tanggal_selesai
@@ -813,11 +750,7 @@ impl PemakaianBmnRepository {
     /// List permits with pagination and filters
     /// Requirements: REQ-P001, REQ-P011
     pub async fn list(&self, query: ListPermitsQuery) -> AppResult<PaginatedPermitsResponse> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let page = query.page.unwrap_or(1).max(1);
         let per_page = query.per_page.unwrap_or(20).max(1).min(100);
@@ -927,11 +860,7 @@ impl PemakaianBmnRepository {
     /// Get permit history for a BMN
     /// Requirements: REQ-P012
     pub async fn get_bmn_usage_history(&self, bmn_nup: &str) -> AppResult<BmnUsageStats> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT
@@ -996,11 +925,7 @@ impl PemakaianBmnRepository {
         &self,
         pegawai_nip: &str,
     ) -> AppResult<PegawaiUsageStats> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT
@@ -1059,11 +984,7 @@ impl PemakaianBmnRepository {
     /// Auto-expire permits that have passed their end date
     /// Requirements: REQ-P010
     pub async fn auto_expire_permits(&self) -> AppResult<usize> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
@@ -1087,11 +1008,7 @@ impl PemakaianBmnRepository {
         &self,
         days_threshold: i32,
     ) -> AppResult<Vec<IzinPemakaianBmn>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT * FROM perlengkapan.izin_pemakaian_bmn
@@ -1121,11 +1038,7 @@ impl PemakaianBmnRepository {
         &self,
         query: super::models::MonitoringDashboardQuery,
     ) -> AppResult<super::models::ActiveUsageMonitoringDashboard> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // Build WHERE clause for filters
         let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
@@ -1297,11 +1210,7 @@ impl PemakaianBmnRepository {
         &self,
         _query: super::models::MonitoringDashboardQuery,
     ) -> AppResult<super::models::BmnUtilizationReport> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // For this report, we need to query SIMAN data (from integrasi schema)
         // to get total BMN count and compare with permits
@@ -1482,11 +1391,7 @@ impl PemakaianBmnRepository {
         izin_pemakaian_id: Uuid,
         item: CreateBmnItemRequest,
     ) -> AppResult<PemakaianBmnItem> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let id = Uuid::new_v4();
         let detail_json = item
@@ -1522,11 +1427,7 @@ impl PemakaianBmnRepository {
 
     /// Get BMN items for a permit
     pub async fn get_bmn_items(&self, izin_pemakaian_id: Uuid) -> AppResult<Vec<PemakaianBmnItem>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let rows = client
             .query(
@@ -1550,11 +1451,7 @@ impl PemakaianBmnRepository {
         pdf_url: &str,
         pdf_path: &str,
     ) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         client
             .execute(
@@ -1584,11 +1481,7 @@ impl PemakaianBmnRepository {
             "pdf" => "konsep_surat_pdf_path",
             _ => return Ok(None),
         };
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let query = format!(
             "SELECT {} FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1",
             column
@@ -1602,11 +1495,7 @@ impl PemakaianBmnRepository {
 
     /// Update signed PDF URL and mark as completed
     pub async fn update_signed_pdf(&self, id: Uuid, signed_pdf_url: &str) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         client
             .execute(
