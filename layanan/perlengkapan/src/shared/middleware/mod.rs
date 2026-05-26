@@ -114,6 +114,118 @@ impl Claims {
             )))
         }
     }
+
+    /// Assert bahwa role caller adalah salah satu dari `allowed`.
+    /// Mengembalikan `AppError::Authorization` (mapped ke 403) jika tidak.
+    ///
+    /// Match dilakukan case-insensitive utk kompatibilitas dgn variasi
+    /// penulisan role di JWT/client header (mis. "Validator_Pusat" vs
+    /// "validator_pusat"). Admin/superadmin selalu lolos sbg escape hatch
+    /// (lihat [`Claims::is_cross_satker_role`] untuk daftar role pusat).
+    ///
+    /// # Contoh
+    /// ```ignore
+    /// // Endpoint yg hanya boleh dipicu Validator Pusat:
+    /// claims.require_any_role(&["validator_pusat"])?;
+    /// ```
+    pub fn require_any_role(&self, allowed: &[&str]) -> Result<(), AppError> {
+        // Admin/superadmin: bypass (sudah cross-satker juga).
+        if matches!(
+            self.role.as_str(),
+            "admin" | "admin_pusat" | "superadmin"
+        ) {
+            return Ok(());
+        }
+        let me = self.role.to_ascii_lowercase();
+        if allowed
+            .iter()
+            .any(|r| r.to_ascii_lowercase() == me)
+        {
+            Ok(())
+        } else {
+            Err(AppError::Authorization(format!(
+                "Akses ditolak: role '{}' tidak diizinkan utk aksi ini (perlu salah satu dari: {})",
+                self.role,
+                allowed.join(", ")
+            )))
+        }
+    }
+
+    /// Alias untuk satu role tunggal.
+    pub fn require_role(&self, role: &str) -> Result<(), AppError> {
+        self.require_any_role(&[role])
+    }
+
+    /// Assert caller adalah admin (atau superadmin). Dipakai utk
+    /// endpoint master/referensi yg hanya boleh diubah admin.
+    pub fn require_admin(&self) -> Result<(), AppError> {
+        if matches!(self.role.as_str(), "admin" | "admin_pusat" | "superadmin") {
+            Ok(())
+        } else {
+            Err(AppError::Authorization(format!(
+                "Akses ditolak: aksi ini memerlukan role admin (role caller: '{}')",
+                self.role
+            )))
+        }
+    }
+}
+
+#[cfg(test)]
+mod policy_tests {
+    use super::*;
+
+    fn claims_with_role(role: &str) -> Claims {
+        Claims {
+            user_id: Uuid::nil(),
+            username: "u".into(),
+            role: role.into(),
+            permissions: vec![],
+            nip: None,
+            name: None,
+            nama: None,
+            jabatan: None,
+            satker_code: None,
+        }
+    }
+
+    #[test]
+    fn require_role_accepts_exact_match() {
+        let c = claims_with_role("validator_pusat");
+        assert!(c.require_role("validator_pusat").is_ok());
+        assert!(c.require_any_role(&["validator_pusat", "admin"]).is_ok());
+    }
+
+    #[test]
+    fn require_role_rejects_wrong_role() {
+        let c = claims_with_role("operator_satker");
+        let err = c.require_role("validator_pusat").unwrap_err();
+        assert!(matches!(err, AppError::Authorization(_)));
+    }
+
+    #[test]
+    fn require_role_is_case_insensitive() {
+        let c = claims_with_role("Validator_Pusat");
+        assert!(c.require_role("validator_pusat").is_ok());
+    }
+
+    #[test]
+    fn admin_bypasses_require_role() {
+        let c = claims_with_role("admin");
+        assert!(c.require_role("validator_pusat").is_ok());
+        assert!(c.require_admin().is_ok());
+    }
+
+    #[test]
+    fn superadmin_bypasses_require_role() {
+        let c = claims_with_role("superadmin");
+        assert!(c.require_role("operator_satker").is_ok());
+    }
+
+    #[test]
+    fn require_admin_rejects_non_admin() {
+        let c = claims_with_role("validator_pusat");
+        assert!(c.require_admin().is_err());
+    }
 }
 
 impl<S> FromRequestParts<S> for Claims

@@ -125,6 +125,8 @@ pub async fn create_pengajuan(
     claims: Claims,
     Json(request): Json<CreatePengajuanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanDetailResponse>>), AppError> {
+    // RBAC: hanya Validator Pusat yg menetapkan periode RKBMN (lihat plan §3.1).
+    claims.require_role("validator_pusat")?;
     info!("Creating pengajuan kebutuhan BMN: {}", request.nama);
 
     let user_id = Some(claims.user_id);
@@ -567,6 +569,7 @@ pub async fn submit_satker_to_wilayah(
     claims: Claims,
     Json(request): Json<SubmitKebutuhanSatkerRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("operator_satker")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .submit_satker_to_wilayah(satker_id, request, Some(claims.user_id), Some(user_info))
@@ -586,6 +589,7 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(request): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .validator_wilayah_action(satker_id, request, Some(claims.user_id), Some(user_info))
@@ -605,6 +609,7 @@ pub async fn validator_pusat_keputusan(
     claims: Claims,
     Json(request): Json<ValidatorPusatKeputusanRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("validator_pusat")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .validator_pusat_keputusan(satker_id, request, Some(claims.user_id), Some(user_info))

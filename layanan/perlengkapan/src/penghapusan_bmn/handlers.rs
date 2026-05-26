@@ -212,8 +212,11 @@ pub async fn update_penghapusan_bmn(
 pub async fn delete_penghapusan_bmn(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), AppError> {
+    // RBAC (Fase 0.3): hanya operator_satker atau admin yg boleh delete
+    // usulan (Draft saja per logika service); admin sbg escape hatch.
+    claims.require_any_role(&["operator_satker"])?;
     service.delete(id).await?;
 
     Ok((
@@ -242,6 +245,7 @@ pub async fn submit_to_wilayah(
     claims: Claims,
     Json(body): Json<SubmitWilayahBody>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("operator_satker")?;
     let penghapusan = service
         .submit_to_wilayah(id, claims.user_id, body.catatan)
         .await?;
@@ -259,6 +263,7 @@ pub async fn forward_to_pusat(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     if body.aksi != "forward" {
         return Err(AppError::BadRequest("Action harus 'forward'".to_string()));
     }
@@ -280,6 +285,7 @@ pub async fn return_to_operator(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     if body.aksi != "return" {
         return Err(AppError::BadRequest("Action harus 'return'".to_string()));
     }
@@ -307,6 +313,7 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service
@@ -344,6 +351,13 @@ pub async fn generate_konsep_sk(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    // RBAC: SK generation = otoritas hukum. Validator Wilayah utk
+    // kewenangan WILAYAH (mewakili Kepala Kejati), Validator Pusat utk
+    // kewenangan PUSAT (mewakili Jaksa Agung Muda Pembinaan). Field
+    // kewenangan_penetap_sk seharusnya divalidasi di service layer
+    // (lihat plan §6.3); di sini cukup pastikan caller adalah salah
+    // satu dari kedua role.
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service.generate_konsep_sk(id, claims.user_id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -411,6 +425,7 @@ pub async fn upload_signed_sk(
     claims: Claims,
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service
         .upload_signed_sk(id, claims.user_id, body.signed_sk_pdf_url)
         .await?;
@@ -570,6 +585,9 @@ pub async fn transition_penghapusan_bmn(
     claims: Claims,
     Json(request): Json<TransitionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    // RBAC: legacy generic transition endpoint dipakai utk Reject di Pusat.
+    // Validator Wilayah & Pusat boleh trigger; operator tidak.
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     request.validate()?;
 
     let ip_address = "127.0.0.1".to_string();

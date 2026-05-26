@@ -107,9 +107,11 @@ pub async fn get_jenis_pakaian_by_id(
 
 pub async fn create_jenis_pakaian(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateJenisPakaianDinasRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<JenisPakaianDinas>>), AppError> {
+    // RBAC: master jenis pakaian hanya boleh diubah admin (plan §4.1).
+    claims.require_admin()?;
     let item = service.create_jenis(request).await?;
 
     Ok((
@@ -124,9 +126,10 @@ pub async fn create_jenis_pakaian(
 pub async fn update_jenis_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateJenisPakaianDinasRequest>,
 ) -> Result<Json<ApiResponse<JenisPakaianDinas>>, AppError> {
+    claims.require_admin()?;
     let item = service.update_jenis(id, request).await?;
 
     Ok(Json(ApiResponse::success(
@@ -138,8 +141,9 @@ pub async fn update_jenis_pakaian(
 pub async fn delete_jenis_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_jenis(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -210,9 +214,10 @@ pub async fn get_spesifikasi_by_id(
 
 pub async fn create_spesifikasi(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSpesifikasiRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<SpesifikasiPakaianDinas>>), AppError> {
+    claims.require_admin()?;
     let item = service.create_spesifikasi(request).await?;
 
     Ok((
@@ -227,9 +232,10 @@ pub async fn create_spesifikasi(
 pub async fn update_spesifikasi(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSpesifikasiRequest>,
 ) -> Result<Json<ApiResponse<SpesifikasiPakaianDinas>>, AppError> {
+    claims.require_admin()?;
     let item = service.update_spesifikasi(id, request).await?;
 
     Ok(Json(ApiResponse::success(
@@ -241,8 +247,9 @@ pub async fn update_spesifikasi(
 pub async fn delete_spesifikasi_handler(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_spesifikasi(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -291,9 +298,10 @@ pub async fn get_subspesifikasi_by_id(
 
 pub async fn create_subspesifikasi(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSubSpesifikasiRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<SubSpesifikasiPakaianDinas>>), AppError> {
+    claims.require_admin()?;
     let item = service.create_subspesifikasi(request).await?;
 
     Ok((
@@ -308,8 +316,9 @@ pub async fn create_subspesifikasi(
 pub async fn delete_subspesifikasi_handler(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_subspesifikasi(id).await?;
 
     Ok(Json(ApiResponse::success(

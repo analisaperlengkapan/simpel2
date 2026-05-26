@@ -265,6 +265,11 @@ pub async fn revoke_permit(
     claims: Claims,
     Json(request): Json<RevokePermitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    // RBAC: per plan §5.1, hanya Approver Satker yg boleh revoke izin
+    // aktif. Admin tidak boleh revoke (plan eksplisit). Sebelum role
+    // approver_satker tersedia (lihat task Fase 1.5), pakai validator_pusat
+    // sbg pengganti sementara karena dia yg saat ini handle approval.
+    claims.require_any_role(&["approver_satker", "validator_pusat"])?;
     info!("Revoking permit {}", id);
 
     let permit = service
