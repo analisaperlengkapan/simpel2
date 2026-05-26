@@ -716,10 +716,35 @@ impl KebutuhanBmnService {
             ));
         }
 
+        // V029 (Fase 1.6): Allowed-list BMN enforcement. Cek kode_barang
+        // request masuk dlm whitelist Validator Pusat. Kosong / NULL =
+        // legacy mode (semua boleh). Pengajuan_id resolve via satker.
+        if let Some(kode) = &request.kode_barang {
+            let allowed = self
+                .repository
+                .is_bmn_allowed_for_pengajuan(satker.pengajuan_id, kode)
+                .await?;
+            if !allowed {
+                return Err(AppError::BadRequest(format!(
+                    "Barang dgn kode_barang '{}' tidak diizinkan untuk pengajuan ini. Periksa daftar BMN yg ditetapkan Validator Pusat.",
+                    kode
+                )));
+            }
+        }
+
         info!("Creating barang for satker {}: {}", satker_id, request.nama);
         self.repository
             .create_barang(satker_id, request, user_id)
             .await
+    }
+
+    /// V029 (Fase 1.6): list allowed BMN utk pengajuan — dipakai FE
+    /// dropdown saat Operator Satker input barang.
+    pub async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>> {
+        self.repository.list_bmn_referensi(pengajuan_id).await
     }
 
     /// Update barang approval (jml_setuju)
@@ -1663,6 +1688,7 @@ mod tests {
             wilayah_id: None,
             satker_ids: vec![],
             asset_types: vec![],
+            bmn_referensi_diizinkan: vec![],
         }
     }
 

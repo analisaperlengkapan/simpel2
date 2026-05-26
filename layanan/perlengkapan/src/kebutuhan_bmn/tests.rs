@@ -233,6 +233,7 @@ mod validation_tests {
             wilayah_id: None,
             satker_ids: vec![],
             asset_types: vec![],
+            bmn_referensi_diizinkan: vec![],
         }
     }
 

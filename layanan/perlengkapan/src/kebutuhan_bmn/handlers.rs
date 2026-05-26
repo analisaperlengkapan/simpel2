@@ -282,6 +282,23 @@ pub async fn get_pengajuan_satkers(
     )))
 }
 
+/// GET /kebutuhan-bmn/pengajuan/:id/bmn-referensi
+///
+/// V029 (Fase 1.6): Daftar allowed-list BMN utk pengajuan ini. Dipakai
+/// FE saat Operator Satker input barang sbg dropdown pilihan kode_barang
+/// — operator hanya boleh input dari daftar ini (validate di service).
+pub async fn list_bmn_referensi_handler(
+    State(service): State<KebutuhanBmnService>,
+    Path(pengajuan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengajuanBmnReferensi>>>, AppError> {
+    let items = service.list_bmn_referensi(pengajuan_id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Daftar BMN referensi (allowed-list) berhasil diambil".to_string(),
+    )))
+}
+
 /// POST /kebutuhan-bmn/pengajuan/:id/satker
 /// Add a satker to pengajuan
 #[derive(Debug, Deserialize)]

@@ -568,6 +568,45 @@ pub struct CreatePengajuanRequest {
 
     #[serde(default)]
     pub asset_types: Vec<CreateAssetTypeRequest>,
+
+    /// V029 (Fase 1.6): Allowed-list BMN. Validator Pusat tetapkan saat
+    /// create periode; Operator Satker hanya boleh input barang dari
+    /// daftar ini. Jika kosong → tidak ada whitelist (legacy behaviour,
+    /// operator bebas — dipertahankan utk backward compat data lama).
+    #[serde(default)]
+    pub bmn_referensi_diizinkan: Vec<CreateBmnReferensiRequest>,
+}
+
+/// V029 (Fase 1.6): Satu entry allowed BMN (request DTO).
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateBmnReferensiRequest {
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub keterangan: Option<String>,
+}
+
+/// V029 (Fase 1.6): Satu entry allowed BMN (entity).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PengajuanBmnReferensi {
+    pub id: Uuid,
+    pub pengajuan_id: Uuid,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl PengajuanBmnReferensi {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            pengajuan_id: row.get("pengajuan_id"),
+            kode_barang: row.get("kode_barang"),
+            nama_barang: row.get("nama_barang"),
+            keterangan: row.try_get("keterangan").ok().flatten(),
+            created_at: row.get("created_at"),
+        }
+    }
 }
 
 /// Request to create asset type for a request

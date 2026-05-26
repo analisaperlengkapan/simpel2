@@ -305,6 +305,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/pengajuan/{id}/satker",
             get(kebutuhan_bmn::get_pengajuan_satkers).post(kebutuhan_bmn::add_satker_to_pengajuan),
         )
+        // V029 (Fase 1.6): Daftar allowed-list BMN utk pengajuan
+        .route(
+            "/kebutuhan-bmn/pengajuan/{id}/bmn-referensi",
+            get(kebutuhan_bmn::list_bmn_referensi_handler),
+        )
         // Satker Operations
         .route(
             "/kebutuhan-bmn/satker/{id}",

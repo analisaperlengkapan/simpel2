@@ -169,6 +169,32 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     /// V029 (Fase 1.7): Daftar wilayah distinct yg ada di
     /// `integrasi.mysimkari_satker` — dipakai FE utk dropdown.
     async fn list_wilayah(&self) -> AppResult<Vec<String>>;
+
+    // ========================================================================
+    // V029 (Fase 1.6): Allowed-list BMN
+    // ========================================================================
+
+    /// Insert satu entry allowed BMN utk pengajuan.
+    async fn insert_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+        request: CreateBmnReferensiRequest,
+    ) -> AppResult<PengajuanBmnReferensi>;
+
+    /// List semua allowed BMN utk pengajuan.
+    async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>>;
+
+    /// Cek apakah kode_barang ada dlm allowed-list pengajuan.
+    /// Return `true` jika allowed-list kosong (legacy mode: no whitelist
+    /// enforcement) ATAU kode_barang ada di whitelist.
+    async fn is_bmn_allowed_for_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        kode_barang: &str,
+    ) -> AppResult<bool>;
 }
 
 /// User information for audit trail
@@ -300,6 +326,14 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
 
         for satker_id in &satker_codes {
             self.create_pengajuan_satker(pengajuan.id, satker_id, None, user_id)
+                .await?;
+        }
+
+        // V029 (Fase 1.6): Insert allowed-list BMN. Empty = no whitelist
+        // (legacy mode); operator dapat input bebas. Validator Pusat yang
+        // memilih.
+        for ref_req in &request.bmn_referensi_diizinkan {
+            self.insert_bmn_referensi(pengajuan.id, ref_req.clone())
                 .await?;
         }
 
@@ -1196,6 +1230,86 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
         Ok(rows.iter().map(|r| r.get::<_, String>("wilayah")).collect())
+    }
+
+    async fn insert_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+        request: CreateBmnReferensiRequest,
+    ) -> AppResult<PengajuanBmnReferensi> {
+        let client = self.get_client().await?;
+        let row = client
+            .query_one(
+                r#"
+                INSERT INTO perlengkapan.pengajuan_bmn_referensi_diizinkan
+                    (pengajuan_id, kode_barang, nama_barang, keterangan)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (pengajuan_id, kode_barang) DO UPDATE
+                SET nama_barang = EXCLUDED.nama_barang,
+                    keterangan = EXCLUDED.keterangan
+                RETURNING id, pengajuan_id, kode_barang, nama_barang, keterangan, created_at
+                "#,
+                &[
+                    &pengajuan_id,
+                    &request.kode_barang,
+                    &request.nama_barang,
+                    &request.keterangan,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(PengajuanBmnReferensi::from_row(&row))
+    }
+
+    async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>> {
+        let client = self.get_client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT id, pengajuan_id, kode_barang, nama_barang, keterangan, created_at
+                FROM perlengkapan.pengajuan_bmn_referensi_diizinkan
+                WHERE pengajuan_id = $1
+                ORDER BY kode_barang
+                "#,
+                &[&pengajuan_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(rows.iter().map(PengajuanBmnReferensi::from_row).collect())
+    }
+
+    async fn is_bmn_allowed_for_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        kode_barang: &str,
+    ) -> AppResult<bool> {
+        let client = self.get_client().await?;
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM perlengkapan.pengajuan_bmn_referensi_diizinkan WHERE pengajuan_id = $1",
+                &[&pengajuan_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+            .get(0);
+        if total == 0 {
+            return Ok(true);
+        }
+        let row = client
+            .query_opt(
+                r#"
+                SELECT 1
+                FROM perlengkapan.pengajuan_bmn_referensi_diizinkan
+                WHERE pengajuan_id = $1 AND kode_barang = $2
+                "#,
+                &[&pengajuan_id, &kode_barang],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(row.is_some())
     }
 }
 
