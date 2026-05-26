@@ -480,6 +480,92 @@ pub struct BmnAvailabilityResponse {
     pub active_permit_expires: Option<NaiveDate>,
 }
 
+// ─── Fase 1.11: Cek pegawai + cek BMN (with period) ──────────────────────
+
+/// Info pegawai dari `integrasi.mysimkari_pegawai` (cache MySIMKARI).
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiInfo {
+    pub nip: String,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub pangkat: Option<String>,
+    pub satker_id: Option<String>,
+    pub nama_satker: Option<String>,
+    pub foto: Option<String>,
+}
+
+/// Hasil cek pegawai-in-satker (Fase 1.11). Dipakai oleh form pemakaian
+/// BMN: operator input NIP → sistem auto-lookup + tampilkan info pegawai
+/// + pemakaian aktif + histori. Validator Satker & Approver Satker juga
+/// melihat info yang sama (transparansi sejak hulu).
+#[derive(Debug, Clone, Serialize)]
+pub struct CekPegawaiResponse {
+    pub pegawai: PegawaiInfo,
+    /// Pemakaian BMN saat ini aktif utk pegawai ini (jika ada).
+    pub pemakaian_aktif: Vec<PemakaianAktifEntry>,
+    /// Histori pemakaian BMN pegawai (status: Expired/Revoked/Completed).
+    pub histori_pemakaian: Vec<PemakaianHistoriEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianAktifEntry {
+    pub permit_id: Uuid,
+    pub nomor_izin: Option<String>,
+    pub bmn_nup: String,
+    pub bmn_nama_barang: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianHistoriEntry {
+    pub permit_id: Uuid,
+    pub nomor_izin: Option<String>,
+    pub bmn_nup: String,
+    pub bmn_nama_barang: String,
+    pub status: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+}
+
+/// Status cek ketersediaan BMN per periode (Fase 1.11).
+///
+/// `Available`: BMN bebas utk periode yg diminta.
+/// `Sequential`: Ada izin aktif tapi berakhir sebelum periode usulan
+/// dimulai → diizinkan (operator dpt submit).
+/// `Overlap`: Ada izin aktif yg overlap dgn periode usulan → tolak.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BmnCheckStatus {
+    Available,
+    PemakaianBerurutan {
+        existing_holder: String,
+        existing_sampai_tgl: NaiveDate,
+    },
+    Overlap {
+        existing_holder: String,
+        existing_sampai_tgl: NaiveDate,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CekBmnResponse {
+    pub bmn_nup: String,
+    pub bmn_info: Option<BmnRefInfo>,
+    #[serde(flatten)]
+    pub status: BmnCheckStatus,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BmnRefInfo {
+    pub nup: String,
+    pub kode_barang: Option<String>,
+    pub nama_barang: Option<String>,
+    pub merk: Option<String>,
+    pub tahun_perolehan: Option<String>,
+    pub kondisi: Option<String>,
+}
+
 /// Permit history entry
 #[derive(Debug, Clone, Serialize)]
 pub struct PermitHistoryEntry {
@@ -644,6 +730,103 @@ mod tests {
         assert!(active.can_transition_to(PemakaianBmnStatus::Expired));
         assert!(active.can_transition_to(PemakaianBmnStatus::Revoked));
         assert!(!active.can_transition_to(PemakaianBmnStatus::Draft));
+    }
+
+    /// Helper utk test logic overlap di repository — direkstrak agar
+    /// dapat di-unit-test tanpa DB. Match dgn implementasi di
+    /// `check_bmn_availability_for_period` (repository.rs).
+    fn classify(
+        existing: &[(chrono::NaiveDate, chrono::NaiveDate, &str)],
+        new_start: chrono::NaiveDate,
+        new_end: chrono::NaiveDate,
+    ) -> &'static str {
+        let mut latest_end: Option<chrono::NaiveDate> = None;
+        for (s, e, _) in existing {
+            let overlap = !(*e < new_start || *s > new_end);
+            if overlap {
+                return "Overlap";
+            }
+            if latest_end.map(|prev| *e > prev).unwrap_or(true) {
+                latest_end = Some(*e);
+            }
+        }
+        if latest_end.is_some() {
+            "PemakaianBerurutan"
+        } else {
+            "Available"
+        }
+    }
+
+    #[test]
+    fn bmn_check_status_available_when_no_existing() {
+        let s = classify(
+            &[],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Available");
+    }
+
+    #[test]
+    fn bmn_check_status_sequential_when_existing_ends_before_new_start() {
+        // Existing 2026-01-01 .. 2026-06-02, new starts 2026-06-03 → sequential OK.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 3).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "PemakaianBerurutan");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_periods_intersect() {
+        // Existing 2026-01-01 .. 2026-06-30, new 2026-06-15 .. 2026-12-31 → overlap.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 30).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 15).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_new_inside_existing() {
+        // Existing 2026-01-01 .. 2026-12-31, new 2026-05-01 .. 2026-06-30
+        // (entirely inside) → overlap.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 30).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_edge_equal() {
+        // Existing ends 2026-06-02, new starts 2026-06-02 — same day = overlap
+        // (sequential berarti new_start STRICTLY > existing_end).
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
     }
 
     #[test]

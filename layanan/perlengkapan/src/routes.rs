@@ -131,6 +131,15 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::penghapusan_bmn::list_lampiran)
                 .post(crate::penghapusan_bmn::upload_lampiran),
         )
+        // ============ Pemakaian BMN cek (Fase 1.11) ============
+        .route(
+            "/pemakaian-bmn/cek-pegawai/{nip}",
+            get(crate::pemakaian_bmn::cek_pegawai),
+        )
+        .route(
+            "/pemakaian-bmn/cek-bmn",
+            get(crate::pemakaian_bmn::cek_bmn),
+        )
         // ============ Pakaian Dinas Routes ============
         // Master: Jenis Pakaian Dinas
         .route(

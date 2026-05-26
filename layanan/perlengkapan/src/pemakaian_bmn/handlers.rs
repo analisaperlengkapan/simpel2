@@ -323,6 +323,62 @@ pub async fn check_bmn_availability(
     Ok(Json(ApiResponse::success(response, message)))
 }
 
+// ─── Fase 1.11: cek-pegawai + cek-bmn ────────────────────────────────────
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CekPegawaiQuery {
+    pub satker_id: String,
+}
+
+/// GET /pemakaian-bmn/cek-pegawai/{nip}?satker_id=...
+///
+/// Fase 1.11: Validate pegawai berada di satker pemohon (lookup MySIMKARI
+/// cache), lalu return info pegawai + pemakaian aktif + histori.
+/// 422 dgn pesan "Pegawai tidak ditemukan / tidak berada di satker
+/// bersangkutan" jika mismatch.
+pub async fn cek_pegawai(
+    State(service): State<PemakaianBmnService>,
+    Path(nip): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<CekPegawaiQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<CekPegawaiResponse>>, AppError> {
+    let resp = service
+        .cek_pegawai_in_satker(&nip, &query.satker_id)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        resp,
+        "Pegawai terverifikasi".to_string(),
+    )))
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CekBmnQuery {
+    pub nup: String,
+    #[serde(default)]
+    pub satker_id: Option<String>,
+    pub tgl_mulai: chrono::NaiveDate,
+    pub tgl_selesai: chrono::NaiveDate,
+}
+
+/// GET /pemakaian-bmn/cek-bmn?nup=...&tgl_mulai=YYYY-MM-DD&tgl_selesai=YYYY-MM-DD
+///
+/// Fase 1.11: Validate BMN existence + cek availability per periode.
+/// Mendukung pemakaian berurutan (existing berakhir sebelum usulan
+/// mulai → diizinkan). 422 "BMN tidak ditemukan" jika NUP tidak ada di
+/// referensi SIMAN. Status response: Available | PemakaianBerurutan |
+/// Overlap.
+pub async fn cek_bmn(
+    State(service): State<PemakaianBmnService>,
+    State(pool): State<deadpool_postgres::Pool>,
+    axum::extract::Query(query): axum::extract::Query<CekBmnQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<CekBmnResponse>>, AppError> {
+    let resp = service
+        .cek_bmn_availability_for_period(&pool, &query.nup, query.tgl_mulai, query.tgl_selesai)
+        .await?;
+    Ok(Json(ApiResponse::success(resp, "Cek BMN selesai".to_string())))
+}
+
 /// GET /pemakaian-bmn/bmn/:bmn_nup/history
 /// Get BMN usage history
 pub async fn get_bmn_usage_history(
