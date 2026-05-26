@@ -149,6 +149,13 @@ impl KebutuhanBmnService {
             .await
     }
 
+    /// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
+    /// `integrasi.mysimkari_satker.wilayah`. Dipakai FE untuk dropdown
+    /// "Scope satker = wilayah".
+    pub async fn list_wilayah(&self) -> AppResult<Vec<String>> {
+        self.repository.list_wilayah().await
+    }
+
     /// Update a pengajuan
     pub async fn update_pengajuan(
         &self,
@@ -1653,6 +1660,7 @@ mod tests {
             tgl_mulai: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             tgl_selesai: NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
             pilihan_satker: Some("semua".to_string()),
+            wilayah_id: None,
             satker_ids: vec![],
             asset_types: vec![],
         }

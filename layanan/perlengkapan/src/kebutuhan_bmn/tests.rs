@@ -230,6 +230,7 @@ mod validation_tests {
             tgl_mulai: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             tgl_selesai: NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
             pilihan_satker: Some("semua".to_string()),
+            wilayah_id: None,
             satker_ids: vec![],
             asset_types: vec![],
         }

@@ -954,6 +954,22 @@ pub async fn export_pengajuan(
     )))
 }
 
+/// GET /kebutuhan-bmn/wilayah
+///
+/// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
+/// `integrasi.mysimkari_satker`. Dipakai FE saat user pilih
+/// `pilihan_satker = wilayah` untuk dropdown wilayah.
+pub async fn list_wilayah_kejati(
+    State(service): State<KebutuhanBmnService>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
+    let wilayah = service.list_wilayah().await?;
+    Ok(Json(ApiResponse::success(
+        wilayah,
+        "Daftar wilayah Kejaksaan Tinggi berhasil diambil".to_string(),
+    )))
+}
+
 // ============================================================================
 // Unit Tests
 // ============================================================================

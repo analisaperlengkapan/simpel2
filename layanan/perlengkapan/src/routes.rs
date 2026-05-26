@@ -275,6 +275,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/pengajuan/{id}/export",
             get(kebutuhan_bmn::export_pengajuan),
         )
+        // V029 (Fase 1.7): Daftar wilayah Kejaksaan Tinggi utk dropdown FE
+        // saat user pilih pilihan_satker = wilayah.
+        .route(
+            "/kebutuhan-bmn/wilayah",
+            get(kebutuhan_bmn::list_wilayah_kejati),
+        )
         // Pengajuan Satker
         .route(
             "/kebutuhan-bmn/pengajuan/{id}/satker",

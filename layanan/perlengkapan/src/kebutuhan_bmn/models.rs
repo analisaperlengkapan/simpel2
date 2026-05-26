@@ -176,12 +176,17 @@ pub enum PilihanSatker {
     #[default]
     Semua,
     Sebagian,
+    /// Cakupan satu wilayah Kejaksaan Tinggi — sistem otomatis resolve
+    /// semua satker dlm wilayah tsb dari `integrasi.mysimkari_satker`
+    /// (V029, Fase 1.7).
+    Wilayah,
 }
 
 impl PilihanSatker {
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "sebagian" => Self::Sebagian,
+            "wilayah" => Self::Wilayah,
             _ => Self::Semua,
         }
     }
@@ -190,6 +195,7 @@ impl PilihanSatker {
         match self {
             Self::Semua => "semua",
             Self::Sebagian => "sebagian",
+            Self::Wilayah => "wilayah",
         }
     }
 }
@@ -207,7 +213,15 @@ pub struct PengajuanKebutuhanBmn {
     pub tahun: i32,
     pub tgl_mulai: NaiveDate,
     pub tgl_selesai: NaiveDate,
+    /// Legacy field (V029 deprecates). Aplikasi baru harus baca `scope_satker`;
+    /// kolom legacy dipertahankan utk backward compat consumer lama.
     pub pilihan_satker: PilihanSatker,
+    /// Cakupan satker per V029 (Fase 1.7): semua | sebagian | wilayah.
+    pub scope_satker: PilihanSatker,
+    /// Nama wilayah Kejaksaan Tinggi (text label, match
+    /// `integrasi.mysimkari_satker.wilayah`). WAJIB jika scope=wilayah;
+    /// `None` untuk scope lain.
+    pub wilayah_id: Option<String>,
     pub id_jenis_asset: Value,
     pub is_appv_daskrimti: bool,
     pub status_kode: i32,
@@ -238,6 +252,12 @@ impl PengajuanKebutuhanBmn {
             pilihan_satker: PilihanSatker::from_str(
                 row.get::<_, String>("pilihan_satker").as_str(),
             ),
+            scope_satker: row
+                .try_get::<_, String>("scope_satker")
+                .ok()
+                .map(|s| PilihanSatker::from_str(&s))
+                .unwrap_or_default(),
+            wilayah_id: row.try_get("wilayah_id").ok().flatten(),
             id_jenis_asset: row.get("id_jenis_asset"),
             is_appv_daskrimti: row.get("is_appv_daskrimti"),
             status_kode,
@@ -537,6 +557,12 @@ pub struct CreatePengajuanRequest {
     #[serde(default)]
     pub pilihan_satker: Option<String>,
 
+    /// Nama wilayah Kejaksaan Tinggi (match `integrasi.mysimkari_satker.wilayah`).
+    /// WAJIB jika `pilihan_satker = "wilayah"`. Server akan resolve semua
+    /// satker di wilayah tsb otomatis (V029, Fase 1.7).
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
+
     #[serde(default)]
     pub satker_ids: Vec<String>,
 
@@ -563,6 +589,7 @@ pub struct UpdatePengajuanRequest {
     pub tgl_mulai: Option<NaiveDate>,
     pub tgl_selesai: Option<NaiveDate>,
     pub pilihan_satker: Option<String>,
+    pub wilayah_id: Option<String>,
 
     /// For optimistic locking
     pub version: i32,
@@ -935,8 +962,13 @@ mod tests {
     fn test_pilihan_satker() {
         assert_eq!(PilihanSatker::from_str("semua"), PilihanSatker::Semua);
         assert_eq!(PilihanSatker::from_str("sebagian"), PilihanSatker::Sebagian);
+        // V029 (Fase 1.7): scope baru "wilayah".
+        assert_eq!(PilihanSatker::from_str("wilayah"), PilihanSatker::Wilayah);
+        assert_eq!(PilihanSatker::from_str("WILAYAH"), PilihanSatker::Wilayah);
+        // Default fallback masih Semua.
         assert_eq!(PilihanSatker::from_str("unknown"), PilihanSatker::Semua);
         assert_eq!(PilihanSatker::Sebagian.as_str(), "sebagian");
+        assert_eq!(PilihanSatker::Wilayah.as_str(), "wilayah");
     }
 
     #[test]
