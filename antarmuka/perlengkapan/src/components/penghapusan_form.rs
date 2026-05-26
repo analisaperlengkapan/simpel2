@@ -203,11 +203,15 @@ pub fn PenghapusanForm() -> impl IntoView {
                     <input
                         id="nilai_perolehan"
                         type="number"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                        placeholder="0"
+                        class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        placeholder="Diambil otomatis dari SIMAN saat submit"
                         prop:value=move || form.get().nilai_perolehan.clone()
-                        on:input=move |ev| form.update(|f| f.nilai_perolehan = event_target_value(&ev))
+                        readonly=true
                     />
+                    <p class="mt-1 text-xs text-gray-500">
+                        "Nilai perolehan diambil langsung dari data SIMAN berdasarkan NUP + kode barang. "
+                        "Jika BMN tidak ditemukan di SIMAN, sistem akan menolak usulan."
+                    </p>
                 </div>
 
                 // -- Lampiran & Catatan --

@@ -14,14 +14,16 @@
 
 use super::models::*;
 use super::repository::PenghapusanBmnRepository;
-use crate::shared::error::AppResult;
+use crate::bank_aset::repository::BankAsetRepository;
+use crate::shared::error::{AppError, AppResult};
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 pub struct PenghapusanBmnService {
+    pool: Pool,
     repository: PenghapusanBmnRepository,
     workflow_engine: Arc<WorkflowEngine>,
     docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
@@ -30,6 +32,7 @@ pub struct PenghapusanBmnService {
 impl PenghapusanBmnService {
     pub fn new(pool: Pool, workflow_engine: Arc<WorkflowEngine>) -> Self {
         Self {
+            pool: pool.clone(),
             repository: PenghapusanBmnRepository::new(pool),
             workflow_engine,
             docs: None,
@@ -46,15 +49,48 @@ impl PenghapusanBmnService {
     }
 
     /// Create a new Usulan SK Penghapusan BMN (by Operator Satker)
+    ///
+    /// `nilai_perolehan` SELALU diambil dari sumber otoritatif SIMAN
+    /// (tabel cache `integrasi.siman_aset`) berdasarkan NUP + kode_barang
+    /// dari request. Nilai yg dikirim operator (jika ada) di-override.
+    /// Jika asset tidak ditemukan di SIMAN → tolak 422 (operator wajib
+    /// memilih BMN yg memang ada di SIMAN). Jika query SIMAN gagal
+    /// (DB connection error dll), graceful-fallback ke nilai operator
+    /// dgn warning log — usulan tetap dpt disimpan, verifikasi nilai
+    /// dapat dilakukan di tahap validasi wilayah/pusat.
     pub async fn create(
         &self,
-        request: CreatePenghapusanBmnRequest,
+        mut request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
     ) -> AppResult<PenghapusanBmn> {
         info!(
             "Creating Usulan SK Penghapusan BMN for asset: {}",
             request.nama_barang
         );
+
+        let bank_repo = BankAsetRepository::new(self.pool.clone());
+        match bank_repo
+            .find_nilai_perolehan(&request.nup, Some(&request.kode_barang))
+            .await
+        {
+            Ok(Some(nilai)) => {
+                request.nilai_perolehan = Some(nilai);
+            }
+            Ok(None) => {
+                return Err(AppError::BadRequest(format!(
+                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN. \
+                     Pastikan kode_barang & NUP cocok dgn data SIMAN.",
+                    request.nup, request.kode_barang
+                )));
+            }
+            Err(e) => {
+                warn!(
+                    "find_nilai_perolehan failed for NUP {}: {}. Fallback to operator-supplied value.",
+                    request.nup, e
+                );
+            }
+        }
+
         self.repository.create(request, created_by).await
     }
 

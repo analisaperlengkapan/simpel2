@@ -127,7 +127,8 @@ impl BankAsetRepository {
 
         let row = client
             .query_opt(
-                "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker
+                "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
+                        (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE NULL END) AS nilai_perolehan
                  FROM integrasi.siman_aset
                  WHERE nup = $1
                  LIMIT 1",
@@ -149,7 +150,34 @@ impl BankAsetRepository {
             tahun_perolehan: r.try_get::<_, Option<String>>("tgl_perlh").ok().flatten(),
             kondisi: r.try_get::<_, Option<String>>("ur_kondisi").ok().flatten(),
             satker: r.try_get::<_, Option<String>>("nama_satker").ok().flatten(),
+            nilai_perolehan: r.try_get::<_, Option<f64>>("nilai_perolehan").ok().flatten(),
         }))
+    }
+
+    /// Resolve `nilai_perolehan` for a SIMAN asset identified by NUP (+
+    /// optional kode_barang untuk validasi konsistensi).
+    ///
+    /// Dipakai oleh penghapusan-bmn untuk mengisi field `nilai_perolehan`
+    /// dari sumber otoritatif (SIMAN cache di `integrasi.siman_aset`)
+    /// daripada percaya input operator.
+    pub async fn find_nilai_perolehan(
+        &self,
+        nup: &str,
+        kode_barang: Option<&str>,
+    ) -> AppResult<Option<f64>> {
+        let lookup = self.find_lookup_by_nup(nup).await?;
+        let Some(l) = lookup else {
+            return Ok(None);
+        };
+        if let (Some(expected), Some(actual)) = (kode_barang, l.kode_barang.as_deref())
+            && expected != actual
+        {
+            // NUP cocok tapi kode_barang berbeda → data tidak konsisten
+            // → jangan kembalikan nilai (caller akan handle sebagai
+            // "tidak ditemukan").
+            return Ok(None);
+        }
+        Ok(l.nilai_perolehan)
     }
 
     pub async fn get(&self, id: Uuid) -> AppResult<BankAsetItem> {

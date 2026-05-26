@@ -33,6 +33,10 @@ pub struct BankAsetLookup {
     pub tahun_perolehan: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,
+    /// Nilai perolehan aset dari SIMAN (sumber otoritatif). Dipakai oleh
+    /// penghapusan-bmn form & service untuk mengisi `nilai_perolehan`
+    /// otomatis daripada percaya input operator.
+    pub nilai_perolehan: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
