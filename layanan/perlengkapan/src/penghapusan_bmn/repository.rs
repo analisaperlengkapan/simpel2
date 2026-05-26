@@ -26,15 +26,22 @@ impl PenghapusanBmnRepository {
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
+        // V029: tulis ke kolom kanonik `nilai_perolehan`. Kolom legacy
+        // `nilai_residu` di-skip untuk INSERT baru (NULL); migrasi sudah
+        // mem-backfill row lama. Flag `nilai_perolehan_dari_backfill` di-set
+        // FALSE untuk data fresh (default kolom juga FALSE — eksplisit lebih
+        // jelas).
         let query = r#"
             INSERT INTO perlengkapan.penghapusan_bmn (
                 id, satker_id, asset_id, kode_barang, nama_barang, nup,
-                tanggal_penghapusan, alasan, metode_penghapusan, nilai_residu,
+                tanggal_penghapusan, alasan, metode_penghapusan, nilai_perolehan,
+                nilai_perolehan_dari_backfill,
                 status, status_kode, lampiran_persyaratan, lampiran_pendukung,
                 catatan_operator, is_completed,
                 created_by, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                false,
                 $11, $12, $13, $14, $15, false,
                 $16, NOW(), NOW()
             )
@@ -58,7 +65,7 @@ impl PenghapusanBmnRepository {
                     &request.tanggal_penghapusan,
                     &request.alasan,
                     &request.metode_penghapusan,
-                    &request.nilai_residu,
+                    &request.nilai_perolehan,
                     &status.to_state_name(),
                     &status.to_code(),
                     &request.lampiran_persyaratan,
@@ -176,12 +183,18 @@ impl PenghapusanBmnRepository {
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
+        // V029: Saat user menyimpan nilai_perolehan baru, anggap data sudah
+        // diverifikasi → reset flag backfill ke FALSE.
         let query = r#"
             UPDATE perlengkapan.penghapusan_bmn
             SET tanggal_penghapusan = COALESCE($1, tanggal_penghapusan),
                 alasan = COALESCE($2, alasan),
                 metode_penghapusan = COALESCE($3, metode_penghapusan),
-                nilai_residu = COALESCE($4, nilai_residu),
+                nilai_perolehan = COALESCE($4, nilai_perolehan),
+                nilai_perolehan_dari_backfill = CASE
+                    WHEN $4::numeric IS NOT NULL THEN FALSE
+                    ELSE nilai_perolehan_dari_backfill
+                END,
                 lampiran_persyaratan = COALESCE($5, lampiran_persyaratan),
                 catatan_operator = COALESCE($6, catatan_operator),
                 updated_at = NOW()
@@ -196,7 +209,7 @@ impl PenghapusanBmnRepository {
                     &request.tanggal_penghapusan,
                     &request.alasan,
                     &request.metode_penghapusan,
-                    &request.nilai_residu,
+                    &request.nilai_perolehan,
                     &request.lampiran_persyaratan,
                     &request.catatan_operator,
                     &id,

@@ -281,10 +281,15 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                                 <dd class="font-medium">{d.penghapusan.nup.clone()}</dd>
                                             </div>
                                             <div>
-                                                <dt class="text-gray-500">"Nilai Residu"</dt>
+                                                <dt class="text-gray-500">"Nilai Perolehan"</dt>
                                                 <dd class="font-medium">
-                                                    {d.penghapusan.nilai_residu.map(|v| format!("Rp {:.2}", v)).unwrap_or_else(|| "-".to_string())}
+                                                    {d.penghapusan.nilai_perolehan.map(|v| format!("Rp {:.2}", v)).unwrap_or_else(|| "-".to_string())}
                                                 </dd>
+                                                {d.penghapusan.nilai_perolehan_dari_backfill.then(|| view! {
+                                                    <p class="mt-1 text-xs text-amber-600">
+                                                        "Diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
+                                                    </p>
+                                                })}
                                             </div>
                                         </dl>
                                     </div>

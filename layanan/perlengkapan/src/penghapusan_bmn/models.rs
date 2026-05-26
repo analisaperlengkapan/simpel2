@@ -147,7 +147,13 @@ pub struct PenghapusanBmn {
     pub tanggal_penghapusan: NaiveDate,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    /// Nilai perolehan aset (harga pembelian). Menggantikan `nilai_residu`
+    /// yg dipakai di skema lama; sengaja berbeda nama agar konsumen API
+    /// memperbarui pemakaian (lihat V029).
+    pub nilai_perolehan: Option<f64>,
+    /// TRUE jika `nilai_perolehan` di-backfill otomatis dari kolom legacy
+    /// `nilai_residu`. UI dapat menampilkan banner "perlu diverifikasi".
+    pub nilai_perolehan_dari_backfill: bool,
     pub status: String,
     pub status_kode: i32,
 
@@ -199,7 +205,7 @@ pub struct CreatePenghapusanBmnRequest {
     pub alasan: String,
     #[validate(length(min = 1, max = 100))]
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     // Lampiran persyaratan (required)
     #[validate(length(min = 1, message = "Lampiran persyaratan wajib dilampirkan"))]
     pub lampiran_persyaratan: String,
@@ -214,7 +220,7 @@ pub struct UpdatePenghapusanBmnRequest {
     pub alasan: Option<String>,
     #[validate(length(min = 1, max = 100))]
     pub metode_penghapusan: Option<String>,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: Option<String>,
     pub catatan_operator: Option<String>,
 }
@@ -293,7 +299,10 @@ impl PenghapusanBmn {
             tanggal_penghapusan: row.get("tanggal_penghapusan"),
             alasan: row.get("alasan"),
             metode_penghapusan: row.get("metode_penghapusan"),
-            nilai_residu: row.get("nilai_residu"),
+            nilai_perolehan: row.try_get("nilai_perolehan").ok().flatten(),
+            nilai_perolehan_dari_backfill: row
+                .try_get("nilai_perolehan_dari_backfill")
+                .unwrap_or(false),
             status: status_str,
             status_kode,
             lampiran_persyaratan: row.try_get("lampiran_persyaratan").ok().flatten(),

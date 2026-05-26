@@ -19,7 +19,7 @@ struct PenghapusanFormData {
     tanggal: String,
     alasan: String,
     metode: String,
-    residu: String,
+    nilai_perolehan: String,
     lampiran_persyaratan: String,
     catatan_operator: String,
 }
@@ -43,7 +43,7 @@ pub fn PenghapusanForm() -> impl IntoView {
             tanggal_penghapusan: data.tanggal,
             alasan: data.alasan,
             metode_penghapusan: data.metode,
-            nilai_residu: data.residu.parse::<f64>().ok(),
+            nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
             lampiran_persyaratan: data.lampiran_persyaratan,
             catatan_operator: if data.catatan_operator.is_empty() {
                 None
@@ -199,14 +199,14 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="residu">"Nilai Residu (Rp)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="nilai_perolehan">"Nilai Perolehan (Rp)"</label>
                     <input
-                        id="residu"
+                        id="nilai_perolehan"
                         type="number"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="0"
-                        prop:value=move || form.get().residu.clone()
-                        on:input=move |ev| form.update(|f| f.residu = event_target_value(&ev))
+                        prop:value=move || form.get().nilai_perolehan.clone()
+                        on:input=move |ev| form.update(|f| f.nilai_perolehan = event_target_value(&ev))
                     />
                 </div>
 

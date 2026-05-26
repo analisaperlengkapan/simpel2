@@ -352,7 +352,13 @@ pub struct PenghapusanBmnWorkflow {
     pub tanggal_penghapusan: String,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    /// Nilai perolehan aset (harga pembelian). Sebelumnya field bernama
+    /// `nilai_residu` — direname di V029 karena salah semantik.
+    pub nilai_perolehan: Option<f64>,
+    /// TRUE jika nilai_perolehan di-backfill dari kolom legacy nilai_residu;
+    /// UI dapat menampilkan banner "perlu diverifikasi" untuk data lama.
+    #[serde(default)]
+    pub nilai_perolehan_dari_backfill: bool,
     pub status: String,
     pub status_kode: i32,
     // Lampiran
@@ -395,7 +401,7 @@ pub struct CreatePenghapusanBmnWorkflowRequest {
     pub tanggal_penghapusan: String,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: String,
     pub catatan_operator: Option<String>,
 }
@@ -406,7 +412,7 @@ pub struct UpdatePenghapusanBmnWorkflowRequest {
     pub tanggal_penghapusan: Option<String>,
     pub alasan: Option<String>,
     pub metode_penghapusan: Option<String>,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: Option<String>,
     pub catatan_operator: Option<String>,
 }

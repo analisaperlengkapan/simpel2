@@ -211,10 +211,11 @@ fn DetailBody(
     let kode_barang = p.kode_barang.clone();
     let nama_barang = p.nama_barang.clone();
     let nup = p.nup.clone();
-    let nilai_residu = p
-        .nilai_residu
+    let nilai_perolehan = p
+        .nilai_perolehan
         .map(format_rupiah)
         .unwrap_or_else(|| "-".to_string());
+    let nilai_perolehan_legacy = p.nilai_perolehan_dari_backfill;
     let catatan_operator = p
         .catatan_operator
         .clone()
@@ -234,8 +235,15 @@ fn DetailBody(
                 <InfoField label="NUP" value=nup />
                 <InfoField label="Tanggal Rencana" value=tanggal />
                 <InfoField label="Metode" value=metode />
-                <InfoField label="Nilai Residu" value=nilai_residu />
+                <InfoField label="Nilai Perolehan" value=nilai_perolehan />
             </div>
+            {nilai_perolehan_legacy.then(|| view! {
+                <div class="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
+                    <p class="text-xs text-amber-200">
+                        "Nilai perolehan diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
+                    </p>
+                </div>
+            })}
             <div class="mt-4 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                 <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Alasan Penghapusan"</p>
                 <p class="mt-1 text-sm text-slate-200">{alasan}</p>
