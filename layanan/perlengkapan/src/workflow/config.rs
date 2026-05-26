@@ -44,95 +44,89 @@ impl WorkflowConfig {
     /// - COMPLETED (2008): Completed
     /// - CANCELLED (2009): Cancelled
     pub fn default_kebutuhan_bmn() -> Self {
+        // V1.1: Source-of-truth state names di-sync dgn
+        // `KebutuhanBmnStatus::to_state_name`. Drift legacy yg dihapus:
+        //   - SUBMIT_SATKER     → SUBMIT_WILAYAH
+        //   - PENYUSUNAN_PRIORITAS → (di-merge ke ANALISIS_KELAYAKAN; tidak ada step terpisah)
+        // Backward-compat dipertahankan di `KebutuhanBmnStatus::from_state_name`
+        // (alias) — config baru tidak perlu menulis legacy names.
         let mut transitions = HashMap::new();
 
-        // DRAFT can transition to INPUT_BARANG or CANCELLED
+        // Draft → InputBarang | Cancelled
         transitions.insert(
             "DRAFT".to_string(),
             vec!["INPUT_BARANG".to_string(), "CANCELLED".to_string()],
         );
 
-        // INPUT_BARANG can transition to SUBMIT_SATKER or back to DRAFT
+        // InputBarang → SubmitWilayah | Cancelled
         transitions.insert(
             "INPUT_BARANG".to_string(),
-            vec!["SUBMIT_SATKER".to_string(), "DRAFT".to_string()],
+            vec!["SUBMIT_WILAYAH".to_string(), "CANCELLED".to_string()],
         );
 
-        // SUBMIT_SATKER can transition to ANALISIS_KELAYAKAN or REVISI_SATKER
+        // SubmitWilayah → SubmitPusat (forward) | RevisiSatker (return)
         transitions.insert(
-            "SUBMIT_SATKER".to_string(),
-            vec![
-                "ANALISIS_KELAYAKAN".to_string(),
-                "REVISI_SATKER".to_string(),
-                "REJECTED".to_string(),
-            ],
+            "SUBMIT_WILAYAH".to_string(),
+            vec!["SUBMIT_PUSAT".to_string(), "REVISI_SATKER".to_string()],
         );
 
-        // REVISI_SATKER can transition back to INPUT_BARANG
+        // RevisiSatker → SubmitWilayah (re-submit) | Cancelled
         transitions.insert(
             "REVISI_SATKER".to_string(),
-            vec!["INPUT_BARANG".to_string()],
+            vec!["SUBMIT_WILAYAH".to_string(), "CANCELLED".to_string()],
         );
 
-        // ANALISIS_KELAYAKAN can transition to PENYUSUNAN_PRIORITAS, REVISI_SATKER, REVISI_WILAYAH, or REJECTED
+        // SubmitPusat → AnalisisKelayakan (sistem buka analisis)
+        transitions.insert(
+            "SUBMIT_PUSAT".to_string(),
+            vec!["ANALISIS_KELAYAKAN".to_string()],
+        );
+
+        // AnalisisKelayakan → Approved | Rejected | RevisiWilayah
         transitions.insert(
             "ANALISIS_KELAYAKAN".to_string(),
             vec![
-                "PENYUSUNAN_PRIORITAS".to_string(),
-                "REVISI_SATKER".to_string(),
-                "REVISI_WILAYAH".to_string(),
+                "APPROVED".to_string(),
                 "REJECTED".to_string(),
+                "REVISI_WILAYAH".to_string(),
             ],
         );
 
-        // REVISI_WILAYAH returns to SUBMIT_PUSAT (Validator Wilayah re-submits after fixing)
+        // RevisiWilayah → SubmitPusat (Validator Wilayah re-submit after fix)
         transitions.insert(
             "REVISI_WILAYAH".to_string(),
             vec!["SUBMIT_PUSAT".to_string()],
         );
 
-        // PENYUSUNAN_PRIORITAS can transition to APPROVED or REJECTED
-        transitions.insert(
-            "PENYUSUNAN_PRIORITAS".to_string(),
-            vec!["APPROVED".to_string(), "REJECTED".to_string()],
-        );
-
-        // APPROVED can transition to COMPLETED
+        // Approved → Completed (auto-generate Laporan Hasil Analisis)
         transitions.insert("APPROVED".to_string(), vec!["COMPLETED".to_string()]);
 
-        // COMPLETED can transition to CANCELLED (for rollback scenarios)
-        transitions.insert("COMPLETED".to_string(), vec!["CANCELLED".to_string()]);
-
-        // REJECTED is terminal (no transitions)
+        // Terminal states
         transitions.insert("REJECTED".to_string(), vec![]);
-
-        // CANCELLED is terminal (no transitions)
+        transitions.insert("COMPLETED".to_string(), vec![]);
         transitions.insert("CANCELLED".to_string(), vec![]);
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMIT_SATKER".to_string(), 2880); // 2 days (48 hours)
-        sla_minutes.insert("ANALISIS_KELAYAKAN".to_string(), 4320); // 3 days (72 hours)
-        sla_minutes.insert("PENYUSUNAN_PRIORITAS".to_string(), 1440); // 1 day (24 hours)
-        sla_minutes.insert("APPROVED".to_string(), 4320); // 3 days (72 hours)
+        sla_minutes.insert("SUBMIT_WILAYAH".to_string(), 2880); // 2 days
+        sla_minutes.insert("SUBMIT_PUSAT".to_string(), 2880); // 2 days
+        sla_minutes.insert("ANALISIS_KELAYAKAN".to_string(), 4320); // 3 days
+        sla_minutes.insert("APPROVED".to_string(), 4320); // 3 days
 
         // Required roles for state transitions
         let mut required_roles = HashMap::new();
-        required_roles.insert("DRAFT".to_string(), "operator_satker".to_string());
+        required_roles.insert("DRAFT".to_string(), "validator_pusat".to_string()); // create periode
         required_roles.insert("INPUT_BARANG".to_string(), "operator_satker".to_string());
-        required_roles.insert("SUBMIT_SATKER".to_string(), "operator_satker".to_string());
+        required_roles.insert("SUBMIT_WILAYAH".to_string(), "operator_satker".to_string());
+        required_roles.insert("REVISI_SATKER".to_string(), "operator_satker".to_string());
+        required_roles.insert("SUBMIT_PUSAT".to_string(), "validator_wilayah".to_string());
         required_roles.insert(
             "ANALISIS_KELAYAKAN".to_string(),
             "validator_pusat".to_string(),
         );
-        required_roles.insert(
-            "PENYUSUNAN_PRIORITAS".to_string(),
-            "validator_pusat".to_string(),
-        );
-        required_roles.insert("APPROVED".to_string(), "admin_pusat".to_string());
-        required_roles.insert("REJECTED".to_string(), "admin_pusat".to_string());
-        required_roles.insert("REVISI_SATKER".to_string(), "validator_pusat".to_string());
         required_roles.insert("REVISI_WILAYAH".to_string(), "validator_pusat".to_string());
+        required_roles.insert("APPROVED".to_string(), "validator_pusat".to_string());
+        required_roles.insert("REJECTED".to_string(), "validator_pusat".to_string());
         required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
 
         Self {
@@ -246,47 +240,96 @@ impl WorkflowConfig {
     /// - REJECTED: Rejected
     /// - CANCELLED: Cancelled
     pub fn default_penghapusan_bmn() -> Self {
+        // V1.1: state names di-sync dgn `PenghapusanBmnStatus::to_state_name`.
+        // Fase 1.9 dual-jalur: SubmitWilayah → KonsepSKWilayahGenerated
+        // (kewenangan WILAYAH) ATAU → SubmitPusat (kewenangan PUSAT).
         let mut transitions = HashMap::new();
 
-        // DRAFT can transition to SUBMITTED or CANCELLED
+        // Draft → SubmitWilayah
+        transitions.insert("DRAFT".to_string(), vec!["SUBMIT_WILAYAH".to_string()]);
+
+        // SubmitWilayah → SubmitPusat (PUSAT) | KonsepSKWilayahGenerated (WILAYAH) | ReturnedToOperator
         transitions.insert(
-            "DRAFT".to_string(),
-            vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
+            "SUBMIT_WILAYAH".to_string(),
+            vec![
+                "SUBMIT_PUSAT".to_string(),
+                "KONSEP_SK_WILAYAH_GENERATED".to_string(),
+                "RETURNED_TO_OPERATOR".to_string(),
+            ],
         );
 
-        // SUBMITTED can transition to REVIEWED or REJECTED
+        // ReturnedToOperator → SubmitWilayah (re-submit)
         transitions.insert(
-            "SUBMITTED".to_string(),
-            vec!["REVIEWED".to_string(), "REJECTED".to_string()],
+            "RETURNED_TO_OPERATOR".to_string(),
+            vec!["SUBMIT_WILAYAH".to_string()],
         );
 
-        // REVIEWED can transition to APPROVED or REJECTED
+        // Jalur PUSAT
         transitions.insert(
-            "REVIEWED".to_string(),
-            vec!["APPROVED".to_string(), "REJECTED".to_string()],
+            "SUBMIT_PUSAT".to_string(),
+            vec!["VERIFIKASI_PUSAT".to_string()],
+        );
+        transitions.insert(
+            "VERIFIKASI_PUSAT".to_string(),
+            vec!["KONSEP_SK_GENERATED".to_string(), "REJECTED".to_string()],
+        );
+        transitions.insert(
+            "KONSEP_SK_GENERATED".to_string(),
+            vec!["SK_SIGNED".to_string()],
+        );
+        transitions.insert("SK_SIGNED".to_string(), vec!["COMPLETED".to_string()]);
+
+        // Jalur WILAYAH (Fase 1.9)
+        transitions.insert(
+            "KONSEP_SK_WILAYAH_GENERATED".to_string(),
+            vec!["SK_SIGNED_WILAYAH".to_string()],
+        );
+        transitions.insert(
+            "SK_SIGNED_WILAYAH".to_string(),
+            vec!["COMPLETED".to_string()],
         );
 
         // Terminal states
-        transitions.insert("APPROVED".to_string(), vec![]);
+        transitions.insert("COMPLETED".to_string(), vec![]);
         transitions.insert("REJECTED".to_string(), vec![]);
-        transitions.insert("CANCELLED".to_string(), vec![]);
 
-        // SLA configuration (in minutes)
+        // SLA (minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMITTED".to_string(), 2880); // 2 days (48 hours)
-        sla_minutes.insert("REVIEWED".to_string(), 4320); // 3 days (72 hours)
+        sla_minutes.insert("SUBMIT_WILAYAH".to_string(), 2880); // 2 days
+        sla_minutes.insert("SUBMIT_PUSAT".to_string(), 2880);
+        sla_minutes.insert("VERIFIKASI_PUSAT".to_string(), 4320); // 3 days
+        sla_minutes.insert("KONSEP_SK_GENERATED".to_string(), 4320);
+        sla_minutes.insert("KONSEP_SK_WILAYAH_GENERATED".to_string(), 4320);
 
         // Required roles
         let mut required_roles = HashMap::new();
         required_roles.insert("DRAFT".to_string(), "operator_satker".to_string());
-        required_roles.insert("SUBMITTED".to_string(), "operator_satker".to_string());
-        required_roles.insert("REVIEWED".to_string(), "verifikator".to_string());
-        required_roles.insert("APPROVED".to_string(), "pimpinan".to_string());
-        required_roles.insert("REJECTED".to_string(), "pimpinan".to_string());
+        required_roles.insert("SUBMIT_WILAYAH".to_string(), "operator_satker".to_string());
+        required_roles.insert(
+            "RETURNED_TO_OPERATOR".to_string(),
+            "validator_wilayah".to_string(),
+        );
+        required_roles.insert("SUBMIT_PUSAT".to_string(), "validator_wilayah".to_string());
+        required_roles.insert("VERIFIKASI_PUSAT".to_string(), "validator_pusat".to_string());
+        required_roles.insert(
+            "KONSEP_SK_GENERATED".to_string(),
+            "validator_pusat".to_string(),
+        );
+        required_roles.insert("SK_SIGNED".to_string(), "validator_pusat".to_string());
+        required_roles.insert(
+            "KONSEP_SK_WILAYAH_GENERATED".to_string(),
+            "validator_wilayah".to_string(),
+        );
+        required_roles.insert(
+            "SK_SIGNED_WILAYAH".to_string(),
+            "validator_wilayah".to_string(),
+        );
+        required_roles.insert("REJECTED".to_string(), "validator_pusat".to_string());
+        required_roles.insert("COMPLETED".to_string(), "admin_pusat".to_string());
 
         Self {
             name: "penghapusan_bmn".to_string(),
-            description: "Workflow for BMN disposal approval process".to_string(),
+            description: "Workflow for BMN disposal — dual kewenangan (PUSAT / WILAYAH)".to_string(),
             transitions,
             sla_minutes,
             required_roles,
@@ -501,30 +544,146 @@ mod tests {
     fn test_default_kebutuhan_bmn_workflow() {
         let config = WorkflowConfig::default_kebutuhan_bmn();
 
-        // Test valid transitions
+        // V1.1: state names di-sync dgn enum baru.
         assert!(config.is_valid_transition("DRAFT", "INPUT_BARANG"));
-        assert!(config.is_valid_transition("INPUT_BARANG", "SUBMIT_SATKER"));
-        assert!(config.is_valid_transition("SUBMIT_SATKER", "ANALISIS_KELAYAKAN"));
+        assert!(config.is_valid_transition("INPUT_BARANG", "SUBMIT_WILAYAH"));
+        assert!(config.is_valid_transition("SUBMIT_WILAYAH", "SUBMIT_PUSAT"));
+        assert!(config.is_valid_transition("SUBMIT_WILAYAH", "REVISI_SATKER"));
+        assert!(config.is_valid_transition("SUBMIT_PUSAT", "ANALISIS_KELAYAKAN"));
+        assert!(config.is_valid_transition("ANALISIS_KELAYAKAN", "APPROVED"));
+        assert!(config.is_valid_transition("APPROVED", "COMPLETED"));
 
-        // Test invalid transitions
+        // Invalid skip / dari terminal
         assert!(!config.is_valid_transition("DRAFT", "APPROVED"));
+        assert!(!config.is_valid_transition("DRAFT", "ANALISIS_KELAYAKAN"));
         assert!(!config.is_valid_transition("REJECTED", "APPROVED"));
+        assert!(!config.is_valid_transition("COMPLETED", "DRAFT"));
 
-        // Test SLA
-        assert_eq!(config.get_sla_minutes("SUBMIT_SATKER"), Some(2880));
+        // SLA
+        assert_eq!(config.get_sla_minutes("SUBMIT_WILAYAH"), Some(2880));
         assert_eq!(config.get_sla_minutes("ANALISIS_KELAYAKAN"), Some(4320));
 
-        // Test required roles
+        // Required roles
         assert_eq!(
-            config.get_required_role("SUBMIT_SATKER"),
+            config.get_required_role("SUBMIT_WILAYAH"),
             Some("operator_satker")
         );
-        assert_eq!(config.get_required_role("APPROVED"), Some("admin_pusat"));
+        assert_eq!(
+            config.get_required_role("ANALISIS_KELAYAKAN"),
+            Some("validator_pusat")
+        );
 
-        // Test terminal states
+        // Terminal
         assert!(config.is_terminal_state("REJECTED"));
         assert!(config.is_terminal_state("CANCELLED"));
+        assert!(config.is_terminal_state("COMPLETED"));
         assert!(!config.is_terminal_state("DRAFT"));
+    }
+
+    /// V1.1 (Fase 1.1) Convergence test: untuk setiap pasangan state
+    /// di enum `KebutuhanBmnStatus`, hasil `enum.can_transition_to` HARUS
+    /// match `config.is_valid_transition`. Mencegah drift di masa depan.
+    #[test]
+    fn convergence_kebutuhan_bmn_enum_vs_config() {
+        use crate::kebutuhan_bmn::models::KebutuhanBmnStatus as S;
+        let config = WorkflowConfig::default_kebutuhan_bmn();
+        let states = [
+            S::Draft,
+            S::InputBarang,
+            S::SubmitWilayah,
+            S::RevisiSatker,
+            S::SubmitPusat,
+            S::AnalisisKelayakan,
+            S::Approved,
+            S::Rejected,
+            S::Completed,
+            S::Cancelled,
+            S::RevisiWilayah,
+        ];
+        for from in states.iter() {
+            for to in states.iter() {
+                let enum_says = from.can_transition_to(*to);
+                let config_says =
+                    config.is_valid_transition(from.to_state_name(), to.to_state_name());
+                assert_eq!(
+                    enum_says, config_says,
+                    "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
+                    from.to_state_name(),
+                    to.to_state_name(),
+                    enum_says,
+                    config_says
+                );
+            }
+        }
+    }
+
+    /// V1.1 Convergence test untuk Pemakaian BMN.
+    #[test]
+    fn convergence_pemakaian_bmn_enum_vs_config() {
+        use crate::pemakaian_bmn::models::PemakaianBmnStatus as S;
+        let config = WorkflowConfig::default_pemakaian_bmn();
+        let states = [
+            S::Draft,
+            S::Submitted,
+            S::SubmittedApproverSatker,
+            S::RevisiOperator,
+            S::Approved,
+            S::Rejected,
+            S::Active,
+            S::Expired,
+            S::Revoked,
+            S::Cancelled,
+        ];
+        for from in states.iter() {
+            for to in states.iter() {
+                let enum_says = from.can_transition_to(*to);
+                let config_says =
+                    config.is_valid_transition(from.to_state_name(), to.to_state_name());
+                assert_eq!(
+                    enum_says, config_says,
+                    "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
+                    from.to_state_name(),
+                    to.to_state_name(),
+                    enum_says,
+                    config_says
+                );
+            }
+        }
+    }
+
+    /// V1.1 Convergence test untuk Penghapusan BMN (dual jalur SK).
+    #[test]
+    fn convergence_penghapusan_bmn_enum_vs_config() {
+        use crate::penghapusan_bmn::models::PenghapusanBmnStatus as S;
+        let config = WorkflowConfig::default_penghapusan_bmn();
+        let states = [
+            S::Draft,
+            S::SubmitWilayah,
+            S::ReturnedToOperator,
+            S::SubmitPusat,
+            S::VerifikasiPusat,
+            S::KonsepSKGenerated,
+            S::SKSigned,
+            S::Completed,
+            S::Rejected,
+            S::KonsepSKWilayahGenerated,
+            S::SKSignedWilayah,
+        ];
+        for from in states.iter() {
+            for to in states.iter() {
+                let enum_says = from.can_transition_to(*to);
+                let config_says =
+                    config.is_valid_transition(from.to_state_name(), to.to_state_name());
+                assert_eq!(
+                    enum_says, config_says,
+                    "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
+                    from.to_state_name(),
+                    to.to_state_name(),
+                    enum_says,
+                    config_says
+                );
+            }
+        }
     }
 
     #[test]
