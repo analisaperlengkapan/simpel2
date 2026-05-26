@@ -256,18 +256,34 @@ impl PemakaianBmnRepository {
 
     /// Generate permit number
     /// Requirements: REQ-P005
+    ///
+    /// Format: `IP/YYYY/MM/NNNN` — sequential within each YYYY/MM bucket.
+    ///
+    /// Tanpa serialisasi, dua aktivasi paralel di bulan yg sama dpt membaca
+    /// `MAX(num)` yg sama (snapshot CTE) dan menghasilkan dua `nomor_izin`
+    /// identik → UNIQUE conflict atau nomor lompat. Mitigasi:
+    /// `pg_advisory_xact_lock` dgn kunci per-bulan agar generator berurutan.
     pub async fn generate_permit_number(&self, id: Uuid) -> AppResult<String> {
-        let client = self
+        let mut client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        // Format: IP/YYYY/MM/NNNN
-        // IP = Izin Pemakaian
-        // YYYY = Year
-        // MM = Month
-        // NNNN = Sequential number
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        // Kunci per-bulan: hashtext('izin_pemakaian_bmn:nomor:YYYY-MM').
+        // xact_lock dilepas otomatis di akhir transaksi (commit/rollback).
+        tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('izin_pemakaian_bmn:nomor:' || TO_CHAR(NOW(), 'YYYY-MM')))",
+            &[],
+        )
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         let query = r#"
             WITH next_number AS (
                 SELECT COALESCE(MAX(
@@ -283,12 +299,18 @@ impl PemakaianBmnRepository {
             RETURNING nomor_izin
         "#;
 
-        let row = client
+        let row = tx
             .query_one(query, &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(row.get("nomor_izin"))
+        let nomor: String = row.get("nomor_izin");
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(nomor)
     }
 
     /// Update document fields after document generation
