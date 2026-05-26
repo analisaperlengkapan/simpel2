@@ -494,6 +494,123 @@ impl PemakaianBmnService {
         self.repository.list(query).await
     }
 
+    // ========================================================================
+    // V035 (Fase 1.5): Internal-satker 3-step approval orchestration.
+    //
+    // Workflow: Operator → Validator Satker → Approver Satker.
+    // - `validator_satker_forward`  : SUBMITTED → SUBMITTED_APPROVER_SATKER
+    // - `validator_satker_return`   : SUBMITTED → REVISI_OPERATOR
+    // - `approver_satker_approve`   : SUBMITTED_APPROVER_SATKER → APPROVED (+ auto-activate)
+    // - `approver_satker_return`    : SUBMITTED_APPROVER_SATKER → REVISI_OPERATOR
+    // - `operator_resubmit`         : REVISI_OPERATOR → SUBMITTED
+    //
+    // Setelah APPROVED, service ini otomatis memanggil `activate_permit`
+    // (yg melakukan advisory-lock + generate `nomor_izin` + render SK 2-hal)
+    // — agar approver hanya menekan satu tombol.
+    // ========================================================================
+
+    pub async fn validator_satker_forward(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: String,
+        expected_version: i32,
+        catatan: Option<String>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .validator_satker_forward(
+                id,
+                validator_id,
+                &validator_nama,
+                expected_version,
+                catatan.as_deref(),
+            )
+            .await
+    }
+
+    pub async fn validator_satker_return(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: String,
+        expected_version: i32,
+        catatan: String,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .validator_satker_return(
+                id,
+                validator_id,
+                &validator_nama,
+                expected_version,
+                &catatan,
+            )
+            .await
+    }
+
+    pub async fn approver_satker_approve(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: String,
+        expected_version: i32,
+        catatan: Option<String>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let approved = self
+            .repository
+            .approver_satker_approve(
+                id,
+                approver_id,
+                &approver_nama,
+                expected_version,
+                catatan.as_deref(),
+            )
+            .await?;
+        // Auto-activate: generate nomor_izin + SK Izin 2-halaman.
+        // Kegagalan aktivasi tidak boleh me-rollback approval — biar
+        // operator dapat retry aktivasi manual jika misal SIMAN sedang down.
+        match self.activate_permit(approved.id, approver_id).await {
+            Ok(active) => Ok(active),
+            Err(e) => {
+                tracing::warn!(
+                    "approver_satker_approve: approval sukses tapi activate_permit gagal: {}. Approval tetap dipertahankan; aktivasi dapat di-retry.",
+                    e
+                );
+                Ok(approved)
+            }
+        }
+    }
+
+    pub async fn approver_satker_return(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: String,
+        expected_version: i32,
+        catatan: String,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .approver_satker_return(
+                id,
+                approver_id,
+                &approver_nama,
+                expected_version,
+                &catatan,
+            )
+            .await
+    }
+
+    pub async fn operator_resubmit(
+        &self,
+        id: Uuid,
+        operator_id: Uuid,
+        operator_nama: String,
+        expected_version: i32,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .operator_resubmit(id, operator_id, &operator_nama, expected_version)
+            .await
+    }
+
     /// Activate a permit (generate permit number and set to ACTIVE)
     ///
     /// Requirements: REQ-P005, REQ-P006

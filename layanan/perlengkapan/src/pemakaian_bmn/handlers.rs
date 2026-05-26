@@ -511,3 +511,127 @@ pub async fn get_bmn_utilization_report(
         "BMN utilization report generated successfully".to_string(),
     )))
 }
+
+// ============================================================================
+// V035 (Fase 1.5): Endpoints alur internal-satker 3-step.
+//
+// RBAC ditegakkan dgn `Claims::require_any_role`. Admin/superadmin bypass
+// untuk kebutuhan recovery, bukan untuk operasi harian.
+// ============================================================================
+
+use validator::Validate as _SatkerValidate;
+
+/// POST /pemakaian-bmn/{id}/validator-satker-action
+/// Body: { "action": "forward"|"return", "expected_version": i32, "catatan": "..." }
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "action", rename_all = "lowercase")]
+pub enum ValidatorSatkerActionRequest {
+    Forward(SatkerForwardRequest),
+    Return(SatkerReturnRequest),
+}
+
+pub async fn validator_satker_action(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ValidatorSatkerActionRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    claims.require_any_role(&["validator_satker"])?;
+    let permit = match request {
+        ValidatorSatkerActionRequest::Forward(req) => {
+            service
+                .validator_satker_forward(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+        ValidatorSatkerActionRequest::Return(req) => {
+            req.validate()?;
+            service
+                .validator_satker_return(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+    };
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Aksi Validator Satker berhasil".to_string(),
+    )))
+}
+
+/// POST /pemakaian-bmn/{id}/approver-satker-action
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "action", rename_all = "lowercase")]
+pub enum ApproverSatkerActionRequest {
+    Approve(SatkerForwardRequest),
+    Return(SatkerReturnRequest),
+}
+
+pub async fn approver_satker_action(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ApproverSatkerActionRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    claims.require_any_role(&["approver_satker"])?;
+    let permit = match request {
+        ApproverSatkerActionRequest::Approve(req) => {
+            service
+                .approver_satker_approve(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+        ApproverSatkerActionRequest::Return(req) => {
+            req.validate()?;
+            service
+                .approver_satker_return(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+    };
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Aksi Approver Satker berhasil".to_string(),
+    )))
+}
+
+/// POST /pemakaian-bmn/{id}/resubmit
+pub async fn operator_resubmit(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<OperatorResubmitRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    claims.require_any_role(&["operator_satker"])?;
+    let permit = service
+        .operator_resubmit(
+            id,
+            claims.user_id,
+            claims.username.clone(),
+            request.expected_version,
+        )
+        .await?;
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Usulan berhasil di-resubmit ke Validator Satker".to_string(),
+    )))
+}

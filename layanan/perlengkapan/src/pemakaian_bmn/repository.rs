@@ -254,6 +254,252 @@ impl PemakaianBmnRepository {
         Ok(self.row_to_permit(row))
     }
 
+    // ========================================================================
+    // V035 (Fase 1.5): Internal-satker 3-step approval transitions.
+    //
+    // Setiap transisi memakai optimistic lock (kolom `version`) — jika dua
+    // user menekan tombol bersamaan, hanya satu UPDATE yg menang; yg lain
+    // mendapat `Conflict` dan FE wajib refresh.
+    // ========================================================================
+
+    /// Validator Satker meneruskan ke Approver Satker.
+    /// State: SUBMITTED → SUBMITTED_APPROVER_SATKER (kode 3010).
+    pub async fn validator_satker_forward(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: &str,
+        expected_version: i32,
+        catatan: Option<&str>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'SUBMITTED_APPROVER_SATKER',
+                    status_kode              = 3010,
+                    validator_satker_id      = $1,
+                    validator_satker_nama    = $2,
+                    tanggal_validasi_satker  = NOW(),
+                    catatan_validator_satker = $3,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3001
+                RETURNING *
+                "#,
+                &[&validator_id, &validator_nama, &catatan, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data sudah berubah atau status bukan SUBMITTED — silakan refresh".into(),
+            )),
+        }
+    }
+
+    /// Validator Satker mengembalikan ke Operator utk revisi.
+    /// State: SUBMITTED → REVISI_OPERATOR (kode 3011).
+    pub async fn validator_satker_return(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: &str,
+        expected_version: i32,
+        catatan: &str,
+    ) -> AppResult<IzinPemakaianBmn> {
+        if catatan.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
+            ));
+        }
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'REVISI_OPERATOR',
+                    status_kode              = 3011,
+                    validator_satker_id      = $1,
+                    validator_satker_nama    = $2,
+                    tanggal_validasi_satker  = NOW(),
+                    catatan_validator_satker = $3,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5
+                  AND status_kode IN (3001, 3010)
+                RETURNING *
+                "#,
+                &[&validator_id, &validator_nama, &catatan, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data sudah berubah atau status tidak valid utk revisi — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Approver Satker (Pengguna Barang Satker) menyetujui — siap aktivasi.
+    /// State: SUBMITTED_APPROVER_SATKER → APPROVED.
+    pub async fn approver_satker_approve(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: &str,
+        expected_version: i32,
+        catatan: Option<&str>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'APPROVED',
+                    status_kode              = 3002,
+                    approver_satker_id       = $1,
+                    approver_satker_nama     = $2,
+                    tanggal_approval_satker  = NOW(),
+                    catatan_approver_satker  = $3,
+                    approved_by              = $1,
+                    approved_by_nama         = $2,
+                    approved_at              = NOW(),
+                    catatan_approval         = $3,
+                    approved_via_legacy_flow = FALSE,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3010
+                RETURNING *
+                "#,
+                &[&approver_id, &approver_nama, &catatan, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan SUBMITTED_APPROVER_SATKER — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Approver Satker mengembalikan ke Operator utk revisi.
+    /// State: SUBMITTED_APPROVER_SATKER → REVISI_OPERATOR.
+    pub async fn approver_satker_return(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: &str,
+        expected_version: i32,
+        catatan: &str,
+    ) -> AppResult<IzinPemakaianBmn> {
+        // Re-use validator_satker_return — guard kolom yg dipakai sama,
+        // tapi audit field-nya `approver_satker_*` agar jelas siapa yg
+        // menolak. Tetap simpan ke `catatan_validator_satker` agar
+        // Operator melihat catatan terbaru di field umum.
+        if catatan.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
+            ));
+        }
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                  = 'REVISI_OPERATOR',
+                    status_kode             = 3011,
+                    approver_satker_id      = $1,
+                    approver_satker_nama    = $2,
+                    tanggal_approval_satker = NOW(),
+                    catatan_approver_satker = $3,
+                    updated_by              = $1,
+                    updated_by_nama         = $2,
+                    updated_at              = NOW(),
+                    version                 = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3010
+                RETURNING *
+                "#,
+                &[&approver_id, &approver_nama, &catatan, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan SUBMITTED_APPROVER_SATKER — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Operator re-submit setelah revisi.
+    /// State: REVISI_OPERATOR → SUBMITTED (kembali ke Validator Satker).
+    pub async fn operator_resubmit(
+        &self,
+        id: Uuid,
+        operator_id: Uuid,
+        operator_nama: &str,
+        expected_version: i32,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status          = 'SUBMITTED',
+                    status_kode     = 3001,
+                    updated_by      = $1,
+                    updated_by_nama = $2,
+                    updated_at      = NOW(),
+                    version         = version + 1
+                WHERE id = $3 AND version = $4 AND status_kode = 3011
+                RETURNING *
+                "#,
+                &[&operator_id, &operator_nama, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan REVISI_OPERATOR — silakan refresh".into(),
+            )),
+        }
+    }
+
     /// Generate permit number
     /// Requirements: REQ-P005
     ///
@@ -1435,6 +1681,18 @@ impl PemakaianBmnRepository {
             approved_by: row.get("approved_by"),
             approved_by_nama: row.get("approved_by_nama"),
             approved_at: row.get("approved_at"),
+            // V035 (Fase 1.5): kolom baru — try_get + default agar tetap
+            // kompatibel dgn schema legacy (sebelum V035 di-apply di env dev).
+            validator_satker_id: row.try_get("validator_satker_id").ok().flatten(),
+            validator_satker_nama: row.try_get("validator_satker_nama").ok().flatten(),
+            tanggal_validasi_satker: row.try_get("tanggal_validasi_satker").ok().flatten(),
+            catatan_validator_satker: row.try_get("catatan_validator_satker").ok().flatten(),
+            approver_satker_id: row.try_get("approver_satker_id").ok().flatten(),
+            approver_satker_nama: row.try_get("approver_satker_nama").ok().flatten(),
+            tanggal_approval_satker: row.try_get("tanggal_approval_satker").ok().flatten(),
+            catatan_approver_satker: row.try_get("catatan_approver_satker").ok().flatten(),
+            approved_via_legacy_flow: row.try_get("approved_via_legacy_flow").unwrap_or(false),
+            version: row.try_get("version").unwrap_or(1),
             revoked_by: row.get("revoked_by"),
             revoked_by_nama: row.get("revoked_by_nama"),
             revoked_at: row.get("revoked_at"),

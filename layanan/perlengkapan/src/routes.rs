@@ -459,6 +459,19 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/{id}/activate",
             post(pemakaian_bmn::activate_permit),
         )
+        // V035 (Fase 1.5): Alur internal-satker 3-step approval.
+        .route(
+            "/pemakaian-bmn/{id}/validator-satker-action",
+            post(pemakaian_bmn::validator_satker_action),
+        )
+        .route(
+            "/pemakaian-bmn/{id}/approver-satker-action",
+            post(pemakaian_bmn::approver_satker_action),
+        )
+        .route(
+            "/pemakaian-bmn/{id}/resubmit",
+            post(pemakaian_bmn::operator_resubmit),
+        )
         .route(
             "/pemakaian-bmn/{id}/document",
             get(pemakaian_bmn::get_permit_document),

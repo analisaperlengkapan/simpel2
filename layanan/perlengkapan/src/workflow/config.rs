@@ -158,22 +158,42 @@ impl WorkflowConfig {
     pub fn default_pemakaian_bmn() -> Self {
         let mut transitions = HashMap::new();
 
-        // DRAFT can transition to SUBMITTED or CANCELLED
+        // V035 (Fase 1.5): alur internal-satker 3-step.
+        // DRAFT → SUBMITTED (Operator submit ke Validator Satker)
         transitions.insert(
             "DRAFT".to_string(),
             vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
         );
 
-        // SUBMITTED can transition to APPROVED or REJECTED
+        // SUBMITTED (= menunggu Validator Satker) → ApproverSatker | RevisiOperator.
+        // Legacy: SUBMITTED → APPROVED langsung tetap diizinkan utk record
+        // lama / fallback override admin; tidak dipakai handler baru.
         transitions.insert(
             "SUBMITTED".to_string(),
-            vec!["APPROVED".to_string(), "REJECTED".to_string()],
+            vec![
+                "SUBMITTED_APPROVER_SATKER".to_string(),
+                "REVISI_OPERATOR".to_string(),
+                "APPROVED".to_string(),
+                "REJECTED".to_string(),
+            ],
         );
 
-        // APPROVED can transition to ACTIVE
+        // SUBMITTED_APPROVER_SATKER → APPROVED | RevisiOperator.
+        transitions.insert(
+            "SUBMITTED_APPROVER_SATKER".to_string(),
+            vec!["APPROVED".to_string(), "REVISI_OPERATOR".to_string()],
+        );
+
+        // RevisiOperator → re-submit ke ValidatorSatker, atau cancel.
+        transitions.insert(
+            "REVISI_OPERATOR".to_string(),
+            vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
+        );
+
+        // APPROVED → ACTIVE (sistem auto-generate SK Izin & nomor).
         transitions.insert("APPROVED".to_string(), vec!["ACTIVE".to_string()]);
 
-        // ACTIVE can transition to EXPIRED or REVOKED
+        // ACTIVE → EXPIRED (scheduler) | REVOKED (Approver Satker; admin tidak boleh).
         transitions.insert(
             "ACTIVE".to_string(),
             vec!["EXPIRED".to_string(), "REVOKED".to_string()],
@@ -187,15 +207,24 @@ impl WorkflowConfig {
 
         // SLA configuration (in minutes)
         let mut sla_minutes = HashMap::new();
-        sla_minutes.insert("SUBMITTED".to_string(), 1440); // 1 day
-        sla_minutes.insert("APPROVED".to_string(), 480); // 8 hours
+        sla_minutes.insert("SUBMITTED".to_string(), 1440); // 1 hari (Validator Satker)
+        sla_minutes.insert("SUBMITTED_APPROVER_SATKER".to_string(), 1440); // 1 hari
+        sla_minutes.insert("APPROVED".to_string(), 480); // 8 jam aktivasi
 
-        // Required roles
+        // Required roles (alur internal satker)
         let mut required_roles = HashMap::new();
-        required_roles.insert("SUBMITTED".to_string(), "pegawai".to_string());
-        required_roles.insert("APPROVED".to_string(), "pimpinan_satker".to_string());
-        required_roles.insert("REJECTED".to_string(), "pimpinan_satker".to_string());
-        required_roles.insert("REVOKED".to_string(), "pimpinan_satker".to_string());
+        required_roles.insert("SUBMITTED".to_string(), "operator_satker".to_string());
+        required_roles.insert(
+            "SUBMITTED_APPROVER_SATKER".to_string(),
+            "validator_satker".to_string(),
+        );
+        required_roles.insert(
+            "REVISI_OPERATOR".to_string(),
+            "validator_satker".to_string(),
+        );
+        required_roles.insert("APPROVED".to_string(), "approver_satker".to_string());
+        required_roles.insert("REJECTED".to_string(), "approver_satker".to_string());
+        required_roles.insert("REVOKED".to_string(), "approver_satker".to_string());
 
         Self {
             name: "pemakaian_bmn".to_string(),
@@ -502,14 +531,22 @@ mod tests {
     fn test_default_pemakaian_bmn_workflow() {
         let config = WorkflowConfig::default_pemakaian_bmn();
 
-        // Test valid transitions
+        // Alur baru (V035 Fase 1.5): Operator → ValidatorSatker → ApproverSatker.
         assert!(config.is_valid_transition("DRAFT", "SUBMITTED"));
-        assert!(config.is_valid_transition("SUBMITTED", "APPROVED"));
+        assert!(config.is_valid_transition("SUBMITTED", "SUBMITTED_APPROVER_SATKER"));
+        assert!(config.is_valid_transition("SUBMITTED", "REVISI_OPERATOR"));
+        assert!(config.is_valid_transition("SUBMITTED_APPROVER_SATKER", "APPROVED"));
+        assert!(config.is_valid_transition("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR"));
+        assert!(config.is_valid_transition("REVISI_OPERATOR", "SUBMITTED"));
         assert!(config.is_valid_transition("APPROVED", "ACTIVE"));
+        // Legacy direct path tetap valid utk back-compat record lama.
+        assert!(config.is_valid_transition("SUBMITTED", "APPROVED"));
 
-        // Test invalid transitions
+        // Invalid: skip step / dari terminal
         assert!(!config.is_valid_transition("DRAFT", "ACTIVE"));
+        assert!(!config.is_valid_transition("DRAFT", "SUBMITTED_APPROVER_SATKER"));
         assert!(!config.is_valid_transition("EXPIRED", "ACTIVE"));
+        assert!(!config.is_valid_transition("SUBMITTED_APPROVER_SATKER", "ACTIVE"));
     }
 
     #[test]

@@ -19,11 +19,11 @@ pub enum PemakaianBmnStatus {
     /// New permit request in draft state
     #[default]
     Draft = 3000,
-    /// Submitted for approval
+    /// Submitted to Validator Satker (internal satker validation step)
     Submitted = 3001,
-    /// Approved by pimpinan
+    /// Approved by Approver Satker (Pengguna Barang Satker)
     Approved = 3002,
-    /// Rejected
+    /// Rejected (legacy terminal — alur baru pakai RevisiOperator)
     Rejected = 3003,
     /// Permit is active
     Active = 3004,
@@ -33,6 +33,10 @@ pub enum PemakaianBmnStatus {
     Revoked = 3006,
     /// Request cancelled
     Cancelled = 3007,
+    /// V035 (Fase 1.5): forwarded by Validator Satker, awaiting Approver Satker
+    SubmittedApproverSatker = 3010,
+    /// V035 (Fase 1.5): returned to Operator for revision (catatan wajib)
+    RevisiOperator = 3011,
 }
 
 impl PemakaianBmnStatus {
@@ -47,6 +51,8 @@ impl PemakaianBmnStatus {
             3005 => Some(Self::Expired),
             3006 => Some(Self::Revoked),
             3007 => Some(Self::Cancelled),
+            3010 => Some(Self::SubmittedApproverSatker),
+            3011 => Some(Self::RevisiOperator),
             _ => None,
         }
     }
@@ -60,7 +66,9 @@ impl PemakaianBmnStatus {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Draft => "Draft",
-            Self::Submitted => "Diajukan",
+            Self::Submitted => "Menunggu Validator Satker",
+            Self::SubmittedApproverSatker => "Menunggu Approver Satker",
+            Self::RevisiOperator => "Revisi Operator",
             Self::Approved => "Disetujui",
             Self::Rejected => "Ditolak",
             Self::Active => "Aktif",
@@ -75,6 +83,8 @@ impl PemakaianBmnStatus {
         match self {
             Self::Draft => "DRAFT",
             Self::Submitted => "SUBMITTED",
+            Self::SubmittedApproverSatker => "SUBMITTED_APPROVER_SATKER",
+            Self::RevisiOperator => "REVISI_OPERATOR",
             Self::Approved => "APPROVED",
             Self::Rejected => "REJECTED",
             Self::Active => "ACTIVE",
@@ -89,6 +99,8 @@ impl PemakaianBmnStatus {
         match name {
             "DRAFT" => Some(Self::Draft),
             "SUBMITTED" => Some(Self::Submitted),
+            "SUBMITTED_APPROVER_SATKER" => Some(Self::SubmittedApproverSatker),
+            "REVISI_OPERATOR" => Some(Self::RevisiOperator),
             "APPROVED" => Some(Self::Approved),
             "REJECTED" => Some(Self::Rejected),
             "ACTIVE" => Some(Self::Active),
@@ -99,12 +111,25 @@ impl PemakaianBmnStatus {
         }
     }
 
-    /// Check if transition to target status is allowed
+    /// Check if transition to target status is allowed.
+    ///
+    /// V035 (Fase 1.5): alur baru = `Draft → Submitted (ValidatorSatker)
+    /// → SubmittedApproverSatker → Approved → Active`. `Submitted/SubmittedApproverSatker
+    /// → RevisiOperator` (catatan wajib). `RevisiOperator → Submitted` (re-submit).
+    ///
+    /// Legacy path `Submitted → Approved` direct masih diizinkan agar record
+    /// `approved_via_legacy_flow` tidak putus di tengah jalan saat ada migrasi
+    /// data. Handler baru tidak boleh memanggil transisi ini.
     pub fn can_transition_to(&self, target: Self) -> bool {
         use PemakaianBmnStatus::*;
         match self {
             Draft => matches!(target, Submitted | Cancelled),
-            Submitted => matches!(target, Approved | Rejected),
+            // Alur baru: ValidatorSatker → ApproverSatker | RevisiOperator.
+            // Alur legacy: Submitted → Approved (direct) tetap valid utk
+            // back-compat; ditolak di layer handler utk record baru.
+            Submitted => matches!(target, SubmittedApproverSatker | RevisiOperator | Approved | Rejected),
+            SubmittedApproverSatker => matches!(target, Approved | RevisiOperator),
+            RevisiOperator => matches!(target, Submitted | Cancelled),
             Approved => matches!(target, Active),
             Active => matches!(target, Expired | Revoked),
             Rejected | Expired | Revoked | Cancelled => false,
@@ -235,10 +260,22 @@ pub struct IzinPemakaianBmn {
     pub catatan_approval: Option<String>,
     pub catatan_revocation: Option<String>,
 
-    // Approval Information
+    // Approval Information (legacy field — Pimpinan langsung)
     pub approved_by: Option<Uuid>,
     pub approved_by_nama: Option<String>,
     pub approved_at: Option<DateTime<Utc>>,
+
+    // V035 (Fase 1.5): Internal-satker 3-step approval audit fields
+    pub validator_satker_id: Option<Uuid>,
+    pub validator_satker_nama: Option<String>,
+    pub tanggal_validasi_satker: Option<DateTime<Utc>>,
+    pub catatan_validator_satker: Option<String>,
+    pub approver_satker_id: Option<Uuid>,
+    pub approver_satker_nama: Option<String>,
+    pub tanggal_approval_satker: Option<DateTime<Utc>>,
+    pub catatan_approver_satker: Option<String>,
+    pub approved_via_legacy_flow: bool,
+    pub version: i32,
 
     // Revocation Information
     pub revoked_by: Option<Uuid>,
@@ -414,6 +451,36 @@ pub struct WorkflowTransitionRequest {
 pub struct RevokePermitRequest {
     #[validate(length(min = 10, message = "Alasan pencabutan minimal 10 karakter"))]
     pub alasan: String,
+}
+
+// ============================================================================
+// V035 (Fase 1.5): DTO untuk alur internal-satker 3-step.
+// ============================================================================
+
+/// Validator Satker / Approver Satker forward (lanjutkan ke step berikut).
+///
+/// `expected_version` adalah optimistic-lock token — FE harus mengirim
+/// `permit.version` yg dia baca; backend menolak (409) jika sudah berubah.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SatkerForwardRequest {
+    pub expected_version: i32,
+    pub catatan: Option<String>,
+}
+
+/// Validator Satker / Approver Satker return (kembalikan ke Operator).
+/// Catatan wajib + minimal 10 karakter agar Operator paham apa yg direvisi.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SatkerReturnRequest {
+    pub expected_version: i32,
+    #[validate(length(min = 10, message = "Catatan revisi minimal 10 karakter"))]
+    pub catatan: String,
+}
+
+/// Operator re-submit setelah revisi. Tidak perlu catatan (perubahan data
+/// sudah ter-record via PUT permit sebelumnya).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OperatorResubmitRequest {
+    pub expected_version: i32,
 }
 
 /// Request to renew a permit
@@ -730,6 +797,36 @@ mod tests {
         assert!(active.can_transition_to(PemakaianBmnStatus::Expired));
         assert!(active.can_transition_to(PemakaianBmnStatus::Revoked));
         assert!(!active.can_transition_to(PemakaianBmnStatus::Draft));
+    }
+
+    /// V035 (Fase 1.5): alur internal-satker 3-step.
+    /// Draft → Submitted (Operator) → SubmittedApproverSatker (Validator)
+    /// → Approved (Approver Satker) → Active.
+    /// RevisiOperator pintu balik dari Validator atau Approver.
+    #[test]
+    fn test_status_transitions_satker_3step() {
+        use PemakaianBmnStatus::*;
+        // Operator submit
+        assert!(Draft.can_transition_to(Submitted));
+        // Validator Satker forward → ApproverSatker
+        assert!(Submitted.can_transition_to(SubmittedApproverSatker));
+        // Validator Satker return → RevisiOperator
+        assert!(Submitted.can_transition_to(RevisiOperator));
+        // Approver Satker approve
+        assert!(SubmittedApproverSatker.can_transition_to(Approved));
+        // Approver Satker return ke Operator
+        assert!(SubmittedApproverSatker.can_transition_to(RevisiOperator));
+        // Operator re-submit
+        assert!(RevisiOperator.can_transition_to(Submitted));
+        // RevisiOperator dapat di-cancel
+        assert!(RevisiOperator.can_transition_to(Cancelled));
+        // Skip illegal: Draft langsung ke Approved tidak boleh
+        assert!(!Draft.can_transition_to(Approved));
+        assert!(!Draft.can_transition_to(SubmittedApproverSatker));
+        // SubmittedApproverSatker tidak boleh langsung Active (harus via Approved → activate)
+        assert!(!SubmittedApproverSatker.can_transition_to(Active));
+        // RevisiOperator tidak boleh langsung lompat ke ApproverSatker
+        assert!(!RevisiOperator.can_transition_to(SubmittedApproverSatker));
     }
 
     /// Helper utk test logic overlap di repository — direkstrak agar
