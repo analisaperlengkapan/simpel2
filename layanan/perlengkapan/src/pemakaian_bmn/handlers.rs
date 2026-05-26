@@ -239,6 +239,35 @@ pub async fn serve_konsep_surat(
     Ok(resp)
 }
 
+/// GET /pemakaian-bmn/:id/sk-izin.pdf
+///
+/// Fase 1.10: SK Izin Pemakaian BMN format 2-halaman dgn struktur:
+/// - Hal 1: info pegawai (NIP, nama, pangkat, jabatan, satker, foto)
+/// - Hal 2: daftar BMN (kode, nama, NUP, merk, tipe, mulai, berakhir)
+///
+/// Berbeda dgn `/konsep-surat.pdf` yg generic — endpoint ini struktur
+/// spesifik sesuai spesifikasi stakeholder (plan §5.1). Stream PDF
+/// inline (Content-Disposition: inline) sehingga FE dapat
+/// menampilkannya di iframe / new tab.
+pub async fn serve_sk_izin_pdf(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let bytes = super::sk_izin_pdf::generate_sk_izin_pdf(&service, id).await?;
+    let filename = format!("SK-Izin-Pemakaian-BMN-{}.pdf", id);
+    let headers = [
+        (header::CONTENT_TYPE, "application/pdf"),
+        (
+            header::CONTENT_DISPOSITION,
+            &format!("inline; filename=\"{}\"", filename),
+        ),
+    ];
+    Ok((headers, bytes).into_response())
+}
+
 /// POST /pemakaian-bmn/:id/upload-signed-pdf
 /// Upload signed PDF izin pemakaian and mark as completed
 pub async fn upload_signed_pdf(

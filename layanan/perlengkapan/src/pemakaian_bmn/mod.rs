@@ -23,6 +23,7 @@ pub mod models;
 pub mod repository;
 pub mod scheduler;
 pub mod services;
+pub mod sk_izin_pdf;
 
 pub use handlers::*;
 pub use repository::*;

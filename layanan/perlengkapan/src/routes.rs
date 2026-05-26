@@ -474,6 +474,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/{id}/konsep-surat.{format}",
             get(pemakaian_bmn::serve_konsep_surat),
         )
+        // Fase 1.10: SK Izin Pemakaian BMN 2-halaman PDF (info pegawai +
+        // daftar BMN). Stream inline.
+        .route(
+            "/pemakaian-bmn/{id}/sk-izin.pdf",
+            get(pemakaian_bmn::serve_sk_izin_pdf),
+        )
         .route(
             "/pemakaian-bmn/{id}/upload-signed-pdf",
             post(pemakaian_bmn::upload_signed_pdf),
