@@ -4,6 +4,7 @@
 //! Uses tokio-postgres for async database access.
 
 use deadpool_postgres::Pool;
+use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
 use super::models::*;
@@ -1115,20 +1116,31 @@ impl PakaianDinasRepository {
         "#
         .to_string();
 
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        let mut idx: usize = 2;
         if let Some(ref jk) = filter.jenis_kelamin {
-            query.push_str(&format!(" AND psp.jenis_kelamin = '{}'", jk));
+            query.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            params.push(Box::new(jk.clone()));
+            idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
-            query.push_str(&format!(" AND psp.eselon = '{}'", eselon));
+            query.push_str(&format!(" AND psp.eselon = ${}", idx));
+            params.push(Box::new(eselon.clone()));
+            idx += 1;
         }
         if let Some(ref jenis) = filter.jenis {
-            query.push_str(&format!(" AND psp.jenis = '{}'", jenis));
+            query.push_str(&format!(" AND psp.jenis = ${}", idx));
+            params.push(Box::new(jenis.clone()));
+            idx += 1;
         }
+        let _ = idx;
 
         query.push_str(" GROUP BY pp.spesifikasi_nama, pp.spesifikasi_ukuran_group, pu.ukuran ORDER BY pp.spesifikasi_nama, pu.ukuran");
 
+        let param_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let rows = client
-            .query(&query, &[&pengajuan_id])
+            .query(&query, &param_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
@@ -1149,19 +1161,29 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let offset = (page - 1) * per_page;
 
-        // Build dynamic filter
+        // Build dynamic filter with parameter binding
         let mut where_clause = "WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = 1008".to_string();
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        let mut idx: usize = 2;
         if let Some(ref jk) = filter.jenis_kelamin {
-            where_clause.push_str(&format!(" AND psp.jenis_kelamin = '{}'", jk));
+            where_clause.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            params.push(Box::new(jk.clone()));
+            idx += 1;
         }
         if let Some(ref satker_id) = filter.satker_id {
-            where_clause.push_str(&format!(" AND ps.satker_id = '{}'", satker_id));
+            where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
+            params.push(Box::new(*satker_id));
+            idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
-            where_clause.push_str(&format!(" AND psp.eselon = '{}'", eselon));
+            where_clause.push_str(&format!(" AND psp.eselon = ${}", idx));
+            params.push(Box::new(eselon.clone()));
+            idx += 1;
         }
         if let Some(ref jenis) = filter.jenis {
-            where_clause.push_str(&format!(" AND psp.jenis = '{}'", jenis));
+            where_clause.push_str(&format!(" AND psp.jenis = ${}", idx));
+            params.push(Box::new(jenis.clone()));
+            idx += 1;
         }
 
         let count_query = format!(
@@ -1174,12 +1196,17 @@ impl PakaianDinasRepository {
             where_clause
         );
 
+        let count_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let count_row = client
-            .query_one(&count_query, &[&pengajuan_id])
+            .query_one(&count_query, &count_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
         let total: i64 = count_row.get("total");
 
+        // LIMIT/OFFSET placeholders take the next two indices after the filter params.
+        let limit_idx = idx;
+        let offset_idx = idx + 1;
         let data_query = format!(
             r#"
             SELECT
@@ -1197,16 +1224,17 @@ impl PakaianDinasRepository {
             GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat,
                      psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
             ORDER BY s.nama, psp.nama
-            LIMIT $2 OFFSET $3
+            LIMIT ${} OFFSET ${}
             "#,
-            where_clause
+            where_clause, limit_idx, offset_idx
         );
 
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
+        let data_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let rows = client
-            .query(
-                &data_query,
-                &[&pengajuan_id, &(per_page as i64), &(offset as i64)],
-            )
+            .query(&data_query, &data_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
@@ -1310,12 +1338,67 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    // Note: These tests require a database connection
-    // Run with: cargo test --features test-db
+    // Note: Most tests require a database connection
+    // Run integration tests with: cargo test --features test-db
 
     #[test]
     fn test_repository_new() {
         // This is a placeholder for integration tests
         // Actual tests would require a database connection
+    }
+
+    /// Regression guard for Fase 0.1 — verifies the laporan filter builder uses
+    /// parameter placeholders ($N) instead of string-concat of user values, so
+    /// payloads like `' OR 1=1 --` cannot escape the SQL string.
+    ///
+    /// This mirrors the construction logic inside `get_laporan_rekap_ukuran`
+    /// and `get_laporan_daftar_pegawai`. If this drifts from the production
+    /// code, update both together.
+    #[test]
+    fn filter_uses_parameter_binding_not_concat() {
+        let malicious = "' OR 1=1 --";
+        let filter = LaporanFilter {
+            pengajuan_id: None,
+            tahun: None,
+            satker_id: None,
+            jenis_kelamin: Some(malicious.to_string()),
+            eselon: Some(malicious.to_string()),
+            jenis: Some(malicious.to_string()),
+        };
+
+        let mut query = String::from("WHERE ps.pengajuan_id = $1");
+        let mut idx: usize = 2;
+        let mut placeholder_count = 0;
+        if let Some(ref jk) = filter.jenis_kelamin {
+            assert!(!jk.is_empty());
+            query.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+        if let Some(ref eselon) = filter.eselon {
+            assert!(!eselon.is_empty());
+            query.push_str(&format!(" AND psp.eselon = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+        if let Some(ref jenis) = filter.jenis {
+            assert!(!jenis.is_empty());
+            query.push_str(&format!(" AND psp.jenis = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+
+        // The malicious string MUST NOT appear in the generated SQL — it should
+        // travel as a bound parameter instead.
+        assert!(
+            !query.contains(malicious),
+            "filter value leaked into SQL string: {query}"
+        );
+        assert!(!query.contains("' OR 1=1"));
+        assert_eq!(placeholder_count, 3);
+        assert_eq!(idx, 5);
+        assert!(query.contains("$2"));
+        assert!(query.contains("$3"));
+        assert!(query.contains("$4"));
     }
 }
