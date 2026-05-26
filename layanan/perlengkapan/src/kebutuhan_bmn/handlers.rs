@@ -484,6 +484,77 @@ pub async fn get_analisis_kelayakan(
     )))
 }
 
+/// GET /kebutuhan-bmn/satker/:id/laporan/preview?format=pdf
+///
+/// Stream Laporan Hasil Analisis Kebutuhan BMN sbg `application/pdf` dgn
+/// `Content-Disposition: inline` — FE dapat me-render di `<iframe>` tanpa
+/// memicu unduhan. Hanya format `pdf` yg didukung untuk preview saat ini.
+pub async fn preview_laporan_analisis(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    Query(query): Query<LaporanFormatQuery>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let format = query.format.as_deref().unwrap_or("pdf").to_ascii_lowercase();
+    if format != "pdf" {
+        return Err(bad_request(
+            "Hanya format=pdf yg didukung utk preview inline. Gunakan endpoint download utk format lain.",
+        ));
+    }
+    let bytes = super::pdf_laporan::generate_laporan_analisis_pdf(&service, satker_id).await?;
+    let headers = [
+        (header::CONTENT_TYPE, "application/pdf"),
+        (
+            header::CONTENT_DISPOSITION,
+            "inline; filename=\"Laporan_Analisis_Kebutuhan_BMN.pdf\"",
+        ),
+    ];
+    Ok((headers, bytes).into_response())
+}
+
+/// GET /kebutuhan-bmn/satker/:id/laporan/download?format=pdf|docx
+///
+/// Stream Laporan Hasil Analisis Kebutuhan BMN sbg attachment (force
+/// download). Format `pdf` saat ini didukung; `docx` ditandai sebagai
+/// follow-up (memerlukan template DOCX yg masih dirancang dgn Biro Hukum).
+pub async fn download_laporan_analisis(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    Query(query): Query<LaporanFormatQuery>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let format = query.format.as_deref().unwrap_or("pdf").to_ascii_lowercase();
+    match format.as_str() {
+        "pdf" => {
+            let bytes =
+                super::pdf_laporan::generate_laporan_analisis_pdf(&service, satker_id).await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Analisis_Kebutuhan_BMN.pdf\"",
+                ),
+            ];
+            Ok((headers, bytes).into_response())
+        }
+        "docx" => Err(bad_request(
+            "Export DOCX masih dlm perancangan template (Biro Hukum). Gunakan format=pdf utk sementara.",
+        )),
+        _ => Err(bad_request(
+            "Format tidak didukung. Gunakan format=pdf (atau format=docx setelah template selesai).",
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LaporanFormatQuery {
+    pub format: Option<String>,
+}
+
 // ============================================================================
 // Satker Workflow Handlers (Validator Wilayah & Pusat)
 // ============================================================================

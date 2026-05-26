@@ -297,6 +297,16 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/satker/{id}/analisis",
             get(kebutuhan_bmn::get_analisis_kelayakan),
         )
+        // Laporan Hasil Analisis Kebutuhan BMN (Fase 0.8): preview inline (PDF
+        // di-iframe FE) + download attachment (PDF; DOCX follow-up).
+        .route(
+            "/kebutuhan-bmn/satker/{id}/laporan/preview",
+            get(kebutuhan_bmn::preview_laporan_analisis),
+        )
+        .route(
+            "/kebutuhan-bmn/satker/{id}/laporan/download",
+            get(kebutuhan_bmn::download_laporan_analisis),
+        )
         // Satker Workflow Actions (Validator Wilayah & Pusat)
         .route(
             "/kebutuhan-bmn/satker/{id}/submit-wilayah",
