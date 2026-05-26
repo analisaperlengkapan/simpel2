@@ -571,6 +571,58 @@ pub async fn list_lampiran(
     )))
 }
 
+// ─── V029 (Fase 1.9): SK Wilayah handlers ───────────────────────────────
+
+/// RBAC inline: validator_wilayah only (admin bypass). Diturunkan ke
+/// `Claims::require_role` setelah Fase 0.3 branch ter-merge.
+fn require_validator_wilayah(claims: &Claims) -> Result<(), AppError> {
+    let role_lower = claims.role.to_ascii_lowercase();
+    if matches!(
+        role_lower.as_str(),
+        "admin" | "admin_pusat" | "superadmin" | "validator_wilayah"
+    ) {
+        Ok(())
+    } else {
+        Err(AppError::Authorization(format!(
+            "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
+            claims.role
+        )))
+    }
+}
+
+/// Validator Wilayah generate konsep SK (jalur kewenangan WILAYAH).
+/// Mewakili Kepala Kejaksaan Tinggi.
+pub async fn generate_konsep_sk_wilayah(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    require_validator_wilayah(&claims)?;
+    let penghapusan = service.generate_konsep_sk_wilayah(id, claims.user_id).await?;
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "Konsep SK Wilayah berhasil digenerate (mewakili Kepala Kejaksaan Tinggi)".to_string(),
+    )))
+}
+
+/// Validator Wilayah upload signed SK PDF jalur WILAYAH.
+pub async fn upload_signed_sk_wilayah(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(body): Json<UploadSignedSKRequest>,
+) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    require_validator_wilayah(&claims)?;
+    let penghapusan = service
+        .upload_signed_sk_wilayah(id, claims.user_id, body.signed_sk_pdf_url)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "SK Wilayah yang ditandatangani Kepala Kejaksaan Tinggi berhasil diupload. Proses selesai."
+            .to_string(),
+    )))
+}
+
 /// Legacy: Generic workflow transition
 #[derive(Debug, Deserialize, Validate)]
 pub struct TransitionRequest {

@@ -430,6 +430,97 @@ impl PenghapusanBmnService {
         .await
     }
 
+    // ========================================================================
+    // V029 (Fase 1.9): SK Wilayah workflow
+    // ========================================================================
+
+    /// Generate konsep SK jalur WILAYAH. Hanya valid jika entity
+    /// kewenangan_penetap_sk='WILAYAH' DAN status saat ini = SubmitWilayah.
+    /// Skip jalur Pusat sepenuhnya: SubmitWilayah → KonsepSKWilayahGenerated.
+    pub async fn generate_konsep_sk_wilayah(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+    ) -> AppResult<PenghapusanBmn> {
+        let penghapusan = self.repository.get_by_id(id).await?;
+        if penghapusan.kewenangan_penetap_sk.to_uppercase() != "WILAYAH" {
+            return Err(crate::shared::error::AppError::BadRequest(
+                "Endpoint ini hanya utk kewenangan WILAYAH. Gunakan /generate-sk utk PUSAT.".into(),
+            ));
+        }
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
+        if !matches!(status, PenghapusanBmnStatus::SubmitWilayah) {
+            return Err(crate::shared::error::AppError::WorkflowError(
+                "Konsep SK Wilayah hanya bisa digenerate dari status SubmitWilayah".into(),
+            ));
+        }
+
+        // Generate konsep SK URLs (DOCX + PDF). Untuk MVP gunakan path
+        // placeholder dgn template yg sama (template SK Wilayah final
+        // pending Biro Hukum). Service nyata pakai `self.docs` jika
+        // ter-inject — sama dgn generate_konsep_sk PUSAT.
+        // Untuk PR ini, isi URL sementara berdasarkan storage convention.
+        let docx_url = format!("/storage/penghapusan-bmn/{}/konsep-sk-wilayah.docx", id);
+        let pdf_url = format!("/storage/penghapusan-bmn/{}/konsep-sk-wilayah.pdf", id);
+
+        self.repository
+            .update_konsep_sk_wilayah(id, &docx_url, Some(&pdf_url))
+            .await?;
+
+        // Audit aktivitas
+        self.transition(
+            id,
+            PenghapusanBmnStatus::KonsepSKWilayahGenerated
+                .to_state_name()
+                .to_string(),
+            validator_id,
+            Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
+            "generate_konsep_sk_wilayah".into(),
+        )
+        .await
+    }
+
+    /// Upload signed SK PDF jalur WILAYAH. KonsepSKWilayahGenerated →
+    /// SKSignedWilayah → Completed (auto).
+    pub async fn upload_signed_sk_wilayah(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        signed_sk_pdf_url: String,
+    ) -> AppResult<PenghapusanBmn> {
+        let penghapusan = self.repository.get_by_id(id).await?;
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
+        if !matches!(status, PenghapusanBmnStatus::KonsepSKWilayahGenerated) {
+            return Err(crate::shared::error::AppError::WorkflowError(
+                "SK Wilayah hanya bisa diupload setelah konsep SK Wilayah digenerate".into(),
+            ));
+        }
+
+        self.repository
+            .update_signed_sk_wilayah(id, &signed_sk_pdf_url)
+            .await?;
+
+        // Audit + auto-complete
+        self.transition(
+            id,
+            PenghapusanBmnStatus::SKSignedWilayah
+                .to_state_name()
+                .to_string(),
+            validator_id,
+            Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
+            "upload_signed_sk_wilayah".into(),
+        )
+        .await?;
+        self.transition(
+            id,
+            PenghapusanBmnStatus::Completed.to_state_name().to_string(),
+            validator_id,
+            Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
+            "complete_wilayah".into(),
+        )
+        .await
+    }
+
     /// Perform workflow transition
     pub async fn transition(
         &self,

@@ -26,11 +26,16 @@ impl PenghapusanBmnRepository {
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
-        // V029: tulis ke kolom kanonik `nilai_perolehan`. Kolom legacy
-        // `nilai_residu` di-skip untuk INSERT baru (NULL); migrasi sudah
-        // mem-backfill row lama. Flag `nilai_perolehan_dari_backfill` di-set
-        // FALSE untuk data fresh (default kolom juga FALSE — eksplisit lebih
-        // jelas).
+        // V029 (Fase 0.5): kolom kanonik `nilai_perolehan`; legacy `nilai_residu`
+        // di-skip untuk INSERT baru (NULL); migrasi mem-backfill row lama.
+        // V029 (Fase 1.9): validasi + persist `kewenangan_penetap_sk`.
+        let kewenangan = request.kewenangan_penetap_sk.to_uppercase();
+        if !["PUSAT", "WILAYAH"].contains(&kewenangan.as_str()) {
+            return Err(AppError::BadRequest(
+                "kewenangan_penetap_sk harus 'PUSAT' atau 'WILAYAH'".into(),
+            ));
+        }
+
         let query = r#"
             INSERT INTO perlengkapan.penghapusan_bmn (
                 id, satker_id, asset_id, kode_barang, nama_barang, nup,
@@ -38,12 +43,14 @@ impl PenghapusanBmnRepository {
                 nilai_perolehan_dari_backfill,
                 status, status_kode, lampiran_persyaratan, lampiran_pendukung,
                 catatan_operator, is_completed,
+                kewenangan_penetap_sk, penetap_sk_jabatan,
                 created_by, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 false,
                 $11, $12, $13, $14, $15, false,
-                $16, NOW(), NOW()
+                $16, $17,
+                $18, NOW(), NOW()
             )
             RETURNING *
         "#;
@@ -71,12 +78,87 @@ impl PenghapusanBmnRepository {
                     &request.lampiran_persyaratan,
                     &lampiran_pendukung,
                     &request.catatan_operator,
+                    &kewenangan,
+                    &request.penetap_sk_jabatan,
                     &created_by,
                 ],
             )
             .await?;
 
         Ok(PenghapusanBmn::from_row(&row))
+    }
+
+    // ========================================================================
+    // V029 (Fase 1.9): SK Wilayah update methods (paralel dgn jalur PUSAT)
+    // ========================================================================
+
+    /// Update konsep SK URLs jalur WILAYAH + transition state ke
+    /// KonsepSKWilayahGenerated.
+    pub async fn update_konsep_sk_wilayah(
+        &self,
+        id: Uuid,
+        konsep_sk_docx_url: &str,
+        konsep_sk_pdf_url: Option<&str>,
+    ) -> AppResult<()> {
+        let client = self.pool.get().await?;
+        let new_status = PenghapusanBmnStatus::KonsepSKWilayahGenerated;
+        let query = r#"
+            UPDATE perlengkapan.penghapusan_bmn
+            SET konsep_sk_wilayah_url = $1,
+                konsep_sk_wilayah_pdf_url = $2,
+                konsep_sk_wilayah_generated_at = NOW(),
+                status = $3,
+                status_kode = $4,
+                updated_at = NOW()
+            WHERE id = $5
+        "#;
+        client
+            .execute(
+                query,
+                &[
+                    &konsep_sk_docx_url,
+                    &konsep_sk_pdf_url,
+                    &new_status.to_state_name(),
+                    &new_status.to_code(),
+                    &id,
+                ],
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Upload signed SK PDF jalur WILAYAH + transition state ke
+    /// SKSignedWilayah (lalu service auto-transition ke Completed via flag
+    /// is_completed=true).
+    pub async fn update_signed_sk_wilayah(
+        &self,
+        id: Uuid,
+        signed_sk_pdf_url: &str,
+    ) -> AppResult<()> {
+        let client = self.pool.get().await?;
+        let new_status = PenghapusanBmnStatus::SKSignedWilayah;
+        let query = r#"
+            UPDATE perlengkapan.penghapusan_bmn
+            SET signed_sk_wilayah_pdf_url = $1,
+                signed_sk_wilayah_pdf_uploaded_at = NOW(),
+                status = $2,
+                status_kode = $3,
+                is_completed = true,
+                updated_at = NOW()
+            WHERE id = $4
+        "#;
+        client
+            .execute(
+                query,
+                &[
+                    &signed_sk_pdf_url,
+                    &new_status.to_state_name(),
+                    &new_status.to_code(),
+                    &id,
+                ],
+            )
+            .await?;
+        Ok(())
     }
 
     /// Get penghapusan BMN by ID

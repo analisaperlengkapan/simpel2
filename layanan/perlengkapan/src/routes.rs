@@ -121,6 +121,16 @@ pub fn create_routes(state: AppState) -> Router {
             "/penghapusan-bmn/{id}/upload-signed-sk",
             post(crate::penghapusan_bmn::upload_signed_sk),
         )
+        // V029 (Fase 1.9): SK Wilayah endpoints — Validator Wilayah
+        // (mewakili Kepala Kejaksaan Tinggi) untuk kewenangan WILAYAH.
+        .route(
+            "/penghapusan-bmn/{id}/generate-sk-wilayah",
+            post(crate::penghapusan_bmn::generate_konsep_sk_wilayah),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/upload-signed-sk-wilayah",
+            post(crate::penghapusan_bmn::upload_signed_sk_wilayah),
+        )
         .route(
             "/penghapusan-bmn/{id}/document",
             get(crate::penghapusan_bmn::get_penghapusan_document),
