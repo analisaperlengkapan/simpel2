@@ -784,14 +784,31 @@ pub async fn cetak_laporan(
             ];
             Ok((headers, buffer).into_response())
         }
-        ("rekap", "pdf") | ("daftar", "pdf") => {
-            // TODO(pakaian-dinas-pdf): dispatch through `state.docs.preview()`
-            // (`DocumentFormat::Pdf`) once the `pakaian_dinas_laporan`
-            // template lands in `dokumen.document_templates`. The port is
-            // already plumbed via `AppState.docs`.
-            Err(bad_request(
-                "PDF export belum tersedia, gunakan Excel terlebih dahulu",
-            ))
+        ("rekap", "pdf") => {
+            let buffer =
+                super::pdf_export::generate_rekap_pdf(&service, query.pengajuan_id, &filter)
+                    .await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Rekap.pdf\"",
+                ),
+            ];
+            Ok((headers, buffer).into_response())
+        }
+        ("daftar", "pdf") => {
+            let buffer =
+                super::pdf_export::generate_daftar_pdf(&service, query.pengajuan_id, &filter)
+                    .await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Daftar.pdf\"",
+                ),
+            ];
+            Ok((headers, buffer).into_response())
         }
         _ => Err(bad_request(
             "Jenis laporan atau file tidak valid. Gunakan jenis_laporan=rekap|daftar dan jenis_file=excel|pdf",
