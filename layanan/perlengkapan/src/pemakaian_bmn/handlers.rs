@@ -287,18 +287,24 @@ pub async fn upload_signed_pdf(
 }
 
 /// POST /pemakaian-bmn/:id/revoke
-/// Revoke a permit
+/// Revoke a permit. Hanya Approver Satker yg boleh; Admin secara eksplisit
+/// DIBLOKIR (stakeholder mandate) lewat `enforce_no_admin_revoke`.
 pub async fn revoke_permit(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
     claims: Claims,
     Json(request): Json<RevokePermitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
-    // RBAC: per plan §5.1, hanya Approver Satker yg boleh revoke izin
-    // aktif. Admin tidak boleh revoke (plan eksplisit). Sebelum role
-    // approver_satker tersedia (lihat task Fase 1.5), pakai validator_pusat
-    // sbg pengganti sementara karena dia yg saat ini handle approval.
-    claims.require_any_role(&["approver_satker", "validator_pusat"])?;
+    use crate::shared::policy::{enforce_no_admin_revoke, PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    // Admin tidak boleh — guard ini di-cek SEBELUM policy.authorize() agar
+    // admin bypass di policy.authorize() tidak overwrite stakeholder mandate.
+    enforce_no_admin_revoke(&claims)?;
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::Revoke,
+        Some(permit_now.status.as_str()),
+    )?;
     info!("Revoking permit {}", id);
 
     let permit = service
@@ -536,7 +542,14 @@ pub async fn validator_satker_action(
     claims: Claims,
     Json(request): Json<ValidatorSatkerActionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
-    claims.require_any_role(&["validator_satker"])?;
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    let state = Some(permit_now.status.as_str());
+    let action = match &request {
+        ValidatorSatkerActionRequest::Forward(_) => PemakaianBmnAction::ValidatorSatkerForward,
+        ValidatorSatkerActionRequest::Return(_) => PemakaianBmnAction::ValidatorSatkerReturn,
+    };
+    PemakaianBmnPolicy.authorize(&claims, action, state)?;
     let permit = match request {
         ValidatorSatkerActionRequest::Forward(req) => {
             service
@@ -582,7 +595,14 @@ pub async fn approver_satker_action(
     claims: Claims,
     Json(request): Json<ApproverSatkerActionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
-    claims.require_any_role(&["approver_satker"])?;
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    let state = Some(permit_now.status.as_str());
+    let action = match &request {
+        ApproverSatkerActionRequest::Approve(_) => PemakaianBmnAction::ApproverSatkerApprove,
+        ApproverSatkerActionRequest::Return(_) => PemakaianBmnAction::ApproverSatkerReturn,
+    };
+    PemakaianBmnPolicy.authorize(&claims, action, state)?;
     let permit = match request {
         ApproverSatkerActionRequest::Approve(req) => {
             service
@@ -621,7 +641,13 @@ pub async fn operator_resubmit(
     claims: Claims,
     Json(request): Json<OperatorResubmitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
-    claims.require_any_role(&["operator_satker"])?;
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::Resubmit,
+        Some(permit_now.status.as_str()),
+    )?;
     let permit = service
         .operator_resubmit(
             id,
