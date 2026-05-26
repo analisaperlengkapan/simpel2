@@ -3,11 +3,33 @@
 //! Business logic layer for Pakaian Dinas module.
 //! Handles workflow, validation, and integration with other services.
 
+use chrono::NaiveDate;
 use uuid::Uuid;
 
 use super::models::*;
 use super::repository::PakaianDinasRepository;
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::{AppError, AppResult, bad_request};
+
+/// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
+/// `AppError::BadRequest` (422) jika:
+/// - salah satu tgl_mulai / tgl_selesai `None` (keduanya wajib), ATAU
+/// - tgl_mulai > tgl_selesai.
+///
+/// Extracted sbg pure function agar dapat di-unit-test tanpa DB.
+pub fn validate_periode_pakaian_dinas(
+    tgl_mulai: Option<NaiveDate>,
+    tgl_selesai: Option<NaiveDate>,
+) -> Result<(), AppError> {
+    match (tgl_mulai, tgl_selesai) {
+        (None, _) | (_, None) => Err(bad_request(
+            "Periode (tanggal mulai + tanggal selesai) wajib diisi",
+        )),
+        (Some(start), Some(end)) if start > end => Err(bad_request(
+            "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
+        )),
+        _ => Ok(()),
+    }
+}
 
 /// Service for Pakaian Dinas business logic
 #[derive(Clone)]
@@ -201,22 +223,10 @@ impl PakaianDinasService {
             .validate()
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        // Validate date range if is_reguler
-        if request.is_reguler {
-            if request.tgl_mulai.is_none() || request.tgl_selesai.is_none() {
-                return Err(bad_request(
-                    "Tanggal mulai dan selesai wajib diisi untuk pengajuan reguler",
-                ));
-            }
-
-            if let (Some(start), Some(end)) = (request.tgl_mulai, request.tgl_selesai)
-                && start > end
-            {
-                return Err(bad_request(
-                    "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
-                ));
-            }
-        }
+        // Fase 1.8: periode WAJIB regardless of is_reguler — stakeholder
+        // eksplisit minta "pilih periode (tanggal kapan mulai sampai
+        // tanggal kapan berakhir)" sbg input utama (plan §4.1).
+        validate_periode_pakaian_dinas(request.tgl_mulai, request.tgl_selesai)?;
 
         // Validate spesifikasi_ids is not empty
         if request.spesifikasi_ids.is_empty() {
@@ -553,6 +563,47 @@ impl PakaianDinasService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── Fase 1.8: validate_periode_pakaian_dinas ────────────────────
+
+    #[test]
+    fn periode_both_required() {
+        assert!(validate_periode_pakaian_dinas(None, None).is_err());
+        assert!(validate_periode_pakaian_dinas(
+            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+            None,
+        )
+        .is_err());
+        assert!(validate_periode_pakaian_dinas(
+            None,
+            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn periode_start_must_not_exceed_end() {
+        let result = validate_periode_pakaian_dinas(
+            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn periode_same_day_allowed() {
+        let d = NaiveDate::from_ymd_opt(2027, 6, 15).unwrap();
+        assert!(validate_periode_pakaian_dinas(Some(d), Some(d)).is_ok());
+    }
+
+    #[test]
+    fn periode_normal_range_ok() {
+        assert!(validate_periode_pakaian_dinas(
+            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+        )
+        .is_ok());
+    }
 
     #[test]
     fn test_determine_next_status_pelaksana_submit() {
