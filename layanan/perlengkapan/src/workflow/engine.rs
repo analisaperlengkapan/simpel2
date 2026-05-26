@@ -101,6 +101,12 @@ pub struct WorkflowEngine {
     /// terinjeksi agar setiap transisi tercatat di `perlengkapan.audit_log`
     /// (BPK-ready).
     audit_sink: Option<Arc<dyn lib_perlengkapan::contracts::AuditSink>>,
+
+    /// V1.4: in-process event bus. Optional — bila ter-inject, setiap
+    /// transisi sukses mem-publish `DomainEvent::WorkflowTransitioned`
+    /// agar subscriber lain (real-time monitoring, search index, dst)
+    /// tap-in tanpa men-tightly-couple engine.
+    event_bus: Option<Arc<crate::shared::events::EventBus>>,
 }
 
 impl WorkflowEngine {
@@ -112,6 +118,7 @@ impl WorkflowEngine {
             docs: None,
             notifier: None,
             audit_sink: None,
+            event_bus: None,
         }
     }
 
@@ -140,6 +147,18 @@ impl WorkflowEngine {
         audit_sink: Arc<dyn lib_perlengkapan::contracts::AuditSink>,
     ) -> Self {
         self.audit_sink = Some(audit_sink);
+        self
+    }
+
+    /// V1.4: inject in-process event bus. Subscriber lain (notifier
+    /// dispatcher, real-time monitoring, dst) dapat tap-in via
+    /// `shared::events::spawn_subscriber`. Audit sink lama tetap valid
+    /// secara paralel utk back-compat.
+    pub fn with_event_bus(
+        mut self,
+        bus: Arc<crate::shared::events::EventBus>,
+    ) -> Self {
+        self.event_bus = Some(bus);
         self
     }
 
@@ -381,6 +400,29 @@ impl WorkflowEngine {
                     "audit_sink.log failed for workflow transition; continuing"
                 );
             }
+        }
+
+        // V1.4: Publish ke EventBus jika ter-inject. Fail-soft: jika tidak
+        // ada subscriber, publish() return 0 (bukan error). Subscriber yg
+        // crash/lag tidak men-stop transisi.
+        if let Some(bus) = &self.event_bus {
+            use crate::shared::events::DomainEvent;
+            let event = DomainEvent::WorkflowTransitioned {
+                entity_type: entity_type.to_string(),
+                entity_id: request.entity_id,
+                from_state: request.from_state.clone(),
+                to_state: request.to_state.clone(),
+                user_id: request.user_id,
+                catatan: request.catatan.clone(),
+                ip_address: request.ip_address.clone(),
+                timestamp: Utc::now(),
+            };
+            let n = bus.publish(event);
+            tracing::debug!(
+                entity_id = %request.entity_id,
+                subscribers = n,
+                "EventBus: WorkflowTransitioned dipublish"
+            );
         }
 
         // 12. Return result

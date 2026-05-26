@@ -33,6 +33,7 @@ pub mod grpc;
 pub mod health;
 pub mod logging;
 pub mod metrics;
+pub mod events;
 pub mod middleware;
 pub mod policy;
 pub mod rate_limit;
