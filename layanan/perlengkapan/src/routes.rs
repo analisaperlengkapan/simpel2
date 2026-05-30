@@ -528,7 +528,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/auto-expire",
             post(pemakaian_bmn::auto_expire_permits),
         )
-        // Monitoring Dashboard
+        // Monitoring Dashboard (read-only — Validator Wilayah & Pusat)
+        .route(
+            "/pemakaian-bmn/monitoring/summary",
+            get(pemakaian_bmn::get_monitoring_summary),
+        )
         .route(
             "/pemakaian-bmn/monitoring/active-usage",
             get(pemakaian_bmn::get_active_usage_dashboard),

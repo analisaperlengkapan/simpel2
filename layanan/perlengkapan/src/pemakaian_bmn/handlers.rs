@@ -486,14 +486,32 @@ pub async fn auto_expire_permits(
 // Monitoring Dashboard Handlers
 // ============================================================================
 
+/// GET /pemakaian-bmn/monitoring/summary
+/// Tiga kartu agregat headline: sedang dipakai / tidak dipakai / akan expired.
+/// Read-only — audiens Validator Wilayah & Pusat (Fase 2.6).
+pub async fn get_monitoring_summary(
+    State(service): State<PemakaianBmnService>,
+    axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<MonitoringSummaryCards>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
+    let summary = service.get_monitoring_summary(query).await?;
+
+    Ok(Json(ApiResponse::success(
+        summary,
+        "Ringkasan monitoring pemakaian BMN".to_string(),
+    )))
+}
+
 /// GET /pemakaian-bmn/monitoring/active-usage
 /// Get active usage monitoring dashboard
 /// Requirements: REQ-P011
 pub async fn get_active_usage_dashboard(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<ActiveUsageMonitoringDashboard>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
     let dashboard = service.get_active_usage_dashboard(query).await?;
 
     Ok(Json(ApiResponse::success(
@@ -508,8 +526,9 @@ pub async fn get_active_usage_dashboard(
 pub async fn get_bmn_utilization_report(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BmnUtilizationReport>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
     let report = service.get_bmn_utilization_report(query).await?;
 
     Ok(Json(ApiResponse::success(

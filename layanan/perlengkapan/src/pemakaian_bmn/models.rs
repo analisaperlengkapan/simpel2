@@ -770,6 +770,24 @@ pub struct MonitoringDashboardQuery {
     pub end_date: Option<NaiveDate>,
 }
 
+/// Tiga kartu agregat headline dashboard monitoring Pemakaian BMN (Fase 2.6).
+///
+/// Stakeholder (Validator Wilayah & Pusat, read-only) eksplisit meminta tiga
+/// kartu ini berdampingan: **sedang dipakai / tidak dipakai / akan expired**.
+/// Sebelumnya nilai-nilai ini tersebar di dua endpoint berbeda; endpoint
+/// `/monitoring/summary` menyatukannya jadi satu panggilan murah.
+#[derive(Debug, Clone, Serialize)]
+pub struct MonitoringSummaryCards {
+    /// BMN dgn izin pemakaian berstatus ACTIVE (sesuai filter satker/jenis).
+    pub sedang_dipakai: i64,
+    /// Izin ACTIVE yg `tanggal_selesai` jatuh dalam 30 hari ke depan.
+    pub akan_expired_30d: i64,
+    /// BMN (kondisi BAIK di SIMAN) yg TIDAK sedang dipakai = total − terpakai.
+    /// `None` bila SIMAN tidak tersedia, atau bila ada filter satker/jenis
+    /// (data SIMAN tidak ter-scope per-satker di sini, agar tidak menyesatkan).
+    pub tidak_dipakai: Option<i64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

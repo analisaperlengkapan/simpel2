@@ -1180,6 +1180,16 @@ impl PemakaianBmnService {
         self.repository.get_bmn_utilization_report(query).await
     }
 
+    /// Tiga kartu agregat headline monitoring (Fase 2.6):
+    /// sedang dipakai / tidak dipakai / akan expired.
+    pub async fn get_monitoring_summary(
+        &self,
+        query: MonitoringDashboardQuery,
+    ) -> AppResult<MonitoringSummaryCards> {
+        info!("Fetching pemakaian BMN monitoring summary cards");
+        self.repository.get_monitoring_summary(query).await
+    }
+
     /// Validate BMN type-specific required fields
     ///
     /// Requirements: REQ-P001

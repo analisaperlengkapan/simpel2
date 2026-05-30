@@ -1385,6 +1385,118 @@ impl PemakaianBmnRepository {
         })
     }
 
+    /// Tiga kartu agregat headline dashboard monitoring (Fase 2.6):
+    /// **sedang dipakai / tidak dipakai / akan expired**.
+    ///
+    /// Kartu turunan-izin (`sedang_dipakai`, `akan_expired_30d`) menghormati
+    /// filter `satker_id`/`jenis_bmn`. `tidak_dipakai` hanya dihitung saat
+    /// TANPA filter — angka SIMAN tidak ter-scope per-satker di sini, jadi
+    /// menampilkannya saat ter-filter akan menyesatkan (→ `None`). SIMAN
+    /// best-effort: jika query SIMAN gagal, `tidak_dipakai = None` dan kartu
+    /// lain tetap tersaji (dashboard tidak ikut tumbang).
+    pub async fn get_monitoring_summary(
+        &self,
+        query: super::models::MonitoringDashboardQuery,
+    ) -> AppResult<super::models::MonitoringSummaryCards> {
+        let client = self.pool.client().await?;
+
+        // WHERE dinamis utk kartu turunan-izin (parameterized, anti-SQLi).
+        let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
+        let mut param_idx = 1;
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
+
+        if let Some(ref satker_id) = query.satker_id {
+            where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
+            param_idx += 1;
+            params.push(Box::new(*satker_id));
+        }
+        if let Some(ref jenis_bmn) = query.jenis_bmn {
+            where_clauses.push(format!("jenis_bmn = ${}", param_idx));
+            param_idx += 1;
+            params.push(Box::new(jenis_bmn.clone()));
+        }
+        let _ = param_idx;
+
+        let where_clause = where_clauses.join(" AND ");
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        // Kartu 1: sedang dipakai (izin ACTIVE).
+        let sedang_dipakai: i64 = client
+            .query_one(
+                &format!(
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {}",
+                    where_clause
+                ),
+                &param_refs,
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("c");
+
+        // Kartu 2: akan expired dalam 30 hari.
+        let akan_expired_30d: i64 = client
+            .query_one(
+                &format!(
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn \
+                     WHERE {} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30",
+                    where_clause
+                ),
+                &param_refs,
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("c");
+
+        // Kartu 3: tidak dipakai — hanya saat tanpa filter (SIMAN tidak
+        // ter-scope per-satker di sini). Best-effort: error SIMAN → None.
+        let tidak_dipakai = if query.satker_id.is_none() && query.jenis_bmn.is_none() {
+            match Self::count_idle_bmn(&client).await {
+                Ok(n) => Some(n),
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "SIMAN tidak tersedia utk kartu 'tidak dipakai' — disajikan null"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(super::models::MonitoringSummaryCards {
+            sedang_dipakai,
+            akan_expired_30d,
+            tidak_dipakai,
+        })
+    }
+
+    /// Jumlah BMN (kondisi BAIK di SIMAN) yg tidak punya izin ACTIVE =
+    /// total distinct NUP − distinct NUP terpakai. Dipisah agar kegagalan
+    /// SIMAN dapat ditangani best-effort oleh pemanggil.
+    async fn count_idle_bmn(
+        client: &deadpool_postgres::Object,
+    ) -> Result<i64, tokio_postgres::Error> {
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(DISTINCT nup) AS c FROM integrasi.siman_aset_tanah WHERE kondisi = 'BAIK'",
+                &[],
+            )
+            .await?
+            .get("c");
+        let utilized: i64 = client
+            .query_one(
+                "SELECT COUNT(DISTINCT bmn_nup) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE status = 'ACTIVE'",
+                &[],
+            )
+            .await?
+            .get("c");
+        Ok((total - utilized).max(0))
+    }
+
     /// Create a BMN item for multi-BMN permits
     pub async fn create_bmn_item(
         &self,

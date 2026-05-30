@@ -191,6 +191,42 @@ impl WorkflowPolicy for PemakaianBmnPolicy {
     }
 }
 
+/// Role yg boleh MEMBACA dashboard monitoring Pemakaian BMN.
+///
+/// Stakeholder (Fase 2.6): Validator Wilayah & Validator Pusat **hanya
+/// memantau** pemakaian BMN — read-only, tidak ada aksi approve/revoke.
+/// `PemakaianBmnPolicy` sudah memastikan mereka tidak punya satu pun
+/// write-action (semua kombinasi → `None` → 403), jadi sisi tulis aman.
+/// Konstanta ini melengkapi sisi BACA: hanya audiens monitoring yg sah +
+/// peran internal-satker (yg wajar melihat aktivitas satkernya sendiri).
+const PEMAKAIAN_MONITORING_ROLES: &[&str] = &[
+    // Audiens monitoring lintas-satker (read-only, mandat stakeholder).
+    "validator_wilayah",
+    "validator_pusat",
+    "pusat",
+    "analis_pusat",
+    // Peran internal-satker — melihat aktivitas pemakaian satkernya sendiri.
+    "operator_satker",
+    "validator_satker",
+    "approver_satker",
+];
+
+/// Guard BACA untuk endpoint monitoring Pemakaian BMN (Fase 2.6).
+///
+/// Endpoint monitoring bersifat agregat (tidak terikat state satu entitas),
+/// sehingga tidak lewat `WorkflowPolicy::authorize`. Guard tipis ini cukup:
+/// pastikan caller adalah audiens monitoring yg sah. Admin/superadmin lolos
+/// sbg escape-hatch operasional (read-only tidak mengubah data).
+pub fn enforce_monitoring_read(claims: &Claims) -> Result<(), AppError> {
+    if matches!(
+        claims.role.to_ascii_lowercase().as_str(),
+        "admin" | "admin_pusat" | "superadmin"
+    ) {
+        return Ok(());
+    }
+    claims.require_any_role(PEMAKAIAN_MONITORING_ROLES)
+}
+
 /// Stakeholder mandate: Admin TIDAK boleh revoke izin pemakaian BMN.
 /// Karena `WorkflowPolicy::authorize` punya admin bypass utk recovery,
 /// guard tambahan ini dipanggil di handler revoke utk menolak admin.
@@ -440,6 +476,66 @@ mod tests {
         // Non-admin lolos
         let approver = claims_with("approver_satker");
         assert!(enforce_no_admin_revoke(&approver).is_ok());
+    }
+
+    #[test]
+    fn enforce_monitoring_read_allows_wilayah_pusat_and_satker_roles() {
+        for role in [
+            "validator_wilayah",
+            "validator_pusat",
+            "operator_satker",
+            "validator_satker",
+            "approver_satker",
+            "admin",
+        ] {
+            assert!(
+                enforce_monitoring_read(&claims_with(role)).is_ok(),
+                "role {role} seharusnya boleh baca monitoring"
+            );
+        }
+    }
+
+    #[test]
+    fn enforce_monitoring_read_rejects_unknown_role() {
+        let err = enforce_monitoring_read(&claims_with("tamu")).unwrap_err();
+        assert!(matches!(err, AppError::Authorization(_)));
+    }
+
+    #[test]
+    fn monitoring_audience_has_no_pemakaian_write_action() {
+        // Validator Wilayah/Pusat read-only: tidak ada satu pun kombinasi
+        // (action, state) yg mengizinkan mereka menulis. Walk semua action ×
+        // state kanonik → harus selalu 403.
+        let p = PemakaianBmnPolicy;
+        let states = [
+            None,
+            Some("DRAFT"),
+            Some("SUBMITTED"),
+            Some("SUBMITTED_APPROVER_SATKER"),
+            Some("REVISI_OPERATOR"),
+            Some("ACTIVE"),
+        ];
+        let actions = [
+            PemakaianBmnAction::Create,
+            PemakaianBmnAction::Submit,
+            PemakaianBmnAction::ValidatorSatkerForward,
+            PemakaianBmnAction::ValidatorSatkerReturn,
+            PemakaianBmnAction::ApproverSatkerApprove,
+            PemakaianBmnAction::ApproverSatkerReturn,
+            PemakaianBmnAction::Resubmit,
+            PemakaianBmnAction::Revoke,
+            PemakaianBmnAction::UpdateDraft,
+        ];
+        for role in ["validator_wilayah", "validator_pusat"] {
+            for &state in &states {
+                for &action in &actions {
+                    assert!(
+                        p.authorize(&claims_with(role), action, state).is_err(),
+                        "{role} tidak boleh menulis ({action:?} @ {state:?})"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
