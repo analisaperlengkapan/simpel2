@@ -194,7 +194,7 @@ config = { version = "0.15.23", default-features = false, features = [
 ] } # Drop json5 feature to avoid unmaintained dependency
 
 # HTTP Client - Unified version
-reqwest = { version = "0.13.2", features = [
+reqwest = { version = "0.13.4", features = [
   "json",
   "multipart",
   "stream",
