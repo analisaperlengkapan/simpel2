@@ -9,6 +9,7 @@ use crate::api::{
     generate_pemakaian_konsep_surat, revoke_pemakaian_bmn, transition_pemakaian_bmn_status,
     upload_pemakaian_signed_pdf,
 };
+use crate::components::workflow_ui::{ActionTone, ApprovalDialog};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
@@ -56,7 +57,6 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
     let (selected_transition, set_selected_transition) = signal(None::<String>);
     let (transition_comment, set_transition_comment) = signal("".to_string());
     let (show_revoke_modal, set_show_revoke_modal) = signal(false);
-    let (revoke_reason, set_revoke_reason) = signal("".to_string());
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal(None::<String>);
 
@@ -94,14 +94,8 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
         }
     };
 
-    // Handle revocation
-    let handle_revoke = move |_| {
-        let reason = revoke_reason.get();
-        if reason.len() < 10 {
-            set_error.set(Some("Alasan pencabutan minimal 10 karakter".to_string()));
-            return;
-        }
-
+    // Handle revocation — alasan dipasok oleh ApprovalDialog (min 10 char).
+    let handle_revoke = Callback::new(move |reason: String| {
         set_loading.set(true);
         set_error.set(None);
 
@@ -113,7 +107,6 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
             match revoke_pemakaian_bmn(&permit_id, request).await {
                 Ok(_) => {
                     set_show_revoke_modal.set(false);
-                    set_revoke_reason.set("".to_string());
                     refresh_trigger.update(|v| *v += 1);
                 }
                 Err(e) => {
@@ -122,7 +115,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
             }
             set_loading.set(false);
         });
-    };
+    });
 
     // Konsep surat & signed PDF state
     let (show_upload_modal, set_show_upload_modal) = signal(false);
@@ -601,42 +594,21 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                     </div>
                                 </Show>
 
-                                // Revoke Modal
+                                // Revoke Modal — ApprovalDialog reusable (Fase 2.5)
                                 <Show when=move || show_revoke_modal.get()>
-                                    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
-                                        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-                                            <h3 class="text-lg font-semibold mb-4">"Pencabutan Izin"</h3>
-                                            <div class="mb-4">
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">"Alasan Pencabutan" <span class="text-red-500">"*"</span></label>
-                                                <textarea
-                                                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                    rows="4"
-                                                    placeholder="Minimal 10 karakter"
-                                                    prop:value=move || revoke_reason.get()
-                                                    on:input=move |ev| set_revoke_reason.set(event_target_value(&ev))
-                                                    required
-                                                ></textarea>
-                                            </div>
-                                            <div class="flex gap-3">
-                                                <button
-                                                    class="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                                    on:click=move |_| set_show_revoke_modal.set(false)
-                                                    prop:disabled=move || loading.get()
-                                                >
-                                                    "Batal"
-                                                </button>
-                                                <button
-                                                    class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                                                    on:click=handle_revoke
-                                                    prop:disabled=move || loading.get() || revoke_reason.get().len() < 10
-                                                >
-                                                    <Show when=move || loading.get() fallback=|| view! { "Cabut Izin" }>
-                                                        <span class="fa-spin"><AppIcon icon=SPINNER /></span>
-                                                    </Show>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <ApprovalDialog
+                                        title="Pencabutan Izin"
+                                        description="Pencabutan bersifat final. Jelaskan alasan pencabutan izin pemakaian BMN ini."
+                                        note_label="Alasan Pencabutan"
+                                        note_placeholder="Minimal 10 karakter"
+                                        require_note=true
+                                        min_note_len=10
+                                        confirm_label="Cabut Izin"
+                                        confirm_tone=ActionTone::Danger
+                                        on_confirm=handle_revoke
+                                        on_close=Callback::new(move |_| set_show_revoke_modal.set(false))
+                                        busy=Signal::derive(move || loading.get())
+                                    />
                                 </Show>
 
                                 // Upload Signed PDF Modal

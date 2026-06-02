@@ -191,6 +191,8 @@ pub fn ApprovalDialog(
     #[prop(optional, into)] note_label: Option<String>,
     #[prop(optional, into)] note_placeholder: Option<String>,
     #[prop(optional)] require_note: bool,
+    /// Panjang minimum catatan (karakter). `None` = tanpa batas minimum.
+    #[prop(optional)] min_note_len: Option<usize>,
     #[prop(optional, into)] confirm_label: Option<String>,
     #[prop(optional)] confirm_tone: Option<ActionTone>,
     #[prop(into)] on_confirm: Callback<String>,
@@ -213,6 +215,12 @@ pub fn ApprovalDialog(
         if require_note && text.is_empty() {
             set_error.set(Some("Catatan wajib diisi.".to_string()));
             return;
+        }
+        if let Some(min) = min_note_len {
+            if text.chars().count() < min {
+                set_error.set(Some(format!("Catatan minimal {} karakter.", min)));
+                return;
+            }
         }
         set_error.set(None);
         on_confirm.run(text);
