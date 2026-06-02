@@ -67,7 +67,13 @@ runs:
       uses: docker/setup-buildx-action@v3
       with:
         name: buildx-${{ inputs.image }}-${{ github.run_id }}
-        cleanup: false
+        # cleanup: true → setup-buildx-action's post step runs `docker buildx rm`
+        # at job end, removing this builder + its buildkit container + state
+        # volume. Previously `false`, so every CI run leaked one docker-container
+        # builder (818 builders / 154 buildkit containers / 155 volumes had
+        # accumulated on the self-hosted host). Each job only removes the builder
+        # it created — no cross-job risk.
+        cleanup: true
         driver: docker-container
         driver-opts: |
           image=moby/buildkit:latest

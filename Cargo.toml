@@ -99,7 +99,7 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 # the workspace level. Keeping the workspace entry minimal lets WASM crates
 # (`antarmuka/portal`, `antarmuka/perlengkapan`) avoid pulling `regex`
 # (from `env-filter`) and `tracing-serde` (from `json`) into the bundle.
-uuid = { version = "1.23.1", features = ["v4", "serde", "js"] }
+uuid = { version = "1.23.2", features = ["v4", "serde", "js"] }
 time = { version = "0.3.47", features = ["serde", "macros"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 tokio-cron-scheduler = "0.15.1"
@@ -194,7 +194,7 @@ config = { version = "0.15.23", default-features = false, features = [
 ] } # Drop json5 feature to avoid unmaintained dependency
 
 # HTTP Client - Unified version
-reqwest = { version = "0.13.2", features = [
+reqwest = { version = "0.13.4", features = [
   "json",
   "multipart",
   "stream",
@@ -231,11 +231,11 @@ lettre = { version = "0.11.22", default-features = false, features = [
   "hostname",
 ] }
 
-http = "1.4.0"
+http = "1.4.1"
 http-body = "1.0.1"
 http-body-util = "0.1.3"
 temp-env = "0.3.6"
-bcrypt = "0.19.0"
+bcrypt = "0.19.1"
 
 # Secreton Internal Dependencies (for sub-crates)
 secreton-core = { path = "layanan/secreton/crates/core" }
@@ -294,7 +294,7 @@ docx-rs = "0.4.20"
 hkdf = "0.12.3"
 fluent-bundle = "0.16.0"
 unic-langid = "0.9.6"
-axum-test = "20.0.0"
+axum-test = "20.1.0"
 rdkafka = { version = "0.39.0", features = ["tokio"] }
 totp-rs = { version = "5.7.1", default-features = false }
 totp-lite = "2.0.1"
@@ -463,7 +463,7 @@ once_cell = "1.21.4"
 
 # Additional dependencies
 axum-server = { version = "0.8.0", features = ["tls-rustls"] }
-hyper = { version = "1.9.0", features = ["full"] }
+hyper = { version = "1.10.0", features = ["full"] }
 bytes = "1.11.1"
 
 tonic = { version = "0.14.6", features = [
@@ -492,7 +492,7 @@ signature = "2.2.0"
 elliptic-curve = "0.13.8"
 k256 = "0.13.4"
 
-generic-array = "1.3.5"
+generic-array = "1.4.2"
 aes = "0.8.4"
 scrypt = "0.11.0"
 cbc = "0.2.1"
@@ -511,10 +511,10 @@ fpe = "0.6.1"
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa", "ecdsa", "std"] }
 ssh-encoding = "0.2.0"
 aws-config = "1.8.17"
-aws-sdk-s3 = "1.130.0"
-aws-sdk-iam = "1.108.0"
-aws-sdk-sts = "1.103.0"
-aws-sdk-kms = "1.105.0"
+aws-sdk-s3 = "1.134.0"
+aws-sdk-iam = "1.110.0"
+aws-sdk-sts = "1.105.0"
+aws-sdk-kms = "1.108.0"
 aws-types = "1.3.15"
 aws-credential-types = "1.2.14"
 google-cloudkms1 = "7.0.0"

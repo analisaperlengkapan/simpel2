@@ -219,6 +219,33 @@ jobs:
           fi
           echo "::endgroup::"
 
+          # The steps above prune cache/images/volumes but NOT the leaked
+          # per-run buildx *builder* entries (`buildx-<image>-<runid>`) nor
+          # their buildkit containers when those are still in `running` state
+          # (the `status=exited` filter above misses them). Historically
+          # docker-build used `cleanup: false`, so one builder leaked per run
+          # (818 builders / 154 buildkit containers / 155 volumes had piled up).
+          # `cleanup: true` on the action fixes new runs; this reaps the backlog
+          # + any straggler. 24h age threshold protects in-flight builds.
+          echo "::group::Leaked buildx builders + buildkit containers (>24h)"
+          NOW=$(date +%s)
+          docker ps -a --filter "name=buildx_buildkit" \
+            --format '{{.Names}}|{{.CreatedAt}}' | while IFS='|' read -r cname created; do
+            ts=$(date -d "$created" +%s 2>/dev/null) || continue
+            [ -z "$ts" ] && continue
+            if [ $((NOW - ts)) -gt 86400 ]; then
+              builder="${cname#buildx_buildkit_}"; builder="${builder%0}"
+              echo "reaping builder=$builder (container=$cname)"
+              docker buildx rm -f "$builder" 2>/dev/null || docker rm -f -v "$cname" 2>/dev/null
+            fi
+          done
+          # Drop dangling builder registry entries whose container is gone.
+          for b in $(docker buildx ls --format '{{.Name}}' 2>/dev/null | grep '^buildx-'); do
+            docker inspect "buildx_buildkit_${b}0" >/dev/null 2>&1 || docker buildx rm -f "$b" 2>/dev/null
+          done
+          docker volume prune --force >/dev/null 2>&1
+          echo "::endgroup::"
+
       - name: Post-clean disk report
         shell: bash
         env:
