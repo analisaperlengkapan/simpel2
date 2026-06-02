@@ -266,6 +266,59 @@ pub struct CreatePenghapusanBmnRequest {
     /// Label jabatan penetap (cth: "Kepala Kejaksaan Tinggi DKI Jakarta").
     /// Optional; jika None server isi default berdasarkan kewenangan.
     pub penetap_sk_jabatan: Option<String>,
+    /// V036 (Fase 2.8): daftar item BMN multi-item. Bila kosong/None, service
+    /// fallback ke item tunggal dari kolom kode_barang/nama_barang/nup di atas
+    /// (backward compat). Item pertama menjadi "item utama" tabel induk.
+    #[serde(default)]
+    pub items: Vec<CreatePenghapusanBmnItemRequest>,
+}
+
+/// Satu item BMN dalam usulan multi-item (Fase 2.8).
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreatePenghapusanBmnItemRequest {
+    pub asset_id: Option<Uuid>,
+    #[validate(length(min = 1, max = 50))]
+    pub kode_barang: String,
+    #[validate(length(min = 1, max = 255))]
+    pub nama_barang: String,
+    #[validate(length(min = 1, max = 50))]
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    pub kondisi: Option<String>,
+}
+
+/// Satu item BMN tersimpan (row `perlengkapan.penghapusan_bmn_item`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PenghapusanBmnItem {
+    pub id: Uuid,
+    pub penghapusan_id: Uuid,
+    pub asset_id: Option<Uuid>,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    pub nilai_perolehan_dari_backfill: bool,
+    pub kondisi: Option<String>,
+    pub urutan: i32,
+}
+
+impl PenghapusanBmnItem {
+    pub fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            id: row.get("id"),
+            penghapusan_id: row.get("penghapusan_id"),
+            asset_id: row.try_get("asset_id").ok().flatten(),
+            kode_barang: row.get("kode_barang"),
+            nama_barang: row.get("nama_barang"),
+            nup: row.get("nup"),
+            nilai_perolehan: row.try_get("nilai_perolehan").ok().flatten(),
+            nilai_perolehan_dari_backfill: row
+                .try_get("nilai_perolehan_dari_backfill")
+                .unwrap_or(false),
+            kondisi: row.try_get("kondisi").ok().flatten(),
+            urutan: row.try_get("urutan").unwrap_or(1),
+        }
+    }
 }
 
 fn default_kewenangan() -> String {
@@ -332,6 +385,9 @@ pub struct PenghapusanBmnDetailResponse {
     pub allowed_transitions: Vec<PenghapusanTransitionInfo>,
     pub can_generate_sk: bool,
     pub can_upload_signed_sk: bool,
+    /// V036 (Fase 2.8): daftar item BMN dalam usulan ini (≥1, terurut).
+    #[serde(default)]
+    pub items: Vec<PenghapusanBmnItem>,
 }
 
 /// Transition info

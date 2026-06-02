@@ -85,7 +85,58 @@ impl PenghapusanBmnRepository {
             )
             .await?;
 
+        // V036 (Fase 2.8): persist item-item BMN. Bila request multi-item
+        // kosong, fallback ke satu item dari kolom tunggal (backward compat).
+        // Tabel induk tetap menyimpan item pertama (kolom tunggal di atas).
+        let items: Vec<CreatePenghapusanBmnItemRequest> = if request.items.is_empty() {
+            vec![CreatePenghapusanBmnItemRequest {
+                asset_id: Some(request.asset_id),
+                kode_barang: request.kode_barang.clone(),
+                nama_barang: request.nama_barang.clone(),
+                nup: request.nup.clone(),
+                nilai_perolehan: request.nilai_perolehan,
+                kondisi: None,
+            }]
+        } else {
+            request.items.clone()
+        };
+        for (idx, item) in items.iter().enumerate() {
+            client
+                .execute(
+                    r#"
+                    INSERT INTO perlengkapan.penghapusan_bmn_item (
+                        penghapusan_id, asset_id, kode_barang, nama_barang, nup,
+                        nilai_perolehan, kondisi, urutan
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                    "#,
+                    &[
+                        &id,
+                        &item.asset_id,
+                        &item.kode_barang,
+                        &item.nama_barang,
+                        &item.nup,
+                        &item.nilai_perolehan,
+                        &item.kondisi,
+                        &((idx as i32) + 1),
+                    ],
+                )
+                .await?;
+        }
+
         Ok(PenghapusanBmn::from_row(&row))
+    }
+
+    /// Daftar item BMN dalam satu usulan (Fase 2.8), terurut `urutan`.
+    pub async fn list_items(&self, penghapusan_id: Uuid) -> AppResult<Vec<PenghapusanBmnItem>> {
+        let client = self.pool.get().await?;
+        let rows = client
+            .query(
+                "SELECT * FROM perlengkapan.penghapusan_bmn_item
+                 WHERE penghapusan_id = $1 ORDER BY urutan ASC, created_at ASC",
+                &[&penghapusan_id],
+            )
+            .await?;
+        Ok(rows.iter().map(PenghapusanBmnItem::from_row).collect())
     }
 
     // ========================================================================

@@ -120,11 +120,15 @@ impl PenghapusanBmnService {
         let can_generate_sk = matches!(status, PenghapusanBmnStatus::VerifikasiPusat);
         let can_upload_signed_sk = matches!(status, PenghapusanBmnStatus::KonsepSKGenerated);
 
+        // V036 (Fase 2.8): sertakan daftar item BMN multi-item.
+        let items = self.repository.list_items(id).await?;
+
         Ok(PenghapusanBmnDetailResponse {
             penghapusan,
             allowed_transitions: transitions,
             can_generate_sk,
             can_upload_signed_sk,
+            items,
         })
     }
 
