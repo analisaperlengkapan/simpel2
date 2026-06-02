@@ -502,6 +502,24 @@ pub struct PenghapusanBmnDetailResponse {
     pub items: Vec<PenghapusanBmnItem>,
 }
 
+/// Satu baris lampiran pendukung Usulan SK Penghapusan BMN (Fase 0.6 / #15).
+/// Mirror dari backend `PenghapusanBmnLampiran` — hanya metadata; file fisik
+/// di `DocumentStorage`, diakses via `file_url`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnLampiran {
+    pub id: String,
+    pub penghapusan_id: String,
+    pub nama: String,
+    pub file_url: String,
+    #[serde(default)]
+    pub content_type: Option<String>,
+    #[serde(default)]
+    pub size_bytes: Option<i64>,
+    #[serde(default)]
+    pub uploaded_by: Option<String>,
+    pub uploaded_at: String,
+}
+
 /// Hasil verifikasi aset ke SIMAN (Fase 2.3) — ditampilkan ke validator.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimanAssetVerification {

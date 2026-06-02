@@ -8,17 +8,18 @@ use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
-    PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow,
+    ApiResponse, PenghapusanBmnDetailResponse, PenghapusanBmnLampiran, PenghapusanBmnWorkflow,
     PenghapusanValidatorWilayahActionRequest, SimanAssetVerification, UploadSignedSKRequest,
-    fetch_penghapusan_bmn_detail, fetch_penghapusan_verifikasi_siman,
+    fetch_penghapusan_bmn_detail, fetch_penghapusan_lampiran, fetch_penghapusan_verifikasi_siman,
     generate_penghapusan_konsep_sk, penghapusan_validator_wilayah_action,
-    submit_penghapusan_to_wilayah, upload_penghapusan_signed_sk,
+    submit_penghapusan_to_wilayah, upload_penghapusan_lampiran, upload_penghapusan_signed_sk,
 };
 use crate::components::workflow_ui::{
     ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
     WorkflowTimeline,
 };
 use crate::routes;
+use lib_ui::components::forms::FileUpload;
 
 /// leptos-fetch query — keyed by `(usulan_id, refresh_trigger)`.
 ///
@@ -55,6 +56,15 @@ async fn query_penghapusan_verifikasi_siman(
         .await
         .ok()
         .map(|r| r.data)
+}
+
+/// leptos-fetch query — daftar lampiran pendukung (Fase 0.6 / #15). Keyed by
+/// `(usulan_id, refresh_trigger)` agar ikut menyegar setelah unggah.
+async fn query_penghapusan_lampiran(
+    key: (String, i32),
+) -> Result<ApiResponse<Vec<PenghapusanBmnLampiran>>, crate::api::AppError> {
+    let (id, _trigger) = key;
+    fetch_penghapusan_lampiran(&id).await
 }
 
 /// Status badge color helper
@@ -153,6 +163,8 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (signed_sk_url, set_signed_sk_url) = signal(String::new());
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
+    // #15: lampiran upload in-flight flag.
+    let uploading = RwSignal::new(false);
 
     // Bumped after every successful mutation so the keyer below
     // emits a fresh cache slot and leptos-fetch issues a real
@@ -163,6 +175,12 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
     let client: QueryClient = expect_context();
     let detail_resource = client.local_resource(query_penghapusan_bmn_detail, move || {
+        (
+            params.get().get("id").unwrap_or_default(),
+            refresh_trigger.get(),
+        )
+    });
+    let lampiran_resource = client.local_resource(query_penghapusan_lampiran, move || {
         (
             params.get().get("id").unwrap_or_default(),
             refresh_trigger.get(),
@@ -464,6 +482,96 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                         </div>
                                     }
                                 })}
+
+                                // Lampiran Pendukung (Fase 0.6 / #15) — daftar + unggah
+                                {
+                                    let can_upload = status_kode == 4000 || status_kode == 4002;
+                                    let upload_surat = Box::new(move |files: Vec<web_sys::File>| {
+                                        let Some(file) = files.into_iter().next() else { return };
+                                        let id = params.get().get("id").unwrap_or_default();
+                                        uploading.set(true);
+                                        set_error_msg.set(None);
+                                        leptos::task::spawn_local(async move {
+                                            match upload_penghapusan_lampiran(&id, Some(file), vec![]).await {
+                                                Ok(_) => {
+                                                    set_success_msg.set(Some("Surat Usulan berhasil diunggah".to_string()));
+                                                    refresh_trigger.update(|v| *v += 1);
+                                                }
+                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                            }
+                                            uploading.set(false);
+                                        });
+                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                    let upload_lampiran = Box::new(move |files: Vec<web_sys::File>| {
+                                        if files.is_empty() { return; }
+                                        let id = params.get().get("id").unwrap_or_default();
+                                        uploading.set(true);
+                                        set_error_msg.set(None);
+                                        leptos::task::spawn_local(async move {
+                                            match upload_penghapusan_lampiran(&id, None, files).await {
+                                                Ok(_) => {
+                                                    set_success_msg.set(Some("Lampiran berhasil diunggah".to_string()));
+                                                    refresh_trigger.update(|v| *v += 1);
+                                                }
+                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                            }
+                                            uploading.set(false);
+                                        });
+                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                    view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">"Lampiran Pendukung"</h3>
+                                            <Suspense fallback=move || view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }>
+                                                {move || match lampiran_resource.get() {
+                                                    None => view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }.into_any(),
+                                                    Some(Err(_)) => view! { <p class="text-sm text-gray-400">"Gagal memuat daftar lampiran."</p> }.into_any(),
+                                                    Some(Ok(resp)) => {
+                                                        let items = resp.data;
+                                                        if items.is_empty() {
+                                                            view! { <p class="text-sm text-gray-400">"Belum ada lampiran diunggah."</p> }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <ul class="space-y-1.5 text-sm">
+                                                                    {items.into_iter().map(|l| view! {
+                                                                        <li class="flex items-center justify-between gap-2">
+                                                                            <a href={l.file_url.clone()} target="_blank" class="text-blue-600 hover:underline truncate">
+                                                                                {l.nama.clone()}
+                                                                            </a>
+                                                                            <span class="text-xs text-gray-400 shrink-0">
+                                                                                {l.size_bytes.map(|b| format!("{} KB", (b + 1023) / 1024)).unwrap_or_default()}
+                                                                            </span>
+                                                                        </li>
+                                                                    }).collect_view()}
+                                                                </ul>
+                                                            }.into_any()
+                                                        }
+                                                    }
+                                                }}
+                                            </Suspense>
+
+                                            {can_upload.then(move || view! {
+                                                <div class="mt-4 space-y-3 border-t pt-4">
+                                                    <FileUpload
+                                                        label="Surat Usulan (1 file)".to_string()
+                                                        accept=".pdf,.doc,.docx".to_string()
+                                                        disabled=uploading.get()
+                                                        on_change=upload_surat
+                                                    />
+                                                    <FileUpload
+                                                        label="Lampiran Pendukung (boleh lebih dari satu)".to_string()
+                                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png".to_string()
+                                                        multiple=true
+                                                        disabled=uploading.get()
+                                                        on_change=upload_lampiran
+                                                    />
+                                                    {move || uploading.get().then(|| view! {
+                                                        <p class="text-xs text-gray-500">"Mengunggah berkas..."</p>
+                                                    })}
+                                                </div>
+                                            })}
+                                        </div>
+                                    }
+                                }
 
                                 // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
                                 {(status_kode == 4001 || status_kode == 4003 || status_kode == 4004)
