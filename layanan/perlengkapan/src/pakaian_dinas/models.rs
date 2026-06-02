@@ -392,6 +392,10 @@ pub struct CreatePengajuanRequest {
     pub jenis_pakaian_dinas_id: Option<Uuid>,
     pub spesifikasi_ids: Vec<Uuid>,    // Selected specifications
     pub satker_ids: Option<Vec<Uuid>>, // Selected satkers (if pilihan_satker = "sebagian")
+    /// Wilayah Kejaksaan Tinggi (#19) — wajib jika `pilihan_satker = "wilayah"`.
+    /// Satker di-resolve otomatis dari `integrasi.mysimkari_satker.wilayah`.
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
 }
 
 /// Selected satkers for a pengajuan

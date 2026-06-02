@@ -37,6 +37,40 @@ pub fn validate_periode_pakaian_dinas(
     }
 }
 
+/// Validate scope satker pengajuan (#19). Accepts `all`/`semua`, `sebagian`,
+/// `wilayah`. `sebagian` butuh `satker_ids` non-kosong; `wilayah` butuh
+/// `wilayah_id`. Pure → unit-testable tanpa DB.
+pub fn validate_scope_satker(
+    pilihan_satker: &str,
+    wilayah_id: Option<&str>,
+    satker_ids: Option<&[Uuid]>,
+) -> Result<(), AppError> {
+    match pilihan_satker {
+        "all" | "semua" => Ok(()),
+        "sebagian" => {
+            if satker_ids.map_or(true, |ids| ids.is_empty()) {
+                Err(bad_request(
+                    "Satker harus dipilih jika pilihan satker = 'sebagian'",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        "wilayah" => {
+            if wilayah_id.map_or(true, |w| w.trim().is_empty()) {
+                Err(bad_request(
+                    "Wilayah harus dipilih jika pilihan satker = 'wilayah'",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Err(bad_request(
+            "Pilihan satker harus 'all', 'sebagian', atau 'wilayah'",
+        )),
+    }
+}
+
 /// Service for Pakaian Dinas business logic
 #[derive(Clone)]
 pub struct PakaianDinasService {
@@ -333,19 +367,12 @@ impl PakaianDinasService {
             ));
         }
 
-        // Validate pilihan_satker
-        if !["all", "sebagian"].contains(&request.pilihan_satker.as_str()) {
-            return Err(bad_request("Pilihan satker harus 'all' atau 'sebagian'"));
-        }
-
-        // If pilihan_satker = "sebagian", satker_ids must not be empty
-        if request.pilihan_satker == "sebagian"
-            && (request.satker_ids.is_none() || request.satker_ids.as_ref().unwrap().is_empty())
-        {
-            return Err(bad_request(
-                "Satker harus dipilih jika pilihan satker = 'sebagian'",
-            ));
-        }
+        // Validate scope satker (#19: tambah opsi "wilayah").
+        validate_scope_satker(
+            &request.pilihan_satker,
+            request.wilayah_id.as_deref(),
+            request.satker_ids.as_deref(),
+        )?;
 
         self.repository.create_pengajuan(request, user_id).await
     }
@@ -736,6 +763,31 @@ mod tests {
     fn periode_same_day_allowed() {
         let d = NaiveDate::from_ymd_opt(2027, 6, 15).unwrap();
         assert!(validate_periode_pakaian_dinas(Some(d), Some(d)).is_ok());
+    }
+
+    #[test]
+    fn scope_all_and_semua_ok_without_extras() {
+        assert!(validate_scope_satker("all", None, None).is_ok());
+        assert!(validate_scope_satker("semua", None, None).is_ok());
+    }
+
+    #[test]
+    fn scope_wilayah_requires_wilayah_id() {
+        assert!(validate_scope_satker("wilayah", None, None).is_err());
+        assert!(validate_scope_satker("wilayah", Some("  "), None).is_err());
+        assert!(validate_scope_satker("wilayah", Some("Kejati DKI"), None).is_ok());
+    }
+
+    #[test]
+    fn scope_sebagian_requires_satker_ids() {
+        assert!(validate_scope_satker("sebagian", None, None).is_err());
+        assert!(validate_scope_satker("sebagian", None, Some(&[])).is_err());
+        assert!(validate_scope_satker("sebagian", None, Some(&[Uuid::new_v4()])).is_ok());
+    }
+
+    #[test]
+    fn scope_unknown_rejected() {
+        assert!(validate_scope_satker("entah", None, None).is_err());
     }
 
     #[test]

@@ -173,6 +173,7 @@ mod validation_tests {
             jenis_pakaian_dinas_id: None,
             spesifikasi_ids: vec![Uuid::new_v4()],
             satker_ids: None,
+            wilayah_id: None,
         };
         assert!(request.validate().is_ok());
     }
@@ -191,6 +192,7 @@ mod validation_tests {
             jenis_pakaian_dinas_id: None,
             spesifikasi_ids: vec![],
             satker_ids: None,
+            wilayah_id: None,
         };
         assert!(request.validate().is_err());
     }

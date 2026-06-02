@@ -167,13 +167,32 @@ pub struct PengajuanPakaianDinas {
     pub updated_at: String,
 }
 
+/// Create request — mirrors backend `pakaian_dinas::models::CreatePengajuanRequest`
+/// exactly (#19). Dates are `YYYY-MM-DD` strings (serde → NaiveDate); IDs are
+/// UUID strings (serde → Uuid). `pilihan_satker` ∈ {all, sebagian, wilayah};
+/// `wilayah_id` wajib saat `wilayah`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreatePengajuanPakaianDinasRequest {
     pub nama: String,
-    pub tahun: i32,
-    pub tgl_open: Option<String>,
-    pub tgl_close: Option<String>,
-    pub keterangan: Option<String>,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default)]
+    pub tgl_mulai: Option<String>,
+    #[serde(default)]
+    pub tgl_selesai: Option<String>,
+    pub is_reguler: bool,
+    #[serde(default)]
+    pub tahun: Option<i32>,
+    pub pilihan_satker: String,
+    #[serde(default)]
+    pub dengan_unit_kerja: bool,
+    #[serde(default)]
+    pub jenis_pakaian_dinas_id: Option<String>,
+    pub spesifikasi_ids: Vec<String>,
+    #[serde(default)]
+    pub satker_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
 }
 
 /// Pengajuan Satker (Work unit submission). Mirrors the backend DTO
@@ -409,6 +428,21 @@ pub async fn fetch_jenis_pakaian_dinas(
         total_pages: 0,
         message: "Server-side stub".to_string(),
     })
+}
+
+/// `GET /kebutuhan-bmn/wilayah` — daftar wilayah Kejaksaan Tinggi (#19).
+/// Dipakai bersama dgn Kebutuhan BMN; sumber `integrasi.mysimkari_satker`.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+    use crate::api::client::auth_get_json;
+    let resp: ApiResponse<Vec<String>> =
+        auth_get_json("/api/pembinaan/perlengkapan/kebutuhan-bmn/wilayah").await?;
+    Ok(resp.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+    Ok(vec![])
 }
 
 #[cfg(target_arch = "wasm32")]

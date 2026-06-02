@@ -681,8 +681,8 @@ impl PakaianDinasRepository {
                 INSERT INTO pengajuan_pakaian_dinas
                     (id, nama, deskripsi, tgl_mulai, tgl_selesai, is_reguler, tahun,
                      pilihan_satker, dengan_unit_kerja, jenis_pakaian_dinas_id, aktivitas_id,
-                     created_by, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+                     created_by, created_at, updated_at, scope_satker, wilayah_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15)
                 "#,
                 &[
                     &id,
@@ -698,6 +698,9 @@ impl PakaianDinasRepository {
                     &1000i32, // Initial status: Input
                     &user_id,
                     &now,
+                    // V031: scope_satker mirror pilihan_satker; wilayah_id (#19)
+                    &request.pilihan_satker,
+                    &request.wilayah_id,
                 ],
             )
             .await
@@ -723,24 +726,54 @@ impl PakaianDinasRepository {
                 .map_err(|e| bad_request(&e.to_string()))?;
         }
 
-        // Insert selected satkers (if pilihan_satker = "sebagian")
-        if let Some(satker_ids) = &request.satker_ids {
-            for satker_id in satker_ids {
-                client
-                    .execute(
-                        r#"
-                        INSERT INTO pengajuan_pakaian_dinas_satker_terpilih
-                            (pengajuan_id, satker_id, is_show_in_form)
-                        VALUES ($1, $2, true)
-                        "#,
-                        &[&id, satker_id],
-                    )
-                    .await
-                    .map_err(|e| bad_request(&e.to_string()))?;
+        // Resolve & insert selected satkers.
+        // - "wilayah" (#19): auto-resolve dari integrasi.mysimkari_satker.wilayah.
+        // - "sebagian": pakai satker_ids dari operator.
+        // - "all"/"semua": kosong (artinya seluruh satker).
+        let resolved_satker_ids: Vec<Uuid> = if request.pilihan_satker == "wilayah" {
+            match request.wilayah_id.as_deref().filter(|w| !w.trim().is_empty()) {
+                Some(wid) => self.list_satker_ids_by_wilayah(wid).await?,
+                None => Vec::new(),
             }
+        } else {
+            request.satker_ids.clone().unwrap_or_default()
+        };
+
+        for satker_id in &resolved_satker_ids {
+            client
+                .execute(
+                    r#"
+                    INSERT INTO pengajuan_pakaian_dinas_satker_terpilih
+                        (pengajuan_id, satker_id, is_show_in_form)
+                    VALUES ($1, $2, true)
+                    ON CONFLICT (pengajuan_id, satker_id) DO NOTHING
+                    "#,
+                    &[&id, satker_id],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?;
         }
 
         self.get_pengajuan_by_id(id).await
+    }
+
+    /// Resolve satker UUID untuk satu wilayah Kejaksaan Tinggi (#19), sumber
+    /// `integrasi.mysimkari_satker`. Sejalan dgn resolver Kebutuhan BMN namun
+    /// mengembalikan `id` (UUID) karena `satker_terpilih.satker_id` bertipe UUID.
+    pub async fn list_satker_ids_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<Uuid>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT id FROM integrasi.mysimkari_satker WHERE wilayah = $1",
+                &[&wilayah],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(|r| r.get::<_, Uuid>("id")).collect())
     }
 
     pub async fn delete_pengajuan(&self, id: Uuid) -> AppResult<()> {
