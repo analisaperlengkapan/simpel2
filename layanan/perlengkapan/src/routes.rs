@@ -596,6 +596,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/delegations/{id}/revoke",
             post(crate::workflow::delegation_handlers::revoke_delegation_handler),
         )
+        // ============ Cross-module audit trail (BPK-ready) ============
+        // Reads perlengkapan.audit_log (every module's AuditSink events),
+        // unlike /admin/audit which only shows workflow transitions. Pull a
+        // single record's full history via ?entity=<type>&resource_id=<id>.
+        .route("/audit", get(crate::audit::list_audit_trail))
         // ============ Admin Routes (audit + master data + templates) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
         .route("/admin/master", get(crate::admin::list_master_sources))
