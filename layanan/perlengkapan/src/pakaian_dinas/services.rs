@@ -3,21 +3,172 @@
 //! Business logic layer for Pakaian Dinas module.
 //! Handles workflow, validation, and integration with other services.
 
+use std::sync::Arc;
+
+use chrono::NaiveDate;
 use uuid::Uuid;
 
 use super::models::*;
 use super::repository::PakaianDinasRepository;
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::{AppError, AppResult, bad_request};
+use crate::shared::grpc::clients::IntegrasiClient;
+use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
+use lib_perlengkapan::contracts::AuditSink;
+
+/// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
+/// `AppError::BadRequest` (422) jika:
+/// - salah satu tgl_mulai / tgl_selesai `None` (keduanya wajib), ATAU
+/// - tgl_mulai > tgl_selesai.
+///
+/// Extracted sbg pure function agar dapat di-unit-test tanpa DB.
+pub fn validate_periode_pakaian_dinas(
+    tgl_mulai: Option<NaiveDate>,
+    tgl_selesai: Option<NaiveDate>,
+) -> Result<(), AppError> {
+    match (tgl_mulai, tgl_selesai) {
+        (None, _) | (_, None) => Err(bad_request(
+            "Periode (tanggal mulai + tanggal selesai) wajib diisi",
+        )),
+        (Some(start), Some(end)) if start > end => Err(bad_request(
+            "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
+        )),
+        _ => Ok(()),
+    }
+}
+
+/// Validate scope satker pengajuan (#19). Accepts `all`/`semua`, `sebagian`,
+/// `wilayah`. `sebagian` butuh `satker_ids` non-kosong; `wilayah` butuh
+/// `wilayah_id`. Pure → unit-testable tanpa DB.
+pub fn validate_scope_satker(
+    pilihan_satker: &str,
+    wilayah_id: Option<&str>,
+    satker_ids: Option<&[Uuid]>,
+) -> Result<(), AppError> {
+    match pilihan_satker {
+        "all" | "semua" => Ok(()),
+        "sebagian" => {
+            if satker_ids.is_none_or(|ids| ids.is_empty()) {
+                Err(bad_request(
+                    "Satker harus dipilih jika pilihan satker = 'sebagian'",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        "wilayah" => {
+            if wilayah_id.is_none_or(|w| w.trim().is_empty()) {
+                Err(bad_request(
+                    "Wilayah harus dipilih jika pilihan satker = 'wilayah'",
+                ))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Err(bad_request(
+            "Pilihan satker harus 'all', 'sebagian', atau 'wilayah'",
+        )),
+    }
+}
 
 /// Service for Pakaian Dinas business logic
 #[derive(Clone)]
 pub struct PakaianDinasService {
     pub(crate) repository: PakaianDinasRepository,
+    /// gRPC client ke layanan-integrasi (resilient, Fase 2.2). Opsional —
+    /// `None` saat integrasi tidak tersedia; sinkronisasi freshness pegawai
+    /// (Fase 2.4) graceful-degrade ke "tidak diketahui".
+    integrasi_client: Option<IntegrasiClient>,
+    /// Cross-module audit sink (#16/#40). Opsional — `None` saat belum
+    /// di-inject; transisi validator tetap berjalan, hanya tanpa jejak audit.
+    audit_sink: Option<Arc<dyn AuditSink>>,
 }
 
 impl PakaianDinasService {
     pub fn new(repository: PakaianDinasRepository) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            integrasi_client: None,
+            audit_sink: None,
+        }
+    }
+
+    /// Inject IntegrasiClient (Fase 2.4) untuk laporan freshness sync MySIMKARI.
+    pub fn with_integrasi_client(mut self, client: IntegrasiClient) -> Self {
+        self.integrasi_client = Some(client);
+        self
+    }
+
+    /// Inject cross-module audit sink (#16/#40) — jejak transisi validator
+    /// pakaian dinas ke `perlengkapan.audit_log`.
+    pub fn with_audit_sink(mut self, sink: Arc<dyn AuditSink>) -> Self {
+        self.audit_sink = Some(sink);
+        self
+    }
+
+    /// Roster pegawai satker (dari replika `integrasi.mysimkari_pegawai`,
+    /// non-lossy — termasuk gender & foto) + info kesegaran sinkronisasi
+    /// MySIMKARI (Fase 2.4). Wizard ukuran menampilkan `last_sync_at` dan
+    /// banner bila data berpotensi basi (sync gagal / belum pernah sync).
+    ///
+    /// Catatan arsitektur: panggilan gRPC MySIMKARI langsung bersifat
+    /// *field-poor* (tanpa gender/foto), sedangkan replika kaya field dan
+    /// disinkronkan oleh layanan-integrasi. Maka roster tetap dibaca dari
+    /// replika; "realtime" diwujudkan sebagai transparansi kesegaran +
+    /// fallback aware, bukan tarik-langsung yang lossy.
+    pub async fn get_pegawai_roster_with_sync(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<PegawaiRosterWithSync> {
+        let pegawai = self
+            .repository
+            .get_mysimkari_pegawai_by_satker(satker_id)
+            .await?;
+
+        let sync = match &self.integrasi_client {
+            Some(client) => Self::fetch_mysimkari_sync(client).await,
+            None => None,
+        };
+
+        Ok(PegawaiRosterWithSync {
+            total: pegawai.len() as i64,
+            pegawai,
+            sync,
+        })
+    }
+
+    /// Best-effort probe status sinkronisasi MySIMKARI. Kegagalan probe
+    /// (gRPC timeout/circuit-open) dikembalikan sbg `None` (tidak diketahui),
+    /// tidak memblokir penyajian roster.
+    async fn fetch_mysimkari_sync(client: &IntegrasiClient) -> Option<PegawaiSyncInfo> {
+        match client.get_sync_status(DataSource::Mysimkari).await {
+            Ok(status) => {
+                let state = SyncState::try_from(status.state).unwrap_or(SyncState::Unspecified);
+                let last_sync_at = if status.last_sync_at.trim().is_empty() {
+                    None
+                } else {
+                    Some(status.last_sync_at)
+                };
+                // "segar" = sync terakhir COMPLETED dan ada timestamp.
+                let segar = matches!(state, SyncState::Completed) && last_sync_at.is_some();
+                Some(PegawaiSyncInfo {
+                    sumber: "mysimkari".to_string(),
+                    state: state.as_str_name().to_string(),
+                    last_sync_at,
+                    segar,
+                    records_synced: status.records_synced,
+                    error_message: if status.error_message.trim().is_empty() {
+                        None
+                    } else {
+                        Some(status.error_message)
+                    },
+                })
+            }
+            Err(e) => {
+                tracing::warn!("Probe sync MySIMKARI gagal (tidak memblokir roster): {}", e);
+                None
+            }
+        }
     }
 
     // ============ Master: Jenis Pakaian Dinas ============
@@ -201,22 +352,10 @@ impl PakaianDinasService {
             .validate()
             .map_err(|e| bad_request(&e.to_string()))?;
 
-        // Validate date range if is_reguler
-        if request.is_reguler {
-            if request.tgl_mulai.is_none() || request.tgl_selesai.is_none() {
-                return Err(bad_request(
-                    "Tanggal mulai dan selesai wajib diisi untuk pengajuan reguler",
-                ));
-            }
-
-            if let (Some(start), Some(end)) = (request.tgl_mulai, request.tgl_selesai)
-                && start > end
-            {
-                return Err(bad_request(
-                    "Tanggal mulai tidak boleh lebih besar dari tanggal selesai",
-                ));
-            }
-        }
+        // Fase 1.8: periode WAJIB regardless of is_reguler — stakeholder
+        // eksplisit minta "pilih periode (tanggal kapan mulai sampai
+        // tanggal kapan berakhir)" sbg input utama (plan §4.1).
+        validate_periode_pakaian_dinas(request.tgl_mulai, request.tgl_selesai)?;
 
         // Validate spesifikasi_ids is not empty
         if request.spesifikasi_ids.is_empty() {
@@ -225,19 +364,12 @@ impl PakaianDinasService {
             ));
         }
 
-        // Validate pilihan_satker
-        if !["all", "sebagian"].contains(&request.pilihan_satker.as_str()) {
-            return Err(bad_request("Pilihan satker harus 'all' atau 'sebagian'"));
-        }
-
-        // If pilihan_satker = "sebagian", satker_ids must not be empty
-        if request.pilihan_satker == "sebagian"
-            && (request.satker_ids.is_none() || request.satker_ids.as_ref().unwrap().is_empty())
-        {
-            return Err(bad_request(
-                "Satker harus dipilih jika pilihan satker = 'sebagian'",
-            ));
-        }
+        // Validate scope satker (#19: tambah opsi "wilayah").
+        validate_scope_satker(
+            &request.pilihan_satker,
+            request.wilayah_id.as_deref(),
+            request.satker_ids.as_deref(),
+        )?;
 
         self.repository.create_pengajuan(request, user_id).await
     }
@@ -269,8 +401,8 @@ impl PakaianDinasService {
     pub async fn process_validator_action(
         &self,
         request: ValidatorActionRequest,
-        _user_nip: &str,
-        _user_nama: &str,
+        user_nip: &str,
+        user_nama: &str,
         user_role: &str,
     ) -> AppResult<PengajuanSatker> {
         // Get current satker submission
@@ -279,16 +411,60 @@ impl PakaianDinasService {
             .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
             .await?;
 
-        // Determine next status based on current status and action
-        let _next_status =
+        // Determine next status based on current status, action, and role.
+        // Invalid (status, action, role) combos return 422 here — this doubles
+        // as the RBAC + workflow guard for the validator action.
+        let next_status =
             self.determine_next_status(satker.aktivitas_id, &request.aksi, user_role)?;
 
-        // TODO(pakaian-dinas-satker-status): after the pengajuan is finalised,
-        // propagate the new status onto the satker-status table and record
-        // an audit row via `state.audit_sink` (module = `pakaian_dinas`,
-        // action = AuditAction::Update). Blocked on the satker-status
-        // schema review.
-        Ok(satker)
+        // Persist the transition + record an activity row (atomic). This is
+        // the real per-satker workflow advance that replaces the prior no-op.
+        self.repository
+            .transition_satker_with_activity(
+                request.pengajuan_satker_id,
+                next_status,
+                request.komentar.clone(),
+                Some(user_nip),
+                Some(user_nama),
+                None,
+                Some(user_role),
+            )
+            .await?;
+
+        // Audit trail (#16) — best-effort, swallowed on failure so a flaky
+        // sink never rolls back a committed transition.
+        if let Some(sink) = &self.audit_sink {
+            let action = match request.aksi.as_str() {
+                "approve" => AuditAction::Approve,
+                "reject" => AuditAction::Reject,
+                _ => AuditAction::Update,
+            };
+            let event = AuditEvent::new("pakaian_dinas", action, "pengajuan_satker")
+                .resource_id(request.pengajuan_satker_id.to_string())
+                .action_name("pakaian_dinas.validator_action")
+                .message(request.komentar.clone().unwrap_or_default())
+                .metadata(serde_json::json!({
+                    "from_status": satker.aktivitas_id,
+                    "to_status": next_status,
+                    "aksi": request.aksi,
+                    "role": user_role,
+                }));
+            let _ = sink.log(event).await;
+        }
+
+        // Return the freshly-transitioned satker.
+        self.repository
+            .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
+            .await
+    }
+
+    /// Per-satker workflow activity history (#40). Oldest-first list backing
+    /// the FE timeline.
+    pub async fn list_satker_aktivitas(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
+        self.repository.list_satker_aktivitas(satker_id).await
     }
 
     /// Determine the next workflow status based on current status and action
@@ -553,6 +729,78 @@ impl PakaianDinasService {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ─── Fase 1.8: validate_periode_pakaian_dinas ────────────────────
+
+    #[test]
+    fn periode_both_required() {
+        assert!(validate_periode_pakaian_dinas(None, None).is_err());
+        assert!(
+            validate_periode_pakaian_dinas(
+                Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+                None,
+            )
+            .is_err()
+        );
+        assert!(
+            validate_periode_pakaian_dinas(
+                None,
+                Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn periode_start_must_not_exceed_end() {
+        let result = validate_periode_pakaian_dinas(
+            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn periode_same_day_allowed() {
+        let d = NaiveDate::from_ymd_opt(2027, 6, 15).unwrap();
+        assert!(validate_periode_pakaian_dinas(Some(d), Some(d)).is_ok());
+    }
+
+    #[test]
+    fn scope_all_and_semua_ok_without_extras() {
+        assert!(validate_scope_satker("all", None, None).is_ok());
+        assert!(validate_scope_satker("semua", None, None).is_ok());
+    }
+
+    #[test]
+    fn scope_wilayah_requires_wilayah_id() {
+        assert!(validate_scope_satker("wilayah", None, None).is_err());
+        assert!(validate_scope_satker("wilayah", Some("  "), None).is_err());
+        assert!(validate_scope_satker("wilayah", Some("Kejati DKI"), None).is_ok());
+    }
+
+    #[test]
+    fn scope_sebagian_requires_satker_ids() {
+        assert!(validate_scope_satker("sebagian", None, None).is_err());
+        assert!(validate_scope_satker("sebagian", None, Some(&[])).is_err());
+        assert!(validate_scope_satker("sebagian", None, Some(&[Uuid::new_v4()])).is_ok());
+    }
+
+    #[test]
+    fn scope_unknown_rejected() {
+        assert!(validate_scope_satker("entah", None, None).is_err());
+    }
+
+    #[test]
+    fn periode_normal_range_ok() {
+        assert!(
+            validate_periode_pakaian_dinas(
+                Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+                Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            )
+            .is_ok()
+        );
+    }
 
     #[test]
     fn test_determine_next_status_pelaksana_submit() {

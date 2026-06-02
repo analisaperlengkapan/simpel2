@@ -284,19 +284,31 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Pakaian Dinas service
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
-    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+    let mut pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+    // Fase 2.4: inject IntegrasiClient (clone) untuk laporan kesegaran sync
+    // MySIMKARI di wizard ukuran. Original di-move ke kebutuhan_bmn di bawah.
+    if let Some(client) = integrasi_client.clone() {
+        pakaian_dinas_service = pakaian_dinas_service.with_integrasi_client(client);
+    }
+    // #16/#40: audit trail for validator transitions.
+    pakaian_dinas_service = pakaian_dinas_service.with_audit_sink(audit_sink.clone());
 
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
     let kebutuhan_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_kebutuhan_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let mut kebutuhan_bmn_service = KebutuhanBmnService::new(
         kebutuhan_bmn_repo,
         authenc_client.clone(),
         kebutuhan_bmn_workflow_engine,
     );
+    // #36: keep a clone for AppState so the health endpoint can read live
+    // circuit-breaker state. Clones share the same Arc<IntegrasiBreakers>, so
+    // this observes exactly what the services trip. Capture before the move.
+    let integrasi_client_for_health = integrasi_client.clone();
     if let Some(client) = integrasi_client {
         kebutuhan_bmn_service = kebutuhan_bmn_service.with_integrasi_client(client);
     }
@@ -313,7 +325,8 @@ async fn main() -> anyhow::Result<()> {
     let pemakaian_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_pemakaian_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let pemakaian_bmn_service =
         PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow_engine)
             .with_document_generator(docs.clone())
@@ -339,7 +352,8 @@ async fn main() -> anyhow::Result<()> {
     let penghapusan_bmn_workflow_engine =
         crate::workflow::engine::WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
             .with_document_generator(docs.clone())
-            .with_notification_sender(notifier.clone());
+            .with_notification_sender(notifier.clone())
+            .with_audit_sink(audit_sink.clone());
     let penghapusan_bmn_service = Arc::new(
         penghapusan_bmn::PenghapusanBmnService::new(
             db.pool().clone(),
@@ -390,6 +404,7 @@ async fn main() -> anyhow::Result<()> {
         audit_sink,
         document_storage,
         boot_time: std::time::Instant::now(),
+        integrasi_client: integrasi_client_for_health,
     };
 
     // Build router

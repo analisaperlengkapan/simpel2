@@ -28,7 +28,7 @@ impl QueueService {
     pub async fn enqueue_job(&self, queue: &str, job: &QueueJob) -> Result<(), AppError> {
         let mut conn = self
             .redis
-            .get_multiplexed_tokio_connection()
+            .get_multiplexed_async_connection()
             .await
             .map_err(|e| AppError::Internal(e.to_string().into()))?;
         let data =
@@ -47,14 +47,16 @@ impl QueueService {
     ) -> Result<Option<QueueJob>, AppError> {
         let mut conn = self
             .redis
-            .get_multiplexed_tokio_connection()
+            .get_multiplexed_async_connection()
             .await
             .map_err(|e| AppError::Internal(e.to_string().into()))?;
-        let res: Option<(String, String)> =
-            timeout(Duration::from_secs(timeout_secs), conn.blpop(queue, 0.0))
-                .await
-                .map_err(|e| AppError::Internal(e.to_string().into()))?
-                .map_err(|e| AppError::Internal(e.to_string().into()))?;
+        let res: Option<(String, String)> = timeout(
+            Duration::from_secs(timeout_secs),
+            conn.blpop::<_, Option<(String, String)>>(queue, 0.0),
+        )
+        .await
+        .map_err(|e| AppError::Internal(e.to_string().into()))?
+        .map_err(|e| AppError::Internal(e.to_string().into()))?;
         if let Some((_, data)) = res {
             let job: QueueJob = serde_json::from_str(&data)
                 .map_err(|e| AppError::Internal(e.to_string().into()))?;

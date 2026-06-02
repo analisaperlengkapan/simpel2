@@ -4,6 +4,7 @@
 //! Uses tokio-postgres for async database access.
 
 use deadpool_postgres::Pool;
+use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
 use super::models::*;
@@ -680,8 +681,8 @@ impl PakaianDinasRepository {
                 INSERT INTO pengajuan_pakaian_dinas
                     (id, nama, deskripsi, tgl_mulai, tgl_selesai, is_reguler, tahun,
                      pilihan_satker, dengan_unit_kerja, jenis_pakaian_dinas_id, aktivitas_id,
-                     created_by, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+                     created_by, created_at, updated_at, scope_satker, wilayah_id)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13, $14, $15)
                 "#,
                 &[
                     &id,
@@ -697,6 +698,9 @@ impl PakaianDinasRepository {
                     &1000i32, // Initial status: Input
                     &user_id,
                     &now,
+                    // V031: scope_satker mirror pilihan_satker; wilayah_id (#19)
+                    &request.pilihan_satker,
+                    &request.wilayah_id,
                 ],
             )
             .await
@@ -722,24 +726,58 @@ impl PakaianDinasRepository {
                 .map_err(|e| bad_request(&e.to_string()))?;
         }
 
-        // Insert selected satkers (if pilihan_satker = "sebagian")
-        if let Some(satker_ids) = &request.satker_ids {
-            for satker_id in satker_ids {
-                client
-                    .execute(
-                        r#"
-                        INSERT INTO pengajuan_pakaian_dinas_satker_terpilih
-                            (pengajuan_id, satker_id, is_show_in_form)
-                        VALUES ($1, $2, true)
-                        "#,
-                        &[&id, satker_id],
-                    )
-                    .await
-                    .map_err(|e| bad_request(&e.to_string()))?;
+        // Resolve & insert selected satkers.
+        // - "wilayah" (#19): auto-resolve dari integrasi.mysimkari_satker.wilayah.
+        // - "sebagian": pakai satker_ids dari operator.
+        // - "all"/"semua": kosong (artinya seluruh satker).
+        let resolved_satker_ids: Vec<Uuid> = if request.pilihan_satker == "wilayah" {
+            match request
+                .wilayah_id
+                .as_deref()
+                .filter(|w| !w.trim().is_empty())
+            {
+                Some(wid) => self.list_satker_ids_by_wilayah(wid).await?,
+                None => Vec::new(),
             }
+        } else {
+            request.satker_ids.clone().unwrap_or_default()
+        };
+
+        for satker_id in &resolved_satker_ids {
+            client
+                .execute(
+                    r#"
+                    INSERT INTO pengajuan_pakaian_dinas_satker_terpilih
+                        (pengajuan_id, satker_id, is_show_in_form)
+                    VALUES ($1, $2, true)
+                    ON CONFLICT (pengajuan_id, satker_id) DO NOTHING
+                    "#,
+                    &[&id, satker_id],
+                )
+                .await
+                .map_err(|e| bad_request(&e.to_string()))?;
         }
 
         self.get_pengajuan_by_id(id).await
+    }
+
+    /// Resolve satker UUID untuk satu wilayah Kejaksaan Tinggi (#19), sumber
+    /// `integrasi.mysimkari_satker`. Sejalan dgn resolver Kebutuhan BMN namun
+    /// mengembalikan `id` (UUID) karena `satker_terpilih.satker_id` bertipe UUID.
+    pub async fn list_satker_ids_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<Uuid>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        let rows = client
+            .query(
+                "SELECT id FROM integrasi.mysimkari_satker WHERE wilayah = $1",
+                &[&wilayah],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(rows.iter().map(|r| r.get::<_, Uuid>("id")).collect())
     }
 
     pub async fn delete_pengajuan(&self, id: Uuid) -> AppResult<()> {
@@ -1115,20 +1153,31 @@ impl PakaianDinasRepository {
         "#
         .to_string();
 
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        let mut idx: usize = 2;
         if let Some(ref jk) = filter.jenis_kelamin {
-            query.push_str(&format!(" AND psp.jenis_kelamin = '{}'", jk));
+            query.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            params.push(Box::new(jk.clone()));
+            idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
-            query.push_str(&format!(" AND psp.eselon = '{}'", eselon));
+            query.push_str(&format!(" AND psp.eselon = ${}", idx));
+            params.push(Box::new(eselon.clone()));
+            idx += 1;
         }
         if let Some(ref jenis) = filter.jenis {
-            query.push_str(&format!(" AND psp.jenis = '{}'", jenis));
+            query.push_str(&format!(" AND psp.jenis = ${}", idx));
+            params.push(Box::new(jenis.clone()));
+            idx += 1;
         }
+        let _ = idx;
 
         query.push_str(" GROUP BY pp.spesifikasi_nama, pp.spesifikasi_ukuran_group, pu.ukuran ORDER BY pp.spesifikasi_nama, pu.ukuran");
 
+        let param_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let rows = client
-            .query(&query, &[&pengajuan_id])
+            .query(&query, &param_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
@@ -1149,19 +1198,29 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let offset = (page - 1) * per_page;
 
-        // Build dynamic filter
+        // Build dynamic filter with parameter binding
         let mut where_clause = "WHERE ps.pengajuan_id = $1 AND ps.aktivitas_id = 1008".to_string();
+        let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(pengajuan_id)];
+        let mut idx: usize = 2;
         if let Some(ref jk) = filter.jenis_kelamin {
-            where_clause.push_str(&format!(" AND psp.jenis_kelamin = '{}'", jk));
+            where_clause.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            params.push(Box::new(jk.clone()));
+            idx += 1;
         }
         if let Some(ref satker_id) = filter.satker_id {
-            where_clause.push_str(&format!(" AND ps.satker_id = '{}'", satker_id));
+            where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
+            params.push(Box::new(*satker_id));
+            idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
-            where_clause.push_str(&format!(" AND psp.eselon = '{}'", eselon));
+            where_clause.push_str(&format!(" AND psp.eselon = ${}", idx));
+            params.push(Box::new(eselon.clone()));
+            idx += 1;
         }
         if let Some(ref jenis) = filter.jenis {
-            where_clause.push_str(&format!(" AND psp.jenis = '{}'", jenis));
+            where_clause.push_str(&format!(" AND psp.jenis = ${}", idx));
+            params.push(Box::new(jenis.clone()));
+            idx += 1;
         }
 
         let count_query = format!(
@@ -1174,12 +1233,17 @@ impl PakaianDinasRepository {
             where_clause
         );
 
+        let count_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let count_row = client
-            .query_one(&count_query, &[&pengajuan_id])
+            .query_one(&count_query, &count_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
         let total: i64 = count_row.get("total");
 
+        // LIMIT/OFFSET placeholders take the next two indices after the filter params.
+        let limit_idx = idx;
+        let offset_idx = idx + 1;
         let data_query = format!(
             r#"
             SELECT
@@ -1197,16 +1261,17 @@ impl PakaianDinasRepository {
             GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat,
                      psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
             ORDER BY s.nama, psp.nama
-            LIMIT $2 OFFSET $3
+            LIMIT ${} OFFSET ${}
             "#,
-            where_clause
+            where_clause, limit_idx, offset_idx
         );
 
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
+        let data_refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
         let rows = client
-            .query(
-                &data_query,
-                &[&pengajuan_id, &(per_page as i64), &(offset as i64)],
-            )
+            .query(&data_query, &data_refs[..])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
@@ -1273,6 +1338,93 @@ impl PakaianDinasRepository {
         Ok(())
     }
 
+    /// Persist a per-satker workflow transition and record an activity row,
+    /// atomically (#40). Replaces the previous no-op validator action: the new
+    /// `aktivitas_id` lands on `pengajuan_pakaian_dinas_satker` and an audit-
+    /// friendly row is appended to `pengajuan_pakaian_dinas_satker_aktivitas`
+    /// so the per-satker timeline has real history.
+    pub async fn transition_satker_with_activity(
+        &self,
+        satker_id: Uuid,
+        new_aktivitas_id: i32,
+        komentar: Option<String>,
+        nip: Option<&str>,
+        nama: Option<&str>,
+        jabatan: Option<&str>,
+        role: Option<&str>,
+    ) -> AppResult<()> {
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        tx.execute(
+            "UPDATE pengajuan_pakaian_dinas_satker \
+             SET aktivitas_id = $1, updated_at = NOW() WHERE id = $2",
+            &[&new_aktivitas_id, &satker_id],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        let activity_id = Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO pengajuan_pakaian_dinas_satker_aktivitas \
+             (id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, jabatan, role, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+            &[
+                &activity_id,
+                &satker_id,
+                &new_aktivitas_id,
+                &komentar,
+                &nip,
+                &nama,
+                &jabatan,
+                &role,
+            ],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
+        Ok(())
+    }
+
+    /// Per-satker activity history, oldest first — backs the workflow timeline
+    /// in the FE satker detail view (#40).
+    pub async fn list_satker_aktivitas(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let rows = client
+            .query(
+                "SELECT id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, \
+                        pangkat, jabatan, role, created_at \
+                 FROM pengajuan_pakaian_dinas_satker_aktivitas \
+                 WHERE pengajuan_satker_id = $1 \
+                 ORDER BY created_at ASC",
+                &[&satker_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        Ok(rows
+            .iter()
+            .map(PengajuanSatkerAktivitas::from_row)
+            .collect())
+    }
+
     /// Update pengajuan document metadata
     pub async fn update_pengajuan_document(
         &self,
@@ -1310,12 +1462,67 @@ mod tests {
     #[allow(unused_imports)]
     use super::*;
 
-    // Note: These tests require a database connection
-    // Run with: cargo test --features test-db
+    // Note: Most tests require a database connection
+    // Run integration tests with: cargo test --features test-db
 
     #[test]
     fn test_repository_new() {
         // This is a placeholder for integration tests
         // Actual tests would require a database connection
+    }
+
+    /// Regression guard for Fase 0.1 — verifies the laporan filter builder uses
+    /// parameter placeholders ($N) instead of string-concat of user values, so
+    /// payloads like `' OR 1=1 --` cannot escape the SQL string.
+    ///
+    /// This mirrors the construction logic inside `get_laporan_rekap_ukuran`
+    /// and `get_laporan_daftar_pegawai`. If this drifts from the production
+    /// code, update both together.
+    #[test]
+    fn filter_uses_parameter_binding_not_concat() {
+        let malicious = "' OR 1=1 --";
+        let filter = LaporanFilter {
+            pengajuan_id: None,
+            tahun: None,
+            satker_id: None,
+            jenis_kelamin: Some(malicious.to_string()),
+            eselon: Some(malicious.to_string()),
+            jenis: Some(malicious.to_string()),
+        };
+
+        let mut query = String::from("WHERE ps.pengajuan_id = $1");
+        let mut idx: usize = 2;
+        let mut placeholder_count = 0;
+        if let Some(ref jk) = filter.jenis_kelamin {
+            assert!(!jk.is_empty());
+            query.push_str(&format!(" AND psp.jenis_kelamin = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+        if let Some(ref eselon) = filter.eselon {
+            assert!(!eselon.is_empty());
+            query.push_str(&format!(" AND psp.eselon = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+        if let Some(ref jenis) = filter.jenis {
+            assert!(!jenis.is_empty());
+            query.push_str(&format!(" AND psp.jenis = ${}", idx));
+            placeholder_count += 1;
+            idx += 1;
+        }
+
+        // The malicious string MUST NOT appear in the generated SQL — it should
+        // travel as a bound parameter instead.
+        assert!(
+            !query.contains(malicious),
+            "filter value leaked into SQL string: {query}"
+        );
+        assert!(!query.contains("' OR 1=1"));
+        assert_eq!(placeholder_count, 3);
+        assert_eq!(idx, 5);
+        assert!(query.contains("$2"));
+        assert!(query.contains("$3"));
+        assert!(query.contains("$4"));
     }
 }

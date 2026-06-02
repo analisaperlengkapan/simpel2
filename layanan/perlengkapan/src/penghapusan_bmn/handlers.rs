@@ -24,13 +24,36 @@ use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Multipart, Path, Query, State},
     http::StatusCode,
 };
+use lib_perlengkapan::contracts::DocumentStorage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
 use validator::Validate;
+
+/// Sanitize a user-supplied filename so it cannot escape its storage key
+/// segment. Strips path separators & control chars, collapses spaces.
+fn sanitize_filename(input: &str) -> String {
+    let cleaned: String = input
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let cleaned = cleaned.trim_matches('_').to_string();
+    if cleaned.is_empty() {
+        "file".to_string()
+    } else {
+        cleaned
+    }
+}
 
 /// Pagination query parameters
 #[derive(Debug, Deserialize, Validate)]
@@ -116,6 +139,21 @@ pub async fn get_penghapusan_bmn(
     )))
 }
 
+/// Verifikasi aset usulan ke SIMAN (Fase 2.3). Read-only — dipakai validator
+/// (Wilayah/Pusat) saat menelaah usulan sebelum menerbitkan SK.
+pub async fn verify_penghapusan_asset_siman(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<SimanAssetVerification>>, AppError> {
+    let verification = service.verify_asset_siman(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        verification,
+        "Verifikasi aset SIMAN selesai".to_string(),
+    )))
+}
+
 /// Get penghapusan BMN detail with allowed transitions
 pub async fn get_penghapusan_bmn_detail(
     State(service): State<Arc<PenghapusanBmnService>>,
@@ -189,8 +227,11 @@ pub async fn update_penghapusan_bmn(
 pub async fn delete_penghapusan_bmn(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<(StatusCode, Json<ApiResponse<()>>), AppError> {
+    // RBAC (Fase 0.3): hanya operator_satker atau admin yg boleh delete
+    // usulan (Draft saja per logika service); admin sbg escape hatch.
+    claims.require_any_role(&["operator_satker"])?;
     service.delete(id).await?;
 
     Ok((
@@ -219,6 +260,7 @@ pub async fn submit_to_wilayah(
     claims: Claims,
     Json(body): Json<SubmitWilayahBody>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("operator_satker")?;
     let penghapusan = service
         .submit_to_wilayah(id, claims.user_id, body.catatan)
         .await?;
@@ -236,6 +278,7 @@ pub async fn forward_to_pusat(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     if body.aksi != "forward" {
         return Err(AppError::BadRequest("Action harus 'forward'".to_string()));
     }
@@ -257,6 +300,7 @@ pub async fn return_to_operator(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     if body.aksi != "return" {
         return Err(AppError::BadRequest("Action harus 'return'".to_string()));
     }
@@ -284,6 +328,7 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service
@@ -321,6 +366,13 @@ pub async fn generate_konsep_sk(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    // RBAC: SK generation = otoritas hukum. Validator Wilayah utk
+    // kewenangan WILAYAH (mewakili Kepala Kejati), Validator Pusat utk
+    // kewenangan PUSAT (mewakili Jaksa Agung Muda Pembinaan). Field
+    // kewenangan_penetap_sk seharusnya divalidasi di service layer
+    // (lihat plan §6.3); di sini cukup pastikan caller adalah salah
+    // satu dari kedua role.
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service.generate_konsep_sk(id, claims.user_id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -388,6 +440,7 @@ pub async fn upload_signed_sk(
     claims: Claims,
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service
         .upload_signed_sk(id, claims.user_id, body.signed_sk_pdf_url)
         .await?;
@@ -395,6 +448,198 @@ pub async fn upload_signed_sk(
     Ok(Json(ApiResponse::success(
         penghapusan,
         "Usulan SK Penghapusan BMN yang ditandatangani berhasil diupload. Proses selesai."
+            .to_string(),
+    )))
+}
+
+/// Upload Surat Usulan (1 file) dan/atau Lampiran pendukung (multi-file)
+/// untuk Usulan SK Penghapusan BMN. Multipart fields:
+/// - `surat_usulan` (opsional, 1x): file Surat Usulan
+/// - `lampiran` (opsional, 0..N): file lampiran pendukung
+///
+/// Minimal satu dari kedua field wajib ada. URL hasil upload disimpan di
+/// `surat_usulan_file_url` (entity) dan rows di `penghapusan_bmn_lampiran`.
+pub async fn upload_lampiran(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    State(storage): State<Arc<dyn DocumentStorage>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    mut multipart: Multipart,
+) -> Result<Json<ApiResponse<UploadLampiranResponse>>, AppError> {
+    // Verifikasi entity ada — biarkan repository pertanggungjawab; lookup
+    // di sini juga memastikan FK constraint nantinya tidak gagal di insert.
+    let _existing = service.get_by_id(id).await?;
+
+    // Presigned URL TTL: 1 tahun. FilesystemStorage abaikan TTL & emit
+    // static URL; S3 adapter akan rotate sendiri.
+    let url_ttl = Duration::from_secs(60 * 60 * 24 * 365);
+
+    let mut surat_usulan_url: Option<String> = None;
+    let mut lampirans: Vec<PenghapusanBmnLampiran> = Vec::new();
+
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("Multipart error: {}", e)))?
+    {
+        let field_name = field.name().unwrap_or("").to_string();
+        let original_name = field
+            .file_name()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "file".to_string());
+        let content_type = field.content_type().map(|s| s.to_string());
+        let bytes = field
+            .bytes()
+            .await
+            .map_err(|e| AppError::BadRequest(format!("Gagal membaca file: {}", e)))?;
+        let size = bytes.len() as i64;
+        let safe_name = sanitize_filename(&original_name);
+
+        match field_name.as_str() {
+            "surat_usulan" => {
+                let key = format!(
+                    "penghapusan-bmn/{}/surat-usulan/{}-{}",
+                    id,
+                    Uuid::new_v4(),
+                    safe_name
+                );
+                let handle = storage
+                    .put(
+                        &key,
+                        bytes,
+                        content_type
+                            .as_deref()
+                            .unwrap_or("application/octet-stream"),
+                    )
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
+                let url = storage
+                    .presigned_url(&handle.key, url_ttl)
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Presigned URL: {}", e)))?;
+                service.set_surat_usulan_url(id, &url).await?;
+                surat_usulan_url = Some(url);
+            }
+            "lampiran" => {
+                let key = format!(
+                    "penghapusan-bmn/{}/lampiran/{}-{}",
+                    id,
+                    Uuid::new_v4(),
+                    safe_name
+                );
+                let handle = storage
+                    .put(
+                        &key,
+                        bytes,
+                        content_type
+                            .as_deref()
+                            .unwrap_or("application/octet-stream"),
+                    )
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
+                let url = storage
+                    .presigned_url(&handle.key, url_ttl)
+                    .await
+                    .map_err(|e| AppError::Internal(format!("Presigned URL: {}", e)))?;
+                let lampiran = service
+                    .add_lampiran(
+                        id,
+                        &original_name,
+                        &url,
+                        content_type.as_deref(),
+                        Some(size),
+                        Some(claims.user_id),
+                    )
+                    .await?;
+                lampirans.push(lampiran);
+            }
+            other => {
+                // Unknown field — log silently and skip rather than fail
+                // the whole upload (forward-compat dgn front-end yg add
+                // metadata fields).
+                tracing::debug!("upload_lampiran: ignored unknown field '{}'", other);
+            }
+        }
+    }
+
+    if surat_usulan_url.is_none() && lampirans.is_empty() {
+        return Err(AppError::BadRequest(
+            "Tidak ada file di-upload. Sertakan field 'surat_usulan' atau 'lampiran'.".into(),
+        ));
+    }
+
+    Ok(Json(ApiResponse::success(
+        UploadLampiranResponse {
+            surat_usulan_file_url: surat_usulan_url,
+            lampiran: lampirans,
+        },
+        "File berhasil di-upload".to_string(),
+    )))
+}
+
+/// List lampiran pendukung utk satu penghapusan.
+pub async fn list_lampiran(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PenghapusanBmnLampiran>>>, AppError> {
+    let items = service.list_lampiran(id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Lampiran retrieved successfully".to_string(),
+    )))
+}
+
+// ─── V029 (Fase 1.9): SK Wilayah handlers ───────────────────────────────
+
+/// RBAC inline: validator_wilayah only (admin bypass). Diturunkan ke
+/// `Claims::require_role` setelah Fase 0.3 branch ter-merge.
+fn require_validator_wilayah(claims: &Claims) -> Result<(), AppError> {
+    let role_lower = claims.role.to_ascii_lowercase();
+    if matches!(
+        role_lower.as_str(),
+        "admin" | "admin_pusat" | "superadmin" | "validator_wilayah"
+    ) {
+        Ok(())
+    } else {
+        Err(AppError::Authorization(format!(
+            "Akses ditolak: role '{}' tidak diizinkan utk aksi SK Wilayah (perlu validator_wilayah)",
+            claims.role
+        )))
+    }
+}
+
+/// Validator Wilayah generate konsep SK (jalur kewenangan WILAYAH).
+/// Mewakili Kepala Kejaksaan Tinggi.
+pub async fn generate_konsep_sk_wilayah(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    require_validator_wilayah(&claims)?;
+    let penghapusan = service
+        .generate_konsep_sk_wilayah(id, claims.user_id)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "Konsep SK Wilayah berhasil digenerate (mewakili Kepala Kejaksaan Tinggi)".to_string(),
+    )))
+}
+
+/// Validator Wilayah upload signed SK PDF jalur WILAYAH.
+pub async fn upload_signed_sk_wilayah(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(body): Json<UploadSignedSKRequest>,
+) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    require_validator_wilayah(&claims)?;
+    let penghapusan = service
+        .upload_signed_sk_wilayah(id, claims.user_id, body.signed_sk_pdf_url)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "SK Wilayah yang ditandatangani Kepala Kejaksaan Tinggi berhasil diupload. Proses selesai."
             .to_string(),
     )))
 }
@@ -413,6 +658,9 @@ pub async fn transition_penghapusan_bmn(
     claims: Claims,
     Json(request): Json<TransitionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    // RBAC: legacy generic transition endpoint dipakai utk Reject di Pusat.
+    // Validator Wilayah & Pusat boleh trigger; operator tidak.
+    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     request.validate()?;
 
     let ip_address = "127.0.0.1".to_string();
@@ -451,4 +699,31 @@ pub async fn get_penghapusan_document(
         document_url,
         "Document URL retrieved successfully".to_string(),
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_filename;
+
+    #[test]
+    fn sanitize_filename_strips_path_separators() {
+        assert_eq!(sanitize_filename("../../etc/passwd"), ".._.._etc_passwd");
+        assert_eq!(sanitize_filename("foo bar.pdf"), "foo_bar.pdf");
+        assert_eq!(sanitize_filename("a/b/c.txt"), "a_b_c.txt");
+    }
+
+    #[test]
+    fn sanitize_filename_preserves_safe_chars() {
+        assert_eq!(
+            sanitize_filename("Surat_Usulan-001.pdf"),
+            "Surat_Usulan-001.pdf"
+        );
+        assert_eq!(sanitize_filename("file.DOCX"), "file.DOCX");
+    }
+
+    #[test]
+    fn sanitize_filename_handles_empty() {
+        assert_eq!(sanitize_filename(""), "file");
+        assert_eq!(sanitize_filename("///"), "file");
+    }
 }

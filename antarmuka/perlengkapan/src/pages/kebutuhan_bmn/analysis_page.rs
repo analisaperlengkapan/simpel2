@@ -296,7 +296,68 @@ fn AnalysisContent(
             <SectionCard title="Gap Analysis">
                 <GapAnalysisTable data=analysis.gap_analysis.clone() />
             </SectionCard>
+
+            <LaporanAnalisisSection satker_id=analysis.satker_detail.id />
         </div>
+    }
+}
+
+/// Section dengan tombol Preview (toggle iframe inline PDF) dan
+/// Download PDF untuk Laporan Hasil Analisis Kebutuhan BMN.
+/// URL endpoint backend: lihat handlers `preview_laporan_analisis` &
+/// `download_laporan_analisis`.
+#[component]
+fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
+    let (show_preview, set_show_preview) = signal(false);
+    let preview_url = format!(
+        "/api/v1/kebutuhan-bmn/satker/{}/laporan/preview?format=pdf",
+        satker_id
+    );
+    let download_url = format!(
+        "/api/v1/kebutuhan-bmn/satker/{}/laporan/download?format=pdf",
+        satker_id
+    );
+    let download_url_for_click = download_url.clone();
+    let preview_for_iframe = preview_url.clone();
+
+    view! {
+        <SectionCard title="Laporan Hasil Analisis Kebutuhan BMN">
+            <div class="flex flex-wrap items-center gap-3">
+                <button
+                    class="inline-flex items-center gap-2 rounded-lg border border-primary-500/30 bg-primary-500/10 px-4 py-2 text-sm font-medium text-primary-300 transition hover:bg-primary-500/20"
+                    on:click=move |_| set_show_preview.update(|v| *v = !*v)
+                >
+                    <span class="text-xs">
+                        <i class={move || if show_preview.get() { "fas fa-eye-slash" } else { "fas fa-eye" }}></i>
+                    </span>
+                    {move || if show_preview.get() { "Tutup Preview" } else { "Preview Laporan (PDF)" }}
+                </button>
+                <button
+                    class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2 text-sm font-medium text-success-300 transition hover:bg-success-500/20"
+                    on:click=move |_| {
+                        #[cfg(target_arch = "wasm32")]
+                        if let Some(win) = web_sys::window() {
+                            let _ = win.open_with_url_and_target(&download_url_for_click, "_blank");
+                        }
+                    }
+                >
+                    <span class="text-xs"><i class="fas fa-file-pdf"></i></span>
+                    "Download PDF"
+                </button>
+            </div>
+            <Show when=move || show_preview.get()>
+                <div class="mt-4 overflow-hidden rounded-lg border border-white/[0.06]">
+                    <iframe
+                        src=preview_for_iframe.clone()
+                        class="h-[70vh] w-full"
+                        title="Preview Laporan Hasil Analisis Kebutuhan BMN"
+                    />
+                </div>
+            </Show>
+            <p class="mt-3 text-xs text-slate-500">
+                "Laporan komprehensif: identitas satker, usulan vs eksisting SIMAN, ringkasan kelayakan, status integrasi, rekap pegawai (jika tersedia). DOCX export tersedia setelah template final disetujui Biro Hukum."
+            </p>
+        </SectionCard>
     }
 }
 

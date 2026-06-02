@@ -126,6 +126,24 @@ impl KebutuhanBmnStatus {
         }
     }
 
+    /// V029 (#24): apakah satker sudah MELEWATI tahap submit operator —
+    /// yaitu operator tidak lagi mengedit barang. Pada state ini analisis
+    /// kelayakan dibaca dari snapshot beku (bukan SIMAN live) agar Validator
+    /// Wilayah & Pusat melihat data konsisten dgn operator. State editing
+    /// (Draft/InputBarang/RevisiSatker) tetap memakai analisis live.
+    pub fn is_post_operator_submit(&self) -> bool {
+        matches!(
+            self,
+            Self::SubmitWilayah
+                | Self::SubmitPusat
+                | Self::AnalisisKelayakan
+                | Self::RevisiWilayah
+                | Self::Approved
+                | Self::Rejected
+                | Self::Completed
+        )
+    }
+
     /// Convert status to workflow engine state name
     pub fn to_state_name(&self) -> &'static str {
         match self {
@@ -176,12 +194,17 @@ pub enum PilihanSatker {
     #[default]
     Semua,
     Sebagian,
+    /// Cakupan satu wilayah Kejaksaan Tinggi — sistem otomatis resolve
+    /// semua satker dlm wilayah tsb dari `integrasi.mysimkari_satker`
+    /// (V029, Fase 1.7).
+    Wilayah,
 }
 
 impl PilihanSatker {
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "sebagian" => Self::Sebagian,
+            "wilayah" => Self::Wilayah,
             _ => Self::Semua,
         }
     }
@@ -190,6 +213,7 @@ impl PilihanSatker {
         match self {
             Self::Semua => "semua",
             Self::Sebagian => "sebagian",
+            Self::Wilayah => "wilayah",
         }
     }
 }
@@ -207,7 +231,15 @@ pub struct PengajuanKebutuhanBmn {
     pub tahun: i32,
     pub tgl_mulai: NaiveDate,
     pub tgl_selesai: NaiveDate,
+    /// Legacy field (V029 deprecates). Aplikasi baru harus baca `scope_satker`;
+    /// kolom legacy dipertahankan utk backward compat consumer lama.
     pub pilihan_satker: PilihanSatker,
+    /// Cakupan satker per V029 (Fase 1.7): semua | sebagian | wilayah.
+    pub scope_satker: PilihanSatker,
+    /// Nama wilayah Kejaksaan Tinggi (text label, match
+    /// `integrasi.mysimkari_satker.wilayah`). WAJIB jika scope=wilayah;
+    /// `None` untuk scope lain.
+    pub wilayah_id: Option<String>,
     pub id_jenis_asset: Value,
     pub is_appv_daskrimti: bool,
     pub status_kode: i32,
@@ -238,6 +270,12 @@ impl PengajuanKebutuhanBmn {
             pilihan_satker: PilihanSatker::from_str(
                 row.get::<_, String>("pilihan_satker").as_str(),
             ),
+            scope_satker: row
+                .try_get::<_, String>("scope_satker")
+                .ok()
+                .map(|s| PilihanSatker::from_str(&s))
+                .unwrap_or_default(),
+            wilayah_id: row.try_get("wilayah_id").ok().flatten(),
             id_jenis_asset: row.get("id_jenis_asset"),
             is_appv_daskrimti: row.get("is_appv_daskrimti"),
             status_kode,
@@ -537,11 +575,56 @@ pub struct CreatePengajuanRequest {
     #[serde(default)]
     pub pilihan_satker: Option<String>,
 
+    /// Nama wilayah Kejaksaan Tinggi (match `integrasi.mysimkari_satker.wilayah`).
+    /// WAJIB jika `pilihan_satker = "wilayah"`. Server akan resolve semua
+    /// satker di wilayah tsb otomatis (V029, Fase 1.7).
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
+
     #[serde(default)]
     pub satker_ids: Vec<String>,
 
     #[serde(default)]
     pub asset_types: Vec<CreateAssetTypeRequest>,
+
+    /// V029 (Fase 1.6): Allowed-list BMN. Validator Pusat tetapkan saat
+    /// create periode; Operator Satker hanya boleh input barang dari
+    /// daftar ini. Jika kosong → tidak ada whitelist (legacy behaviour,
+    /// operator bebas — dipertahankan utk backward compat data lama).
+    #[serde(default)]
+    pub bmn_referensi_diizinkan: Vec<CreateBmnReferensiRequest>,
+}
+
+/// V029 (Fase 1.6): Satu entry allowed BMN (request DTO).
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateBmnReferensiRequest {
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub keterangan: Option<String>,
+}
+
+/// V029 (Fase 1.6): Satu entry allowed BMN (entity).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PengajuanBmnReferensi {
+    pub id: Uuid,
+    pub pengajuan_id: Uuid,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub keterangan: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+impl PengajuanBmnReferensi {
+    pub fn from_row(row: &Row) -> Self {
+        Self {
+            id: row.get("id"),
+            pengajuan_id: row.get("pengajuan_id"),
+            kode_barang: row.get("kode_barang"),
+            nama_barang: row.get("nama_barang"),
+            keterangan: row.try_get("keterangan").ok().flatten(),
+            created_at: row.get("created_at"),
+        }
+    }
 }
 
 /// Request to create asset type for a request
@@ -563,6 +646,7 @@ pub struct UpdatePengajuanRequest {
     pub tgl_mulai: Option<NaiveDate>,
     pub tgl_selesai: Option<NaiveDate>,
     pub pilihan_satker: Option<String>,
+    pub wilayah_id: Option<String>,
 
     /// For optimistic locking
     pub version: i32,
@@ -730,6 +814,13 @@ pub struct AnalisisKelayakanResponse {
     pub data_pegawai: Option<DataPegawaiRekap>,
     pub integrasi_sync: Option<IntegrasiSyncMetadata>,
     pub summary: AnalisisSummary,
+    /// V029 (#24): `true` jika `barang_list`/`summary` berasal dari snapshot
+    /// beku saat Operator Satker submit (bukan fetch SIMAN live). Memberi
+    /// tahu Validator Wilayah & Pusat bahwa data yg mereka lihat PERSIS sama
+    /// dgn yg dilihat operator — transparansi & konsistensi dari hulu.
+    pub is_snapshot: bool,
+    /// Timestamp RFC3339 saat snapshot dibekukan (`None` jika data live).
+    pub snapshot_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -771,6 +862,53 @@ pub struct AnalisisSummary {
     pub total_existing: i64,
     pub total_gap: i64,
     pub kelayakan_persen: f64,
+}
+
+// ============================================================================
+// V029 (Fase 1.6+ / #24) — Snapshot beku analisis kelayakan saat submit
+// ============================================================================
+//
+// Disimpan di kolom JSONB `pengajuan_kebutuhan_bmn_satker.analisis_snapshot_at_submit`
+// (ditambahkan V034). Saat Operator Satker submit ke wilayah, hasil analisis
+// (usulan ↔ eksisting SIMAN + kondisi + gap) dibekukan. Validator Wilayah &
+// Pusat membaca snapshot ini alih-alih fetch SIMAN ulang dari nol, sehingga
+// semua aktor melihat angka yg sama (SIMAN bisa berubah antar-waktu).
+//
+// Struct ini sengaja self-contained (Serialize+Deserialize) dan tidak
+// mem-`flatten` record barang penuh, agar payload snapshot stabil terhadap
+// perubahan skema `PengajuanKebutuhanBmnBarang`.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshot {
+    /// RFC3339 — kapan snapshot dibekukan (saat submit ke wilayah).
+    pub snapshot_at: String,
+    pub summary: AnalisisSnapshotSummary,
+    pub barang: Vec<AnalisisSnapshotBarang>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotSummary {
+    pub total_diminta: i64,
+    pub total_existing: i64,
+    pub total_gap: i64,
+    pub kelayakan_persen: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotBarang {
+    pub barang_id: Uuid,
+    pub existing_count: i32,
+    pub gap: i32,
+    pub recommendation: String,
+    pub existing_assets: Vec<AnalisisSnapshotAsset>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotAsset {
+    pub no_aset: String,
+    pub nama_aset: String,
+    pub kondisi: String,
+    pub lokasi: Option<String>,
 }
 
 // ============================================================================
@@ -935,8 +1073,13 @@ mod tests {
     fn test_pilihan_satker() {
         assert_eq!(PilihanSatker::from_str("semua"), PilihanSatker::Semua);
         assert_eq!(PilihanSatker::from_str("sebagian"), PilihanSatker::Sebagian);
+        // V029 (Fase 1.7): scope baru "wilayah".
+        assert_eq!(PilihanSatker::from_str("wilayah"), PilihanSatker::Wilayah);
+        assert_eq!(PilihanSatker::from_str("WILAYAH"), PilihanSatker::Wilayah);
+        // Default fallback masih Semua.
         assert_eq!(PilihanSatker::from_str("unknown"), PilihanSatker::Semua);
         assert_eq!(PilihanSatker::Sebagian.as_str(), "sebagian");
+        assert_eq!(PilihanSatker::Wilayah.as_str(), "wilayah");
     }
 
     #[test]

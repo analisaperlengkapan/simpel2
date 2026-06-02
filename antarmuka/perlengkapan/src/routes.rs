@@ -72,6 +72,13 @@ pub mod url {
         format!("/perlengkapan/simpel/v2/kebutuhan-bmn/satker/{}", satker_id)
     }
 
+    pub fn pakaian_satker_list(pengajuan_id: &str) -> String {
+        format!(
+            "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan/{}/satker",
+            pengajuan_id
+        )
+    }
+
     pub fn bank_aset_detail(id: &str) -> String {
         format!("/perlengkapan/simpel/v2/bank-aset/daftar/{}", id)
     }

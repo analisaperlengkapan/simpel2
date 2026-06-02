@@ -5,14 +5,15 @@
 use crate::api::{
     AnalisisKelayakanResponse, CreateKebutuhanBmnBarangRequest, KebutuhanBmnStatus,
     KebutuhanValidatorWilayahActionRequest, PengajuanKebutuhanBmnAktivitas,
-    PengajuanKebutuhanBmnBarang, SatkerWithBarangResponse, SubmitKebutuhanSatkerRequest,
-    ValidatorPusatKeputusanRequest, WorkflowTransitionRequest, create_kebutuhan_bmn_barang,
-    delete_kebutuhan_bmn_barang, fetch_satker_aktivitas, fetch_satker_analisis,
-    fetch_satker_with_barang, kebutuhan_validator_pusat_keputusan,
+    PengajuanKebutuhanBmnBarang, PengajuanKebutuhanBmnSatker, SatkerWithBarangResponse,
+    SubmitKebutuhanSatkerRequest, ValidatorPusatKeputusanRequest, WorkflowTransitionRequest,
+    create_kebutuhan_bmn_barang, delete_kebutuhan_bmn_barang, fetch_satker_aktivitas,
+    fetch_satker_analisis, fetch_satker_with_barang, kebutuhan_validator_pusat_keputusan,
     kebutuhan_validator_wilayah_action, submit_kebutuhan_satker_to_wilayah,
     transition_satker_status,
 };
 use crate::components::layout::{ErrorState, FormField, LoadingState, PageLayout, SectionCard};
+use crate::components::workflow_ui::{StepStatus, WorkflowStep, WorkflowTimeline};
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -55,6 +56,53 @@ fn sync_state_is_risky(state: &str, error_message: Option<&str>) -> bool {
 
 fn is_override_reason_valid(reason: &str) -> bool {
     reason.trim().len() >= 20
+}
+
+/// Rakit timeline tahapan workflow per-satker (Fase 2.5 rollout / #34) —
+/// berbasis timestamp riil sehingga aman terhadap revisi/percabangan.
+fn build_satker_timeline(s: &PengajuanKebutuhanBmnSatker) -> Vec<WorkflowStep> {
+    let mut steps: Vec<WorkflowStep> = Vec::new();
+    steps.push(
+        WorkflowStep::new("Pengajuan Dibuat", StepStatus::Done)
+            .with_timestamp(s.created_at.clone())
+            .with_note(s.catatan_satker.clone()),
+    );
+    if let Some(ts) = &s.tanggal_submit_wilayah {
+        steps.push(
+            WorkflowStep::new("Diajukan ke Validator Wilayah", StepStatus::Done)
+                .with_timestamp(ts.clone()),
+        );
+    }
+    if let Some(ts) = &s.tanggal_submit_pusat {
+        steps.push(
+            WorkflowStep::new("Diteruskan ke Validator Pusat", StepStatus::Done)
+                .with_timestamp(ts.clone())
+                .with_note(s.catatan_validator_wilayah.clone()),
+        );
+    }
+    match s.is_approved {
+        Some(true) => steps.push(
+            WorkflowStep::new("Disetujui", StepStatus::Done).with_note(
+                s.catatan_validator_pusat
+                    .clone()
+                    .or_else(|| s.alasan_keputusan.clone()),
+            ),
+        ),
+        Some(false) => steps.push(
+            WorkflowStep::new("Ditolak", StepStatus::Rejected).with_note(
+                s.alasan_keputusan
+                    .clone()
+                    .or_else(|| s.catatan_validator_pusat.clone()),
+            ),
+        ),
+        None => {
+            let label = KebutuhanBmnStatus::from_code(s.status_kode)
+                .map(|st| st.label().to_string())
+                .unwrap_or_else(|| "Dalam Proses".to_string());
+            steps.push(WorkflowStep::new(label, StepStatus::Current));
+        }
+    }
+    steps
 }
 
 /// Kondisi badge for SIMAN assets.
@@ -449,6 +497,11 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                             </div>
                         </div>
 
+                        // Riwayat Proses (Fase 2.5 rollout — WorkflowTimeline reusable, tema gelap)
+                        <SectionCard title="Riwayat Proses">
+                            <WorkflowTimeline steps=build_satker_timeline(&satker) dark=true />
+                        </SectionCard>
+
                         // ── Workflow Action Panels ──
 
                         // Operator: Submit to Wilayah (Draft=2000 or RevisiSatker=2001)
@@ -711,9 +764,30 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                     analisis.get().map(|a| {
                                         let sync_data = a.integrasi_sync.clone();
                                         let barang_items = StoredValue::new(a.barang_list.clone());
+                                        let is_snapshot = a.is_snapshot;
+                                        let snapshot_at = a.snapshot_at.clone();
 
                                         view! {
                                             <div class="space-y-5">
+                                                // #24: indikator data konsisten (snapshot saat submit)
+                                                {is_snapshot.then(|| {
+                                                    let waktu = snapshot_at
+                                                        .as_deref()
+                                                        .map(|t| t.split('T').next().unwrap_or(t).to_string())
+                                                        .unwrap_or_default();
+                                                    view! {
+                                                        <div class="flex items-start gap-2 rounded-xl border border-info-500/30 bg-info-500/10 p-3 text-xs text-info-200">
+                                                            <span class="font-semibold">"Snapshot saat submit"</span>
+                                                            <span class="text-info-300/80">
+                                                                {format!(
+                                                                    "Data analisis dibekukan saat Operator Satker submit{} — sama persis dgn yg dilihat operator (bukan fetch SIMAN ulang).",
+                                                                    if waktu.is_empty() { String::new() } else { format!(" ({waktu})") }
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                })}
+
                                                 // Summary stats
                                                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                     <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">

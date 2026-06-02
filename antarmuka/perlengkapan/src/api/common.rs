@@ -352,7 +352,13 @@ pub struct PenghapusanBmnWorkflow {
     pub tanggal_penghapusan: String,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    /// Nilai perolehan aset (harga pembelian). Sebelumnya field bernama
+    /// `nilai_residu` — direname di V029 karena salah semantik.
+    pub nilai_perolehan: Option<f64>,
+    /// TRUE jika nilai_perolehan di-backfill dari kolom legacy nilai_residu;
+    /// UI dapat menampilkan banner "perlu diverifikasi" untuk data lama.
+    #[serde(default)]
+    pub nilai_perolehan_dari_backfill: bool,
     pub status: String,
     pub status_kode: i32,
     // Lampiran
@@ -395,9 +401,14 @@ pub struct CreatePenghapusanBmnWorkflowRequest {
     pub tanggal_penghapusan: String,
     pub alasan: String,
     pub metode_penghapusan: String,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: String,
     pub catatan_operator: Option<String>,
+    /// V036 (Fase 2.8): item BMN tambahan. Item pertama tetap dikirim via
+    /// kolom tunggal di atas (backward compat); `items` memuat seluruh item
+    /// (termasuk yg pertama) bila usulan multi-item.
+    #[serde(default)]
+    pub items: Vec<CreatePenghapusanBmnItemRequest>,
 }
 
 /// Update SK Penghapusan BMN request
@@ -406,7 +417,7 @@ pub struct UpdatePenghapusanBmnWorkflowRequest {
     pub tanggal_penghapusan: Option<String>,
     pub alasan: Option<String>,
     pub metode_penghapusan: Option<String>,
-    pub nilai_residu: Option<f64>,
+    pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: Option<String>,
     pub catatan_operator: Option<String>,
 }
@@ -450,6 +461,34 @@ pub struct PenghapusanWorkflowTransitionRequest {
     pub catatan: Option<String>,
 }
 
+/// Satu item BMN dalam usulan multi-item (Fase 2.8).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnItem {
+    pub id: String,
+    pub penghapusan_id: String,
+    pub asset_id: Option<String>,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    #[serde(default)]
+    pub nilai_perolehan_dari_backfill: bool,
+    pub kondisi: Option<String>,
+    #[serde(default)]
+    pub urutan: i32,
+}
+
+/// Item input untuk create multi-item (Fase 2.8).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct CreatePenghapusanBmnItemRequest {
+    pub asset_id: Option<String>,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    pub kondisi: Option<String>,
+}
+
 /// Penghapusan BMN detail response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanBmnDetailResponse {
@@ -458,6 +497,43 @@ pub struct PenghapusanBmnDetailResponse {
     pub allowed_transitions: Vec<PenghapusanTransitionInfo>,
     pub can_generate_sk: bool,
     pub can_upload_signed_sk: bool,
+    /// V036 (Fase 2.8): daftar item BMN dalam usulan.
+    #[serde(default)]
+    pub items: Vec<PenghapusanBmnItem>,
+}
+
+/// Satu baris lampiran pendukung Usulan SK Penghapusan BMN (Fase 0.6 / #15).
+/// Mirror dari backend `PenghapusanBmnLampiran` — hanya metadata; file fisik
+/// di `DocumentStorage`, diakses via `file_url`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnLampiran {
+    pub id: String,
+    pub penghapusan_id: String,
+    pub nama: String,
+    pub file_url: String,
+    #[serde(default)]
+    pub content_type: Option<String>,
+    #[serde(default)]
+    pub size_bytes: Option<i64>,
+    #[serde(default)]
+    pub uploaded_by: Option<String>,
+    pub uploaded_at: String,
+}
+
+/// Hasil verifikasi aset ke SIMAN (Fase 2.3) — ditampilkan ke validator.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimanAssetVerification {
+    pub nup: String,
+    pub ditemukan: bool,
+    pub kode_barang_diajukan: String,
+    pub kode_barang_siman: Option<String>,
+    pub kode_barang_cocok: bool,
+    pub nama_barang_siman: Option<String>,
+    pub merk: Option<String>,
+    pub kondisi: Option<String>,
+    pub nilai_perolehan_siman: Option<f64>,
+    pub pesan: String,
+    pub layak_lanjut: bool,
 }
 
 /// Transition info for penghapusan BMN

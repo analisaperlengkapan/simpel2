@@ -1,6 +1,11 @@
 use anyhow::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tonic::transport::Channel;
+
+use crate::shared::resilience::{
+    CircuitBreaker, CircuitBreakerConfig, CircuitState, ResiliencePolicy, guarded,
+};
 
 pub mod secreton {
     pub mod v1 {
@@ -123,18 +128,56 @@ impl AuthencClient {
     }
 }
 
+/// Circuit breaker per sumber data eksternal — gagal independen, sehingga
+/// down-nya MySIMKARI tidak ikut membuka sirkuit SIMAN/MonSAKTI.
+#[derive(Debug)]
+struct IntegrasiBreakers {
+    mysimkari: CircuitBreaker,
+    siman: CircuitBreaker,
+    monsakti: CircuitBreaker,
+}
+
+impl IntegrasiBreakers {
+    fn new() -> Self {
+        let cfg = CircuitBreakerConfig::default();
+        Self {
+            mysimkari: CircuitBreaker::new("mysimkari", cfg.clone()),
+            siman: CircuitBreaker::new("siman", cfg.clone()),
+            monsakti: CircuitBreaker::new("monsakti", cfg),
+        }
+    }
+}
+
 /// gRPC Client for layanan-integrasi
-/// Provides access to MonSAKTI, MySIMKARI, and SIMAN data
+/// Provides access to MonSAKTI, MySIMKARI, and SIMAN data.
+///
+/// Setiap panggilan data dibungkus circuit breaker + retry + timeout
+/// (Fase 2.2) agar downtime sumber eksternal tidak menggantungkan request.
 #[derive(Clone)]
 pub struct IntegrasiClient {
     client: IntegrasiServiceClient<Channel>,
+    breakers: Arc<IntegrasiBreakers>,
+    policy: ResiliencePolicy,
 }
 
 impl IntegrasiClient {
     /// Connect to the integrasi gRPC service
     pub async fn connect(addr: String) -> Result<Self> {
         let client = IntegrasiServiceClient::connect(addr).await?;
-        Ok(Self { client })
+        Ok(Self {
+            client,
+            breakers: Arc::new(IntegrasiBreakers::new()),
+            policy: ResiliencePolicy::default(),
+        })
+    }
+
+    /// Snapshot status sirkuit per sumber (untuk health endpoint / banner UI).
+    pub fn circuit_states(&self) -> Vec<(&'static str, CircuitState)> {
+        vec![
+            ("mysimkari", self.breakers.mysimkari.state()),
+            ("siman", self.breakers.siman.state()),
+            ("monsakti", self.breakers.monsakti.state()),
+        ]
     }
 
     /// Health check
@@ -176,19 +219,27 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetMonsaktiPersediaanResponse> {
-        let mut client = self.client.clone();
-        let request = tonic::Request::new(GetMonsaktiPersediaanRequest {
-            kode_kl: kode_kl.to_string(),
-            kode_satker: kode_satker.to_string(),
-            pagination: Some(Pagination {
-                page,
-                per_page,
-                sort_by: String::new(),
-                ascending: true,
-            }),
-        });
-        let response = client.get_monsakti_persediaan(request).await?;
-        Ok(response.into_inner())
+        guarded(&self.breakers.monsakti, &self.policy, || {
+            let mut client = self.client.clone();
+            let request = GetMonsaktiPersediaanRequest {
+                kode_kl: kode_kl.to_string(),
+                kode_satker: kode_satker.to_string(),
+                pagination: Some(Pagination {
+                    page,
+                    per_page,
+                    sort_by: String::new(),
+                    ascending: true,
+                }),
+            };
+            async move {
+                client
+                    .get_monsakti_persediaan(tonic::Request::new(request))
+                    .await
+                    .map(|r| r.into_inner())
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     /// Get MySIMKARI satker (work units) data
@@ -198,18 +249,26 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetMysimkariSatkerResponse> {
-        let mut client = self.client.clone();
-        let request = tonic::Request::new(GetMysimkariSatkerRequest {
-            kode_satker: kode_satker.unwrap_or("").to_string(),
-            pagination: Some(Pagination {
-                page,
-                per_page,
-                sort_by: String::new(),
-                ascending: true,
-            }),
-        });
-        let response = client.get_mysimkari_satker(request).await?;
-        Ok(response.into_inner())
+        guarded(&self.breakers.mysimkari, &self.policy, || {
+            let mut client = self.client.clone();
+            let request = GetMysimkariSatkerRequest {
+                kode_satker: kode_satker.unwrap_or("").to_string(),
+                pagination: Some(Pagination {
+                    page,
+                    per_page,
+                    sort_by: String::new(),
+                    ascending: true,
+                }),
+            };
+            async move {
+                client
+                    .get_mysimkari_satker(tonic::Request::new(request))
+                    .await
+                    .map(|r| r.into_inner())
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     /// Get MySIMKARI pegawai (employees) data
@@ -219,20 +278,28 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetMysimkariPegawaiResponse> {
-        let mut client = self.client.clone();
-        let request = tonic::Request::new(GetMysimkariPegawaiRequest {
-            kode_satker: kode_satker.to_string(),
-            nama_filter: String::new(),
-            nip_filter: String::new(),
-            pagination: Some(Pagination {
-                page,
-                per_page,
-                sort_by: String::new(),
-                ascending: true,
-            }),
-        });
-        let response = client.get_mysimkari_pegawai(request).await?;
-        Ok(response.into_inner())
+        guarded(&self.breakers.mysimkari, &self.policy, || {
+            let mut client = self.client.clone();
+            let request = GetMysimkariPegawaiRequest {
+                kode_satker: kode_satker.to_string(),
+                nama_filter: String::new(),
+                nip_filter: String::new(),
+                pagination: Some(Pagination {
+                    page,
+                    per_page,
+                    sort_by: String::new(),
+                    ascending: true,
+                }),
+            };
+            async move {
+                client
+                    .get_mysimkari_pegawai(tonic::Request::new(request))
+                    .await
+                    .map(|r| r.into_inner())
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     /// Get SIMAN assets by category
@@ -243,19 +310,27 @@ impl IntegrasiClient {
         page: i32,
         per_page: i32,
     ) -> Result<integrasi::v1::GetSimanAssetsResponse> {
-        let mut client = self.client.clone();
-        let request = tonic::Request::new(GetSimanAssetsRequest {
-            category: category.into(),
-            kode_satker: kode_satker.unwrap_or("").to_string(),
-            pagination: Some(Pagination {
-                page,
-                per_page,
-                sort_by: String::new(),
-                ascending: true,
-            }),
-        });
-        let response = client.get_siman_assets(request).await?;
-        Ok(response.into_inner())
+        guarded(&self.breakers.siman, &self.policy, || {
+            let mut client = self.client.clone();
+            let request = GetSimanAssetsRequest {
+                category: category.into(),
+                kode_satker: kode_satker.unwrap_or("").to_string(),
+                pagination: Some(Pagination {
+                    page,
+                    per_page,
+                    sort_by: String::new(),
+                    ascending: true,
+                }),
+            };
+            async move {
+                client
+                    .get_siman_assets(tonic::Request::new(request))
+                    .await
+                    .map(|r| r.into_inner())
+            }
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))
     }
 
     /// Get SIMAN tanah (land) assets

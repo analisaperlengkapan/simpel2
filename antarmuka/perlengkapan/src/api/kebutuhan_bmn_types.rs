@@ -256,6 +256,14 @@ pub struct AnalisisKelayakanResponse {
     pub data_pegawai: Option<DataPegawaiRekap>,
     pub integrasi_sync: Option<IntegrasiSyncMetadata>,
     pub summary: AnalisisSummary,
+    /// #24: `true` jika data ini berasal dari snapshot beku saat operator
+    /// submit (Wilayah/Pusat melihat angka konsisten dgn operator, bukan
+    /// fetch SIMAN live yg bisa berubah).
+    #[serde(default)]
+    pub is_snapshot: bool,
+    /// Timestamp RFC3339 saat snapshot dibekukan (None jika live).
+    #[serde(default)]
+    pub snapshot_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -392,6 +392,10 @@ pub struct CreatePengajuanRequest {
     pub jenis_pakaian_dinas_id: Option<Uuid>,
     pub spesifikasi_ids: Vec<Uuid>,    // Selected specifications
     pub satker_ids: Option<Vec<Uuid>>, // Selected satkers (if pilihan_satker = "sebagian")
+    /// Wilayah Kejaksaan Tinggi (#19) — wajib jika `pilihan_satker = "wilayah"`.
+    /// Satker di-resolve otomatis dari `integrasi.mysimkari_satker.wilayah`.
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
 }
 
 /// Selected satkers for a pengajuan
@@ -809,6 +813,28 @@ pub struct MysimkariPegawai {
     pub nama_satker: Option<String>,
     pub gol_kd: Option<String>,
     pub satker_id: Option<Uuid>,
+}
+
+/// Info kesegaran sinkronisasi MySIMKARI (Fase 2.4) untuk banner wizard ukuran.
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiSyncInfo {
+    pub sumber: String,
+    /// Nama state sinkronisasi (SYNC_STATE_COMPLETED / FAILED / RUNNING / ...).
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    /// `true` jika sync terakhir COMPLETED dan ada timestamp.
+    pub segar: bool,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
+}
+
+/// Roster pegawai satker + info kesegaran sinkronisasi (Fase 2.4).
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiRosterWithSync {
+    pub pegawai: Vec<MysimkariPegawai>,
+    pub total: i64,
+    /// `None` bila integrasi tidak tersedia / probe gagal (tidak diketahui).
+    pub sync: Option<PegawaiSyncInfo>,
 }
 
 impl MysimkariPegawai {

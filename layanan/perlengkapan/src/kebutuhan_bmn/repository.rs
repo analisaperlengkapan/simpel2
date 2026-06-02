@@ -143,6 +143,14 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         catatan: Option<String>,
     ) -> AppResult<()>;
 
+    /// V029 (#24): bekukan snapshot analisis kelayakan (usulan ↔ eksisting
+    /// SIMAN) ke kolom JSONB `analisis_snapshot_at_submit` saat submit.
+    async fn save_analisis_snapshot(&self, satker_id: Uuid, snapshot: &Value) -> AppResult<()>;
+
+    /// V029 (#24): baca snapshot beku analisis kelayakan (None jika belum
+    /// pernah disubmit / kolom NULL).
+    async fn get_analisis_snapshot(&self, satker_id: Uuid) -> AppResult<Option<Value>>;
+
     // Validator Pusat info update
     async fn update_satker_validator_pusat(
         &self,
@@ -159,6 +167,40 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         laporan_url: &str,
         laporan_format: &str,
     ) -> AppResult<()>;
+
+    /// V029 (Fase 1.7): Resolve daftar `kode_satker` yg termasuk dalam
+    /// `wilayah` tertentu (Kejaksaan Tinggi). Sumber: tabel cache
+    /// `integrasi.mysimkari_satker`. Kosong jika tidak ada satker /
+    /// wilayah tidak dikenal.
+    async fn list_satker_codes_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<String>>;
+
+    /// V029 (Fase 1.7): Daftar wilayah distinct yg ada di
+    /// `integrasi.mysimkari_satker` — dipakai FE utk dropdown.
+    async fn list_wilayah(&self) -> AppResult<Vec<String>>;
+
+    // ========================================================================
+    // V029 (Fase 1.6): Allowed-list BMN
+    // ========================================================================
+
+    /// Insert satu entry allowed BMN utk pengajuan.
+    async fn insert_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+        request: CreateBmnReferensiRequest,
+    ) -> AppResult<PengajuanBmnReferensi>;
+
+    /// List semua allowed BMN utk pengajuan.
+    async fn list_bmn_referensi(&self, pengajuan_id: Uuid)
+    -> AppResult<Vec<PengajuanBmnReferensi>>;
+
+    /// Cek apakah kode_barang ada dlm allowed-list pengajuan.
+    /// Return `true` jika allowed-list kosong (legacy mode: no whitelist
+    /// enforcement) ATAU kode_barang ada di whitelist.
+    async fn is_bmn_allowed_for_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        kode_barang: &str,
+    ) -> AppResult<bool>;
 }
 
 /// User information for audit trail
@@ -211,7 +253,17 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
 
         let pilihan_satker = request
             .pilihan_satker
+            .clone()
             .unwrap_or_else(|| "semua".to_string());
+        // V029: scope_satker = canonical kolom baru; pilihan_satker
+        // (legacy) ikut diisi agar backward-compatible. Wilayah_id wajib
+        // jika scope=wilayah (CHECK constraint di DB juga menegakkan).
+        let scope_satker = pilihan_satker.clone();
+        if scope_satker == "wilayah" && request.wilayah_id.as_deref().unwrap_or("").is_empty() {
+            return Err(AppError::BadRequest(
+                "wilayah_id wajib diisi ketika pilihan_satker = 'wilayah'".into(),
+            ));
+        }
         let asset_ids: Value = json!(
             request
                 .asset_types
@@ -225,8 +277,8 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 r#"
                 INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn
                     (nama, deskripsi, tahun, tgl_mulai, tgl_selesai, pilihan_satker,
-                     id_jenis_asset, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
+                     scope_satker, wilayah_id, id_jenis_asset, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
                 RETURNING *
                 "#,
                 &[
@@ -236,6 +288,8 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                     &request.tgl_mulai,
                     &request.tgl_selesai,
                     &pilihan_satker,
+                    &scope_satker,
+                    &request.wilayah_id,
                     &asset_ids,
                     &user_id,
                 ],
@@ -263,9 +317,29 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 .await?;
         }
 
-        // Create satker entries if specified
-        for satker_id in &request.satker_ids {
+        // V029: scope=wilayah → auto-resolve satker dari
+        // integrasi.mysimkari_satker.wilayah. Fallback ke satker_ids
+        // eksplisit untuk scope lain.
+        let satker_codes: Vec<String> = if scope_satker == "wilayah" {
+            if let Some(ref wid) = request.wilayah_id {
+                self.list_satker_codes_by_wilayah(wid).await?
+            } else {
+                Vec::new()
+            }
+        } else {
+            request.satker_ids.clone()
+        };
+
+        for satker_id in &satker_codes {
             self.create_pengajuan_satker(pengajuan.id, satker_id, None, user_id)
+                .await?;
+        }
+
+        // V029 (Fase 1.6): Insert allowed-list BMN. Empty = no whitelist
+        // (legacy mode); operator dapat input bebas. Validator Pusat yang
+        // memilih.
+        for ref_req in &request.bmn_referensi_diizinkan {
+            self.insert_bmn_referensi(pengajuan.id, ref_req.clone())
                 .await?;
         }
 
@@ -414,8 +488,18 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             param_idx += 1;
         }
         if let Some(ref pilihan) = request.pilihan_satker {
+            // V029: tulis ke kedua kolom (legacy + canonical) selama
+            // backward compat masih dijaga.
             updates.push(format!("pilihan_satker = ${}", param_idx));
             params.push(Box::new(pilihan.clone()));
+            param_idx += 1;
+            updates.push(format!("scope_satker = ${}", param_idx));
+            params.push(Box::new(pilihan.clone()));
+            param_idx += 1;
+        }
+        if let Some(ref wid) = request.wilayah_id {
+            updates.push(format!("wilayah_id = ${}", param_idx));
+            params.push(Box::new(wid.clone()));
             param_idx += 1;
         }
 
@@ -1039,6 +1123,39 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         Ok(())
     }
 
+    async fn save_analisis_snapshot(&self, satker_id: Uuid, snapshot: &Value) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker
+                SET analisis_snapshot_at_submit = $1,
+                    updated_at = NOW()
+                WHERE id = $2
+                "#,
+                &[snapshot, &satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_analisis_snapshot(&self, satker_id: Uuid) -> AppResult<Option<Value>> {
+        let client = self.get_client().await?;
+
+        let row = client
+            .query_opt(
+                "SELECT analisis_snapshot_at_submit FROM perlengkapan.pengajuan_kebutuhan_bmn_satker WHERE id = $1",
+                &[&satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(row.and_then(|r| r.try_get::<_, Option<Value>>(0).ok().flatten()))
+    }
+
     async fn update_satker_validator_wilayah(
         &self,
         satker_id: Uuid,
@@ -1118,6 +1235,123 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
 
         Ok(())
+    }
+
+    async fn list_satker_codes_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<String>> {
+        let client = self.get_client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT kode_satker
+                FROM integrasi.mysimkari_satker
+                WHERE wilayah = $1
+                ORDER BY kode_satker
+                "#,
+                &[&wilayah],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<_, String>("kode_satker"))
+            .collect())
+    }
+
+    async fn list_wilayah(&self) -> AppResult<Vec<String>> {
+        let client = self.get_client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT DISTINCT wilayah
+                FROM integrasi.mysimkari_satker
+                WHERE wilayah IS NOT NULL AND wilayah <> ''
+                ORDER BY wilayah
+                "#,
+                &[],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(rows.iter().map(|r| r.get::<_, String>("wilayah")).collect())
+    }
+
+    async fn insert_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+        request: CreateBmnReferensiRequest,
+    ) -> AppResult<PengajuanBmnReferensi> {
+        let client = self.get_client().await?;
+        let row = client
+            .query_one(
+                r#"
+                INSERT INTO perlengkapan.pengajuan_bmn_referensi_diizinkan
+                    (pengajuan_id, kode_barang, nama_barang, keterangan)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (pengajuan_id, kode_barang) DO UPDATE
+                SET nama_barang = EXCLUDED.nama_barang,
+                    keterangan = EXCLUDED.keterangan
+                RETURNING id, pengajuan_id, kode_barang, nama_barang, keterangan, created_at
+                "#,
+                &[
+                    &pengajuan_id,
+                    &request.kode_barang,
+                    &request.nama_barang,
+                    &request.keterangan,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(PengajuanBmnReferensi::from_row(&row))
+    }
+
+    async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>> {
+        let client = self.get_client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT id, pengajuan_id, kode_barang, nama_barang, keterangan, created_at
+                FROM perlengkapan.pengajuan_bmn_referensi_diizinkan
+                WHERE pengajuan_id = $1
+                ORDER BY kode_barang
+                "#,
+                &[&pengajuan_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(rows.iter().map(PengajuanBmnReferensi::from_row).collect())
+    }
+
+    async fn is_bmn_allowed_for_pengajuan(
+        &self,
+        pengajuan_id: Uuid,
+        kode_barang: &str,
+    ) -> AppResult<bool> {
+        let client = self.get_client().await?;
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(*) FROM perlengkapan.pengajuan_bmn_referensi_diizinkan WHERE pengajuan_id = $1",
+                &[&pengajuan_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+            .get(0);
+        if total == 0 {
+            return Ok(true);
+        }
+        let row = client
+            .query_opt(
+                r#"
+                SELECT 1
+                FROM perlengkapan.pengajuan_bmn_referensi_diizinkan
+                WHERE pengajuan_id = $1 AND kode_barang = $2
+                "#,
+                &[&pengajuan_id, &kode_barang],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(row.is_some())
     }
 }
 

@@ -239,6 +239,35 @@ pub async fn serve_konsep_surat(
     Ok(resp)
 }
 
+/// GET /pemakaian-bmn/:id/sk-izin.pdf
+///
+/// Fase 1.10: SK Izin Pemakaian BMN format 2-halaman dgn struktur:
+/// - Hal 1: info pegawai (NIP, nama, pangkat, jabatan, satker, foto)
+/// - Hal 2: daftar BMN (kode, nama, NUP, merk, tipe, mulai, berakhir)
+///
+/// Berbeda dgn `/konsep-surat.pdf` yg generic — endpoint ini struktur
+/// spesifik sesuai spesifikasi stakeholder (plan §5.1). Stream PDF
+/// inline (Content-Disposition: inline) sehingga FE dapat
+/// menampilkannya di iframe / new tab.
+pub async fn serve_sk_izin_pdf(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let bytes = super::sk_izin_pdf::generate_sk_izin_pdf(&service, id).await?;
+    let filename = format!("SK-Izin-Pemakaian-BMN-{}.pdf", id);
+    let headers = [
+        (header::CONTENT_TYPE, "application/pdf"),
+        (
+            header::CONTENT_DISPOSITION,
+            &format!("inline; filename=\"{}\"", filename),
+        ),
+    ];
+    Ok((headers, bytes).into_response())
+}
+
 /// POST /pemakaian-bmn/:id/upload-signed-pdf
 /// Upload signed PDF izin pemakaian and mark as completed
 pub async fn upload_signed_pdf(
@@ -258,13 +287,26 @@ pub async fn upload_signed_pdf(
 }
 
 /// POST /pemakaian-bmn/:id/revoke
-/// Revoke a permit
+/// Revoke a permit. Hanya Approver Satker yg boleh; Admin secara eksplisit
+/// DIBLOKIR (stakeholder mandate) lewat `enforce_no_admin_revoke`.
 pub async fn revoke_permit(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
     claims: Claims,
     Json(request): Json<RevokePermitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{
+        PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy, enforce_no_admin_revoke,
+    };
+    // Admin tidak boleh — guard ini di-cek SEBELUM policy.authorize() agar
+    // admin bypass di policy.authorize() tidak overwrite stakeholder mandate.
+    enforce_no_admin_revoke(&claims)?;
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::Revoke,
+        Some(permit_now.status.as_str()),
+    )?;
     info!("Revoking permit {}", id);
 
     let permit = service
@@ -316,6 +358,65 @@ pub async fn check_bmn_availability(
     };
 
     Ok(Json(ApiResponse::success(response, message)))
+}
+
+// ─── Fase 1.11: cek-pegawai + cek-bmn ────────────────────────────────────
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CekPegawaiQuery {
+    pub satker_id: String,
+}
+
+/// GET /pemakaian-bmn/cek-pegawai/{nip}?satker_id=...
+///
+/// Fase 1.11: Validate pegawai berada di satker pemohon (lookup MySIMKARI
+/// cache), lalu return info pegawai + pemakaian aktif + histori.
+/// 422 dgn pesan "Pegawai tidak ditemukan / tidak berada di satker
+/// bersangkutan" jika mismatch.
+pub async fn cek_pegawai(
+    State(service): State<PemakaianBmnService>,
+    Path(nip): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<CekPegawaiQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<CekPegawaiResponse>>, AppError> {
+    let resp = service
+        .cek_pegawai_in_satker(&nip, &query.satker_id)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        resp,
+        "Pegawai terverifikasi".to_string(),
+    )))
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CekBmnQuery {
+    pub nup: String,
+    #[serde(default)]
+    pub satker_id: Option<String>,
+    pub tgl_mulai: chrono::NaiveDate,
+    pub tgl_selesai: chrono::NaiveDate,
+}
+
+/// GET /pemakaian-bmn/cek-bmn?nup=...&tgl_mulai=YYYY-MM-DD&tgl_selesai=YYYY-MM-DD
+///
+/// Fase 1.11: Validate BMN existence + cek availability per periode.
+/// Mendukung pemakaian berurutan (existing berakhir sebelum usulan
+/// mulai → diizinkan). 422 "BMN tidak ditemukan" jika NUP tidak ada di
+/// referensi SIMAN. Status response: Available | PemakaianBerurutan |
+/// Overlap.
+pub async fn cek_bmn(
+    State(service): State<PemakaianBmnService>,
+    State(pool): State<deadpool_postgres::Pool>,
+    axum::extract::Query(query): axum::extract::Query<CekBmnQuery>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<CekBmnResponse>>, AppError> {
+    let resp = service
+        .cek_bmn_availability_for_period(&pool, &query.nup, query.tgl_mulai, query.tgl_selesai)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        resp,
+        "Cek BMN selesai".to_string(),
+    )))
 }
 
 /// GET /pemakaian-bmn/bmn/:bmn_nup/history
@@ -390,14 +491,32 @@ pub async fn auto_expire_permits(
 // Monitoring Dashboard Handlers
 // ============================================================================
 
+/// GET /pemakaian-bmn/monitoring/summary
+/// Tiga kartu agregat headline: sedang dipakai / tidak dipakai / akan expired.
+/// Read-only — audiens Validator Wilayah & Pusat (Fase 2.6).
+pub async fn get_monitoring_summary(
+    State(service): State<PemakaianBmnService>,
+    axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<MonitoringSummaryCards>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
+    let summary = service.get_monitoring_summary(query).await?;
+
+    Ok(Json(ApiResponse::success(
+        summary,
+        "Ringkasan monitoring pemakaian BMN".to_string(),
+    )))
+}
+
 /// GET /pemakaian-bmn/monitoring/active-usage
 /// Get active usage monitoring dashboard
 /// Requirements: REQ-P011
 pub async fn get_active_usage_dashboard(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<ActiveUsageMonitoringDashboard>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
     let dashboard = service.get_active_usage_dashboard(query).await?;
 
     Ok(Json(ApiResponse::success(
@@ -412,12 +531,157 @@ pub async fn get_active_usage_dashboard(
 pub async fn get_bmn_utilization_report(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BmnUtilizationReport>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
     let report = service.get_bmn_utilization_report(query).await?;
 
     Ok(Json(ApiResponse::success(
         report,
         "BMN utilization report generated successfully".to_string(),
+    )))
+}
+
+// ============================================================================
+// V035 (Fase 1.5): Endpoints alur internal-satker 3-step.
+//
+// RBAC ditegakkan dgn `Claims::require_any_role`. Admin/superadmin bypass
+// untuk kebutuhan recovery, bukan untuk operasi harian.
+// ============================================================================
+
+use validator::Validate as _SatkerValidate;
+
+/// POST /pemakaian-bmn/{id}/validator-satker-action
+/// Body: { "action": "forward"|"return", "expected_version": i32, "catatan": "..." }
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "action", rename_all = "lowercase")]
+pub enum ValidatorSatkerActionRequest {
+    Forward(SatkerForwardRequest),
+    Return(SatkerReturnRequest),
+}
+
+pub async fn validator_satker_action(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ValidatorSatkerActionRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    let state = Some(permit_now.status.as_str());
+    let action = match &request {
+        ValidatorSatkerActionRequest::Forward(_) => PemakaianBmnAction::ValidatorSatkerForward,
+        ValidatorSatkerActionRequest::Return(_) => PemakaianBmnAction::ValidatorSatkerReturn,
+    };
+    PemakaianBmnPolicy.authorize(&claims, action, state)?;
+    let permit = match request {
+        ValidatorSatkerActionRequest::Forward(req) => {
+            service
+                .validator_satker_forward(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+        ValidatorSatkerActionRequest::Return(req) => {
+            req.validate()?;
+            service
+                .validator_satker_return(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+    };
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Aksi Validator Satker berhasil".to_string(),
+    )))
+}
+
+/// POST /pemakaian-bmn/{id}/approver-satker-action
+#[derive(Debug, serde::Deserialize)]
+#[serde(tag = "action", rename_all = "lowercase")]
+pub enum ApproverSatkerActionRequest {
+    Approve(SatkerForwardRequest),
+    Return(SatkerReturnRequest),
+}
+
+pub async fn approver_satker_action(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<ApproverSatkerActionRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    let state = Some(permit_now.status.as_str());
+    let action = match &request {
+        ApproverSatkerActionRequest::Approve(_) => PemakaianBmnAction::ApproverSatkerApprove,
+        ApproverSatkerActionRequest::Return(_) => PemakaianBmnAction::ApproverSatkerReturn,
+    };
+    PemakaianBmnPolicy.authorize(&claims, action, state)?;
+    let permit = match request {
+        ApproverSatkerActionRequest::Approve(req) => {
+            service
+                .approver_satker_approve(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+        ApproverSatkerActionRequest::Return(req) => {
+            req.validate()?;
+            service
+                .approver_satker_return(
+                    id,
+                    claims.user_id,
+                    claims.username.clone(),
+                    req.expected_version,
+                    req.catatan,
+                )
+                .await?
+        }
+    };
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Aksi Approver Satker berhasil".to_string(),
+    )))
+}
+
+/// POST /pemakaian-bmn/{id}/resubmit
+pub async fn operator_resubmit(
+    State(service): State<PemakaianBmnService>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(request): Json<OperatorResubmitRequest>,
+) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    let permit_now = service.get_permit_detail(id).await?.izin;
+    PemakaianBmnPolicy.authorize(
+        &claims,
+        PemakaianBmnAction::Resubmit,
+        Some(permit_now.status.as_str()),
+    )?;
+    let permit = service
+        .operator_resubmit(
+            id,
+            claims.user_id,
+            claims.username.clone(),
+            request.expected_version,
+        )
+        .await?;
+    Ok(Json(ApiResponse::success(
+        permit,
+        "Usulan berhasil di-resubmit ke Validator Satker".to_string(),
     )))
 }

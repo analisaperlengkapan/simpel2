@@ -19,11 +19,11 @@ pub enum PemakaianBmnStatus {
     /// New permit request in draft state
     #[default]
     Draft = 3000,
-    /// Submitted for approval
+    /// Submitted to Validator Satker (internal satker validation step)
     Submitted = 3001,
-    /// Approved by pimpinan
+    /// Approved by Approver Satker (Pengguna Barang Satker)
     Approved = 3002,
-    /// Rejected
+    /// Rejected (legacy terminal — alur baru pakai RevisiOperator)
     Rejected = 3003,
     /// Permit is active
     Active = 3004,
@@ -33,6 +33,10 @@ pub enum PemakaianBmnStatus {
     Revoked = 3006,
     /// Request cancelled
     Cancelled = 3007,
+    /// V035 (Fase 1.5): forwarded by Validator Satker, awaiting Approver Satker
+    SubmittedApproverSatker = 3010,
+    /// V035 (Fase 1.5): returned to Operator for revision (catatan wajib)
+    RevisiOperator = 3011,
 }
 
 impl PemakaianBmnStatus {
@@ -47,6 +51,8 @@ impl PemakaianBmnStatus {
             3005 => Some(Self::Expired),
             3006 => Some(Self::Revoked),
             3007 => Some(Self::Cancelled),
+            3010 => Some(Self::SubmittedApproverSatker),
+            3011 => Some(Self::RevisiOperator),
             _ => None,
         }
     }
@@ -60,7 +66,9 @@ impl PemakaianBmnStatus {
     pub fn label(&self) -> &'static str {
         match self {
             Self::Draft => "Draft",
-            Self::Submitted => "Diajukan",
+            Self::Submitted => "Menunggu Validator Satker",
+            Self::SubmittedApproverSatker => "Menunggu Approver Satker",
+            Self::RevisiOperator => "Revisi Operator",
             Self::Approved => "Disetujui",
             Self::Rejected => "Ditolak",
             Self::Active => "Aktif",
@@ -75,6 +83,8 @@ impl PemakaianBmnStatus {
         match self {
             Self::Draft => "DRAFT",
             Self::Submitted => "SUBMITTED",
+            Self::SubmittedApproverSatker => "SUBMITTED_APPROVER_SATKER",
+            Self::RevisiOperator => "REVISI_OPERATOR",
             Self::Approved => "APPROVED",
             Self::Rejected => "REJECTED",
             Self::Active => "ACTIVE",
@@ -89,6 +99,8 @@ impl PemakaianBmnStatus {
         match name {
             "DRAFT" => Some(Self::Draft),
             "SUBMITTED" => Some(Self::Submitted),
+            "SUBMITTED_APPROVER_SATKER" => Some(Self::SubmittedApproverSatker),
+            "REVISI_OPERATOR" => Some(Self::RevisiOperator),
             "APPROVED" => Some(Self::Approved),
             "REJECTED" => Some(Self::Rejected),
             "ACTIVE" => Some(Self::Active),
@@ -99,12 +111,28 @@ impl PemakaianBmnStatus {
         }
     }
 
-    /// Check if transition to target status is allowed
+    /// Check if transition to target status is allowed.
+    ///
+    /// V035 (Fase 1.5): alur baru = `Draft → Submitted (ValidatorSatker)
+    /// → SubmittedApproverSatker → Approved → Active`. `Submitted/SubmittedApproverSatker
+    /// → RevisiOperator` (catatan wajib). `RevisiOperator → Submitted` (re-submit).
+    ///
+    /// Legacy path `Submitted → Approved` direct masih diizinkan agar record
+    /// `approved_via_legacy_flow` tidak putus di tengah jalan saat ada migrasi
+    /// data. Handler baru tidak boleh memanggil transisi ini.
     pub fn can_transition_to(&self, target: Self) -> bool {
         use PemakaianBmnStatus::*;
         match self {
             Draft => matches!(target, Submitted | Cancelled),
-            Submitted => matches!(target, Approved | Rejected),
+            // Alur baru: ValidatorSatker → ApproverSatker | RevisiOperator.
+            // Alur legacy: Submitted → Approved (direct) tetap valid utk
+            // back-compat; ditolak di layer handler utk record baru.
+            Submitted => matches!(
+                target,
+                SubmittedApproverSatker | RevisiOperator | Approved | Rejected
+            ),
+            SubmittedApproverSatker => matches!(target, Approved | RevisiOperator),
+            RevisiOperator => matches!(target, Submitted | Cancelled),
             Approved => matches!(target, Active),
             Active => matches!(target, Expired | Revoked),
             Rejected | Expired | Revoked | Cancelled => false,
@@ -235,10 +263,22 @@ pub struct IzinPemakaianBmn {
     pub catatan_approval: Option<String>,
     pub catatan_revocation: Option<String>,
 
-    // Approval Information
+    // Approval Information (legacy field — Pimpinan langsung)
     pub approved_by: Option<Uuid>,
     pub approved_by_nama: Option<String>,
     pub approved_at: Option<DateTime<Utc>>,
+
+    // V035 (Fase 1.5): Internal-satker 3-step approval audit fields
+    pub validator_satker_id: Option<Uuid>,
+    pub validator_satker_nama: Option<String>,
+    pub tanggal_validasi_satker: Option<DateTime<Utc>>,
+    pub catatan_validator_satker: Option<String>,
+    pub approver_satker_id: Option<Uuid>,
+    pub approver_satker_nama: Option<String>,
+    pub tanggal_approval_satker: Option<DateTime<Utc>>,
+    pub catatan_approver_satker: Option<String>,
+    pub approved_via_legacy_flow: bool,
+    pub version: i32,
 
     // Revocation Information
     pub revoked_by: Option<Uuid>,
@@ -416,6 +456,36 @@ pub struct RevokePermitRequest {
     pub alasan: String,
 }
 
+// ============================================================================
+// V035 (Fase 1.5): DTO untuk alur internal-satker 3-step.
+// ============================================================================
+
+/// Validator Satker / Approver Satker forward (lanjutkan ke step berikut).
+///
+/// `expected_version` adalah optimistic-lock token — FE harus mengirim
+/// `permit.version` yg dia baca; backend menolak (409) jika sudah berubah.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SatkerForwardRequest {
+    pub expected_version: i32,
+    pub catatan: Option<String>,
+}
+
+/// Validator Satker / Approver Satker return (kembalikan ke Operator).
+/// Catatan wajib + minimal 10 karakter agar Operator paham apa yg direvisi.
+#[derive(Debug, Clone, Deserialize, Validate)]
+pub struct SatkerReturnRequest {
+    pub expected_version: i32,
+    #[validate(length(min = 10, message = "Catatan revisi minimal 10 karakter"))]
+    pub catatan: String,
+}
+
+/// Operator re-submit setelah revisi. Tidak perlu catatan (perubahan data
+/// sudah ter-record via PUT permit sebelumnya).
+#[derive(Debug, Clone, Deserialize)]
+pub struct OperatorResubmitRequest {
+    pub expected_version: i32,
+}
+
 /// Request to renew a permit
 #[derive(Debug, Clone, Deserialize)]
 pub struct RenewPermitRequest {
@@ -478,6 +548,92 @@ pub struct BmnAvailabilityResponse {
     pub active_permit_id: Option<Uuid>,
     pub active_permit_holder: Option<String>,
     pub active_permit_expires: Option<NaiveDate>,
+}
+
+// ─── Fase 1.11: Cek pegawai + cek BMN (with period) ──────────────────────
+
+/// Info pegawai dari `integrasi.mysimkari_pegawai` (cache MySIMKARI).
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiInfo {
+    pub nip: String,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub pangkat: Option<String>,
+    pub satker_id: Option<String>,
+    pub nama_satker: Option<String>,
+    pub foto: Option<String>,
+}
+
+/// Hasil cek pegawai-in-satker (Fase 1.11). Dipakai oleh form pemakaian
+/// BMN: operator input NIP → sistem auto-lookup + tampilkan info pegawai
+/// + pemakaian aktif + histori. Validator Satker & Approver Satker juga
+/// melihat info yang sama (transparansi sejak hulu).
+#[derive(Debug, Clone, Serialize)]
+pub struct CekPegawaiResponse {
+    pub pegawai: PegawaiInfo,
+    /// Pemakaian BMN saat ini aktif utk pegawai ini (jika ada).
+    pub pemakaian_aktif: Vec<PemakaianAktifEntry>,
+    /// Histori pemakaian BMN pegawai (status: Expired/Revoked/Completed).
+    pub histori_pemakaian: Vec<PemakaianHistoriEntry>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianAktifEntry {
+    pub permit_id: Uuid,
+    pub nomor_izin: Option<String>,
+    pub bmn_nup: String,
+    pub bmn_nama_barang: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianHistoriEntry {
+    pub permit_id: Uuid,
+    pub nomor_izin: Option<String>,
+    pub bmn_nup: String,
+    pub bmn_nama_barang: String,
+    pub status: String,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+}
+
+/// Status cek ketersediaan BMN per periode (Fase 1.11).
+///
+/// `Available`: BMN bebas utk periode yg diminta.
+/// `Sequential`: Ada izin aktif tapi berakhir sebelum periode usulan
+/// dimulai → diizinkan (operator dpt submit).
+/// `Overlap`: Ada izin aktif yg overlap dgn periode usulan → tolak.
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BmnCheckStatus {
+    Available,
+    PemakaianBerurutan {
+        existing_holder: String,
+        existing_sampai_tgl: NaiveDate,
+    },
+    Overlap {
+        existing_holder: String,
+        existing_sampai_tgl: NaiveDate,
+    },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CekBmnResponse {
+    pub bmn_nup: String,
+    pub bmn_info: Option<BmnRefInfo>,
+    #[serde(flatten)]
+    pub status: BmnCheckStatus,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct BmnRefInfo {
+    pub nup: String,
+    pub kode_barang: Option<String>,
+    pub nama_barang: Option<String>,
+    pub merk: Option<String>,
+    pub tahun_perolehan: Option<String>,
+    pub kondisi: Option<String>,
 }
 
 /// Permit history entry
@@ -617,6 +773,24 @@ pub struct MonitoringDashboardQuery {
     pub end_date: Option<NaiveDate>,
 }
 
+/// Tiga kartu agregat headline dashboard monitoring Pemakaian BMN (Fase 2.6).
+///
+/// Stakeholder (Validator Wilayah & Pusat, read-only) eksplisit meminta tiga
+/// kartu ini berdampingan: **sedang dipakai / tidak dipakai / akan expired**.
+/// Sebelumnya nilai-nilai ini tersebar di dua endpoint berbeda; endpoint
+/// `/monitoring/summary` menyatukannya jadi satu panggilan murah.
+#[derive(Debug, Clone, Serialize)]
+pub struct MonitoringSummaryCards {
+    /// BMN dgn izin pemakaian berstatus ACTIVE (sesuai filter satker/jenis).
+    pub sedang_dipakai: i64,
+    /// Izin ACTIVE yg `tanggal_selesai` jatuh dalam 30 hari ke depan.
+    pub akan_expired_30d: i64,
+    /// BMN (kondisi BAIK di SIMAN) yg TIDAK sedang dipakai = total − terpakai.
+    /// `None` bila SIMAN tidak tersedia, atau bila ada filter satker/jenis
+    /// (data SIMAN tidak ter-scope per-satker di sini, agar tidak menyesatkan).
+    pub tidak_dipakai: Option<i64>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -644,6 +818,133 @@ mod tests {
         assert!(active.can_transition_to(PemakaianBmnStatus::Expired));
         assert!(active.can_transition_to(PemakaianBmnStatus::Revoked));
         assert!(!active.can_transition_to(PemakaianBmnStatus::Draft));
+    }
+
+    /// V035 (Fase 1.5): alur internal-satker 3-step.
+    /// Draft → Submitted (Operator) → SubmittedApproverSatker (Validator)
+    /// → Approved (Approver Satker) → Active.
+    /// RevisiOperator pintu balik dari Validator atau Approver.
+    #[test]
+    fn test_status_transitions_satker_3step() {
+        use PemakaianBmnStatus::*;
+        // Operator submit
+        assert!(Draft.can_transition_to(Submitted));
+        // Validator Satker forward → ApproverSatker
+        assert!(Submitted.can_transition_to(SubmittedApproverSatker));
+        // Validator Satker return → RevisiOperator
+        assert!(Submitted.can_transition_to(RevisiOperator));
+        // Approver Satker approve
+        assert!(SubmittedApproverSatker.can_transition_to(Approved));
+        // Approver Satker return ke Operator
+        assert!(SubmittedApproverSatker.can_transition_to(RevisiOperator));
+        // Operator re-submit
+        assert!(RevisiOperator.can_transition_to(Submitted));
+        // RevisiOperator dapat di-cancel
+        assert!(RevisiOperator.can_transition_to(Cancelled));
+        // Skip illegal: Draft langsung ke Approved tidak boleh
+        assert!(!Draft.can_transition_to(Approved));
+        assert!(!Draft.can_transition_to(SubmittedApproverSatker));
+        // SubmittedApproverSatker tidak boleh langsung Active (harus via Approved → activate)
+        assert!(!SubmittedApproverSatker.can_transition_to(Active));
+        // RevisiOperator tidak boleh langsung lompat ke ApproverSatker
+        assert!(!RevisiOperator.can_transition_to(SubmittedApproverSatker));
+    }
+
+    /// Helper utk test logic overlap di repository — direkstrak agar
+    /// dapat di-unit-test tanpa DB. Match dgn implementasi di
+    /// `check_bmn_availability_for_period` (repository.rs).
+    fn classify(
+        existing: &[(chrono::NaiveDate, chrono::NaiveDate, &str)],
+        new_start: chrono::NaiveDate,
+        new_end: chrono::NaiveDate,
+    ) -> &'static str {
+        let mut latest_end: Option<chrono::NaiveDate> = None;
+        for (s, e, _) in existing {
+            let overlap = !(*e < new_start || *s > new_end);
+            if overlap {
+                return "Overlap";
+            }
+            if latest_end.map(|prev| *e > prev).unwrap_or(true) {
+                latest_end = Some(*e);
+            }
+        }
+        if latest_end.is_some() {
+            "PemakaianBerurutan"
+        } else {
+            "Available"
+        }
+    }
+
+    #[test]
+    fn bmn_check_status_available_when_no_existing() {
+        let s = classify(
+            &[],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Available");
+    }
+
+    #[test]
+    fn bmn_check_status_sequential_when_existing_ends_before_new_start() {
+        // Existing 2026-01-01 .. 2026-06-02, new starts 2026-06-03 → sequential OK.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 3).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "PemakaianBerurutan");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_periods_intersect() {
+        // Existing 2026-01-01 .. 2026-06-30, new 2026-06-15 .. 2026-12-31 → overlap.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 30).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 15).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_new_inside_existing() {
+        // Existing 2026-01-01 .. 2026-12-31, new 2026-05-01 .. 2026-06-30
+        // (entirely inside) → overlap.
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 30).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
+    }
+
+    #[test]
+    fn bmn_check_status_overlap_when_edge_equal() {
+        // Existing ends 2026-06-02, new starts 2026-06-02 — same day = overlap
+        // (sequential berarti new_start STRICTLY > existing_end).
+        let s = classify(
+            &[(
+                chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+                "pegawai_lain",
+            )],
+            chrono::NaiveDate::from_ymd_opt(2026, 6, 2).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
+        );
+        assert_eq!(s, "Overlap");
     }
 
     #[test]

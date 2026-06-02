@@ -53,6 +53,21 @@ pub struct PerlengkapanDashboardMetrics {
     pub pakaian_dinas_metrics: PakaianDinasMetrics,
     pub workflow_metrics: WorkflowMetrics,
     pub asset_utilization: AssetUtilization,
+    /// Rekap status Pemakaian BMN (Fase 2.7). `default` agar tetap kompatibel
+    /// dgn respons backend lama yg belum punya field ini.
+    #[serde(default)]
+    pub pemakaian_metrics: ModuleStatusMetrics,
+    #[serde(default)]
+    pub penghapusan_metrics: ModuleStatusMetrics,
+}
+
+/// Rekap jumlah per status untuk satu modul (Fase 2.7).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModuleStatusMetrics {
+    #[serde(default)]
+    pub total_by_status: HashMap<String, i64>,
+    #[serde(default)]
+    pub total: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -629,6 +644,24 @@ fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
         })
         .collect();
 
+    // Fase 2.7: rekap status Pemakaian & Penghapusan BMN (urut stabil per status).
+    let to_points = |m: &HashMap<String, i64>| -> Vec<ChartDataPoint> {
+        let mut entries: Vec<(&String, &i64)> = m.iter().collect();
+        entries.sort_by(|a, b| a.0.cmp(b.0));
+        entries
+            .into_iter()
+            .map(|(k, v)| ChartDataPoint {
+                label: k.clone(),
+                value: *v as f64,
+                color: Some("bg-indigo-500".to_string()),
+            })
+            .collect()
+    };
+    let pemakaian_chart = to_points(&metrics.pemakaian_metrics.total_by_status);
+    let penghapusan_chart = to_points(&metrics.penghapusan_metrics.total_by_status);
+    let total_pemakaian = metrics.pemakaian_metrics.total;
+    let total_penghapusan = metrics.penghapusan_metrics.total;
+
     view! {
         <div class="space-y-6">
             <section>
@@ -687,6 +720,40 @@ fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
                     show_satker=true
                     sortable=true
                 />
+            </section>
+
+            <section>
+                <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    "Pemakaian & Penghapusan BMN"
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <MetricCard
+                        title="Total Izin Pemakaian BMN"
+                        value=total_pemakaian.to_string()
+                        icon="🚗"
+                        subtitle="Seluruh izin pemakaian (semua status)"
+                    />
+                    <MetricCard
+                        title="Total Usulan SK Penghapusan"
+                        value=total_penghapusan.to_string()
+                        icon="🗑️"
+                        subtitle="Seluruh usulan penghapusan (semua status)"
+                    />
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <PieChart
+                        title="Status Pemakaian BMN"
+                        data=pemakaian_chart
+                        show_legend=true
+                        size=200
+                    />
+                    <PieChart
+                        title="Status Usulan SK Penghapusan BMN"
+                        data=penghapusan_chart
+                        show_legend=true
+                        size=200
+                    />
+                </div>
             </section>
 
             <section>

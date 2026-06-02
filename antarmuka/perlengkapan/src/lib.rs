@@ -25,7 +25,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
-use components::app_chrome::{AppFooter, AppHeader};
+use components::app_chrome::{AppFooter, AppHeader, IntegrasiHealthBanner};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
@@ -66,6 +66,7 @@ use components::mapping_kodefikasi_dashboard::MappingKodefikasiDashboard;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
+use components::pakaian_dinas_satker::PakaianDinasSatkerDetail;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
@@ -191,7 +192,10 @@ pub fn App() -> impl IntoView {
 
                         {move || (!is_login_page()).then(|| {
                             let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
-                            view! { <AppHeader on_toggle_sidebar=toggle /> }
+                            view! {
+                                <AppHeader on_toggle_sidebar=toggle />
+                                <IntegrasiHealthBanner />
+                            }
                         })}
 
                         <div class="flex min-h-0 flex-1">
@@ -264,6 +268,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=path!("/pakaian-dinas/jenis") view=PakaianDinasJenisList />
                                 <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=SpesifikasiPage />
                                 <Route path=path!("/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
+                                <Route path=path!("/pakaian-dinas/pengajuan/:pengajuan_id/satker") view=PakaianDinasSatkerDetail />
                                 <Route path=path!("/pakaian-dinas/ukuran") view=UkuranPegawaiCurrentUser />
                                 <Route path=path!("/pakaian-dinas/laporan") view=PakaianDinasLaporan />
                                 <Route path=path!("/pakaian-dinas/laporan/rekap") view=PakaianDinasLaporan />

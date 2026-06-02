@@ -167,52 +167,115 @@ pub struct PengajuanPakaianDinas {
     pub updated_at: String,
 }
 
+/// Create request — mirrors backend `pakaian_dinas::models::CreatePengajuanRequest`
+/// exactly (#19). Dates are `YYYY-MM-DD` strings (serde → NaiveDate); IDs are
+/// UUID strings (serde → Uuid). `pilihan_satker` ∈ {all, sebagian, wilayah};
+/// `wilayah_id` wajib saat `wilayah`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreatePengajuanPakaianDinasRequest {
     pub nama: String,
-    pub tahun: i32,
-    pub tgl_open: Option<String>,
-    pub tgl_close: Option<String>,
-    pub keterangan: Option<String>,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default)]
+    pub tgl_mulai: Option<String>,
+    #[serde(default)]
+    pub tgl_selesai: Option<String>,
+    pub is_reguler: bool,
+    #[serde(default)]
+    pub tahun: Option<i32>,
+    pub pilihan_satker: String,
+    #[serde(default)]
+    pub dengan_unit_kerja: bool,
+    #[serde(default)]
+    pub jenis_pakaian_dinas_id: Option<String>,
+    pub spesifikasi_ids: Vec<String>,
+    #[serde(default)]
+    pub satker_ids: Option<Vec<String>>,
+    #[serde(default)]
+    pub wilayah_id: Option<String>,
 }
 
-/// Pengajuan Satker (Work unit submission)
+/// Pengajuan Satker (Work unit submission). Mirrors the backend DTO
+/// `pakaian_dinas::models::PengajuanSatker` exactly — `aktivitas_id` is the
+/// numeric workflow status code (see [`aktivitas_label`]).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PengajuanSatker {
     pub id: String,
-    pub pengajuan_pakaian_dinas_id: String,
+    pub pengajuan_id: String,
     pub satker_id: String,
-    pub satker_nama: Option<String>,
-    pub status: String,
-    pub jumlah_pegawai: i64,
+    #[serde(default)]
+    pub satker_pusat_id: Option<String>,
+    #[serde(default)]
+    pub id_kejati: Option<String>,
+    #[serde(default)]
+    pub id_kejari: Option<String>,
+    #[serde(default)]
+    pub id_cabjari: Option<String>,
+    pub aktivitas_id: i32,
+    #[serde(default)]
+    pub created_by: Option<String>,
+    #[serde(default)]
+    pub updated_by: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub satker_nama: Option<String>,
+    #[serde(default)]
+    pub satker_kode: Option<String>,
+    #[serde(default)]
+    pub aktivitas_label: Option<String>,
+    #[serde(default)]
+    pub total_pegawai: Option<i64>,
 }
 
-/// Pengajuan Satker with activities
+/// One per-satker workflow activity row. Mirrors the backend
+/// `PengajuanSatkerAktivitas`.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PengajuanSatkerWithActivities {
-    pub pengajuan_satker: PengajuanSatker,
-    pub aktivitas: Vec<PengajuanAktivitas>,
-}
-
-/// Activity log for pengajuan workflow
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PengajuanAktivitas {
+pub struct PengajuanSatkerAktivitas {
     pub id: String,
     pub pengajuan_satker_id: String,
-    pub user_id: String,
-    pub user_nama: Option<String>,
-    pub status: String,
-    pub catatan: Option<String>,
+    pub aktivitas_id: i32,
+    #[serde(default)]
+    pub komentar: Option<String>,
+    #[serde(default)]
+    pub nip: Option<String>,
+    #[serde(default)]
+    pub nama: Option<String>,
+    #[serde(default)]
+    pub pangkat: Option<String>,
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
     pub created_at: String,
 }
 
+/// Human label for a workflow status code (mirrors backend
+/// `AktivitasStatus::label`).
+pub fn aktivitas_label(code: i32) -> &'static str {
+    match code {
+        1000 => "Penyiapan / Input",
+        1001 | 1012 => "Diajukan ke Validator Wilayah",
+        1003 => "Revisi Pelaksana",
+        1004 | 1010 => "Diajukan ke Pusat",
+        1007 => "Revisi Wilayah",
+        1008 => "Selesai",
+        _ => "Dalam Proses",
+    }
+}
+
+/// True for terminal-rejection / revision states (rendered red in the timeline).
+pub fn aktivitas_is_revisi(code: i32) -> bool {
+    matches!(code, 1003 | 1007)
+}
+
+/// Workflow action request — body for `POST /pakaian-dinas/validator-action`.
+/// Field names match the backend `ValidatorActionRequest` (`aksi`/`komentar`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValidatorActionRequest {
     pub pengajuan_satker_id: String,
-    pub action: String,
-    pub catatan: Option<String>,
+    pub aksi: String,
+    pub komentar: Option<String>,
 }
 
 /// Pegawai Pakaian Dinas (Employee uniform sizes)
@@ -256,6 +319,25 @@ pub struct MysimkariPegawai {
 pub struct PegawaiWithSizes {
     pub pegawai: MysimkariPegawai,
     pub ukuran: Option<PegawaiPakaianDinas>,
+}
+
+/// Info kesegaran sinkronisasi MySIMKARI (Fase 2.4) untuk banner wizard.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PegawaiSyncInfo {
+    pub sumber: String,
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    pub segar: bool,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
+}
+
+/// Ringkasan roster + sinkronisasi (Fase 2.4). Field `pegawai` dari server
+/// sengaja diabaikan di FE — wizard hanya butuh sinyal kesegaran untuk banner.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PegawaiRosterSync {
+    pub total: i64,
+    pub sync: Option<PegawaiSyncInfo>,
 }
 
 /// Report: Rekap Ukuran (Size summary)
@@ -346,6 +428,21 @@ pub async fn fetch_jenis_pakaian_dinas(
         total_pages: 0,
         message: "Server-side stub".to_string(),
     })
+}
+
+/// `GET /kebutuhan-bmn/wilayah` — daftar wilayah Kejaksaan Tinggi (#19).
+/// Dipakai bersama dgn Kebutuhan BMN; sumber `integrasi.mysimkari_satker`.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+    use crate::api::client::auth_get_json;
+    let resp: ApiResponse<Vec<String>> =
+        auth_get_json("/api/pembinaan/perlengkapan/kebutuhan-bmn/wilayah").await?;
+    Ok(resp.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+    Ok(vec![])
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -913,12 +1010,12 @@ pub async fn fetch_pengajuan_satker(
     pengajuan_id: String,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, crate::api::AppError> {
+) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/satker?pengajuan_id={}&page={}&per_page={}",
+        "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan/{}/satker?page={}&per_page={}",
         pengajuan_id, page, per_page
     );
 
@@ -937,7 +1034,7 @@ pub async fn fetch_pengajuan_satker(
         )));
     }
 
-    let result: PaginatedResponse<PengajuanSatkerWithActivities> = resp.json().await?;
+    let result: PaginatedResponse<PengajuanSatker> = resp.json().await?;
     Ok(result)
 }
 
@@ -946,7 +1043,7 @@ pub async fn fetch_pengajuan_satker(
     _pengajuan_id: String,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, crate::api::AppError> {
+) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -956,6 +1053,44 @@ pub async fn fetch_pengajuan_satker(
         total_pages: 0,
         message: "Server-side stub".to_string(),
     })
+}
+
+/// `GET /pakaian-dinas/satker/{id}/aktivitas` — per-satker workflow history (#40).
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pakaian_satker_aktivitas(
+    satker_id: String,
+) -> Result<Vec<PengajuanSatkerAktivitas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pakaian-dinas/satker/{}/aktivitas",
+        satker_id
+    );
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<Vec<PengajuanSatkerAktivitas>> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pakaian_satker_aktivitas(
+    _satker_id: String,
+) -> Result<Vec<PengajuanSatkerAktivitas>, crate::api::AppError> {
+    Ok(vec![])
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -1176,6 +1311,49 @@ pub async fn fetch_pegawai_with_sizes(
         page: 1,
         per_page: 20,
         total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+// --- Roster + status sinkronisasi MySIMKARI (Fase 2.4) ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pegawai_roster_sync(
+    satker_id: String,
+) -> Result<ApiResponse<PegawaiRosterSync>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pakaian-dinas/pegawai-satker/{}/roster",
+        satker_id
+    );
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+    let result: ApiResponse<PegawaiRosterSync> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pegawai_roster_sync(
+    _satker_id: String,
+) -> Result<ApiResponse<PegawaiRosterSync>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: PegawaiRosterSync {
+            total: 0,
+            sync: None,
+        },
         message: "Server-side stub".to_string(),
     })
 }

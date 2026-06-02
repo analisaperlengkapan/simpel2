@@ -264,6 +264,7 @@ pub struct QueryBuilder {
     query: String,
     params: Vec<String>,
     param_count: usize,
+    has_where: bool,
 }
 
 impl QueryBuilder {
@@ -272,12 +273,14 @@ impl QueryBuilder {
             query: base_query.to_string(),
             params: Vec::new(),
             param_count: 0,
+            has_where: false,
         }
     }
 
     pub fn add_condition(&mut self, condition: &str) -> &mut Self {
-        if self.param_count == 0 {
+        if !self.has_where {
             self.query.push_str(" WHERE ");
+            self.has_where = true;
         } else {
             self.query.push_str(" AND ");
         }

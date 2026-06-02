@@ -6,7 +6,7 @@ use lib_perlengkapan::contracts::{
 };
 
 use crate::shared::cache::CacheManager;
-use crate::shared::grpc::clients::AuthencClient;
+use crate::shared::grpc::clients::{AuthencClient, IntegrasiClient};
 use crate::shared::rate_limit::RateLimiter;
 use crate::{
     dashboard, dashboard::services::DashboardService, kebutuhan_bmn::KebutuhanBmnService,
@@ -45,6 +45,13 @@ pub struct AppState {
     /// the health endpoints as `uptime_seconds`. Cheap to clone (`Instant`
     /// is `Copy`).
     pub boot_time: std::time::Instant,
+    /// Optional gRPC client to `layanan-integrasi`. Holds the same
+    /// `Arc`-shared circuit breakers as the clones injected into the
+    /// pakaian-dinas & kebutuhan-bmn services, so the health endpoint can
+    /// observe live breaker state (SIMAN/MySIMKARI/MonSAKTI) via
+    /// [`IntegrasiClient::circuit_states`]. `None` when integrasi is not
+    /// configured. (Fase 2.2 lanjutan / #36.)
+    pub integrasi_client: Option<IntegrasiClient>,
 }
 
 impl FromRef<AppState> for PerlengkapanService {
@@ -134,5 +141,11 @@ impl FromRef<AppState> for Arc<dyn AuditSink> {
 impl FromRef<AppState> for Arc<dyn DocumentStorage> {
     fn from_ref(state: &AppState) -> Self {
         state.document_storage.clone()
+    }
+}
+
+impl FromRef<AppState> for Option<IntegrasiClient> {
+    fn from_ref(state: &AppState) -> Self {
+        state.integrasi_client.clone()
     }
 }

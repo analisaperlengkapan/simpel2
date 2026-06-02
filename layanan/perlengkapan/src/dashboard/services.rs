@@ -29,6 +29,9 @@ impl DashboardService {
             repository::fetch_pakaian_dinas_metrics(&self.db_pool, params);
         let workflow_metrics_future = repository::fetch_workflow_metrics(&self.db_pool);
         let asset_utilization_future = repository::fetch_asset_utilization(&self.db_pool);
+        let pemakaian_metrics_future = repository::fetch_pemakaian_status_metrics(&self.db_pool);
+        let penghapusan_metrics_future =
+            repository::fetch_penghapusan_status_metrics(&self.db_pool);
 
         // Wait for all futures to complete
         let (
@@ -37,12 +40,16 @@ impl DashboardService {
             pakaian_dinas_metrics,
             workflow_metrics,
             asset_utilization,
+            pemakaian_metrics,
+            penghapusan_metrics,
         ) = tokio::try_join!(
             kebutuhan_metrics_future,
             gap_analysis_future,
             pakaian_dinas_metrics_future,
             workflow_metrics_future,
             asset_utilization_future,
+            pemakaian_metrics_future,
+            penghapusan_metrics_future,
         )?;
 
         Ok(PerlengkapanDashboardMetrics {
@@ -51,6 +58,8 @@ impl DashboardService {
             pakaian_dinas_metrics,
             workflow_metrics,
             asset_utilization,
+            pemakaian_metrics,
+            penghapusan_metrics,
         })
     }
 

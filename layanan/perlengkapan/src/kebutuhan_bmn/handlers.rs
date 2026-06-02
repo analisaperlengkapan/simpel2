@@ -125,6 +125,8 @@ pub async fn create_pengajuan(
     claims: Claims,
     Json(request): Json<CreatePengajuanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanDetailResponse>>), AppError> {
+    // RBAC: hanya Validator Pusat yg menetapkan periode RKBMN (lihat plan §3.1).
+    claims.require_role("validator_pusat")?;
     info!("Creating pengajuan kebutuhan BMN: {}", request.nama);
 
     let user_id = Some(claims.user_id);
@@ -277,6 +279,23 @@ pub async fn get_pengajuan_satkers(
     Ok(Json(ApiResponse::success(
         satkers,
         "Satkers retrieved successfully".to_string(),
+    )))
+}
+
+/// GET /kebutuhan-bmn/pengajuan/:id/bmn-referensi
+///
+/// V029 (Fase 1.6): Daftar allowed-list BMN utk pengajuan ini. Dipakai
+/// FE saat Operator Satker input barang sbg dropdown pilihan kode_barang
+/// — operator hanya boleh input dari daftar ini (validate di service).
+pub async fn list_bmn_referensi_handler(
+    State(service): State<KebutuhanBmnService>,
+    Path(pengajuan_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengajuanBmnReferensi>>>, AppError> {
+    let items = service.list_bmn_referensi(pengajuan_id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Daftar BMN referensi (allowed-list) berhasil diambil".to_string(),
     )))
 }
 
@@ -484,6 +503,85 @@ pub async fn get_analisis_kelayakan(
     )))
 }
 
+/// GET /kebutuhan-bmn/satker/:id/laporan/preview?format=pdf
+///
+/// Stream Laporan Hasil Analisis Kebutuhan BMN sbg `application/pdf` dgn
+/// `Content-Disposition: inline` — FE dapat me-render di `<iframe>` tanpa
+/// memicu unduhan. Hanya format `pdf` yg didukung untuk preview saat ini.
+pub async fn preview_laporan_analisis(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    Query(query): Query<LaporanFormatQuery>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let format = query
+        .format
+        .as_deref()
+        .unwrap_or("pdf")
+        .to_ascii_lowercase();
+    if format != "pdf" {
+        return Err(bad_request(
+            "Hanya format=pdf yg didukung utk preview inline. Gunakan endpoint download utk format lain.",
+        ));
+    }
+    let bytes = super::pdf_laporan::generate_laporan_analisis_pdf(&service, satker_id).await?;
+    let headers = [
+        (header::CONTENT_TYPE, "application/pdf"),
+        (
+            header::CONTENT_DISPOSITION,
+            "inline; filename=\"Laporan_Analisis_Kebutuhan_BMN.pdf\"",
+        ),
+    ];
+    Ok((headers, bytes).into_response())
+}
+
+/// GET /kebutuhan-bmn/satker/:id/laporan/download?format=pdf|docx
+///
+/// Stream Laporan Hasil Analisis Kebutuhan BMN sbg attachment (force
+/// download). Format `pdf` saat ini didukung; `docx` ditandai sebagai
+/// follow-up (memerlukan template DOCX yg masih dirancang dgn Biro Hukum).
+pub async fn download_laporan_analisis(
+    State(service): State<KebutuhanBmnService>,
+    Path(satker_id): Path<Uuid>,
+    Query(query): Query<LaporanFormatQuery>,
+    _claims: Claims,
+) -> Result<axum::response::Response, AppError> {
+    use axum::http::header;
+    use axum::response::IntoResponse;
+    let format = query
+        .format
+        .as_deref()
+        .unwrap_or("pdf")
+        .to_ascii_lowercase();
+    match format.as_str() {
+        "pdf" => {
+            let bytes =
+                super::pdf_laporan::generate_laporan_analisis_pdf(&service, satker_id).await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Analisis_Kebutuhan_BMN.pdf\"",
+                ),
+            ];
+            Ok((headers, bytes).into_response())
+        }
+        "docx" => Err(bad_request(
+            "Export DOCX masih dlm perancangan template (Biro Hukum). Gunakan format=pdf utk sementara.",
+        )),
+        _ => Err(bad_request(
+            "Format tidak didukung. Gunakan format=pdf (atau format=docx setelah template selesai).",
+        )),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LaporanFormatQuery {
+    pub format: Option<String>,
+}
+
 // ============================================================================
 // Satker Workflow Handlers (Validator Wilayah & Pusat)
 // ============================================================================
@@ -496,6 +594,7 @@ pub async fn submit_satker_to_wilayah(
     claims: Claims,
     Json(request): Json<SubmitKebutuhanSatkerRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("operator_satker")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .submit_satker_to_wilayah(satker_id, request, Some(claims.user_id), Some(user_info))
@@ -515,6 +614,7 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(request): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("validator_wilayah")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .validator_wilayah_action(satker_id, request, Some(claims.user_id), Some(user_info))
@@ -534,6 +634,7 @@ pub async fn validator_pusat_keputusan(
     claims: Claims,
     Json(request): Json<ValidatorPusatKeputusanRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    claims.require_role("validator_pusat")?;
     let user_info = extract_user_info(&claims);
     let satker = service
         .validator_pusat_keputusan(satker_id, request, Some(claims.user_id), Some(user_info))
@@ -875,6 +976,22 @@ pub async fn export_pengajuan(
     Ok(Json(ApiResponse::success(
         format!("Export for pengajuan {} is being generated", id),
         "Export initiated".to_string(),
+    )))
+}
+
+/// GET /kebutuhan-bmn/wilayah
+///
+/// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
+/// `integrasi.mysimkari_satker`. Dipakai FE saat user pilih
+/// `pilihan_satker = wilayah` untuk dropdown wilayah.
+pub async fn list_wilayah_kejati(
+    State(service): State<KebutuhanBmnService>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
+    let wilayah = service.list_wilayah().await?;
+    Ok(Json(ApiResponse::success(
+        wilayah,
+        "Daftar wilayah Kejaksaan Tinggi berhasil diambil".to_string(),
     )))
 }
 

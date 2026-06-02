@@ -343,13 +343,14 @@ pub fn AdminRolesPage() -> impl IntoView {
                                         }.into_any(),
                                         "validator_wilayah" => view! {
                                             <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Validasi, Kembalikan, Teruskan"</div>
-                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemakaian BMN: Setujui, Tolak"</div>
-                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: Validasi, Teruskan"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemakaian BMN: Monitor (read-only)"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: Validasi, Teruskan; Generate & Upload Signed SK (kewenangan Wilayah)"</div>
                                             <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Laporan: Baca, Ekspor"</div>
                                         }.into_any(),
                                         "validator_pusat" => view! {
-                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Persetujuan Akhir"</div>
-                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: SK, Persetujuan"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Kebutuhan BMN: Persetujuan Akhir (Pengguna Barang)"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Pemakaian BMN: Monitor (read-only)"</div>
+                                            <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Penghapusan BMN: Generate Konsep SK, Upload Signed SK (kewenangan Pusat)"</div>
                                             <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Mapping Kodefikasi: Approve/Reject"</div>
                                             <div><span class="text-green-500 mr-2"><AppIcon icon=CHECK /></span>"Roadmap Sarpras: Approve"</div>
                                         }.into_any(),

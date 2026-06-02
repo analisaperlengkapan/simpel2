@@ -8,12 +8,18 @@ use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
-    PenghapusanBmnDetailResponse, PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest,
-    fetch_penghapusan_bmn_detail, generate_penghapusan_konsep_sk,
-    penghapusan_validator_wilayah_action, submit_penghapusan_to_wilayah,
-    upload_penghapusan_signed_sk,
+    ApiResponse, PenghapusanBmnDetailResponse, PenghapusanBmnLampiran, PenghapusanBmnWorkflow,
+    PenghapusanValidatorWilayahActionRequest, SimanAssetVerification, UploadSignedSKRequest,
+    fetch_penghapusan_bmn_detail, fetch_penghapusan_lampiran, fetch_penghapusan_verifikasi_siman,
+    generate_penghapusan_konsep_sk, penghapusan_validator_wilayah_action,
+    submit_penghapusan_to_wilayah, upload_penghapusan_lampiran, upload_penghapusan_signed_sk,
+};
+use crate::components::workflow_ui::{
+    ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
+    WorkflowTimeline,
 };
 use crate::routes;
+use lib_ui::components::forms::FileUpload;
 
 /// leptos-fetch query — keyed by `(usulan_id, refresh_trigger)`.
 ///
@@ -35,6 +41,28 @@ async fn query_penghapusan_bmn_detail(
         .await
         .map(|r| r.data)
         .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
+}
+
+/// leptos-fetch query — verifikasi aset SIMAN (Fase 2.3). Keyed by
+/// `(usulan_id, refresh_trigger)` agar ikut menyegar setelah mutasi.
+async fn query_penghapusan_verifikasi_siman(key: (String, i32)) -> Option<SimanAssetVerification> {
+    let (id, _trigger) = key;
+    if id.is_empty() {
+        return None;
+    }
+    fetch_penghapusan_verifikasi_siman(&id)
+        .await
+        .ok()
+        .map(|r| r.data)
+}
+
+/// leptos-fetch query — daftar lampiran pendukung (Fase 0.6 / #15). Keyed by
+/// `(usulan_id, refresh_trigger)` agar ikut menyegar setelah unggah.
+async fn query_penghapusan_lampiran(
+    key: (String, i32),
+) -> Result<ApiResponse<Vec<PenghapusanBmnLampiran>>, crate::api::AppError> {
+    let (id, _trigger) = key;
+    fetch_penghapusan_lampiran(&id).await
 }
 
 /// Status badge color helper
@@ -68,6 +96,69 @@ fn status_label(status_kode: i32) -> &'static str {
     }
 }
 
+/// Rakit langkah-langkah timeline dari milestone yang benar-benar terjadi
+/// (berbasis timestamp), lalu satu langkah penutup sesuai status terkini.
+/// Pendekatan berbasis timestamp ini aman terhadap percabangan kewenangan
+/// PUSAT vs WILAYAH: tahap yang dilewati tidak punya timestamp → tidak muncul.
+fn build_penghapusan_timeline(p: &PenghapusanBmnWorkflow) -> Vec<WorkflowStep> {
+    let mut steps: Vec<WorkflowStep> = Vec::new();
+
+    steps.push(
+        WorkflowStep::new("Usulan Dibuat", StepStatus::Done)
+            .with_timestamp(p.created_at.clone())
+            .with_note(p.catatan_operator.clone()),
+    );
+    let mut milestone = |label: &str, ts: &Option<String>, note: Option<String>| {
+        if let Some(ts) = ts {
+            steps.push(
+                WorkflowStep::new(label, StepStatus::Done)
+                    .with_timestamp(ts.clone())
+                    .with_note(note),
+            );
+        }
+    };
+    milestone(
+        "Diajukan ke Validator Wilayah",
+        &p.tanggal_submit_wilayah,
+        None,
+    );
+    milestone(
+        "Ditinjau Validator Wilayah",
+        &p.tanggal_verifikasi_wilayah,
+        p.catatan_validator_wilayah.clone(),
+    );
+    milestone("Diajukan ke Validator Pusat", &p.tanggal_submit_pusat, None);
+    milestone(
+        "Ditinjau Validator Pusat",
+        &p.tanggal_verifikasi_pusat,
+        p.catatan_validator_pusat.clone(),
+    );
+    milestone("Konsep SK Digenerate", &p.konsep_sk_generated_at, None);
+    milestone(
+        "SK Ditandatangani Diunggah",
+        &p.signed_sk_pdf_uploaded_at,
+        None,
+    );
+
+    if p.is_completed {
+        steps.push(WorkflowStep::new("Selesai", StepStatus::Done));
+    } else if p.status_kode == 4008 {
+        steps.push(
+            WorkflowStep::new("Pengajuan Ditolak", StepStatus::Rejected).with_note(
+                p.catatan_validator_pusat
+                    .clone()
+                    .or_else(|| p.catatan_validator_wilayah.clone()),
+            ),
+        );
+    } else {
+        steps.push(WorkflowStep::new(
+            status_label(p.status_kode),
+            StepStatus::Current,
+        ));
+    }
+    steps
+}
+
 #[component]
 pub fn PenghapusanBmnDetail() -> impl IntoView {
     let params = use_params_map();
@@ -78,6 +169,8 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     let (signed_sk_url, set_signed_sk_url) = signal(String::new());
     let (show_return_modal, set_show_return_modal) = signal(false);
     let (show_upload_modal, set_show_upload_modal) = signal(false);
+    // #15: lampiran upload in-flight flag.
+    let uploading = RwSignal::new(false);
 
     // Bumped after every successful mutation so the keyer below
     // emits a fresh cache slot and leptos-fetch issues a real
@@ -93,9 +186,22 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             refresh_trigger.get(),
         )
     });
+    let lampiran_resource = client.local_resource(query_penghapusan_lampiran, move || {
+        (
+            params.get().get("id").unwrap_or_default(),
+            refresh_trigger.get(),
+        )
+    });
+    let verifikasi_resource =
+        client.local_resource(query_penghapusan_verifikasi_siman, move || {
+            (
+                params.get().get("id").unwrap_or_default(),
+                refresh_trigger.get(),
+            )
+        });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)
-    let on_submit_wilayah = move |_| {
+    let on_submit_wilayah = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         set_loading_action.set(true);
         set_error_msg.set(None);
@@ -109,10 +215,10 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Validator Wilayah forwards to Pusat
-    let on_forward_pusat = move |_| {
+    let on_forward_pusat = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         let catatan = catatan_input.get();
         set_loading_action.set(true);
@@ -136,16 +242,12 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
-    // Action: Validator Wilayah returns to Operator
-    let on_return_operator = move |_| {
+    // Action: Validator Wilayah returns to Operator.
+    // Catatan dipasok oleh ApprovalDialog (require_note) lewat callback.
+    let on_return_operator = Callback::new(move |catatan: String| {
         let id = params.get().get("id").unwrap_or_default();
-        let catatan = catatan_input.get();
-        if catatan.is_empty() {
-            set_error_msg.set(Some("Catatan wajib diisi saat mengembalikan".to_string()));
-            return;
-        }
         set_loading_action.set(true);
         set_error_msg.set(None);
         leptos::task::spawn_local(async move {
@@ -157,7 +259,6 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_success_msg
                         .set(Some("Berhasil dikembalikan ke Operator Satker".to_string()));
-                    set_catatan_input.set(String::new());
                     set_show_return_modal.set(false);
                     refresh_trigger.update(|v| *v += 1);
                 }
@@ -165,10 +266,10 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Generate Konsep SK (Validator Pusat)
-    let on_generate_sk = move |_| {
+    let on_generate_sk = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         set_loading_action.set(true);
         set_error_msg.set(None);
@@ -182,7 +283,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Upload Signed SK PDF
     let on_upload_signed_sk = move |_| {
@@ -281,10 +382,15 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                                 <dd class="font-medium">{d.penghapusan.nup.clone()}</dd>
                                             </div>
                                             <div>
-                                                <dt class="text-gray-500">"Nilai Residu"</dt>
+                                                <dt class="text-gray-500">"Nilai Perolehan"</dt>
                                                 <dd class="font-medium">
-                                                    {d.penghapusan.nilai_residu.map(|v| format!("Rp {:.2}", v)).unwrap_or_else(|| "-".to_string())}
+                                                    {d.penghapusan.nilai_perolehan.map(|v| format!("Rp {:.2}", v)).unwrap_or_else(|| "-".to_string())}
                                                 </dd>
+                                                {d.penghapusan.nilai_perolehan_dari_backfill.then(|| view! {
+                                                    <p class="mt-1 text-xs text-amber-600">
+                                                        "Diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
+                                                    </p>
+                                                })}
                                             </div>
                                         </dl>
                                     </div>
@@ -342,6 +448,191 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                             })}
                                         </dl>
                                     </div>
+                                </div>
+
+                                // Daftar Item BMN (Fase 2.8) — multi-item
+                                {(!d.items.is_empty()).then(|| {
+                                    let items = d.items.clone();
+                                    view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">
+                                                "Daftar Item BMN (" {items.len()} ")"
+                                            </h3>
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full text-sm">
+                                                    <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                                                        <tr>
+                                                            <th class="px-3 py-2">"No"</th>
+                                                            <th class="px-3 py-2">"Kode Barang"</th>
+                                                            <th class="px-3 py-2">"Nama Barang"</th>
+                                                            <th class="px-3 py-2">"NUP"</th>
+                                                            <th class="px-3 py-2">"Kondisi"</th>
+                                                            <th class="px-3 py-2 text-right">"Nilai Perolehan"</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y">
+                                                        {items.into_iter().enumerate().map(|(i, it)| view! {
+                                                            <tr>
+                                                                <td class="px-3 py-2">{i + 1}</td>
+                                                                <td class="px-3 py-2 font-mono">{it.kode_barang}</td>
+                                                                <td class="px-3 py-2">{it.nama_barang}</td>
+                                                                <td class="px-3 py-2 font-mono">{it.nup}</td>
+                                                                <td class="px-3 py-2">{it.kondisi.unwrap_or_else(|| "-".to_string())}</td>
+                                                                <td class="px-3 py-2 text-right">
+                                                                    {it.nilai_perolehan.map(|v| format!("Rp {:.0}", v)).unwrap_or_else(|| "-".to_string())}
+                                                                </td>
+                                                            </tr>
+                                                        }).collect_view()}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    }
+                                })}
+
+                                // Lampiran Pendukung (Fase 0.6 / #15) — daftar + unggah
+                                {
+                                    let can_upload = status_kode == 4000 || status_kode == 4002;
+                                    let upload_surat = Box::new(move |files: Vec<web_sys::File>| {
+                                        let Some(file) = files.into_iter().next() else { return };
+                                        let id = params.get().get("id").unwrap_or_default();
+                                        uploading.set(true);
+                                        set_error_msg.set(None);
+                                        leptos::task::spawn_local(async move {
+                                            match upload_penghapusan_lampiran(&id, Some(file), vec![]).await {
+                                                Ok(_) => {
+                                                    set_success_msg.set(Some("Surat Usulan berhasil diunggah".to_string()));
+                                                    refresh_trigger.update(|v| *v += 1);
+                                                }
+                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                            }
+                                            uploading.set(false);
+                                        });
+                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                    let upload_lampiran = Box::new(move |files: Vec<web_sys::File>| {
+                                        if files.is_empty() { return; }
+                                        let id = params.get().get("id").unwrap_or_default();
+                                        uploading.set(true);
+                                        set_error_msg.set(None);
+                                        leptos::task::spawn_local(async move {
+                                            match upload_penghapusan_lampiran(&id, None, files).await {
+                                                Ok(_) => {
+                                                    set_success_msg.set(Some("Lampiran berhasil diunggah".to_string()));
+                                                    refresh_trigger.update(|v| *v += 1);
+                                                }
+                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                            }
+                                            uploading.set(false);
+                                        });
+                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                    view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">"Lampiran Pendukung"</h3>
+                                            <Suspense fallback=move || view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }>
+                                                {move || match lampiran_resource.get() {
+                                                    None => view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }.into_any(),
+                                                    Some(Err(_)) => view! { <p class="text-sm text-gray-400">"Gagal memuat daftar lampiran."</p> }.into_any(),
+                                                    Some(Ok(resp)) => {
+                                                        let items = resp.data;
+                                                        if items.is_empty() {
+                                                            view! { <p class="text-sm text-gray-400">"Belum ada lampiran diunggah."</p> }.into_any()
+                                                        } else {
+                                                            view! {
+                                                                <ul class="space-y-1.5 text-sm">
+                                                                    {items.into_iter().map(|l| view! {
+                                                                        <li class="flex items-center justify-between gap-2">
+                                                                            <a href={l.file_url.clone()} target="_blank" class="text-blue-600 hover:underline truncate">
+                                                                                {l.nama.clone()}
+                                                                            </a>
+                                                                            <span class="text-xs text-gray-400 shrink-0">
+                                                                                {l.size_bytes.map(|b| format!("{} KB", (b + 1023) / 1024)).unwrap_or_default()}
+                                                                            </span>
+                                                                        </li>
+                                                                    }).collect_view()}
+                                                                </ul>
+                                                            }.into_any()
+                                                        }
+                                                    }
+                                                }}
+                                            </Suspense>
+
+                                            {can_upload.then(move || view! {
+                                                <div class="mt-4 space-y-3 border-t pt-4">
+                                                    <FileUpload
+                                                        label="Surat Usulan (1 file)".to_string()
+                                                        accept=".pdf,.doc,.docx".to_string()
+                                                        disabled=uploading.get()
+                                                        on_change=upload_surat
+                                                    />
+                                                    <FileUpload
+                                                        label="Lampiran Pendukung (boleh lebih dari satu)".to_string()
+                                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png".to_string()
+                                                        multiple=true
+                                                        disabled=uploading.get()
+                                                        on_change=upload_lampiran
+                                                    />
+                                                    {move || uploading.get().then(|| view! {
+                                                        <p class="text-xs text-gray-500">"Mengunggah berkas..."</p>
+                                                    })}
+                                                </div>
+                                            })}
+                                        </div>
+                                    }
+                                }
+
+                                // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
+                                {(status_kode == 4001 || status_kode == 4003 || status_kode == 4004)
+                                    .then(|| view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">"Verifikasi Aset di SIMAN"</h3>
+                                            <Suspense fallback=move || view! {
+                                                <p class="text-sm text-gray-400">"Memeriksa aset di SIMAN..."</p>
+                                            }>
+                                                {move || {
+                                                    verifikasi_resource.get().flatten().map(|v| {
+                                                        let (badge_class, badge_text) = if !v.ditemukan {
+                                                            ("bg-red-100 text-red-800", "Tidak Ditemukan")
+                                                        } else if v.layak_lanjut {
+                                                            ("bg-green-100 text-green-800", "Terverifikasi")
+                                                        } else {
+                                                            ("bg-yellow-100 text-yellow-800", "Perlu Pengecekan")
+                                                        };
+                                                        view! {
+                                                            <div>
+                                                                <div class="flex items-center gap-2 mb-2">
+                                                                    <span class=format!("px-2 py-0.5 rounded text-xs font-medium {}", badge_class)>
+                                                                        {badge_text}
+                                                                    </span>
+                                                                    <span class="text-sm text-gray-600">{v.pesan.clone()}</span>
+                                                                </div>
+                                                                {v.ditemukan.then(|| view! {
+                                                                    <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                                                        <dt class="text-gray-500">"NUP"</dt>
+                                                                        <dd class="font-medium">{v.nup.clone()}</dd>
+                                                                        <dt class="text-gray-500">"Nama (SIMAN)"</dt>
+                                                                        <dd class="font-medium">{v.nama_barang_siman.clone().unwrap_or_else(|| "-".to_string())}</dd>
+                                                                        <dt class="text-gray-500">"Kondisi"</dt>
+                                                                        <dd class="font-medium">{v.kondisi.clone().unwrap_or_else(|| "-".to_string())}</dd>
+                                                                        <dt class="text-gray-500">"Kode Barang (SIMAN)"</dt>
+                                                                        <dd class=if v.kode_barang_cocok { "font-medium" } else { "font-medium text-red-600" }>
+                                                                            {v.kode_barang_siman.clone().unwrap_or_else(|| "-".to_string())}
+                                                                        </dd>
+                                                                    </dl>
+                                                                })}
+                                                            </div>
+                                                        }.into_any()
+                                                    }).unwrap_or_else(|| view! {
+                                                        <p class="text-sm text-gray-400">"Data verifikasi tidak tersedia"</p>
+                                                    }.into_any())
+                                                }}
+                                            </Suspense>
+                                        </div>
+                                    })}
+
+                                // Riwayat Proses (Fase 2.5 — WorkflowTimeline reusable)
+                                <div class="bg-white rounded-lg shadow p-4">
+                                    <h3 class="font-semibold text-gray-700 mb-3">"Riwayat Proses"</h3>
+                                    <WorkflowTimeline steps=build_penghapusan_timeline(&d.penghapusan) />
                                 </div>
 
                                 // SK Document Section — konsep is produced as both DOCX
@@ -407,58 +698,53 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                         </div>
                                     })}
 
-                                    <div class="flex flex-wrap gap-3">
-                                        // Draft: Submit to Wilayah
-                                        {(status_kode == 4000 || status_kode == 4002).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_submit_wilayah
-                                            >
-                                                {move || if loading_action.get() { "Mengirim..." } else { "Ajukan ke Validator Wilayah" }}
-                                            </button>
-                                        })}
+                                    // Tombol aksi — WorkflowActions reusable (Fase 2.5).
+                                    // Vec dirakit kondisional sesuai status & kapabilitas.
+                                    {
+                                        let mut actions: Vec<WorkflowAction> = Vec::new();
+                                        if status_kode == 4000 || status_kode == 4002 {
+                                            actions.push(WorkflowAction::new(
+                                                "Ajukan ke Validator Wilayah",
+                                                ActionTone::Primary,
+                                                on_submit_wilayah,
+                                            ));
+                                        }
+                                        if status_kode == 4001 {
+                                            actions.push(WorkflowAction::new(
+                                                "Teruskan ke Validator Pusat",
+                                                ActionTone::Primary,
+                                                on_forward_pusat,
+                                            ));
+                                            actions.push(WorkflowAction::new(
+                                                "Kembalikan ke Operator",
+                                                ActionTone::Warning,
+                                                Callback::new(move |_| set_show_return_modal.set(true)),
+                                            ));
+                                        }
+                                        if detail.can_generate_sk {
+                                            actions.push(WorkflowAction::new(
+                                                "Generate Konsep SK",
+                                                ActionTone::Primary,
+                                                on_generate_sk,
+                                            ));
+                                        }
+                                        if detail.can_upload_signed_sk {
+                                            actions.push(WorkflowAction::new(
+                                                "Upload SK Ditandatangani",
+                                                ActionTone::Success,
+                                                Callback::new(move |_| set_show_upload_modal.set(true)),
+                                            ));
+                                        }
+                                        view! {
+                                            <WorkflowActions
+                                                actions=actions
+                                                busy=Signal::derive(move || loading_action.get())
+                                            />
+                                        }
+                                    }
 
-                                        // SubmitWilayah: Forward to Pusat / Return to Operator
-                                        {(status_kode == 4001).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_forward_pusat
-                                            >
-                                                "Teruskan ke Validator Pusat"
-                                            </button>
-                                            <button
-                                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=move |_| set_show_return_modal.set(true)
-                                            >
-                                                "Kembalikan ke Operator"
-                                            </button>
-                                        })}
-
-                                        // VerifikasiPusat: Generate SK / Reject
-                                        {(detail.can_generate_sk).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_generate_sk
-                                            >
-                                                {move || if loading_action.get() { "Generating..." } else { "Generate Konsep SK" }}
-                                            </button>
-                                        })}
-
-                                        // KonsepSKGenerated: Upload Signed SK
-                                        {(detail.can_upload_signed_sk).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=move |_| set_show_upload_modal.set(true)
-                                            >
-                                                "Upload SK Ditandatangani"
-                                            </button>
-                                        })}
-
+                                    // Terminal status displays + back link
+                                    <div class="mt-3 flex flex-wrap items-center gap-3">
                                         // Completed status
                                         {(status_kode == 4007).then(|| view! {
                                             <div class="flex items-center text-green-600">
@@ -494,38 +780,20 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                 })}
             </Suspense>
 
-            // Return to Operator Modal
+            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
             {move || show_return_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
-                    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                        <h3 class="text-lg font-semibold mb-4">"Kembalikan ke Operator Satker"</h3>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Catatan (Wajib)"</label>
-                            <textarea
-                                class="w-full border rounded-lg px-3 py-2 text-sm"
-                                rows="3"
-                                placeholder="Jelaskan alasan pengembalian..."
-                                prop:value=move || catatan_input.get()
-                                on:input=move |ev| set_catatan_input.set(event_target_value(&ev))
-                            />
-                        </div>
-                        <div class="flex gap-3 justify-end">
-                            <button
-                                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                                on:click=move |_| set_show_return_modal.set(false)
-                            >
-                                "Batal"
-                            </button>
-                            <button
-                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                                disabled=move || loading_action.get() || catatan_input.get().is_empty()
-                                on:click=on_return_operator
-                            >
-                                "Kembalikan"
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ApprovalDialog
+                    title="Kembalikan ke Operator Satker"
+                    description="Jelaskan alasan pengembalian agar Operator Satker dapat memperbaiki usulan."
+                    note_label="Catatan (wajib)"
+                    note_placeholder="Jelaskan alasan pengembalian..."
+                    require_note=true
+                    confirm_label="Kembalikan"
+                    confirm_tone=ActionTone::Warning
+                    on_confirm=on_return_operator
+                    on_close=Callback::new(move |_| set_show_return_modal.set(false))
+                    busy=Signal::derive(move || loading_action.get())
+                />
             })}
 
             // Upload Signed SK Modal

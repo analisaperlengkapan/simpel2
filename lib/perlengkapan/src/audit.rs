@@ -121,4 +121,24 @@ impl AuditEvent {
         self.message = Some(msg.into());
         self
     }
+
+    /// Set the free-form action name (typically used with [`AuditAction::Custom`]
+    /// to tag events like `"workflow.transition"`).
+    pub fn action_name(mut self, name: impl Into<String>) -> Self {
+        self.action_name = Some(name.into());
+        self
+    }
+
+    /// Attach structured metadata. Stored as `jsonb` in `audit_log`.
+    #[cfg(feature = "serde")]
+    pub fn metadata(mut self, value: serde_json::Value) -> Self {
+        self.metadata = Some(value);
+        self
+    }
+
+    #[cfg(not(feature = "serde"))]
+    pub fn metadata(mut self, value: impl Into<String>) -> Self {
+        self.metadata = Some(value.into());
+        self
+    }
 }

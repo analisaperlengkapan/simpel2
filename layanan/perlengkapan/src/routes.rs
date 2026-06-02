@@ -84,6 +84,10 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::penghapusan_bmn::get_penghapusan_bmn_detail),
         )
         .route(
+            "/penghapusan-bmn/{id}/verifikasi-siman",
+            get(crate::penghapusan_bmn::verify_penghapusan_asset_siman),
+        )
+        .route(
             "/penghapusan-bmn/{id}/transition",
             post(crate::penghapusan_bmn::transition_penghapusan_bmn),
         )
@@ -121,10 +125,32 @@ pub fn create_routes(state: AppState) -> Router {
             "/penghapusan-bmn/{id}/upload-signed-sk",
             post(crate::penghapusan_bmn::upload_signed_sk),
         )
+        // V029 (Fase 1.9): SK Wilayah endpoints — Validator Wilayah
+        // (mewakili Kepala Kejaksaan Tinggi) untuk kewenangan WILAYAH.
+        .route(
+            "/penghapusan-bmn/{id}/generate-sk-wilayah",
+            post(crate::penghapusan_bmn::generate_konsep_sk_wilayah),
+        )
+        .route(
+            "/penghapusan-bmn/{id}/upload-signed-sk-wilayah",
+            post(crate::penghapusan_bmn::upload_signed_sk_wilayah),
+        )
         .route(
             "/penghapusan-bmn/{id}/document",
             get(crate::penghapusan_bmn::get_penghapusan_document),
         )
+        // File upload (Fase 0.6): Surat Usulan + Lampiran[]
+        .route(
+            "/penghapusan-bmn/{id}/lampiran",
+            get(crate::penghapusan_bmn::list_lampiran)
+                .post(crate::penghapusan_bmn::upload_lampiran),
+        )
+        // ============ Pemakaian BMN cek (Fase 1.11) ============
+        .route(
+            "/pemakaian-bmn/cek-pegawai/{nip}",
+            get(crate::pemakaian_bmn::cek_pegawai),
+        )
+        .route("/pemakaian-bmn/cek-bmn", get(crate::pemakaian_bmn::cek_bmn))
         // ============ Pakaian Dinas Routes ============
         // Master: Jenis Pakaian Dinas
         .route(
@@ -180,6 +206,10 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/satker/{id}",
             get(pakaian_dinas::get_pengajuan_satker_by_id),
         )
+        .route(
+            "/pakaian-dinas/satker/{id}/aktivitas",
+            get(pakaian_dinas::get_pengajuan_satker_aktivitas),
+        )
         // Workflow Actions
         .route(
             "/pakaian-dinas/validator-action",
@@ -212,6 +242,10 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pakaian-dinas/pegawai-satker/{satker_id}/with-sizes",
             get(pakaian_dinas::get_pegawai_with_sizes),
+        )
+        .route(
+            "/pakaian-dinas/pegawai-satker/{satker_id}/roster",
+            get(pakaian_dinas::get_pegawai_roster_with_sync),
         )
         // Reports
         .route(
@@ -269,10 +303,21 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/pengajuan/{id}/export",
             get(kebutuhan_bmn::export_pengajuan),
         )
+        // V029 (Fase 1.7): Daftar wilayah Kejaksaan Tinggi utk dropdown FE
+        // saat user pilih pilihan_satker = wilayah.
+        .route(
+            "/kebutuhan-bmn/wilayah",
+            get(kebutuhan_bmn::list_wilayah_kejati),
+        )
         // Pengajuan Satker
         .route(
             "/kebutuhan-bmn/pengajuan/{id}/satker",
             get(kebutuhan_bmn::get_pengajuan_satkers).post(kebutuhan_bmn::add_satker_to_pengajuan),
+        )
+        // V029 (Fase 1.6): Daftar allowed-list BMN utk pengajuan
+        .route(
+            "/kebutuhan-bmn/pengajuan/{id}/bmn-referensi",
+            get(kebutuhan_bmn::list_bmn_referensi_handler),
         )
         // Satker Operations
         .route(
@@ -290,6 +335,16 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/kebutuhan-bmn/satker/{id}/analisis",
             get(kebutuhan_bmn::get_analisis_kelayakan),
+        )
+        // Laporan Hasil Analisis Kebutuhan BMN (Fase 0.8): preview inline (PDF
+        // di-iframe FE) + download attachment (PDF; DOCX follow-up).
+        .route(
+            "/kebutuhan-bmn/satker/{id}/laporan/preview",
+            get(kebutuhan_bmn::preview_laporan_analisis),
+        )
+        .route(
+            "/kebutuhan-bmn/satker/{id}/laporan/download",
+            get(kebutuhan_bmn::download_laporan_analisis),
         )
         // Satker Workflow Actions (Validator Wilayah & Pusat)
         .route(
@@ -413,6 +468,19 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/{id}/activate",
             post(pemakaian_bmn::activate_permit),
         )
+        // V035 (Fase 1.5): Alur internal-satker 3-step approval.
+        .route(
+            "/pemakaian-bmn/{id}/validator-satker-action",
+            post(pemakaian_bmn::validator_satker_action),
+        )
+        .route(
+            "/pemakaian-bmn/{id}/approver-satker-action",
+            post(pemakaian_bmn::approver_satker_action),
+        )
+        .route(
+            "/pemakaian-bmn/{id}/resubmit",
+            post(pemakaian_bmn::operator_resubmit),
+        )
         .route(
             "/pemakaian-bmn/{id}/document",
             get(pemakaian_bmn::get_permit_document),
@@ -427,6 +495,12 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/pemakaian-bmn/{id}/konsep-surat.{format}",
             get(pemakaian_bmn::serve_konsep_surat),
+        )
+        // Fase 1.10: SK Izin Pemakaian BMN 2-halaman PDF (info pegawai +
+        // daftar BMN). Stream inline.
+        .route(
+            "/pemakaian-bmn/{id}/sk-izin.pdf",
+            get(pemakaian_bmn::serve_sk_izin_pdf),
         )
         .route(
             "/pemakaian-bmn/{id}/upload-signed-pdf",
@@ -463,7 +537,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/auto-expire",
             post(pemakaian_bmn::auto_expire_permits),
         )
-        // Monitoring Dashboard
+        // Monitoring Dashboard (read-only — Validator Wilayah & Pusat)
+        .route(
+            "/pemakaian-bmn/monitoring/summary",
+            get(pemakaian_bmn::get_monitoring_summary),
+        )
         .route(
             "/pemakaian-bmn/monitoring/active-usage",
             get(pemakaian_bmn::get_active_usage_dashboard),
@@ -519,6 +597,17 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/delegations/{id}/revoke",
             post(crate::workflow::delegation_handlers::revoke_delegation_handler),
         )
+        // ============ Integrasi circuit-breaker status (FE banner) ============
+        // Auth'd, lightweight view of SIMAN/MySIMKARI/MonSAKTI breaker state.
+        .route(
+            "/integrasi/circuit-status",
+            get(crate::shared::health::integrasi_circuit_status),
+        )
+        // ============ Cross-module audit trail (BPK-ready) ============
+        // Reads perlengkapan.audit_log (every module's AuditSink events),
+        // unlike /admin/audit which only shows workflow transitions. Pull a
+        // single record's full history via ?entity=<type>&resource_id=<id>.
+        .route("/audit", get(crate::audit::list_audit_trail))
         // ============ Admin Routes (audit + master data + templates) ============
         .route("/admin/audit", get(crate::admin::list_audit_logs))
         .route("/admin/master", get(crate::admin::list_master_sources))

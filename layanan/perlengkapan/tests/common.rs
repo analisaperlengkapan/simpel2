@@ -234,6 +234,8 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         document_storage: std::sync::Arc::new(
             layanan_perlengkapan::dokumen::FilesystemStorage::from_env(),
         ),
+        // #36: integrasi client utk circuit-breaker health — tidak dipakai di test.
+        integrasi_client: None,
         boot_time: std::time::Instant::now(),
     };
 

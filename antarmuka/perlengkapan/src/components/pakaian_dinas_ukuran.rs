@@ -3,8 +3,9 @@
 //! Allows employees to input their personal uniform sizes (baju, celana, sepatu).
 
 use crate::api::{
-    AppError, PegawaiPakaianDinas, PegawaiWithSizes, Ukuran, UpsertPegawaiUkuranRequest,
-    fetch_master_ukuran, fetch_pegawai_ukuran, fetch_pegawai_with_sizes, upsert_pegawai_ukuran,
+    AppError, PegawaiPakaianDinas, PegawaiSyncInfo, PegawaiWithSizes, Ukuran,
+    UpsertPegawaiUkuranRequest, fetch_master_ukuran, fetch_pegawai_roster_sync,
+    fetch_pegawai_ukuran, fetch_pegawai_with_sizes, upsert_pegawai_ukuran,
 };
 use crate::components::layout::{
     DataTable, DataTableColumn, EmptyState, ErrorState, FormField, LoadingState, PageLayout,
@@ -43,6 +44,15 @@ async fn query_pegawai_with_sizes(
 ) -> Result<crate::api::PaginatedResponse<PegawaiWithSizes>, AppError> {
     let (satker_id, page) = key;
     fetch_pegawai_with_sizes(satker_id, page, 20).await
+}
+
+/// Status kesegaran sinkronisasi MySIMKARI (Fase 2.4) — keyed by satker_id.
+/// `None` bila integrasi tak tersedia / probe gagal (banner "tidak diketahui").
+async fn query_pegawai_roster_sync(satker_id: String) -> Option<PegawaiSyncInfo> {
+    fetch_pegawai_roster_sync(satker_id)
+        .await
+        .ok()
+        .and_then(|r| r.data.sync)
 }
 
 #[component]
@@ -264,11 +274,15 @@ pub fn UkuranPegawaiSatker(
 ) -> impl IntoView {
     let (page, set_page) = signal(1);
     let satker_id_clone = satker_id.clone();
+    let satker_id_sync = satker_id.clone();
     let client: QueryClient = expect_context();
 
     let data_resource = client.local_resource(query_pegawai_with_sizes, move || {
         (satker_id_clone.clone(), page.get())
     });
+    // Fase 2.4: status kesegaran sinkronisasi MySIMKARI utk banner.
+    let sync_resource =
+        client.local_resource(query_pegawai_roster_sync, move || satker_id_sync.clone());
 
     view! {
         <PageLayout
@@ -276,6 +290,38 @@ pub fn UkuranPegawaiSatker(
             icon="fas fa-users"
             description="Daftar ukuran pakaian dinas seluruh pegawai di satker"
         >
+            // Banner kesegaran data pegawai MySIMKARI (Fase 2.4)
+            <Suspense fallback=|| ().into_any()>
+                {move || {
+                    sync_resource.get().map(|maybe_sync| match maybe_sync {
+                        Some(s) => {
+                            let waktu = s.last_sync_at.clone().unwrap_or_else(|| "-".to_string());
+                            if s.segar {
+                                view! {
+                                    <div class="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+                                        <span><AppIcon icon=CHECK_CIRCLE /></span>
+                                        "Data pegawai sinkron dari MySIMKARI per " {waktu}
+                                    </div>
+                                }.into_any()
+                            } else {
+                                view! {
+                                    <div class="mb-4 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+                                        <span><AppIcon icon=WARNING_CIRCLE /></span>
+                                        "Data pegawai mungkin belum terbaru (sinkronisasi terakhir: " {waktu} ", status: " {s.state.clone()} "). Menampilkan data cache."
+                                    </div>
+                                }.into_any()
+                            }
+                        }
+                        None => view! {
+                            <div class="mb-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
+                                <span><AppIcon icon=INFO /></span>
+                                "Status sinkronisasi MySIMKARI tidak diketahui."
+                            </div>
+                        }.into_any(),
+                    })
+                }}
+            </Suspense>
+
             <Suspense fallback=move || view! { <LoadingState /> }>
                 {move || match data_resource.get() {
                     None => view! { <LoadingState /> }.into_any(),

@@ -7,6 +7,7 @@ use deadpool_postgres::Pool;
 use uuid::Uuid;
 
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::repo::PoolExt;
 
 use super::models::*;
 
@@ -30,11 +31,7 @@ impl PemakaianBmnRepository {
         created_by: Uuid,
         created_by_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let id = Uuid::new_v4();
         let is_renewal = request.is_renewal.unwrap_or(false);
@@ -108,11 +105,7 @@ impl PemakaianBmnRepository {
     /// Get permit by ID
     /// Requirements: REQ-P001
     pub async fn get_by_id(&self, id: Uuid) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT * FROM perlengkapan.izin_pemakaian_bmn
@@ -137,11 +130,7 @@ impl PemakaianBmnRepository {
         updated_by: Uuid,
         updated_by_nama: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // First check if permit is in DRAFT status
         let current = self.get_by_id(id).await?;
@@ -195,11 +184,7 @@ impl PemakaianBmnRepository {
         user_nama: String,
         catatan: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = match status {
             "APPROVED" => {
@@ -254,20 +239,282 @@ impl PemakaianBmnRepository {
         Ok(self.row_to_permit(row))
     }
 
+    // ========================================================================
+    // V035 (Fase 1.5): Internal-satker 3-step approval transitions.
+    //
+    // Setiap transisi memakai optimistic lock (kolom `version`) — jika dua
+    // user menekan tombol bersamaan, hanya satu UPDATE yg menang; yg lain
+    // mendapat `Conflict` dan FE wajib refresh.
+    // ========================================================================
+
+    /// Validator Satker meneruskan ke Approver Satker.
+    /// State: SUBMITTED → SUBMITTED_APPROVER_SATKER (kode 3010).
+    pub async fn validator_satker_forward(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: &str,
+        expected_version: i32,
+        catatan: Option<&str>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'SUBMITTED_APPROVER_SATKER',
+                    status_kode              = 3010,
+                    validator_satker_id      = $1,
+                    validator_satker_nama    = $2,
+                    tanggal_validasi_satker  = NOW(),
+                    catatan_validator_satker = $3,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3001
+                RETURNING *
+                "#,
+                &[
+                    &validator_id,
+                    &validator_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data sudah berubah atau status bukan SUBMITTED — silakan refresh".into(),
+            )),
+        }
+    }
+
+    /// Validator Satker mengembalikan ke Operator utk revisi.
+    /// State: SUBMITTED → REVISI_OPERATOR (kode 3011).
+    pub async fn validator_satker_return(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: &str,
+        expected_version: i32,
+        catatan: &str,
+    ) -> AppResult<IzinPemakaianBmn> {
+        if catatan.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
+            ));
+        }
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'REVISI_OPERATOR',
+                    status_kode              = 3011,
+                    validator_satker_id      = $1,
+                    validator_satker_nama    = $2,
+                    tanggal_validasi_satker  = NOW(),
+                    catatan_validator_satker = $3,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5
+                  AND status_kode IN (3001, 3010)
+                RETURNING *
+                "#,
+                &[
+                    &validator_id,
+                    &validator_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data sudah berubah atau status tidak valid utk revisi — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Approver Satker (Pengguna Barang Satker) menyetujui — siap aktivasi.
+    /// State: SUBMITTED_APPROVER_SATKER → APPROVED.
+    pub async fn approver_satker_approve(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: &str,
+        expected_version: i32,
+        catatan: Option<&str>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                   = 'APPROVED',
+                    status_kode              = 3002,
+                    approver_satker_id       = $1,
+                    approver_satker_nama     = $2,
+                    tanggal_approval_satker  = NOW(),
+                    catatan_approver_satker  = $3,
+                    approved_by              = $1,
+                    approved_by_nama         = $2,
+                    approved_at              = NOW(),
+                    catatan_approval         = $3,
+                    approved_via_legacy_flow = FALSE,
+                    updated_by               = $1,
+                    updated_by_nama          = $2,
+                    updated_at               = NOW(),
+                    version                  = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3010
+                RETURNING *
+                "#,
+                &[
+                    &approver_id,
+                    &approver_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan SUBMITTED_APPROVER_SATKER — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Approver Satker mengembalikan ke Operator utk revisi.
+    /// State: SUBMITTED_APPROVER_SATKER → REVISI_OPERATOR.
+    pub async fn approver_satker_return(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: &str,
+        expected_version: i32,
+        catatan: &str,
+    ) -> AppResult<IzinPemakaianBmn> {
+        // Re-use validator_satker_return — guard kolom yg dipakai sama,
+        // tapi audit field-nya `approver_satker_*` agar jelas siapa yg
+        // menolak. Tetap simpan ke `catatan_validator_satker` agar
+        // Operator melihat catatan terbaru di field umum.
+        if catatan.trim().is_empty() {
+            return Err(AppError::BadRequest(
+                "Catatan revisi wajib diisi saat mengembalikan ke Operator".into(),
+            ));
+        }
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status                  = 'REVISI_OPERATOR',
+                    status_kode             = 3011,
+                    approver_satker_id      = $1,
+                    approver_satker_nama    = $2,
+                    tanggal_approval_satker = NOW(),
+                    catatan_approver_satker = $3,
+                    updated_by              = $1,
+                    updated_by_nama         = $2,
+                    updated_at              = NOW(),
+                    version                 = version + 1
+                WHERE id = $4 AND version = $5 AND status_kode = 3010
+                RETURNING *
+                "#,
+                &[
+                    &approver_id,
+                    &approver_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan SUBMITTED_APPROVER_SATKER — silakan refresh"
+                    .into(),
+            )),
+        }
+    }
+
+    /// Operator re-submit setelah revisi.
+    /// State: REVISI_OPERATOR → SUBMITTED (kembali ke Validator Satker).
+    pub async fn operator_resubmit(
+        &self,
+        id: Uuid,
+        operator_id: Uuid,
+        operator_nama: &str,
+        expected_version: i32,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                UPDATE perlengkapan.izin_pemakaian_bmn
+                SET status          = 'SUBMITTED',
+                    status_kode     = 3001,
+                    updated_by      = $1,
+                    updated_by_nama = $2,
+                    updated_at      = NOW(),
+                    version         = version + 1
+                WHERE id = $3 AND version = $4 AND status_kode = 3011
+                RETURNING *
+                "#,
+                &[&operator_id, &operator_nama, &id, &expected_version],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        match row_opt {
+            Some(row) => Ok(self.row_to_permit(row)),
+            None => Err(AppError::Conflict(
+                "Versi data berubah atau status bukan REVISI_OPERATOR — silakan refresh".into(),
+            )),
+        }
+    }
+
     /// Generate permit number
     /// Requirements: REQ-P005
+    ///
+    /// Format: `IP/YYYY/MM/NNNN` — sequential within each YYYY/MM bucket.
+    ///
+    /// Tanpa serialisasi, dua aktivasi paralel di bulan yg sama dpt membaca
+    /// `MAX(num)` yg sama (snapshot CTE) dan menghasilkan dua `nomor_izin`
+    /// identik → UNIQUE conflict atau nomor lompat. Mitigasi:
+    /// `pg_advisory_xact_lock` dgn kunci per-bulan agar generator berurutan.
     pub async fn generate_permit_number(&self, id: Uuid) -> AppResult<String> {
-        let client = self
-            .pool
-            .get()
+        let mut client = self.pool.client().await?;
+
+        let tx = client
+            .transaction()
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        // Format: IP/YYYY/MM/NNNN
-        // IP = Izin Pemakaian
-        // YYYY = Year
-        // MM = Month
-        // NNNN = Sequential number
+        // Kunci per-bulan: hashtext('izin_pemakaian_bmn:nomor:YYYY-MM').
+        // xact_lock dilepas otomatis di akhir transaksi (commit/rollback).
+        tx.execute(
+            "SELECT pg_advisory_xact_lock(hashtext('izin_pemakaian_bmn:nomor:' || TO_CHAR(NOW(), 'YYYY-MM')))",
+            &[],
+        )
+        .await
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
         let query = r#"
             WITH next_number AS (
                 SELECT COALESCE(MAX(
@@ -283,12 +530,18 @@ impl PemakaianBmnRepository {
             RETURNING nomor_izin
         "#;
 
-        let row = client
+        let row = tx
             .query_one(query, &[&id])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
-        Ok(row.get("nomor_izin"))
+        let nomor: String = row.get("nomor_izin");
+
+        tx.commit()
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(nomor)
     }
 
     /// Update document fields after document generation
@@ -299,11 +552,7 @@ impl PemakaianBmnRepository {
         document_id: Uuid,
         document_url: String,
     ) -> AppResult<IzinPemakaianBmn> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
@@ -322,17 +571,174 @@ impl PemakaianBmnRepository {
         Ok(self.row_to_permit(row))
     }
 
-    /// Check if BMN is available (no active permit)
+    // ========================================================================
+    // Fase 1.11: Cek pegawai + Cek BMN dgn period
+    // ========================================================================
+
+    /// Lookup pegawai dari cache MySIMKARI by NIP.
+    pub async fn find_pegawai_by_nip(&self, nip: &str) -> AppResult<Option<PegawaiInfo>> {
+        let client = self.pool.client().await?;
+        let row = client
+            .query_opt(
+                r#"
+                SELECT nip, nama, jabatan, golpang AS pangkat, satker_id, nama_satker, foto
+                FROM integrasi.mysimkari_pegawai
+                WHERE nip = $1
+                "#,
+                &[&nip],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(row.map(|r| PegawaiInfo {
+            nip: r.get("nip"),
+            nama: r.try_get("nama").ok().flatten(),
+            jabatan: r.try_get("jabatan").ok().flatten(),
+            pangkat: r.try_get("pangkat").ok().flatten(),
+            satker_id: r.try_get("satker_id").ok().flatten(),
+            nama_satker: r.try_get("nama_satker").ok().flatten(),
+            foto: r.try_get("foto").ok().flatten(),
+        }))
+    }
+
+    /// Pemakaian BMN yg saat ini aktif utk pegawai.
+    pub async fn list_pemakaian_aktif_by_pegawai(
+        &self,
+        nip: &str,
+    ) -> AppResult<Vec<PemakaianAktifEntry>> {
+        let client = self.pool.client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT id, nomor_izin, bmn_nup, bmn_nama_barang,
+                       tanggal_mulai, tanggal_selesai
+                FROM perlengkapan.izin_pemakaian_bmn
+                WHERE pegawai_nip = $1 AND status = 'ACTIVE'
+                ORDER BY tanggal_selesai DESC
+                "#,
+                &[&nip],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(rows
+            .iter()
+            .map(|r| PemakaianAktifEntry {
+                permit_id: r.get("id"),
+                nomor_izin: r.try_get("nomor_izin").ok().flatten(),
+                bmn_nup: r.get("bmn_nup"),
+                bmn_nama_barang: r.get("bmn_nama_barang"),
+                tanggal_mulai: r.get("tanggal_mulai"),
+                tanggal_selesai: r.get("tanggal_selesai"),
+            })
+            .collect())
+    }
+
+    /// Histori pemakaian BMN pegawai (status non-aktif: Expired, Revoked,
+    /// Rejected, Cancelled). Limit utk avoid blow-up.
+    pub async fn list_pemakaian_histori_by_pegawai(
+        &self,
+        nip: &str,
+        limit: i64,
+    ) -> AppResult<Vec<PemakaianHistoriEntry>> {
+        let client = self.pool.client().await?;
+        let rows = client
+            .query(
+                r#"
+                SELECT id, nomor_izin, bmn_nup, bmn_nama_barang, status,
+                       tanggal_mulai, tanggal_selesai
+                FROM perlengkapan.izin_pemakaian_bmn
+                WHERE pegawai_nip = $1
+                  AND status IN ('EXPIRED', 'REVOKED', 'REJECTED', 'CANCELLED')
+                ORDER BY tanggal_selesai DESC
+                LIMIT $2
+                "#,
+                &[&nip, &limit],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(rows
+            .iter()
+            .map(|r| PemakaianHistoriEntry {
+                permit_id: r.get("id"),
+                nomor_izin: r.try_get("nomor_izin").ok().flatten(),
+                bmn_nup: r.get("bmn_nup"),
+                bmn_nama_barang: r.get("bmn_nama_barang"),
+                status: r.get("status"),
+                tanggal_mulai: r.get("tanggal_mulai"),
+                tanggal_selesai: r.get("tanggal_selesai"),
+            })
+            .collect())
+    }
+
+    /// Cek ketersediaan BMN utk periode tertentu (Fase 1.11). Mengembalikan
+    /// `Available`, `PemakaianBerurutan` (existing berakhir sebelum
+    /// usulan mulai → boleh), atau `Overlap` (tolak).
+    pub async fn check_bmn_availability_for_period(
+        &self,
+        bmn_nup: &str,
+        tgl_mulai: chrono::NaiveDate,
+        tgl_selesai: chrono::NaiveDate,
+    ) -> AppResult<BmnCheckStatus> {
+        let client = self.pool.client().await?;
+        // Cari izin ACTIVE utk NUP ini, urutkan tanggal_selesai DESC agar
+        // izin paling baru di atas. Kita evaluasi overlap thd usulan
+        // periode operator.
+        let rows = client
+            .query(
+                r#"
+                SELECT pegawai_nama, tanggal_mulai, tanggal_selesai
+                FROM perlengkapan.izin_pemakaian_bmn
+                WHERE bmn_nup = $1 AND status = 'ACTIVE'
+                ORDER BY tanggal_selesai DESC
+                "#,
+                &[&bmn_nup],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        // Iterasi: jika ada existing yg overlap dgn (tgl_mulai..tgl_selesai)
+        // → Overlap. Jika semua existing berakhir sebelum tgl_mulai dan ada
+        // ≥1 existing → PemakaianBerurutan. Jika kosong → Available.
+        let mut latest_existing: Option<(String, chrono::NaiveDate)> = None;
+        for r in &rows {
+            let ex_holder: String = r.get("pegawai_nama");
+            let ex_start: chrono::NaiveDate = r.get("tanggal_mulai");
+            let ex_end: chrono::NaiveDate = r.get("tanggal_selesai");
+
+            // Overlap = NOT (ex_end < tgl_mulai OR ex_start > tgl_selesai)
+            let overlap = !(ex_end < tgl_mulai || ex_start > tgl_selesai);
+            if overlap {
+                return Ok(BmnCheckStatus::Overlap {
+                    existing_holder: ex_holder,
+                    existing_sampai_tgl: ex_end,
+                });
+            }
+            if latest_existing
+                .as_ref()
+                .map(|(_, prev_end)| ex_end > *prev_end)
+                .unwrap_or(true)
+            {
+                latest_existing = Some((ex_holder, ex_end));
+            }
+        }
+
+        match latest_existing {
+            Some((holder, end_tgl)) => Ok(BmnCheckStatus::PemakaianBerurutan {
+                existing_holder: holder,
+                existing_sampai_tgl: end_tgl,
+            }),
+            None => Ok(BmnCheckStatus::Available),
+        }
+    }
+
+    /// Check if BMN is available (no active permit) — legacy, kept for
+    /// existing callers. Fase 1.11 callers harus pakai
+    /// `check_bmn_availability_for_period`.
     /// Requirements: REQ-P002, REQ-P003
     pub async fn check_bmn_availability(
         &self,
         bmn_nup: &str,
     ) -> AppResult<BmnAvailabilityResponse> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT id, nomor_izin, pegawai_nama, tanggal_selesai
@@ -368,11 +774,7 @@ impl PemakaianBmnRepository {
     /// List permits with pagination and filters
     /// Requirements: REQ-P001, REQ-P011
     pub async fn list(&self, query: ListPermitsQuery) -> AppResult<PaginatedPermitsResponse> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let page = query.page.unwrap_or(1).max(1);
         let per_page = query.per_page.unwrap_or(20).max(1).min(100);
@@ -482,11 +884,7 @@ impl PemakaianBmnRepository {
     /// Get permit history for a BMN
     /// Requirements: REQ-P012
     pub async fn get_bmn_usage_history(&self, bmn_nup: &str) -> AppResult<BmnUsageStats> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT
@@ -551,11 +949,7 @@ impl PemakaianBmnRepository {
         &self,
         pegawai_nip: &str,
     ) -> AppResult<PegawaiUsageStats> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT
@@ -614,11 +1008,7 @@ impl PemakaianBmnRepository {
     /// Auto-expire permits that have passed their end date
     /// Requirements: REQ-P010
     pub async fn auto_expire_permits(&self) -> AppResult<usize> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             UPDATE perlengkapan.izin_pemakaian_bmn
@@ -642,11 +1032,7 @@ impl PemakaianBmnRepository {
         &self,
         days_threshold: i32,
     ) -> AppResult<Vec<IzinPemakaianBmn>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let query = r#"
             SELECT * FROM perlengkapan.izin_pemakaian_bmn
@@ -676,11 +1062,7 @@ impl PemakaianBmnRepository {
         &self,
         query: super::models::MonitoringDashboardQuery,
     ) -> AppResult<super::models::ActiveUsageMonitoringDashboard> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // Build WHERE clause for filters
         let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
@@ -852,11 +1234,7 @@ impl PemakaianBmnRepository {
         &self,
         _query: super::models::MonitoringDashboardQuery,
     ) -> AppResult<super::models::BmnUtilizationReport> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         // For this report, we need to query SIMAN data (from integrasi schema)
         // to get total BMN count and compare with permits
@@ -1031,17 +1409,125 @@ impl PemakaianBmnRepository {
         })
     }
 
+    /// Tiga kartu agregat headline dashboard monitoring (Fase 2.6):
+    /// **sedang dipakai / tidak dipakai / akan expired**.
+    ///
+    /// Kartu turunan-izin (`sedang_dipakai`, `akan_expired_30d`) menghormati
+    /// filter `satker_id`/`jenis_bmn`. `tidak_dipakai` hanya dihitung saat
+    /// TANPA filter — angka SIMAN tidak ter-scope per-satker di sini, jadi
+    /// menampilkannya saat ter-filter akan menyesatkan (→ `None`). SIMAN
+    /// best-effort: jika query SIMAN gagal, `tidak_dipakai = None` dan kartu
+    /// lain tetap tersaji (dashboard tidak ikut tumbang).
+    pub async fn get_monitoring_summary(
+        &self,
+        query: super::models::MonitoringDashboardQuery,
+    ) -> AppResult<super::models::MonitoringSummaryCards> {
+        let client = self.pool.client().await?;
+
+        // WHERE dinamis utk kartu turunan-izin (parameterized, anti-SQLi).
+        let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
+        let mut param_idx = 1;
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
+
+        if let Some(ref satker_id) = query.satker_id {
+            where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
+            param_idx += 1;
+            params.push(Box::new(*satker_id));
+        }
+        if let Some(ref jenis_bmn) = query.jenis_bmn {
+            where_clauses.push(format!("jenis_bmn = ${}", param_idx));
+            param_idx += 1;
+            params.push(Box::new(jenis_bmn.clone()));
+        }
+        let _ = param_idx;
+
+        let where_clause = where_clauses.join(" AND ");
+        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        // Kartu 1: sedang dipakai (izin ACTIVE).
+        let sedang_dipakai: i64 = client
+            .query_one(
+                &format!(
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {}",
+                    where_clause
+                ),
+                &param_refs,
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("c");
+
+        // Kartu 2: akan expired dalam 30 hari.
+        let akan_expired_30d: i64 = client
+            .query_one(
+                &format!(
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn \
+                     WHERE {} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30",
+                    where_clause
+                ),
+                &param_refs,
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("c");
+
+        // Kartu 3: tidak dipakai — hanya saat tanpa filter (SIMAN tidak
+        // ter-scope per-satker di sini). Best-effort: error SIMAN → None.
+        let tidak_dipakai = if query.satker_id.is_none() && query.jenis_bmn.is_none() {
+            match Self::count_idle_bmn(&client).await {
+                Ok(n) => Some(n),
+                Err(e) => {
+                    tracing::warn!(
+                        error = %e,
+                        "SIMAN tidak tersedia utk kartu 'tidak dipakai' — disajikan null"
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok(super::models::MonitoringSummaryCards {
+            sedang_dipakai,
+            akan_expired_30d,
+            tidak_dipakai,
+        })
+    }
+
+    /// Jumlah BMN (kondisi BAIK di SIMAN) yg tidak punya izin ACTIVE =
+    /// total distinct NUP − distinct NUP terpakai. Dipisah agar kegagalan
+    /// SIMAN dapat ditangani best-effort oleh pemanggil.
+    async fn count_idle_bmn(
+        client: &deadpool_postgres::Object,
+    ) -> Result<i64, tokio_postgres::Error> {
+        let total: i64 = client
+            .query_one(
+                "SELECT COUNT(DISTINCT nup) AS c FROM integrasi.siman_aset_tanah WHERE kondisi = 'BAIK'",
+                &[],
+            )
+            .await?
+            .get("c");
+        let utilized: i64 = client
+            .query_one(
+                "SELECT COUNT(DISTINCT bmn_nup) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE status = 'ACTIVE'",
+                &[],
+            )
+            .await?
+            .get("c");
+        Ok((total - utilized).max(0))
+    }
+
     /// Create a BMN item for multi-BMN permits
     pub async fn create_bmn_item(
         &self,
         izin_pemakaian_id: Uuid,
         item: CreateBmnItemRequest,
     ) -> AppResult<PemakaianBmnItem> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let id = Uuid::new_v4();
         let detail_json = item
@@ -1077,11 +1563,7 @@ impl PemakaianBmnRepository {
 
     /// Get BMN items for a permit
     pub async fn get_bmn_items(&self, izin_pemakaian_id: Uuid) -> AppResult<Vec<PemakaianBmnItem>> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         let rows = client
             .query(
@@ -1105,11 +1587,7 @@ impl PemakaianBmnRepository {
         pdf_url: &str,
         pdf_path: &str,
     ) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         client
             .execute(
@@ -1139,11 +1617,7 @@ impl PemakaianBmnRepository {
             "pdf" => "konsep_surat_pdf_path",
             _ => return Ok(None),
         };
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
         let query = format!(
             "SELECT {} FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1",
             column
@@ -1157,11 +1631,7 @@ impl PemakaianBmnRepository {
 
     /// Update signed PDF URL and mark as completed
     pub async fn update_signed_pdf(&self, id: Uuid, signed_pdf_url: &str) -> AppResult<()> {
-        let client = self
-            .pool
-            .get()
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
+        let client = self.pool.client().await?;
 
         client
             .execute(
@@ -1236,6 +1706,18 @@ impl PemakaianBmnRepository {
             approved_by: row.get("approved_by"),
             approved_by_nama: row.get("approved_by_nama"),
             approved_at: row.get("approved_at"),
+            // V035 (Fase 1.5): kolom baru — try_get + default agar tetap
+            // kompatibel dgn schema legacy (sebelum V035 di-apply di env dev).
+            validator_satker_id: row.try_get("validator_satker_id").ok().flatten(),
+            validator_satker_nama: row.try_get("validator_satker_nama").ok().flatten(),
+            tanggal_validasi_satker: row.try_get("tanggal_validasi_satker").ok().flatten(),
+            catatan_validator_satker: row.try_get("catatan_validator_satker").ok().flatten(),
+            approver_satker_id: row.try_get("approver_satker_id").ok().flatten(),
+            approver_satker_nama: row.try_get("approver_satker_nama").ok().flatten(),
+            tanggal_approval_satker: row.try_get("tanggal_approval_satker").ok().flatten(),
+            catatan_approver_satker: row.try_get("catatan_approver_satker").ok().flatten(),
+            approved_via_legacy_flow: row.try_get("approved_via_legacy_flow").unwrap_or(false),
+            version: row.try_get("version").unwrap_or(1),
             revoked_by: row.get("revoked_by"),
             revoked_by_nama: row.get("revoked_by_nama"),
             revoked_at: row.get("revoked_at"),

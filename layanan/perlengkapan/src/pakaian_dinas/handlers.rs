@@ -107,9 +107,11 @@ pub async fn get_jenis_pakaian_by_id(
 
 pub async fn create_jenis_pakaian(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateJenisPakaianDinasRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<JenisPakaianDinas>>), AppError> {
+    // RBAC: master jenis pakaian hanya boleh diubah admin (plan §4.1).
+    claims.require_admin()?;
     let item = service.create_jenis(request).await?;
 
     Ok((
@@ -124,9 +126,10 @@ pub async fn create_jenis_pakaian(
 pub async fn update_jenis_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateJenisPakaianDinasRequest>,
 ) -> Result<Json<ApiResponse<JenisPakaianDinas>>, AppError> {
+    claims.require_admin()?;
     let item = service.update_jenis(id, request).await?;
 
     Ok(Json(ApiResponse::success(
@@ -138,8 +141,9 @@ pub async fn update_jenis_pakaian(
 pub async fn delete_jenis_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_jenis(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -210,9 +214,10 @@ pub async fn get_spesifikasi_by_id(
 
 pub async fn create_spesifikasi(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSpesifikasiRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<SpesifikasiPakaianDinas>>), AppError> {
+    claims.require_admin()?;
     let item = service.create_spesifikasi(request).await?;
 
     Ok((
@@ -227,9 +232,10 @@ pub async fn create_spesifikasi(
 pub async fn update_spesifikasi(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSpesifikasiRequest>,
 ) -> Result<Json<ApiResponse<SpesifikasiPakaianDinas>>, AppError> {
+    claims.require_admin()?;
     let item = service.update_spesifikasi(id, request).await?;
 
     Ok(Json(ApiResponse::success(
@@ -241,8 +247,9 @@ pub async fn update_spesifikasi(
 pub async fn delete_spesifikasi_handler(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_spesifikasi(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -291,9 +298,10 @@ pub async fn get_subspesifikasi_by_id(
 
 pub async fn create_subspesifikasi(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<CreateSubSpesifikasiRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<SubSpesifikasiPakaianDinas>>), AppError> {
+    claims.require_admin()?;
     let item = service.create_subspesifikasi(request).await?;
 
     Ok((
@@ -308,8 +316,9 @@ pub async fn create_subspesifikasi(
 pub async fn delete_subspesifikasi_handler(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    claims.require_admin()?;
     service.delete_subspesifikasi(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -436,6 +445,19 @@ pub async fn get_pengajuan_satker_by_id(
     )))
 }
 
+/// GET /pakaian-dinas/satker/{id}/aktivitas — per-satker workflow history (#40).
+pub async fn get_pengajuan_satker_aktivitas(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengajuanSatkerAktivitas>>>, AppError> {
+    let items = service.list_satker_aktivitas(id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Riwayat aktivitas satker berhasil diambil".to_string(),
+    )))
+}
+
 // ============ Workflow Actions ============
 
 pub async fn process_validator_action(
@@ -541,6 +563,21 @@ pub async fn get_pegawai_by_satker(
     Ok(Json(ApiResponse::success(
         items,
         "Daftar pegawai satker berhasil diambil".to_string(),
+    )))
+}
+
+/// Roster pegawai satker + info kesegaran sinkronisasi MySIMKARI (Fase 2.4).
+/// Dipakai wizard ukuran utk menampilkan `last_sync_at` + banner data basi.
+pub async fn get_pegawai_roster_with_sync(
+    State(service): State<PakaianDinasService>,
+    Path(satker_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<PegawaiRosterWithSync>>, AppError> {
+    let roster = service.get_pegawai_roster_with_sync(satker_id).await?;
+
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Roster pegawai + status sinkronisasi berhasil diambil".to_string(),
     )))
 }
 
@@ -784,14 +821,31 @@ pub async fn cetak_laporan(
             ];
             Ok((headers, buffer).into_response())
         }
-        ("rekap", "pdf") | ("daftar", "pdf") => {
-            // TODO(pakaian-dinas-pdf): dispatch through `state.docs.preview()`
-            // (`DocumentFormat::Pdf`) once the `pakaian_dinas_laporan`
-            // template lands in `dokumen.document_templates`. The port is
-            // already plumbed via `AppState.docs`.
-            Err(bad_request(
-                "PDF export belum tersedia, gunakan Excel terlebih dahulu",
-            ))
+        ("rekap", "pdf") => {
+            let buffer =
+                super::pdf_export::generate_rekap_pdf(&service, query.pengajuan_id, &filter)
+                    .await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Rekap.pdf\"",
+                ),
+            ];
+            Ok((headers, buffer).into_response())
+        }
+        ("daftar", "pdf") => {
+            let buffer =
+                super::pdf_export::generate_daftar_pdf(&service, query.pengajuan_id, &filter)
+                    .await?;
+            let headers = [
+                (header::CONTENT_TYPE, "application/pdf"),
+                (
+                    header::CONTENT_DISPOSITION,
+                    "attachment; filename=\"Laporan_Daftar.pdf\"",
+                ),
+            ];
+            Ok((headers, buffer).into_response())
         }
         _ => Err(bad_request(
             "Jenis laporan atau file tidak valid. Gunakan jenis_laporan=rekap|daftar dan jenis_file=excel|pdf",

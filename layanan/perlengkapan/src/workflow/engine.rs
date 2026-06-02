@@ -96,6 +96,17 @@ pub struct WorkflowEngine {
 
     /// Notification sender (port).
     notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
+
+    /// Audit sink (port). Optional — dev/test boleh tanpa, produksi wajib
+    /// terinjeksi agar setiap transisi tercatat di `perlengkapan.audit_log`
+    /// (BPK-ready).
+    audit_sink: Option<Arc<dyn lib_perlengkapan::contracts::AuditSink>>,
+
+    /// V1.4: in-process event bus. Optional — bila ter-inject, setiap
+    /// transisi sukses mem-publish `DomainEvent::WorkflowTransitioned`
+    /// agar subscriber lain (real-time monitoring, search index, dst)
+    /// tap-in tanpa men-tightly-couple engine.
+    event_bus: Option<Arc<crate::shared::events::EventBus>>,
 }
 
 impl WorkflowEngine {
@@ -106,6 +117,8 @@ impl WorkflowEngine {
             db_pool,
             docs: None,
             notifier: None,
+            audit_sink: None,
+            event_bus: None,
         }
     }
 
@@ -124,6 +137,25 @@ impl WorkflowEngine {
         notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
     ) -> Self {
         self.notifier = Some(notifier);
+        self
+    }
+
+    /// Inject the audit sink (typically `PgAuditSink`). Setiap transisi
+    /// sukses akan mem-publish AuditEvent ke sink ini.
+    pub fn with_audit_sink(
+        mut self,
+        audit_sink: Arc<dyn lib_perlengkapan::contracts::AuditSink>,
+    ) -> Self {
+        self.audit_sink = Some(audit_sink);
+        self
+    }
+
+    /// V1.4: inject in-process event bus. Subscriber lain (notifier
+    /// dispatcher, real-time monitoring, dst) dapat tap-in via
+    /// `shared::events::spawn_subscriber`. Audit sink lama tetap valid
+    /// secara paralel utk back-compat.
+    pub fn with_event_bus(mut self, bus: Arc<crate::shared::events::EventBus>) -> Self {
+        self.event_bus = Some(bus);
         self
     }
 
@@ -326,7 +358,7 @@ impl WorkflowEngine {
             .with_label_values(&[entity_type, &request.from_state, &request.to_state])
             .observe(duration);
 
-        // 11. Log to audit (in production, this would call lib-common audit logger)
+        // 11. Log to audit
         tracing::info!(
             entity_id = %request.entity_id,
             from_state = %request.from_state,
@@ -335,6 +367,58 @@ impl WorkflowEngine {
             duration_ms = duration * 1000.0,
             "Workflow transition completed"
         );
+
+        // Publish AuditEvent ke sink jika ter-inject. Failure di-swallow
+        // di dalam sink (lihat PgAuditSink) — kegagalan audit tidak boleh
+        // membatalkan transisi yg sudah committed.
+        if let Some(sink) = &self.audit_sink {
+            use lib_perlengkapan::audit::{AuditAction, AuditEvent};
+            let event =
+                AuditEvent::new(entity_type, AuditAction::Custom, entity_type)
+                    .action_name("workflow.transition")
+                    .actor(request.user_id, "")
+                    .ip(&request.ip_address)
+                    .resource_id(request.entity_id.to_string())
+                    .message(request.catatan.clone().unwrap_or_else(|| {
+                        format!("{} → {}", request.from_state, request.to_state)
+                    }))
+                    .metadata(serde_json::json!({
+                        "from_state": request.from_state,
+                        "to_state": request.to_state,
+                        "duration_ms": duration * 1000.0,
+                        "activity_id": activity_record_id,
+                    }));
+            if let Err(e) = sink.log(event).await {
+                tracing::warn!(
+                    error = %e,
+                    entity_id = %request.entity_id,
+                    "audit_sink.log failed for workflow transition; continuing"
+                );
+            }
+        }
+
+        // V1.4: Publish ke EventBus jika ter-inject. Fail-soft: jika tidak
+        // ada subscriber, publish() return 0 (bukan error). Subscriber yg
+        // crash/lag tidak men-stop transisi.
+        if let Some(bus) = &self.event_bus {
+            use crate::shared::events::DomainEvent;
+            let event = DomainEvent::WorkflowTransitioned {
+                entity_type: entity_type.to_string(),
+                entity_id: request.entity_id,
+                from_state: request.from_state.clone(),
+                to_state: request.to_state.clone(),
+                user_id: request.user_id,
+                catatan: request.catatan.clone(),
+                ip_address: request.ip_address.clone(),
+                timestamp: Utc::now(),
+            };
+            let n = bus.publish(event);
+            tracing::debug!(
+                entity_id = %request.entity_id,
+                subscribers = n,
+                "EventBus: WorkflowTransitioned dipublish"
+            );
+        }
 
         // 12. Return result
         Ok(TransitionResult {

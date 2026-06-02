@@ -149,6 +149,13 @@ impl KebutuhanBmnService {
             .await
     }
 
+    /// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
+    /// `integrasi.mysimkari_satker.wilayah`. Dipakai FE untuk dropdown
+    /// "Scope satker = wilayah".
+    pub async fn list_wilayah(&self) -> AppResult<Vec<String>> {
+        self.repository.list_wilayah().await
+    }
+
     /// Update a pengajuan
     pub async fn update_pengajuan(
         &self,
@@ -414,6 +421,28 @@ impl KebutuhanBmnService {
                 Some(request.lampiran_pendukung.clone()),
             )
             .await?;
+
+        // V029 (#24): bekukan snapshot analisis (usulan ↔ eksisting SIMAN +
+        // kondisi + gap) saat submit. Validator Wilayah & Pusat membaca
+        // snapshot ini (lihat `get_analisis_kelayakan`) sehingga melihat data
+        // konsisten dgn operator — tidak ada fetch SIMAN ulang yg bisa drift.
+        // Best-effort: kegagalan snapshot tidak memblok submit.
+        let (barang_list, _) = self
+            .repository
+            .get_satker_barang(satker_id, 1, 1000, None)
+            .await?;
+        let (_, _, snapshot) = self.compute_live_analisis(barang_list).await;
+        match serde_json::to_value(&snapshot) {
+            Ok(v) => {
+                if let Err(e) = self.repository.save_analisis_snapshot(satker_id, &v).await {
+                    warn!(
+                        "Gagal menyimpan snapshot analisis utk satker {}: {}",
+                        satker_id, e
+                    );
+                }
+            }
+            Err(e) => warn!("Gagal serialize snapshot analisis: {}", e),
+        }
 
         info!(
             "Operator Satker submitting {} to Validator Wilayah",
@@ -709,10 +738,35 @@ impl KebutuhanBmnService {
             ));
         }
 
+        // V029 (Fase 1.6): Allowed-list BMN enforcement. Cek kode_barang
+        // request masuk dlm whitelist Validator Pusat. Kosong / NULL =
+        // legacy mode (semua boleh). Pengajuan_id resolve via satker.
+        if let Some(kode) = &request.kode_barang {
+            let allowed = self
+                .repository
+                .is_bmn_allowed_for_pengajuan(satker.pengajuan_id, kode)
+                .await?;
+            if !allowed {
+                return Err(AppError::BadRequest(format!(
+                    "Barang dgn kode_barang '{}' tidak diizinkan untuk pengajuan ini. Periksa daftar BMN yg ditetapkan Validator Pusat.",
+                    kode
+                )));
+            }
+        }
+
         info!("Creating barang for satker {}: {}", satker_id, request.nama);
         self.repository
             .create_barang(satker_id, request, user_id)
             .await
+    }
+
+    /// V029 (Fase 1.6): list allowed BMN utk pengajuan — dipakai FE
+    /// dropdown saat Operator Satker input barang.
+    pub async fn list_bmn_referensi(
+        &self,
+        pengajuan_id: Uuid,
+    ) -> AppResult<Vec<PengajuanBmnReferensi>> {
+        self.repository.list_bmn_referensi(pengajuan_id).await
     }
 
     /// Update barang approval (jml_setuju)
@@ -795,9 +849,67 @@ impl KebutuhanBmnService {
             .get_satker_barang(satker_id, 1, 1000, None)
             .await?;
 
+        // V029 (#24): jika satker sudah melewati submit operator, baca snapshot
+        // beku (di-freeze saat submit) alih-alih fetch SIMAN live — sehingga
+        // Validator Wilayah & Pusat melihat angka yg PERSIS sama dgn operator.
+        let snapshot = if satker.status.is_post_operator_submit() {
+            self.repository
+                .get_analisis_snapshot(satker_id)
+                .await
+                .ok()
+                .flatten()
+                .and_then(|v| serde_json::from_value::<AnalisisSnapshot>(v).ok())
+        } else {
+            None
+        };
+
+        let (barang_with_inventory, summary, is_snapshot, snapshot_at) = match snapshot {
+            Some(snap) => {
+                let at = snap.snapshot_at.clone();
+                let (b, s) = Self::build_analisis_from_snapshot(barang_list, &snap);
+                (b, s, true, Some(at))
+            }
+            None => {
+                let (b, s, _) = self.compute_live_analisis(barang_list).await;
+                (b, s, false, None)
+            }
+        };
+
+        // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
+        let data_pegawai = self
+            .get_mysimkari_pegawai_data(&satker.ms_satker_id)
+            .await
+            .ok();
+
+        let integrasi_sync = self.get_integrasi_sync_metadata().await;
+
+        Ok(AnalisisKelayakanResponse {
+            satker,
+            barang_list: barang_with_inventory,
+            summary,
+            data_pegawai,
+            integrasi_sync,
+            is_snapshot,
+            snapshot_at,
+        })
+    }
+
+    /// V029 (#24): hitung analisis kelayakan LIVE dari SIMAN per barang.
+    /// Mengembalikan (barang+inventory, summary, snapshot-beku siap simpan).
+    /// Dipakai saat operator masih mengedit (live) dan saat submit (untuk
+    /// membekukan snapshot).
+    async fn compute_live_analisis(
+        &self,
+        barang_list: Vec<PengajuanKebutuhanBmnBarang>,
+    ) -> (
+        Vec<BarangWithExistingInventory>,
+        AnalisisSummary,
+        AnalisisSnapshot,
+    ) {
         let mut total_diminta: i64 = 0;
         let mut total_existing: i64 = 0;
         let mut barang_with_inventory = Vec::new();
+        let mut snap_barang = Vec::new();
 
         for barang in barang_list {
             total_diminta += barang.jumlah as i64;
@@ -831,6 +943,22 @@ impl KebutuhanBmnService {
             let gap = barang.jumlah - existing_count;
             let recommendation = self.generate_recommendation(gap, barang.jumlah);
 
+            snap_barang.push(AnalisisSnapshotBarang {
+                barang_id: barang.id,
+                existing_count,
+                gap,
+                recommendation: recommendation.clone(),
+                existing_assets: existing_assets
+                    .iter()
+                    .map(|a| AnalisisSnapshotAsset {
+                        no_aset: a.no_aset.clone(),
+                        nama_aset: a.nama_aset.clone(),
+                        kondisi: a.kondisi.clone(),
+                        lokasi: a.lokasi.clone(),
+                    })
+                    .collect(),
+            });
+
             barang_with_inventory.push(BarangWithExistingInventory {
                 barang,
                 existing_assets,
@@ -846,26 +974,76 @@ impl KebutuhanBmnService {
             100.0
         };
 
-        // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
-        let data_pegawai = self
-            .get_mysimkari_pegawai_data(&satker.ms_satker_id)
-            .await
-            .ok();
-
-        let integrasi_sync = self.get_integrasi_sync_metadata().await;
-
-        Ok(AnalisisKelayakanResponse {
-            satker,
-            barang_list: barang_with_inventory,
-            summary: AnalisisSummary {
+        let summary = AnalisisSummary {
+            total_diminta,
+            total_existing,
+            total_gap,
+            kelayakan_persen,
+        };
+        let snapshot = AnalisisSnapshot {
+            snapshot_at: chrono::Utc::now().to_rfc3339(),
+            summary: AnalisisSnapshotSummary {
                 total_diminta,
                 total_existing,
                 total_gap,
                 kelayakan_persen,
             },
-            data_pegawai,
-            integrasi_sync,
-        })
+            barang: snap_barang,
+        };
+
+        (barang_with_inventory, summary, snapshot)
+    }
+
+    /// V029 (#24): rekonstruksi analisis dari snapshot beku — fungsi MURNI
+    /// (testable tanpa SIMAN/DB). Baris barang tetap dari DB (beku setelah
+    /// submit), tetapi `existing_count`/`gap`/`recommendation`/`existing_assets`
+    /// diambil dari snapshot agar konsisten dgn yg dilihat operator. Barang
+    /// yg tak ada di snapshot (mis. ditambahkan setelah submit saat revisi)
+    /// jatuh ke `existing_count` tersimpan sebagai fallback.
+    fn build_analisis_from_snapshot(
+        barang_list: Vec<PengajuanKebutuhanBmnBarang>,
+        snapshot: &AnalisisSnapshot,
+    ) -> (Vec<BarangWithExistingInventory>, AnalisisSummary) {
+        let mut out = Vec::new();
+        for barang in barang_list {
+            match snapshot.barang.iter().find(|b| b.barang_id == barang.id) {
+                Some(snap) => {
+                    let existing_assets = snap
+                        .existing_assets
+                        .iter()
+                        .map(|a| ExistingAssetInfo {
+                            no_aset: a.no_aset.clone(),
+                            nama_aset: a.nama_aset.clone(),
+                            kondisi: a.kondisi.clone(),
+                            lokasi: a.lokasi.clone(),
+                        })
+                        .collect();
+                    out.push(BarangWithExistingInventory {
+                        existing_assets,
+                        gap: snap.gap,
+                        recommendation: snap.recommendation.clone(),
+                        barang,
+                    });
+                }
+                None => {
+                    let gap = barang.jumlah - barang.existing_count;
+                    out.push(BarangWithExistingInventory {
+                        existing_assets: vec![],
+                        gap,
+                        recommendation: String::new(),
+                        barang,
+                    });
+                }
+            }
+        }
+
+        let summary = AnalisisSummary {
+            total_diminta: snapshot.summary.total_diminta,
+            total_existing: snapshot.summary.total_existing,
+            total_gap: snapshot.summary.total_gap,
+            kelayakan_persen: snapshot.summary.kelayakan_persen,
+        };
+        (out, summary)
     }
 
     /// Fetch MySIMKARI pegawai data for satker analysis
@@ -1653,8 +1831,10 @@ mod tests {
             tgl_mulai: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             tgl_selesai: NaiveDate::from_ymd_opt(2026, 12, 31).unwrap(),
             pilihan_satker: Some("semua".to_string()),
+            wilayah_id: None,
             satker_ids: vec![],
             asset_types: vec![],
+            bmn_referensi_diizinkan: vec![],
         }
     }
 
@@ -1718,5 +1898,152 @@ mod tests {
             file_pendukung: vec![],
         };
         assert!(request.validate().is_err());
+    }
+
+    // ========================================================================
+    // V029 (#24) — Snapshot analisis kelayakan
+    // ========================================================================
+
+    fn fixture_barang(
+        id: Uuid,
+        nama: &str,
+        jumlah: i32,
+        existing_count: i32,
+    ) -> PengajuanKebutuhanBmnBarang {
+        let now = chrono::Utc::now();
+        PengajuanKebutuhanBmnBarang {
+            id,
+            pengajuan_satker_id: Uuid::new_v4(),
+            nama: nama.to_string(),
+            kode_barang: None,
+            jumlah,
+            satuan: "Unit".to_string(),
+            jml_setuju: 0,
+            alasan: None,
+            keterangan: None,
+            prioritas: 0,
+            skor: 0.0,
+            file_pendukung: serde_json::json!([]),
+            existing_count,
+            existing_condition: None,
+            created_by: None,
+            updated_by: None,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+
+    /// Snapshot harus round-trip lewat JSON (kolom JSONB) tanpa kehilangan
+    /// data — properti inti agar Wilayah/Pusat membaca angka yg sama.
+    #[test]
+    fn analisis_snapshot_round_trips_through_json() {
+        let snap = AnalisisSnapshot {
+            snapshot_at: "2026-06-02T10:00:00Z".to_string(),
+            summary: AnalisisSnapshotSummary {
+                total_diminta: 10,
+                total_existing: 4,
+                total_gap: 6,
+                kelayakan_persen: 40.0,
+            },
+            barang: vec![AnalisisSnapshotBarang {
+                barang_id: Uuid::new_v4(),
+                existing_count: 4,
+                gap: 6,
+                recommendation: "Pengadaan disarankan".to_string(),
+                existing_assets: vec![AnalisisSnapshotAsset {
+                    no_aset: "A1".to_string(),
+                    nama_aset: "Kendaraan".to_string(),
+                    kondisi: "Baik".to_string(),
+                    lokasi: Some("Gudang".to_string()),
+                }],
+            }],
+        };
+        let v = serde_json::to_value(&snap).unwrap();
+        let back: AnalisisSnapshot = serde_json::from_value(v).unwrap();
+        assert_eq!(back.snapshot_at, snap.snapshot_at);
+        assert_eq!(back.summary.total_gap, 6);
+        assert_eq!(back.barang.len(), 1);
+        assert_eq!(back.barang[0].existing_assets[0].kondisi, "Baik");
+    }
+
+    /// Rebuild dari snapshot harus memakai angka SNAPSHOT (existing/gap),
+    /// BUKAN `existing_count` live di baris barang — itulah inti konsistensi.
+    #[test]
+    fn build_from_snapshot_prefers_snapshot_over_live_existing() {
+        let id = Uuid::new_v4();
+        // Baris barang DB punya existing_count=99 (mis. SIMAN berubah setelah submit).
+        let barang = vec![fixture_barang(id, "Laptop", 10, 99)];
+        let snap = AnalisisSnapshot {
+            snapshot_at: "2026-06-02T10:00:00Z".to_string(),
+            summary: AnalisisSnapshotSummary {
+                total_diminta: 10,
+                total_existing: 3,
+                total_gap: 7,
+                kelayakan_persen: 30.0,
+            },
+            barang: vec![AnalisisSnapshotBarang {
+                barang_id: id,
+                existing_count: 3,
+                gap: 7,
+                recommendation: "Beku".to_string(),
+                existing_assets: vec![],
+            }],
+        };
+        let (out, summary) = KebutuhanBmnService::build_analisis_from_snapshot(barang, &snap);
+        assert_eq!(out.len(), 1);
+        // gap dari snapshot (7), bukan jumlah - live existing_count (10-99).
+        assert_eq!(out[0].gap, 7);
+        assert_eq!(out[0].recommendation, "Beku");
+        assert_eq!(summary.total_existing, 3);
+        assert_eq!(summary.total_gap, 7);
+    }
+
+    /// Barang yg tak ada di snapshot (ditambah saat revisi) jatuh ke fallback
+    /// stored existing_count, bukan panik / hilang.
+    #[test]
+    fn build_from_snapshot_falls_back_for_unknown_barang() {
+        let snapshot_id = Uuid::new_v4();
+        let extra_id = Uuid::new_v4();
+        let barang = vec![
+            fixture_barang(snapshot_id, "A", 5, 2),
+            fixture_barang(extra_id, "B", 8, 3), // tidak ada di snapshot
+        ];
+        let snap = AnalisisSnapshot {
+            snapshot_at: "2026-06-02T10:00:00Z".to_string(),
+            summary: AnalisisSnapshotSummary {
+                total_diminta: 5,
+                total_existing: 2,
+                total_gap: 3,
+                kelayakan_persen: 40.0,
+            },
+            barang: vec![AnalisisSnapshotBarang {
+                barang_id: snapshot_id,
+                existing_count: 2,
+                gap: 3,
+                recommendation: "Snap".to_string(),
+                existing_assets: vec![],
+            }],
+        };
+        let (out, _) = KebutuhanBmnService::build_analisis_from_snapshot(barang, &snap);
+        assert_eq!(out.len(), 2);
+        let b = out.iter().find(|x| x.barang.id == extra_id).unwrap();
+        // fallback: jumlah(8) - stored existing_count(3) = 5
+        assert_eq!(b.gap, 5);
+    }
+
+    /// Gate snapshot: hanya state PASCA submit operator yg memakai snapshot.
+    #[test]
+    fn post_submit_gate_matches_expected_states() {
+        use KebutuhanBmnStatus::*;
+        // Masih edit → live.
+        assert!(!Draft.is_post_operator_submit());
+        assert!(!InputBarang.is_post_operator_submit());
+        assert!(!RevisiSatker.is_post_operator_submit());
+        // Sudah submit → snapshot.
+        assert!(SubmitWilayah.is_post_operator_submit());
+        assert!(SubmitPusat.is_post_operator_submit());
+        assert!(AnalisisKelayakan.is_post_operator_submit());
+        assert!(Approved.is_post_operator_submit());
+        assert!(Completed.is_post_operator_submit());
     }
 }

@@ -494,6 +494,117 @@ impl PemakaianBmnService {
         self.repository.list(query).await
     }
 
+    // ========================================================================
+    // V035 (Fase 1.5): Internal-satker 3-step approval orchestration.
+    //
+    // Workflow: Operator → Validator Satker → Approver Satker.
+    // - `validator_satker_forward`  : SUBMITTED → SUBMITTED_APPROVER_SATKER
+    // - `validator_satker_return`   : SUBMITTED → REVISI_OPERATOR
+    // - `approver_satker_approve`   : SUBMITTED_APPROVER_SATKER → APPROVED (+ auto-activate)
+    // - `approver_satker_return`    : SUBMITTED_APPROVER_SATKER → REVISI_OPERATOR
+    // - `operator_resubmit`         : REVISI_OPERATOR → SUBMITTED
+    //
+    // Setelah APPROVED, service ini otomatis memanggil `activate_permit`
+    // (yg melakukan advisory-lock + generate `nomor_izin` + render SK 2-hal)
+    // — agar approver hanya menekan satu tombol.
+    // ========================================================================
+
+    pub async fn validator_satker_forward(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: String,
+        expected_version: i32,
+        catatan: Option<String>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .validator_satker_forward(
+                id,
+                validator_id,
+                &validator_nama,
+                expected_version,
+                catatan.as_deref(),
+            )
+            .await
+    }
+
+    pub async fn validator_satker_return(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        validator_nama: String,
+        expected_version: i32,
+        catatan: String,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .validator_satker_return(
+                id,
+                validator_id,
+                &validator_nama,
+                expected_version,
+                &catatan,
+            )
+            .await
+    }
+
+    pub async fn approver_satker_approve(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: String,
+        expected_version: i32,
+        catatan: Option<String>,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let approved = self
+            .repository
+            .approver_satker_approve(
+                id,
+                approver_id,
+                &approver_nama,
+                expected_version,
+                catatan.as_deref(),
+            )
+            .await?;
+        // Auto-activate: generate nomor_izin + SK Izin 2-halaman.
+        // Kegagalan aktivasi tidak boleh me-rollback approval — biar
+        // operator dapat retry aktivasi manual jika misal SIMAN sedang down.
+        match self.activate_permit(approved.id, approver_id).await {
+            Ok(active) => Ok(active),
+            Err(e) => {
+                tracing::warn!(
+                    "approver_satker_approve: approval sukses tapi activate_permit gagal: {}. Approval tetap dipertahankan; aktivasi dapat di-retry.",
+                    e
+                );
+                Ok(approved)
+            }
+        }
+    }
+
+    pub async fn approver_satker_return(
+        &self,
+        id: Uuid,
+        approver_id: Uuid,
+        approver_nama: String,
+        expected_version: i32,
+        catatan: String,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .approver_satker_return(id, approver_id, &approver_nama, expected_version, &catatan)
+            .await
+    }
+
+    pub async fn operator_resubmit(
+        &self,
+        id: Uuid,
+        operator_id: Uuid,
+        operator_nama: String,
+        expected_version: i32,
+    ) -> AppResult<IzinPemakaianBmn> {
+        self.repository
+            .operator_resubmit(id, operator_id, &operator_nama, expected_version)
+            .await
+    }
+
     /// Activate a permit (generate permit number and set to ACTIVE)
     ///
     /// Requirements: REQ-P005, REQ-P006
@@ -796,6 +907,90 @@ impl PemakaianBmnService {
         self.repository.check_bmn_availability(bmn_nup).await
     }
 
+    // ========================================================================
+    // Fase 1.11: cek pegawai + cek BMN (with period)
+    // ========================================================================
+
+    /// Cek pegawai-in-satker (Fase 1.11). Lookup pegawai dari MySIMKARI
+    /// cache, validate satker match, return info pegawai + pemakaian aktif
+    /// + histori. Jika pegawai tidak ditemukan ATAU satker mismatch →
+    /// `AppError::BadRequest` dgn pesan persis stakeholder.
+    pub async fn cek_pegawai_in_satker(
+        &self,
+        nip: &str,
+        satker_id: &str,
+    ) -> AppResult<CekPegawaiResponse> {
+        let pegawai = self.repository.find_pegawai_by_nip(nip).await?;
+        let Some(pegawai) = pegawai else {
+            return Err(AppError::BadRequest(
+                "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".into(),
+            ));
+        };
+        // Match satker — case-insensitive utk toleransi format
+        // (kode_satker biasanya string numerik tapi safe).
+        let pegawai_satker = pegawai.satker_id.clone().unwrap_or_default();
+        if pegawai_satker.is_empty() || !pegawai_satker.eq_ignore_ascii_case(satker_id) {
+            return Err(AppError::BadRequest(
+                "Pegawai tidak ditemukan / tidak berada di satker bersangkutan".into(),
+            ));
+        }
+
+        let pemakaian_aktif = self.repository.list_pemakaian_aktif_by_pegawai(nip).await?;
+        let histori_pemakaian = self
+            .repository
+            .list_pemakaian_histori_by_pegawai(nip, 50)
+            .await?;
+        Ok(CekPegawaiResponse {
+            pegawai,
+            pemakaian_aktif,
+            histori_pemakaian,
+        })
+    }
+
+    /// Cek ketersediaan BMN utk periode tertentu (Fase 1.11). Lookup BMN
+    /// info dari `integrasi.siman_aset` (cache); jika tidak ada → pesan
+    /// "BMN tidak ditemukan". Lalu cek izin aktif: bisa Available,
+    /// PemakaianBerurutan (boleh — usulan setelah existing berakhir),
+    /// atau Overlap (tolak).
+    pub async fn cek_bmn_availability_for_period(
+        &self,
+        pool: &deadpool_postgres::Pool,
+        bmn_nup: &str,
+        tgl_mulai: chrono::NaiveDate,
+        tgl_selesai: chrono::NaiveDate,
+    ) -> AppResult<CekBmnResponse> {
+        if tgl_selesai < tgl_mulai {
+            return Err(AppError::BadRequest(
+                "Tanggal selesai harus setelah tanggal mulai".into(),
+            ));
+        }
+        // Lookup BMN info dari SIMAN cache via BankAsetRepository — reuse
+        // helper yg sudah ada agar konsisten dgn `/bank-aset/lookup`.
+        let bank_repo = crate::bank_aset::repository::BankAsetRepository::new(pool.clone());
+        let lookup = bank_repo.find_lookup_by_nup(bmn_nup).await?;
+        let bmn_info = lookup.map(|l| BmnRefInfo {
+            nup: l.nup.clone(),
+            kode_barang: l.kode_barang,
+            nama_barang: l.nama_barang,
+            merk: l.merk,
+            tahun_perolehan: l.tahun_perolehan,
+            kondisi: l.kondisi,
+        });
+        if bmn_info.is_none() {
+            return Err(AppError::BadRequest("BMN tidak ditemukan".into()));
+        }
+
+        let status = self
+            .repository
+            .check_bmn_availability_for_period(bmn_nup, tgl_mulai, tgl_selesai)
+            .await?;
+        Ok(CekBmnResponse {
+            bmn_nup: bmn_nup.to_string(),
+            bmn_info,
+            status,
+        })
+    }
+
     /// Get BMN usage history
     ///
     /// Requirements: REQ-P012
@@ -977,6 +1172,16 @@ impl PemakaianBmnService {
     ) -> AppResult<BmnUtilizationReport> {
         info!("Generating BMN utilization report");
         self.repository.get_bmn_utilization_report(query).await
+    }
+
+    /// Tiga kartu agregat headline monitoring (Fase 2.6):
+    /// sedang dipakai / tidak dipakai / akan expired.
+    pub async fn get_monitoring_summary(
+        &self,
+        query: MonitoringDashboardQuery,
+    ) -> AppResult<MonitoringSummaryCards> {
+        info!("Fetching pemakaian BMN monitoring summary cards");
+        self.repository.get_monitoring_summary(query).await
     }
 
     /// Validate BMN type-specific required fields

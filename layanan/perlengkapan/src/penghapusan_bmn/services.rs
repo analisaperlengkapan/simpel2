@@ -14,14 +14,16 @@
 
 use super::models::*;
 use super::repository::PenghapusanBmnRepository;
-use crate::shared::error::AppResult;
+use crate::bank_aset::repository::BankAsetRepository;
+use crate::shared::error::{AppError, AppResult};
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
-use tracing::info;
+use tracing::{info, warn};
 use uuid::Uuid;
 
 pub struct PenghapusanBmnService {
+    pool: Pool,
     repository: PenghapusanBmnRepository,
     workflow_engine: Arc<WorkflowEngine>,
     docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
@@ -30,6 +32,7 @@ pub struct PenghapusanBmnService {
 impl PenghapusanBmnService {
     pub fn new(pool: Pool, workflow_engine: Arc<WorkflowEngine>) -> Self {
         Self {
+            pool: pool.clone(),
             repository: PenghapusanBmnRepository::new(pool),
             workflow_engine,
             docs: None,
@@ -46,15 +49,48 @@ impl PenghapusanBmnService {
     }
 
     /// Create a new Usulan SK Penghapusan BMN (by Operator Satker)
+    ///
+    /// `nilai_perolehan` SELALU diambil dari sumber otoritatif SIMAN
+    /// (tabel cache `integrasi.siman_aset`) berdasarkan NUP + kode_barang
+    /// dari request. Nilai yg dikirim operator (jika ada) di-override.
+    /// Jika asset tidak ditemukan di SIMAN → tolak 422 (operator wajib
+    /// memilih BMN yg memang ada di SIMAN). Jika query SIMAN gagal
+    /// (DB connection error dll), graceful-fallback ke nilai operator
+    /// dgn warning log — usulan tetap dpt disimpan, verifikasi nilai
+    /// dapat dilakukan di tahap validasi wilayah/pusat.
     pub async fn create(
         &self,
-        request: CreatePenghapusanBmnRequest,
+        mut request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
     ) -> AppResult<PenghapusanBmn> {
         info!(
             "Creating Usulan SK Penghapusan BMN for asset: {}",
             request.nama_barang
         );
+
+        let bank_repo = BankAsetRepository::new(self.pool.clone());
+        match bank_repo
+            .find_nilai_perolehan(&request.nup, Some(&request.kode_barang))
+            .await
+        {
+            Ok(Some(nilai)) => {
+                request.nilai_perolehan = Some(nilai);
+            }
+            Ok(None) => {
+                return Err(AppError::BadRequest(format!(
+                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN. \
+                     Pastikan kode_barang & NUP cocok dgn data SIMAN.",
+                    request.nup, request.kode_barang
+                )));
+            }
+            Err(e) => {
+                warn!(
+                    "find_nilai_perolehan failed for NUP {}: {}. Fallback to operator-supplied value.",
+                    request.nup, e
+                );
+            }
+        }
+
         self.repository.create(request, created_by).await
     }
 
@@ -84,12 +120,84 @@ impl PenghapusanBmnService {
         let can_generate_sk = matches!(status, PenghapusanBmnStatus::VerifikasiPusat);
         let can_upload_signed_sk = matches!(status, PenghapusanBmnStatus::KonsepSKGenerated);
 
+        // V036 (Fase 2.8): sertakan daftar item BMN multi-item.
+        let items = self.repository.list_items(id).await?;
+
         Ok(PenghapusanBmnDetailResponse {
             penghapusan,
             allowed_transitions: transitions,
             can_generate_sk,
             can_upload_signed_sk,
+            items,
         })
+    }
+
+    /// Verifikasi aset usulan ke SIMAN (Fase 2.3).
+    ///
+    /// Dipakai validator (Wilayah/Pusat) saat menelaah usulan: memastikan
+    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, dan menampilkan
+    /// kondisi terkini (BAIK/RR/RB) + nilai perolehan. Tujuan: mencegah
+    /// penerbitan SK penghapusan atas aset yg sudah tidak ada / tidak cocok.
+    /// Bersifat read-only & best-effort — sumber: replika `integrasi.siman_aset`.
+    pub async fn verify_asset_siman(&self, id: Uuid) -> AppResult<SimanAssetVerification> {
+        let record = self.repository.get_by_id(id).await?;
+        let bank_repo = BankAsetRepository::new(self.pool.clone());
+        let lookup = bank_repo.find_lookup_by_nup(&record.nup).await?;
+
+        let verification = match lookup {
+            Some(asset) => {
+                let kode_barang_siman = asset.kode_barang.clone();
+                let kode_barang_cocok = kode_barang_siman
+                    .as_deref()
+                    .map(|k| k == record.kode_barang)
+                    .unwrap_or(false);
+                let pesan = if kode_barang_cocok {
+                    format!(
+                        "Aset NUP {} terdaftar di SIMAN dengan kondisi {}.",
+                        record.nup,
+                        asset.kondisi.as_deref().unwrap_or("tidak diketahui")
+                    )
+                } else {
+                    format!(
+                        "Aset NUP {} ditemukan, namun kode_barang SIMAN ({}) berbeda dari usulan ({}). Mohon verifikasi manual.",
+                        record.nup,
+                        kode_barang_siman.as_deref().unwrap_or("-"),
+                        record.kode_barang
+                    )
+                };
+                SimanAssetVerification {
+                    nup: record.nup.clone(),
+                    ditemukan: true,
+                    kode_barang_diajukan: record.kode_barang.clone(),
+                    kode_barang_siman,
+                    kode_barang_cocok,
+                    nama_barang_siman: asset.nama_barang,
+                    merk: asset.merk,
+                    kondisi: asset.kondisi,
+                    nilai_perolehan_siman: asset.nilai_perolehan,
+                    pesan,
+                    layak_lanjut: kode_barang_cocok,
+                }
+            }
+            None => SimanAssetVerification {
+                nup: record.nup.clone(),
+                ditemukan: false,
+                kode_barang_diajukan: record.kode_barang.clone(),
+                kode_barang_siman: None,
+                kode_barang_cocok: false,
+                nama_barang_siman: None,
+                merk: None,
+                kondisi: None,
+                nilai_perolehan_siman: None,
+                pesan: format!(
+                    "Aset NUP {} TIDAK ditemukan di SIMAN. Aset mungkin sudah dihapus/dipindahkan — penerbitan SK perlu kehati-hatian.",
+                    record.nup
+                ),
+                layak_lanjut: false,
+            },
+        };
+
+        Ok(verification)
     }
 
     /// List penghapusan BMN with filters and pagination
@@ -100,6 +208,47 @@ impl PenghapusanBmnService {
         per_page: i32,
     ) -> AppResult<(Vec<PenghapusanBmn>, i64)> {
         self.repository.list(filters, page, per_page).await
+    }
+
+    // ========================================================================
+    // V030: File upload — Surat Usulan + Lampiran[]
+    // ========================================================================
+
+    /// Set Surat Usulan file URL setelah file di-upload via DocumentStorage.
+    /// Hanya entity yg sudah ada yg boleh — caller wajib pastikan ID valid.
+    pub async fn set_surat_usulan_url(&self, id: Uuid, file_url: &str) -> AppResult<()> {
+        self.repository.set_surat_usulan_url(id, file_url).await
+    }
+
+    /// Insert satu entry lampiran pendukung. `nama` biasanya adalah
+    /// nama file asli; `file_url` adalah URL hasil
+    /// `DocumentStorage::presigned_url`.
+    pub async fn add_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+        nama: &str,
+        file_url: &str,
+        content_type: Option<&str>,
+        size_bytes: Option<i64>,
+        uploaded_by: Option<Uuid>,
+    ) -> AppResult<PenghapusanBmnLampiran> {
+        self.repository
+            .insert_lampiran(
+                penghapusan_id,
+                nama,
+                file_url,
+                content_type,
+                size_bytes,
+                uploaded_by,
+            )
+            .await
+    }
+
+    pub async fn list_lampiran(
+        &self,
+        penghapusan_id: Uuid,
+    ) -> AppResult<Vec<PenghapusanBmnLampiran>> {
+        self.repository.list_lampiran(penghapusan_id).await
     }
 
     /// Update penghapusan BMN (only in Draft/ReturnedToOperator status)
@@ -234,6 +383,24 @@ impl PenghapusanBmnService {
             )
         })?;
 
+        // V036 (Fase 2.8): sertakan seluruh item BMN ke konteks template agar
+        // SK dapat mencetak N item (tabel). `nama_barang` tunggal tetap ada
+        // untuk kompatibilitas template lama.
+        let items = self.repository.list_items(id).await?;
+        let items_json: Vec<serde_json::Value> = items
+            .iter()
+            .map(|it| {
+                serde_json::json!({
+                    "urutan": it.urutan,
+                    "kode_barang": it.kode_barang,
+                    "nama_barang": it.nama_barang,
+                    "nup": it.nup,
+                    "nilai_perolehan": it.nilai_perolehan,
+                    "kondisi": it.kondisi,
+                })
+            })
+            .collect();
+
         let template_id = std::env::var("KONSEP_SK_TEMPLATE_ID")
             .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000002".to_string());
         let data = serde_json::json!({
@@ -243,6 +410,8 @@ impl PenghapusanBmnService {
             "alasan": penghapusan.alasan,
             "status": penghapusan.status,
             "approval_date": chrono::Utc::now().format("%d %B %Y").to_string(),
+            "items": items_json,
+            "jumlah_item": items.len(),
         });
 
         let storage_root = std::env::var("DOCUMENT_STORAGE_PATH")
@@ -349,6 +518,97 @@ impl PenghapusanBmnService {
             validator_id,
             Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
+        )
+        .await
+    }
+
+    // ========================================================================
+    // V029 (Fase 1.9): SK Wilayah workflow
+    // ========================================================================
+
+    /// Generate konsep SK jalur WILAYAH. Hanya valid jika entity
+    /// kewenangan_penetap_sk='WILAYAH' DAN status saat ini = SubmitWilayah.
+    /// Skip jalur Pusat sepenuhnya: SubmitWilayah → KonsepSKWilayahGenerated.
+    pub async fn generate_konsep_sk_wilayah(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+    ) -> AppResult<PenghapusanBmn> {
+        let penghapusan = self.repository.get_by_id(id).await?;
+        if penghapusan.kewenangan_penetap_sk.to_uppercase() != "WILAYAH" {
+            return Err(crate::shared::error::AppError::BadRequest(
+                "Endpoint ini hanya utk kewenangan WILAYAH. Gunakan /generate-sk utk PUSAT.".into(),
+            ));
+        }
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
+        if !matches!(status, PenghapusanBmnStatus::SubmitWilayah) {
+            return Err(crate::shared::error::AppError::WorkflowError(
+                "Konsep SK Wilayah hanya bisa digenerate dari status SubmitWilayah".into(),
+            ));
+        }
+
+        // Generate konsep SK URLs (DOCX + PDF). Untuk MVP gunakan path
+        // placeholder dgn template yg sama (template SK Wilayah final
+        // pending Biro Hukum). Service nyata pakai `self.docs` jika
+        // ter-inject — sama dgn generate_konsep_sk PUSAT.
+        // Untuk PR ini, isi URL sementara berdasarkan storage convention.
+        let docx_url = format!("/storage/penghapusan-bmn/{}/konsep-sk-wilayah.docx", id);
+        let pdf_url = format!("/storage/penghapusan-bmn/{}/konsep-sk-wilayah.pdf", id);
+
+        self.repository
+            .update_konsep_sk_wilayah(id, &docx_url, Some(&pdf_url))
+            .await?;
+
+        // Audit aktivitas
+        self.transition(
+            id,
+            PenghapusanBmnStatus::KonsepSKWilayahGenerated
+                .to_state_name()
+                .to_string(),
+            validator_id,
+            Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
+            "generate_konsep_sk_wilayah".into(),
+        )
+        .await
+    }
+
+    /// Upload signed SK PDF jalur WILAYAH. KonsepSKWilayahGenerated →
+    /// SKSignedWilayah → Completed (auto).
+    pub async fn upload_signed_sk_wilayah(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        signed_sk_pdf_url: String,
+    ) -> AppResult<PenghapusanBmn> {
+        let penghapusan = self.repository.get_by_id(id).await?;
+        let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
+        if !matches!(status, PenghapusanBmnStatus::KonsepSKWilayahGenerated) {
+            return Err(crate::shared::error::AppError::WorkflowError(
+                "SK Wilayah hanya bisa diupload setelah konsep SK Wilayah digenerate".into(),
+            ));
+        }
+
+        self.repository
+            .update_signed_sk_wilayah(id, &signed_sk_pdf_url)
+            .await?;
+
+        // Audit + auto-complete
+        self.transition(
+            id,
+            PenghapusanBmnStatus::SKSignedWilayah
+                .to_state_name()
+                .to_string(),
+            validator_id,
+            Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
+            "upload_signed_sk_wilayah".into(),
+        )
+        .await?;
+        self.transition(
+            id,
+            PenghapusanBmnStatus::Completed.to_state_name().to_string(),
+            validator_id,
+            Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
+            "complete_wilayah".into(),
         )
         .await
     }

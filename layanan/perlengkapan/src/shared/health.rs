@@ -94,7 +94,11 @@ pub async fn health_check(State(state): State<Arc<AppState>>) -> impl IntoRespon
     let authenc_health = check_authenc_health(&state).await;
 
     // Determine overall status
-    let components = vec![db_health, redis_health, authenc_health];
+    let mut components = vec![db_health, redis_health, authenc_health];
+    // #36: surface circuit-breaker state for the integrasi data sources
+    // (SIMAN / MySIMKARI / MonSAKTI). Soft dependencies — an open breaker is
+    // Degraded (fail-fast + cache fallback), never Unhealthy.
+    components.extend(check_integrasi_breakers(&state));
     let overall_status = determine_overall_status(&components);
 
     let response = HealthCheckResponse {
@@ -202,6 +206,93 @@ async fn check_authenc_health(state: &AppState) -> ComponentHealth {
             }
         }
     }
+}
+
+/// Map the integrasi circuit breakers to health components.
+///
+/// SIMAN / MySIMKARI / MonSAKTI are *soft* dependencies (cache + fallback),
+/// so an Open breaker reports `Degraded` — the service still serves, just
+/// fail-fast against the tripped source — never `Unhealthy`. Returns an empty
+/// vec when integrasi is not configured.
+fn check_integrasi_breakers(state: &AppState) -> Vec<ComponentHealth> {
+    use crate::shared::resilience::CircuitState;
+
+    let Some(client) = state.integrasi_client.as_ref() else {
+        return Vec::new();
+    };
+
+    client
+        .circuit_states()
+        .into_iter()
+        .map(|(source, circuit)| {
+            let (status, message) = match circuit {
+                CircuitState::Closed => (HealthStatus::Healthy, "Circuit tertutup (normal)"),
+                CircuitState::HalfOpen => {
+                    (HealthStatus::Degraded, "Circuit half-open (memulihkan)")
+                }
+                CircuitState::Open => (
+                    HealthStatus::Degraded,
+                    "Circuit terbuka (fail-fast, pakai cache/fallback)",
+                ),
+            };
+            ComponentHealth {
+                name: format!("integrasi:{source}"),
+                status,
+                message: Some(message.to_string()),
+                response_time_ms: None,
+            }
+        })
+        .collect()
+}
+
+/// Per-source circuit-breaker snapshot for the FE banner.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrasiCircuitStatus {
+    /// Data source key: "mysimkari" | "siman" | "monsakti".
+    pub source: String,
+    /// Circuit state: "closed" | "open" | "half_open".
+    pub state: String,
+    /// True only when the breaker is fully closed (source healthy).
+    pub healthy: bool,
+    /// Human-readable label for the banner.
+    pub label: String,
+}
+
+/// GET /integrasi/circuit-status — lightweight, auth'd view of the integrasi
+/// circuit breakers for the FE staleness banner. Distinct from the root
+/// `/health` doc (which is unauthenticated and broader); this lives under the
+/// API base so the WASM client can reach it with its bearer token. Any
+/// authenticated user may read it — knowing SIMAN is down is not sensitive.
+pub async fn integrasi_circuit_status(
+    State(client): State<Option<crate::shared::grpc::clients::IntegrasiClient>>,
+) -> Json<crate::models::ApiResponse<Vec<IntegrasiCircuitStatus>>> {
+    use crate::shared::resilience::CircuitState;
+
+    let statuses = match client {
+        Some(c) => c
+            .circuit_states()
+            .into_iter()
+            .map(|(source, circuit)| {
+                let (state, healthy, label) = match circuit {
+                    CircuitState::Closed => ("closed", true, "normal"),
+                    CircuitState::HalfOpen => ("half_open", false, "memulihkan"),
+                    CircuitState::Open => ("open", false, "terganggu"),
+                };
+                IntegrasiCircuitStatus {
+                    source: source.to_string(),
+                    state: state.to_string(),
+                    healthy,
+                    label: label.to_string(),
+                }
+            })
+            .collect(),
+        None => Vec::new(),
+    };
+
+    Json(crate::models::ApiResponse::success(
+        statuses,
+        "Status sirkuit integrasi".to_string(),
+    ))
 }
 
 /// Determine overall health status from component statuses

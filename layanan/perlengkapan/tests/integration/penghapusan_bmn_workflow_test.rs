@@ -55,7 +55,7 @@ async fn test_complete_penghapusan_bmn_workflow() {
         "tanggal_penghapusan": "2026-01-01",
         "alasan": "Rusak berat dan sudah usang, tidak ekonomis untuk diperbaiki",
         "metode_penghapusan": "Pemusnahan",
-        "nilai_residu": 0,
+        "nilai_perolehan": 0,
         "lampiran_persyaratan": "https://storage.example.com/lampiran-persyaratan.pdf"
     }));
     for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
@@ -156,7 +156,7 @@ async fn test_penghapusan_bmn_rejection_workflow() {
         "tanggal_penghapusan": "2026-01-01",
         "alasan": "Rusak berat dan tidak dapat diperbaiki lagi",
         "metode_penghapusan": "Pemusnahan",
-        "nilai_residu": 0,
+        "nilai_perolehan": 0,
         "lampiran_persyaratan": "https://storage.example.com/lampiran.pdf"
     }));
     for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
