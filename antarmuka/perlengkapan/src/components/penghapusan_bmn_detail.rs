@@ -14,7 +14,8 @@ use crate::api::{
     submit_penghapusan_to_wilayah, upload_penghapusan_signed_sk,
 };
 use crate::components::workflow_ui::{
-    ActionTone, ApprovalDialog, StepStatus, WorkflowStep, WorkflowTimeline,
+    ActionTone, ApprovalDialog, StepStatus, WorkflowAction, WorkflowActions, WorkflowStep,
+    WorkflowTimeline,
 };
 use crate::routes;
 
@@ -153,7 +154,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)
-    let on_submit_wilayah = move |_| {
+    let on_submit_wilayah = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         set_loading_action.set(true);
         set_error_msg.set(None);
@@ -167,10 +168,10 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Validator Wilayah forwards to Pusat
-    let on_forward_pusat = move |_| {
+    let on_forward_pusat = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         let catatan = catatan_input.get();
         set_loading_action.set(true);
@@ -194,7 +195,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Validator Wilayah returns to Operator.
     // Catatan dipasok oleh ApprovalDialog (require_note) lewat callback.
@@ -221,7 +222,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     });
 
     // Action: Generate Konsep SK (Validator Pusat)
-    let on_generate_sk = move |_| {
+    let on_generate_sk = Callback::new(move |_: ()| {
         let id = params.get().get("id").unwrap_or_default();
         set_loading_action.set(true);
         set_error_msg.set(None);
@@ -235,7 +236,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Upload Signed SK PDF
     let on_upload_signed_sk = move |_| {
@@ -471,58 +472,53 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                         </div>
                                     })}
 
-                                    <div class="flex flex-wrap gap-3">
-                                        // Draft: Submit to Wilayah
-                                        {(status_kode == 4000 || status_kode == 4002).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_submit_wilayah
-                                            >
-                                                {move || if loading_action.get() { "Mengirim..." } else { "Ajukan ke Validator Wilayah" }}
-                                            </button>
-                                        })}
+                                    // Tombol aksi — WorkflowActions reusable (Fase 2.5).
+                                    // Vec dirakit kondisional sesuai status & kapabilitas.
+                                    {
+                                        let mut actions: Vec<WorkflowAction> = Vec::new();
+                                        if status_kode == 4000 || status_kode == 4002 {
+                                            actions.push(WorkflowAction::new(
+                                                "Ajukan ke Validator Wilayah",
+                                                ActionTone::Primary,
+                                                on_submit_wilayah,
+                                            ));
+                                        }
+                                        if status_kode == 4001 {
+                                            actions.push(WorkflowAction::new(
+                                                "Teruskan ke Validator Pusat",
+                                                ActionTone::Primary,
+                                                on_forward_pusat,
+                                            ));
+                                            actions.push(WorkflowAction::new(
+                                                "Kembalikan ke Operator",
+                                                ActionTone::Warning,
+                                                Callback::new(move |_| set_show_return_modal.set(true)),
+                                            ));
+                                        }
+                                        if detail.can_generate_sk {
+                                            actions.push(WorkflowAction::new(
+                                                "Generate Konsep SK",
+                                                ActionTone::Primary,
+                                                on_generate_sk,
+                                            ));
+                                        }
+                                        if detail.can_upload_signed_sk {
+                                            actions.push(WorkflowAction::new(
+                                                "Upload SK Ditandatangani",
+                                                ActionTone::Success,
+                                                Callback::new(move |_| set_show_upload_modal.set(true)),
+                                            ));
+                                        }
+                                        view! {
+                                            <WorkflowActions
+                                                actions=actions
+                                                busy=Signal::derive(move || loading_action.get())
+                                            />
+                                        }
+                                    }
 
-                                        // SubmitWilayah: Forward to Pusat / Return to Operator
-                                        {(status_kode == 4001).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_forward_pusat
-                                            >
-                                                "Teruskan ke Validator Pusat"
-                                            </button>
-                                            <button
-                                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=move |_| set_show_return_modal.set(true)
-                                            >
-                                                "Kembalikan ke Operator"
-                                            </button>
-                                        })}
-
-                                        // VerifikasiPusat: Generate SK / Reject
-                                        {(detail.can_generate_sk).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=on_generate_sk
-                                            >
-                                                {move || if loading_action.get() { "Generating..." } else { "Generate Konsep SK" }}
-                                            </button>
-                                        })}
-
-                                        // KonsepSKGenerated: Upload Signed SK
-                                        {(detail.can_upload_signed_sk).then(|| view! {
-                                            <button
-                                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                                disabled=move || loading_action.get()
-                                                on:click=move |_| set_show_upload_modal.set(true)
-                                            >
-                                                "Upload SK Ditandatangani"
-                                            </button>
-                                        })}
-
+                                    // Terminal status displays + back link
+                                    <div class="mt-3 flex flex-wrap items-center gap-3">
                                         // Completed status
                                         {(status_kode == 4007).then(|| view! {
                                             <div class="flex items-center text-green-600">
