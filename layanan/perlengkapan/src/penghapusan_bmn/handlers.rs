@@ -139,6 +139,21 @@ pub async fn get_penghapusan_bmn(
     )))
 }
 
+/// Verifikasi aset usulan ke SIMAN (Fase 2.3). Read-only — dipakai validator
+/// (Wilayah/Pusat) saat menelaah usulan sebelum menerbitkan SK.
+pub async fn verify_penghapusan_asset_siman(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<SimanAssetVerification>>, AppError> {
+    let verification = service.verify_asset_siman(id).await?;
+
+    Ok(Json(ApiResponse::success(
+        verification,
+        "Verifikasi aset SIMAN selesai".to_string(),
+    )))
+}
+
 /// Get penghapusan BMN detail with allowed transitions
 pub async fn get_penghapusan_bmn_detail(
     State(service): State<Arc<PenghapusanBmnService>>,

@@ -466,6 +466,22 @@ pub struct PenghapusanBmnDetailResponse {
     pub can_upload_signed_sk: bool,
 }
 
+/// Hasil verifikasi aset ke SIMAN (Fase 2.3) — ditampilkan ke validator.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SimanAssetVerification {
+    pub nup: String,
+    pub ditemukan: bool,
+    pub kode_barang_diajukan: String,
+    pub kode_barang_siman: Option<String>,
+    pub kode_barang_cocok: bool,
+    pub nama_barang_siman: Option<String>,
+    pub merk: Option<String>,
+    pub kondisi: Option<String>,
+    pub nilai_perolehan_siman: Option<f64>,
+    pub pesan: String,
+    pub layak_lanjut: bool,
+}
+
 /// Transition info for penghapusan BMN
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanTransitionInfo {

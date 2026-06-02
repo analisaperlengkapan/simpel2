@@ -76,6 +76,23 @@ pub async fn fetch_penghapusan_bmn_detail(
     ))
 }
 
+// --- Verifikasi Aset SIMAN (Fase 2.3) ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_penghapusan_verifikasi_siman(
+    id: &str,
+) -> Result<ApiResponse<SimanAssetVerification>, crate::api::AppError> {
+    auth_get_json(&format!("{}/{}/verifikasi-siman", PENGHAPUSAN_BMN_BASE, id)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_penghapusan_verifikasi_siman(
+    _id: &str,
+) -> Result<ApiResponse<SimanAssetVerification>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
 // --- Create Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
 pub async fn create_penghapusan_bmn_workflow(

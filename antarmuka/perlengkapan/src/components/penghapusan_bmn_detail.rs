@@ -9,7 +9,8 @@ use leptos_router::hooks::use_params_map;
 
 use crate::api::{
     PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow,
-    PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest, fetch_penghapusan_bmn_detail,
+    PenghapusanValidatorWilayahActionRequest, SimanAssetVerification, UploadSignedSKRequest,
+    fetch_penghapusan_bmn_detail, fetch_penghapusan_verifikasi_siman,
     generate_penghapusan_konsep_sk, penghapusan_validator_wilayah_action,
     submit_penghapusan_to_wilayah, upload_penghapusan_signed_sk,
 };
@@ -39,6 +40,21 @@ async fn query_penghapusan_bmn_detail(
         .await
         .map(|r| r.data)
         .map_err(|e| crate::api::AppError::Unknown(format!("{:?}", e)))
+}
+
+/// leptos-fetch query — verifikasi aset SIMAN (Fase 2.3). Keyed by
+/// `(usulan_id, refresh_trigger)` agar ikut menyegar setelah mutasi.
+async fn query_penghapusan_verifikasi_siman(
+    key: (String, i32),
+) -> Option<SimanAssetVerification> {
+    let (id, _trigger) = key;
+    if id.is_empty() {
+        return None;
+    }
+    fetch_penghapusan_verifikasi_siman(&id)
+        .await
+        .ok()
+        .map(|r| r.data)
 }
 
 /// Status badge color helper
@@ -147,6 +163,12 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
 
     let client: QueryClient = expect_context();
     let detail_resource = client.local_resource(query_penghapusan_bmn_detail, move || {
+        (
+            params.get().get("id").unwrap_or_default(),
+            refresh_trigger.get(),
+        )
+    });
+    let verifikasi_resource = client.local_resource(query_penghapusan_verifikasi_siman, move || {
         (
             params.get().get("id").unwrap_or_default(),
             refresh_trigger.get(),
@@ -402,6 +424,55 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                         </dl>
                                     </div>
                                 </div>
+
+                                // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
+                                {(status_kode == 4001 || status_kode == 4003 || status_kode == 4004)
+                                    .then(|| view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">"Verifikasi Aset di SIMAN"</h3>
+                                            <Suspense fallback=move || view! {
+                                                <p class="text-sm text-gray-400">"Memeriksa aset di SIMAN..."</p>
+                                            }>
+                                                {move || {
+                                                    verifikasi_resource.get().flatten().map(|v| {
+                                                        let (badge_class, badge_text) = if !v.ditemukan {
+                                                            ("bg-red-100 text-red-800", "Tidak Ditemukan")
+                                                        } else if v.layak_lanjut {
+                                                            ("bg-green-100 text-green-800", "Terverifikasi")
+                                                        } else {
+                                                            ("bg-yellow-100 text-yellow-800", "Perlu Pengecekan")
+                                                        };
+                                                        view! {
+                                                            <div>
+                                                                <div class="flex items-center gap-2 mb-2">
+                                                                    <span class=format!("px-2 py-0.5 rounded text-xs font-medium {}", badge_class)>
+                                                                        {badge_text}
+                                                                    </span>
+                                                                    <span class="text-sm text-gray-600">{v.pesan.clone()}</span>
+                                                                </div>
+                                                                {v.ditemukan.then(|| view! {
+                                                                    <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                                                        <dt class="text-gray-500">"NUP"</dt>
+                                                                        <dd class="font-medium">{v.nup.clone()}</dd>
+                                                                        <dt class="text-gray-500">"Nama (SIMAN)"</dt>
+                                                                        <dd class="font-medium">{v.nama_barang_siman.clone().unwrap_or_else(|| "-".to_string())}</dd>
+                                                                        <dt class="text-gray-500">"Kondisi"</dt>
+                                                                        <dd class="font-medium">{v.kondisi.clone().unwrap_or_else(|| "-".to_string())}</dd>
+                                                                        <dt class="text-gray-500">"Kode Barang (SIMAN)"</dt>
+                                                                        <dd class=if v.kode_barang_cocok { "font-medium" } else { "font-medium text-red-600" }>
+                                                                            {v.kode_barang_siman.clone().unwrap_or_else(|| "-".to_string())}
+                                                                        </dd>
+                                                                    </dl>
+                                                                })}
+                                                            </div>
+                                                        }.into_any()
+                                                    }).unwrap_or_else(|| view! {
+                                                        <p class="text-sm text-gray-400">"Data verifikasi tidak tersedia"</p>
+                                                    }.into_any())
+                                                }}
+                                            </Suspense>
+                                        </div>
+                                    })}
 
                                 // Riwayat Proses (Fase 2.5 — WorkflowTimeline reusable)
                                 <div class="bg-white rounded-lg shadow p-4">

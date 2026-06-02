@@ -342,6 +342,35 @@ pub struct PenghapusanTransitionInfo {
     pub requires_comment: bool,
 }
 
+/// Hasil verifikasi aset ke SIMAN (Fase 2.3). Dipakai validator saat tahap
+/// VerifikasiPusat untuk memastikan aset yg diusulkan hapus masih terdaftar
+/// di SIMAN dan kondisinya konsisten sebelum SK digenerate. Mencegah
+/// penghapusan aset yg sudah tidak ada / data tidak cocok.
+#[derive(Debug, Clone, Serialize)]
+pub struct SimanAssetVerification {
+    /// NUP yg diverifikasi (dari usulan).
+    pub nup: String,
+    /// `true` jika NUP ditemukan di SIMAN (`integrasi.siman_aset`).
+    pub ditemukan: bool,
+    /// kode_barang pada usulan.
+    pub kode_barang_diajukan: String,
+    /// kode_barang menurut SIMAN (jika ditemukan).
+    pub kode_barang_siman: Option<String>,
+    /// `true` jika kode_barang usulan == kode_barang SIMAN.
+    pub kode_barang_cocok: bool,
+    /// Nama barang menurut SIMAN.
+    pub nama_barang_siman: Option<String>,
+    pub merk: Option<String>,
+    /// Kondisi aset menurut SIMAN (BAIK / RR / RB).
+    pub kondisi: Option<String>,
+    /// Nilai perolehan menurut SIMAN.
+    pub nilai_perolehan_siman: Option<f64>,
+    /// Verdict singkat untuk ditampilkan ke validator.
+    pub pesan: String,
+    /// `true` bila aman dilanjutkan (ditemukan + kode_barang cocok).
+    pub layak_lanjut: bool,
+}
+
 impl PenghapusanBmn {
     /// Create from database row
     pub fn from_row(row: &tokio_postgres::Row) -> Self {

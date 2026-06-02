@@ -128,6 +128,74 @@ impl PenghapusanBmnService {
         })
     }
 
+    /// Verifikasi aset usulan ke SIMAN (Fase 2.3).
+    ///
+    /// Dipakai validator (Wilayah/Pusat) saat menelaah usulan: memastikan
+    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, dan menampilkan
+    /// kondisi terkini (BAIK/RR/RB) + nilai perolehan. Tujuan: mencegah
+    /// penerbitan SK penghapusan atas aset yg sudah tidak ada / tidak cocok.
+    /// Bersifat read-only & best-effort — sumber: replika `integrasi.siman_aset`.
+    pub async fn verify_asset_siman(&self, id: Uuid) -> AppResult<SimanAssetVerification> {
+        let record = self.repository.get_by_id(id).await?;
+        let bank_repo = BankAsetRepository::new(self.pool.clone());
+        let lookup = bank_repo.find_lookup_by_nup(&record.nup).await?;
+
+        let verification = match lookup {
+            Some(asset) => {
+                let kode_barang_siman = asset.kode_barang.clone();
+                let kode_barang_cocok = kode_barang_siman
+                    .as_deref()
+                    .map(|k| k == record.kode_barang)
+                    .unwrap_or(false);
+                let pesan = if kode_barang_cocok {
+                    format!(
+                        "Aset NUP {} terdaftar di SIMAN dengan kondisi {}.",
+                        record.nup,
+                        asset.kondisi.as_deref().unwrap_or("tidak diketahui")
+                    )
+                } else {
+                    format!(
+                        "Aset NUP {} ditemukan, namun kode_barang SIMAN ({}) berbeda dari usulan ({}). Mohon verifikasi manual.",
+                        record.nup,
+                        kode_barang_siman.as_deref().unwrap_or("-"),
+                        record.kode_barang
+                    )
+                };
+                SimanAssetVerification {
+                    nup: record.nup.clone(),
+                    ditemukan: true,
+                    kode_barang_diajukan: record.kode_barang.clone(),
+                    kode_barang_siman,
+                    kode_barang_cocok,
+                    nama_barang_siman: asset.nama_barang,
+                    merk: asset.merk,
+                    kondisi: asset.kondisi,
+                    nilai_perolehan_siman: asset.nilai_perolehan,
+                    pesan,
+                    layak_lanjut: kode_barang_cocok,
+                }
+            }
+            None => SimanAssetVerification {
+                nup: record.nup.clone(),
+                ditemukan: false,
+                kode_barang_diajukan: record.kode_barang.clone(),
+                kode_barang_siman: None,
+                kode_barang_cocok: false,
+                nama_barang_siman: None,
+                merk: None,
+                kondisi: None,
+                nilai_perolehan_siman: None,
+                pesan: format!(
+                    "Aset NUP {} TIDAK ditemukan di SIMAN. Aset mungkin sudah dihapus/dipindahkan — penerbitan SK perlu kehati-hatian.",
+                    record.nup
+                ),
+                layak_lanjut: false,
+            },
+        };
+
+        Ok(verification)
+    }
+
     /// List penghapusan BMN with filters and pagination
     pub async fn list(
         &self,

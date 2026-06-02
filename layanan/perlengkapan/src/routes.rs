@@ -84,6 +84,10 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::penghapusan_bmn::get_penghapusan_bmn_detail),
         )
         .route(
+            "/penghapusan-bmn/{id}/verifikasi-siman",
+            get(crate::penghapusan_bmn::verify_penghapusan_asset_siman),
+        )
+        .route(
             "/penghapusan-bmn/{id}/transition",
             post(crate::penghapusan_bmn::transition_penghapusan_bmn),
         )
