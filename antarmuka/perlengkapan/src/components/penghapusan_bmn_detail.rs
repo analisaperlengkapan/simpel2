@@ -8,10 +8,13 @@ use leptos_fetch::QueryClient;
 use leptos_router::hooks::use_params_map;
 
 use crate::api::{
-    PenghapusanBmnDetailResponse, PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest,
-    fetch_penghapusan_bmn_detail, generate_penghapusan_konsep_sk,
-    penghapusan_validator_wilayah_action, submit_penghapusan_to_wilayah,
-    upload_penghapusan_signed_sk,
+    PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow,
+    PenghapusanValidatorWilayahActionRequest, UploadSignedSKRequest, fetch_penghapusan_bmn_detail,
+    generate_penghapusan_konsep_sk, penghapusan_validator_wilayah_action,
+    submit_penghapusan_to_wilayah, upload_penghapusan_signed_sk,
+};
+use crate::components::workflow_ui::{
+    ActionTone, ApprovalDialog, StepStatus, WorkflowStep, WorkflowTimeline,
 };
 use crate::routes;
 
@@ -66,6 +69,61 @@ fn status_label(status_kode: i32) -> &'static str {
         4008 => "Ditolak",
         _ => "Tidak Diketahui",
     }
+}
+
+/// Rakit langkah-langkah timeline dari milestone yang benar-benar terjadi
+/// (berbasis timestamp), lalu satu langkah penutup sesuai status terkini.
+/// Pendekatan berbasis timestamp ini aman terhadap percabangan kewenangan
+/// PUSAT vs WILAYAH: tahap yang dilewati tidak punya timestamp → tidak muncul.
+fn build_penghapusan_timeline(p: &PenghapusanBmnWorkflow) -> Vec<WorkflowStep> {
+    let mut steps: Vec<WorkflowStep> = Vec::new();
+
+    steps.push(
+        WorkflowStep::new("Usulan Dibuat", StepStatus::Done)
+            .with_timestamp(p.created_at.clone())
+            .with_note(p.catatan_operator.clone()),
+    );
+    let mut milestone = |label: &str, ts: &Option<String>, note: Option<String>| {
+        if let Some(ts) = ts {
+            steps.push(
+                WorkflowStep::new(label, StepStatus::Done)
+                    .with_timestamp(ts.clone())
+                    .with_note(note),
+            );
+        }
+    };
+    milestone("Diajukan ke Validator Wilayah", &p.tanggal_submit_wilayah, None);
+    milestone(
+        "Ditinjau Validator Wilayah",
+        &p.tanggal_verifikasi_wilayah,
+        p.catatan_validator_wilayah.clone(),
+    );
+    milestone("Diajukan ke Validator Pusat", &p.tanggal_submit_pusat, None);
+    milestone(
+        "Ditinjau Validator Pusat",
+        &p.tanggal_verifikasi_pusat,
+        p.catatan_validator_pusat.clone(),
+    );
+    milestone("Konsep SK Digenerate", &p.konsep_sk_generated_at, None);
+    milestone("SK Ditandatangani Diunggah", &p.signed_sk_pdf_uploaded_at, None);
+
+    if p.is_completed {
+        steps.push(WorkflowStep::new("Selesai", StepStatus::Done));
+    } else if p.status_kode == 4008 {
+        steps.push(
+            WorkflowStep::new("Pengajuan Ditolak", StepStatus::Rejected).with_note(
+                p.catatan_validator_pusat
+                    .clone()
+                    .or_else(|| p.catatan_validator_wilayah.clone()),
+            ),
+        );
+    } else {
+        steps.push(WorkflowStep::new(
+            status_label(p.status_kode),
+            StepStatus::Current,
+        ));
+    }
+    steps
 }
 
 #[component]
@@ -138,14 +196,10 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
         });
     };
 
-    // Action: Validator Wilayah returns to Operator
-    let on_return_operator = move |_| {
+    // Action: Validator Wilayah returns to Operator.
+    // Catatan dipasok oleh ApprovalDialog (require_note) lewat callback.
+    let on_return_operator = Callback::new(move |catatan: String| {
         let id = params.get().get("id").unwrap_or_default();
-        let catatan = catatan_input.get();
-        if catatan.is_empty() {
-            set_error_msg.set(Some("Catatan wajib diisi saat mengembalikan".to_string()));
-            return;
-        }
         set_loading_action.set(true);
         set_error_msg.set(None);
         leptos::task::spawn_local(async move {
@@ -157,7 +211,6 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                 Ok(_) => {
                     set_success_msg
                         .set(Some("Berhasil dikembalikan ke Operator Satker".to_string()));
-                    set_catatan_input.set(String::new());
                     set_show_return_modal.set(false);
                     refresh_trigger.update(|v| *v += 1);
                 }
@@ -165,7 +218,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             }
             set_loading_action.set(false);
         });
-    };
+    });
 
     // Action: Generate Konsep SK (Validator Pusat)
     let on_generate_sk = move |_| {
@@ -349,6 +402,12 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                     </div>
                                 </div>
 
+                                // Riwayat Proses (Fase 2.5 — WorkflowTimeline reusable)
+                                <div class="bg-white rounded-lg shadow p-4">
+                                    <h3 class="font-semibold text-gray-700 mb-3">"Riwayat Proses"</h3>
+                                    <WorkflowTimeline steps=build_penghapusan_timeline(&d.penghapusan) />
+                                </div>
+
                                 // SK Document Section — konsep is produced as both DOCX
                                 // (editable) and PDF (final) side-by-side, signed PDF is
                                 // the post-signature upload.
@@ -499,38 +558,20 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                 })}
             </Suspense>
 
-            // Return to Operator Modal
+            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
             {move || show_return_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
-                    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                        <h3 class="text-lg font-semibold mb-4">"Kembalikan ke Operator Satker"</h3>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Catatan (Wajib)"</label>
-                            <textarea
-                                class="w-full border rounded-lg px-3 py-2 text-sm"
-                                rows="3"
-                                placeholder="Jelaskan alasan pengembalian..."
-                                prop:value=move || catatan_input.get()
-                                on:input=move |ev| set_catatan_input.set(event_target_value(&ev))
-                            />
-                        </div>
-                        <div class="flex gap-3 justify-end">
-                            <button
-                                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                                on:click=move |_| set_show_return_modal.set(false)
-                            >
-                                "Batal"
-                            </button>
-                            <button
-                                class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                                disabled=move || loading_action.get() || catatan_input.get().is_empty()
-                                on:click=on_return_operator
-                            >
-                                "Kembalikan"
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <ApprovalDialog
+                    title="Kembalikan ke Operator Satker"
+                    description="Jelaskan alasan pengembalian agar Operator Satker dapat memperbaiki usulan."
+                    note_label="Catatan (wajib)"
+                    note_placeholder="Jelaskan alasan pengembalian..."
+                    require_note=true
+                    confirm_label="Kembalikan"
+                    confirm_tone=ActionTone::Warning
+                    on_confirm=on_return_operator
+                    on_close=Callback::new(move |_| set_show_return_modal.set(false))
+                    busy=Signal::derive(move || loading_action.get())
+                />
             })}
 
             // Upload Signed SK Modal

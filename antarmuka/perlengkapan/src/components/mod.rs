@@ -34,3 +34,4 @@ pub mod profile_menu;
 pub mod qrcode_generator;
 pub mod role_switcher;
 pub mod sidebar;
+pub mod workflow_ui;
