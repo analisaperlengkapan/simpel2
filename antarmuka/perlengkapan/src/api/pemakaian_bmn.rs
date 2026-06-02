@@ -244,6 +244,15 @@ pub struct PegawaiUsageStats {
     pub permit_history: Vec<PermitHistoryEntry>,
 }
 
+/// Three headline monitoring cards (read-only Validator Wilayah/Pusat dashboard).
+/// `tidak_dipakai` is best-effort from SIMAN; `None` when unavailable or scoped.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MonitoringSummaryCards {
+    pub sedang_dipakai: i64,
+    pub akan_expired_30d: i64,
+    pub tidak_dipakai: Option<i64>,
+}
+
 const PEMAKAIAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/pemakaian-bmn";
 
 // --- List Permits ---
@@ -488,6 +497,40 @@ pub async fn fetch_expiring_permits(
     Ok(ApiResponse {
         success: true,
         data: vec![],
+        message: "Server-side stub".to_string(),
+    })
+}
+
+// --- Monitoring Summary (3 headline cards) ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_monitoring_summary(
+    satker_id: Option<String>,
+    jenis_bmn: Option<String>,
+) -> Result<ApiResponse<MonitoringSummaryCards>, crate::api::AppError> {
+    let mut url = format!("{}/monitoring/summary", PEMAKAIAN_BMN_BASE);
+    let mut sep = '?';
+    if let Some(sid) = satker_id {
+        url.push_str(&format!("{}satker_id={}", sep, sid));
+        sep = '&';
+    }
+    if let Some(j) = jenis_bmn {
+        url.push_str(&format!("{}jenis_bmn={}", sep, j));
+    }
+    auth_get_json(&url).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_monitoring_summary(
+    _satker_id: Option<String>,
+    _jenis_bmn: Option<String>,
+) -> Result<ApiResponse<MonitoringSummaryCards>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: MonitoringSummaryCards {
+            sedang_dipakai: 0,
+            akan_expired_30d: 0,
+            tidak_dipakai: None,
+        },
         message: "Server-side stub".to_string(),
     })
 }

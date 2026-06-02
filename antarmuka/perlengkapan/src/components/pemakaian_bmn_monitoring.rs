@@ -3,6 +3,7 @@
 //! Monitoring dashboard for BMN usage statistics.
 //! Requirements: REQ-P011, REQ-P012, REQ-P013
 
+use crate::api::pemakaian_bmn::{fetch_monitoring_summary, MonitoringSummaryCards};
 use crate::api::{
     BmnUsageStats, IzinPemakaianBmn, PegawaiUsageStats, fetch_bmn_usage_history,
     fetch_expiring_permits, fetch_pegawai_usage_history,
@@ -27,6 +28,16 @@ async fn query_expiring_permits(days: i32) -> Option<Vec<IzinPemakaianBmn>> {
         .map(|response| response.data)
 }
 
+/// Read-only ringkasan tiga kartu headline (Fase 2.6): sedang dipakai /
+/// tidak dipakai / akan expired. Audiens Validator Wilayah & Pusat.
+/// Unit key — satu entri cache global (tanpa filter satker/jenis di sini).
+async fn query_monitoring_summary(_: ()) -> Option<MonitoringSummaryCards> {
+    fetch_monitoring_summary(None, None)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
+
 #[component]
 pub fn PemakaianBmnMonitoring() -> impl IntoView {
     // State for search
@@ -41,6 +52,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
     // share a single in-flight request and a single cached result.
     let client: QueryClient = expect_context();
     let expiring_permits = client.local_resource(query_expiring_permits, || 30);
+    let monitoring_summary = client.local_resource(query_monitoring_summary, || ());
 
     // Handle search
     let handle_search = move |_| {
@@ -88,6 +100,45 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                 <h2 class="text-2xl font-bold text-gray-800">"Monitoring Pemakaian BMN"</h2>
                 <p class="text-sm text-gray-600 mt-1">"Pantau penggunaan dan riwayat pemakaian BMN"</p>
             </div>
+
+            // Kartu ringkasan headline (Fase 2.6, read-only):
+            // sedang dipakai / tidak dipakai / akan expired (30 hari)
+            <Suspense fallback=move || view! {
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(0..3).map(|_| view! {
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-pulse h-24"></div>
+                    }).collect_view()}
+                </div>
+            }>
+                {move || {
+                    let s = monitoring_summary.get().flatten();
+                    let sedang = s.as_ref().map(|c| c.sedang_dipakai.to_string()).unwrap_or_else(|| "-".to_string());
+                    let (tidak, tidak_sub) = match s.as_ref().and_then(|c| c.tidak_dipakai) {
+                        Some(v) => (v.to_string(), "BMN BAIK tanpa izin aktif".to_string()),
+                        None => ("—".to_string(), "Data SIMAN tidak tersedia".to_string()),
+                    };
+                    let expired = s.as_ref().map(|c| c.akan_expired_30d.to_string()).unwrap_or_else(|| "-".to_string());
+                    view! {
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                <p class="text-sm text-gray-600">"BMN Sedang Dipakai"</p>
+                                <p class="text-3xl font-bold text-emerald-600 mt-1">{sedang}</p>
+                                <p class="text-xs text-gray-500 mt-1">"Izin pemakaian aktif"</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                <p class="text-sm text-gray-600">"BMN Tidak Dipakai"</p>
+                                <p class="text-3xl font-bold text-blue-600 mt-1">{tidak}</p>
+                                <p class="text-xs text-gray-500 mt-1">{tidak_sub}</p>
+                            </div>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                                <p class="text-sm text-gray-600">"Akan Expired (30 hari)"</p>
+                                <p class="text-3xl font-bold text-yellow-600 mt-1">{expired}</p>
+                                <p class="text-xs text-gray-500 mt-1">"Izin berakhir ≤ 30 hari"</p>
+                            </div>
+                        </div>
+                    }
+                }}
+            </Suspense>
 
             // Expiring Permits Alert
             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
