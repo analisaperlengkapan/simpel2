@@ -38,3 +38,4 @@ pub mod middleware;
 pub mod policy;
 pub mod rate_limit;
 pub mod repo;
+pub mod resilience;
