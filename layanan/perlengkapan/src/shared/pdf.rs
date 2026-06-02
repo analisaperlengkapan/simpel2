@@ -12,15 +12,15 @@
 //! (portrait/landscape, cell padding, whether tables auto-paginate) are
 //! captured as geometry fields, so swapping the local copies for this builder
 //! produces the same output.
-
-use std::io::{BufWriter, Cursor};
+//!
+//! Updated for printpdf 0.9.x ops-based API.
 
 use printpdf::{
-    BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfDocumentReference, PdfLayerIndex,
-    PdfLayerReference, PdfPageIndex, Point,
+    BuiltinFont, Line, LinePoint, Mm, Op, PdfDocument, PdfPage, PdfSaveOptions, Point, Pt,
+    TextItem,
 };
 
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::AppResult;
 
 /// Per-report page geometry. All dimensions in millimetres.
 #[derive(Debug, Clone, Copy)]
@@ -56,11 +56,14 @@ impl PageGeometry {
 
 /// Stateful builder over a `printpdf` document: an internal page list, a
 /// vertical text cursor (`y`), and table/line primitives.
+///
+/// In printpdf 0.9.x, content is expressed as `Vec<Op>` per page rather than
+/// mutable layer references.  This builder collects ops for the current page
+/// and finalises them into `PdfPage` objects on [`finish`](PdfBuilder::finish).
 pub struct PdfBuilder {
-    doc: PdfDocumentReference,
-    font: IndirectFontRef,
-    font_bold: IndirectFontRef,
-    pages: Vec<(PdfPageIndex, PdfLayerIndex)>,
+    title: String,
+    /// Ops collected for each page so far.
+    page_ops: Vec<Vec<Op>>,
     current_page: usize,
     geom: PageGeometry,
     /// Y cursor in mm from the bottom of the page (printpdf convention).
@@ -71,18 +74,9 @@ pub struct PdfBuilder {
 
 impl PdfBuilder {
     pub fn new(title: &str, geom: PageGeometry) -> AppResult<Self> {
-        let (doc, page1, layer1) = PdfDocument::new(title, Mm(geom.page_w), Mm(geom.page_h), "L1");
-        let font = doc
-            .add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        let font_bold = doc
-            .add_builtin_font(BuiltinFont::HelveticaBold)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
         Ok(Self {
-            doc,
-            font,
-            font_bold,
-            pages: vec![(page1, layer1)],
+            title: title.to_string(),
+            page_ops: vec![Vec::new()],
             current_page: 0,
             y: geom.margin_top,
             geom,
@@ -93,23 +87,14 @@ impl PdfBuilder {
         &self.geom
     }
 
-    /// Reference to the document — for callers that embed images or other
-    /// objects via the raw `printpdf` API.
-    pub fn doc(&self) -> &PdfDocumentReference {
-        &self.doc
-    }
-
-    pub fn layer(&self) -> PdfLayerReference {
-        let (p, l) = self.pages[self.current_page];
-        self.doc.get_page(p).get_layer(l)
+    /// Push an op onto the current page's op list.
+    fn push_op(&mut self, op: Op) {
+        self.page_ops[self.current_page].push(op);
     }
 
     pub fn new_page(&mut self) {
-        let (p, l) = self
-            .doc
-            .add_page(Mm(self.geom.page_w), Mm(self.geom.page_h), "L1");
-        self.pages.push((p, l));
-        self.current_page = self.pages.len() - 1;
+        self.page_ops.push(Vec::new());
+        self.current_page = self.page_ops.len() - 1;
         self.y = self.geom.margin_top;
     }
 
@@ -122,9 +107,23 @@ impl PdfBuilder {
     }
 
     pub fn write_text(&mut self, text: &str, font_size: f32, bold: bool, x: f32) {
-        let font = if bold { &self.font_bold } else { &self.font };
-        self.layer()
-            .use_text(text, font_size, Mm(x), Mm(self.y), font);
+        let font = if bold {
+            BuiltinFont::HelveticaBold
+        } else {
+            BuiltinFont::Helvetica
+        };
+        self.push_op(Op::StartTextSection);
+        self.push_op(Op::SetFont {
+            font: printpdf::PdfFontHandle::Builtin(font),
+            size: Pt(font_size),
+        });
+        self.push_op(Op::SetTextCursor {
+            pos: Point::new(Mm(x), Mm(self.y)),
+        });
+        self.push_op(Op::ShowText {
+            items: vec![TextItem::Text(text.to_string())],
+        });
+        self.push_op(Op::EndTextSection);
     }
 
     /// Approximate-centered text (printpdf can't measure glyph widths, so this
@@ -140,27 +139,37 @@ impl PdfBuilder {
     }
 
     pub fn hline(&mut self, x1: f32, x2: f32) {
-        let layer = self.layer();
         let line = Line {
             points: vec![
-                (Point::new(Mm(x1), Mm(self.y)), false),
-                (Point::new(Mm(x2), Mm(self.y)), false),
+                LinePoint {
+                    p: Point::new(Mm(x1), Mm(self.y)),
+                    bezier: false,
+                },
+                LinePoint {
+                    p: Point::new(Mm(x2), Mm(self.y)),
+                    bezier: false,
+                },
             ],
             is_closed: false,
         };
-        layer.add_line(line);
+        self.push_op(Op::DrawLine { line });
     }
 
     pub fn vline(&mut self, x: f32, y_top: f32, y_bottom: f32) {
-        let layer = self.layer();
         let line = Line {
             points: vec![
-                (Point::new(Mm(x), Mm(y_top)), false),
-                (Point::new(Mm(x), Mm(y_bottom)), false),
+                LinePoint {
+                    p: Point::new(Mm(x), Mm(y_top)),
+                    bezier: false,
+                },
+                LinePoint {
+                    p: Point::new(Mm(x), Mm(y_bottom)),
+                    bezier: false,
+                },
             ],
             is_closed: false,
         };
-        layer.add_line(line);
+        self.push_op(Op::DrawLine { line });
     }
 
     /// Draw a bordered rectangle of width `w` / height `h` centered on the
@@ -223,14 +232,18 @@ impl PdfBuilder {
     }
 
     pub fn finish(self) -> AppResult<Vec<u8>> {
-        let mut buf: Vec<u8> = Vec::new();
-        {
-            let cursor = Cursor::new(&mut buf);
-            let mut writer = BufWriter::new(cursor);
-            self.doc
-                .save(&mut writer)
-                .map_err(|e| bad_request(&format!("pdf save: {e}")))?;
+        let mut doc = PdfDocument::new(&self.title);
+        let pages: Vec<PdfPage> = self
+            .page_ops
+            .into_iter()
+            .map(|ops| PdfPage::new(Mm(self.geom.page_w), Mm(self.geom.page_h), ops))
+            .collect();
+        doc.with_pages(pages);
+        let mut warnings = Vec::new();
+        let bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+        if !warnings.is_empty() {
+            tracing::warn!("PDF save warnings: {:?}", warnings);
         }
-        Ok(buf)
+        Ok(bytes)
     }
 }

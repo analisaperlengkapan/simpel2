@@ -272,7 +272,7 @@ impl RedisCache {
 
         let mut conn = self.get_connection().await?;
 
-        let result: RedisResult<Vec<Option<String>>> = conn.get(keys).await;
+        let result: RedisResult<Vec<Option<String>>> = conn.mget(keys).await;
 
         match result {
             Ok(values) => {

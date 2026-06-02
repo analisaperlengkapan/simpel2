@@ -3,7 +3,7 @@ use super::template_models::DocumentTemplate;
 use super::template_service::TemplateService;
 use printpdf::*;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::Write;
 
 pub struct PdfGenerator {
     template_service: TemplateService,
@@ -139,51 +139,69 @@ impl PdfGenerator {
 
     /// Convert HTML to PDF using printpdf
     fn html_to_pdf(&self, html: &str, output_path: &str) -> Result<Vec<u8>, AppError> {
-        // Create PDF document
-        let (doc, page1, layer1) = PdfDocument::new(
-            "Document",
-            Mm(210.0), // A4 width
-            Mm(297.0), // A4 height
-            "Layer 1",
-        );
-
-        // Get current layer
-        let current_layer = doc.get_page(page1).get_layer(layer1);
-
-        // For now, we'll use a simple text-based approach
-        // In production, you'd want to use a proper HTML-to-PDF library
-        // or integrate with wkhtmltopdf/headless Chrome
-
         // Parse HTML and extract text (simplified)
         let text_content = self.extract_text_from_html(html);
 
-        // Add text to PDF
-        let font = doc
-            .add_builtin_font(BuiltinFont::TimesRoman)
-            .map_err(|_| AppError::Internal)?;
-
+        let mut all_page_ops: Vec<Vec<Op>> = Vec::new();
+        let mut current_ops: Vec<Op> = Vec::new();
         let mut y_position = Mm(280.0); // Start from top
         let line_height = Mm(5.0);
 
+        // Set font once at the start of each page
+        let set_font_op = Op::SetFont {
+            font: PdfFontHandle::Builtin(BuiltinFont::TimesRoman),
+            size: Pt(12.0),
+        };
+
+        current_ops.push(set_font_op.clone());
+
         for line in text_content.lines() {
-            current_layer.use_text(line, 12.0, Mm(20.0), y_position, &font);
-            y_position -= line_height;
+            // Write text
+            current_ops.push(Op::StartTextSection);
+            current_ops.push(Op::SetFont {
+                font: PdfFontHandle::Builtin(BuiltinFont::TimesRoman),
+                size: Pt(12.0),
+            });
+            current_ops.push(Op::SetTextCursor {
+                pos: Point::new(Mm(20.0), y_position),
+            });
+            current_ops.push(Op::ShowText {
+                items: vec![TextItem::Text(line.to_string())],
+            });
+            current_ops.push(Op::EndTextSection);
+
+            y_position = Mm(y_position.0 - line_height.0);
 
             // Create new page if needed
             if y_position.0 < 20.0 {
-                let (page, layer) = doc.add_page(Mm(210.0), Mm(297.0), "Layer 1");
-                let _current_layer = doc.get_page(page).get_layer(layer);
+                all_page_ops.push(current_ops);
+                current_ops = Vec::new();
+                current_ops.push(set_font_op.clone());
                 y_position = Mm(280.0);
             }
         }
 
-        // Save to file
-        let file = File::create(output_path).map_err(|_| AppError::Internal)?;
-        let mut writer = BufWriter::new(file);
-        doc.save(&mut writer).map_err(|_| AppError::Internal)?;
+        // Push the last page
+        all_page_ops.push(current_ops);
 
-        // Read file back as bytes
-        let pdf_bytes = std::fs::read(output_path).map_err(|_| AppError::Internal)?;
+        // Build pages
+        let pages: Vec<PdfPage> = all_page_ops
+            .into_iter()
+            .map(|ops| PdfPage::new(Mm(210.0), Mm(297.0), ops))
+            .collect();
+
+        // Create document
+        let mut doc = PdfDocument::new("Document");
+        doc.with_pages(pages);
+
+        // Save to bytes
+        let mut warnings = Vec::new();
+        let pdf_bytes = doc.save(&PdfSaveOptions::default(), &mut warnings);
+
+        // Save to file
+        let mut file = File::create(output_path).map_err(|_| AppError::Internal)?;
+        file.write_all(&pdf_bytes)
+            .map_err(|_| AppError::Internal)?;
 
         Ok(pdf_bytes)
     }

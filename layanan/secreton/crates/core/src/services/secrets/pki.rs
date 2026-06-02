@@ -232,10 +232,8 @@ impl PkiEngine {
         parent_params.distinguished_name = parent_dn;
         parent_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
 
-        // Reconstruct parent CA certificate
-        let parent_cert = parent_params.self_signed(&parent_key_pair).map_err(|e| {
-            PkiError::GenerationFailed(format!("Failed to reconstruct parent CA: {}", e))
-        })?;
+        // Reconstruct parent CA issuer
+        let parent_issuer = rcgen::Issuer::from_params(&parent_params, &parent_key_pair);
 
         // Create intermediate CA distinguished name
         let mut dn = DistinguishedName::new();
@@ -253,7 +251,7 @@ impl PkiEngine {
 
         // Sign intermediate CA with parent CA
         let cert = params
-            .signed_by(&key_pair, &parent_cert, &parent_key_pair)
+            .signed_by(&key_pair, &parent_issuer)
             .map_err(|e| {
                 PkiError::GenerationFailed(format!("Failed to sign intermediate CA: {}", e))
             })?;
@@ -415,10 +413,8 @@ impl PkiEngine {
         ca_params.distinguished_name = ca_dn;
         ca_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
 
-        // Reconstruct CA certificate for signing
-        let ca_cert = ca_params
-            .self_signed(&ca_key_pair)
-            .map_err(|e| PkiError::GenerationFailed(format!("Failed to reconstruct CA: {}", e)))?;
+        // Reconstruct CA issuer for signing
+        let ca_issuer = rcgen::Issuer::from_params(&ca_params, &ca_key_pair);
 
         // Create leaf certificate params
         let mut dn = DistinguishedName::new();
@@ -435,7 +431,7 @@ impl PkiEngine {
 
         // Sign with CA
         let cert = params
-            .signed_by(&leaf_key_pair, &ca_cert, &ca_key_pair)
+            .signed_by(&leaf_key_pair, &ca_issuer)
             .map_err(|e| {
                 PkiError::GenerationFailed(format!("Failed to sign certificate: {}", e))
             })?;
