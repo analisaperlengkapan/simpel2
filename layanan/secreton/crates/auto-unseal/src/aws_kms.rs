@@ -388,14 +388,15 @@ impl AutoUnsealProvider for AwsKmsProvider {
             .to_vec();
 
         // Verify the key ID matches (if returned)
-        if let Some(returned_key_id) = response.key_id() {
-            if !returned_key_id.contains(&self.key_id) && !self.key_id.contains(returned_key_id) {
-                warn!(
-                    expected_key_id = %self.key_id,
-                    returned_key_id = %returned_key_id,
-                    "Key ID mismatch in decrypt response"
-                );
-            }
+        if let Some(returned_key_id) = response.key_id()
+            && !returned_key_id.contains(&self.key_id)
+            && !self.key_id.contains(returned_key_id)
+        {
+            warn!(
+                expected_key_id = %self.key_id,
+                returned_key_id = %returned_key_id,
+                "Key ID mismatch in decrypt response"
+            );
         }
 
         info!(

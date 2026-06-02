@@ -84,7 +84,16 @@ runs:
         # Mitigated by the Swatinem/rust-cache step below, which caches
         # CARGO_HOME (including the toolchain bin) keyed on Cargo.lock +
         # toolchain version.
+        #
+        # IMPORTANT: on self-hosted runners runner.temp is NOT reliably wiped
+        # between jobs. A toolchain left here by a previous (broken-era) job —
+        # e.g. one hand-extracted WITHOUT a rustup manifest — survives and makes
+        # the next job's dtolnay step do "using existing install" → then fail
+        # with `error: Missing manifest in toolchain 'stable-...'`. Wipe the
+        # per-job rust home first so every job starts from a clean slate and
+        # dtolnay always performs a complete (manifest-bearing) install.
         JOB_RUST_HOME="${{ runner.temp }}/rust"
+        rm -rf "$JOB_RUST_HOME"
         mkdir -p "$JOB_RUST_HOME/cargo/bin" "$JOB_RUST_HOME/rustup"
         echo "CARGO_HOME=$JOB_RUST_HOME/cargo" >> "$GITHUB_ENV"
         echo "RUSTUP_HOME=$JOB_RUST_HOME/rustup" >> "$GITHUB_ENV"

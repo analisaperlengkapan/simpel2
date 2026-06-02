@@ -510,13 +510,13 @@ async fn test_multiple_providers_same_master_key() {
     let storage = InMemorySealedKeyStorage::new();
 
     // Create multiple providers
-    let providers = vec![
+    let providers = [
         MockKmsProvider::new("aws-kms".to_string(), "aws-key-id".to_string()),
         MockKmsProvider::new("gcp-kms".to_string(), "gcp-key-id".to_string()),
         MockKmsProvider::new("transit".to_string(), "transit-key-id".to_string()),
     ];
 
-    let provider_types = vec![
+    let provider_types = [
         ProviderType::AwsKms,
         ProviderType::GcpKms,
         ProviderType::Transit,

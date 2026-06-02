@@ -29,22 +29,21 @@ pub struct ClientIp(pub String);
 
 impl ClientIp {
     pub fn from_headers(headers: &HeaderMap) -> Self {
-        if let Some(xff) = headers.get("x-forwarded-for") {
-            if let Ok(s) = xff.to_str() {
-                if let Some(first) = s.split(',').next() {
-                    let ip = first.trim();
-                    if !ip.is_empty() {
-                        return ClientIp(ip.to_string());
-                    }
-                }
+        if let Some(xff) = headers.get("x-forwarded-for")
+            && let Ok(s) = xff.to_str()
+            && let Some(first) = s.split(',').next()
+        {
+            let ip = first.trim();
+            if !ip.is_empty() {
+                return ClientIp(ip.to_string());
             }
         }
-        if let Some(real) = headers.get("x-real-ip") {
-            if let Ok(s) = real.to_str() {
-                let ip = s.trim();
-                if !ip.is_empty() {
-                    return ClientIp(ip.to_string());
-                }
+        if let Some(real) = headers.get("x-real-ip")
+            && let Ok(s) = real.to_str()
+        {
+            let ip = s.trim();
+            if !ip.is_empty() {
+                return ClientIp(ip.to_string());
             }
         }
         ClientIp("unknown".to_string())

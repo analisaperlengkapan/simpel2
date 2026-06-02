@@ -208,10 +208,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             } else {
                 Some(bmn_merk.get())
             },
-            bmn_tahun_perolehan: bmn_tahun_perolehan
-                .get()
-                .parse::<i32>()
-                .ok(),
+            bmn_tahun_perolehan: bmn_tahun_perolehan.get().parse::<i32>().ok(),
             no_polisi: if jenis_bmn.get() == "KENDARAAN_BERMOTOR" {
                 Some(no_polisi.get())
             } else {

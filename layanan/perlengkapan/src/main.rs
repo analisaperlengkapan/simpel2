@@ -65,20 +65,23 @@ async fn main() -> anyhow::Result<()> {
     // both the DB URL (boot-time) and runtime credentials (SMTP for the
     // notifikasi module). Failure here is non-fatal in dev — we fall back
     // to environment variables — but production should rely on this path.
-    let secreton_client: Option<SecretonClient> =
-        match SecretonClient::connect(secreton_url.clone()).await {
-            Ok(client) => {
-                info!("Connected to Secreton at {}", secreton_url);
-                Some(client)
-            }
-            Err(e) => {
-                error!(
-                    "Failed to connect to Secreton at {}: {}. Falling back to environment variables.",
-                    secreton_url, e
-                );
-                None
-            }
-        };
+    let secreton_client: Option<SecretonClient> = match SecretonClient::connect(
+        secreton_url.clone(),
+    )
+    .await
+    {
+        Ok(client) => {
+            info!("Connected to Secreton at {}", secreton_url);
+            Some(client)
+        }
+        Err(e) => {
+            error!(
+                "Failed to connect to Secreton at {}: {}. Falling back to environment variables.",
+                secreton_url, e
+            );
+            None
+        }
+    };
 
     if database_url.is_none()
         && let Some(client) = secreton_client.as_ref()

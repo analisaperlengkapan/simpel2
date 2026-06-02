@@ -355,10 +355,11 @@ fn GeneralTabForm(
     set_realm: WriteSignal<Option<RealmInfo>>,
 ) -> impl IntoView {
     let api = use_api_client();
-    let initial = realm.get_untracked().expect("Show fallback guards None case");
+    let initial = realm
+        .get_untracked()
+        .expect("Show fallback guards None case");
 
-    let (display_name, set_display_name) =
-        signal(initial.display_name.clone().unwrap_or_default());
+    let (display_name, set_display_name) = signal(initial.display_name.clone().unwrap_or_default());
     let (enabled, set_enabled) = signal(initial.enabled);
     let (saving, set_saving) = signal(false);
     let (save_error, set_save_error) = signal::<Option<String>>(None);
@@ -374,11 +375,7 @@ fn GeneralTabForm(
         let req = UpdateRealmRequest {
             display_name: {
                 let v = display_name.get();
-                if v.trim().is_empty() {
-                    None
-                } else {
-                    Some(v)
-                }
+                if v.trim().is_empty() { None } else { Some(v) }
             },
             enabled: Some(enabled.get()),
         };

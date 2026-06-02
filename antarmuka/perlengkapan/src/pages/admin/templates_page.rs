@@ -11,9 +11,7 @@ use leptos::task::spawn_local;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{Blob, BlobPropertyBag, Url};
 
-use crate::api::dokumen::{
-    list_templates, preview_template, DocumentTemplate, PreviewBody,
-};
+use crate::api::dokumen::{DocumentTemplate, PreviewBody, list_templates, preview_template};
 use crate::api::error::AppError;
 
 const FORMATS: &[(&str, &str)] = &[
@@ -29,7 +27,8 @@ pub fn AdminTemplatesPage() -> impl IntoView {
     let (selected_id, set_selected_id) = signal::<Option<String>>(None);
     let (format, set_format) = signal("pdf".to_string());
     let (preview_url, set_preview_url) = signal::<Option<String>>(None);
-    let (preview_blob_mime, set_preview_blob_mime) = signal::<String>("application/pdf".to_string());
+    let (preview_blob_mime, set_preview_blob_mime) =
+        signal::<String>("application/pdf".to_string());
     let (loading_list, set_loading_list) = signal(false);
     let (loading_preview, set_loading_preview) = signal(false);
     let (error, set_error) = signal::<Option<String>>(None);
@@ -220,9 +219,7 @@ fn mime_for(format: &str) -> &'static str {
     match format {
         "pdf" => "application/pdf",
         "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "xlsx" | "excel" => {
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        }
+        "xlsx" | "excel" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "html" => "text/html",
         _ => "application/octet-stream",
     }

@@ -31,7 +31,6 @@ use components::sidebar::Sidebar;
 use features::auth::AuthService;
 use lib_ui::components::app_shell::AppShell;
 use pages::admin::{AdminAuditPage, AdminMasterDataPage, AdminTemplatesPage};
-use pages::notifikasi::NotifikasiInboxPage;
 use pages::bank_aset::{
     BankAsetDashboardPage, BankAsetDetailPage, BankAsetListPage, BankAsetQrCodePage,
     BankAsetSebaranPage,
@@ -41,6 +40,7 @@ use pages::dashboard_perlengkapan::DashboardPerlengkapan;
 use pages::kebutuhan_bmn::PeriodManagement;
 use pages::login::LoginPage;
 use pages::not_found::NotFound;
+use pages::notifikasi::NotifikasiInboxPage;
 use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};

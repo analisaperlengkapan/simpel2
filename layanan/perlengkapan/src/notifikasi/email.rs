@@ -63,11 +63,14 @@ impl EmailService {
         secreton_client: &SecretonClient,
         secreton_path: &str,
     ) -> Result<Self, AppError> {
-        let bundle = secreton_client.get_secret(secreton_path).await.map_err(|e| {
-            AppError::Config(
-                format!("fetch secreton {}: {}", secreton_path, e).into_boxed_str(),
-            )
-        })?;
+        let bundle = secreton_client
+            .get_secret(secreton_path)
+            .await
+            .map_err(|e| {
+                AppError::Config(
+                    format!("fetch secreton {}: {}", secreton_path, e).into_boxed_str(),
+                )
+            })?;
 
         let smtp_username = bundle.get("username").cloned().ok_or_else(|| {
             AppError::Config(

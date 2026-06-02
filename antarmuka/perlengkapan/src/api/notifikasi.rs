@@ -56,9 +56,7 @@ pub async fn list_notifikasi(
     offset: i64,
     unread_only: bool,
 ) -> AppResult<Vec<NotifikasiItem>> {
-    let url = format!(
-        "/notifikasi?limit={limit}&offset={offset}&unread_only={unread_only}"
-    );
+    let url = format!("/notifikasi?limit={limit}&offset={offset}&unread_only={unread_only}");
     let resp: ApiResponseWrap<Vec<NotifikasiItem>> = api_get(&url).await?;
     if !resp.success {
         return Err(AppError::server(resp.message));
