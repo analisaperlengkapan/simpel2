@@ -43,102 +43,6 @@ jobs:
           message_if_xl: ''
           files_to_ignore: 'package-lock.json Cargo.lock composer.lock pnpm-lock.yaml yarn.lock'
 
-  pr-label-complexity:
-    name: PR Label Complexity
-    if: github.event_name == 'pull_request_target'
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-      - name: Compute complexity
-        id: compute
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          changed_files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
-          file_count=$(echo "$changed_files" | grep -c . || true)
-          line_count=$(git diff --shortstat "$BASE_SHA" "$HEAD_SHA" | grep -oE '[0-9]+ insertion|[0-9]+ deletion' | awk '{s+=$1} END {print s+0}')
-
-          touched=()
-          for prefix in \
-            "antarmuka/portal:microfrontend:antarmuka-portal" \
-            "antarmuka/perlengkapan:microfrontend:antarmuka-perlengkapan" \
-            "layanan/authenc:microservice:layanan-authenc" \
-            "layanan/perlengkapan:microservice:layanan-perlengkapan" \
-            "layanan/integrasi:microservice:layanan-integrasi" \
-            "layanan/secreton:microservice:layanan-secreton" \
-            "monolith/simpelv1:monolith"; do
-            path="${prefix%%:*}"
-            label="${prefix#*:}"
-            if echo "$changed_files" | grep -q "^$path/"; then
-              touched+=("$label")
-            fi
-          done
-          comp_count=${#touched[@]}
-
-          security_critical=0
-          if echo "$changed_files" | grep -qE '^(layanan/authenc|layanan/secreton|lib/crypto)/'; then
-            security_critical=1
-          fi
-
-          languages=0
-          for ext in 'rs' 'php' 'ts' 'js' 'blade.php' 'sql' 'sh' 'yml' 'yaml' 'toml' 'md' 'Dockerfile'; do
-            if echo "$changed_files" | grep -qE "\.$ext$|/Dockerfile"; then
-              languages=$((languages+1))
-            fi
-          done
-
-          breaking=0
-          if echo "$PR_TITLE" | grep -qE '^[a-z]+(\([a-z0-9,/-]+\))?!:'; then
-            breaking=1
-          fi
-
-          # Heuristik label
-          if [[ $breaking -eq 1 ]] || [[ $comp_count -ge 3 ]] || [[ $line_count -ge 2000 ]]; then
-            label="complexity:major"
-          elif [[ $security_critical -eq 1 ]] || [[ $comp_count -ge 2 && $line_count -ge 500 ]] || [[ $line_count -ge 1000 ]]; then
-            label="complexity:complex"
-          elif [[ $comp_count -ge 2 ]] || [[ $line_count -ge 200 ]] || [[ $languages -ge 3 ]]; then
-            label="complexity:moderate"
-          elif [[ $line_count -ge 50 ]]; then
-            label="complexity:simple"
-          else
-            label="complexity:trivial"
-          fi
-
-          echo "label=$label" >> "$GITHUB_OUTPUT"
-          {
-            echo "## Complexity Heuristics"
-            echo
-            echo "- Files changed: $file_count"
-            echo "- Lines changed: $line_count"
-            echo "- Components touched: $comp_count (${touched[*]:-none})"
-            echo "- Languages affected: $languages"
-            echo "- Security-critical: $security_critical"
-            echo "- Breaking marker in title: $breaking"
-            echo
-            echo "**Label:** \`$label\`"
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Apply complexity label
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          LABEL: ${{ steps.compute.outputs.label }}
-        shell: bash
-        run: |
-          gh pr edit "$PR_NUMBER" --remove-label complexity:trivial --remove-label complexity:simple \
-            --remove-label complexity:moderate --remove-label complexity:complex \
-            --remove-label complexity:major 2>/dev/null || true
-          gh pr edit "$PR_NUMBER" --add-label "$LABEL"
-
   pr-title-check:
     name: PR Title (Conventional Commits)
     if: github.event_name == 'pull_request_target'
@@ -162,16 +66,19 @@ jobs:
             revert
             security
             deps
+          # Scope = domain comp: (lihat .github/labels.yml) + beberapa scope
+          # lintas-komponen. Selaras 1:1 dgn taksonomi label, jadi tidak ada
+          # nama ganda (layanan-/antarmuka-/lib-) untuk domain yang sama.
           scopes: |
-            layanan-authenc
-            layanan-perlengkapan
-            layanan-integrasi
-            layanan-secreton
-            antarmuka-portal
-            simpelv1
-            lib
-            ci
+            perlengkapan
+            authenc
+            integrasi
+            secreton
+            portal
+            monolith
+            shared
             infra
+            ci
             deps
             e2e
             api
