@@ -143,6 +143,14 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         catatan: Option<String>,
     ) -> AppResult<()>;
 
+    /// V029 (#24): bekukan snapshot analisis kelayakan (usulan ↔ eksisting
+    /// SIMAN) ke kolom JSONB `analisis_snapshot_at_submit` saat submit.
+    async fn save_analisis_snapshot(&self, satker_id: Uuid, snapshot: &Value) -> AppResult<()>;
+
+    /// V029 (#24): baca snapshot beku analisis kelayakan (None jika belum
+    /// pernah disubmit / kolom NULL).
+    async fn get_analisis_snapshot(&self, satker_id: Uuid) -> AppResult<Option<Value>>;
+
     // Validator Pusat info update
     async fn update_satker_validator_pusat(
         &self,
@@ -1115,6 +1123,39 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
 
         Ok(())
+    }
+
+    async fn save_analisis_snapshot(&self, satker_id: Uuid, snapshot: &Value) -> AppResult<()> {
+        let client = self.get_client().await?;
+
+        client
+            .execute(
+                r#"
+                UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker
+                SET analisis_snapshot_at_submit = $1,
+                    updated_at = NOW()
+                WHERE id = $2
+                "#,
+                &[snapshot, &satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn get_analisis_snapshot(&self, satker_id: Uuid) -> AppResult<Option<Value>> {
+        let client = self.get_client().await?;
+
+        let row = client
+            .query_opt(
+                "SELECT analisis_snapshot_at_submit FROM perlengkapan.pengajuan_kebutuhan_bmn_satker WHERE id = $1",
+                &[&satker_id],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(row.and_then(|r| r.try_get::<_, Option<Value>>(0).ok().flatten()))
     }
 
     async fn update_satker_validator_wilayah(

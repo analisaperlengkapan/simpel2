@@ -765,9 +765,30 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                     analisis.get().map(|a| {
                                         let sync_data = a.integrasi_sync.clone();
                                         let barang_items = StoredValue::new(a.barang_list.clone());
+                                        let is_snapshot = a.is_snapshot;
+                                        let snapshot_at = a.snapshot_at.clone();
 
                                         view! {
                                             <div class="space-y-5">
+                                                // #24: indikator data konsisten (snapshot saat submit)
+                                                {is_snapshot.then(|| {
+                                                    let waktu = snapshot_at
+                                                        .as_deref()
+                                                        .map(|t| t.split('T').next().unwrap_or(t).to_string())
+                                                        .unwrap_or_default();
+                                                    view! {
+                                                        <div class="flex items-start gap-2 rounded-xl border border-info-500/30 bg-info-500/10 p-3 text-xs text-info-200">
+                                                            <span class="font-semibold">"Snapshot saat submit"</span>
+                                                            <span class="text-info-300/80">
+                                                                {format!(
+                                                                    "Data analisis dibekukan saat Operator Satker submit{} — sama persis dgn yg dilihat operator (bukan fetch SIMAN ulang).",
+                                                                    if waktu.is_empty() { String::new() } else { format!(" ({waktu})") }
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                })}
+
                                                 // Summary stats
                                                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                     <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">

@@ -126,6 +126,24 @@ impl KebutuhanBmnStatus {
         }
     }
 
+    /// V029 (#24): apakah satker sudah MELEWATI tahap submit operator —
+    /// yaitu operator tidak lagi mengedit barang. Pada state ini analisis
+    /// kelayakan dibaca dari snapshot beku (bukan SIMAN live) agar Validator
+    /// Wilayah & Pusat melihat data konsisten dgn operator. State editing
+    /// (Draft/InputBarang/RevisiSatker) tetap memakai analisis live.
+    pub fn is_post_operator_submit(&self) -> bool {
+        matches!(
+            self,
+            Self::SubmitWilayah
+                | Self::SubmitPusat
+                | Self::AnalisisKelayakan
+                | Self::RevisiWilayah
+                | Self::Approved
+                | Self::Rejected
+                | Self::Completed
+        )
+    }
+
     /// Convert status to workflow engine state name
     pub fn to_state_name(&self) -> &'static str {
         match self {
@@ -796,6 +814,13 @@ pub struct AnalisisKelayakanResponse {
     pub data_pegawai: Option<DataPegawaiRekap>,
     pub integrasi_sync: Option<IntegrasiSyncMetadata>,
     pub summary: AnalisisSummary,
+    /// V029 (#24): `true` jika `barang_list`/`summary` berasal dari snapshot
+    /// beku saat Operator Satker submit (bukan fetch SIMAN live). Memberi
+    /// tahu Validator Wilayah & Pusat bahwa data yg mereka lihat PERSIS sama
+    /// dgn yg dilihat operator — transparansi & konsistensi dari hulu.
+    pub is_snapshot: bool,
+    /// Timestamp RFC3339 saat snapshot dibekukan (`None` jika data live).
+    pub snapshot_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -837,6 +862,53 @@ pub struct AnalisisSummary {
     pub total_existing: i64,
     pub total_gap: i64,
     pub kelayakan_persen: f64,
+}
+
+// ============================================================================
+// V029 (Fase 1.6+ / #24) — Snapshot beku analisis kelayakan saat submit
+// ============================================================================
+//
+// Disimpan di kolom JSONB `pengajuan_kebutuhan_bmn_satker.analisis_snapshot_at_submit`
+// (ditambahkan V034). Saat Operator Satker submit ke wilayah, hasil analisis
+// (usulan ↔ eksisting SIMAN + kondisi + gap) dibekukan. Validator Wilayah &
+// Pusat membaca snapshot ini alih-alih fetch SIMAN ulang dari nol, sehingga
+// semua aktor melihat angka yg sama (SIMAN bisa berubah antar-waktu).
+//
+// Struct ini sengaja self-contained (Serialize+Deserialize) dan tidak
+// mem-`flatten` record barang penuh, agar payload snapshot stabil terhadap
+// perubahan skema `PengajuanKebutuhanBmnBarang`.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshot {
+    /// RFC3339 — kapan snapshot dibekukan (saat submit ke wilayah).
+    pub snapshot_at: String,
+    pub summary: AnalisisSnapshotSummary,
+    pub barang: Vec<AnalisisSnapshotBarang>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotSummary {
+    pub total_diminta: i64,
+    pub total_existing: i64,
+    pub total_gap: i64,
+    pub kelayakan_persen: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotBarang {
+    pub barang_id: Uuid,
+    pub existing_count: i32,
+    pub gap: i32,
+    pub recommendation: String,
+    pub existing_assets: Vec<AnalisisSnapshotAsset>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalisisSnapshotAsset {
+    pub no_aset: String,
+    pub nama_aset: String,
+    pub kondisi: String,
+    pub lokasi: Option<String>,
 }
 
 // ============================================================================
