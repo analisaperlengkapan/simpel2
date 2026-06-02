@@ -258,6 +258,25 @@ pub struct PegawaiWithSizes {
     pub ukuran: Option<PegawaiPakaianDinas>,
 }
 
+/// Info kesegaran sinkronisasi MySIMKARI (Fase 2.4) untuk banner wizard.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PegawaiSyncInfo {
+    pub sumber: String,
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    pub segar: bool,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
+}
+
+/// Ringkasan roster + sinkronisasi (Fase 2.4). Field `pegawai` dari server
+/// sengaja diabaikan di FE — wizard hanya butuh sinyal kesegaran untuk banner.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct PegawaiRosterSync {
+    pub total: i64,
+    pub sync: Option<PegawaiSyncInfo>,
+}
+
 /// Report: Rekap Ukuran (Size summary)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct LaporanRekapUkuran {
@@ -1176,6 +1195,49 @@ pub async fn fetch_pegawai_with_sizes(
         page: 1,
         per_page: 20,
         total_pages: 0,
+        message: "Server-side stub".to_string(),
+    })
+}
+
+// --- Roster + status sinkronisasi MySIMKARI (Fase 2.4) ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pegawai_roster_sync(
+    satker_id: String,
+) -> Result<ApiResponse<PegawaiRosterSync>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pakaian-dinas/pegawai-satker/{}/roster",
+        satker_id
+    );
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+    let result: ApiResponse<PegawaiRosterSync> = resp.json().await?;
+    Ok(result)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pegawai_roster_sync(
+    _satker_id: String,
+) -> Result<ApiResponse<PegawaiRosterSync>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: PegawaiRosterSync {
+            total: 0,
+            sync: None,
+        },
         message: "Server-side stub".to_string(),
     })
 }

@@ -553,6 +553,21 @@ pub async fn get_pegawai_by_satker(
     )))
 }
 
+/// Roster pegawai satker + info kesegaran sinkronisasi MySIMKARI (Fase 2.4).
+/// Dipakai wizard ukuran utk menampilkan `last_sync_at` + banner data basi.
+pub async fn get_pegawai_roster_with_sync(
+    State(service): State<PakaianDinasService>,
+    Path(satker_id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<PegawaiRosterWithSync>>, AppError> {
+    let roster = service.get_pegawai_roster_with_sync(satker_id).await?;
+
+    Ok(Json(ApiResponse::success(
+        roster,
+        "Roster pegawai + status sinkronisasi berhasil diambil".to_string(),
+    )))
+}
+
 /// Response type for pegawai with existing sizes
 #[derive(serde::Serialize)]
 pub struct PegawaiWithSizes {

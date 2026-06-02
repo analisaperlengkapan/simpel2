@@ -811,6 +811,28 @@ pub struct MysimkariPegawai {
     pub satker_id: Option<Uuid>,
 }
 
+/// Info kesegaran sinkronisasi MySIMKARI (Fase 2.4) untuk banner wizard ukuran.
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiSyncInfo {
+    pub sumber: String,
+    /// Nama state sinkronisasi (SYNC_STATE_COMPLETED / FAILED / RUNNING / ...).
+    pub state: String,
+    pub last_sync_at: Option<String>,
+    /// `true` jika sync terakhir COMPLETED dan ada timestamp.
+    pub segar: bool,
+    pub records_synced: i64,
+    pub error_message: Option<String>,
+}
+
+/// Roster pegawai satker + info kesegaran sinkronisasi (Fase 2.4).
+#[derive(Debug, Clone, Serialize)]
+pub struct PegawaiRosterWithSync {
+    pub pegawai: Vec<MysimkariPegawai>,
+    pub total: i64,
+    /// `None` bila integrasi tidak tersedia / probe gagal (tidak diketahui).
+    pub sync: Option<PegawaiSyncInfo>,
+}
+
 impl MysimkariPegawai {
     pub fn from_row(row: &Row) -> Self {
         Self {

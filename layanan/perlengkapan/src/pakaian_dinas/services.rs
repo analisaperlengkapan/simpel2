@@ -9,6 +9,8 @@ use uuid::Uuid;
 use super::models::*;
 use super::repository::PakaianDinasRepository;
 use crate::shared::error::{AppError, AppResult, bad_request};
+use crate::shared::grpc::clients::IntegrasiClient;
+use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
 
 /// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
 /// `AppError::BadRequest` (422) jika:
@@ -35,11 +37,92 @@ pub fn validate_periode_pakaian_dinas(
 #[derive(Clone)]
 pub struct PakaianDinasService {
     pub(crate) repository: PakaianDinasRepository,
+    /// gRPC client ke layanan-integrasi (resilient, Fase 2.2). Opsional —
+    /// `None` saat integrasi tidak tersedia; sinkronisasi freshness pegawai
+    /// (Fase 2.4) graceful-degrade ke "tidak diketahui".
+    integrasi_client: Option<IntegrasiClient>,
 }
 
 impl PakaianDinasService {
     pub fn new(repository: PakaianDinasRepository) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            integrasi_client: None,
+        }
+    }
+
+    /// Inject IntegrasiClient (Fase 2.4) untuk laporan freshness sync MySIMKARI.
+    pub fn with_integrasi_client(mut self, client: IntegrasiClient) -> Self {
+        self.integrasi_client = Some(client);
+        self
+    }
+
+    /// Roster pegawai satker (dari replika `integrasi.mysimkari_pegawai`,
+    /// non-lossy — termasuk gender & foto) + info kesegaran sinkronisasi
+    /// MySIMKARI (Fase 2.4). Wizard ukuran menampilkan `last_sync_at` dan
+    /// banner bila data berpotensi basi (sync gagal / belum pernah sync).
+    ///
+    /// Catatan arsitektur: panggilan gRPC MySIMKARI langsung bersifat
+    /// *field-poor* (tanpa gender/foto), sedangkan replika kaya field dan
+    /// disinkronkan oleh layanan-integrasi. Maka roster tetap dibaca dari
+    /// replika; "realtime" diwujudkan sebagai transparansi kesegaran +
+    /// fallback aware, bukan tarik-langsung yang lossy.
+    pub async fn get_pegawai_roster_with_sync(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<PegawaiRosterWithSync> {
+        let pegawai = self
+            .repository
+            .get_mysimkari_pegawai_by_satker(satker_id)
+            .await?;
+
+        let sync = match &self.integrasi_client {
+            Some(client) => Self::fetch_mysimkari_sync(client).await,
+            None => None,
+        };
+
+        Ok(PegawaiRosterWithSync {
+            total: pegawai.len() as i64,
+            pegawai,
+            sync,
+        })
+    }
+
+    /// Best-effort probe status sinkronisasi MySIMKARI. Kegagalan probe
+    /// (gRPC timeout/circuit-open) dikembalikan sbg `None` (tidak diketahui),
+    /// tidak memblokir penyajian roster.
+    async fn fetch_mysimkari_sync(client: &IntegrasiClient) -> Option<PegawaiSyncInfo> {
+        match client.get_sync_status(DataSource::Mysimkari).await {
+            Ok(status) => {
+                let state = SyncState::try_from(status.state).unwrap_or(SyncState::Unspecified);
+                let last_sync_at = if status.last_sync_at.trim().is_empty() {
+                    None
+                } else {
+                    Some(status.last_sync_at)
+                };
+                // "segar" = sync terakhir COMPLETED dan ada timestamp.
+                let segar = matches!(state, SyncState::Completed) && last_sync_at.is_some();
+                Some(PegawaiSyncInfo {
+                    sumber: "mysimkari".to_string(),
+                    state: state.as_str_name().to_string(),
+                    last_sync_at,
+                    segar,
+                    records_synced: status.records_synced,
+                    error_message: if status.error_message.trim().is_empty() {
+                        None
+                    } else {
+                        Some(status.error_message)
+                    },
+                })
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Probe sync MySIMKARI gagal (tidak memblokir roster): {}",
+                    e
+                );
+                None
+            }
+        }
     }
 
     // ============ Master: Jenis Pakaian Dinas ============

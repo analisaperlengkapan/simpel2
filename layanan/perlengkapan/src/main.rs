@@ -281,7 +281,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Create Pakaian Dinas service
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
-    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+    let mut pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+    // Fase 2.4: inject IntegrasiClient (clone) untuk laporan kesegaran sync
+    // MySIMKARI di wizard ukuran. Original di-move ke kebutuhan_bmn di bawah.
+    if let Some(client) = integrasi_client.clone() {
+        pakaian_dinas_service = pakaian_dinas_service.with_integrasi_client(client);
+    }
 
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());

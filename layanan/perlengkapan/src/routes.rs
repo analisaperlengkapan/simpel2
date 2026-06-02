@@ -242,6 +242,10 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/pegawai-satker/{satker_id}/with-sizes",
             get(pakaian_dinas::get_pegawai_with_sizes),
         )
+        .route(
+            "/pakaian-dinas/pegawai-satker/{satker_id}/roster",
+            get(pakaian_dinas::get_pegawai_roster_with_sync),
+        )
         // Reports
         .route(
             "/pakaian-dinas/laporan/rekap-ukuran",
