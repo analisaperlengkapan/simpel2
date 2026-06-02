@@ -163,64 +163,6 @@ impl Claims {
     }
 }
 
-#[cfg(test)]
-mod policy_tests {
-    use super::*;
-
-    fn claims_with_role(role: &str) -> Claims {
-        Claims {
-            user_id: Uuid::nil(),
-            username: "u".into(),
-            role: role.into(),
-            permissions: vec![],
-            nip: None,
-            name: None,
-            nama: None,
-            jabatan: None,
-            satker_code: None,
-        }
-    }
-
-    #[test]
-    fn require_role_accepts_exact_match() {
-        let c = claims_with_role("validator_pusat");
-        assert!(c.require_role("validator_pusat").is_ok());
-        assert!(c.require_any_role(&["validator_pusat", "admin"]).is_ok());
-    }
-
-    #[test]
-    fn require_role_rejects_wrong_role() {
-        let c = claims_with_role("operator_satker");
-        let err = c.require_role("validator_pusat").unwrap_err();
-        assert!(matches!(err, AppError::Authorization(_)));
-    }
-
-    #[test]
-    fn require_role_is_case_insensitive() {
-        let c = claims_with_role("Validator_Pusat");
-        assert!(c.require_role("validator_pusat").is_ok());
-    }
-
-    #[test]
-    fn admin_bypasses_require_role() {
-        let c = claims_with_role("admin");
-        assert!(c.require_role("validator_pusat").is_ok());
-        assert!(c.require_admin().is_ok());
-    }
-
-    #[test]
-    fn superadmin_bypasses_require_role() {
-        let c = claims_with_role("superadmin");
-        assert!(c.require_role("operator_satker").is_ok());
-    }
-
-    #[test]
-    fn require_admin_rejects_non_admin() {
-        let c = claims_with_role("validator_pusat");
-        assert!(c.require_admin().is_err());
-    }
-}
-
 impl<S> FromRequestParts<S> for Claims
 where
     S: Send + Sync,
@@ -361,5 +303,63 @@ pub fn require_permission(
                 permission
             )))
         }
+    }
+}
+
+#[cfg(test)]
+mod policy_tests {
+    use super::*;
+
+    fn claims_with_role(role: &str) -> Claims {
+        Claims {
+            user_id: Uuid::nil(),
+            username: "u".into(),
+            role: role.into(),
+            permissions: vec![],
+            nip: None,
+            name: None,
+            nama: None,
+            jabatan: None,
+            satker_code: None,
+        }
+    }
+
+    #[test]
+    fn require_role_accepts_exact_match() {
+        let c = claims_with_role("validator_pusat");
+        assert!(c.require_role("validator_pusat").is_ok());
+        assert!(c.require_any_role(&["validator_pusat", "admin"]).is_ok());
+    }
+
+    #[test]
+    fn require_role_rejects_wrong_role() {
+        let c = claims_with_role("operator_satker");
+        let err = c.require_role("validator_pusat").unwrap_err();
+        assert!(matches!(err, AppError::Authorization(_)));
+    }
+
+    #[test]
+    fn require_role_is_case_insensitive() {
+        let c = claims_with_role("Validator_Pusat");
+        assert!(c.require_role("validator_pusat").is_ok());
+    }
+
+    #[test]
+    fn admin_bypasses_require_role() {
+        let c = claims_with_role("admin");
+        assert!(c.require_role("validator_pusat").is_ok());
+        assert!(c.require_admin().is_ok());
+    }
+
+    #[test]
+    fn superadmin_bypasses_require_role() {
+        let c = claims_with_role("superadmin");
+        assert!(c.require_role("operator_satker").is_ok());
+    }
+
+    #[test]
+    fn require_admin_rejects_non_admin() {
+        let c = claims_with_role("validator_pusat");
+        assert!(c.require_admin().is_err());
     }
 }

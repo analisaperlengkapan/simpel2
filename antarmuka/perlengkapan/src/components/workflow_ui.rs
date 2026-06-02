@@ -242,7 +242,7 @@ pub fn ApprovalDialog(
     let confirm_label = confirm_label.unwrap_or_else(|| "Konfirmasi".to_string());
     let confirm_class = confirm_tone.unwrap_or(ActionTone::Primary).btn_class();
 
-    let is_busy = move || busy.map_or(false, |s| s.get());
+    let is_busy = move || busy.is_some_and(|s| s.get());
 
     let on_submit = move |_| {
         let text = note.get().trim().to_string();
@@ -351,7 +351,7 @@ pub fn WorkflowActions(
     #[prop(into)] actions: Vec<WorkflowAction>,
     #[prop(optional, into)] busy: Option<Signal<bool>>,
 ) -> impl IntoView {
-    let is_busy = move || busy.map_or(false, |s| s.get());
+    let is_busy = move || busy.is_some_and(|s| s.get());
     view! {
         <div class="flex flex-wrap gap-3">
             {actions

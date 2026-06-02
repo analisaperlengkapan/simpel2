@@ -107,10 +107,7 @@ impl EventBus {
         // `send` mengembalikan Err hanya jika tidak ada subscriber.
         // Itu BUKAN kondisi error — banyak deployment dev tidak punya
         // subscriber. Log debug saja.
-        match self.sender.send(event) {
-            Ok(n) => n,
-            Err(_no_subscriber) => 0,
-        }
+        self.sender.send(event).unwrap_or_default()
     }
 
     /// Subscribe — return Receiver baru. Subscriber baru mulai dari event

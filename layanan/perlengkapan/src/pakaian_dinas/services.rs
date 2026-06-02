@@ -48,7 +48,7 @@ pub fn validate_scope_satker(
     match pilihan_satker {
         "all" | "semua" => Ok(()),
         "sebagian" => {
-            if satker_ids.map_or(true, |ids| ids.is_empty()) {
+            if satker_ids.is_none_or(|ids| ids.is_empty()) {
                 Err(bad_request(
                     "Satker harus dipilih jika pilihan satker = 'sebagian'",
                 ))
@@ -57,7 +57,7 @@ pub fn validate_scope_satker(
             }
         }
         "wilayah" => {
-            if wilayah_id.map_or(true, |w| w.trim().is_empty()) {
+            if wilayah_id.is_none_or(|w| w.trim().is_empty()) {
                 Err(bad_request(
                     "Wilayah harus dipilih jika pilihan satker = 'wilayah'",
                 ))
