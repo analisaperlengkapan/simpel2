@@ -12,17 +12,13 @@
 //! TemplateService berbasis DB (template untuk laporan tabular cocok
 //! di-render lewat kode terstruktur, bukan Handlebars).
 
-use std::io::{BufWriter, Cursor};
 
-use printpdf::{
-    BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfDocumentReference, PdfLayerReference,
-    Point,
-};
 use uuid::Uuid;
 
 use super::models::{LaporanDaftarPegawai, LaporanFilter, LaporanRekapUkuran};
 use super::services::PakaianDinasService;
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::AppResult;
+use crate::shared::pdf::{PageGeometry, PdfBuilder};
 
 // ─── Page geometry (A4 landscape) ────────────────────────────────────────
 const PAGE_W: f32 = 297.0;
@@ -40,152 +36,14 @@ fn drawable_w() -> f32 {
     PAGE_W - MARGIN_L - MARGIN_R
 }
 
-struct PdfBuilder {
-    doc: PdfDocumentReference,
-    font: IndirectFontRef,
-    font_bold: IndirectFontRef,
-    pages: Vec<(printpdf::PdfPageIndex, printpdf::PdfLayerIndex)>,
-    current_page: usize,
-    /// Y cursor in mm from the bottom of page (printpdf convention).
-    y: f32,
-}
-
-impl PdfBuilder {
-    fn new(title: &str) -> AppResult<Self> {
-        let (doc, page1, layer1) = PdfDocument::new(title, Mm(PAGE_W), Mm(PAGE_H), "L1");
-        let font = doc
-            .add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        let font_bold = doc
-            .add_builtin_font(BuiltinFont::HelveticaBold)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        Ok(Self {
-            doc,
-            font,
-            font_bold,
-            pages: vec![(page1, layer1)],
-            current_page: 0,
-            y: MARGIN_TOP,
-        })
-    }
-
-    fn layer(&self) -> PdfLayerReference {
-        let (p, l) = self.pages[self.current_page];
-        self.doc.get_page(p).get_layer(l)
-    }
-
-    /// Mulai halaman baru; reset y cursor.
-    fn new_page(&mut self) {
-        let (p, l) = self.doc.add_page(Mm(PAGE_W), Mm(PAGE_H), "L1");
-        self.pages.push((p, l));
-        self.current_page = self.pages.len() - 1;
-        self.y = MARGIN_TOP;
-    }
-
-    /// Pastikan ada ruang `needed` mm di bawah cursor; jika tidak, page baru.
-    fn ensure_space(&mut self, needed: f32) {
-        if self.y - needed < MARGIN_BOTTOM {
-            self.new_page();
-        }
-    }
-
-    fn write_text(&mut self, text: &str, font_size: f32, bold: bool, x: f32) {
-        let font = if bold { &self.font_bold } else { &self.font };
-        self.layer().use_text(text, font_size, Mm(x), Mm(self.y), font);
-    }
-
-    fn write_centered(&mut self, text: &str, font_size: f32, bold: bool) {
-        // printpdf doesn't measure text width; approximate via char count.
-        let approx_w = text.chars().count() as f32 * font_size * 0.18;
-        let x = (PAGE_W - approx_w) / 2.0;
-        self.write_text(text, font_size, bold, x.max(MARGIN_L));
-    }
-
-    fn advance(&mut self, delta: f32) {
-        self.y -= delta;
-    }
-
-    /// Draw a horizontal line at current y.
-    fn hline(&mut self, x1: f32, x2: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x1), Mm(self.y)), false),
-                (Point::new(Mm(x2), Mm(self.y)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    /// Draw a vertical line from y_top down to y_bottom at given x.
-    fn vline(&mut self, x: f32, y_top: f32, y_bottom: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x), Mm(y_top)), false),
-                (Point::new(Mm(x), Mm(y_bottom)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    /// Render a table row given column widths (sum should ≤ drawable_w),
-    /// cell texts, and styling. Increments y by ROW_H.
-    fn row(&mut self, col_widths: &[f32], cells: &[String], bold: bool, draw_border: bool) {
-        self.ensure_space(ROW_H);
-        // Borders
-        let y_top = self.y + ROW_H * 0.75;
-        let y_bot = self.y - ROW_H * 0.25;
-
-        if draw_border {
-            // Top + bottom lines
-            let total_w: f32 = col_widths.iter().sum();
-            let prev_y = self.y;
-            self.y = y_top;
-            self.hline(MARGIN_L, MARGIN_L + total_w);
-            self.y = y_bot;
-            self.hline(MARGIN_L, MARGIN_L + total_w);
-            self.y = prev_y;
-            // Vertical lines
-            let mut x = MARGIN_L;
-            self.vline(x, y_top, y_bot);
-            for w in col_widths {
-                x += *w;
-                self.vline(x, y_top, y_bot);
-            }
-        }
-
-        // Text in each cell (left-aligned w/ small inset).
-        let mut x = MARGIN_L + 1.0;
-        for (cell, w) in cells.iter().zip(col_widths) {
-            // Truncate text that won't fit using crude char-width estimate.
-            let max_chars = ((*w - 2.0) / (CELL_FONT * 0.16)).max(1.0) as usize;
-            let display: String = if cell.chars().count() > max_chars {
-                let mut s: String = cell.chars().take(max_chars.saturating_sub(1)).collect();
-                s.push('…');
-                s
-            } else {
-                cell.clone()
-            };
-            self.write_text(&display, CELL_FONT, bold, x);
-            x += *w;
-        }
-        self.advance(ROW_H);
-    }
-
-    fn finish(self) -> AppResult<Vec<u8>> {
-        let mut buf: Vec<u8> = Vec::new();
-        {
-            let writer = BufWriter::new(Cursor::new(&mut buf));
-            self.doc
-                .save(&mut BufWriter::new(writer.into_inner().map_err(|e| {
-                    bad_request(&format!("pdf writer flush: {e}"))
-                })?))
-                .map_err(|e| bad_request(&format!("pdf save: {e}")))?;
-        }
-        Ok(buf)
+fn geom() -> PageGeometry {
+    PageGeometry {
+        page_w: PAGE_W, page_h: PAGE_H,
+        margin_l: MARGIN_L, margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP, margin_bottom: MARGIN_BOTTOM,
+        row_h: ROW_H, cell_font: CELL_FONT,
+        cell_pad_x: 1.0, cell_trunc_pad: 2.0,
+        auto_paginate: true,
     }
 }
 
@@ -200,7 +58,7 @@ pub async fn generate_rekap_pdf(
         .get_laporan_rekap_ukuran(pengajuan_id, filter.clone())
         .await?;
 
-    let mut pdf = PdfBuilder::new("Rekap Ukuran Pakaian Dinas")?;
+    let mut pdf = PdfBuilder::new("Rekap Ukuran Pakaian Dinas", geom())?;
     pdf.write_centered("REKAP UKURAN PAKAIAN DINAS", TITLE_FONT, true);
     pdf.advance(8.0);
     pdf.write_centered(
@@ -315,7 +173,7 @@ pub async fn generate_daftar_pdf(
         page += 1;
     }
 
-    let mut pdf = PdfBuilder::new("Daftar Pegawai Pakaian Dinas")?;
+    let mut pdf = PdfBuilder::new("Daftar Pegawai Pakaian Dinas", geom())?;
     pdf.write_centered("DAFTAR PEGAWAI PAKAIAN DINAS", TITLE_FONT, true);
     pdf.advance(8.0);
     pdf.write_centered(
@@ -430,7 +288,7 @@ mod tests {
     /// Mengisolasi printpdf wiring (font + page) tanpa butuh DB.
     #[test]
     fn pdf_builder_produces_pdf_magic_bytes() {
-        let mut pdf = PdfBuilder::new("Test").expect("init builder");
+        let mut pdf = PdfBuilder::new("Test", geom()).expect("init builder");
         pdf.write_centered("HELLO", 12.0, true);
         pdf.advance(8.0);
         pdf.row(

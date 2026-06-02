@@ -15,17 +15,13 @@
 //! (0.9) dan kebutuhan_bmn/pdf_laporan.rs (0.8). Refactor ekstraksi ke
 //! `shared/pdf.rs` ada di task #17 follow-up.
 
-use std::io::{BufWriter, Cursor};
 
-use printpdf::{
-    BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfDocumentReference, PdfLayerReference,
-    Point,
-};
 use uuid::Uuid;
 
 use super::models::IzinPemakaianBmn;
 use super::services::PemakaianBmnService;
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::AppResult;
+use crate::shared::pdf::{PageGeometry, PdfBuilder};
 
 // ─── Page geometry (A4 portrait) ─────────────────────────────────────────
 const PAGE_W: f32 = 210.0;
@@ -43,140 +39,14 @@ fn drawable_w() -> f32 {
     PAGE_W - MARGIN_L - MARGIN_R
 }
 
-struct PdfBuilder {
-    doc: PdfDocumentReference,
-    font: IndirectFontRef,
-    font_bold: IndirectFontRef,
-    pages: Vec<(printpdf::PdfPageIndex, printpdf::PdfLayerIndex)>,
-    current_page: usize,
-    y: f32,
-}
-
-impl PdfBuilder {
-    fn new(title: &str) -> AppResult<Self> {
-        let (doc, p, l) = PdfDocument::new(title, Mm(PAGE_W), Mm(PAGE_H), "L1");
-        let font = doc
-            .add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        let font_bold = doc
-            .add_builtin_font(BuiltinFont::HelveticaBold)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        Ok(Self {
-            doc,
-            font,
-            font_bold,
-            pages: vec![(p, l)],
-            current_page: 0,
-            y: MARGIN_TOP,
-        })
-    }
-
-    fn layer(&self) -> PdfLayerReference {
-        let (p, l) = self.pages[self.current_page];
-        self.doc.get_page(p).get_layer(l)
-    }
-
-    fn new_page(&mut self) {
-        let (p, l) = self.doc.add_page(Mm(PAGE_W), Mm(PAGE_H), "L1");
-        self.pages.push((p, l));
-        self.current_page = self.pages.len() - 1;
-        self.y = MARGIN_TOP;
-    }
-
-    fn write_text(&mut self, text: &str, font_size: f32, bold: bool, x: f32) {
-        let font = if bold { &self.font_bold } else { &self.font };
-        self.layer().use_text(text, font_size, Mm(x), Mm(self.y), font);
-    }
-
-    fn write_centered(&mut self, text: &str, font_size: f32, bold: bool) {
-        let approx_w = text.chars().count() as f32 * font_size * 0.18;
-        let x = ((PAGE_W - approx_w) / 2.0).max(MARGIN_L);
-        self.write_text(text, font_size, bold, x);
-    }
-
-    fn advance(&mut self, delta: f32) {
-        self.y -= delta;
-    }
-
-    fn hline(&mut self, x1: f32, x2: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x1), Mm(self.y)), false),
-                (Point::new(Mm(x2), Mm(self.y)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    fn vline(&mut self, x: f32, y_top: f32, y_bottom: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x), Mm(y_top)), false),
-                (Point::new(Mm(x), Mm(y_bottom)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    fn rect(&mut self, x: f32, w: f32, h: f32) {
-        let y_top = self.y + h * 0.5;
-        let y_bot = self.y - h * 0.5;
-        let prev_y = self.y;
-        self.y = y_top;
-        self.hline(x, x + w);
-        self.y = y_bot;
-        self.hline(x, x + w);
-        self.vline(x, y_top, y_bot);
-        self.vline(x + w, y_top, y_bot);
-        self.y = prev_y;
-    }
-
-    fn row(&mut self, col_widths: &[f32], cells: &[String], bold: bool) {
-        let y_top = self.y + ROW_H * 0.75;
-        let y_bot = self.y - ROW_H * 0.25;
-        let total_w: f32 = col_widths.iter().sum();
-        let prev_y = self.y;
-        self.y = y_top;
-        self.hline(MARGIN_L, MARGIN_L + total_w);
-        self.y = y_bot;
-        self.hline(MARGIN_L, MARGIN_L + total_w);
-        self.y = prev_y;
-        let mut x_cursor = MARGIN_L;
-        self.vline(x_cursor, y_top, y_bot);
-        for w in col_widths {
-            x_cursor += *w;
-            self.vline(x_cursor, y_top, y_bot);
-        }
-        let mut x_cursor = MARGIN_L + 1.5;
-        for (cell, w) in cells.iter().zip(col_widths) {
-            let max_chars = ((*w - 3.0) / (CELL_FONT * 0.16)).max(1.0) as usize;
-            let display: String = if cell.chars().count() > max_chars {
-                let mut s: String = cell.chars().take(max_chars.saturating_sub(1)).collect();
-                s.push('…');
-                s
-            } else {
-                cell.clone()
-            };
-            self.write_text(&display, CELL_FONT, bold, x_cursor);
-            x_cursor += *w;
-        }
-        self.advance(ROW_H);
-    }
-
-    fn finish(self) -> AppResult<Vec<u8>> {
-        let mut buf: Vec<u8> = Vec::new();
-        {
-            let cursor = Cursor::new(&mut buf);
-            let mut writer = BufWriter::new(cursor);
-            self.doc
-                .save(&mut writer)
-                .map_err(|e| bad_request(&format!("pdf save: {e}")))?;
-        }
-        Ok(buf)
+fn geom() -> PageGeometry {
+    PageGeometry {
+        page_w: PAGE_W, page_h: PAGE_H,
+        margin_l: MARGIN_L, margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP, margin_bottom: 18.0,
+        row_h: ROW_H, cell_font: CELL_FONT,
+        cell_pad_x: 1.5, cell_trunc_pad: 3.0,
+        auto_paginate: false,
     }
 }
 
@@ -191,7 +61,7 @@ pub async fn generate_sk_izin_pdf(
 }
 
 fn render_pdf(permit: &IzinPemakaianBmn) -> AppResult<Vec<u8>> {
-    let mut pdf = PdfBuilder::new("SK Izin Pemakaian BMN")?;
+    let mut pdf = PdfBuilder::new("SK Izin Pemakaian BMN", geom())?;
 
     // ─── Halaman 1: Informasi Pegawai ────────────────────────────────
     render_halaman_pegawai(&mut pdf, permit);
@@ -331,7 +201,7 @@ fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     .into_iter()
     .map(String::from)
     .collect();
-    pdf.row(&col_widths, &header_cells, true);
+    pdf.row(&col_widths, &header_cells, true, true);
 
     // V1 model: single BMN per permit. Render sebagai 1 row table.
     // Saat multi-BMN refactor (post-Fase 1.5), loop melalui Vec<BmnItem>.
@@ -347,7 +217,7 @@ fn render_halaman_daftar_bmn(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
         permit.tanggal_mulai.format("%d-%m-%Y").to_string(),
         permit.tanggal_selesai.format("%d-%m-%Y").to_string(),
     ];
-    pdf.row(&col_widths, &cells, false);
+    pdf.row(&col_widths, &cells, false, true);
 
     // Catatan footer
     pdf.advance(8.0);
@@ -377,13 +247,14 @@ mod tests {
 
     #[test]
     fn pdf_builder_produces_pdf_magic() {
-        let mut pdf = PdfBuilder::new("Test").expect("init");
+        let mut pdf = PdfBuilder::new("Test", geom()).expect("init");
         pdf.write_centered("TEST", 12.0, true);
         pdf.advance(8.0);
         pdf.row(
             &[20.0, 30.0, 30.0],
             &["A".into(), "B".into(), "C".into()],
             false,
+            true,
         );
         pdf.new_page();
         pdf.write_centered("Page 2", 12.0, false);

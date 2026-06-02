@@ -35,6 +35,7 @@ pub mod logging;
 pub mod metrics;
 pub mod events;
 pub mod middleware;
+pub mod pdf;
 pub mod policy;
 pub mod rate_limit;
 pub mod repo;

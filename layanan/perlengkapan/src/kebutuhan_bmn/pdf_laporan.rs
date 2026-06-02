@@ -17,17 +17,13 @@
 //! pdf_export.rs`. Extract ke `shared/pdf.rs` dijadwalkan sbg follow-up
 //! refactor (low priority — kedua modul stabil & tidak sering diubah).
 
-use std::io::{BufWriter, Cursor};
 
-use printpdf::{
-    BuiltinFont, IndirectFontRef, Line, Mm, PdfDocument, PdfDocumentReference, PdfLayerReference,
-    Point,
-};
 use uuid::Uuid;
 
 use super::models::{AnalisisKelayakanResponse, BarangWithExistingInventory};
 use super::services::KebutuhanBmnService;
-use crate::shared::error::{AppResult, bad_request};
+use crate::shared::error::AppResult;
+use crate::shared::pdf::{PageGeometry, PdfBuilder};
 
 // ─── Page geometry (A4 portrait) ─────────────────────────────────────────
 const PAGE_W: f32 = 210.0;
@@ -42,134 +38,14 @@ const SECTION_FONT: f32 = 10.0;
 const CELL_FONT: f32 = 7.5;
 const BODY_FONT: f32 = 9.0;
 
-struct PdfBuilder {
-    doc: PdfDocumentReference,
-    font: IndirectFontRef,
-    font_bold: IndirectFontRef,
-    pages: Vec<(printpdf::PdfPageIndex, printpdf::PdfLayerIndex)>,
-    current_page: usize,
-    y: f32,
-}
-
-impl PdfBuilder {
-    fn new(title: &str) -> AppResult<Self> {
-        let (doc, page1, layer1) = PdfDocument::new(title, Mm(PAGE_W), Mm(PAGE_H), "L1");
-        let font = doc
-            .add_builtin_font(BuiltinFont::Helvetica)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        let font_bold = doc
-            .add_builtin_font(BuiltinFont::HelveticaBold)
-            .map_err(|e| bad_request(&format!("font: {e}")))?;
-        Ok(Self {
-            doc,
-            font,
-            font_bold,
-            pages: vec![(page1, layer1)],
-            current_page: 0,
-            y: MARGIN_TOP,
-        })
-    }
-
-    fn layer(&self) -> PdfLayerReference {
-        let (p, l) = self.pages[self.current_page];
-        self.doc.get_page(p).get_layer(l)
-    }
-
-    fn new_page(&mut self) {
-        let (p, l) = self.doc.add_page(Mm(PAGE_W), Mm(PAGE_H), "L1");
-        self.pages.push((p, l));
-        self.current_page = self.pages.len() - 1;
-        self.y = MARGIN_TOP;
-    }
-
-    fn ensure_space(&mut self, needed: f32) {
-        if self.y - needed < MARGIN_BOTTOM {
-            self.new_page();
-        }
-    }
-
-    fn write_text(&mut self, text: &str, font_size: f32, bold: bool, x: f32) {
-        let font = if bold { &self.font_bold } else { &self.font };
-        self.layer().use_text(text, font_size, Mm(x), Mm(self.y), font);
-    }
-
-    fn write_centered(&mut self, text: &str, font_size: f32, bold: bool) {
-        let approx_w = text.chars().count() as f32 * font_size * 0.18;
-        let x = (PAGE_W - approx_w) / 2.0;
-        self.write_text(text, font_size, bold, x.max(MARGIN_L));
-    }
-
-    fn advance(&mut self, delta: f32) {
-        self.y -= delta;
-    }
-
-    fn hline(&mut self, x1: f32, x2: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x1), Mm(self.y)), false),
-                (Point::new(Mm(x2), Mm(self.y)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    fn vline(&mut self, x: f32, y_top: f32, y_bottom: f32) {
-        let layer = self.layer();
-        let line = Line {
-            points: vec![
-                (Point::new(Mm(x), Mm(y_top)), false),
-                (Point::new(Mm(x), Mm(y_bottom)), false),
-            ],
-            is_closed: false,
-        };
-        layer.add_line(line);
-    }
-
-    fn row(&mut self, col_widths: &[f32], cells: &[String], bold: bool) {
-        self.ensure_space(ROW_H);
-        let y_top = self.y + ROW_H * 0.75;
-        let y_bot = self.y - ROW_H * 0.25;
-        let total_w: f32 = col_widths.iter().sum();
-        let prev_y = self.y;
-        self.y = y_top;
-        self.hline(MARGIN_L, MARGIN_L + total_w);
-        self.y = y_bot;
-        self.hline(MARGIN_L, MARGIN_L + total_w);
-        self.y = prev_y;
-        let mut x = MARGIN_L;
-        self.vline(x, y_top, y_bot);
-        for w in col_widths {
-            x += *w;
-            self.vline(x, y_top, y_bot);
-        }
-        let mut x = MARGIN_L + 1.0;
-        for (cell, w) in cells.iter().zip(col_widths) {
-            let max_chars = ((*w - 2.0) / (CELL_FONT * 0.16)).max(1.0) as usize;
-            let display: String = if cell.chars().count() > max_chars {
-                let mut s: String = cell.chars().take(max_chars.saturating_sub(1)).collect();
-                s.push('…');
-                s
-            } else {
-                cell.clone()
-            };
-            self.write_text(&display, CELL_FONT, bold, x);
-            x += *w;
-        }
-        self.advance(ROW_H);
-    }
-
-    fn finish(self) -> AppResult<Vec<u8>> {
-        let mut buf: Vec<u8> = Vec::new();
-        {
-            let cursor = Cursor::new(&mut buf);
-            let mut writer = BufWriter::new(cursor);
-            self.doc
-                .save(&mut writer)
-                .map_err(|e| bad_request(&format!("pdf save: {e}")))?;
-        }
-        Ok(buf)
+fn geom() -> PageGeometry {
+    PageGeometry {
+        page_w: PAGE_W, page_h: PAGE_H,
+        margin_l: MARGIN_L, margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP, margin_bottom: MARGIN_BOTTOM,
+        row_h: ROW_H, cell_font: CELL_FONT,
+        cell_pad_x: 1.0, cell_trunc_pad: 2.0,
+        auto_paginate: true,
     }
 }
 
@@ -188,7 +64,7 @@ pub async fn generate_laporan_analisis_pdf(
 }
 
 fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
-    let mut pdf = PdfBuilder::new("Laporan Hasil Analisis Kebutuhan BMN")?;
+    let mut pdf = PdfBuilder::new("Laporan Hasil Analisis Kebutuhan BMN", geom())?;
 
     // ── Title block ──────────────────────────────────────────────────
     pdf.write_centered(
@@ -252,7 +128,7 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
         .into_iter()
         .map(String::from)
         .collect();
-    pdf.row(&col_widths, &header_cells, true);
+    pdf.row(&col_widths, &header_cells, true, true);
 
     if analisis.barang_list.is_empty() {
         pdf.write_text("Tidak ada barang yang diusulkan.", BODY_FONT, false, MARGIN_L);
@@ -260,7 +136,7 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
     } else {
         for (idx, b) in analisis.barang_list.iter().enumerate() {
             let cells = barang_row_cells(idx + 1, b);
-            pdf.row(&col_widths, &cells, false);
+            pdf.row(&col_widths, &cells, false, true);
         }
     }
     pdf.advance(6.0);
@@ -376,13 +252,14 @@ mod tests {
 
     #[test]
     fn pdf_builder_produces_pdf_magic() {
-        let mut pdf = PdfBuilder::new("Test").expect("init");
+        let mut pdf = PdfBuilder::new("Test", geom()).expect("init");
         pdf.write_centered("HALO", 12.0, true);
         pdf.advance(6.0);
         pdf.row(
             &[20.0, 30.0, 30.0],
             &["A".into(), "B".into(), "C".into()],
             false,
+            true,
         );
         let bytes = pdf.finish().expect("finish");
         assert!(bytes.len() > 4);
