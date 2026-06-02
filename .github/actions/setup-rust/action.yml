@@ -91,6 +91,24 @@ runs:
         echo "$JOB_RUST_HOME/cargo/bin" >> "$GITHUB_PATH"
         echo "::notice::Isolated Rust toolchain to $JOB_RUST_HOME (per-job, no shared \$HOME race)"
 
+    - name: Ensure rustup binary is available (self-hosted resilience)
+      shell: bash
+      run: |
+        # dtolnay/rust-toolchain (next step) shells out to `rustup` and does
+        # NOT install it. On these self-hosted runners the shared-$HOME rustup
+        # proxy has repeatedly gone missing (proxy replaced by direct symlinks
+        # to a toolchain → `rustup` vanishes → EVERY Rust job fails at setup,
+        # across all crates). Bootstrap rustup into the per-job CARGO_HOME when
+        # it isn't on PATH, so CI never again depends on host rustup state.
+        if command -v rustup >/dev/null 2>&1; then
+          echo "rustup present: $(command -v rustup) ($(rustup --version 2>/dev/null | head -1))"
+        else
+          echo "::warning::rustup not found on PATH — bootstrapping into ${CARGO_HOME:-$HOME/.cargo}"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --no-modify-path --default-toolchain none --profile minimal
+          echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> "$GITHUB_PATH"
+        fi
+
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
       with:
