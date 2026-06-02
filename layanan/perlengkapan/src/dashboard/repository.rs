@@ -256,3 +256,51 @@ pub async fn fetch_asset_utilization(db_pool: &Pool) -> Result<AssetUtilization,
         utilization_percentage,
     })
 }
+
+/// Rekap status Pemakaian BMN (Fase 2.7) — COUNT per `status`.
+pub async fn fetch_pemakaian_status_metrics(
+    db_pool: &Pool,
+) -> Result<ModuleStatusMetrics, AppError> {
+    let client = db_pool.get().await?;
+    let rows = client
+        .query(
+            "SELECT status, COUNT(*) AS count
+             FROM perlengkapan.izin_pemakaian_bmn
+             GROUP BY status",
+            &[],
+        )
+        .await?;
+    Ok(rows_to_status_metrics(rows))
+}
+
+/// Rekap status Usulan SK Penghapusan BMN (Fase 2.7) — COUNT per `status`.
+pub async fn fetch_penghapusan_status_metrics(
+    db_pool: &Pool,
+) -> Result<ModuleStatusMetrics, AppError> {
+    let client = db_pool.get().await?;
+    let rows = client
+        .query(
+            "SELECT status, COUNT(*) AS count
+             FROM perlengkapan.penghapusan_bmn
+             GROUP BY status",
+            &[],
+        )
+        .await?;
+    Ok(rows_to_status_metrics(rows))
+}
+
+/// Map baris (status, count) menjadi `ModuleStatusMetrics`.
+fn rows_to_status_metrics(rows: Vec<tokio_postgres::Row>) -> ModuleStatusMetrics {
+    let mut total_by_status: HashMap<String, i64> = HashMap::new();
+    let mut total: i64 = 0;
+    for row in rows {
+        let status: String = row.get("status");
+        let count: i64 = row.get("count");
+        total += count;
+        total_by_status.insert(status, count);
+    }
+    ModuleStatusMetrics {
+        total_by_status,
+        total,
+    }
+}

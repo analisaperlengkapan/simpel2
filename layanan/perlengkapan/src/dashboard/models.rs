@@ -18,6 +18,17 @@ pub struct PerlengkapanDashboardMetrics {
     pub pakaian_dinas_metrics: PakaianDinasMetrics,
     pub workflow_metrics: WorkflowMetrics,
     pub asset_utilization: AssetUtilization,
+    /// Rekap status Pemakaian BMN (Fase 2.7) — melengkapi cakupan 4 modul.
+    pub pemakaian_metrics: ModuleStatusMetrics,
+    /// Rekap status Usulan SK Penghapusan BMN (Fase 2.7).
+    pub penghapusan_metrics: ModuleStatusMetrics,
+}
+
+/// Rekap jumlah per status untuk satu modul workflow (Fase 2.7).
+#[derive(Debug, Serialize)]
+pub struct ModuleStatusMetrics {
+    pub total_by_status: HashMap<String, i64>,
+    pub total: i64,
 }
 
 /// Kebutuhan BMN metrics
