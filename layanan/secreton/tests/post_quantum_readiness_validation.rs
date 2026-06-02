@@ -23,7 +23,7 @@ mod secreton_post_quantum_readiness {
 
         for mode in modes {
             let crypto = HybridCrypto::new(
-                mode.clone(),
+                mode,
                 SecurityRequirements::default(),
                 PerformancePriority::default(),
             )?;

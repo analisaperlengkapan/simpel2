@@ -17,7 +17,8 @@
 
 use async_trait::async_trait;
 use authenc_mfa::{
-    BackupCodesConfig, BackupCodesService, BackupCodesStore, TotpConfig, TotpService, totp::TotpStore,
+    BackupCodesConfig, BackupCodesService, BackupCodesStore, TotpConfig, TotpService,
+    totp::TotpStore,
 };
 use authenc_types::UserId;
 use base64::Engine;
@@ -158,9 +159,9 @@ where
             .map_err(|e| MfaApiError::internal(format!("backup remaining: {}", e)))?;
         Ok(MfaStatusData {
             enabled,
-            setup_at: None,         // we don't surface this yet; populate when adapters track it
+            setup_at: None, // we don't surface this yet; populate when adapters track it
             backup_codes_remaining: remaining as i32,
-            last_used: None,        // ditto — wire when the audit log is plumbed in
+            last_used: None, // ditto — wire when the audit log is plumbed in
         })
     }
 }
@@ -187,7 +188,10 @@ mod tests {
     #[async_trait]
     impl TotpStore for MemTotp {
         async fn store_totp_secret(&self, user_id: UserId, secret: &str) -> AuthencResult<()> {
-            self.secrets.write().await.insert(user_id.0, secret.to_string());
+            self.secrets
+                .write()
+                .await
+                .insert(user_id.0, secret.to_string());
             Ok(())
         }
         async fn get_totp_secret(&self, user_id: UserId) -> AuthencResult<Option<String>> {

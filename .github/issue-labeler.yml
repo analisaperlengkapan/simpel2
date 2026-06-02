@@ -1,54 +1,41 @@
-# Konfigurasi github/issue-labeler
-# Regex content matching untuk auto-label issue
-# https://github.com/github/issue-labeler
+# Konfigurasi github/issue-labeler — regex konten → label.
+# Selaras dgn taksonomi comp:/area:/type: di labels.yml.
 
-"microservice:authenc":
-  - '(?i)\b(auth|login|sso|mfa|webauthn|otp|2fa|jwt|oauth|saml)\b'
+# ─── Komponen ───────────────────────────────
+"comp:authenc":
+  - '(?i)\b(auth|login|sso|mfa|webauthn|otp|2fa|jwt|oauth|saml|authenc)\b'
 
-"microservice:secreton":
+"comp:secreton":
   - '(?i)\b(secret|vault|hsm|sealed|kms|encryption[- ]at[- ]rest|secreton)\b'
 
-"microservice:perlengkapan":
-  - '(?i)\b(perlengkapan|bmn|aset|inventaris|barang milik negara)\b'
+"comp:perlengkapan":
+  - '(?i)\b(perlengkapan|bmn|aset|inventaris|barang milik negara|pakaian dinas|pemakaian|penghapusan|kebutuhan)\b'
 
-"microservice:integrasi":
+"comp:integrasi":
   - '(?i)\b(integrasi|integration|mysimkari|siman|sync|federation|external)\b'
 
-"microfrontend:portal":
+"comp:portal":
   - '(?i)\b(portal|landing|gateway|sso login)\b'
 
-"microfrontend:perlengkapan":
-  - '(?i)\b(ui[- ]?perlengkapan|frontend[- ]?perlengkapan|leptos)\b'
+"comp:monolith":
+  - '(?i)\b(simpelv1|monolith|laravel|blade|legacy)\b'
 
-monolith:
-  - '(?i)\b(simpelv1|monolith|laravel|blade|php|legacy)\b'
-
-"tests:e2e":
-  - '(?i)\b(playwright|e2e|end[- ]to[- ]end|browser test|integration test)\b'
-
+# ─── Area lintas-komponen ───────────────────
 "area:security":
   - '(?i)\b(cve[- ]?\d+|vulnerability|exploit|cwe|security|attack|injection|xss|csrf)\b'
 
 "area:database":
-  - '(?i)\b(postgres|database|migration|sqlx|deadpool|sql query)\b'
+  - '(?i)\b(postgres|database|migration|migrasi|sqlx|deadpool|sql query)\b'
 
 "area:ci-cd":
-  - '(?i)\b(github action|workflow|ci/cd|pipeline|dependabot)\b'
+  - '(?i)\b(github action|workflow|ci/cd|pipeline|dependabot|runner)\b'
 
 "area:docs":
-  - '(?i)\b(documentation|docs|readme|tutorial|guide)\b'
+  - '(?i)\b(documentation|docs|readme|tutorial|guide|dokumentasi)\b'
 
+# ─── Jenis ──────────────────────────────────
 "type:bug":
-  - '(?i)\b(crash|panic|exception|500|error 5\d\d|stack trace|bug|broken)\b'
+  - '(?i)\b(bug|error|crash|panic|gagal|broken|regression|tidak berfungsi)\b'
 
 "type:enhancement":
-  - '(?i)\b(feature request|enhancement|improvement|add support)\b'
-
-"type:question":
-  - '(?i)\b(how (do|to)|question|help|why does)\b'
-
-"priority:high":
-  - '(?i)\b(urgent|critical|blocker|production down|p0|p1)\b'
-
-"performance":
-  - '(?i)\b(slow|performance|latency|memory leak|cpu|throughput)\b'
+  - '(?i)\b(feature|enhancement|request|fitur|peningkatan|usulan)\b'

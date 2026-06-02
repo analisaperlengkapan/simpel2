@@ -15,9 +15,7 @@ use crate::api::workflow::{
     CreateDelegationBody, Delegation, DelegationStatus, create_delegation, fetch_delegations,
     revoke_delegation,
 };
-use crate::components::layout::{
-    EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
-};
+use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 
 /// Truncate the first chunk of a UUID for display so the table stays
 /// scannable; full IDs go in a `title=` tooltip via the cell title attr.
@@ -36,18 +34,10 @@ fn format_datetime(iso: &str) -> String {
 
 fn status_badge_classes(status: &DelegationStatus) -> &'static str {
     match status {
-        DelegationStatus::Active => {
-            "border-success-500/30 bg-success-500/10 text-success-300"
-        }
-        DelegationStatus::Scheduled => {
-            "border-info-500/30 bg-info-500/10 text-info-300"
-        }
-        DelegationStatus::Expired => {
-            "border-white/[0.06] bg-white/[0.02] text-slate-400"
-        }
-        DelegationStatus::Revoked => {
-            "border-danger-500/30 bg-danger-500/10 text-danger-300"
-        }
+        DelegationStatus::Active => "border-success-500/30 bg-success-500/10 text-success-300",
+        DelegationStatus::Scheduled => "border-info-500/30 bg-info-500/10 text-info-300",
+        DelegationStatus::Expired => "border-white/[0.06] bg-white/[0.02] text-slate-400",
+        DelegationStatus::Revoked => "border-danger-500/30 bg-danger-500/10 text-danger-300",
     }
 }
 

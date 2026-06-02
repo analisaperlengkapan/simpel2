@@ -250,9 +250,7 @@ fn url_encode(s: &str) -> String {
 }
 
 /// `GET /admin/users?search=&role=&satker_code=`
-pub async fn fetch_admin_users(
-    filter: &AdminUsersFilter,
-) -> AppResult<Vec<UserRoleAssignment>> {
+pub async fn fetch_admin_users(filter: &AdminUsersFilter) -> AppResult<Vec<UserRoleAssignment>> {
     let mut url = format!("{API_BASE}/admin/users?");
     let mut first = true;
     let mut push = |key: &str, val: &str| {
@@ -294,10 +292,7 @@ struct AssignRoleBody<'a> {
 
 /// `POST /admin/users/{nip}/roles` — assign a role. Returns the refreshed
 /// user row.
-pub async fn assign_admin_role(
-    nip: &str,
-    role: &str,
-) -> AppResult<UserRoleAssignment> {
+pub async fn assign_admin_role(nip: &str, role: &str) -> AppResult<UserRoleAssignment> {
     let url = format!("{API_BASE}/admin/users/{}/roles", url_encode(nip));
     let body = AssignRoleBody { role };
     let resp: Wrap<UserRoleAssignment> = api_post(&url, &body).await?;
@@ -308,10 +303,7 @@ pub async fn assign_admin_role(
 }
 
 /// `DELETE /admin/users/{nip}/roles/{role}`
-pub async fn unassign_admin_role(
-    nip: &str,
-    role: &str,
-) -> AppResult<()> {
+pub async fn unassign_admin_role(nip: &str, role: &str) -> AppResult<()> {
     let url = format!(
         "{API_BASE}/admin/users/{}/roles/{}",
         url_encode(nip),

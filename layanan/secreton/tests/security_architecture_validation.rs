@@ -11,7 +11,7 @@ use secreton_crypto::hybrid::{
 #[tokio::test]
 async fn test_security_architecture_basics() -> Result<()> {
     // Test that security levels are properly defined
-    let _levels = vec![
+    let _levels = [
         SecurityLevel::Public,
         SecurityLevel::Internal,
         SecurityLevel::Confidential,
