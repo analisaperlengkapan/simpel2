@@ -300,6 +300,10 @@ async fn main() -> anyhow::Result<()> {
         authenc_client.clone(),
         kebutuhan_bmn_workflow_engine,
     );
+    // #36: keep a clone for AppState so the health endpoint can read live
+    // circuit-breaker state. Clones share the same Arc<IntegrasiBreakers>, so
+    // this observes exactly what the services trip. Capture before the move.
+    let integrasi_client_for_health = integrasi_client.clone();
     if let Some(client) = integrasi_client {
         kebutuhan_bmn_service = kebutuhan_bmn_service.with_integrasi_client(client);
     }
@@ -395,6 +399,7 @@ async fn main() -> anyhow::Result<()> {
         audit_sink,
         document_storage,
         boot_time: std::time::Instant::now(),
+        integrasi_client: integrasi_client_for_health,
     };
 
     // Build router

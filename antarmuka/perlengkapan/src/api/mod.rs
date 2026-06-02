@@ -7,6 +7,7 @@ pub mod client;
 pub mod common;
 pub mod dashboard;
 pub mod dokumen;
+pub mod integrasi;
 pub mod kebutuhan_bmn_api;
 pub mod notifikasi;
 pub mod kebutuhan_bmn_types;

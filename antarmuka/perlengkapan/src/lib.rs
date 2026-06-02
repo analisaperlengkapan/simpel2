@@ -25,7 +25,7 @@ use leptos::prelude::*;
 use leptos_meta::*;
 use leptos_router::{components::*, path};
 
-use components::app_chrome::{AppFooter, AppHeader};
+use components::app_chrome::{AppFooter, AppHeader, IntegrasiHealthBanner};
 use components::guards::{AdminLayout, AuthenticatedLayout};
 use components::sidebar::Sidebar;
 use features::auth::AuthService;
@@ -191,7 +191,10 @@ pub fn App() -> impl IntoView {
 
                         {move || (!is_login_page()).then(|| {
                             let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
-                            view! { <AppHeader on_toggle_sidebar=toggle /> }
+                            view! {
+                                <AppHeader on_toggle_sidebar=toggle />
+                                <IntegrasiHealthBanner />
+                            }
                         })}
 
                         <div class="flex min-h-0 flex-1">

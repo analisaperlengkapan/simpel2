@@ -596,6 +596,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/workflow/delegations/{id}/revoke",
             post(crate::workflow::delegation_handlers::revoke_delegation_handler),
         )
+        // ============ Integrasi circuit-breaker status (FE banner) ============
+        // Auth'd, lightweight view of SIMAN/MySIMKARI/MonSAKTI breaker state.
+        .route(
+            "/integrasi/circuit-status",
+            get(crate::shared::health::integrasi_circuit_status),
+        )
         // ============ Cross-module audit trail (BPK-ready) ============
         // Reads perlengkapan.audit_log (every module's AuditSink events),
         // unlike /admin/audit which only shows workflow transitions. Pull a

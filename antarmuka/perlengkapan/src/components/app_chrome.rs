@@ -13,6 +13,7 @@ use phosphor_leptos::{BELL, LIST};
 use wasm_bindgen::JsCast;
 
 use crate::APP_VERSION;
+use crate::api::integrasi::{IntegrasiCircuitStatus, fetch_circuit_status};
 use crate::api::notifikasi::fetch_unread_count;
 use crate::components::profile_menu::ProfileMenu;
 use crate::routes;
@@ -113,6 +114,74 @@ fn NotifikasiBadge() -> impl IntoView {
                 </span>
             </Show>
         </A>
+    }
+}
+
+/// Global banner warning when an integrasi data source (SIMAN / MySIMKARI /
+/// MonSAKTI) has tripped its circuit breaker (Fase 2.2). Polls
+/// `GET /integrasi/circuit-status` every 60s; renders nothing while all
+/// sources are healthy, so it stays invisible in the common case. Failures
+/// are swallowed — a flaky status probe must not itself raise an alarm.
+#[component]
+pub fn IntegrasiHealthBanner() -> impl IntoView {
+    let (degraded, set_degraded) = signal::<Vec<IntegrasiCircuitStatus>>(Vec::new());
+
+    let load = move || {
+        spawn_local(async move {
+            if let Ok(list) = fetch_circuit_status().await {
+                let down: Vec<IntegrasiCircuitStatus> =
+                    list.into_iter().filter(|s| !s.healthy).collect();
+                set_degraded.set(down);
+            }
+        });
+    };
+
+    Effect::new(move |_| {
+        load();
+    });
+
+    // Poll every 60s — breaker state changes on the order of tens of seconds
+    // (open_duration 30s), so a minute is responsive enough without noise.
+    Effect::new(move |handle: Option<i32>| {
+        if let Some(id) = handle {
+            return id;
+        }
+        let window = match web_sys::window() {
+            Some(w) => w,
+            None => return 0,
+        };
+        let closure = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+            load();
+        }) as Box<dyn Fn()>);
+        let func: &::js_sys::Function = closure.as_ref().unchecked_ref();
+        let id = window
+            .set_interval_with_callback_and_timeout_and_arguments_0(func, 60_000)
+            .unwrap_or(0);
+        closure.forget();
+        id
+    });
+
+    view! {
+        <Show when=move || !degraded.get().is_empty()>
+            {move || {
+                let list = degraded.get();
+                let names = list
+                    .iter()
+                    .map(|s| format!("{} ({})", s.source_display(), s.label))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                view! {
+                    <div
+                        role="status"
+                        class="border-b border-amber-500/30 bg-amber-500/10 px-5 py-2 text-sm text-amber-200"
+                    >
+                        <span class="font-semibold">"Integrasi terganggu: "</span>
+                        {names}
+                        ". Data dari sumber tsb mungkin berasal dari cache / belum terbaru."
+                    </div>
+                }
+            }}
+        </Show>
     }
 }
 
