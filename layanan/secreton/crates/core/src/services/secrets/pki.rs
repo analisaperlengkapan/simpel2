@@ -250,11 +250,9 @@ impl PkiEngine {
         })?;
 
         // Sign intermediate CA with parent CA
-        let cert = params
-            .signed_by(&key_pair, &parent_issuer)
-            .map_err(|e| {
-                PkiError::GenerationFailed(format!("Failed to sign intermediate CA: {}", e))
-            })?;
+        let cert = params.signed_by(&key_pair, &parent_issuer).map_err(|e| {
+            PkiError::GenerationFailed(format!("Failed to sign intermediate CA: {}", e))
+        })?;
 
         let certificate_pem = cert.pem();
         let private_key_pem = key_pair.serialize_pem();
@@ -430,11 +428,9 @@ impl PkiEngine {
         })?;
 
         // Sign with CA
-        let cert = params
-            .signed_by(&leaf_key_pair, &ca_issuer)
-            .map_err(|e| {
-                PkiError::GenerationFailed(format!("Failed to sign certificate: {}", e))
-            })?;
+        let cert = params.signed_by(&leaf_key_pair, &ca_issuer).map_err(|e| {
+            PkiError::GenerationFailed(format!("Failed to sign certificate: {}", e))
+        })?;
 
         let certificate_pem = cert.pem();
         let private_key_pem = leaf_key_pair.serialize_pem();

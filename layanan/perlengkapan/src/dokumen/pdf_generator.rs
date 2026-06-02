@@ -200,8 +200,7 @@ impl PdfGenerator {
 
         // Save to file
         let mut file = File::create(output_path).map_err(|_| AppError::Internal)?;
-        file.write_all(&pdf_bytes)
-            .map_err(|_| AppError::Internal)?;
+        file.write_all(&pdf_bytes).map_err(|_| AppError::Internal)?;
 
         Ok(pdf_bytes)
     }

@@ -16,8 +16,7 @@
 //! Updated for printpdf 0.9.x ops-based API.
 
 use printpdf::{
-    BuiltinFont, Line, LinePoint, Mm, Op, PdfDocument, PdfPage, PdfSaveOptions, Point, Pt,
-    TextItem,
+    BuiltinFont, Line, LinePoint, Mm, Op, PdfDocument, PdfPage, PdfSaveOptions, Point, Pt, TextItem,
 };
 
 use crate::shared::error::AppResult;
