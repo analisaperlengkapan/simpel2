@@ -176,43 +176,87 @@ pub struct CreatePengajuanPakaianDinasRequest {
     pub keterangan: Option<String>,
 }
 
-/// Pengajuan Satker (Work unit submission)
+/// Pengajuan Satker (Work unit submission). Mirrors the backend DTO
+/// `pakaian_dinas::models::PengajuanSatker` exactly — `aktivitas_id` is the
+/// numeric workflow status code (see [`aktivitas_label`]).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PengajuanSatker {
     pub id: String,
-    pub pengajuan_pakaian_dinas_id: String,
+    pub pengajuan_id: String,
     pub satker_id: String,
-    pub satker_nama: Option<String>,
-    pub status: String,
-    pub jumlah_pegawai: i64,
+    #[serde(default)]
+    pub satker_pusat_id: Option<String>,
+    #[serde(default)]
+    pub id_kejati: Option<String>,
+    #[serde(default)]
+    pub id_kejari: Option<String>,
+    #[serde(default)]
+    pub id_cabjari: Option<String>,
+    pub aktivitas_id: i32,
+    #[serde(default)]
+    pub created_by: Option<String>,
+    #[serde(default)]
+    pub updated_by: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub satker_nama: Option<String>,
+    #[serde(default)]
+    pub satker_kode: Option<String>,
+    #[serde(default)]
+    pub aktivitas_label: Option<String>,
+    #[serde(default)]
+    pub total_pegawai: Option<i64>,
 }
 
-/// Pengajuan Satker with activities
+/// One per-satker workflow activity row. Mirrors the backend
+/// `PengajuanSatkerAktivitas`.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PengajuanSatkerWithActivities {
-    pub pengajuan_satker: PengajuanSatker,
-    pub aktivitas: Vec<PengajuanAktivitas>,
-}
-
-/// Activity log for pengajuan workflow
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct PengajuanAktivitas {
+pub struct PengajuanSatkerAktivitas {
     pub id: String,
     pub pengajuan_satker_id: String,
-    pub user_id: String,
-    pub user_nama: Option<String>,
-    pub status: String,
-    pub catatan: Option<String>,
+    pub aktivitas_id: i32,
+    #[serde(default)]
+    pub komentar: Option<String>,
+    #[serde(default)]
+    pub nip: Option<String>,
+    #[serde(default)]
+    pub nama: Option<String>,
+    #[serde(default)]
+    pub pangkat: Option<String>,
+    #[serde(default)]
+    pub jabatan: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
     pub created_at: String,
 }
 
+/// Human label for a workflow status code (mirrors backend
+/// `AktivitasStatus::label`).
+pub fn aktivitas_label(code: i32) -> &'static str {
+    match code {
+        1000 => "Penyiapan / Input",
+        1001 | 1012 => "Diajukan ke Validator Wilayah",
+        1003 => "Revisi Pelaksana",
+        1004 | 1010 => "Diajukan ke Pusat",
+        1007 => "Revisi Wilayah",
+        1008 => "Selesai",
+        _ => "Dalam Proses",
+    }
+}
+
+/// True for terminal-rejection / revision states (rendered red in the timeline).
+pub fn aktivitas_is_revisi(code: i32) -> bool {
+    matches!(code, 1003 | 1007)
+}
+
+/// Workflow action request — body for `POST /pakaian-dinas/validator-action`.
+/// Field names match the backend `ValidatorActionRequest` (`aksi`/`komentar`).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValidatorActionRequest {
     pub pengajuan_satker_id: String,
-    pub action: String,
-    pub catatan: Option<String>,
+    pub aksi: String,
+    pub komentar: Option<String>,
 }
 
 /// Pegawai Pakaian Dinas (Employee uniform sizes)
@@ -932,12 +976,12 @@ pub async fn fetch_pengajuan_satker(
     pengajuan_id: String,
     page: i32,
     per_page: i32,
-) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, crate::api::AppError> {
+) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/satker?pengajuan_id={}&page={}&per_page={}",
+        "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan/{}/satker?page={}&per_page={}",
         pengajuan_id, page, per_page
     );
 
@@ -956,7 +1000,7 @@ pub async fn fetch_pengajuan_satker(
         )));
     }
 
-    let result: PaginatedResponse<PengajuanSatkerWithActivities> = resp.json().await?;
+    let result: PaginatedResponse<PengajuanSatker> = resp.json().await?;
     Ok(result)
 }
 
@@ -965,7 +1009,7 @@ pub async fn fetch_pengajuan_satker(
     _pengajuan_id: String,
     _page: i32,
     _per_page: i32,
-) -> Result<PaginatedResponse<PengajuanSatkerWithActivities>, crate::api::AppError> {
+) -> Result<PaginatedResponse<PengajuanSatker>, crate::api::AppError> {
     Ok(PaginatedResponse {
         success: true,
         data: vec![],
@@ -975,6 +1019,44 @@ pub async fn fetch_pengajuan_satker(
         total_pages: 0,
         message: "Server-side stub".to_string(),
     })
+}
+
+/// `GET /pakaian-dinas/satker/{id}/aktivitas` — per-satker workflow history (#40).
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pakaian_satker_aktivitas(
+    satker_id: String,
+) -> Result<Vec<PengajuanSatkerAktivitas>, crate::api::AppError> {
+    use crate::api::client::get_auth_token;
+    use gloo_net::http::Request;
+
+    let url = format!(
+        "/api/pembinaan/perlengkapan/pakaian-dinas/satker/{}/aktivitas",
+        satker_id
+    );
+    let token = get_auth_token().ok_or_else(|| {
+        crate::api::AppError::network("No authentication token found".to_string())
+    })?;
+    let resp = Request::get(&url)
+        .header("Authorization", &format!("Bearer {}", token))
+        .send()
+        .await?;
+
+    if !resp.ok() {
+        return Err(crate::api::AppError::network(format!(
+            "API Error: {}",
+            resp.status()
+        )));
+    }
+
+    let result: ApiResponse<Vec<PengajuanSatkerAktivitas>> = resp.json().await?;
+    Ok(result.data)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pakaian_satker_aktivitas(
+    _satker_id: String,
+) -> Result<Vec<PengajuanSatkerAktivitas>, crate::api::AppError> {
+    Ok(vec![])
 }
 
 #[cfg(target_arch = "wasm32")]

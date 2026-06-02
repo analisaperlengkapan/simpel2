@@ -20,6 +20,7 @@ pub mod pagination_controls;
 pub mod pakaian_dinas_jenis_list;
 pub mod pakaian_dinas_laporan;
 pub mod pakaian_dinas_pengajuan_list;
+pub mod pakaian_dinas_satker;
 pub mod pakaian_dinas_ukuran;
 pub mod panduan;
 pub mod pemakaian_bmn_detail;

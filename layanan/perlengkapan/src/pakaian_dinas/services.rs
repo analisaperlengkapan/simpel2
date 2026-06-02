@@ -3,6 +3,8 @@
 //! Business logic layer for Pakaian Dinas module.
 //! Handles workflow, validation, and integration with other services.
 
+use std::sync::Arc;
+
 use chrono::NaiveDate;
 use uuid::Uuid;
 
@@ -11,6 +13,8 @@ use super::repository::PakaianDinasRepository;
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
+use lib_perlengkapan::contracts::AuditSink;
 
 /// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
 /// `AppError::BadRequest` (422) jika:
@@ -41,6 +45,9 @@ pub struct PakaianDinasService {
     /// `None` saat integrasi tidak tersedia; sinkronisasi freshness pegawai
     /// (Fase 2.4) graceful-degrade ke "tidak diketahui".
     integrasi_client: Option<IntegrasiClient>,
+    /// Cross-module audit sink (#16/#40). Opsional — `None` saat belum
+    /// di-inject; transisi validator tetap berjalan, hanya tanpa jejak audit.
+    audit_sink: Option<Arc<dyn AuditSink>>,
 }
 
 impl PakaianDinasService {
@@ -48,12 +55,20 @@ impl PakaianDinasService {
         Self {
             repository,
             integrasi_client: None,
+            audit_sink: None,
         }
     }
 
     /// Inject IntegrasiClient (Fase 2.4) untuk laporan freshness sync MySIMKARI.
     pub fn with_integrasi_client(mut self, client: IntegrasiClient) -> Self {
         self.integrasi_client = Some(client);
+        self
+    }
+
+    /// Inject cross-module audit sink (#16/#40) — jejak transisi validator
+    /// pakaian dinas ke `perlengkapan.audit_log`.
+    pub fn with_audit_sink(mut self, sink: Arc<dyn AuditSink>) -> Self {
+        self.audit_sink = Some(sink);
         self
     }
 
@@ -362,8 +377,8 @@ impl PakaianDinasService {
     pub async fn process_validator_action(
         &self,
         request: ValidatorActionRequest,
-        _user_nip: &str,
-        _user_nama: &str,
+        user_nip: &str,
+        user_nama: &str,
         user_role: &str,
     ) -> AppResult<PengajuanSatker> {
         // Get current satker submission
@@ -372,16 +387,60 @@ impl PakaianDinasService {
             .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
             .await?;
 
-        // Determine next status based on current status and action
-        let _next_status =
+        // Determine next status based on current status, action, and role.
+        // Invalid (status, action, role) combos return 422 here — this doubles
+        // as the RBAC + workflow guard for the validator action.
+        let next_status =
             self.determine_next_status(satker.aktivitas_id, &request.aksi, user_role)?;
 
-        // TODO(pakaian-dinas-satker-status): after the pengajuan is finalised,
-        // propagate the new status onto the satker-status table and record
-        // an audit row via `state.audit_sink` (module = `pakaian_dinas`,
-        // action = AuditAction::Update). Blocked on the satker-status
-        // schema review.
-        Ok(satker)
+        // Persist the transition + record an activity row (atomic). This is
+        // the real per-satker workflow advance that replaces the prior no-op.
+        self.repository
+            .transition_satker_with_activity(
+                request.pengajuan_satker_id,
+                next_status,
+                request.komentar.clone(),
+                Some(user_nip),
+                Some(user_nama),
+                None,
+                Some(user_role),
+            )
+            .await?;
+
+        // Audit trail (#16) — best-effort, swallowed on failure so a flaky
+        // sink never rolls back a committed transition.
+        if let Some(sink) = &self.audit_sink {
+            let action = match request.aksi.as_str() {
+                "approve" => AuditAction::Approve,
+                "reject" => AuditAction::Reject,
+                _ => AuditAction::Update,
+            };
+            let event = AuditEvent::new("pakaian_dinas", action, "pengajuan_satker")
+                .resource_id(request.pengajuan_satker_id.to_string())
+                .action_name("pakaian_dinas.validator_action")
+                .message(request.komentar.clone().unwrap_or_default())
+                .metadata(serde_json::json!({
+                    "from_status": satker.aktivitas_id,
+                    "to_status": next_status,
+                    "aksi": request.aksi,
+                    "role": user_role,
+                }));
+            let _ = sink.log(event).await;
+        }
+
+        // Return the freshly-transitioned satker.
+        self.repository
+            .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
+            .await
+    }
+
+    /// Per-satker workflow activity history (#40). Oldest-first list backing
+    /// the FE timeline.
+    pub async fn list_satker_aktivitas(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
+        self.repository.list_satker_aktivitas(satker_id).await
     }
 
     /// Determine the next workflow status based on current status and action

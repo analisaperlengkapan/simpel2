@@ -1301,6 +1301,93 @@ impl PakaianDinasRepository {
         Ok(())
     }
 
+    /// Persist a per-satker workflow transition and record an activity row,
+    /// atomically (#40). Replaces the previous no-op validator action: the new
+    /// `aktivitas_id` lands on `pengajuan_pakaian_dinas_satker` and an audit-
+    /// friendly row is appended to `pengajuan_pakaian_dinas_satker_aktivitas`
+    /// so the per-satker timeline has real history.
+    pub async fn transition_satker_with_activity(
+        &self,
+        satker_id: Uuid,
+        new_aktivitas_id: i32,
+        komentar: Option<String>,
+        nip: Option<&str>,
+        nama: Option<&str>,
+        jabatan: Option<&str>,
+        role: Option<&str>,
+    ) -> AppResult<()> {
+        let mut client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let tx = client
+            .transaction()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        tx.execute(
+            "UPDATE pengajuan_pakaian_dinas_satker \
+             SET aktivitas_id = $1, updated_at = NOW() WHERE id = $2",
+            &[&new_aktivitas_id, &satker_id],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        let activity_id = Uuid::new_v4();
+        tx.execute(
+            "INSERT INTO pengajuan_pakaian_dinas_satker_aktivitas \
+             (id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, jabatan, role, created_at) \
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
+            &[
+                &activity_id,
+                &satker_id,
+                &new_aktivitas_id,
+                &komentar,
+                &nip,
+                &nama,
+                &jabatan,
+                &role,
+            ],
+        )
+        .await
+        .map_err(|e| bad_request(&e.to_string()))?;
+
+        tx.commit().await.map_err(|e| bad_request(&e.to_string()))?;
+        Ok(())
+    }
+
+    /// Per-satker activity history, oldest first — backs the workflow timeline
+    /// in the FE satker detail view (#40).
+    pub async fn list_satker_aktivitas(
+        &self,
+        satker_id: Uuid,
+    ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let rows = client
+            .query(
+                "SELECT id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, \
+                        pangkat, jabatan, role, created_at \
+                 FROM pengajuan_pakaian_dinas_satker_aktivitas \
+                 WHERE pengajuan_satker_id = $1 \
+                 ORDER BY created_at ASC",
+                &[&satker_id],
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        Ok(rows
+            .iter()
+            .map(PengajuanSatkerAktivitas::from_row)
+            .collect())
+    }
+
     /// Update pengajuan document metadata
     pub async fn update_pengajuan_document(
         &self,

@@ -209,6 +209,10 @@ pub fn create_routes(state: AppState) -> Router {
             "/pakaian-dinas/satker/{id}",
             get(pakaian_dinas::get_pengajuan_satker_by_id),
         )
+        .route(
+            "/pakaian-dinas/satker/{id}/aktivitas",
+            get(pakaian_dinas::get_pengajuan_satker_aktivitas),
+        )
         // Workflow Actions
         .route(
             "/pakaian-dinas/validator-action",

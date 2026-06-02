@@ -287,6 +287,8 @@ async fn main() -> anyhow::Result<()> {
     if let Some(client) = integrasi_client.clone() {
         pakaian_dinas_service = pakaian_dinas_service.with_integrasi_client(client);
     }
+    // #16/#40: audit trail for validator transitions.
+    pakaian_dinas_service = pakaian_dinas_service.with_audit_sink(audit_sink.clone());
 
     // Create Kebutuhan BMN service with workflow engine
     let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());

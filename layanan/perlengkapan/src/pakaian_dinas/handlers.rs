@@ -445,6 +445,19 @@ pub async fn get_pengajuan_satker_by_id(
     )))
 }
 
+/// GET /pakaian-dinas/satker/{id}/aktivitas — per-satker workflow history (#40).
+pub async fn get_pengajuan_satker_aktivitas(
+    State(service): State<PakaianDinasService>,
+    Path(id): Path<Uuid>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<PengajuanSatkerAktivitas>>>, AppError> {
+    let items = service.list_satker_aktivitas(id).await?;
+    Ok(Json(ApiResponse::success(
+        items,
+        "Riwayat aktivitas satker berhasil diambil".to_string(),
+    )))
+}
+
 // ============ Workflow Actions ============
 
 pub async fn process_validator_action(

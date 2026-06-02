@@ -306,7 +306,7 @@ fn render_pengajuan_cards(
 
                             <div class="mt-4 flex gap-2 border-t border-white/[0.04] pt-3">
                                 <a
-                                    href=format!("/perlengkapan/pakaian-dinas/pengajuan/{}/satker", item_id)
+                                    href=crate::routes::url::pakaian_satker_list(&item_id)
                                     class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
                                 >
                                     <span class="text-2xs"><AppIcon icon=BUILDING /></span>

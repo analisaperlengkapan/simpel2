@@ -66,6 +66,7 @@ use components::mapping_kodefikasi_dashboard::MappingKodefikasiDashboard;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
+use components::pakaian_dinas_satker::PakaianDinasSatkerDetail;
 use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
@@ -267,6 +268,7 @@ pub fn App() -> impl IntoView {
                                 <Route path=path!("/pakaian-dinas/jenis") view=PakaianDinasJenisList />
                                 <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=SpesifikasiPage />
                                 <Route path=path!("/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
+                                <Route path=path!("/pakaian-dinas/pengajuan/:pengajuan_id/satker") view=PakaianDinasSatkerDetail />
                                 <Route path=path!("/pakaian-dinas/ukuran") view=UkuranPegawaiCurrentUser />
                                 <Route path=path!("/pakaian-dinas/laporan") view=PakaianDinasLaporan />
                                 <Route path=path!("/pakaian-dinas/laporan/rekap") view=PakaianDinasLaporan />
