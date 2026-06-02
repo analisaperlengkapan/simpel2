@@ -90,7 +90,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
 
         // Client-side guards mirroring the backend contract.
         if tgl_mulai.is_empty() || tgl_selesai.is_empty() {
-            set_error_message.set(Some("Periode (tanggal mulai & selesai) wajib diisi".to_string()));
+            set_error_message.set(Some(
+                "Periode (tanggal mulai & selesai) wajib diisi".to_string(),
+            ));
             return;
         }
         if spesifikasi_ids.is_empty() {
@@ -108,17 +110,29 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
         spawn_local(async move {
             let request = CreatePengajuanPakaianDinasRequest {
                 nama,
-                deskripsi: if keterangan.is_empty() { None } else { Some(keterangan) },
+                deskripsi: if keterangan.is_empty() {
+                    None
+                } else {
+                    Some(keterangan)
+                },
                 tgl_mulai: Some(tgl_mulai),
                 tgl_selesai: Some(tgl_selesai),
                 is_reguler: true,
                 tahun,
                 pilihan_satker: scope.clone(),
                 dengan_unit_kerja: false,
-                jenis_pakaian_dinas_id: if jenis_id.is_empty() { None } else { Some(jenis_id) },
+                jenis_pakaian_dinas_id: if jenis_id.is_empty() {
+                    None
+                } else {
+                    Some(jenis_id)
+                },
                 spesifikasi_ids,
                 satker_ids: None,
-                wilayah_id: if scope == "wilayah" { Some(wilayah) } else { None },
+                wilayah_id: if scope == "wilayah" {
+                    Some(wilayah)
+                } else {
+                    None
+                },
             };
 
             match create_pengajuan_pakaian_dinas(request).await {

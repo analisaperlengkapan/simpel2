@@ -171,9 +171,7 @@ impl WorkflowPolicy for PemakaianBmnPolicy {
             (ApproverSatkerApprove, Some("SUBMITTED_APPROVER_SATKER")) => {
                 Some(&["approver_satker"])
             }
-            (ApproverSatkerReturn, Some("SUBMITTED_APPROVER_SATKER")) => {
-                Some(&["approver_satker"])
-            }
+            (ApproverSatkerReturn, Some("SUBMITTED_APPROVER_SATKER")) => Some(&["approver_satker"]),
 
             // Resubmit: hanya dari REVISI_OPERATOR.
             (Resubmit, Some("REVISI_OPERATOR")) => Some(&["operator_satker"]),
@@ -288,7 +286,9 @@ impl WorkflowPolicy for KebutuhanBmnPolicy {
             (Return, Some("REVISI_WILAYAH")) => Some(&["validator_wilayah"]),
             (Decide, Some("ANALISIS_KELAYAKAN")) => Some(&["validator_pusat"]),
             (Decide, Some("SUBMIT_PUSAT")) => Some(&["validator_pusat"]),
-            (GenerateLaporan, _) => Some(&["validator_pusat", "validator_wilayah", "operator_satker"]),
+            (GenerateLaporan, _) => {
+                Some(&["validator_pusat", "validator_wilayah", "operator_satker"])
+            }
             _ => None,
         }
     }
@@ -422,13 +422,14 @@ mod tests {
     fn pemakaian_validator_satker_forward_allowed_only_from_submitted() {
         let p = PemakaianBmnPolicy;
         let claims = claims_with("validator_satker");
-        assert!(p
-            .authorize(
+        assert!(
+            p.authorize(
                 &claims,
                 PemakaianBmnAction::ValidatorSatkerForward,
                 Some("SUBMITTED")
             )
-            .is_ok());
+            .is_ok()
+        );
         // Wrong state → 403
         let err = p
             .authorize(
@@ -459,13 +460,14 @@ mod tests {
         let p = PemakaianBmnPolicy;
         let claims = claims_with("admin");
         // Admin lolos meski state mismatch.
-        assert!(p
-            .authorize(
+        assert!(
+            p.authorize(
                 &claims,
                 PemakaianBmnAction::ApproverSatkerApprove,
                 Some("DRAFT")
             )
-            .is_ok());
+            .is_ok()
+        );
     }
 
     #[test]
@@ -541,20 +543,22 @@ mod tests {
     #[test]
     fn kebutuhan_create_periode_only_validator_pusat() {
         let p = KebutuhanBmnPolicy;
-        assert!(p
-            .authorize(
+        assert!(
+            p.authorize(
                 &claims_with("validator_pusat"),
                 KebutuhanBmnAction::CreatePeriode,
                 None
             )
-            .is_ok());
-        assert!(p
-            .authorize(
+            .is_ok()
+        );
+        assert!(
+            p.authorize(
                 &claims_with("operator_satker"),
                 KebutuhanBmnAction::CreatePeriode,
                 None
             )
-            .is_err());
+            .is_err()
+        );
     }
 
     #[test]
@@ -575,12 +579,13 @@ mod tests {
     fn case_insensitive_role_match() {
         let p = PemakaianBmnPolicy;
         let claims = claims_with("Validator_Satker"); // mixed case
-        assert!(p
-            .authorize(
+        assert!(
+            p.authorize(
                 &claims,
                 PemakaianBmnAction::ValidatorSatkerForward,
                 Some("SUBMITTED")
             )
-            .is_ok());
+            .is_ok()
+        );
     }
 }

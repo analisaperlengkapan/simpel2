@@ -165,10 +165,7 @@ impl PakaianDinasService {
                 })
             }
             Err(e) => {
-                tracing::warn!(
-                    "Probe sync MySIMKARI gagal (tidak memblokir roster): {}",
-                    e
-                );
+                tracing::warn!("Probe sync MySIMKARI gagal (tidak memblokir roster): {}", e);
                 None
             }
         }
@@ -738,16 +735,20 @@ mod tests {
     #[test]
     fn periode_both_required() {
         assert!(validate_periode_pakaian_dinas(None, None).is_err());
-        assert!(validate_periode_pakaian_dinas(
-            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
-            None,
-        )
-        .is_err());
-        assert!(validate_periode_pakaian_dinas(
-            None,
-            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
-        )
-        .is_err());
+        assert!(
+            validate_periode_pakaian_dinas(
+                Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+                None,
+            )
+            .is_err()
+        );
+        assert!(
+            validate_periode_pakaian_dinas(
+                None,
+                Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -792,11 +793,13 @@ mod tests {
 
     #[test]
     fn periode_normal_range_ok() {
-        assert!(validate_periode_pakaian_dinas(
-            Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
-            Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
-        )
-        .is_ok());
+        assert!(
+            validate_periode_pakaian_dinas(
+                Some(NaiveDate::from_ymd_opt(2027, 1, 1).unwrap()),
+                Some(NaiveDate::from_ymd_opt(2027, 12, 31).unwrap()),
+            )
+            .is_ok()
+        );
     }
 
     #[test]

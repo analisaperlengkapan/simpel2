@@ -516,7 +516,11 @@ pub async fn preview_laporan_analisis(
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
-    let format = query.format.as_deref().unwrap_or("pdf").to_ascii_lowercase();
+    let format = query
+        .format
+        .as_deref()
+        .unwrap_or("pdf")
+        .to_ascii_lowercase();
     if format != "pdf" {
         return Err(bad_request(
             "Hanya format=pdf yg didukung utk preview inline. Gunakan endpoint download utk format lain.",
@@ -546,7 +550,11 @@ pub async fn download_laporan_analisis(
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
-    let format = query.format.as_deref().unwrap_or("pdf").to_ascii_lowercase();
+    let format = query
+        .format
+        .as_deref()
+        .unwrap_or("pdf")
+        .to_ascii_lowercase();
     match format.as_str() {
         "pdf" => {
             let bytes =

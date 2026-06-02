@@ -175,7 +175,7 @@ pub fn spawn_subscriber(bus: &EventBus, subscriber: Arc<dyn EventSubscriber>) {
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
     fn sample_event() -> DomainEvent {
         DomainEvent::WorkflowTransitioned {

@@ -3,7 +3,7 @@
 //! Monitoring dashboard for BMN usage statistics.
 //! Requirements: REQ-P011, REQ-P012, REQ-P013
 
-use crate::api::pemakaian_bmn::{fetch_monitoring_summary, MonitoringSummaryCards};
+use crate::api::pemakaian_bmn::{MonitoringSummaryCards, fetch_monitoring_summary};
 use crate::api::{
     BmnUsageStats, IzinPemakaianBmn, PegawaiUsageStats, fetch_bmn_usage_history,
     fetch_expiring_permits, fetch_pegawai_usage_history,

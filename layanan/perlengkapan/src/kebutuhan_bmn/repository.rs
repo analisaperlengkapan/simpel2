@@ -190,10 +190,8 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     ) -> AppResult<PengajuanBmnReferensi>;
 
     /// List semua allowed BMN utk pengajuan.
-    async fn list_bmn_referensi(
-        &self,
-        pengajuan_id: Uuid,
-    ) -> AppResult<Vec<PengajuanBmnReferensi>>;
+    async fn list_bmn_referensi(&self, pengajuan_id: Uuid)
+    -> AppResult<Vec<PengajuanBmnReferensi>>;
 
     /// Cek apakah kode_barang ada dlm allowed-list pengajuan.
     /// Return `true` jika allowed-list kosong (legacy mode: no whitelist
@@ -1253,7 +1251,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
-        Ok(rows.iter().map(|r| r.get::<_, String>("kode_satker")).collect())
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<_, String>("kode_satker"))
+            .collect())
     }
 
     async fn list_wilayah(&self) -> AppResult<Vec<String>> {

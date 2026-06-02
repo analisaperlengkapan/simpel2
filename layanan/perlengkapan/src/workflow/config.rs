@@ -310,7 +310,10 @@ impl WorkflowConfig {
             "validator_wilayah".to_string(),
         );
         required_roles.insert("SUBMIT_PUSAT".to_string(), "validator_wilayah".to_string());
-        required_roles.insert("VERIFIKASI_PUSAT".to_string(), "validator_pusat".to_string());
+        required_roles.insert(
+            "VERIFIKASI_PUSAT".to_string(),
+            "validator_pusat".to_string(),
+        );
         required_roles.insert(
             "KONSEP_SK_GENERATED".to_string(),
             "validator_pusat".to_string(),
@@ -329,7 +332,8 @@ impl WorkflowConfig {
 
         Self {
             name: "penghapusan_bmn".to_string(),
-            description: "Workflow for BMN disposal — dual kewenangan (PUSAT / WILAYAH)".to_string(),
+            description: "Workflow for BMN disposal — dual kewenangan (PUSAT / WILAYAH)"
+                .to_string(),
             transitions,
             sla_minutes,
             required_roles,
@@ -606,7 +610,8 @@ mod tests {
                 let config_says =
                     config.is_valid_transition(from.to_state_name(), to.to_state_name());
                 assert_eq!(
-                    enum_says, config_says,
+                    enum_says,
+                    config_says,
                     "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
                     from.to_state_name(),
                     to.to_state_name(),
@@ -640,7 +645,8 @@ mod tests {
                 let config_says =
                     config.is_valid_transition(from.to_state_name(), to.to_state_name());
                 assert_eq!(
-                    enum_says, config_says,
+                    enum_says,
+                    config_says,
                     "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
                     from.to_state_name(),
                     to.to_state_name(),
@@ -675,7 +681,8 @@ mod tests {
                 let config_says =
                     config.is_valid_transition(from.to_state_name(), to.to_state_name());
                 assert_eq!(
-                    enum_says, config_says,
+                    enum_says,
+                    config_says,
                     "Drift! enum {}->{}: enum.can_transition_to={}, config.is_valid_transition={}",
                     from.to_state_name(),
                     to.to_state_name(),

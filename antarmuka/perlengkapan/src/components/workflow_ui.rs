@@ -135,8 +135,16 @@ pub fn WorkflowTimeline(
 ) -> impl IntoView {
     let last = steps.len().saturating_sub(1);
     let line_class = if dark { "bg-white/10" } else { "bg-gray-200" };
-    let actor_class = if dark { "text-xs text-slate-400" } else { "text-xs text-gray-500" };
-    let ts_class = if dark { "text-xs text-slate-500" } else { "text-xs text-gray-400" };
+    let actor_class = if dark {
+        "text-xs text-slate-400"
+    } else {
+        "text-xs text-gray-500"
+    };
+    let ts_class = if dark {
+        "text-xs text-slate-500"
+    } else {
+        "text-xs text-gray-400"
+    };
     let note_class = if dark {
         "mt-1 rounded bg-white/[0.04] px-2 py-1 text-xs italic text-slate-300"
     } else {
@@ -213,7 +221,8 @@ pub fn ApprovalDialog(
     #[prop(optional, into)] note_placeholder: Option<String>,
     #[prop(optional)] require_note: bool,
     /// Panjang minimum catatan (karakter). `None` = tanpa batas minimum.
-    #[prop(optional)] min_note_len: Option<usize>,
+    #[prop(optional)]
+    min_note_len: Option<usize>,
     #[prop(optional, into)] confirm_label: Option<String>,
     #[prop(optional)] confirm_tone: Option<ActionTone>,
     #[prop(into)] on_confirm: Callback<String>,
@@ -224,7 +233,11 @@ pub fn ApprovalDialog(
     let (error, set_error) = signal::<Option<String>>(None);
 
     let note_label = note_label.unwrap_or_else(|| {
-        if require_note { "Catatan (wajib)".to_string() } else { "Catatan (opsional)".to_string() }
+        if require_note {
+            "Catatan (wajib)".to_string()
+        } else {
+            "Catatan (opsional)".to_string()
+        }
     });
     let confirm_label = confirm_label.unwrap_or_else(|| "Konfirmasi".to_string());
     let confirm_class = confirm_tone.unwrap_or(ActionTone::Primary).btn_class();
@@ -323,7 +336,11 @@ pub struct WorkflowAction {
 
 impl WorkflowAction {
     pub fn new(label: impl Into<String>, tone: ActionTone, on_click: Callback<()>) -> Self {
-        Self { label: label.into(), tone, on_click }
+        Self {
+            label: label.into(),
+            tone,
+            on_click,
+        }
     }
 }
 

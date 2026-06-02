@@ -275,7 +275,13 @@ impl PemakaianBmnRepository {
                 WHERE id = $4 AND version = $5 AND status_kode = 3001
                 RETURNING *
                 "#,
-                &[&validator_id, &validator_nama, &catatan, &id, &expected_version],
+                &[
+                    &validator_id,
+                    &validator_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -321,7 +327,13 @@ impl PemakaianBmnRepository {
                   AND status_kode IN (3001, 3010)
                 RETURNING *
                 "#,
-                &[&validator_id, &validator_nama, &catatan, &id, &expected_version],
+                &[
+                    &validator_id,
+                    &validator_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -367,7 +379,13 @@ impl PemakaianBmnRepository {
                 WHERE id = $4 AND version = $5 AND status_kode = 3010
                 RETURNING *
                 "#,
-                &[&approver_id, &approver_nama, &catatan, &id, &expected_version],
+                &[
+                    &approver_id,
+                    &approver_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -417,7 +435,13 @@ impl PemakaianBmnRepository {
                 WHERE id = $4 AND version = $5 AND status_kode = 3010
                 RETURNING *
                 "#,
-                &[&approver_id, &approver_nama, &catatan, &id, &expected_version],
+                &[
+                    &approver_id,
+                    &approver_nama,
+                    &catatan,
+                    &id,
+                    &expected_version,
+                ],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;

@@ -127,7 +127,10 @@ impl PemakaianBmnStatus {
             // Alur baru: ValidatorSatker → ApproverSatker | RevisiOperator.
             // Alur legacy: Submitted → Approved (direct) tetap valid utk
             // back-compat; ditolak di layer handler utk record baru.
-            Submitted => matches!(target, SubmittedApproverSatker | RevisiOperator | Approved | Rejected),
+            Submitted => matches!(
+                target,
+                SubmittedApproverSatker | RevisiOperator | Approved | Rejected
+            ),
             SubmittedApproverSatker => matches!(target, Approved | RevisiOperator),
             RevisiOperator => matches!(target, Submitted | Cancelled),
             Approved => matches!(target, Active),

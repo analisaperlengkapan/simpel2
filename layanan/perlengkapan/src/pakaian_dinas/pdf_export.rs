@@ -12,7 +12,6 @@
 //! TemplateService berbasis DB (template untuk laporan tabular cocok
 //! di-render lewat kode terstruktur, bukan Handlebars).
 
-
 use uuid::Uuid;
 
 use super::models::{LaporanDaftarPegawai, LaporanFilter, LaporanRekapUkuran};
@@ -38,11 +37,16 @@ fn drawable_w() -> f32 {
 
 fn geom() -> PageGeometry {
     PageGeometry {
-        page_w: PAGE_W, page_h: PAGE_H,
-        margin_l: MARGIN_L, margin_r: MARGIN_R,
-        margin_top: MARGIN_TOP, margin_bottom: MARGIN_BOTTOM,
-        row_h: ROW_H, cell_font: CELL_FONT,
-        cell_pad_x: 1.0, cell_trunc_pad: 2.0,
+        page_w: PAGE_W,
+        page_h: PAGE_H,
+        margin_l: MARGIN_L,
+        margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP,
+        margin_bottom: MARGIN_BOTTOM,
+        row_h: ROW_H,
+        cell_font: CELL_FONT,
+        cell_pad_x: 1.0,
+        cell_trunc_pad: 2.0,
         auto_paginate: true,
     }
 }
@@ -216,16 +220,7 @@ pub async fn generate_daftar_pdf(
         30.0, // Sepatu
     ];
     let header_cells: Vec<String> = vec![
-        "No",
-        "NIP",
-        "Nama",
-        "Jabatan",
-        "Golongan",
-        "Status",
-        "Gender",
-        "Hijab",
-        "Baju",
-        "Celana",
+        "No", "NIP", "Nama", "Jabatan", "Golongan", "Status", "Gender", "Hijab", "Baju", "Celana",
         "Sepatu",
     ]
     .into_iter()

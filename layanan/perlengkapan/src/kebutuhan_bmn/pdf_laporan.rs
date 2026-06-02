@@ -17,7 +17,6 @@
 //! pdf_export.rs`. Extract ke `shared/pdf.rs` dijadwalkan sbg follow-up
 //! refactor (low priority — kedua modul stabil & tidak sering diubah).
 
-
 use uuid::Uuid;
 
 use super::models::{AnalisisKelayakanResponse, BarangWithExistingInventory};
@@ -40,11 +39,16 @@ const BODY_FONT: f32 = 9.0;
 
 fn geom() -> PageGeometry {
     PageGeometry {
-        page_w: PAGE_W, page_h: PAGE_H,
-        margin_l: MARGIN_L, margin_r: MARGIN_R,
-        margin_top: MARGIN_TOP, margin_bottom: MARGIN_BOTTOM,
-        row_h: ROW_H, cell_font: CELL_FONT,
-        cell_pad_x: 1.0, cell_trunc_pad: 2.0,
+        page_w: PAGE_W,
+        page_h: PAGE_H,
+        margin_l: MARGIN_L,
+        margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP,
+        margin_bottom: MARGIN_BOTTOM,
+        row_h: ROW_H,
+        cell_font: CELL_FONT,
+        cell_pad_x: 1.0,
+        cell_trunc_pad: 2.0,
         auto_paginate: true,
     }
 }
@@ -67,11 +71,7 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
     let mut pdf = PdfBuilder::new("Laporan Hasil Analisis Kebutuhan BMN", geom())?;
 
     // ── Title block ──────────────────────────────────────────────────
-    pdf.write_centered(
-        "LAPORAN HASIL ANALISIS KEBUTUHAN BMN",
-        TITLE_FONT,
-        true,
-    );
+    pdf.write_centered("LAPORAN HASIL ANALISIS KEBUTUHAN BMN", TITLE_FONT, true);
     pdf.advance(7.0);
     let satker_label = analisis
         .satker
@@ -99,7 +99,12 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
         ),
     ];
     for (label, value) in &satker_info {
-        pdf.write_text(&format!("{:20}: {}", label, value), BODY_FONT, false, MARGIN_L);
+        pdf.write_text(
+            &format!("{:20}: {}", label, value),
+            BODY_FONT,
+            false,
+            MARGIN_L,
+        );
         pdf.advance(5.5);
     }
     pdf.advance(4.0);
@@ -124,14 +129,27 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
         12.0, // Gap
         53.0, // Rekomendasi
     ];
-    let header_cells: Vec<String> = ["No", "Kode", "Nama Barang", "Usulan", "Eksisting", "Gap", "Rekomendasi"]
-        .into_iter()
-        .map(String::from)
-        .collect();
+    let header_cells: Vec<String> = [
+        "No",
+        "Kode",
+        "Nama Barang",
+        "Usulan",
+        "Eksisting",
+        "Gap",
+        "Rekomendasi",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
     pdf.row(&col_widths, &header_cells, true, true);
 
     if analisis.barang_list.is_empty() {
-        pdf.write_text("Tidak ada barang yang diusulkan.", BODY_FONT, false, MARGIN_L);
+        pdf.write_text(
+            "Tidak ada barang yang diusulkan.",
+            BODY_FONT,
+            false,
+            MARGIN_L,
+        );
         pdf.advance(6.0);
     } else {
         for (idx, b) in analisis.barang_list.iter().enumerate() {
@@ -150,10 +168,7 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
         format!("Total diminta     : {}", summary.total_diminta),
         format!("Total eksisting   : {}", summary.total_existing),
         format!("Gap (kekurangan)  : {}", summary.total_gap),
-        format!(
-            "Persentase kelayakan: {:.1}%",
-            summary.kelayakan_persen
-        ),
+        format!("Persentase kelayakan: {:.1}%", summary.kelayakan_persen),
     ];
     for line in &summary_lines {
         pdf.write_text(line, BODY_FONT, false, MARGIN_L);
@@ -168,14 +183,15 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
         pdf.advance(7.0);
 
         let mut lines: Vec<String> = Vec::new();
-        let push = |lines: &mut Vec<String>, label: &str, status: &super::models::IntegrasiSyncStatus| {
-            lines.push(format!(
-                "{label:8}: {} (records synced: {}, last_sync: {})",
-                status.state,
-                status.records_synced,
-                status.last_sync_at.clone().unwrap_or_else(|| "-".into()),
-            ));
-        };
+        let push =
+            |lines: &mut Vec<String>, label: &str, status: &super::models::IntegrasiSyncStatus| {
+                lines.push(format!(
+                    "{label:8}: {} (records synced: {}, last_sync: {})",
+                    status.state,
+                    status.records_synced,
+                    status.last_sync_at.clone().unwrap_or_else(|| "-".into()),
+                ));
+            };
         push(&mut lines, "SIMAN", &integrasi.siman);
         push(&mut lines, "MySIMKARI", &integrasi.mysimkari);
         for line in &lines {
@@ -237,7 +253,10 @@ fn barang_row_cells(no: usize, b: &BarangWithExistingInventory) -> Vec<String> {
     let existing = (b.barang.jumlah - b.gap).max(0);
     vec![
         no.to_string(),
-        b.barang.kode_barang.clone().unwrap_or_else(|| "-".to_string()),
+        b.barang
+            .kode_barang
+            .clone()
+            .unwrap_or_else(|| "-".to_string()),
         b.barang.nama.clone(),
         b.barang.jumlah.to_string(),
         existing.to_string(),

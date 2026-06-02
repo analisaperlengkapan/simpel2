@@ -180,7 +180,10 @@ mod tests {
         let (sql, params) = build_filter(&q);
         assert!(sql.contains("resource_type = $1"));
         assert!(!sql.contains("penghapusan_bmn"));
-        assert_eq!(params, vec![AuditParam::Text("penghapusan_bmn".to_string())]);
+        assert_eq!(
+            params,
+            vec![AuditParam::Text("penghapusan_bmn".to_string())]
+        );
     }
 
     /// A UUID actor binds exactly; a non-UUID actor falls back to ILIKE.
@@ -216,7 +219,11 @@ mod tests {
         assert!(!sql.contains("DROP TABLE"));
         assert!(sql.contains("resource_type = $1"));
         // every clause is a placeholder; payloads live only in params
-        assert!(params.iter().any(|p| matches!(p, AuditParam::Text(t) if t.contains("DROP TABLE"))));
+        assert!(
+            params
+                .iter()
+                .any(|p| matches!(p, AuditParam::Text(t) if t.contains("DROP TABLE")))
+        );
     }
 
     /// Placeholder numbering stays sequential as clauses accumulate.

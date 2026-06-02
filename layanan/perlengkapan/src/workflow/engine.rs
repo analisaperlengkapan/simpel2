@@ -154,10 +154,7 @@ impl WorkflowEngine {
     /// dispatcher, real-time monitoring, dst) dapat tap-in via
     /// `shared::events::spawn_subscriber`. Audit sink lama tetap valid
     /// secara paralel utk back-compat.
-    pub fn with_event_bus(
-        mut self,
-        bus: Arc<crate::shared::events::EventBus>,
-    ) -> Self {
+    pub fn with_event_bus(mut self, bus: Arc<crate::shared::events::EventBus>) -> Self {
         self.event_bus = Some(bus);
         self
     }
@@ -376,23 +373,21 @@ impl WorkflowEngine {
         // membatalkan transisi yg sudah committed.
         if let Some(sink) = &self.audit_sink {
             use lib_perlengkapan::audit::{AuditAction, AuditEvent};
-            let event = AuditEvent::new(entity_type, AuditAction::Custom, entity_type)
-                .action_name("workflow.transition")
-                .actor(request.user_id, "")
-                .ip(&request.ip_address)
-                .resource_id(request.entity_id.to_string())
-                .message(
-                    request
-                        .catatan
-                        .clone()
-                        .unwrap_or_else(|| format!("{} → {}", request.from_state, request.to_state)),
-                )
-                .metadata(serde_json::json!({
-                    "from_state": request.from_state,
-                    "to_state": request.to_state,
-                    "duration_ms": duration * 1000.0,
-                    "activity_id": activity_record_id,
-                }));
+            let event =
+                AuditEvent::new(entity_type, AuditAction::Custom, entity_type)
+                    .action_name("workflow.transition")
+                    .actor(request.user_id, "")
+                    .ip(&request.ip_address)
+                    .resource_id(request.entity_id.to_string())
+                    .message(request.catatan.clone().unwrap_or_else(|| {
+                        format!("{} → {}", request.from_state, request.to_state)
+                    }))
+                    .metadata(serde_json::json!({
+                        "from_state": request.from_state,
+                        "to_state": request.to_state,
+                        "duration_ms": duration * 1000.0,
+                        "activity_id": activity_record_id,
+                    }));
             if let Err(e) = sink.log(event).await {
                 tracing::warn!(
                     error = %e,

@@ -14,7 +14,7 @@ use leptos_router::hooks::use_params_map;
 
 use crate::api::{
     AppError, PaginatedResponse, PengajuanSatker, PengajuanSatkerAktivitas, ValidatorActionRequest,
-    aktivitas_is_revisi, aktivitas_label, fetch_pengajuan_satker, fetch_pakaian_satker_aktivitas,
+    aktivitas_is_revisi, aktivitas_label, fetch_pakaian_satker_aktivitas, fetch_pengajuan_satker,
     process_validator_action,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
@@ -27,13 +27,25 @@ use crate::features::auth::AuthService;
 /// Status badge tailored to a workflow code.
 fn status_badge(code: i32) -> impl IntoView {
     let (class, label) = if code == 1008 {
-        ("bg-success-500/15 text-success-300 ring-success-500/25", "Selesai")
+        (
+            "bg-success-500/15 text-success-300 ring-success-500/25",
+            "Selesai",
+        )
     } else if aktivitas_is_revisi(code) {
-        ("bg-danger-500/15 text-danger-300 ring-danger-500/25", "Perlu Revisi")
+        (
+            "bg-danger-500/15 text-danger-300 ring-danger-500/25",
+            "Perlu Revisi",
+        )
     } else if code == 1000 {
-        ("bg-slate-500/15 text-slate-300 ring-slate-500/25", "Penyiapan")
+        (
+            "bg-slate-500/15 text-slate-300 ring-slate-500/25",
+            "Penyiapan",
+        )
     } else {
-        ("bg-gold-500/15 text-gold-300 ring-gold-500/25", aktivitas_label(code))
+        (
+            "bg-gold-500/15 text-gold-300 ring-gold-500/25",
+            aktivitas_label(code),
+        )
     };
     view! {
         <span class=format!("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 {}", class)>
@@ -43,7 +55,10 @@ fn status_badge(code: i32) -> impl IntoView {
 }
 
 /// Build the workflow timeline from the satker baseline + real activity rows.
-fn build_timeline(satker: &PengajuanSatker, acts: &[PengajuanSatkerAktivitas]) -> Vec<WorkflowStep> {
+fn build_timeline(
+    satker: &PengajuanSatker,
+    acts: &[PengajuanSatkerAktivitas],
+) -> Vec<WorkflowStep> {
     let mut steps = vec![
         WorkflowStep::new("Pengajuan Dibuat", StepStatus::Done)
             .with_timestamp(satker.created_at.clone()),
@@ -78,8 +93,8 @@ fn build_timeline(satker: &PengajuanSatker, acts: &[PengajuanSatkerAktivitas]) -
             (None, Some(r)) => Some(r.clone()),
             (None, None) => None,
         };
-        let mut step =
-            WorkflowStep::new(aktivitas_label(a.aktivitas_id), st).with_timestamp(a.created_at.clone());
+        let mut step = WorkflowStep::new(aktivitas_label(a.aktivitas_id), st)
+            .with_timestamp(a.created_at.clone());
         if let Some(actor) = actor {
             step = step.with_actor(actor);
         }
@@ -134,8 +149,13 @@ struct PendingAction {
 #[component]
 pub fn PakaianDinasSatkerDetail() -> impl IntoView {
     let params = use_params_map();
-    let pengajuan_id =
-        move || params.with(|p| p.get("pengajuan_id").map(|s| s.to_string()).unwrap_or_default());
+    let pengajuan_id = move || {
+        params.with(|p| {
+            p.get("pengajuan_id")
+                .map(|s| s.to_string())
+                .unwrap_or_default()
+        })
+    };
 
     let refresh = RwSignal::new(0);
     let selected = RwSignal::new(Option::<PengajuanSatker>::None);

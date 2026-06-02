@@ -45,9 +45,7 @@ async fn query_penghapusan_bmn_detail(
 
 /// leptos-fetch query — verifikasi aset SIMAN (Fase 2.3). Keyed by
 /// `(usulan_id, refresh_trigger)` agar ikut menyegar setelah mutasi.
-async fn query_penghapusan_verifikasi_siman(
-    key: (String, i32),
-) -> Option<SimanAssetVerification> {
+async fn query_penghapusan_verifikasi_siman(key: (String, i32)) -> Option<SimanAssetVerification> {
     let (id, _trigger) = key;
     if id.is_empty() {
         return None;
@@ -119,7 +117,11 @@ fn build_penghapusan_timeline(p: &PenghapusanBmnWorkflow) -> Vec<WorkflowStep> {
             );
         }
     };
-    milestone("Diajukan ke Validator Wilayah", &p.tanggal_submit_wilayah, None);
+    milestone(
+        "Diajukan ke Validator Wilayah",
+        &p.tanggal_submit_wilayah,
+        None,
+    );
     milestone(
         "Ditinjau Validator Wilayah",
         &p.tanggal_verifikasi_wilayah,
@@ -132,7 +134,11 @@ fn build_penghapusan_timeline(p: &PenghapusanBmnWorkflow) -> Vec<WorkflowStep> {
         p.catatan_validator_pusat.clone(),
     );
     milestone("Konsep SK Digenerate", &p.konsep_sk_generated_at, None);
-    milestone("SK Ditandatangani Diunggah", &p.signed_sk_pdf_uploaded_at, None);
+    milestone(
+        "SK Ditandatangani Diunggah",
+        &p.signed_sk_pdf_uploaded_at,
+        None,
+    );
 
     if p.is_completed {
         steps.push(WorkflowStep::new("Selesai", StepStatus::Done));
@@ -186,12 +192,13 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
             refresh_trigger.get(),
         )
     });
-    let verifikasi_resource = client.local_resource(query_penghapusan_verifikasi_siman, move || {
-        (
-            params.get().get("id").unwrap_or_default(),
-            refresh_trigger.get(),
-        )
-    });
+    let verifikasi_resource =
+        client.local_resource(query_penghapusan_verifikasi_siman, move || {
+            (
+                params.get().get("id").unwrap_or_default(),
+                refresh_trigger.get(),
+            )
+        });
 
     // Action: Submit to Validator Wilayah (Draft → SubmitWilayah)
     let on_submit_wilayah = Callback::new(move |_: ()| {

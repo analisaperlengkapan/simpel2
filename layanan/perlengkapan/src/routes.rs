@@ -150,10 +150,7 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/cek-pegawai/{nip}",
             get(crate::pemakaian_bmn::cek_pegawai),
         )
-        .route(
-            "/pemakaian-bmn/cek-bmn",
-            get(crate::pemakaian_bmn::cek_bmn),
-        )
+        .route("/pemakaian-bmn/cek-bmn", get(crate::pemakaian_bmn::cek_bmn))
         // ============ Pakaian Dinas Routes ============
         // Master: Jenis Pakaian Dinas
         .route(

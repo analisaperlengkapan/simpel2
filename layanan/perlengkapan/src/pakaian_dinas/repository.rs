@@ -731,7 +731,11 @@ impl PakaianDinasRepository {
         // - "sebagian": pakai satker_ids dari operator.
         // - "all"/"semua": kosong (artinya seluruh satker).
         let resolved_satker_ids: Vec<Uuid> = if request.pilihan_satker == "wilayah" {
-            match request.wilayah_id.as_deref().filter(|w| !w.trim().is_empty()) {
+            match request
+                .wilayah_id
+                .as_deref()
+                .filter(|w| !w.trim().is_empty())
+            {
                 Some(wid) => self.list_satker_ids_by_wilayah(wid).await?,
                 None => Vec::new(),
             }

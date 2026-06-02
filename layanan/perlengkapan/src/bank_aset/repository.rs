@@ -150,7 +150,10 @@ impl BankAsetRepository {
             tahun_perolehan: r.try_get::<_, Option<String>>("tgl_perlh").ok().flatten(),
             kondisi: r.try_get::<_, Option<String>>("ur_kondisi").ok().flatten(),
             satker: r.try_get::<_, Option<String>>("nama_satker").ok().flatten(),
-            nilai_perolehan: r.try_get::<_, Option<f64>>("nilai_perolehan").ok().flatten(),
+            nilai_perolehan: r
+                .try_get::<_, Option<f64>>("nilai_perolehan")
+                .ok()
+                .flatten(),
         }))
     }
 

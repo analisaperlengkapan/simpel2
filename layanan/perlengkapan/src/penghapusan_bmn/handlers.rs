@@ -507,7 +507,9 @@ pub async fn upload_lampiran(
                     .put(
                         &key,
                         bytes,
-                        content_type.as_deref().unwrap_or("application/octet-stream"),
+                        content_type
+                            .as_deref()
+                            .unwrap_or("application/octet-stream"),
                     )
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
@@ -529,7 +531,9 @@ pub async fn upload_lampiran(
                     .put(
                         &key,
                         bytes,
-                        content_type.as_deref().unwrap_or("application/octet-stream"),
+                        content_type
+                            .as_deref()
+                            .unwrap_or("application/octet-stream"),
                     )
                     .await
                     .map_err(|e| AppError::Internal(format!("Storage put: {}", e)))?;
@@ -613,7 +617,9 @@ pub async fn generate_konsep_sk_wilayah(
     claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
-    let penghapusan = service.generate_konsep_sk_wilayah(id, claims.user_id).await?;
+    let penghapusan = service
+        .generate_konsep_sk_wilayah(id, claims.user_id)
+        .await?;
     Ok(Json(ApiResponse::success(
         penghapusan,
         "Konsep SK Wilayah berhasil digenerate (mewakili Kepala Kejaksaan Tinggi)".to_string(),
@@ -701,17 +707,17 @@ mod tests {
 
     #[test]
     fn sanitize_filename_strips_path_separators() {
-        assert_eq!(
-            sanitize_filename("../../etc/passwd"),
-            ".._.._etc_passwd"
-        );
+        assert_eq!(sanitize_filename("../../etc/passwd"), ".._.._etc_passwd");
         assert_eq!(sanitize_filename("foo bar.pdf"), "foo_bar.pdf");
         assert_eq!(sanitize_filename("a/b/c.txt"), "a_b_c.txt");
     }
 
     #[test]
     fn sanitize_filename_preserves_safe_chars() {
-        assert_eq!(sanitize_filename("Surat_Usulan-001.pdf"), "Surat_Usulan-001.pdf");
+        assert_eq!(
+            sanitize_filename("Surat_Usulan-001.pdf"),
+            "Surat_Usulan-001.pdf"
+        );
         assert_eq!(sanitize_filename("file.DOCX"), "file.DOCX");
     }
 

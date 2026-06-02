@@ -295,7 +295,9 @@ pub async fn revoke_permit(
     claims: Claims,
     Json(request): Json<RevokePermitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
-    use crate::shared::policy::{enforce_no_admin_revoke, PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+    use crate::shared::policy::{
+        PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy, enforce_no_admin_revoke,
+    };
     // Admin tidak boleh — guard ini di-cek SEBELUM policy.authorize() agar
     // admin bypass di policy.authorize() tidak overwrite stakeholder mandate.
     enforce_no_admin_revoke(&claims)?;
@@ -411,7 +413,10 @@ pub async fn cek_bmn(
     let resp = service
         .cek_bmn_availability_for_period(&pool, &query.nup, query.tgl_mulai, query.tgl_selesai)
         .await?;
-    Ok(Json(ApiResponse::success(resp, "Cek BMN selesai".to_string())))
+    Ok(Json(ApiResponse::success(
+        resp,
+        "Cek BMN selesai".to_string(),
+    )))
 }
 
 /// GET /pemakaian-bmn/bmn/:bmn_nup/history

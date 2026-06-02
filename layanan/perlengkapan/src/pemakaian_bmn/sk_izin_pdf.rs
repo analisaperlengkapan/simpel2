@@ -15,7 +15,6 @@
 //! (0.9) dan kebutuhan_bmn/pdf_laporan.rs (0.8). Refactor ekstraksi ke
 //! `shared/pdf.rs` ada di task #17 follow-up.
 
-
 use uuid::Uuid;
 
 use super::models::IzinPemakaianBmn;
@@ -41,11 +40,16 @@ fn drawable_w() -> f32 {
 
 fn geom() -> PageGeometry {
     PageGeometry {
-        page_w: PAGE_W, page_h: PAGE_H,
-        margin_l: MARGIN_L, margin_r: MARGIN_R,
-        margin_top: MARGIN_TOP, margin_bottom: 18.0,
-        row_h: ROW_H, cell_font: CELL_FONT,
-        cell_pad_x: 1.5, cell_trunc_pad: 3.0,
+        page_w: PAGE_W,
+        page_h: PAGE_H,
+        margin_l: MARGIN_L,
+        margin_r: MARGIN_R,
+        margin_top: MARGIN_TOP,
+        margin_bottom: 18.0,
+        row_h: ROW_H,
+        cell_font: CELL_FONT,
+        cell_pad_x: 1.5,
+        cell_trunc_pad: 3.0,
         auto_paginate: false,
     }
 }
@@ -80,14 +84,22 @@ fn render_halaman_pegawai(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     pdf.write_centered(
         &format!(
             "Nomor: {}",
-            permit.nomor_izin.as_deref().unwrap_or("(belum diterbitkan)")
+            permit
+                .nomor_izin
+                .as_deref()
+                .unwrap_or("(belum diterbitkan)")
         ),
         SECTION_FONT,
         false,
     );
     pdf.advance(12.0);
 
-    pdf.write_text("HALAMAN 1 — INFORMASI PEGAWAI", SECTION_FONT, true, MARGIN_L);
+    pdf.write_text(
+        "HALAMAN 1 — INFORMASI PEGAWAI",
+        SECTION_FONT,
+        true,
+        MARGIN_L,
+    );
     pdf.advance(10.0);
 
     // Foto pegawai placeholder (WAJIB per stakeholder).

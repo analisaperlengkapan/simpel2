@@ -901,7 +901,11 @@ impl KebutuhanBmnService {
     async fn compute_live_analisis(
         &self,
         barang_list: Vec<PengajuanKebutuhanBmnBarang>,
-    ) -> (Vec<BarangWithExistingInventory>, AnalisisSummary, AnalisisSnapshot) {
+    ) -> (
+        Vec<BarangWithExistingInventory>,
+        AnalisisSummary,
+        AnalisisSnapshot,
+    ) {
         let mut total_diminta: i64 = 0;
         let mut total_existing: i64 = 0;
         let mut barang_with_inventory = Vec::new();
@@ -1900,7 +1904,12 @@ mod tests {
     // V029 (#24) — Snapshot analisis kelayakan
     // ========================================================================
 
-    fn fixture_barang(id: Uuid, nama: &str, jumlah: i32, existing_count: i32) -> PengajuanKebutuhanBmnBarang {
+    fn fixture_barang(
+        id: Uuid,
+        nama: &str,
+        jumlah: i32,
+        existing_count: i32,
+    ) -> PengajuanKebutuhanBmnBarang {
         let now = chrono::Utc::now();
         PengajuanKebutuhanBmnBarang {
             id,
@@ -1980,8 +1989,7 @@ mod tests {
                 existing_assets: vec![],
             }],
         };
-        let (out, summary) =
-            KebutuhanBmnService::build_analisis_from_snapshot(barang, &snap);
+        let (out, summary) = KebutuhanBmnService::build_analisis_from_snapshot(barang, &snap);
         assert_eq!(out.len(), 1);
         // gap dari snapshot (7), bukan jumlah - live existing_count (10-99).
         assert_eq!(out[0].gap, 7);

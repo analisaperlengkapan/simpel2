@@ -71,8 +71,7 @@ pub struct PdfBuilder {
 
 impl PdfBuilder {
     pub fn new(title: &str, geom: PageGeometry) -> AppResult<Self> {
-        let (doc, page1, layer1) =
-            PdfDocument::new(title, Mm(geom.page_w), Mm(geom.page_h), "L1");
+        let (doc, page1, layer1) = PdfDocument::new(title, Mm(geom.page_w), Mm(geom.page_h), "L1");
         let font = doc
             .add_builtin_font(BuiltinFont::Helvetica)
             .map_err(|e| bad_request(&format!("font: {e}")))?;
@@ -124,7 +123,8 @@ impl PdfBuilder {
 
     pub fn write_text(&mut self, text: &str, font_size: f32, bold: bool, x: f32) {
         let font = if bold { &self.font_bold } else { &self.font };
-        self.layer().use_text(text, font_size, Mm(x), Mm(self.y), font);
+        self.layer()
+            .use_text(text, font_size, Mm(x), Mm(self.y), font);
     }
 
     /// Approximate-centered text (printpdf can't measure glyph widths, so this

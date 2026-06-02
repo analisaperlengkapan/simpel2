@@ -129,17 +129,11 @@ impl Claims {
     /// ```
     pub fn require_any_role(&self, allowed: &[&str]) -> Result<(), AppError> {
         // Admin/superadmin: bypass (sudah cross-satker juga).
-        if matches!(
-            self.role.as_str(),
-            "admin" | "admin_pusat" | "superadmin"
-        ) {
+        if matches!(self.role.as_str(), "admin" | "admin_pusat" | "superadmin") {
             return Ok(());
         }
         let me = self.role.to_ascii_lowercase();
-        if allowed
-            .iter()
-            .any(|r| r.to_ascii_lowercase() == me)
-        {
+        if allowed.iter().any(|r| r.to_ascii_lowercase() == me) {
             Ok(())
         } else {
             Err(AppError::Authorization(format!(

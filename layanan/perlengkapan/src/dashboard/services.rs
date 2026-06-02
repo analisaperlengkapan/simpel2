@@ -29,8 +29,7 @@ impl DashboardService {
             repository::fetch_pakaian_dinas_metrics(&self.db_pool, params);
         let workflow_metrics_future = repository::fetch_workflow_metrics(&self.db_pool);
         let asset_utilization_future = repository::fetch_asset_utilization(&self.db_pool);
-        let pemakaian_metrics_future =
-            repository::fetch_pemakaian_status_metrics(&self.db_pool);
+        let pemakaian_metrics_future = repository::fetch_pemakaian_status_metrics(&self.db_pool);
         let penghapusan_metrics_future =
             repository::fetch_penghapusan_status_metrics(&self.db_pool);
 

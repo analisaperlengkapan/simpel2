@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tonic::transport::Channel;
 
 use crate::shared::resilience::{
-    guarded, CircuitBreaker, CircuitBreakerConfig, CircuitState, ResiliencePolicy,
+    CircuitBreaker, CircuitBreakerConfig, CircuitState, ResiliencePolicy, guarded,
 };
 
 pub mod secreton {

@@ -49,14 +49,19 @@ pub fn PenghapusanForm() -> impl IntoView {
         let data = form.begin_submit();
 
         // Rakit daftar item: item utama (field tunggal) + item tambahan valid.
-        let mut items: Vec<CreatePenghapusanBmnItemRequest> = vec![CreatePenghapusanBmnItemRequest {
-            asset_id: if data.asset_id.is_empty() { None } else { Some(data.asset_id.clone()) },
-            kode_barang: data.kode_barang.clone(),
-            nama_barang: data.nama_barang.clone(),
-            nup: data.nup.clone(),
-            nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
-            kondisi: None,
-        }];
+        let mut items: Vec<CreatePenghapusanBmnItemRequest> =
+            vec![CreatePenghapusanBmnItemRequest {
+                asset_id: if data.asset_id.is_empty() {
+                    None
+                } else {
+                    Some(data.asset_id.clone())
+                },
+                kode_barang: data.kode_barang.clone(),
+                nama_barang: data.nama_barang.clone(),
+                nup: data.nup.clone(),
+                nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
+                kondisi: None,
+            }];
         for e in extras.get_untracked() {
             if !e.kode_barang.trim().is_empty() && !e.nup.trim().is_empty() {
                 items.push(CreatePenghapusanBmnItemRequest {

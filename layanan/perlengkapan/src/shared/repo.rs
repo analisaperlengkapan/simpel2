@@ -17,7 +17,7 @@
 
 use crate::shared::error::AppError;
 use async_trait::async_trait;
-use deadpool_postgres::{Pool, Object as PgObject};
+use deadpool_postgres::{Object as PgObject, Pool};
 
 /// Extension trait untuk `deadpool_postgres::Pool` agar pengambilan client
 /// jadi satu baris dgn error mapping seragam ke `AppError::Database`.

@@ -226,7 +226,11 @@ impl<E: std::fmt::Display> std::fmt::Display for ResilienceError<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ResilienceError::CircuitOpen { name } => {
-                write!(f, "sirkuit '{}' terbuka — sumber eksternal sedang tidak tersedia", name)
+                write!(
+                    f,
+                    "sirkuit '{}' terbuka — sumber eksternal sedang tidak tersedia",
+                    name
+                )
             }
             ResilienceError::Timeout { name, timeout } => {
                 write!(f, "panggilan '{}' timeout setelah {:?}", name, timeout)
@@ -383,13 +387,7 @@ mod tests {
         let result: Result<i32, ResilienceError<&str>> = guarded(&cb, &policy, || {
             let n = calls.get() + 1;
             calls.set(n);
-            async move {
-                if n < 3 {
-                    Err("transient")
-                } else {
-                    Ok(42)
-                }
-            }
+            async move { if n < 3 { Err("transient") } else { Ok(42) } }
         })
         .await;
         assert_eq!(result.unwrap(), 42);

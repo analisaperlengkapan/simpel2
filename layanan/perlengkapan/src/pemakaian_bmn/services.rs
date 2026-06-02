@@ -589,13 +589,7 @@ impl PemakaianBmnService {
         catatan: String,
     ) -> AppResult<IzinPemakaianBmn> {
         self.repository
-            .approver_satker_return(
-                id,
-                approver_id,
-                &approver_nama,
-                expected_version,
-                &catatan,
-            )
+            .approver_satker_return(id, approver_id, &approver_nama, expected_version, &catatan)
             .await
     }
 

@@ -248,7 +248,9 @@ pub async fn fetch_penghapusan_lampiran(
 pub async fn fetch_penghapusan_lampiran(
     _id: &str,
 ) -> Result<ApiResponse<Vec<PenghapusanBmnLampiran>>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 /// `POST /penghapusan-bmn/{id}/lampiran` — unggah Surat Usulan (1x, opsional)
@@ -265,8 +267,9 @@ pub async fn upload_penghapusan_lampiran(
     let form = web_sys::FormData::new()
         .map_err(|_| crate::api::AppError::network("Gagal membuat FormData".to_string()))?;
     if let Some(f) = surat_usulan.as_ref() {
-        form.append_with_blob("surat_usulan", f)
-            .map_err(|_| crate::api::AppError::network("Gagal melampirkan surat usulan".to_string()))?;
+        form.append_with_blob("surat_usulan", f).map_err(|_| {
+            crate::api::AppError::network("Gagal melampirkan surat usulan".to_string())
+        })?;
     }
     for f in &lampiran {
         form.append_with_blob("lampiran", f)
@@ -299,7 +302,9 @@ pub async fn upload_penghapusan_lampiran(
     _surat_usulan: Option<web_sys::File>,
     _lampiran: Vec<web_sys::File>,
 ) -> Result<(), crate::api::AppError> {
-    Err(crate::api::AppError::Unknown("Server-side stub".to_string()))
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
 
 // --- Legacy Workflow Transition for Penghapusan BMN ---
