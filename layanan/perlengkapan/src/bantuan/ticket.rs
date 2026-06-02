@@ -266,17 +266,17 @@ impl TicketService {
 
         // Notify the ticket owner (if different from the commenter) that the
         // ticket has a new comment.
-        if let Ok(ticket) = self.get_ticket(ticket_id).await {
-            if ticket.user_id != user_id {
-                self.notify_event(
-                    "tiket.komentar",
-                    ticket.user_id,
-                    &ticket,
-                    format!("Komentar baru pada tiket #{}", ticket.id),
-                    format!("Tiket \"{}\" mendapat komentar baru.", ticket.subject),
-                    NotificationPriority::Medium,
-                );
-            }
+        if let Ok(ticket) = self.get_ticket(ticket_id).await
+            && ticket.user_id != user_id
+        {
+            self.notify_event(
+                "tiket.komentar",
+                ticket.user_id,
+                &ticket,
+                format!("Komentar baru pada tiket #{}", ticket.id),
+                format!("Tiket \"{}\" mendapat komentar baru.", ticket.subject),
+                NotificationPriority::Medium,
+            );
         }
 
         // Audit: a new comment was posted on this ticket by `user_id`.

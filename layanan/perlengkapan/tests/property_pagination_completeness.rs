@@ -28,7 +28,7 @@ proptest! {
     fn resolved_clamps_per_page(per_page in 0u32..10_000) {
         let params = PageParams { page: None, per_page: Some(per_page) };
         let (_, rpp) = params.resolved();
-        prop_assert!(rpp >= 1 && rpp <= MAX_PER_PAGE,
+        prop_assert!((1..=MAX_PER_PAGE).contains(&rpp),
             "resolved per_page out of bounds: {rpp} (max {MAX_PER_PAGE})");
     }
 

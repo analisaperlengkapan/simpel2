@@ -118,7 +118,13 @@ impl BackupCodesStore for PgBackupCodesStore {
         for code in codes {
             tx.execute(
                 &insert,
-                &[&uid, &code.code, &code.used, &code.used_at, &code.created_at],
+                &[
+                    &uid,
+                    &code.code,
+                    &code.used,
+                    &code.used_at,
+                    &code.created_at,
+                ],
             )
             .await
             .map_err(|e| AuthencError::database(format!("insert backup code: {}", e)))?;

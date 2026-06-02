@@ -12,7 +12,9 @@ use leptos::prelude::*;
 /// Spawn a long-lived task that refreshes the JWT before it expires and
 /// pushes a fresh `UserSession` into the provided write signal. Cancels
 /// itself when the owning scope is dropped.
-pub fn spawn_refresh_loop(set_user_session: WriteSignal<Option<crate::features::auth::UserSession>>) {
+pub fn spawn_refresh_loop(
+    set_user_session: WriteSignal<Option<crate::features::auth::UserSession>>,
+) {
     #[cfg(target_arch = "wasm32")]
     {
         use gloo_timers::future::TimeoutFuture;

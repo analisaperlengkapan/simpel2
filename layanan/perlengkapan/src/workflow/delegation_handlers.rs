@@ -21,9 +21,7 @@ use uuid::Uuid;
 
 use crate::shared::middleware::Claims;
 
-use super::delegation::{
-    CreateDelegationRequest, Delegation, DelegationError, DelegationManager,
-};
+use super::delegation::{CreateDelegationRequest, Delegation, DelegationError, DelegationManager};
 use super::handlers::ApiResponse;
 use crate::AppState;
 
@@ -101,9 +99,7 @@ pub async fn list_delegations_handler(
             .get_active_delegations_for_user(claims.user_id)
             .await?
     } else {
-        manager
-            .get_delegations_by_delegator(claims.user_id)
-            .await?
+        manager.get_delegations_by_delegator(claims.user_id).await?
     };
 
     Ok(Json(ApiResponse::success(delegations)))
@@ -178,4 +174,3 @@ impl From<DelegationError> for DelegationApiError {
         }
     }
 }
-

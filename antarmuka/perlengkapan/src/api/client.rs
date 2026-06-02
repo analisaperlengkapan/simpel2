@@ -99,10 +99,7 @@ pub async fn api_get_binary(path: &str) -> AppResult<Vec<u8>> {
 /// POST a JSON body and consume the response as raw bytes. Used by the
 /// `/admin/templates/{id}/preview` flow where the response is a rendered
 /// PDF/DOCX/XLSX blob the caller drops into a blob URL + `<iframe>`.
-pub async fn api_post_binary<B: Serialize + ?Sized>(
-    path: &str,
-    body: &B,
-) -> AppResult<Vec<u8>> {
+pub async fn api_post_binary<B: Serialize + ?Sized>(path: &str, body: &B) -> AppResult<Vec<u8>> {
     let token = require_auth_token()?;
     let url = full_url(path);
 

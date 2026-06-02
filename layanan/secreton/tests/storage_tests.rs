@@ -261,7 +261,7 @@ async fn test_storage_edge_cases() -> Result<()> {
     }
 
     // Test special characters in paths
-    let special_paths = vec![
+    let special_paths = [
         "/key/with spaces",
         "/key-with-dashes",
         "/key_with_underscores",
@@ -298,7 +298,7 @@ async fn test_storage_edge_cases() -> Result<()> {
     }
 
     // Test unicode paths
-    let unicode_paths = vec!["/键值", "/キー", "/ключ", "/🔑key🔑"];
+    let unicode_paths = ["/键值", "/キー", "/ключ", "/🔑key🔑"];
 
     for (i, path) in unicode_paths.iter().enumerate() {
         let value = format!("unicode_value_{}", i);
