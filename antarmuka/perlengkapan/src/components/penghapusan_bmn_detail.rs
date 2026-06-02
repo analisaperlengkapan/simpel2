@@ -425,6 +425,46 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                     </div>
                                 </div>
 
+                                // Daftar Item BMN (Fase 2.8) — multi-item
+                                {(!d.items.is_empty()).then(|| {
+                                    let items = d.items.clone();
+                                    view! {
+                                        <div class="bg-white rounded-lg shadow p-4">
+                                            <h3 class="font-semibold text-gray-700 mb-3">
+                                                "Daftar Item BMN (" {items.len()} ")"
+                                            </h3>
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full text-sm">
+                                                    <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                                                        <tr>
+                                                            <th class="px-3 py-2">"No"</th>
+                                                            <th class="px-3 py-2">"Kode Barang"</th>
+                                                            <th class="px-3 py-2">"Nama Barang"</th>
+                                                            <th class="px-3 py-2">"NUP"</th>
+                                                            <th class="px-3 py-2">"Kondisi"</th>
+                                                            <th class="px-3 py-2 text-right">"Nilai Perolehan"</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y">
+                                                        {items.into_iter().enumerate().map(|(i, it)| view! {
+                                                            <tr>
+                                                                <td class="px-3 py-2">{i + 1}</td>
+                                                                <td class="px-3 py-2 font-mono">{it.kode_barang}</td>
+                                                                <td class="px-3 py-2">{it.nama_barang}</td>
+                                                                <td class="px-3 py-2 font-mono">{it.nup}</td>
+                                                                <td class="px-3 py-2">{it.kondisi.unwrap_or_else(|| "-".to_string())}</td>
+                                                                <td class="px-3 py-2 text-right">
+                                                                    {it.nilai_perolehan.map(|v| format!("Rp {:.0}", v)).unwrap_or_else(|| "-".to_string())}
+                                                                </td>
+                                                            </tr>
+                                                        }).collect_view()}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    }
+                                })}
+
                                 // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
                                 {(status_kode == 4001 || status_kode == 4003 || status_kode == 4004)
                                     .then(|| view! {

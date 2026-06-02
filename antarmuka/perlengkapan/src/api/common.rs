@@ -404,6 +404,11 @@ pub struct CreatePenghapusanBmnWorkflowRequest {
     pub nilai_perolehan: Option<f64>,
     pub lampiran_persyaratan: String,
     pub catatan_operator: Option<String>,
+    /// V036 (Fase 2.8): item BMN tambahan. Item pertama tetap dikirim via
+    /// kolom tunggal di atas (backward compat); `items` memuat seluruh item
+    /// (termasuk yg pertama) bila usulan multi-item.
+    #[serde(default)]
+    pub items: Vec<CreatePenghapusanBmnItemRequest>,
 }
 
 /// Update SK Penghapusan BMN request
@@ -456,6 +461,34 @@ pub struct PenghapusanWorkflowTransitionRequest {
     pub catatan: Option<String>,
 }
 
+/// Satu item BMN dalam usulan multi-item (Fase 2.8).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PenghapusanBmnItem {
+    pub id: String,
+    pub penghapusan_id: String,
+    pub asset_id: Option<String>,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    #[serde(default)]
+    pub nilai_perolehan_dari_backfill: bool,
+    pub kondisi: Option<String>,
+    #[serde(default)]
+    pub urutan: i32,
+}
+
+/// Item input untuk create multi-item (Fase 2.8).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct CreatePenghapusanBmnItemRequest {
+    pub asset_id: Option<String>,
+    pub kode_barang: String,
+    pub nama_barang: String,
+    pub nup: String,
+    pub nilai_perolehan: Option<f64>,
+    pub kondisi: Option<String>,
+}
+
 /// Penghapusan BMN detail response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanBmnDetailResponse {
@@ -464,6 +497,9 @@ pub struct PenghapusanBmnDetailResponse {
     pub allowed_transitions: Vec<PenghapusanTransitionInfo>,
     pub can_generate_sk: bool,
     pub can_upload_signed_sk: bool,
+    /// V036 (Fase 2.8): daftar item BMN dalam usulan.
+    #[serde(default)]
+    pub items: Vec<PenghapusanBmnItem>,
 }
 
 /// Hasil verifikasi aset ke SIMAN (Fase 2.3) — ditampilkan ke validator.

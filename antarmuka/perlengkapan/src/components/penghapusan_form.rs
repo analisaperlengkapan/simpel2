@@ -1,4 +1,7 @@
-use crate::api::{CreatePenghapusanBmnWorkflowRequest, create_penghapusan_bmn_workflow};
+use crate::api::{
+    CreatePenghapusanBmnItemRequest, CreatePenghapusanBmnWorkflowRequest,
+    create_penghapusan_bmn_workflow,
+};
 use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -24,15 +27,48 @@ struct PenghapusanFormData {
     catatan_operator: String,
 }
 
+/// Item BMN tambahan (Fase 2.8) — di luar item utama pada field form.
+#[derive(Clone, Default)]
+struct ExtraItem {
+    kode_barang: String,
+    nama_barang: String,
+    nup: String,
+    nilai_perolehan: String,
+}
+
 #[component]
 pub fn PenghapusanForm() -> impl IntoView {
     let form = use_form(PenghapusanFormData::default());
     let toast = use_toast();
     let navigate = use_navigate();
+    // Fase 2.8: item BMN tambahan (multi-item). Item utama = field form di atas.
+    let extras = RwSignal::new(Vec::<ExtraItem>::new());
 
     let on_submit = move |ev: leptos::web_sys::SubmitEvent| {
         ev.prevent_default();
         let data = form.begin_submit();
+
+        // Rakit daftar item: item utama (field tunggal) + item tambahan valid.
+        let mut items: Vec<CreatePenghapusanBmnItemRequest> = vec![CreatePenghapusanBmnItemRequest {
+            asset_id: if data.asset_id.is_empty() { None } else { Some(data.asset_id.clone()) },
+            kode_barang: data.kode_barang.clone(),
+            nama_barang: data.nama_barang.clone(),
+            nup: data.nup.clone(),
+            nilai_perolehan: data.nilai_perolehan.parse::<f64>().ok(),
+            kondisi: None,
+        }];
+        for e in extras.get_untracked() {
+            if !e.kode_barang.trim().is_empty() && !e.nup.trim().is_empty() {
+                items.push(CreatePenghapusanBmnItemRequest {
+                    asset_id: None,
+                    kode_barang: e.kode_barang,
+                    nama_barang: e.nama_barang,
+                    nup: e.nup,
+                    nilai_perolehan: e.nilai_perolehan.parse::<f64>().ok(),
+                    kondisi: None,
+                });
+            }
+        }
 
         let req = CreatePenghapusanBmnWorkflowRequest {
             satker_id: data.satker_id,
@@ -50,6 +86,7 @@ pub fn PenghapusanForm() -> impl IntoView {
             } else {
                 Some(data.catatan_operator)
             },
+            items,
         };
 
         let navigate = navigate.clone();
@@ -150,6 +187,69 @@ pub fn PenghapusanForm() -> impl IntoView {
                             required
                         />
                     </div>
+                </div>
+
+                // -- Item BMN tambahan (Fase 2.8, multi-item) --
+                <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-sm font-semibold text-gray-700">"Item BMN Tambahan (opsional)"</h4>
+                        <button
+                            type="button"
+                            class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                            on:click=move |_| extras.update(|v| v.push(ExtraItem::default()))
+                        >
+                            "+ Tambah Item"
+                        </button>
+                    </div>
+                    <p class="mb-3 text-xs text-gray-500">
+                        "Item utama diisi di atas. Tambahkan BMN lain bila satu usulan SK mencakup beberapa aset."
+                    </p>
+                    {move || {
+                        let rows = extras.get();
+                        if rows.is_empty() {
+                            view! { <p class="text-xs text-gray-400 italic">"Belum ada item tambahan."</p> }.into_any()
+                        } else {
+                            view! {
+                                <div class="space-y-2">
+                                    {rows.into_iter().enumerate().map(|(i, item)| view! {
+                                        <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                                            <input
+                                                type="text" placeholder="Kode Barang"
+                                                class="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                                                prop:value=item.kode_barang.clone()
+                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.kode_barang = event_target_value(&ev); } })
+                                            />
+                                            <input
+                                                type="text" placeholder="Nama Barang"
+                                                class="md:col-span-4 px-3 py-1.5 border rounded text-sm"
+                                                prop:value=item.nama_barang.clone()
+                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nama_barang = event_target_value(&ev); } })
+                                            />
+                                            <input
+                                                type="text" placeholder="NUP"
+                                                class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                prop:value=item.nup.clone()
+                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nup = event_target_value(&ev); } })
+                                            />
+                                            <input
+                                                type="number" placeholder="Nilai"
+                                                class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                prop:value=item.nilai_perolehan.clone()
+                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nilai_perolehan = event_target_value(&ev); } })
+                                            />
+                                            <button
+                                                type="button"
+                                                class="md:col-span-1 rounded bg-red-100 px-2 py-1.5 text-xs text-red-700 hover:bg-red-200"
+                                                on:click=move |_| extras.update(|v| { if i < v.len() { v.remove(i); } })
+                                            >
+                                                "Hapus"
+                                            </button>
+                                        </div>
+                                    }).collect_view()}
+                                </div>
+                            }.into_any()
+                        }
+                    }}
                 </div>
 
                 // -- Detail Penghapusan --

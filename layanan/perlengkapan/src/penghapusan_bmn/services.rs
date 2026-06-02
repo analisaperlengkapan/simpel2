@@ -383,6 +383,24 @@ impl PenghapusanBmnService {
             )
         })?;
 
+        // V036 (Fase 2.8): sertakan seluruh item BMN ke konteks template agar
+        // SK dapat mencetak N item (tabel). `nama_barang` tunggal tetap ada
+        // untuk kompatibilitas template lama.
+        let items = self.repository.list_items(id).await?;
+        let items_json: Vec<serde_json::Value> = items
+            .iter()
+            .map(|it| {
+                serde_json::json!({
+                    "urutan": it.urutan,
+                    "kode_barang": it.kode_barang,
+                    "nama_barang": it.nama_barang,
+                    "nup": it.nup,
+                    "nilai_perolehan": it.nilai_perolehan,
+                    "kondisi": it.kondisi,
+                })
+            })
+            .collect();
+
         let template_id = std::env::var("KONSEP_SK_TEMPLATE_ID")
             .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000002".to_string());
         let data = serde_json::json!({
@@ -392,6 +410,8 @@ impl PenghapusanBmnService {
             "alasan": penghapusan.alasan,
             "status": penghapusan.status,
             "approval_date": chrono::Utc::now().format("%d %B %Y").to_string(),
+            "items": items_json,
+            "jumlah_item": items.len(),
         });
 
         let storage_root = std::env::var("DOCUMENT_STORAGE_PATH")
