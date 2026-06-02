@@ -59,21 +59,27 @@ pub enum StepStatus {
 }
 
 impl StepStatus {
-    fn dot_class(self) -> &'static str {
-        match self {
-            StepStatus::Done => "bg-green-500 border-green-500",
-            StepStatus::Current => "bg-blue-500 border-blue-500 ring-4 ring-blue-100",
-            StepStatus::Pending => "bg-white border-gray-300",
-            StepStatus::Rejected => "bg-red-500 border-red-500",
+    fn dot_class(self, dark: bool) -> &'static str {
+        match (self, dark) {
+            (StepStatus::Done, _) => "bg-green-500 border-green-500",
+            (StepStatus::Current, false) => "bg-blue-500 border-blue-500 ring-4 ring-blue-100",
+            (StepStatus::Current, true) => "bg-blue-400 border-blue-400 ring-4 ring-blue-500/20",
+            (StepStatus::Pending, false) => "bg-white border-gray-300",
+            (StepStatus::Pending, true) => "bg-surface-panel border-white/20",
+            (StepStatus::Rejected, _) => "bg-red-500 border-red-500",
         }
     }
 
-    fn label_class(self) -> &'static str {
-        match self {
-            StepStatus::Done => "text-gray-900",
-            StepStatus::Current => "text-blue-700 font-semibold",
-            StepStatus::Pending => "text-gray-400",
-            StepStatus::Rejected => "text-red-700 font-semibold",
+    fn label_class(self, dark: bool) -> &'static str {
+        match (self, dark) {
+            (StepStatus::Done, false) => "text-gray-900",
+            (StepStatus::Done, true) => "text-slate-100",
+            (StepStatus::Current, false) => "text-blue-700 font-semibold",
+            (StepStatus::Current, true) => "text-blue-300 font-semibold",
+            (StepStatus::Pending, false) => "text-gray-400",
+            (StepStatus::Pending, true) => "text-slate-500",
+            (StepStatus::Rejected, false) => "text-red-700 font-semibold",
+            (StepStatus::Rejected, true) => "text-red-300 font-semibold",
         }
     }
 }
@@ -118,9 +124,24 @@ impl WorkflowStep {
 }
 
 /// Timeline vertikal tahapan workflow.
+///
+/// `dark=true` menyesuaikan palet netral (teks/garis/catatan) untuk halaman
+/// bertema gelap (design system surface-panel/slate — Kebutuhan BMN, Pakaian
+/// Dinas). Default terang (Pemakaian/Penghapusan).
 #[component]
-pub fn WorkflowTimeline(#[prop(into)] steps: Vec<WorkflowStep>) -> impl IntoView {
+pub fn WorkflowTimeline(
+    #[prop(into)] steps: Vec<WorkflowStep>,
+    #[prop(optional)] dark: bool,
+) -> impl IntoView {
     let last = steps.len().saturating_sub(1);
+    let line_class = if dark { "bg-white/10" } else { "bg-gray-200" };
+    let actor_class = if dark { "text-xs text-slate-400" } else { "text-xs text-gray-500" };
+    let ts_class = if dark { "text-xs text-slate-500" } else { "text-xs text-gray-400" };
+    let note_class = if dark {
+        "mt-1 rounded bg-white/[0.04] px-2 py-1 text-xs italic text-slate-300"
+    } else {
+        "mt-1 rounded bg-gray-50 px-2 py-1 text-xs italic text-gray-600"
+    };
     view! {
         <ol class="relative">
             {steps
@@ -134,34 +155,34 @@ pub fn WorkflowTimeline(#[prop(into)] steps: Vec<WorkflowStep>) -> impl IntoView
                             {(!is_last)
                                 .then(|| {
                                     view! {
-                                        <span class="absolute left-[7px] top-4 -bottom-0 w-px bg-gray-200"></span>
+                                        <span class=format!("absolute left-[7px] top-4 -bottom-0 w-px {}", line_class)></span>
                                     }
                                 })}
                             // Dot
                             <span class=format!(
                                 "relative z-10 mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 {}",
-                                step.status.dot_class(),
+                                step.status.dot_class(dark),
                             )></span>
                             // Body
                             <div class="min-w-0 flex-1">
-                                <p class=format!("text-sm {}", step.status.label_class())>
+                                <p class=format!("text-sm {}", step.status.label_class(dark))>
                                     {step.label}
                                 </p>
                                 {step
                                     .actor
                                     .map(|a| {
-                                        view! { <p class="text-xs text-gray-500">{a}</p> }
+                                        view! { <p class=actor_class>{a}</p> }
                                     })}
                                 {step
                                     .timestamp
                                     .map(|t| {
-                                        view! { <p class="text-xs text-gray-400">{t}</p> }
+                                        view! { <p class=ts_class>{t}</p> }
                                     })}
                                 {step
                                     .note
                                     .map(|n| {
                                         view! {
-                                            <p class="mt-1 rounded bg-gray-50 px-2 py-1 text-xs italic text-gray-600">
+                                            <p class=note_class>
                                                 {n}
                                             </p>
                                         }
