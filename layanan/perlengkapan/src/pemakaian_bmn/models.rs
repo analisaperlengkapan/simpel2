@@ -113,24 +113,15 @@ impl PemakaianBmnStatus {
 
     /// Check if transition to target status is allowed.
     ///
-    /// V035 (Fase 1.5): alur baru = `Draft → Submitted (ValidatorSatker)
-    /// → SubmittedApproverSatker → Approved → Active`. `Submitted/SubmittedApproverSatker
-    /// → RevisiOperator` (catatan wajib). `RevisiOperator → Submitted` (re-submit).
-    ///
-    /// Legacy path `Submitted → Approved` direct masih diizinkan agar record
-    /// `approved_via_legacy_flow` tidak putus di tengah jalan saat ada migrasi
-    /// data. Handler baru tidak boleh memanggil transisi ini.
+    /// Alur: `Draft → Submitted (ValidatorSatker) → SubmittedApproverSatker
+    /// → Approved → Active`. `Submitted/SubmittedApproverSatker → RevisiOperator`
+    /// (catatan wajib). `RevisiOperator → Submitted` (re-submit).
     pub fn can_transition_to(&self, target: Self) -> bool {
         use PemakaianBmnStatus::*;
         match self {
             Draft => matches!(target, Submitted | Cancelled),
-            // Alur baru: ValidatorSatker → ApproverSatker | RevisiOperator.
-            // Alur legacy: Submitted → Approved (direct) tetap valid utk
-            // back-compat; ditolak di layer handler utk record baru.
-            Submitted => matches!(
-                target,
-                SubmittedApproverSatker | RevisiOperator | Approved | Rejected
-            ),
+            // ValidatorSatker → ApproverSatker | RevisiOperator | Rejected.
+            Submitted => matches!(target, SubmittedApproverSatker | RevisiOperator | Rejected),
             SubmittedApproverSatker => matches!(target, Approved | RevisiOperator),
             RevisiOperator => matches!(target, Submitted | Cancelled),
             Approved => matches!(target, Active),
@@ -277,7 +268,6 @@ pub struct IzinPemakaianBmn {
     pub approver_satker_nama: Option<String>,
     pub tanggal_approval_satker: Option<DateTime<Utc>>,
     pub catatan_approver_satker: Option<String>,
-    pub approved_via_legacy_flow: bool,
     pub version: i32,
 
     // Revocation Information

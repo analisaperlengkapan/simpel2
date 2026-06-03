@@ -193,15 +193,11 @@ async fn main() -> anyhow::Result<()> {
     info!("Connecting to database...");
     let db = Database::new(&database_url).await?;
 
-    // Run migrations:
-    // 1. Refinery against the SQL files under `migrations/` (real schema).
-    // 2. Legacy hand-coded `CREATE TABLE` statements in
-    //    `Database::migrate` — kept for now until every table they create
-    //    has a corresponding refinery migration.
+    // Run refinery migrations against the SQL files under `migrations/`.
+    // Refinery is the single source of schema truth (legacy hand-coded
+    // CREATE TABLE bootstrap removed).
     info!("Running refinery migrations...");
     layanan_perlengkapan::migrations::run(db.pool()).await?;
-    info!("Running legacy bootstrap tables (Database::migrate)...");
-    db.migrate().await?;
 
     // Add essential indexes for performance optimization
     info!("Adding essential database indexes...");

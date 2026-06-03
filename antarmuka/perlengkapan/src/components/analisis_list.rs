@@ -32,7 +32,7 @@ pub fn AnalisisList() -> impl IntoView {
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-xl font-bold text-gray-800">"Analisis Kebutuhan"</h2>
                 <a
-                    href=routes::path::ANALISIS_BUAT_LEGACY
+                    href=routes::path::ANALITIK_ROADMAP_BUAT
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
                 >
                     <span class="mr-2"><AppIcon icon=PLUS /></span>
