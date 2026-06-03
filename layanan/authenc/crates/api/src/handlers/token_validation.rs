@@ -342,11 +342,14 @@ fn require_admin(
             message: "Admin revocation requires a bearer token".to_string(),
         }
     })?;
-    let claims = state.jwt_service.verify_token(&token).map_err(|_| ErrorResponse {
-        status_code: axum::http::StatusCode::UNAUTHORIZED,
-        error: "unauthorized".to_string(),
-        message: "Invalid or expired token".to_string(),
-    })?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|_| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: "Invalid or expired token".to_string(),
+        })?;
 
     let is_admin = claims
         .custom

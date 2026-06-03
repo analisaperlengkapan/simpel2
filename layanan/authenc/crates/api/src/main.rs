@@ -175,7 +175,10 @@ fn load_grpc_tls() -> Option<authenc_grpc::TlsConfig> {
             Some(cfg)
         }
         Err(e) => {
-            warn!("Failed to load gRPC TLS material from configured paths: {}", e);
+            warn!(
+                "Failed to load gRPC TLS material from configured paths: {}",
+                e
+            );
             None
         }
     }

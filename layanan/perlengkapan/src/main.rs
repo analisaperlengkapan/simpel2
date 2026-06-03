@@ -175,10 +175,8 @@ async fn main() -> anyhow::Result<()> {
     let is_production_db = app_env_for_db.eq_ignore_ascii_case("production");
     let mut db_lease: Option<layanan_perlengkapan::shared::grpc::clients::DynamicDbCredentials> =
         None;
-    if let (Some(client), Ok(role)) = (
-        secreton_client.as_ref(),
-        std::env::var("SECRETON_DB_ROLE"),
-    ) {
+    if let (Some(client), Ok(role)) = (secreton_client.as_ref(), std::env::var("SECRETON_DB_ROLE"))
+    {
         let ttl = std::env::var("SECRETON_DB_TTL_SECONDS")
             .ok()
             .and_then(|v| v.parse::<u32>().ok());

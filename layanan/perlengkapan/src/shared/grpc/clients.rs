@@ -104,7 +104,11 @@ impl SecretonClient {
     /// Renew a lease (e.g. the dynamic DB credentials lease) so the underlying
     /// Postgres role stays valid and the existing pool keeps working without a
     /// credential change. `increment` requests a new TTL in seconds.
-    pub async fn renew_lease(&self, lease_id: &str, increment: Option<i64>) -> Result<LeaseRenewal> {
+    pub async fn renew_lease(
+        &self,
+        lease_id: &str,
+        increment: Option<i64>,
+    ) -> Result<LeaseRenewal> {
         let mut client = self.client.clone();
         let request = tonic::Request::new(RenewLeaseRequest {
             lease_id: lease_id.to_string(),
