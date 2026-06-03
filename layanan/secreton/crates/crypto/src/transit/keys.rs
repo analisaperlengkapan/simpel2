@@ -463,11 +463,11 @@ impl TransitKey {
         }
 
         if let Some(alg) = algorithm {
-            let matches = match (&key_version.material, &alg) {
-                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
-                (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
-                _ => false,
-            };
+            let matches = matches!(
+                (&key_version.material, &alg),
+                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256)
+                    | (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519)
+            );
             if !matches {
                 return Err(CryptoError::InvalidAlgorithm(format!(
                     "Algorithm {:?} is not compatible with key type",
@@ -530,11 +530,11 @@ impl TransitKey {
             .ok_or(CryptoError::KeyVersionNotFound(version))?;
 
         if let Some(alg) = algorithm {
-            let matches = match (&key_version.material, &alg) {
-                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256) => true,
-                (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519) => true,
-                _ => false,
-            };
+            let matches = matches!(
+                (&key_version.material, &alg),
+                (KeyMaterial::EcdsaP256(_), SignatureAlgorithm::EcdsaP256)
+                    | (KeyMaterial::Ed25519(_), SignatureAlgorithm::Ed25519)
+            );
             if !matches {
                 return Err(CryptoError::InvalidAlgorithm(format!(
                     "Algorithm {:?} is not compatible with key type",
