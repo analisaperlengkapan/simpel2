@@ -20,11 +20,17 @@ controllerServiceAccount:
   namespace: arc-systems
   name: arc-gha-rs-controller
 
-# Nama scale set = LABEL yang dipakai di `runs-on:`.
-# Hindari nama reserved (self-hosted, ubuntu-latest, dst). Setelah ARC
-# tervalidasi, ubah `runs-on: self-hosted` → `runs-on: arc-simpel` di semua
-# workflow (cutover), lalu dekomisi runner self-hosted lama.
+# Nama scale set = LABEL utama yang dipakai di `runs-on:`.
+# Hindari nama reserved (self-hosted, ubuntu-latest, dst).
 runnerScaleSetName: arc-simpel
+
+# Label TAMBAHAN untuk scale set (ARC >=0.12). `runs-on:` yang cocok salah satu
+# label di sini juga dirutekan ke scale set ini. Diperlukan agar job Dependabot
+# (self-hosted) & dependency-submission tetap punya runner — label ini sebelumnya
+# ada di runner statis lama (simpel02.N).
+scaleSetLabels:
+  - dependabot
+  - dependency-submission
 
 # Skala — dimaksimalkan untuk host runner `simple02` (48 vCPU / 62 GiB; bebas
 # ~37 vCPU / ~53 GiB setelah beban staging+sistem).
