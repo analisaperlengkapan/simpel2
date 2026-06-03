@@ -1,0 +1,26 @@
+# Values untuk Actions Runner Controller (ARC) — gha-runner-scale-set-controller.
+#
+# Chart upstream (OCI, TIDAK divendor di repo ini):
+#   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller
+#
+# Install (lihat install.sh / README.md):
+#   helm upgrade --install arc \
+#     oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set-controller \
+#     --namespace arc-systems --create-namespace -f values-controller.yaml
+#
+# Controller ringan (1 replica cukup untuk satu cluster kecil 2-node).
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# Log level: info (gunakan "debug" hanya saat troubleshooting).
+flags:
+  logLevel: info
+  logFormat: text
