@@ -441,7 +441,7 @@ jobs:
           set -euo pipefail
           if command -v taplo &>/dev/null; then exit 0; fi
           mkdir -p "$HOME/.local/bin"
-          curl -fsSL "https://github.com/tamasfe/taplo/releases/latest/download/taplo-full-linux-x86_64.gz" \
+          curl -fsSL "https://github.com/tamasfe/taplo/releases/download/0.10.0/taplo-linux-x86_64.gz" \
             | gunzip - > "$HOME/.local/bin/taplo"
           chmod +x "$HOME/.local/bin/taplo"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"

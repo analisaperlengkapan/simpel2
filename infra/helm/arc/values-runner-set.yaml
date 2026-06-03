@@ -4,63 +4,47 @@
 #   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
 #
 # Tiap job CI dapat POD baru → workspace, dockerd (dind), buildx semuanya
-# di dalam pod & dibuang saat job selesai. Ini menghapus akar masalah
-# "buildx /var leak" di runner self-hosted lama secara struktural.
+# di dalam pod & dibuang saat job selesai. Menghapus akar "buildx /var leak"
+# runner statis lama secara struktural.
 
-# Repo target. Untuk level org, ganti ke URL org.
 githubConfigUrl: "https://github.com/analisaperlengkapan/simpel2"
 
-# Secret berisi PAT GitHub (key: github_token). Dibuat MANUAL/oleh install.sh —
-# JANGAN pernah commit nilai PAT ke repo. Lihat README.md.
+# Secret berisi PAT GitHub (key: github_token). Dibuat oleh install.sh — JANGAN
+# commit nilai PAT. Lihat README.md.
 githubConfigSecret: arc-github-token
 
-# Eksplisit menunjuk ServiceAccount controller (release `arc` di ns `arc-systems`)
-# agar tak bergantung pada auto-discovery (lebih robust & bisa di-`helm template`).
+# Eksplisit menunjuk ServiceAccount controller (release `arc` di ns `arc-systems`).
 controllerServiceAccount:
   namespace: arc-systems
   name: arc-gha-rs-controller
 
-# Nama scale set = LABEL utama yang dipakai di `runs-on:`.
-# Hindari nama reserved (self-hosted, ubuntu-latest, dst).
+# Nama scale set = LABEL utama di `runs-on:`. Hindari nama reserved.
 runnerScaleSetName: arc-simpel
 
-# Label TAMBAHAN untuk scale set (ARC >=0.12). `runs-on:` yang cocok salah satu
-# label di sini juga dirutekan ke scale set ini. Diperlukan agar job Dependabot
-# (self-hosted) & dependency-submission tetap punya runner — label ini sebelumnya
-# ada di runner statis lama (simpel02.N).
+# Label tambahan (ARC >=0.12): runs-on yang cocok salah satu label ini juga
+# dirutekan ke scale set ini (job Dependabot self-hosted & dependency-submission).
+# CATATAN: menambah/ubah label butuh RECREATE scale set (helm uninstall+install),
+# bukan helm upgrade — ARC daftarkan label ke GitHub hanya saat scale set dibuat.
 scaleSetLabels:
   - dependabot
   - dependency-submission
 
-# Skala — dimaksimalkan untuk host runner `simple02` (48 vCPU / 62 GiB; bebas
-# ~37 vCPU / ~53 GiB setelah beban staging+sistem).
-#
-# Kendala pengikat = MEMORI, bukan CPU: tiap job = dind + cargo (build Rust +
-# layer docker bisa puncak ~6-10 GiB). CPU boleh overcommit; RAM tidak (lewat →
-# OOM). Hitungan: 12 × request mem 3Gi = 36Gi (+8.8Gi terpakai) ≈ 45Gi < 62Gi,
-# sisakan headroom. CPU: 12 × req 1 = 12 (+10.6) ≈ 23 dari 48.
-#
-# `maxRunners` = CEILING, bukan reservasi: scheduler hanya menempatkan pod yang
-# muat by-requests; sisanya Pending (aman, antre).
-#
-# Disetel dari DATA RIIL (8 runner aktif jalankan CI): host pakai hanya 16 GiB,
-# 45 GiB available, node memory aktual 42%; tiap runner cuma ~0.2-0.3 GiB untuk
-# job test. Pengikat = memory REQUESTS, bukan RAM fisik. Maka request diturunkan
-# 3Gi→2Gi dan ceiling dinaikkan: 16 × 2Gi = 32Gi + baseline ~21Gi = ~53Gi (81%),
-# masih ada headroom; job berat tetap dibatasi limit 10Gi (proteksi OOM).
+# Skala — dimaksimalkan utk host simple02 (48 vCPU/62 GiB). Pengikat = memory
+# requests; pemakaian aktual job test ~0.2-0.3 GiB. 16 × req 2Gi = 32Gi (+baseline)
+# masih aman; job berat dibatasi limit 10Gi. maxRunners = ceiling (sisa antre).
 minRunners: 0
 maxRunners: 16
 
-# Docker-in-Docker: kompatibel dengan `docker buildx` di workflow saat ini.
-# Mode ini menambah sidecar dind (privileged) secara otomatis oleh chart.
-containerMode:
-  type: dind
-
+# ── Pod template MANUAL untuk dind (BUKAN containerMode shorthand) ──
+# Manual diperlukan agar bisa:
+#   1) pakai custom runner image dgn build toolchain (gcc/protoc/openssl/cmake/
+#      clang) — image actions-runner resmi minimal → `linker cc not found`.
+#   2) set registry-mirror dind ke mirror.gcr.io → hindari Docker Hub 429
+#      (pod ephemeral tanpa cache image, 16 paralel menembus rate limit anonim).
+# Basis spec: dokumentasi gha-runner-scale-set (containerMode dind) + 2 perubahan
+# di atas. JANGAN set `containerMode` saat memakai template manual.
 template:
   spec:
-    # Jadwalkan runner di node worker build (host runner lama = simple02).
-    # Bila node di-taint khusus CI, toleransi di bawah dipakai; bila tidak,
-    # hapus blok tolerations. Lihat README untuk opsi isolasi node.
     nodeSelector:
       kubernetes.io/hostname: simple02
     tolerations:
@@ -68,17 +52,25 @@ template:
         operator: Equal
         value: ci
         effect: NoSchedule
+    initContainers:
+      - name: init-dind-externals
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
+        command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
+        volumeMounts:
+          - name: dind-externals
+            mountPath: /home/runner/tmpDir
     containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
         command: ["/home/runner/run.sh"]
-        # Container runner sendiri tak butuh privilege escalation (hanya sidecar
-        # dind yang privileged, dikelola chart). Eksplisit non-escalation untuk
-        # postur keamanan (memenuhi semgrep k8s allow-privilege-escalation).
         securityContext:
           allowPrivilegeEscalation: false
         env:
-          # Selaras dengan CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
+          - name: DOCKER_HOST
+            value: unix:///var/run/docker.sock
+          - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
+            value: "120"
+          # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
           - name: CARGO_BUILD_JOBS
             value: "4"
         resources:
@@ -88,11 +80,46 @@ template:
           limits:
             cpu: "6"
             memory: 10Gi
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: dind-sock
+            mountPath: /var/run
+      - name: dind
+        image: docker:dind
+        args:
+          - dockerd
+          - --host=unix:///var/run/docker.sock
+          - --group=$(DOCKER_GROUP_GID)
+          # Pull-through cache Docker Hub (tanpa kredensial) → hindari 429.
+          - --registry-mirror=https://mirror.gcr.io
+        env:
+          - name: DOCKER_GROUP_GID
+            value: "123"
+        securityContext:
+          privileged: true
+        restartPolicy: Always
+        startupProbe:
+          exec:
+            command: ["docker", "info"]
+          initialDelaySeconds: 0
+          failureThreshold: 24
+          periodSeconds: 5
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: dind-sock
+            mountPath: /var/run
+          - name: dind-externals
+            mountPath: /home/runner/externals
+    volumes:
+      - name: work
+        emptyDir: {}
+      - name: dind-sock
+        emptyDir: {}
+      - name: dind-externals
+        emptyDir: {}
 
-# ── Cache build (OPSIONAL, sangat disarankan agar build Rust tak start dingin) ──
-# Runner ephemeral kehilangan ~/.cargo & target/ tiap job. Pilihan:
-#   (a) buildx registry cache  : `--cache-to/from type=registry,ref=...` di workflow
-#                                (paling robust untuk image Docker; tak butuh PVC).
-#   (b) sccache + backend       : cache objek kompilasi Rust lintas job.
-#   (c) PVC RWX (longhorn)      : mount ~/.cargo (butuh RWX; RWO tak bisa paralel).
-# Default: tanpa volume cache di sini — aktifkan setelah ARC stabil sesuai pilihan.
+# ── Cache build (OPSIONAL) ── runner ephemeral kehilangan ~/.cargo & target/
+# tiap job. Opsi: buildx registry cache, sccache, atau PVC RWX (longhorn).
+# Aktifkan setelah ARC stabil.
