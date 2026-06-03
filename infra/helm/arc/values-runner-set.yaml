@@ -35,11 +35,15 @@ runnerScaleSetName: arc-simpel
 # sisakan headroom. CPU: 12 × req 1 = 12 (+10.6) ≈ 23 dari 48.
 #
 # `maxRunners` = CEILING, bukan reservasi: scheduler hanya menempatkan pod yang
-# muat by-requests; sisanya Pending (aman, antre). 12 = throughput maksimal yang
-# realistis untuk 62 GiB dgn dind. Naik ke 16 = soft-ceiling (sebagian antre) &
-# perlu naikkan limit FD/PID host (ingat: 9 runner statis lama → FD exhaustion).
+# muat by-requests; sisanya Pending (aman, antre).
+#
+# Disetel dari DATA RIIL (8 runner aktif jalankan CI): host pakai hanya 16 GiB,
+# 45 GiB available, node memory aktual 42%; tiap runner cuma ~0.2-0.3 GiB untuk
+# job test. Pengikat = memory REQUESTS, bukan RAM fisik. Maka request diturunkan
+# 3Gi→2Gi dan ceiling dinaikkan: 16 × 2Gi = 32Gi + baseline ~21Gi = ~53Gi (81%),
+# masih ada headroom; job berat tetap dibatasi limit 10Gi (proteksi OOM).
 minRunners: 0
-maxRunners: 12
+maxRunners: 16
 
 # Docker-in-Docker: kompatibel dengan `docker buildx` di workflow saat ini.
 # Mode ini menambah sidecar dind (privileged) secara otomatis oleh chart.
@@ -74,7 +78,7 @@ template:
         resources:
           requests:
             cpu: "1"
-            memory: 3Gi
+            memory: 2Gi
           limits:
             cpu: "6"
             memory: 10Gi
