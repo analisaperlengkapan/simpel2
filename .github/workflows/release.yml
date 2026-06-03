@@ -30,7 +30,7 @@ env:
 jobs:
   validate:
     name: Validate & Generate Changelog
-    runs-on: self-hosted
+    runs-on: arc-simpel
     outputs:
       version: ${{ steps.version.outputs.version }}
       previous-tag: ${{ steps.previous.outputs.tag }}
@@ -113,7 +113,7 @@ jobs:
   build-backend:
     name: Build Backend Binaries
     needs: validate
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
         with:
@@ -156,7 +156,7 @@ jobs:
   build-frontend:
     name: Build Microfrontends
     needs: validate
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
         with:
@@ -223,7 +223,7 @@ jobs:
   build-docker:
     name: Build & Sign Image (${{ matrix.image.name }})
     needs: validate
-    runs-on: self-hosted
+    runs-on: arc-simpel
     permissions:
       contents: read
       packages: write
@@ -396,7 +396,7 @@ jobs:
     name: Runner cache trim
     needs: [build-docker]
     if: always()
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - name: Trim BuildKit cache & dangling Docker images
         shell: bash
@@ -447,7 +447,7 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: [validate, build-backend, build-frontend, build-docker]
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
         with:

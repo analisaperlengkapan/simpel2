@@ -32,7 +32,7 @@ jobs:
   # ─────────────────────────────────────────────────────
   detect:
     name: Detect Changes
-    runs-on: self-hosted
+    runs-on: arc-simpel
     outputs:
       rust-backend: ${{ steps.changes.outputs.rust-backend }}
       rust-frontend: ${{ steps.changes.outputs.rust-frontend }}
@@ -113,7 +113,7 @@ jobs:
   # ─────────────────────────────────────────────────────
   enforce-structure:
     name: Enforce Structure
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Validate repo structure
@@ -202,7 +202,7 @@ jobs:
     name: Enforce Cargo Versioning
     needs: detect
     if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Validate Cargo versioning
@@ -216,7 +216,7 @@ jobs:
     name: Lint Rust (workspace)
     needs: detect
     if: needs.detect.outputs.rust-any == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -234,7 +234,7 @@ jobs:
     name: Lint PHP (Pint + Larastan)
     needs: detect
     if: needs.detect.outputs.monolith-php == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       # shivammathur/setup-php@v2 butuh sudo NOPASSWD untuk install PHP +
@@ -286,7 +286,7 @@ jobs:
     name: Lint Blade Templates
     needs: detect
     if: needs.detect.outputs.monolith-blade == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node
@@ -300,7 +300,7 @@ jobs:
     name: Lint Dockerfile
     needs: detect
     if: needs.detect.outputs.docker == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Hadolint
@@ -314,7 +314,7 @@ jobs:
     name: Lint YAML & Actions
     needs: detect
     if: needs.detect.outputs.yaml == 'true' || needs.detect.outputs.workflows == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       # Self-hosted runner tidak punya pipx / yamllint / actionlint pre-
@@ -357,7 +357,7 @@ jobs:
     name: Lint Markdown
     needs: detect
     if: needs.detect.outputs.markdown == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: markdownlint
@@ -419,7 +419,7 @@ jobs:
     name: Lint Shell Scripts
     needs: detect
     if: needs.detect.outputs.shell == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: shellcheck
@@ -432,7 +432,7 @@ jobs:
     name: Lint TOML
     needs: detect
     if: needs.detect.outputs.toml == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Install taplo
@@ -456,7 +456,7 @@ jobs:
     name: Build Portal Microfrontend
     needs: [detect, lint-rust]
     if: needs.detect.outputs.rust-frontend == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -484,7 +484,7 @@ jobs:
     name: Build Perlengkapan Microfrontend
     needs: [detect, lint-rust]
     if: needs.detect.outputs.rust-frontend == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -512,7 +512,7 @@ jobs:
     name: Build Backend (${{ matrix.name }})
     needs: [detect, lint-rust]
     if: needs.detect.outputs.rust-backend == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     strategy:
       fail-fast: false
       matrix:
@@ -545,7 +545,7 @@ jobs:
     name: Build Monolith Assets (Vite)
     needs: detect
     if: needs.detect.outputs.monolith-assets == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node
@@ -559,7 +559,7 @@ jobs:
     name: Build Docker (${{ matrix.image }})
     needs: detect
     if: needs.detect.outputs.docker-has-images == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     permissions:
       contents: read
       actions: read
@@ -587,7 +587,7 @@ jobs:
   test-lib-core:
     name: Test Rust (lib-core)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -609,7 +609,7 @@ jobs:
   test-lib-backend:
     name: Test Rust (lib-backend)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -631,7 +631,7 @@ jobs:
   test-lib-crypto:
     name: Test Rust (lib-crypto)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -653,7 +653,7 @@ jobs:
   test-lib-perlengkapan:
     name: Test Rust (lib-perlengkapan)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -675,7 +675,7 @@ jobs:
   test-lib-ui:
     name: Test Rust (lib-ui)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -714,7 +714,7 @@ jobs:
   test-antarmuka-portal:
     name: Test Rust (antarmuka-portal)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -740,7 +740,7 @@ jobs:
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -763,7 +763,7 @@ jobs:
   test-services:
     name: Test Rust (${{ matrix.tier }})
     needs: detect
-    runs-on: self-hosted
+    runs-on: arc-simpel
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -821,7 +821,7 @@ jobs:
     # Always skip via false condition. Re-enable saat migrations
     # tersedia (lihat NOTE di atas).
     if: false && needs.detect.outputs.monolith-any == 'true'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       # Sama seperti lint-php — pakai serversideup/php image (PHP 8.2 +
@@ -893,7 +893,7 @@ jobs:
       needs.build-antarmuka-portal.result == 'success' &&
       needs.build-antarmuka-perlengkapan.result == 'success' &&
       needs.build-backend.result == 'success'
-    runs-on: self-hosted
+    runs-on: arc-simpel
     strategy:
       fail-fast: false
       matrix:
@@ -975,7 +975,7 @@ jobs:
       - test-services
       - test-monolith
       - e2e-playwright
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - name: Aggregate results
         shell: bash
@@ -1041,7 +1041,7 @@ jobs:
       - test-services
       - test-monolith
       - e2e-playwright
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - name: Trim CI artifacts from this runner
         shell: bash
