@@ -45,6 +45,10 @@ maxRunners: 16
 # di atas. JANGAN set `containerMode` saat memakai template manual.
 template:
   spec:
+    # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
+    # ns arc-runners dari simpelv2-staging (PAT read:packages).
+    imagePullSecrets:
+      - name: ghcr-pull
     nodeSelector:
       kubernetes.io/hostname: simple02
     tolerations:
