@@ -212,7 +212,7 @@ This task list implements the complete SIMPEL system based on the approved requi
   - [x] 7.6.3 Implement 3-level hierarchical approval (Kejari→Kejati→Kejagung)
   - [x] 7.6.4 Implement revision workflow
   - [x] 7.6.5 Implement report generation (Laporan Daftar, Laporan Rekap)
-  - [~] 7.6.6 Implement frontend UI for pakaian dinas (4h)
+  - [ ] 7.6.6 Implement frontend UI for pakaian dinas (4h)
   - _Evidence: 25+ API endpoints, complete backend in handlers.rs_
 
 ### 8. Pemakaian BMN Module
