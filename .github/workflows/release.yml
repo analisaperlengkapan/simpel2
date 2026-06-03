@@ -414,6 +414,27 @@ jobs:
           # touch tagged images or images currently used by containers.
           docker image prune --force --filter "until=168h"
 
+          # Stop and remove leaked Buildx builders + buildkit containers older than 4 hours (14400s).
+          # Keeps active sibling matrix jobs' builders intact while reclaiming stale ones.
+          if command -v docker &>/dev/null; then
+            echo "=== Checking for leaked Buildx builders (>4h) ==="
+            NOW=$(date +%s)
+            docker ps -a --filter "name=buildx_buildkit" \
+              --format '{{.Names}}|{{.CreatedAt}}' | while IFS='|' read -r cname created; do
+              ts=$(date -d "${created% UTC}" +%s 2>/dev/null) || continue
+              [ -z "$ts" ] && continue
+              if [ $((NOW - ts)) -gt 14400 ]; then
+                builder="${cname#buildx_buildkit_}"; builder="${builder%0}"
+                echo "Reaping leaked builder=$builder (container=$cname)"
+                docker buildx rm -f "$builder" 2>/dev/null || docker rm -f -v "$cname" 2>/dev/null
+              fi
+            done
+            # Drop dangling builder registry entries whose container is gone.
+            for b in $(docker buildx ls --format '{{.Name}}' 2>/dev/null | grep '^buildx-'); do
+              docker inspect "buildx_buildkit_${b}0" >/dev/null 2>&1 || docker buildx rm -f "$b" 2>/dev/null
+            done
+          fi
+
           # Catch buildkit volumes whose container was reaped without the
           # post-job hook completing (cancelled job, runner crash). The
           # `--filter dangling=true` keeps us from yanking a volume that a
