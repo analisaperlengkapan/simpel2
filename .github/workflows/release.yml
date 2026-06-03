@@ -104,7 +104,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload changelog artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: changelog
           path: CHANGELOG_RELEASE.md
@@ -145,7 +145,7 @@ jobs:
             sha256sum "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" > "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz.sha256"
           fi
       - name: Upload backend artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: backend-artifacts
           path: |
@@ -212,7 +212,7 @@ jobs:
           sha256sum "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" \
             > "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz.sha256"
       - name: Upload frontend artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: frontend-artifacts
           path: |
@@ -370,7 +370,7 @@ jobs:
           echo "digest-${{ matrix.image.name }}=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM + digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ matrix.image.name }}
           path: |
