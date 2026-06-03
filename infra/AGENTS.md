@@ -92,6 +92,34 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
 - `simpel-tls` di `istio-system` — Istio gateway baca dari k8s Secret.
 - Bootstrap unseal keys → **TIDAK** disimpan di k8s; offline-only (password manager / KMS terpisah).
 
+### Rotasi Secret Runtime (F2H 2H-B)
+
+Tujuan: kredensial berputar **tanpa** secret statik berumur panjang, dan rotasi
+tidak mematikan layanan.
+
+- **Rust services (perlengkapan dulu, pola sama utk lainnya) — dynamic DB
+  credentials (Vault-style lease).** Set env `SECRETON_DB_ROLE=<role>` (opsional
+  `SECRETON_DB_TTL_SECONDS`) → saat start service memanggil
+  `GenerateDatabaseCredentials` → bangun pool dari DSN dinamis. Background task
+  memperpanjang lease (`RenewLease`) di **½ TTL**; perpanjangan menjaga role
+  Postgres yang sama tetap valid sehingga pool jalan terus **tanpa swap** (tiap
+  service memegang clone `Pool`, jadi hot-swap in-process = rewrite besar — sengaja
+  dihindari). Di **batas rotasi keras** (max renewals tercapai / renew gagal)
+  proses **exit** → Kubernetes restart pod → `main` ambil kredensial baru.
+  **Prasyarat F6 (secreton-side):** `ConfigureDatabaseConnection` + `CreateDatabaseRole`
+  untuk role tsb, lalu set `SECRETON_DB_ROLE` di `values.yaml` (`<svc>.env`).
+  Tanpa `SECRETON_DB_ROLE` → tetap pakai `DATABASE_URL` statik (perilaku lama).
+- **simpelv1 (PHP-FPM, env tak hot-reload).** Dua lapis: (1) kredensial yang
+  di-fetch runtime via gateway/sidecar tetap on-demand; (2) secret boot (APP_KEY,
+  DB via init container `fetch-secrets.sh`) → **rolling-restart-on-rotation** dgn
+  **Stakater Reloader**. **Prasyarat F6:** install controller Reloader, lalu
+  anotasi Deployment simpelv1 `secret.reloader.stakater.com/reload: "simpelv1-secrets"`
+  agar pod restart otomatis saat k8s Secret `simpelv1-secrets` berubah.
+- **⚠️ Asimetri APP_KEY (simpelv1).** Rotasi `APP_KEY` Laravel **membatalkan
+  sesi Redis terenkripsi** (semua user ter-logout) — beda dgn DB/SMTP yang rotasi-nya
+  transparan. Jadwalkan saat maintenance, atau pakai strategi dua-kunci
+  (`APP_PREVIOUS_KEYS`) bila perlu zero-logout.
+
 ## 🔒 TLS Certificate (DigiCert)
 
 - **Source**: Sertifikat DigiCert untuk `simpel.kejaksaan.go.id` disimpan di luar repo (private, oleh tim SecOps).

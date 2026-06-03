@@ -31,8 +31,8 @@ pub mod integrasi {
     }
 }
 
-use secreton::v1::GetSecretRequest;
 use secreton::v1::secreton_service_client::SecretonServiceClient;
+use secreton::v1::{GenerateDatabaseCredentialsRequest, GetSecretRequest, RenewLeaseRequest};
 
 use authenc::v1::ValidateTokenRequest;
 use authenc::v1::authenc_service_client::AuthencServiceClient;
@@ -65,6 +65,82 @@ impl SecretonClient {
         let response = client.get_secret(request).await?;
         Ok(response.into_inner().data)
     }
+
+    /// Generate short-lived dynamic database credentials for `role_name` from
+    /// Secreton's database secrets engine (Vault-style lease). The returned
+    /// `connection_url` is used to build the pool; the `lease_id` must be kept
+    /// alive via [`Self::renew_lease`] (see the renewal task in `main.rs`).
+    pub async fn generate_database_credentials(
+        &self,
+        role_name: &str,
+        ttl_seconds: Option<u32>,
+    ) -> Result<DynamicDbCredentials> {
+        let mut client = self.client.clone();
+        let request = tonic::Request::new(GenerateDatabaseCredentialsRequest {
+            role_name: role_name.to_string(),
+            ttl_seconds,
+        });
+
+        let resp = client
+            .generate_database_credentials(request)
+            .await?
+            .into_inner();
+
+        let creds = resp
+            .credentials
+            .ok_or_else(|| anyhow::anyhow!("Secreton returned no database credentials"))?;
+        let connection_url = creds.connection_url.ok_or_else(|| {
+            anyhow::anyhow!("Secreton database credentials missing connection_url")
+        })?;
+
+        Ok(DynamicDbCredentials {
+            connection_url,
+            lease_id: resp.lease_id,
+            lease_duration: resp.lease_duration,
+            renewable: resp.renewable,
+        })
+    }
+
+    /// Renew a lease (e.g. the dynamic DB credentials lease) so the underlying
+    /// Postgres role stays valid and the existing pool keeps working without a
+    /// credential change. `increment` requests a new TTL in seconds.
+    pub async fn renew_lease(&self, lease_id: &str, increment: Option<i64>) -> Result<LeaseRenewal> {
+        let mut client = self.client.clone();
+        let request = tonic::Request::new(RenewLeaseRequest {
+            lease_id: lease_id.to_string(),
+            increment,
+        });
+
+        let resp = client.renew_lease(request).await?.into_inner();
+        Ok(LeaseRenewal {
+            lease_duration: resp.lease_duration,
+            renewable: resp.renewable,
+            renew_count: resp.renew_count,
+            max_renewals: resp.max_renewals,
+        })
+    }
+}
+
+/// Dynamic database credentials issued by Secreton with an attached lease.
+#[derive(Clone, Debug)]
+pub struct DynamicDbCredentials {
+    /// Full DSN to build the connection pool from.
+    pub connection_url: String,
+    /// Lease handle for renewal/revocation.
+    pub lease_id: String,
+    /// Lease validity in seconds.
+    pub lease_duration: i64,
+    /// Whether the lease can be renewed (vs. requiring re-issue/restart).
+    pub renewable: bool,
+}
+
+/// Result of a [`SecretonClient::renew_lease`] call.
+#[derive(Clone, Debug)]
+pub struct LeaseRenewal {
+    pub lease_duration: i64,
+    pub renewable: bool,
+    pub renew_count: u32,
+    pub max_renewals: Option<u32>,
 }
 
 #[derive(Clone)]
