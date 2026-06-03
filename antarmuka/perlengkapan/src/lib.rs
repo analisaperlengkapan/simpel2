@@ -54,7 +54,6 @@ use pages::workflow::monitoring::WorkflowMonitoring;
 use components::admin_users::{AdminRolesPage, AdminUsersPage};
 use components::analisis_form::AnalisisForm;
 use components::analisis_list::AnalisisList;
-use components::aset_list::AsetList;
 use components::faq::FaqPage;
 use components::helpdesk::HelpdeskPage;
 use components::kebutuhan_bmn_detail::KebutuhanBmnDetail;
@@ -73,7 +72,6 @@ use components::pemakaian_bmn_form::PemakaianBmnForm;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
 use components::pemakaian_bmn_renew::PemakaianBmnRenew;
 use components::penghapusan_form::PenghapusanForm;
-use components::qrcode_generator::QrCodeGenerator;
 
 // ── Version ──────────────────────────────────────────────────────────────
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -291,9 +289,7 @@ pub fn App() -> impl IntoView {
 
                                 // ── Analitik ─────────────────────────
                                 <Route path=path!("/analitik/roadmap") view=AnalisisList />
-                                <Route path=path!("/analisis/daftar") view=AnalisisList />
                                 <Route path=path!("/analitik/roadmap/buat") view=AnalisisForm />
-                                <Route path=path!("/analisis/baru") view=AnalisisForm />
                                 <Route path=path!("/analitik/kodefikasi") view=MappingKodefikasiDashboard />
 
                                 // ── Notifikasi ───────────────────────

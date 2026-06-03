@@ -10,15 +10,6 @@ pub trait PerlengkapanRepository: Send + Sync {
     // Dashboard
     async fn get_dashboard_stats(&self) -> AppResult<DashboardStats>;
 
-    // Asset (Read-Only from Integrasi/SIMAN)
-    async fn get_all_assets(
-        &self,
-        page: i32,
-        per_page: i32,
-        category: Option<String>,
-    ) -> AppResult<(Vec<Asset>, i64)>;
-    async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset>;
-
     // Analisis (Local)
     async fn get_all_analisis(
         &self,
@@ -31,29 +22,6 @@ pub trait PerlengkapanRepository: Send + Sync {
         request: CreateAnalisisRequest,
         user_id: Option<Uuid>,
     ) -> AppResult<AnalisisKebutuhan>;
-
-    // Pemakaian (Local)
-    async fn get_all_pemakaian(&self, page: i32, per_page: i32)
-    -> AppResult<(Vec<Pemakaian>, i64)>;
-    async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian>;
-    async fn create_pemakaian(
-        &self,
-        request: CreatePemakaianRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Pemakaian>;
-
-    // Penghapusan (Local)
-    async fn get_all_penghapusan(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Penghapusan>, i64)>;
-    async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan>;
-    async fn create_penghapusan(
-        &self,
-        request: CreatePenghapusanRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Penghapusan>;
 
     // Export (Local)
     async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid>;

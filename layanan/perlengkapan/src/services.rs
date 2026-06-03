@@ -24,21 +24,6 @@ impl PerlengkapanService {
         self.repo.get_dashboard_stats().await
     }
 
-    // ============ Asset Services (Read-Only) ============
-
-    pub async fn get_all_assets(
-        &self,
-        page: i32,
-        per_page: i32,
-        category: Option<String>,
-    ) -> AppResult<(Vec<Asset>, i64)> {
-        self.repo.get_all_assets(page, per_page, category).await
-    }
-
-    pub async fn get_asset_by_id(&self, id: Uuid) -> AppResult<Asset> {
-        self.repo.get_asset_by_id(id).await
-    }
-
     // ============ Analisis Kebutuhan Services ============
 
     pub async fn get_all_analisis(
@@ -60,52 +45,6 @@ impl PerlengkapanService {
     ) -> AppResult<AnalisisKebutuhan> {
         request.validate()?;
         self.repo.create_analisis(request, user_id).await
-    }
-
-    // ============ Pemakaian Services ============
-
-    pub async fn get_all_pemakaian(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Pemakaian>, i64)> {
-        self.repo.get_all_pemakaian(page, per_page).await
-    }
-
-    pub async fn get_pemakaian_by_id(&self, id: Uuid) -> AppResult<Pemakaian> {
-        self.repo.get_pemakaian_by_id(id).await
-    }
-
-    pub async fn create_pemakaian(
-        &self,
-        request: CreatePemakaianRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Pemakaian> {
-        request.validate()?;
-        self.repo.create_pemakaian(request, user_id).await
-    }
-
-    // ============ Penghapusan Services ============
-
-    pub async fn get_all_penghapusan(
-        &self,
-        page: i32,
-        per_page: i32,
-    ) -> AppResult<(Vec<Penghapusan>, i64)> {
-        self.repo.get_all_penghapusan(page, per_page).await
-    }
-
-    pub async fn get_penghapusan_by_id(&self, id: Uuid) -> AppResult<Penghapusan> {
-        self.repo.get_penghapusan_by_id(id).await
-    }
-
-    pub async fn create_penghapusan(
-        &self,
-        request: CreatePenghapusanRequest,
-        user_id: Option<Uuid>,
-    ) -> AppResult<Penghapusan> {
-        request.validate()?;
-        self.repo.create_penghapusan(request, user_id).await
     }
 
     // ============ Export Services ============

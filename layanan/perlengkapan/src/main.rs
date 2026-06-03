@@ -318,8 +318,6 @@ async fn main() -> anyhow::Result<()> {
     //    has a corresponding refinery migration.
     info!("Running refinery migrations...");
     layanan_perlengkapan::migrations::run(db.pool()).await?;
-    info!("Running legacy bootstrap tables (Database::migrate)...");
-    db.migrate().await?;
 
     // Add essential indexes for performance optimization
     info!("Adding essential database indexes...");
