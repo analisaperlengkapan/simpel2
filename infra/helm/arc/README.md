@@ -52,11 +52,13 @@ ambigu dengan runner lama). Setelah ARC terbukti hijau di PR uji:
 1. Bulk-ganti `runs-on: self-hosted` → `runs-on: arc-simpel` di `.github/workflows/*`.
 2. Merge → pastikan CI berjalan di pod ARC.
 3. **Dekomisi runner lama** di `simple02`:
+
    ```bash
    sudo systemctl stop  actions.runner.* 2>/dev/null || true
    sudo systemctl disable actions.runner.* 2>/dev/null || true
    # lalu hapus registrasi runner di GitHub → Settings → Actions → Runners
    ```
+
 4. Setelah runner lama mati, reaper buildx host-level di `ci.yml`/`maintenance.yml`/
    `release.yml` boleh disederhanakan (sudah tak relevan).
 
@@ -69,9 +71,11 @@ beracun), bisa **escape ke node** dan menyentuh workload lain (termasuk produksi
 Mitigasi diterapkan / disarankan:
 - **Batasi PR fork**: `autofix.yml` & build sudah `if head.repo == repository`.
 - **Isolasi node** (disarankan): taint node build agar runner terpisah dari prod.
+
   ```bash
   kubectl taint nodes simple02 dedicated=ci:NoSchedule
   ```
+
   `values-runner-set.yaml` sudah punya `nodeSelector` + `toleration` cocok. Pastikan
   workload prod **tidak** men-toleransi taint ini (default tidak). Bila cluster
   2-node tak bisa benar-benar memisahkan, terima risiko terukur + batasi fork.
