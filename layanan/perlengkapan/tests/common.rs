@@ -68,7 +68,6 @@ pub async fn setup_test_db() -> (Database, String) {
     let db = Database::new(&test_url_str)
         .await
         .expect("Failed to connect to test DB");
-    db.migrate().await.expect("Failed to migrate test DB");
 
     // Execute all SQL migrations from the migrations directory
     if let Ok(entries) = std::fs::read_dir("migrations") {

@@ -159,15 +159,12 @@ impl WorkflowConfig {
             vec!["SUBMITTED".to_string(), "CANCELLED".to_string()],
         );
 
-        // SUBMITTED (= menunggu Validator Satker) → ApproverSatker | RevisiOperator.
-        // Legacy: SUBMITTED → APPROVED langsung tetap diizinkan utk record
-        // lama / fallback override admin; tidak dipakai handler baru.
+        // SUBMITTED (= menunggu Validator Satker) → ApproverSatker | RevisiOperator | Rejected.
         transitions.insert(
             "SUBMITTED".to_string(),
             vec![
                 "SUBMITTED_APPROVER_SATKER".to_string(),
                 "REVISI_OPERATOR".to_string(),
-                "APPROVED".to_string(),
                 "REJECTED".to_string(),
             ],
         );
@@ -705,11 +702,11 @@ mod tests {
         assert!(config.is_valid_transition("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR"));
         assert!(config.is_valid_transition("REVISI_OPERATOR", "SUBMITTED"));
         assert!(config.is_valid_transition("APPROVED", "ACTIVE"));
-        // Legacy direct path tetap valid utk back-compat record lama.
-        assert!(config.is_valid_transition("SUBMITTED", "APPROVED"));
 
         // Invalid: skip step / dari terminal
         assert!(!config.is_valid_transition("DRAFT", "ACTIVE"));
+        // Legacy direct path SUBMITTED → APPROVED dihapus (F4): tidak valid lagi.
+        assert!(!config.is_valid_transition("SUBMITTED", "APPROVED"));
         assert!(!config.is_valid_transition("DRAFT", "SUBMITTED_APPROVER_SATKER"));
         assert!(!config.is_valid_transition("EXPIRED", "ACTIVE"));
         assert!(!config.is_valid_transition("SUBMITTED_APPROVER_SATKER", "ACTIVE"));

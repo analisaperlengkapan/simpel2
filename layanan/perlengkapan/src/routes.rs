@@ -33,9 +33,6 @@ pub fn create_routes(state: AppState) -> Router {
             "/dashboard/perlengkapan/export/pdf",
             get(dashboard::handlers::export_dashboard_pdf),
         )
-        // Asset (Read-Only, legacy)
-        .route("/assets", get(get_all_assets))
-        .route("/assets/{id}", get(get_asset_by_id))
         // Bank Aset (unified SIMAN façade)
         .route("/bank-aset", get(crate::bank_aset::list_bank_aset))
         .route("/bank-aset/lookup", get(crate::bank_aset::lookup_bank_aset))
@@ -58,15 +55,6 @@ pub fn create_routes(state: AppState) -> Router {
         // Analisis Kebutuhan
         .route("/analisis", get(get_all_analisis).post(create_analisis))
         .route("/analisis/{id}", get(get_analisis_by_id))
-        // Pemakaian
-        .route("/pemakaian", get(get_all_pemakaian).post(create_pemakaian))
-        .route("/pemakaian/{id}", get(get_pemakaian_by_id))
-        // Penghapusan
-        .route(
-            "/penghapusan",
-            get(get_all_penghapusan).post(create_penghapusan),
-        )
-        .route("/penghapusan/{id}", get(get_penghapusan_by_id))
         // Penghapusan BMN (Workflow-enabled)
         .route(
             "/penghapusan-bmn",
