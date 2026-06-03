@@ -40,6 +40,11 @@ async fn test_monsakti_fetch_parsing_logic() {
     });
     // Override base_url to ensure it hits mock
     config.base_url = mock_server.uri();
+    // Hermetic: test ini menguji parsing fetch via WireMock, tak butuh DB.
+    // `Config::from_env()` bisa membawa db_config dari environment → MonsaktiClient::new
+    // mencoba konek Postgres → gagal di runner ephemeral (ConnectionRefused).
+    // Paksa None agar test mandiri dari ambient DB host.
+    config.db_config = None;
     config
         .tokens
         .insert("ADM".to_string(), "initial_token".to_string());
