@@ -1,0 +1,6 @@
+# Konfigurasi actionlint.
+# Deklarasikan label runner kustom agar tidak dianggap "unknown label".
+# `arc-simpel` = nama runner scale set ARC (lihat infra/helm/arc/).
+self-hosted-runner:
+  labels:
+    - arc-simpel

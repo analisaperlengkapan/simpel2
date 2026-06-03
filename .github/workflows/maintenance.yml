@@ -23,7 +23,7 @@ concurrency:
 jobs:
   workflow-syntax:
     name: Workflow Syntax (actionlint)
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: raven-actions/actionlint@v2
@@ -46,7 +46,7 @@ jobs:
 
   dependency-health:
     name: Dependency Health
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -82,7 +82,7 @@ jobs:
 
   codeowners-validate:
     name: Validate CODEOWNERS
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Validate CODEOWNERS paths
@@ -111,7 +111,7 @@ jobs:
 
   label-sync:
     name: Sync Labels
-    runs-on: self-hosted
+    runs-on: arc-simpel
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, 'labels.yml'))
     steps:
       - uses: actions/checkout@v6
@@ -122,7 +122,7 @@ jobs:
 
   stale:
     name: Stale Issues & PRs
-    runs-on: self-hosted
+    runs-on: arc-simpel
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       issues: write
@@ -145,7 +145,7 @@ jobs:
 
   infrastructure-health:
     name: Runner Health
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - name: Check Docker & Disk (pre-clean)
         id: pre

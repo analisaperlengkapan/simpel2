@@ -27,7 +27,7 @@ jobs:
 
   gitleaks:
     name: Gitleaks (Secret Scan)
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
         with:
@@ -54,7 +54,7 @@ jobs:
 
   cargo-audit:
     name: cargo-audit
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -87,7 +87,7 @@ jobs:
 
   cargo-deny:
     name: cargo-deny
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Run cargo-deny
@@ -99,7 +99,7 @@ jobs:
 
   semgrep:
     name: Semgrep SAST
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Run Semgrep
@@ -117,7 +117,7 @@ jobs:
 
   trivy-fs:
     name: Trivy Filesystem Scan
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
       - name: Trivy fs scan
@@ -148,7 +148,7 @@ jobs:
       - gitleaks
       - semgrep
       - trivy-fs
-    runs-on: self-hosted
+    runs-on: arc-simpel
     steps:
       - name: Aggregate results
         shell: bash
