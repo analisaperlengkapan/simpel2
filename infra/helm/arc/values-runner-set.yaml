@@ -62,6 +62,11 @@ template:
       - name: runner
         image: ghcr.io/actions/actions-runner:latest
         command: ["/home/runner/run.sh"]
+        # Container runner sendiri tak butuh privilege escalation (hanya sidecar
+        # dind yang privileged, dikelola chart). Eksplisit non-escalation untuk
+        # postur keamanan (memenuhi semgrep k8s allow-privilege-escalation).
+        securityContext:
+          allowPrivilegeEscalation: false
         env:
           # Selaras dengan CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
           - name: CARGO_BUILD_JOBS

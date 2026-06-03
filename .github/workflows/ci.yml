@@ -154,7 +154,7 @@ jobs:
           done < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort)
 
           # ── 3. Root files whitelist (dot-files exempt, docker-compose.*.yml pattern) ──
-          allowed_files="README.md CONTRIBUTING.md AGENTS.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPelv2.code-workspace"
+          allowed_files="README.md CONTRIBUTING.md AGENTS.md CLAUDE.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPelv2.code-workspace"
           while IFS= read -r f; do
             [[ "$f" == .* ]] && continue
             # Allow any docker-compose.*.yml variant
