@@ -26,13 +26,20 @@ controllerServiceAccount:
 # workflow (cutover), lalu dekomisi runner self-hosted lama.
 runnerScaleSetName: arc-simpel
 
-# Skala. Dimaksimalkan untuk kapasitas host runner `simple02` (48 vCPU / 62 GiB).
-# Ceiling = 8: tepat di bawah ambang 9 runner statis lama yang memicu FD
-# exhaustion + stale .d di host ini, sekaligus menyisakan headroom untuk beban
-# staging yang juga di-pin ke simple02. Naikkan bila node di-scale-up / staging
-# dipindah. Dibatasi juga oleh requests pod (cpu 2 / mem 4Gi) terhadap node.
+# Skala — dimaksimalkan untuk host runner `simple02` (48 vCPU / 62 GiB; bebas
+# ~37 vCPU / ~53 GiB setelah beban staging+sistem).
+#
+# Kendala pengikat = MEMORI, bukan CPU: tiap job = dind + cargo (build Rust +
+# layer docker bisa puncak ~6-10 GiB). CPU boleh overcommit; RAM tidak (lewat →
+# OOM). Hitungan: 12 × request mem 3Gi = 36Gi (+8.8Gi terpakai) ≈ 45Gi < 62Gi,
+# sisakan headroom. CPU: 12 × req 1 = 12 (+10.6) ≈ 23 dari 48.
+#
+# `maxRunners` = CEILING, bukan reservasi: scheduler hanya menempatkan pod yang
+# muat by-requests; sisanya Pending (aman, antre). 12 = throughput maksimal yang
+# realistis untuk 62 GiB dgn dind. Naik ke 16 = soft-ceiling (sebagian antre) &
+# perlu naikkan limit FD/PID host (ingat: 9 runner statis lama → FD exhaustion).
 minRunners: 0
-maxRunners: 8
+maxRunners: 12
 
 # Docker-in-Docker: kompatibel dengan `docker buildx` di workflow saat ini.
 # Mode ini menambah sidecar dind (privileged) secara otomatis oleh chart.
@@ -61,11 +68,11 @@ template:
             value: "4"
         resources:
           requests:
-            cpu: "2"
-            memory: 4Gi
+            cpu: "1"
+            memory: 3Gi
           limits:
-            cpu: "8"
-            memory: 12Gi
+            cpu: "6"
+            memory: 10Gi
 
 # ── Cache build (OPSIONAL, sangat disarankan agar build Rust tak start dingin) ──
 # Runner ephemeral kehilangan ~/.cargo & target/ tiap job. Pilihan:
