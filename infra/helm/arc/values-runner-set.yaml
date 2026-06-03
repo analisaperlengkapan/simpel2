@@ -40,9 +40,9 @@ maxRunners: 16
 #   1) pakai custom runner image dgn build toolchain (gcc/protoc/openssl/cmake/
 #      clang) — image actions-runner resmi minimal → `linker cc not found`.
 #   2) set registry-mirror dind ke mirror.gcr.io → hindari Docker Hub 429
-#      (pod ephemeral tanpa cache image, 16 paralel menembus rate limit anonim).
-# Basis spec: dokumentasi gha-runner-scale-set (containerMode dind) + 2 perubahan
-# di atas. JANGAN set `containerMode` saat memakai template manual.
+#      (pod ephemeral tanpa cache image, paralel menembus rate limit anonim).
+# CATATAN dind = NATIVE SIDECAR: harus di `initContainers` dgn restartPolicy:Always
+# (K8s melarang restartPolicy di non-init container). JANGAN set `containerMode`.
 template:
   spec:
     # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
@@ -63,32 +63,7 @@ template:
         volumeMounts:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
-    containers:
-      - name: runner
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
-        command: ["/home/runner/run.sh"]
-        securityContext:
-          allowPrivilegeEscalation: false
-        env:
-          - name: DOCKER_HOST
-            value: unix:///var/run/docker.sock
-          - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
-            value: "120"
-          # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
-          - name: CARGO_BUILD_JOBS
-            value: "4"
-        resources:
-          requests:
-            cpu: "1"
-            memory: 2Gi
-          limits:
-            cpu: "6"
-            memory: 10Gi
-        volumeMounts:
-          - name: work
-            mountPath: /home/runner/_work
-          - name: dind-sock
-            mountPath: /var/run
+      # dind = native sidecar (initContainer + restartPolicy:Always).
       - name: dind
         image: docker:dind
         args:
@@ -116,6 +91,32 @@ template:
             mountPath: /var/run
           - name: dind-externals
             mountPath: /home/runner/externals
+    containers:
+      - name: runner
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
+        command: ["/home/runner/run.sh"]
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+          - name: DOCKER_HOST
+            value: unix:///var/run/docker.sock
+          - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
+            value: "120"
+          # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
+          - name: CARGO_BUILD_JOBS
+            value: "4"
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "6"
+            memory: 10Gi
+        volumeMounts:
+          - name: work
+            mountPath: /home/runner/_work
+          - name: dind-sock
+            mountPath: /var/run
     volumes:
       - name: work
         emptyDir: {}
