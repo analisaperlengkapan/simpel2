@@ -42,6 +42,21 @@ Infrastruktur SIMPEL berfokus pada **Keamanan Tingkat Tinggi (Zero-Trust)** dan 
 - **Staging** (`simpelv2-staging`): 1 replica, log `debug`, mTLS PERMISSIVE, image tag **semver immutable** (`v0.1.0`), semua pod di-pin ke node `simple02`.
 - **Production** (`simpelv2-production`): 3 replica HA, log `info`, mTLS STRICT, ResourceQuota & LimitRange aktif, image tag **semver immutable** (`v0.1.0` / `vMAJOR.MINOR.PATCH`), scheduling fleksibel, HTTPS redirect on.
 
+#### Alur deploy WAJIB: staging → promote → production (DILARANG prod-only)
+
+> **Aturan tetap (berlaku untuk AI & kontributor):** JANGAN pernah deploy/`helm upgrade` langsung ke `simpelv2-production` tanpa lebih dulu lolos di `simpelv2-staging`. `simpel.kejaksaan.go.id` adalah sistem pemerintah — perubahan harus tervalidasi di staging dulu.
+
+Urutan baku:
+
+1. **Build & push image** via tag git `v*.*.*` → `release.yml` (semver immutable, SBOM + provenance). Untuk RC pakai suffix `-rcN`.
+2. **Deploy STAGING**: `helm upgrade` `simpel` di `simpelv2-staging` (`values-staging.yaml`).
+3. **Uji STAGING**: smoke + Playwright e2e + `cargo test` terhadap staging. Bila gagal → perbaiki, naikkan RC, ulang dari (1).
+4. **Promote**: `promote.yml` me-_retag_ image **yang sama** (digest identik, **tanpa rebuild**) dari `-rcN` → tag final.
+5. **Deploy PRODUCTION**: `helm upgrade` `simpel` di `simpelv2-production` (`values-production.yaml`) dengan tag final.
+6. **Uji PRODUCTION**: smoke + e2e. Bila regresi → `helm rollback`.
+
+Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `istio-system`, MetalLB IP pool (lihat section terkait di bawah).
+
 ### 4. Image Registry & Tag
 
 - **Registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>`. Pull dengan k8s Secret `ghcr-pull` (docker-registry type) per namespace; PAT scope `read:packages`.
@@ -135,6 +150,7 @@ layananIntegrasi:
 - Hardcode tag image di template; set lewat `global.imageTag` atau `<komponen>.image.tag`.
 - **Pakai mutable image tag** (`latest`, `stag`, `prod`, kosong). Schema validation reject ini saat `helm lint`.
 - **Pakai k8s Secret untuk APP_KEY / token API** saat `secretonAuth.enabled=true`. Secret production WAJIB dari Secreton.
+- **Deploy langsung ke production tanpa lewat staging.** Patuhi alur staging → promote → production (lihat "Pemisahan Lingkungan" → "Alur deploy WAJIB").
 
 ✅ **DO:**
 

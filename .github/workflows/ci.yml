@@ -154,7 +154,7 @@ jobs:
           done < <(find . -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort)
 
           # ── 3. Root files whitelist (dot-files exempt, docker-compose.*.yml pattern) ──
-          allowed_files="README.md CONTRIBUTING.md AGENTS.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPelv2.code-workspace"
+          allowed_files="README.md CONTRIBUTING.md AGENTS.md CLAUDE.md Cargo.toml Cargo.lock deny.toml cliff.toml SIMPelv2.code-workspace"
           while IFS= read -r f; do
             [[ "$f" == .* ]] && continue
             # Allow any docker-compose.*.yml variant
@@ -1057,6 +1057,28 @@ jobs:
           if [ -d "$WORK_DIR" ]; then
             find "$WORK_DIR" -maxdepth 4 -type d \( -name target -o -name dist \) \
               -mmin +360 -print -exec rm -rf {} + 2>/dev/null || true
+          fi
+
+          # Stop and remove leaked Buildx builders + buildkit containers older than 4 hours (14400s).
+          # Keeps active sibling matrix jobs' builders intact while reclaiming stale ones.
+          if command -v docker &>/dev/null; then
+            echo "=== Checking for leaked Buildx builders (>4h) ==="
+            NOW=$(date +%s)
+            docker ps -a --filter "name=buildx_buildkit" \
+              --format '{{.Names}}|{{.CreatedAt}}' | while IFS='|' read -r cname created; do
+              ts=$(date -d "${created% UTC}" +%s 2>/dev/null) || continue
+              [ -z "$ts" ] && continue
+              if [ $((NOW - ts)) -gt 14400 ]; then
+                builder="${cname#buildx_buildkit_}"; builder="${builder%0}"
+                echo "Reaping leaked builder=$builder (container=$cname)"
+                docker buildx rm -f "$builder" 2>/dev/null || docker rm -f -v "$cname" 2>/dev/null
+              fi
+            done
+            # Drop dangling builder registry entries whose container is gone.
+            for b in $(docker buildx ls --format '{{.Name}}' 2>/dev/null | grep '^buildx-'); do
+              docker inspect "buildx_buildkit_${b}0" >/dev/null 2>&1 || docker buildx rm -f "$b" 2>/dev/null
+            done
+            docker volume prune --force --filter "label=builder=buildx" >/dev/null 2>&1
           fi
 
           # Dangling Docker images from `docker run` pulls during this CI.

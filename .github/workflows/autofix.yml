@@ -16,6 +16,17 @@
 #
 # Untuk PR dari fork (read-only token), push tidak bisa — patch
 # di-upload sebagai artifact di job `patch-for-fork`.
+#
+# PENTING — status CI di PR:
+#   Push autofix HARUS pakai secret `AUTOFIX_PAT` (fine-grained PAT,
+#   scope: Contents write + Pull requests write + Workflows write).
+#   Sebab: commit yang di-push pakai GITHUB_TOKEN bawaan TIDAK memicu
+#   ulang workflow lain (ci.yml/security.yml) → check PR jadi basi dan
+#   harus dicek manual di tab Actions. Dengan PAT, push memicu ulang CI
+#   sehingga status check di PR ter-refresh otomatis.
+#   Bila secret belum dibuat, workflow tetap jalan (fallback ke
+#   GITHUB_TOKEN) — hanya saja CI tidak ter-trigger ulang.
+#   Job `guard` mencegah loop: skip fixer bila HEAD sudah commit autofix.
 
 name: Autofix PR
 
@@ -34,12 +45,46 @@ env:
 
 jobs:
   # ─────────────────────────────────────────────────────────
+  # Anti-loop guard: skip semua fixer kalau HEAD commit PR sudah
+  # merupakan commit autofix. Push autofix (pakai AUTOFIX_PAT)
+  # MEMICU ulang workflow (itu tujuannya, agar CI re-run), tapi
+  # autofix sendiri tak perlu jalan lagi di atas commit-nya sendiri.
+  # ─────────────────────────────────────────────────────────
+  guard:
+    name: Anti-loop guard
+    runs-on: self-hosted
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      is_autofix: ${{ steps.check.outputs.is_autofix }}
+    steps:
+      - name: Checkout PR head (shallow)
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 1
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
+      - name: Detect autofix HEAD commit
+        id: check
+        shell: bash
+        run: |
+          msg="$(git log -1 --pretty=%s)"
+          author="$(git log -1 --pretty=%ae)"
+          if [[ "$msg" == "chore(autofix):"* ]] || [[ "$author" == *"github-actions[bot]"* ]]; then
+            echo "is_autofix=true" >> "$GITHUB_OUTPUT"
+            echo "HEAD commit adalah autofix (\"$msg\") — fixer di-skip untuk cegah loop."
+          else
+            echo "is_autofix=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────────────────────
   # Rust: cargo fmt + cargo fix + clippy --fix + Cargo versioning
   # ─────────────────────────────────────────────────────────
   rust:
     name: Autofix (Rust)
+    needs: guard
     runs-on: self-hosted
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-rust-${{ github.ref }}
       cancel-in-progress: true
@@ -50,7 +95,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
@@ -126,8 +171,9 @@ jobs:
   # ─────────────────────────────────────────────────────────
   toml:
     name: Autofix (TOML)
+    needs: guard
     runs-on: self-hosted
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-toml-${{ github.ref }}
       cancel-in-progress: true
@@ -138,7 +184,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Install taplo
         shell: bash
@@ -196,8 +242,9 @@ jobs:
   # ─────────────────────────────────────────────────────────
   markdown:
     name: Autofix (Markdown)
+    needs: guard
     runs-on: self-hosted
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-markdown-${{ github.ref }}
       cancel-in-progress: true
@@ -208,7 +255,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - name: markdownlint-cli2 --fix (via docker)
         shell: bash
@@ -267,8 +314,9 @@ jobs:
   # ─────────────────────────────────────────────────────────
   php:
     name: Autofix (PHP Pint)
+    needs: guard
     runs-on: self-hosted
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-php-${{ github.ref }}
       cancel-in-progress: true
@@ -279,7 +327,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - name: composer install + Pint
         shell: bash
@@ -346,8 +394,9 @@ jobs:
   # ─────────────────────────────────────────────────────────
   whitespace:
     name: Autofix (Trailing whitespace)
+    needs: guard
     runs-on: self-hosted
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-whitespace-${{ github.ref }}
       cancel-in-progress: true
@@ -358,7 +407,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Strip trailing whitespace
         shell: bash
@@ -434,7 +483,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.AUTOFIX_PAT || secrets.GITHUB_TOKEN }}
 
       - uses: ./.github/actions/setup-rust
         with:

@@ -231,7 +231,7 @@ jobs:
           NOW=$(date +%s)
           docker ps -a --filter "name=buildx_buildkit" \
             --format '{{.Names}}|{{.CreatedAt}}' | while IFS='|' read -r cname created; do
-            ts=$(date -d "$created" +%s 2>/dev/null) || continue
+            ts=$(date -d "${created% UTC}" +%s 2>/dev/null) || continue
             [ -z "$ts" ] && continue
             if [ $((NOW - ts)) -gt 86400 ]; then
               builder="${cname#buildx_buildkit_}"; builder="${builder%0}"

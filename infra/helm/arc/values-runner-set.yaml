@@ -1,0 +1,88 @@
+# Values untuk satu runner scale set ARC (runner ephemeral untuk repo simpel2).
+#
+# Chart upstream (OCI, TIDAK divendor):
+#   oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set
+#
+# Tiap job CI dapat POD baru → workspace, dockerd (dind), buildx semuanya
+# di dalam pod & dibuang saat job selesai. Ini menghapus akar masalah
+# "buildx /var leak" di runner self-hosted lama secara struktural.
+
+# Repo target. Untuk level org, ganti ke URL org.
+githubConfigUrl: "https://github.com/analisaperlengkapan/simpel2"
+
+# Secret berisi PAT GitHub (key: github_token). Dibuat MANUAL/oleh install.sh —
+# JANGAN pernah commit nilai PAT ke repo. Lihat README.md.
+githubConfigSecret: arc-github-token
+
+# Eksplisit menunjuk ServiceAccount controller (release `arc` di ns `arc-systems`)
+# agar tak bergantung pada auto-discovery (lebih robust & bisa di-`helm template`).
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-gha-rs-controller
+
+# Nama scale set = LABEL yang dipakai di `runs-on:`.
+# Hindari nama reserved (self-hosted, ubuntu-latest, dst). Setelah ARC
+# tervalidasi, ubah `runs-on: self-hosted` → `runs-on: arc-simpel` di semua
+# workflow (cutover), lalu dekomisi runner self-hosted lama.
+runnerScaleSetName: arc-simpel
+
+# Skala — dimaksimalkan untuk host runner `simple02` (48 vCPU / 62 GiB; bebas
+# ~37 vCPU / ~53 GiB setelah beban staging+sistem).
+#
+# Kendala pengikat = MEMORI, bukan CPU: tiap job = dind + cargo (build Rust +
+# layer docker bisa puncak ~6-10 GiB). CPU boleh overcommit; RAM tidak (lewat →
+# OOM). Hitungan: 12 × request mem 3Gi = 36Gi (+8.8Gi terpakai) ≈ 45Gi < 62Gi,
+# sisakan headroom. CPU: 12 × req 1 = 12 (+10.6) ≈ 23 dari 48.
+#
+# `maxRunners` = CEILING, bukan reservasi: scheduler hanya menempatkan pod yang
+# muat by-requests; sisanya Pending (aman, antre). 12 = throughput maksimal yang
+# realistis untuk 62 GiB dgn dind. Naik ke 16 = soft-ceiling (sebagian antre) &
+# perlu naikkan limit FD/PID host (ingat: 9 runner statis lama → FD exhaustion).
+minRunners: 0
+maxRunners: 12
+
+# Docker-in-Docker: kompatibel dengan `docker buildx` di workflow saat ini.
+# Mode ini menambah sidecar dind (privileged) secara otomatis oleh chart.
+containerMode:
+  type: dind
+
+template:
+  spec:
+    # Jadwalkan runner di node worker build (host runner lama = simple02).
+    # Bila node di-taint khusus CI, toleransi di bawah dipakai; bila tidak,
+    # hapus blok tolerations. Lihat README untuk opsi isolasi node.
+    nodeSelector:
+      kubernetes.io/hostname: simple02
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: ci
+        effect: NoSchedule
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]
+        # Container runner sendiri tak butuh privilege escalation (hanya sidecar
+        # dind yang privileged, dikelola chart). Eksplisit non-escalation untuk
+        # postur keamanan (memenuhi semgrep k8s allow-privilege-escalation).
+        securityContext:
+          allowPrivilegeEscalation: false
+        env:
+          # Selaras dengan CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
+          - name: CARGO_BUILD_JOBS
+            value: "4"
+        resources:
+          requests:
+            cpu: "1"
+            memory: 3Gi
+          limits:
+            cpu: "6"
+            memory: 10Gi
+
+# ── Cache build (OPSIONAL, sangat disarankan agar build Rust tak start dingin) ──
+# Runner ephemeral kehilangan ~/.cargo & target/ tiap job. Pilihan:
+#   (a) buildx registry cache  : `--cache-to/from type=registry,ref=...` di workflow
+#                                (paling robust untuk image Docker; tak butuh PVC).
+#   (b) sccache + backend       : cache objek kompilasi Rust lintas job.
+#   (c) PVC RWX (longhorn)      : mount ~/.cargo (butuh RWX; RWO tak bisa paralel).
+# Default: tanpa volume cache di sini — aktifkan setelah ARC stabil sesuai pilihan.
