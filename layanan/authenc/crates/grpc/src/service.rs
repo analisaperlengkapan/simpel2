@@ -15,6 +15,7 @@ use authenc_federation::service::{
     CompleteFederatedAuthRequest as DomainCompleteFederatedAuthRequest,
     FederatedAuthRequest as DomainFederatedAuthRequest, FederationService,
 };
+use authenc_storage::PostgresRevocationStore;
 use authenc_types::traits::{
     AuthenticationService as AuthenticationServiceTrait, OAuth2Service as OAuth2ServiceTrait,
 };
@@ -23,6 +24,24 @@ use authenc_types::{
     SessionId, UpdateUserRequest as DomainUpdateUserRequest, UserId,
 };
 use uuid::Uuid;
+
+/// Build an `invalid` gRPC validation response carrying a generic error message
+/// and no identity claims. Shared by the verification-failed and revoked paths.
+fn invalid_validation_response(error: &str) -> ValidateTokenResponse {
+    ValidateTokenResponse {
+        valid: false,
+        user_id: None,
+        scopes: vec![],
+        expires_at: None,
+        error: Some(error.to_string()),
+        username: None,
+        name: None,
+        nip: None,
+        jabatan: None,
+        satker_code: None,
+        realm_roles: vec![],
+    }
+}
 
 /// AuthencGrpcService implementation
 ///
@@ -49,6 +68,10 @@ pub struct AuthencGrpcService {
     federation_service: Arc<FederationService>,
     /// Audit service for audit logs and compliance reporting
     audit_service: Arc<AuditService>,
+    /// Token revocation list (F2H) — consulted by `validate_token` after JWT
+    /// verification so revoked tokens are rejected before their `exp`. Shared
+    /// with the REST surface so both channels enforce the same revocations.
+    revocation_store: Arc<PostgresRevocationStore>,
 }
 
 /// Facade trait for MFA operations
@@ -95,6 +118,7 @@ impl AuthencGrpcService {
     /// * `jwt_service` - JWT service for token generation
     /// * `federation_service` - Federation service for SSO and external IdP integration
     /// * `audit_service` - Audit service for audit logs and compliance reporting
+    /// * `revocation_store` - Token revocation list checked during validate_token
     pub fn new(
         auth_service: Arc<AuthenticationServiceImpl>,
         user_service: Arc<UserManagementServiceImpl>,
@@ -104,6 +128,7 @@ impl AuthencGrpcService {
         jwt_service: Arc<JwtService>,
         federation_service: Arc<FederationService>,
         audit_service: Arc<AuditService>,
+        revocation_store: Arc<PostgresRevocationStore>,
     ) -> Self {
         Self {
             auth_service,
@@ -115,6 +140,7 @@ impl AuthencGrpcService {
             mfa_service: None,
             federation_service,
             audit_service,
+            revocation_store,
         }
     }
 
@@ -315,6 +341,29 @@ impl AuthencService for AuthencGrpcService {
         // Verify JWT token
         match self.jwt_service.verify_token(&req.token) {
             Ok(claims) => {
+                // Revocation check — a signature-valid, unexpired token may
+                // still have been revoked (logout, role change, deactivation).
+                // Fail closed: a revoked token, or a store error, is reported as
+                // invalid rather than risking an authenticated verdict.
+                match self
+                    .revocation_store
+                    .is_revoked(&claims.jti, claims.sid.as_deref(), &claims.sub, claims.iat)
+                    .await
+                {
+                    Ok(false) => {}
+                    Ok(true) => {
+                        return Ok(Response::new(invalid_validation_response(
+                            "Token has been revoked",
+                        )));
+                    }
+                    Err(e) => {
+                        error!("Revocation check failed: {}", e);
+                        return Ok(Response::new(invalid_validation_response(
+                            "Token validation failed",
+                        )));
+                    }
+                }
+
                 // Extract scopes from claims
                 let scopes = claims
                     .scope
@@ -364,19 +413,9 @@ impl AuthencService for AuthencGrpcService {
             }
             Err(e) => {
                 debug!("Token validation failed: {}", e);
-                Ok(Response::new(ValidateTokenResponse {
-                    valid: false,
-                    user_id: None,
-                    scopes: vec![],
-                    expires_at: None,
-                    error: Some(e.to_string()),
-                    username: None,
-                    name: None,
-                    nip: None,
-                    jabatan: None,
-                    satker_code: None,
-                    realm_roles: vec![],
-                }))
+                Ok(Response::new(invalid_validation_response(
+                    "Token validation failed",
+                )))
             }
         }
     }
@@ -392,6 +431,18 @@ impl AuthencService for AuthencGrpcService {
         // Treat token as session_id
         let session_id = SessionId::from_string(&req.token)
             .map_err(|e| Status::invalid_argument(format!("Invalid token format: {}", e)))?;
+
+        // Record a session-wide revocation so every access token carrying this
+        // sid is rejected by validate_token before its `exp` — not just removed
+        // from the session store. Bounded at the refresh lifetime.
+        let expires_at = chrono::Utc::now() + self.jwt_service.refresh_token_ttl();
+        if let Err(e) = self
+            .revocation_store
+            .revoke_session(&req.token, expires_at, Some("grpc_revoke"))
+            .await
+        {
+            error!("Failed to record session revocation: {}", e);
+        }
 
         // Logout (invalidate session)
         self.auth_service
