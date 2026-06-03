@@ -171,6 +171,3 @@ Lihat `docs/` untuk panduan arsitektur mendalam dan pemahaman logika lintas laya
 
 > **SIMPEL (Sistem Informasi Perlengkapan)**
 > Hak Cipta © Kejaksaan Agung Republik Indonesia. Semua Hak Dilindungi Undang-Undang.
-
-
-
