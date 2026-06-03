@@ -86,6 +86,9 @@ template:
           - --group=$(DOCKER_GROUP_GID)
           # Pull-through cache Docker Hub (tanpa kredensial) → hindari 429.
           - --registry-mirror=https://mirror.gcr.io
+          # Samakan MTU dgn pod network Calico (vxlan 1450). Default dind 1500
+          # > 1450 → transfer besar di `docker build` RUN (apk/curl) stall/gagal.
+          - --mtu=1450
         env:
           - name: DOCKER_GROUP_GID
             value: "123"
