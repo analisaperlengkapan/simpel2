@@ -30,6 +30,7 @@ pub fn create_router(state: Arc<ApiState>) -> Router {
             "/api/v1/auth/validate",
             post(handlers::validate_token_handler),
         )
+        .route("/api/v1/auth/revoke", post(handlers::revoke_handler))
         // WebAuthn/Passkeys endpoints (MANDATORY - PRIMARY authentication)
         .route(
             "/api/v1/auth/webauthn/register/start",

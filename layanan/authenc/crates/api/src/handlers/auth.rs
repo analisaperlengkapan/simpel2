@@ -588,11 +588,24 @@ pub async fn logout_handler(
     };
 
     // Extract session_id from the token's sid claim
-    if let Some(sid_str) = &claims.sid
-        && let Ok(session_uuid) = uuid::Uuid::parse_str(sid_str)
-    {
-        let session_id = SessionId(session_uuid);
-        let _ = state.auth_service.logout(session_id).await;
+    if let Some(sid_str) = &claims.sid {
+        // Record a session-wide revocation so every access token carrying this
+        // sid is rejected immediately (before its `exp`) by validate/introspect.
+        // Upper-bound the row at the refresh lifetime — past that all tokens for
+        // the session are expired anyway.
+        let expires_at = chrono::Utc::now() + state.jwt_service.refresh_token_ttl();
+        if let Err(e) = state
+            .revocation_store
+            .revoke_session(sid_str, expires_at, Some("logout"))
+            .await
+        {
+            tracing::warn!("Failed to record session revocation on logout: {}", e);
+        }
+
+        if let Ok(session_uuid) = uuid::Uuid::parse_str(sid_str) {
+            let session_id = SessionId(session_uuid);
+            let _ = state.auth_service.logout(session_id).await;
+        }
     }
 
     axum::http::StatusCode::NO_CONTENT.into_response()

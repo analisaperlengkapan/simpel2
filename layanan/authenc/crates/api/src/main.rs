@@ -12,7 +12,7 @@ use authenc_core::services::{
 use authenc_crypto::{Argon2PasswordHasher, JwtService};
 use authenc_storage::{
     Database, PostgresClientStore, PostgresCredentialStore, PostgresRealmStore,
-    PostgresSessionStore, PostgresUserStore,
+    PostgresRevocationStore, PostgresSessionStore, PostgresUserStore,
 };
 use authenc_types::{
     AuthorizationCode, RefreshToken, Result, UserId,
@@ -207,6 +207,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let realm_store = Arc::new(PostgresRealmStore::new(db.clone()));
     let client_store = Arc::new(PostgresClientStore::new(db.clone()));
     let credential_store = Arc::new(PostgresCredentialStore::new(db.clone()));
+    // Token revocation list (F2H) — shared by REST validate/introspect and the
+    // gRPC validate_token service so both reject revoked tokens before `exp`.
+    let revocation_store = Arc::new(PostgresRevocationStore::new(db.clone()));
 
     // JWT service
     let signing_key_bytes: [u8; 32] = if !jwt_secret_hex.is_empty() {
@@ -308,8 +311,26 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(mfa_service),
         webauthn_session_store,
         db.clone(),
+        revocation_store.clone(),
         captcha_service,
     );
+
+    // Background sweep: purge revocation rows past their expires_at so the table
+    // doesn't grow unbounded. Hourly is plenty — rows only matter until `exp`.
+    {
+        let revocation_store = revocation_store.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+            loop {
+                interval.tick().await;
+                match revocation_store.cleanup_expired().await {
+                    Ok(n) if n > 0 => info!("Purged {} expired token revocation(s)", n),
+                    Ok(_) => {}
+                    Err(e) => warn!("Token revocation cleanup failed: {}", e),
+                }
+            }
+        });
+    }
 
     // Integrasi gRPC client (optional, enabled via INTEGRASI_GRPC_URL env var)
     if let Ok(integrasi_url) = std::env::var("INTEGRASI_GRPC_URL") {
