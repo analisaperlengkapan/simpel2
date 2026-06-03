@@ -167,7 +167,7 @@ Route::middleware(['auth'])->group(function () {
 // at AuthController::oauthCallback always rejects the request.
 // `cross-tab-session` invalidates the session if a logout was broadcast
 // from another tab (via the X-Logout-Event header).
-Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session'])->group(function () {
+Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session', 'authenc-revocation'])->group(function () {
     Route::post('/auth/changePassword', [AuthController::class, 'changePassword']);
     Route::post('/auth/changeUser', [AuthController::class, 'changeUser']);
     Route::post('/auth/resetPassword', [AuthController::class, 'resetPassword']);
