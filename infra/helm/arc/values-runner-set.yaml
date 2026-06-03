@@ -29,11 +29,13 @@ scaleSetLabels:
   - dependabot
   - dependency-submission
 
-# Skala — dimaksimalkan utk host simple02 (48 vCPU/62 GiB). Pengikat = memory
-# requests; pemakaian aktual job test ~0.2-0.3 GiB. 16 × req 2Gi = 32Gi (+baseline)
-# masih aman; job berat dibatasi limit 10Gi. maxRunners = ceiling (sisa antre).
+# Skala — dimaksimalkan utk host simple02 (48 vCPU/62 GiB). Diukur saat full CI
+# 15 pod aktif: CPU aktual 15%, mem 19% (47 GiB free), loadavg ~7/48 — beban riil
+# sangat rendah. Pengikat = memory REQUESTS (2Gi/pod). 20 × 2Gi = 40Gi + baseline
+# ~9Gi ≈ 49Gi (~75% allocatable) — aman, sisakan headroom utk staging. Naik lagi
+# diminishing returns (jarang ada >20 job paralel). maxRunners = ceiling (antre).
 minRunners: 0
-maxRunners: 16
+maxRunners: 20
 
 # ── Pod template MANUAL untuk dind (BUKAN containerMode shorthand) ──
 # Manual diperlukan agar bisa:
@@ -58,7 +60,7 @@ template:
         effect: NoSchedule
     initContainers:
       - name: init-dind-externals
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.1
         command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
         volumeMounts:
           - name: dind-externals
@@ -93,7 +95,7 @@ template:
             mountPath: /home/runner/externals
     containers:
       - name: runner
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.0
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.1
         command: ["/home/runner/run.sh"]
         securityContext:
           allowPrivilegeEscalation: false
