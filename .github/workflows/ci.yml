@@ -212,8 +212,8 @@ jobs:
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
   # ─────────────────────────────────────────────────────
-  lint-rust:
-    name: Lint Rust (workspace)
+  fmt-rust:
+    name: Lint Rust (Format)
     needs: detect
     if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
@@ -221,21 +221,70 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
         with:
-          components: clippy,rustfmt
-          targets: wasm32-unknown-unknown
-          cache-key: ci-lint
+          components: rustfmt
+          cache-key: ci-fmt
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
-      # TEMP (F-CI): clippy warnings non-blocking. Pre-existing lints in
-      # several crates (secreton-cli, layanan-integrasi, authenc-types,
-      # perlengkapan-microfrontend) surfaced after a stable-clippy bump and are
-      # tracked for a single cleanup pass after all roadmap phases (F0→F6),
-      # after which `-D warnings` is restored. The toolchain is now pinned via
-      # rust-toolchain.toml so the lint set is reproducible meanwhile.
-      - name: cargo clippy --workspace (warnings non-blocking)
+
+  clippy-rust:
+    name: Lint Rust Clippy (${{ matrix.name }})
+    needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
+    runs-on: arc-simpel
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: lib-core
+            packages: "-p lib-core"
+          - name: lib-backend
+            packages: "-p lib-backend"
+          - name: lib-crypto
+            packages: "-p lib-crypto"
+          - name: lib-perlengkapan
+            packages: "-p lib-perlengkapan"
+          - name: lib-ui
+            packages: "-p lib-ui"
+            features: "--features ssr"
+          - name: antarmuka-portal
+            packages: "-p portal-microfrontend"
+            targets: "wasm32-unknown-unknown"
+            extra_args: "--target wasm32-unknown-unknown"
+          - name: antarmuka-perlengkapan
+            packages: "-p perlengkapan-microfrontend"
+            targets: "wasm32-unknown-unknown"
+            extra_args: "--target wasm32-unknown-unknown"
+          - name: layanan-authenc
+            packages: "-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn"
+          - name: layanan-perlengkapan
+            packages: "-p layanan-perlengkapan"
+          - name: layanan-integrasi
+            packages: "-p layanan-integrasi"
+          - name: layanan-secreton
+            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-rust
+        with:
+          components: clippy
+          targets: ${{ matrix.targets || '' }}
+          cache-key: ci-clippy-${{ matrix.name }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wipe stale target/ (self-hosted runner persistence)
+        shell: bash
+        run: rm -rf target
+      # Clippy split per-crate so the 20-runner ARC budget runs them in parallel
+      # and failures pinpoint the offending crate. Toolchain is pinned (setup-rust
+      # → 1.96.0) so the lint set is reproducible.
+      # TEMP (F-CI): NON-BLOCKING. There is a pre-existing workspace-wide lint
+      # backlog (incl. plain rustc warnings: unexpected_cfgs, deprecated-API,
+      # dead_code) that `-D warnings` would turn into hard failures. The cleanup
+      # is tracked separately; once green, restore `-- -D warnings` +
+      # `continue-on-error: false` to make this a hard gate.
+      - name: cargo clippy (${{ matrix.name }})
         continue-on-error: true
-        run: cargo clippy --workspace --all-targets
+        run: cargo clippy ${{ matrix.packages }} ${{ matrix.features || '' }} ${{ matrix.extra_args || '' }} --all-targets --all-features
 
   lint-php:
     name: Lint PHP (Pint + Larastan)
@@ -592,9 +641,9 @@ jobs:
           tags: |
             ${{ matrix.image }}:ci-${{ github.sha }}
             ${{ matrix.image }}:ci-${{ github.run_number }}
-          push: 'false'
-          load: 'true'
-          scan: 'false'
+          push: "false"
+          load: "true"
+          scan: "false"
 
   # ─────────────────────────────────────────────────────
   # Phase 4 — Test (KONSERVATIF — selalu jalan)
@@ -790,20 +839,20 @@ jobs:
           # `layanan/authenc/Cargo.toml` di-commented dari workspace
           # members (lihat root Cargo.toml). Yang ada hanya sub-crates.
           - tier: layanan-authenc
-            packages: '-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn'
-            test_args: ''
+            packages: "-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn"
+            test_args: ""
           - tier: layanan-perlengkapan
-            packages: '-p layanan-perlengkapan'
+            packages: "-p layanan-perlengkapan"
             # `e2e_integration_tests` butuh PostgreSQL real; skip di CI
             # unit-test job. Untuk run integration test, butuh pg service
             # container atau jalankan manual dengan --include-ignored.
-            test_args: '-- --skip integration::'
+            test_args: "-- --skip integration::"
           - tier: layanan-integrasi
-            packages: '-p layanan-integrasi'
-            test_args: ''
+            packages: "-p layanan-integrasi"
+            test_args: ""
           - tier: layanan-secreton
-            packages: '-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication'
-            test_args: ''
+            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            test_args: ""
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -917,7 +966,8 @@ jobs:
   # E2E_ENABLED=true. After that these become blocking via ci-summary.
   e2e-portal:
     name: E2E Playwright (portal)
-    needs: [detect, build-antarmuka-portal, build-backend, build-monolith-assets]
+    needs:
+      [detect, build-antarmuka-portal, build-backend, build-monolith-assets]
     if: |
       !cancelled() &&
       vars.E2E_ENABLED == 'true' &&
@@ -937,7 +987,7 @@ jobs:
       - name: Run Playwright (portal-chromium)
         working-directory: antarmuka/portal/tests/e2e
         env:
-          CI: 'true'
+          CI: "true"
           BASE_URL: ${{ vars.E2E_BASE_URL || 'http://localhost:8080' }}
         run: npx playwright test --project=portal-chromium
       - name: Upload Playwright report
@@ -952,7 +1002,13 @@ jobs:
 
   e2e-perlengkapan:
     name: E2E Playwright (perlengkapan)
-    needs: [detect, build-antarmuka-perlengkapan, build-backend, build-monolith-assets]
+    needs:
+      [
+        detect,
+        build-antarmuka-perlengkapan,
+        build-backend,
+        build-monolith-assets,
+      ]
     if: |
       !cancelled() &&
       vars.E2E_ENABLED == 'true' &&
@@ -972,7 +1028,7 @@ jobs:
       - name: Run Playwright (perlengkapan-chromium)
         working-directory: antarmuka/perlengkapan/tests/e2e
         env:
-          CI: 'true'
+          CI: "true"
           BASE_URL: ${{ vars.E2E_BASE_URL || 'http://localhost:8080' }}
         run: npx playwright test --project=perlengkapan-chromium
       - name: Upload Playwright report
@@ -995,7 +1051,8 @@ jobs:
       - detect
       - enforce-structure
       - enforce-versioning
-      - lint-rust
+      - fmt-rust
+      - clippy-rust
       - lint-php
       - lint-blade
       - lint-dockerfile
