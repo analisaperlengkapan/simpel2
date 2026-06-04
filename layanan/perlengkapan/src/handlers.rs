@@ -14,41 +14,6 @@ use crate::shared::error::*;
 use crate::shared::middleware::Claims;
 use crate::{models::*, services::PerlengkapanService};
 
-// Pagination query parameters
-#[derive(Debug, Deserialize)]
-pub struct PaginationQuery {
-    #[serde(default = "default_page")]
-    pub page: i32,
-    #[serde(default = "default_per_page")]
-    pub per_page: i32,
-    pub category: Option<String>,
-}
-
-impl PaginationQuery {
-    pub fn validate(&self) -> Result<(), AppError> {
-        if self.page < 1 {
-            return Err(bad_request("Page must be greater than 0"));
-        }
-        if self.page > 100_000 {
-            return Err(bad_request("Page must be less than or equal to 100,000"));
-        }
-        if self.per_page < 1 {
-            return Err(bad_request("Per page must be greater than 0"));
-        }
-        if self.per_page > 1000 {
-            return Err(bad_request("Per page must be less than or equal to 1000"));
-        }
-        Ok(())
-    }
-}
-
-fn default_page() -> i32 {
-    1
-}
-fn default_per_page() -> i32 {
-    20
-}
-
 // Health check handler
 pub async fn health_check() -> Result<Json<ApiResponse<String>>, AppError> {
     Ok(Json(ApiResponse::success(
@@ -68,56 +33,6 @@ pub async fn get_dashboard_stats(
         stats,
         "Dashboard statistics retrieved successfully".to_string(),
     )))
-}
-
-// Analisis Kebutuhan handlers
-pub async fn get_all_analisis(
-    State(service): State<PerlengkapanService>,
-    Query(pagination): Query<PaginationQuery>,
-    _claims: Claims,
-) -> Result<Json<PaginatedResponse<AnalisisKebutuhan>>, AppError> {
-    pagination.validate()?;
-    let (analisis, total) = service
-        .get_all_analisis(pagination.page, pagination.per_page)
-        .await?;
-
-    Ok(Json(PaginatedResponse::new(
-        analisis,
-        total,
-        pagination.page,
-        pagination.per_page,
-        "Analisis kebutuhan retrieved successfully".to_string(),
-    )))
-}
-
-pub async fn get_analisis_by_id(
-    State(service): State<PerlengkapanService>,
-    Path(id): Path<Uuid>,
-    _claims: Claims,
-) -> Result<Json<ApiResponse<AnalisisKebutuhan>>, AppError> {
-    let analisis = service.get_analisis_by_id(id).await?;
-
-    Ok(Json(ApiResponse::success(
-        analisis,
-        "Analisis kebutuhan retrieved successfully".to_string(),
-    )))
-}
-
-pub async fn create_analisis(
-    State(service): State<PerlengkapanService>,
-    claims: Claims,
-    Json(request): Json<CreateAnalisisRequest>,
-) -> Result<(StatusCode, Json<ApiResponse<AnalisisKebutuhan>>), AppError> {
-    let user_id = Some(claims.user_id);
-    let analisis = service.create_analisis(request, user_id).await?;
-
-    Ok((
-        StatusCode::CREATED,
-        Json(ApiResponse::success(
-            analisis,
-            "Analisis kebutuhan created successfully".to_string(),
-        )),
-    ))
 }
 
 // ============================================================================

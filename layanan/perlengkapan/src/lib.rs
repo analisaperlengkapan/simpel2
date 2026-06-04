@@ -1,5 +1,6 @@
 // ── Domain modules (`semua setara`) ──────────────────────────────────
 pub mod admin;
+pub mod analisis;
 pub mod audit;
 pub mod bank_aset;
 pub mod bantuan;

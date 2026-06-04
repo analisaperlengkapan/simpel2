@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::services::PakaianDinasService;
-use crate::handlers::PaginationQuery;
 use crate::models::{ApiResponse, PaginatedResponse};
+use crate::shared::pagination::PaginationQuery;
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
 

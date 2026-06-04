@@ -19,8 +19,8 @@ use layanan_perlengkapan::shared::{
     rate_limit::{RateLimitConfig, RateLimiter},
 };
 use layanan_perlengkapan::{
-    dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn, penghapusan_bmn,
-    roadmap_sarpras, routes, services, workflow,
+    analisis, dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn,
+    penghapusan_bmn, roadmap_sarpras, routes, services, workflow,
 };
 use lib_perlengkapan::contracts::{
     AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
@@ -30,6 +30,7 @@ use dashboard::services::DashboardService;
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
+use analisis::AnalisisService;
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
@@ -323,6 +324,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Create main service with repository wrapper
     let service = PerlengkapanService::new(Arc::new(db.clone()));
+    // Analisis Kebutuhan feature service (own repository trait, shared `db`).
+    let analisis_service = AnalisisService::new(Arc::new(db.clone()));
 
     // ── Ports & adapters: dokumen + notifikasi service traits ────────────
     let template_service = Arc::new(dokumen::TemplateService::new());
@@ -502,6 +505,7 @@ async fn main() -> anyhow::Result<()> {
     // Create AppState
     let state = AppState {
         service,
+        analisis_service,
         authenc: authenc_client,
         pakaian_dinas_service,
         kebutuhan_bmn_service,

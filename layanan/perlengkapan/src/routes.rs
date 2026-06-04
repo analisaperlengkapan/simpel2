@@ -53,8 +53,11 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::bank_aset::get_bank_aset_detail),
         )
         // Analisis Kebutuhan
-        .route("/analisis", get(get_all_analisis).post(create_analisis))
-        .route("/analisis/{id}", get(get_analisis_by_id))
+        .route(
+            "/analisis",
+            get(crate::analisis::get_all_analisis).post(crate::analisis::create_analisis),
+        )
+        .route("/analisis/{id}", get(crate::analisis::get_analisis_by_id))
         // Penghapusan BMN (Workflow-enabled)
         .route(
             "/penghapusan-bmn",

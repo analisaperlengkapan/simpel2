@@ -159,6 +159,8 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let (db, db_name) = setup_test_db().await;
 
     let service = PerlengkapanService::new(Arc::new(db.clone()));
+    let analisis_service =
+        layanan_perlengkapan::analisis::AnalisisService::new(Arc::new(db.clone()));
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
     let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
 
@@ -214,6 +216,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
 
     let state = AppState {
         service,
+        analisis_service,
         authenc: AuthencClient::dummy(),
         pakaian_dinas_service,
         kebutuhan_bmn_service,
