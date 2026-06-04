@@ -1,6 +1,0 @@
-# Pin the Rust toolchain so CI is reproducible (no drift when a new `stable`
-# ships). Bump deliberately, not implicitly. See plan "FASE F-CI".
-[toolchain]
-channel = "1.96.0"
-components = ["rustfmt", "clippy"]
-targets = ["wasm32-unknown-unknown"]
