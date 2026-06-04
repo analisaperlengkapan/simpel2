@@ -3,7 +3,7 @@
 # ============================================================================
 
 # Stage 1: Preparation
-FROM rust:1.95-slim-bookworm AS chef
+FROM rust:1.96-slim-bookworm AS chef
 RUN cargo install cargo-chef --locked
 WORKDIR /usr/src/app
 
