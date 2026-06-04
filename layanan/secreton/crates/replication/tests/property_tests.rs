@@ -1204,6 +1204,10 @@ mod read_consistency_tests {
     }
 
     proptest! {
+        // Each case blocks for the full read-after-write timeout, so keep the
+        // case count low AND use a short (200ms) timeout — otherwise this is
+        // 256 cases x 5s ≈ 21 minutes (the original CI/local "hang").
+        #![proptest_config(ProptestConfig::with_cases(10))]
         /// Test read consistency timeout behavior
         ///
         /// **Property**: Reads timeout gracefully when sequence is not reached
@@ -1214,7 +1218,7 @@ mod read_consistency_tests {
         ) {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
                 let storage = Arc::new(MockStorage::new());
-                let handler = SecondaryReadHandler::new(storage, 1000);
+                let handler = SecondaryReadHandler::new(storage, 1000).with_max_wait_ms(200);
 
                 // Set current sequence
                 handler.update_sequence(current_sequence).await;
@@ -1230,9 +1234,9 @@ mod read_consistency_tests {
                     "Should timeout when waiting for unreachable sequence"
                 );
 
-                // Should have waited for the timeout period (5 seconds)
+                // Should have waited ~the (test-configured 200ms) timeout.
                 assert!(
-                    elapsed.as_secs() >= 4, // Allow some tolerance
+                    elapsed.as_millis() >= 150, // ~200ms timeout, with tolerance
                     "Should have waited for timeout period, elapsed: {:?}",
                     elapsed
                 );
@@ -2291,6 +2295,9 @@ mod failover_tests {
     }
 
     proptest! {
+        // Each case loops sending heartbeats with real sleeps; 256 cases is
+        // minutes of wall-clock. Cap to match the other failover proptests.
+        #![proptest_config(ProptestConfig::with_cases(10))]
         /// Test failover detection with healthy heartbeats
         ///
         /// **Property**: Failover is NOT triggered when receiving healthy heartbeats

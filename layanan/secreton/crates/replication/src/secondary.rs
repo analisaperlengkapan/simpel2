@@ -76,6 +76,9 @@ pub struct SecondaryReadHandler {
     /// Staleness threshold in milliseconds
     staleness_threshold_ms: u64,
 
+    /// Max time to wait for read-after-write consistency, in ms (default 5000).
+    max_wait_ms: u64,
+
     /// Last sync timestamp
     last_sync: Arc<RwLock<chrono::DateTime<Utc>>>,
 }
@@ -345,8 +348,17 @@ impl SecondaryReadHandler {
             last_applied_sequence: Arc::new(RwLock::new(0)),
             primary_sequence: Arc::new(RwLock::new(0)),
             staleness_threshold_ms,
+            max_wait_ms: 5000,
             last_sync: Arc::new(RwLock::new(Utc::now())),
         }
+    }
+
+    /// Override the read-after-write consistency wait timeout (default 5000ms).
+    /// Mainly for tests that need a short, deterministic timeout instead of
+    /// blocking the full 5s per call.
+    pub fn with_max_wait_ms(mut self, max_wait_ms: u64) -> Self {
+        self.max_wait_ms = max_wait_ms;
+        self
     }
 
     /// Handle a read request on the secondary node
@@ -428,7 +440,7 @@ impl SecondaryReadHandler {
     ) -> std::result::Result<(), SecondaryReadError> {
         use tokio::time::{Duration, sleep};
 
-        const MAX_WAIT_MS: u64 = 5000; // 5 seconds max wait
+        let max_wait_ms = self.max_wait_ms; // configurable; default 5000 (5s)
         const POLL_INTERVAL_MS: u64 = 10; // Check every 10ms
 
         let start = std::time::Instant::now();
@@ -445,7 +457,7 @@ impl SecondaryReadHandler {
             }
 
             // Check timeout
-            if start.elapsed().as_millis() as u64 > MAX_WAIT_MS {
+            if start.elapsed().as_millis() as u64 > max_wait_ms {
                 return Err(SecondaryReadError::ConsistencyViolation {
                     expected_sequence: min_sequence,
                     actual_sequence: current_sequence,
@@ -636,6 +648,7 @@ impl Clone for SecondaryReadHandler {
             last_applied_sequence: self.last_applied_sequence.clone(),
             primary_sequence: self.primary_sequence.clone(),
             staleness_threshold_ms: self.staleness_threshold_ms,
+            max_wait_ms: self.max_wait_ms,
             last_sync: self.last_sync.clone(),
         }
     }
@@ -888,7 +901,8 @@ mod tests {
     #[tokio::test]
     async fn test_secondary_read_handler_wait_for_sequence_timeout() {
         let storage = Arc::new(MockStorage::new());
-        let handler = SecondaryReadHandler::new(storage, 1000);
+        // Short timeout so the test doesn't block the full default 5s.
+        let handler = SecondaryReadHandler::new(storage, 1000).with_max_wait_ms(200);
 
         // Set initial sequence
         handler.update_sequence(5).await;

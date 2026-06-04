@@ -531,7 +531,9 @@ jobs:
       matrix:
         include:
           - name: layanan-authenc
-            package: authenc
+            # The `authenc` package (layanan/authenc) is legacy/out-of-workspace;
+            # the deployable binary `authenc` lives in the `authenc-api` crate.
+            package: authenc-api
           - name: layanan-perlengkapan
             package: layanan-perlengkapan
           - name: layanan-integrasi
