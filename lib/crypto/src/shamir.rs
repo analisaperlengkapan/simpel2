@@ -538,6 +538,12 @@ fn generate_coefficients(secret_byte: u8, threshold: usize, rng: &mut OsRng) -> 
     coefficients
 }
 
+// FORMAL VERIFICATION (Verus): see `lib/crypto/verus/shamir_proof.rs`.
+//   - `poly_eval` there mirrors this Horner recursion (`result = result * x + coeff`).
+//   - `lemma_secret_is_eval_at_zero` proves the Shamir invariant that the secret
+//     is recovered as f(0) — the constant term, i.e. the value this returns at x=0.
+// The proof reasons over mathematical integers; this fn evaluates over the
+// 256-bit `Scalar` field. Run: `verus lib/crypto/verus/shamir_proof.rs`.
 fn evaluate_polynomial_horner(coeffs: &[Scalar], x: Scalar) -> Scalar {
     if coeffs.is_empty() {
         return Scalar::ZERO;

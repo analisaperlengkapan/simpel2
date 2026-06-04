@@ -6,6 +6,12 @@ masking). They are *machine-checked proofs*, not unit tests: Verus discharges
 every `requires`/`ensures`/`assert ... by(...)` obligation with the Z3 SMT
 solver at CI time.
 
+## Naming
+
+A proof file is named after the source file it verifies, with a `_proof` suffix:
+`shamir_proof.rs` formally verifies `../src/shamir.rs`. This makes it obvious at a
+glance which module each proof covers.
+
 ## Why it lives outside `src/`
 
 These files use the `verus!` macro and `vstd`, which are **not** normal Cargo
@@ -13,7 +19,7 @@ dependencies. Keeping them in `verus/` (not `src/`, `tests/`, `benches/`, or
 `examples/`) means Cargo never tries to compile them — `cargo build`/`clippy`/
 `fmt` ignore this directory entirely. **Do not** add a `mod` for these files.
 
-## What is proven (`secret_sharing_proof.rs`)
+## What is proven (`shamir_proof.rs`)
 
 - **Shamir invariant:** the secret is `f(0)` — evaluating the share polynomial
   (Horner form, mirroring `evaluate_polynomial_horner`) at `x = 0` recovers
@@ -28,7 +34,7 @@ dependencies. Keeping them in `verus/` (not `src/`, `tests/`, `benches/`, or
 ```bash
 # Verus pins an exact rustc per release (see VERUS_TAG in .github/workflows/security.yml).
 rustup toolchain install 1.95.0-x86_64-unknown-linux-gnu
-verus lib/crypto/verus/secret_sharing_proof.rs
+verus lib/crypto/verus/shamir_proof.rs
 # → verification results:: 15 verified, 0 errors
 ```
 

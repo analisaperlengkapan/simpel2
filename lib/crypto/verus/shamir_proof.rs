@@ -1,8 +1,15 @@
-//! Formal verification (Verus) of the algebraic foundations of secret sharing.
+//! Formal verification (Verus) for `lib/crypto/src/shamir.rs`.
 //!
-//! Machine-checked, not tests: Verus discharges these via Z3. Two families:
-//!   1. Shamir core invariant — the secret is the polynomial's value at x = 0.
-//!   2. The (u8, XOR) abelian group + XOR additive secret-sharing correctness.
+//! Naming convention: a proof file is named `<source>_proof.rs`, so this file
+//! formally verifies `shamir.rs`. Machine-checked, not tests — Verus discharges
+//! every obligation via the Z3 SMT solver. Two families:
+//!   1. Shamir core invariant — the secret is the polynomial's value at x = 0
+//!      (`poly_eval` mirrors `shamir.rs::evaluate_polynomial_horner`).
+//!   2. The (u8, XOR) abelian group + XOR additive secret-sharing correctness
+//!      (the additive group underlying GF(2^8) Shamir and the one-time pad).
+//!
+//! The proof reasons over mathematical integers / bytes; `shamir.rs` evaluates
+//! over the 256-bit `Scalar` field (out of scope for tractable SMT modelling).
 
 use vstd::prelude::*;
 
