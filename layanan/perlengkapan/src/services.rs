@@ -2,8 +2,8 @@
 //!
 //! Business logic for the Perlengkapan service
 
+use crate::repository::PerlengkapanRepository;
 use crate::shared::error::*;
-use crate::{models::*, repository::PerlengkapanRepository};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -15,12 +15,6 @@ pub struct PerlengkapanService {
 impl PerlengkapanService {
     pub fn new(repo: Arc<dyn PerlengkapanRepository>) -> Self {
         Self { repo }
-    }
-
-    // ============ Dashboard Services ============
-
-    pub async fn get_dashboard_stats(&self) -> AppResult<DashboardStats> {
-        self.repo.get_dashboard_stats().await
     }
 
     // ============ Export Services ============

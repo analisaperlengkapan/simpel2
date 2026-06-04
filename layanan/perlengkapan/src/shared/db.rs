@@ -8,7 +8,6 @@ use deadpool_postgres::Pool;
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::*;
 use crate::repository::PerlengkapanRepository;
 use crate::shared::error::{AppError, AppResult};
 
@@ -105,58 +104,6 @@ impl Database {
 
 #[async_trait]
 impl PerlengkapanRepository for Database {
-    async fn get_dashboard_stats(&self) -> AppResult<DashboardStats> {
-        let client =
-            self.pool.get().await.map_err(|e| {
-                AppError::Internal(format!("Failed to get database connection: {}", e))
-            })?;
-
-        // Query v_siman_summary_total with explicit casts to be safe.
-        let summary = client
-            .query_one(
-                "SELECT
-                    total_aset,
-                    COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai,
-                    total_satker,
-                    total_baik,
-                    total_rusak
-                  FROM integrasi.v_siman_summary_total",
-                &[],
-            )
-            .await
-            .map_err(|e| AppError::Database(format!("Failed to query summary with cast: {}", e)))?;
-
-        let total_aset: i64 = summary.get("total_aset");
-        let total_nilai_aset: f64 = summary.get("total_nilai");
-        let total_satker: i64 = summary.get("total_satker");
-        let aset_baik: i64 = summary.get("total_baik");
-        let aset_rusak: i64 = summary.get("total_rusak");
-
-        // Categories
-        let cat_rows = client.query(
-            "SELECT kategori_aset, total_aset, COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai FROM integrasi.v_siman_summary_per_kategori ORDER BY total_aset DESC",
-            &[]
-        ).await.map_err(|e| AppError::Database(format!("Failed to query categories: {}", e)))?;
-
-        let categories = cat_rows
-            .iter()
-            .map(|row| CategoryStat {
-                category: row.get("kategori_aset"),
-                count: row.get("total_aset"),
-                value: row.get("total_nilai"),
-            })
-            .collect();
-
-        Ok(DashboardStats {
-            total_aset,
-            total_nilai_aset,
-            total_satker,
-            aset_baik,
-            aset_rusak,
-            categories,
-        })
-    }
-
     // ============================================================================
     // Export Implementation
     // ============================================================================

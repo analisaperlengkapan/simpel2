@@ -16,7 +16,10 @@ pub fn create_routes(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health_check))
         // Dashboard
-        .route("/dashboard/stats", get(get_dashboard_stats))
+        .route(
+            "/dashboard/stats",
+            get(dashboard::handlers::get_dashboard_stats),
+        )
         .route(
             "/dashboard/perlengkapan",
             get(dashboard::handlers::get_perlengkapan_dashboard_metrics),

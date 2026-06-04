@@ -3,12 +3,29 @@
 use crate::AppState;
 use crate::dashboard::models::*;
 use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 use axum::{
     Json,
     extract::{Query, State},
     http::header,
     response::IntoResponse,
 };
+use lib_perlengkapan::response::ApiResponse;
+
+/// GET /api/v1/dashboard/stats
+///
+/// Lightweight SIMAN-summary card (total aset/nilai/satker + per-kategori).
+pub async fn get_dashboard_stats(
+    State(state): State<AppState>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<DashboardStats>>, AppError> {
+    let stats = state.dashboard_service.get_dashboard_stats().await?;
+
+    Ok(Json(ApiResponse::success(
+        stats,
+        "Dashboard statistics retrieved successfully".to_string(),
+    )))
+}
 
 /// GET /api/v1/dashboard/perlengkapan
 ///

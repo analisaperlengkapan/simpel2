@@ -1,5 +1,5 @@
+use crate::repository::PerlengkapanRepository;
 use crate::shared::error::AppResult;
-use crate::{models::*, repository::PerlengkapanRepository};
 use async_trait::async_trait;
 use mockall::mock;
 use uuid::Uuid;
@@ -8,12 +8,13 @@ use uuid::Uuid;
 #[cfg(test)]
 mod pakaian_dinas_test;
 
-// Define the mock repository at file scope so it's visible to submodules
+// Define the mock repository at file scope so it's visible to submodules.
+// The remaining catch-all trait covers only the generic export concern
+// (dashboard-stats moved to `dashboard/`, analisis to `analisis/`).
 mock! {
     pub Repository {}
     #[async_trait]
     impl PerlengkapanRepository for Repository {
-        async fn get_dashboard_stats(&self) -> AppResult<DashboardStats>;
         async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid>;
         async fn export_to_excel_sync(&self, query: crate::handlers::ExportQuery) -> AppResult<Vec<u8>>;
         async fn get_export_job_status(&self, job_id: Uuid) -> AppResult<crate::handlers::ExportJobStatusResponse>;
@@ -28,31 +29,23 @@ mod unit_tests {
     use std::sync::Arc;
 
     #[tokio::test]
-    async fn test_get_dashboard_stats() {
+    async fn test_queue_export_job() {
         let mut mock_repo = MockRepository::new();
-
         mock_repo
-            .expect_get_dashboard_stats()
+            .expect_queue_export_job()
             .times(1)
-            .returning(|| {
-                Ok(DashboardStats {
-                    total_aset: 100,
-                    total_nilai_aset: 1000000.0,
-                    total_satker: 5,
-                    aset_baik: 80,
-                    aset_rusak: 20,
-                    categories: vec![],
-                })
-            });
+            .returning(|_| Ok(Uuid::new_v4()));
 
         let service = PerlengkapanService::new(Arc::new(mock_repo));
-        let stats = service.get_dashboard_stats().await.unwrap();
-
-        assert_eq!(stats.total_aset, 100);
-        assert_eq!(stats.aset_baik, 80);
+        let query = crate::handlers::ExportQuery {
+            entity_type: "kebutuhan_bmn".to_string(),
+            filters: None,
+            limit: Some(10),
+            tahun_anggaran: None,
+            satker_id: None,
+            status: None,
+        };
+        let job_id = service.queue_export_job(query).await.unwrap();
+        assert!(!job_id.is_nil());
     }
 }
-
-// Register handler tests
-#[cfg(test)]
-mod handlers_test;

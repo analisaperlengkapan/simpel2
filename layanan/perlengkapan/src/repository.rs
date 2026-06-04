@@ -1,15 +1,11 @@
 use async_trait::async_trait;
 use uuid::Uuid;
 
-use crate::models::*;
 use crate::shared::error::AppResult;
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait PerlengkapanRepository: Send + Sync {
-    // Dashboard
-    async fn get_dashboard_stats(&self) -> AppResult<DashboardStats>;
-
     // Export (Local)
     async fn queue_export_job(&self, query: crate::handlers::ExportQuery) -> AppResult<Uuid>;
     async fn export_to_excel_sync(&self, query: crate::handlers::ExportQuery)

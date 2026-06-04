@@ -22,19 +22,6 @@ pub async fn health_check() -> Result<Json<ApiResponse<String>>, AppError> {
     )))
 }
 
-// Dashboard handlers
-pub async fn get_dashboard_stats(
-    State(service): State<PerlengkapanService>,
-    _claims: Claims,
-) -> Result<Json<ApiResponse<DashboardStats>>, AppError> {
-    let stats = service.get_dashboard_stats().await?;
-
-    Ok(Json(ApiResponse::success(
-        stats,
-        "Dashboard statistics retrieved successfully".to_string(),
-    )))
-}
-
 // ============================================================================
 // Export Handlers
 // ============================================================================

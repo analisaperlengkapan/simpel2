@@ -87,3 +87,26 @@ pub struct AssetUtilization {
     pub assets_in_good_condition: i64,
     pub utilization_percentage: f64,
 }
+
+// ============ Summary dashboard (`/dashboard/stats`) ============
+//
+// Lightweight SIMAN-summary card for the landing dashboard, distinct from the
+// richer `PerlengkapanDashboardMetrics` above. Sourced from the
+// `integrasi.v_siman_summary_*` views.
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DashboardStats {
+    pub total_aset: i64,
+    pub total_nilai_aset: f64,
+    pub total_satker: i64,
+    pub aset_baik: i64,
+    pub aset_rusak: i64,
+    pub categories: Vec<CategoryStat>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CategoryStat {
+    pub category: String,
+    pub count: i64,
+    pub value: f64,
+}
