@@ -461,7 +461,9 @@ jobs:
   # ─────────────────────────────────────────────────────
   build-antarmuka-portal:
     name: Build Portal Microfrontend
-    needs: [detect, lint-rust]
+    # Builds don't require lint to pass — run them in parallel with lint-rust
+    # (whose clippy step is slow and now non-blocking) instead of after it.
+    needs: detect
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
@@ -489,7 +491,9 @@ jobs:
 
   build-antarmuka-perlengkapan:
     name: Build Perlengkapan Microfrontend
-    needs: [detect, lint-rust]
+    # Builds don't require lint to pass — run them in parallel with lint-rust
+    # (whose clippy step is slow and now non-blocking) instead of after it.
+    needs: detect
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
@@ -517,7 +521,9 @@ jobs:
 
   build-backend:
     name: Build Backend (${{ matrix.name }})
-    needs: [detect, lint-rust]
+    # Builds don't require lint to pass — run them in parallel with lint-rust
+    # (whose clippy step is slow and now non-blocking) instead of after it.
+    needs: detect
     if: needs.detect.outputs.rust-backend == 'true'
     runs-on: arc-simpel
     strategy:
@@ -773,7 +779,9 @@ jobs:
     runs-on: arc-simpel
     strategy:
       fail-fast: false
-      max-parallel: 2
+      # No max-parallel cap: the 4 tiers are independent and ARC (maxRunners=20)
+      # is the natural ceiling. Capping at 2 needlessly serialized the heaviest
+      # phase of CI.
       matrix:
         include:
           # `-p authenc` di-skip — package `authenc` legacy di
