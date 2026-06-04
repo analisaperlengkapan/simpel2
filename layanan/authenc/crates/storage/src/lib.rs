@@ -286,6 +286,9 @@ pub use stores::PostgresClientStore;
 /// PostgreSQL-backed credential store
 pub use stores::PostgresCredentialStore;
 
+/// PostgreSQL-backed token revocation list (F2H)
+pub use stores::PostgresRevocationStore;
+
 // Migration Types
 // ----------------------------------------------------------------------------
 

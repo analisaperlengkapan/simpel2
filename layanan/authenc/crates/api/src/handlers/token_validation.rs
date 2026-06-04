@@ -55,13 +55,31 @@ pub struct ValidateTokenResponse {
 /// - This endpoint does NOT require authentication (it validates the token itself)
 /// - Rate limiting should be applied to prevent abuse
 /// - Token signature, expiration, and issuer are verified
-/// - TODO: Revocation list checking is not yet implemented
+/// - The revocation list is consulted after signature/expiry checks, so tokens
+///   invalidated before their `exp` (logout, role change) are rejected.
 pub async fn validate_token_handler(
     State(state): State<Arc<ApiState>>,
     Json(request): Json<ValidateTokenRequest>,
 ) -> Result<Json<ValidateTokenResponse>, ErrorResponse> {
     match state.jwt_service.verify_token(&request.token) {
         Ok(claims) => {
+            // Revocation check — a signature-valid, unexpired token may still
+            // have been revoked. Treat a revoked token as invalid; on a store
+            // error fail closed (invalid) rather than leaking an authenticated
+            // verdict on incomplete information.
+            match state
+                .revocation_store
+                .is_revoked(&claims.jti, claims.sid.as_deref(), &claims.sub, claims.iat)
+                .await
+            {
+                Ok(true) => return Ok(Json(invalid_response("Token has been revoked"))),
+                Ok(false) => {}
+                Err(e) => {
+                    tracing::error!("Revocation check failed: {}", e);
+                    return Ok(Json(invalid_response("Token validation failed")));
+                }
+            }
+
             let user_id = Uuid::parse_str(&claims.sub).ok();
             let realm_id = claims.realm.and_then(|r| Uuid::parse_str(&r).ok());
             let username = claims
@@ -90,24 +108,27 @@ pub async fn validate_token_handler(
             // message to avoid leaking internal details (e.g. "Invalid issuer:
             // expected X, got Y") to unauthenticated callers.
             let error_msg = match &e {
-                authenc_types::error::AuthencError::TokenExpired => "Token has expired".to_string(),
-                authenc_types::error::AuthencError::InvalidToken(_) => {
-                    "Token is invalid".to_string()
-                }
-                _ => "Token validation failed".to_string(),
+                authenc_types::error::AuthencError::TokenExpired => "Token has expired",
+                authenc_types::error::AuthencError::InvalidToken(_) => "Token is invalid",
+                _ => "Token validation failed",
             };
-            Ok(Json(ValidateTokenResponse {
-                valid: false,
-                user_id: None,
-                username: None,
-                email: None,
-                realm_id: None,
-                scope: None,
-                exp: None,
-                iat: None,
-                error: Some(error_msg),
-            }))
+            Ok(Json(invalid_response(error_msg)))
         }
+    }
+}
+
+/// Build an `invalid` validation response with a generic error message.
+fn invalid_response(error: &str) -> ValidateTokenResponse {
+    ValidateTokenResponse {
+        valid: false,
+        user_id: None,
+        username: None,
+        email: None,
+        realm_id: None,
+        scope: None,
+        exp: None,
+        iat: None,
+        error: Some(error.to_string()),
     }
 }
 
@@ -154,18 +175,208 @@ pub struct IntrospectResponse {
 }
 
 pub async fn introspect_handler(
-    State(_state): State<Arc<ApiState>>,
-    Json(_request): Json<IntrospectRequest>,
+    State(state): State<Arc<ApiState>>,
+    Json(request): Json<IntrospectRequest>,
 ) -> Result<Json<IntrospectResponse>, ErrorResponse> {
-    // TODO: Implement introspection logic (RFC 7662)
-    // This is an optional advanced feature
-    // Similar to validate but requires client authentication
+    // RFC 7662: an `active` token is one that was issued by this server, has not
+    // expired, and has not been revoked. Any failure (bad signature, expired,
+    // revoked) is reported uniformly as `active: false` with no other claims —
+    // the spec mandates not distinguishing the reason to avoid token probing.
+    let claims = match state.jwt_service.verify_token(&request.token) {
+        Ok(c) => c,
+        Err(_) => return Ok(Json(IntrospectResponse::inactive())),
+    };
 
-    Err(ErrorResponse {
-        status_code: axum::http::StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "Token introspection endpoint not yet implemented".to_string(),
-    })
+    // Revoked tokens are inactive. Fail closed on a store error.
+    match state
+        .revocation_store
+        .is_revoked(&claims.jti, claims.sid.as_deref(), &claims.sub, claims.iat)
+        .await
+    {
+        Ok(false) => {}
+        Ok(true) => return Ok(Json(IntrospectResponse::inactive())),
+        Err(e) => {
+            tracing::error!("Revocation check failed during introspection: {}", e);
+            return Ok(Json(IntrospectResponse::inactive()));
+        }
+    }
+
+    let username = claims
+        .custom
+        .get("preferred_username")
+        .and_then(|v| v.as_str().map(|s| s.to_string()));
+
+    Ok(Json(IntrospectResponse {
+        active: true,
+        scope: claims.scope,
+        client_id: claims
+            .custom
+            .get("client_id")
+            .and_then(|v| v.as_str().map(|s| s.to_string())),
+        username,
+        token_type: Some("Bearer".to_string()),
+        exp: Some(claims.exp),
+        iat: Some(claims.iat),
+        sub: Some(claims.sub),
+    }))
+}
+
+impl IntrospectResponse {
+    /// RFC 7662 inactive response: only `active: false`, no other claims.
+    fn inactive() -> Self {
+        Self {
+            active: false,
+            scope: None,
+            client_id: None,
+            username: None,
+            token_type: None,
+            exp: None,
+            iat: None,
+            sub: None,
+        }
+    }
+}
+
+/// Token revocation request.
+///
+/// Two modes:
+/// - **RFC 7009 (self/client):** supply `token` — the presented token is
+///   revoked by its `jti`. Possession of the token is sufficient authorization.
+/// - **Admin:** supply `session_id` (revoke a whole session) or `user_id`
+///   (revoke all of a user's tokens issued before now, e.g. role change /
+///   deactivation). These require an admin bearer in the Authorization header.
+#[derive(Debug, Deserialize)]
+pub struct RevokeRequest {
+    /// A specific token to revoke (RFC 7009). Revoked by its `jti`.
+    #[serde(default)]
+    pub token: Option<String>,
+    /// RFC 7009 hint (`access_token` / `refresh_token`). Accepted, not required.
+    #[serde(default)]
+    pub token_type_hint: Option<String>,
+    /// Admin: revoke an entire session by its `sid`.
+    #[serde(default)]
+    pub session_id: Option<String>,
+    /// Admin: revoke all tokens for a user issued before now.
+    #[serde(default)]
+    pub user_id: Option<String>,
+    /// Optional human-readable reason, stored for audit.
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// Token revocation response.
+#[derive(Debug, Serialize)]
+pub struct RevokeResponse {
+    /// Always `true` on a 2xx — revocation is idempotent (RFC 7009 returns 200
+    /// even for already-invalid tokens).
+    pub revoked: bool,
+}
+
+/// POST /api/v1/auth/revoke — revoke a token, session, or all of a user's tokens.
+///
+/// Frontends call this on logout (with the access token). Admin tooling calls it
+/// with `user_id`/`session_id` on role change or deactivation. The matching
+/// `is_revoked` check in `validate`/`introspect` (REST) and the gRPC
+/// `validate_token` then rejects affected tokens before their `exp`.
+pub async fn revoke_handler(
+    State(state): State<Arc<ApiState>>,
+    headers: axum::http::HeaderMap,
+    Json(request): Json<RevokeRequest>,
+) -> Result<Json<RevokeResponse>, ErrorResponse> {
+    let reason = request.reason.as_deref();
+
+    // RFC 7009: revoke a specific presented token by its jti. Invalid/expired
+    // tokens still yield 200 (nothing to revoke) — never leak token state here.
+    if let Some(token) = &request.token
+        && let Ok(claims) = state.jwt_service.verify_token(token)
+    {
+        let expires_at = chrono::DateTime::<chrono::Utc>::from_timestamp(claims.exp, 0)
+            .unwrap_or_else(|| chrono::Utc::now() + state.jwt_service.refresh_token_ttl());
+        state
+            .revocation_store
+            .revoke_jti(&claims.jti, expires_at, reason)
+            .await
+            .map_err(internal_error)?;
+    }
+
+    // Admin-scoped revocations require an admin bearer token.
+    if request.session_id.is_some() || request.user_id.is_some() {
+        require_admin(&state, &headers)?;
+
+        let expires_at = chrono::Utc::now() + state.jwt_service.refresh_token_ttl();
+        if let Some(sid) = &request.session_id {
+            state
+                .revocation_store
+                .revoke_session(sid, expires_at, reason)
+                .await
+                .map_err(internal_error)?;
+        }
+        if let Some(user_id) = &request.user_id {
+            state
+                .revocation_store
+                .revoke_user(user_id, expires_at, reason)
+                .await
+                .map_err(internal_error)?;
+        }
+    } else if request.token.is_none() {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "Provide one of: token, session_id, user_id".to_string(),
+        });
+    }
+
+    Ok(Json(RevokeResponse { revoked: true }))
+}
+
+/// Require that the Authorization bearer is a valid token carrying the `admin`
+/// realm role. Returns 401 if missing/invalid, 403 if not an admin.
+fn require_admin(
+    state: &Arc<ApiState>,
+    headers: &axum::http::HeaderMap,
+) -> Result<(), ErrorResponse> {
+    let token = crate::handlers::auth_helpers::extract_bearer_token(headers).map_err(|_| {
+        ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: "Admin revocation requires a bearer token".to_string(),
+        }
+    })?;
+    let claims = state
+        .jwt_service
+        .verify_token(&token)
+        .map_err(|_| ErrorResponse {
+            status_code: axum::http::StatusCode::UNAUTHORIZED,
+            error: "unauthorized".to_string(),
+            message: "Invalid or expired token".to_string(),
+        })?;
+
+    let is_admin = claims
+        .custom
+        .get("realm_access")
+        .and_then(|v| v.get("roles"))
+        .and_then(|v| v.as_array())
+        .is_some_and(|roles| roles.iter().any(|r| r.as_str() == Some("admin")));
+
+    if is_admin {
+        Ok(())
+    } else {
+        Err(ErrorResponse {
+            status_code: axum::http::StatusCode::FORBIDDEN,
+            error: "forbidden".to_string(),
+            message: "Admin role required".to_string(),
+        })
+    }
+}
+
+/// Map an internal store error to a 500 without leaking details.
+fn internal_error(e: authenc_types::error::AuthencError) -> ErrorResponse {
+    tracing::error!("Revocation store error: {}", e);
+    ErrorResponse {
+        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        error: "internal_error".to_string(),
+        message: "Failed to process revocation".to_string(),
+    }
 }
 
 #[cfg(test)]

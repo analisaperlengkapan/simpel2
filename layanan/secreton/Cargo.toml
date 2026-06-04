@@ -99,13 +99,21 @@ num-traits.workspace = true
 flate2.workspace = true
 
 # Benchmarks
+# `test = false`: do NOT run these under `cargo test --all-targets`. They are
+# criterion benchmarks (harness = false); in test-mode cargo would execute each
+# bench body once — wasteful and not a real test. Run them via `cargo bench`.
+# (They still compile under --all-targets.) Note: the MemoryBackend lock-order
+# deadlock that previously made storage_bench's storage_concurrent case hang in
+# test-mode is fixed in crates/storage/src/memory.rs::get_by_path.
 [[bench]]
 name = "transit_bench"
 harness = false
+test = false
 
 [[bench]]
 name = "storage_bench"
 harness = false
+test = false
 
 [profile.release]
 opt-level = 3

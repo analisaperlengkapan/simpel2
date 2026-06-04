@@ -545,6 +545,13 @@ layananPerlengkapan:
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: perlengkapan-url } }
     - name: INTEGRASI_DATABASE_URL
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
+    # Dynamic DB credentials (F2H 2H-B). When set, the service issues short-lived
+    # creds from Secreton's database secrets engine and renews the lease instead
+    # of using the static DATABASE_URL above. Requires Secreton-side setup
+    # (ConfigureDatabaseConnection + CreateDatabaseRole) — see infra/AGENTS.md
+    # "Rotasi Secret Runtime". Leave unset for the static path.
+    # - { name: SECRETON_DB_ROLE, value: "perlengkapan" }
+    # - { name: SECRETON_DB_TTL_SECONDS, value: "3600" }
   istioInjection: true
   istioExcludeOutboundPorts: "5432,6379"
   hpa:

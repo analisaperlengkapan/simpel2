@@ -83,10 +83,10 @@ flowchart TB
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| **Language** | Rust (Edition 2024, MSRV 1.90+) | 1.93+ |
-| **Backend HTTP** | Axum (REST API) | 0.8.7 |
+| **Language** | Rust (Edition 2024, MSRV 1.90+) | 1.96+ |
+| **Backend HTTP** | Axum (REST API) | 0.8.9 |
 | **Backend gRPC** | Tonic + Prost | 0.14.x |
-| **Frontend** | Leptos (WASM CSR) | 0.8.14 |
+| **Frontend** | Leptos (WASM CSR) | 0.8.19 |
 | **Database** | PostgreSQL (tokio-postgres / deadpool) | 15+ |
 | **Caching** | Redis | — |
 | **Identity** | Authenc (custom OAuth2/OIDC via gRPC) | — |

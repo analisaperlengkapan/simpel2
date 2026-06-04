@@ -505,6 +505,7 @@ dependencies = [
  "authenc-core",
  "authenc-crypto",
  "authenc-federation",
+ "authenc-grpc",
  "authenc-iam-api",
  "authenc-mfa",
  "authenc-storage",

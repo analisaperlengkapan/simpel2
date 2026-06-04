@@ -52,6 +52,11 @@ return [
         'timeout' => (float) env('GATEWAY_TIMEOUT', 5.0),
         'authenc' => [
             'url' => env('AUTHENC_GATEWAY_URL', 'http://127.0.0.1:8081'),
+            // Throttle window (seconds) for the mid-session revocation re-check
+            // in EnforceTokenRevocation. Within this window a session is trusted
+            // without re-hitting the gateway. Keep small (30-60s) so a revoke
+            // takes effect quickly without a gateway round trip per request.
+            'revocation_ttl' => (int) env('AUTHENC_REVOCATION_TTL', 45),
         ],
         'integrasi' => [
             'url' => env('INTEGRASI_GATEWAY_URL', 'http://127.0.0.1:8082'),

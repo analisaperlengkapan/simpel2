@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: '0 6 * * *'
+    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -123,13 +123,13 @@ jobs:
       - name: Trivy fs scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          scan-type: 'fs'
-          format: 'sarif'
-          output: 'trivy-fs.sarif'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '0'
-          ignore-unfixed: 'true'
-          scanners: 'vuln,secret,misconfig'
+          scan-type: "fs"
+          format: "sarif"
+          output: "trivy-fs.sarif"
+          severity: "HIGH,CRITICAL"
+          exit-code: "0"
+          ignore-unfixed: "true"
+          scanners: "vuln,secret,misconfig"
       - name: Upload Trivy SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -137,6 +137,75 @@ jobs:
           sarif_file: trivy-fs.sarif
           category: trivy-fs
         continue-on-error: true
+
+  # Verifikasi formal Verus — SCAFFOLD untuk masa depan.
+  # Verus hanya bisa memverifikasi kode yang ditulis dalam subset Verus, yaitu
+  # berkas yang opt-in lewat makro `verus! { ... }`. Selama belum ada modul
+  # sensitif yang menambahkannya, job ini = no-op HIJAU (lewati instal + verify).
+  # Begitu sebuah berkas memperoleh blok `verus!`, job otomatis aktif & verifikasi
+  # berkas tsb. Jadi: tinggal tambahkan `verus!` di kode sensitif, CI mengurus
+  # sisanya — tanpa bedah workflow lagi.
+  verus-verify:
+    name: Verus Formal Verification
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v6
+      - name: Deteksi berkas ber-anotasi Verus
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          files="$(grep -rl --include='*.rs' 'verus!' . | grep -v '/target/' || true)"
+          if [ -z "$files" ]; then
+            echo "Belum ada berkas ber-anotasi Verus (makro verus!). Lewati verifikasi formal."
+            echo "have_files=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Berkas Verus terdeteksi:"
+            echo "$files"
+            echo "have_files=true" >> "$GITHUB_OUTPUT"
+            { echo "files<<__EOF__"; echo "$files"; echo "__EOF__"; } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Verus
+        if: steps.detect.outputs.have_files == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Rilis Verus = .zip ber-tag tanggal (mis. release/0.YYYY.MM.DD.hash),
+          # berisi binary verus + z3 + vstd di satu direktori. Pin untuk reproducible;
+          # naikkan saat perlu fitur/perbaikan Verus baru.
+          VERUS_TAG="release/0.2026.05.31.5dd6d83"
+          VERUS_VER="0.2026.05.31.5dd6d83"
+          ASSET="verus-${VERUS_VER}-x86-linux.zip"
+          URL="https://github.com/verus-lang/verus/releases/download/${VERUS_TAG}/${ASSET}"
+          dest="$HOME/.verus"
+          mkdir -p "$dest"
+          curl -LsSf "$URL" -o /tmp/verus.zip
+          unzip -q -o /tmp/verus.zip -d "$dest"
+          verus_bin="$(find "$dest" -type f -name verus | head -1)"
+          if [ -z "$verus_bin" ]; then
+            echo "::error::Binary verus tidak ditemukan di arsip rilis."
+            exit 1
+          fi
+          dirname "$verus_bin" >> "$GITHUB_PATH"
+      - name: Run Verus verification
+        if: steps.detect.outputs.have_files == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          STATUS=0
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            echo "== Verifikasi formal: $file =="
+            # `lib.rs` butuh --crate-type=lib. Catatan: invokasi per-berkas hanya
+            # cocok untuk modul Verus yang relatif mandiri; crate dgn dependensi
+            # eksternal sebaiknya pakai integrasi cargo-verus saat diadopsi.
+            if [[ "$file" == *lib.rs ]]; then
+              verus --crate-type=lib "$file" || { echo "::error file=$file::Verus gagal"; STATUS=1; }
+            else
+              verus "$file" || { echo "::error file=$file::Verus gagal"; STATUS=1; }
+            fi
+          done <<< '${{ steps.detect.outputs.files }}'
+          exit $STATUS
 
   # ── Summary ─────────────────────────────────────────
   security-summary:
@@ -148,6 +217,7 @@ jobs:
       - gitleaks
       - semgrep
       - trivy-fs
+      - verus-verify
     runs-on: arc-simpel
     steps:
       - name: Aggregate results
@@ -208,6 +278,6 @@ jobs:
           fi
 
           if [[ $advisory_fail -ne 0 ]]; then
-            echo "::warning::Advisory security checks memiliki temuan — periksa cargo-audit, cargo-deny, atau semgrep."
+            echo "::warning::Advisory security checks memiliki temuan — periksa cargo-audit, cargo-deny, semgrep, atau verus-verify."
           fi
           echo "Blocking checks passed."

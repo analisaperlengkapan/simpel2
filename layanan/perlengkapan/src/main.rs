@@ -34,6 +34,75 @@ use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
 use layanan_perlengkapan::AppState;
+
+/// Background task that keeps a dynamic DB credential lease alive.
+///
+/// Renewal extends the issued Postgres role's validity *in place*, so the
+/// connection pool keeps working with the same credentials — no in-process pool
+/// swap (every service holds a `Pool` clone, so hot-swap would be a large
+/// data-layer rewrite). At the hard rotation boundary (max renewals reached or
+/// a renewal error) we exit the process; Kubernetes restarts the pod and
+/// `main` re-acquires fresh credentials at startup.
+fn spawn_db_lease_renewal(
+    client: SecretonClient,
+    lease: layanan_perlengkapan::shared::grpc::clients::DynamicDbCredentials,
+) {
+    use std::time::Duration;
+
+    tokio::spawn(async move {
+        let lease_id = lease.lease_id.clone();
+        if !lease.renewable {
+            tracing::warn!(
+                "DB lease {} is not renewable; pod will exit at lease expiry to rotate credentials",
+                lease_id
+            );
+        }
+        let mut lease_duration = lease.lease_duration.max(60);
+
+        loop {
+            // Renew at half the remaining lease, floored at 30s.
+            let sleep_secs = (lease_duration / 2).max(30) as u64;
+            tokio::time::sleep(Duration::from_secs(sleep_secs)).await;
+
+            if !lease.renewable {
+                // Cannot renew — let the lease lapse; queries then fail and the
+                // DB health probe trips a restart that re-acquires credentials.
+                continue;
+            }
+
+            match client.renew_lease(&lease_id, None).await {
+                Ok(r) => {
+                    lease_duration = r.lease_duration.max(60);
+                    info!(
+                        "Renewed DB lease {} (ttl={}s, renew_count={}{})",
+                        lease_id,
+                        r.lease_duration,
+                        r.renew_count,
+                        r.max_renewals.map(|m| format!("/{m}")).unwrap_or_default()
+                    );
+                    if let Some(max) = r.max_renewals
+                        && r.renew_count >= max
+                    {
+                        tracing::warn!(
+                            "DB lease {} hit max renewals ({}); exiting for credential rotation (k8s restarts)",
+                            lease_id,
+                            max
+                        );
+                        std::process::exit(0);
+                    }
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to renew DB lease {} ({}); exiting so the pod restarts with fresh credentials",
+                        lease_id, e
+                    );
+                    std::process::exit(1);
+                }
+            }
+        }
+    });
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Initialize structured logging
@@ -97,7 +166,45 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    let database_url = database_url.expect("DATABASE_URL must be set (env or secreton)");
+    // Vault-style dynamic database credentials (preferred over a static URL
+    // when configured). `SECRETON_DB_ROLE` selects the Secreton database
+    // secrets-engine role; absent → keep the static DATABASE_URL above. The
+    // returned lease is renewed by a background task so the issued Postgres
+    // role stays valid without a credential change (see below).
+    let app_env_for_db = std::env::var("APP_ENV").unwrap_or_else(|_| "dev".to_string());
+    let is_production_db = app_env_for_db.eq_ignore_ascii_case("production");
+    let mut db_lease: Option<layanan_perlengkapan::shared::grpc::clients::DynamicDbCredentials> =
+        None;
+    if let (Some(client), Ok(role)) = (secreton_client.as_ref(), std::env::var("SECRETON_DB_ROLE"))
+    {
+        let ttl = std::env::var("SECRETON_DB_TTL_SECONDS")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok());
+        match client.generate_database_credentials(&role, ttl).await {
+            Ok(creds) => {
+                info!(
+                    "Acquired dynamic DB credentials from Secreton (role={}, lease={}, ttl={}s, renewable={})",
+                    role, creds.lease_id, creds.lease_duration, creds.renewable
+                );
+                database_url = Some(creds.connection_url.clone());
+                db_lease = Some(creds);
+            }
+            Err(e) if is_production_db => {
+                return Err(anyhow::anyhow!(
+                    "SECRETON_DB_ROLE set but dynamic credential issuance failed in production: {}",
+                    e
+                ));
+            }
+            Err(e) => {
+                error!(
+                    "Dynamic DB credential issuance failed ({}); falling back to static DATABASE_URL",
+                    e
+                );
+            }
+        }
+    }
+
+    let database_url = database_url.expect("DATABASE_URL must be set (env, secreton, or dynamic)");
 
     // Initialize Authenc Client with Retry Logic (optional for dev)
     // `APP_ENV=production` flips Authenc connectivity from "best-effort" to
@@ -193,9 +300,20 @@ async fn main() -> anyhow::Result<()> {
     info!("Connecting to database...");
     let db = Database::new(&database_url).await?;
 
-    // Run refinery migrations against the SQL files under `migrations/`.
-    // Refinery is the single source of schema truth (legacy hand-coded
-    // CREATE TABLE bootstrap removed).
+    // Keep the dynamic DB lease alive. Renewal extends the issued Postgres
+    // role's validity in place — the pool keeps working with the same
+    // credentials, so no in-process pool swap is needed in steady state. Only
+    // at the hard rotation boundary (max renewals reached, or renewal failure)
+    // do we exit so Kubernetes restarts the pod and re-acquires fresh creds.
+    if let (Some(client), Some(lease)) = (secreton_client.clone(), db_lease.clone()) {
+        spawn_db_lease_renewal(client, lease);
+    }
+
+    // Run migrations:
+    // 1. Refinery against the SQL files under `migrations/` (real schema).
+    // 2. Legacy hand-coded `CREATE TABLE` statements in
+    //    `Database::migrate` — kept for now until every table they create
+    //    has a corresponding refinery migration.
     info!("Running refinery migrations...");
     layanan_perlengkapan::migrations::run(db.pool()).await?;
 

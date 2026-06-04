@@ -69,6 +69,7 @@ class Kernel extends HttpKernel
         'token2session' => \App\Http\Middleware\TokenToSessionMiddleware::class,
         'token2oauth' => \App\Http\Middleware\TokenToOAuthMiddleware::class,
         'cross-tab-session' => \App\Http\Middleware\ValidateCrossTabSession::class,
+        'authenc-revocation' => \App\Http\Middleware\EnforceTokenRevocation::class,
         // '2fa' => \App\Http\Middleware\Ensure2FAIsVerified::class,
         '2fa' => \App\Http\Middleware\Ensure2FAIsVerified::class,
     ];

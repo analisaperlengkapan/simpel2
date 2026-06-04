@@ -71,6 +71,47 @@ class AuthencGrpcClient
     }
 
     /**
+     * Three-state liveness check for an already-issued token.
+     *
+     * Unlike {@see verifyToken()} (which returns claims-or-null and so cannot
+     * distinguish "revoked" from "gateway unreachable"), this returns:
+     *   - `true`  — token is active (signature ok, not expired, not revoked)
+     *   - `false` — gateway definitively rejected it (revoked / expired / 4xx)
+     *   - `null`  — could not determine (transport error / 5xx)
+     *
+     * Callers enforcing mid-session revocation should fail **closed** on
+     * `false` (log the user out) but fail **open** on `null` so a transient
+     * gateway blip doesn't mass-logout every active session.
+     */
+    public function isTokenActive(string $token): ?bool
+    {
+        try {
+            $response = Http::timeout($this->timeout)
+                ->acceptJson()
+                ->asJson()
+                ->post("{$this->baseUrl}/v1/tokens/verify", ['token' => $token]);
+
+            if ($response->successful()) {
+                $claims = $response->json('claims');
+
+                return is_array($claims) && ! empty($claims);
+            }
+
+            // 5xx: gateway/authenc trouble — we can't judge the token.
+            if ($response->serverError()) {
+                return null;
+            }
+
+            // 4xx (incl. 401/403): definitive rejection.
+            return false;
+        } catch (Throwable $th) {
+            Log::warning("Authenc isTokenActive transport error: {$th->getMessage()}");
+
+            return null;
+        }
+    }
+
+    /**
      * Get user details from Authenc gateway.
      */
     public function getUserDetails(string $username): ?array

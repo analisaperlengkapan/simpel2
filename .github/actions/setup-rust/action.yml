@@ -3,9 +3,13 @@ description: 'Installs system dependencies, Rust toolchain, Protoc, and configur
 
 inputs:
   toolchain:
+    # Pinned (F-CI) for reproducible CI — bump deliberately, not implicitly.
+    # Pinned here (composite action) rather than a root rust-toolchain.toml so
+    # third-party containerized actions (e.g. cargo-deny) don't try to install
+    # this toolchain in their own images (which timed out on ARC).
     description: 'Rust toolchain version'
     required: false
-    default: 'stable'
+    default: '1.96.0'
   targets:
     description: 'Comma-separated list of targets to install'
     required: false

@@ -59,12 +59,20 @@ impl StorageBackend for MemoryBackend {
     }
 
     async fn get_by_path(&self, path: &str) -> StorageResult<Option<SecretEntry>> {
-        let path_index = self.path_index.read().await;
-        if let Some(id) = path_index.get(path) {
-            let store = self.store.read().await;
-            Ok(store.get(id).cloned())
-        } else {
-            Ok(None)
+        // Lock ordering: always acquire `store` before `path_index` (see `store()`,
+        // `delete_by_id`, `delete_expired`). Resolve the id from path_index, drop
+        // that guard, THEN lock store — never hold path_index while taking store, or
+        // we deadlock against writers that hold store and wait on path_index.
+        let id = {
+            let path_index = self.path_index.read().await;
+            path_index.get(path).copied()
+        };
+        match id {
+            Some(id) => {
+                let store = self.store.read().await;
+                Ok(store.get(&id).cloned())
+            }
+            None => Ok(None),
         }
     }
 

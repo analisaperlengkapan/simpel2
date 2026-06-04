@@ -74,8 +74,8 @@ pub use mfa::{
 };
 
 pub use token_validation::{
-    IntrospectRequest, IntrospectResponse, ValidateTokenRequest, ValidateTokenResponse,
-    introspect_handler, validate_token_handler,
+    IntrospectRequest, IntrospectResponse, RevokeRequest, RevokeResponse, ValidateTokenRequest,
+    ValidateTokenResponse, introspect_handler, revoke_handler, validate_token_handler,
 };
 
 pub use webauthn::{

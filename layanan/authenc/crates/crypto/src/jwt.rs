@@ -194,6 +194,20 @@ impl JwtService {
         &self.issuer
     }
 
+    /// Default access token lifetime.
+    pub fn access_token_ttl(&self) -> Duration {
+        self.access_token_ttl
+    }
+
+    /// Default refresh token lifetime.
+    ///
+    /// Used by the revocation list to compute a safe `expires_at` upper bound
+    /// for session/user-wide revocations: any access token belonging to the
+    /// session/user is rejected until refresh tokens would have expired anyway.
+    pub fn refresh_token_ttl(&self) -> Duration {
+        self.refresh_token_ttl
+    }
+
     /// Get a reference to the Ed25519 signing key.
     ///
     /// Used by OIDC ID token generation so that ID tokens are signed with the

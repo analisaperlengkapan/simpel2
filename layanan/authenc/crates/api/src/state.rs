@@ -8,7 +8,7 @@ use authenc_core::services::{
 };
 use authenc_crypto::jwt::JwtService;
 use authenc_federation::IntegrasiGrpcClient;
-use authenc_storage::Database;
+use authenc_storage::{Database, PostgresRevocationStore};
 use authenc_webauthn::WebAuthnService;
 
 use crate::handlers::mfa::MfaApiService;
@@ -47,6 +47,11 @@ pub struct ApiState {
     /// Database connection for direct access when needed
     pub database: Arc<Database>,
 
+    /// Token revocation list (F2H). Checked by `validate`/`introspect` after JWT
+    /// verification so access tokens can be invalidated before their `exp`
+    /// (logout, role change, account deactivation).
+    pub revocation_store: Arc<PostgresRevocationStore>,
+
     /// CAPTCHA service for generating/verifying challenges
     pub captcha_service: Arc<authenc_core::services::CaptchaService>,
 
@@ -68,6 +73,7 @@ impl ApiState {
         mfa_service: Option<Arc<dyn MfaApiService>>,
         session_store: SessionStore,
         database: Arc<Database>,
+        revocation_store: Arc<PostgresRevocationStore>,
         captcha_service: Arc<authenc_core::services::CaptchaService>,
     ) -> Self {
         Self {
@@ -81,6 +87,7 @@ impl ApiState {
             mfa_service,
             session_store,
             database,
+            revocation_store,
             captcha_service,
             integrasi_client: None,
         }

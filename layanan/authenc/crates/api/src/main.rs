@@ -12,7 +12,7 @@ use authenc_core::services::{
 use authenc_crypto::{Argon2PasswordHasher, JwtService};
 use authenc_storage::{
     Database, PostgresClientStore, PostgresCredentialStore, PostgresRealmStore,
-    PostgresSessionStore, PostgresUserStore,
+    PostgresRevocationStore, PostgresSessionStore, PostgresUserStore,
 };
 use authenc_types::{
     AuthorizationCode, RefreshToken, Result, UserId,
@@ -158,6 +158,32 @@ impl TokenGenerator for JwtTokenGenerator {
     }
 }
 
+/// Load gRPC mTLS material from Secreton-provisioned file paths, if configured.
+///
+/// Requires `GRPC_TLS_CERT_PATH` + `GRPC_TLS_KEY_PATH`; when `GRPC_TLS_CA_PATH`
+/// is also set the server enforces mutual auth (clients must present a cert
+/// signed by the CA). Returns `None` when not configured, so callers can decide
+/// whether to refuse startup (production) or run plaintext (dev).
+fn load_grpc_tls() -> Option<authenc_grpc::TlsConfig> {
+    let cert = std::env::var("GRPC_TLS_CERT_PATH").ok()?;
+    let key = std::env::var("GRPC_TLS_KEY_PATH").ok()?;
+    let ca = std::env::var("GRPC_TLS_CA_PATH").ok();
+    let mutual = ca.is_some();
+    match authenc_grpc::TlsConfig::from_files(&cert, &key, ca) {
+        Ok(cfg) => {
+            info!("gRPC mTLS enabled (mutual_auth={})", mutual);
+            Some(cfg)
+        }
+        Err(e) => {
+            warn!(
+                "Failed to load gRPC TLS material from configured paths: {}",
+                e
+            );
+            None
+        }
+    }
+}
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -207,6 +233,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let realm_store = Arc::new(PostgresRealmStore::new(db.clone()));
     let client_store = Arc::new(PostgresClientStore::new(db.clone()));
     let credential_store = Arc::new(PostgresCredentialStore::new(db.clone()));
+    // Token revocation list (F2H) — shared by REST validate/introspect and the
+    // gRPC validate_token service so both reject revoked tokens before `exp`.
+    let revocation_store = Arc::new(PostgresRevocationStore::new(db.clone()));
 
     // JWT service
     let signing_key_bytes: [u8; 32] = if !jwt_secret_hex.is_empty() {
@@ -296,6 +325,14 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         ))
     };
 
+    // Clones for the gRPC service (service<->service channel). The Arcs below
+    // are moved into ApiState::new, so capture clones first.
+    let grpc_auth_service = auth_service.clone();
+    let grpc_user_service = user_service.clone();
+    let grpc_oauth2_service = oauth2_service.clone();
+    let grpc_realm_service = realm_service.clone();
+    let grpc_jwt_service = jwt_service.clone();
+
     // API state
     let mut state = ApiState::new(
         jwt_service,
@@ -308,8 +345,90 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         Some(mfa_service),
         webauthn_session_store,
         db.clone(),
+        revocation_store.clone(),
         captcha_service,
     );
+
+    // Background sweep: purge revocation rows past their expires_at so the table
+    // doesn't grow unbounded. Hourly is plenty — rows only matter until `exp`.
+    {
+        let revocation_store = revocation_store.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+            loop {
+                interval.tick().await;
+                match revocation_store.cleanup_expired().await {
+                    Ok(n) if n > 0 => info!("Purged {} expired token revocation(s)", n),
+                    Ok(_) => {}
+                    Err(e) => warn!("Token revocation cleanup failed: {}", e),
+                }
+            }
+        });
+    }
+
+    // gRPC server (service<->service channel: authenc <-> perlengkapan /
+    // integrasi / simpelv1). Enforces the same token revocation as the REST
+    // surface and is secured with mTLS — transport-level zero-trust — in
+    // production. Runs alongside the HTTP server.
+    {
+        let grpc_port: u16 = std::env::var("GRPC_PORT")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(9088);
+        let grpc_addr = SocketAddr::from(([0, 0, 0, 0], grpc_port));
+
+        // Services the gRPC facade needs beyond those held by ApiState.
+        let role_service = Arc::new(authenc_core::services::RoleManagementServiceImpl::new(
+            db.clone(),
+        ));
+        let federation_service = Arc::new(authenc_federation::service::FederationService::new());
+        let audit_service = Arc::new(authenc_core::services::AuditService::new(db.clone()));
+
+        let grpc_service = authenc_grpc::AuthencGrpcService::new(
+            grpc_auth_service,
+            grpc_user_service,
+            grpc_oauth2_service,
+            grpc_realm_service,
+            role_service,
+            grpc_jwt_service,
+            federation_service,
+            audit_service,
+            revocation_store.clone(),
+        );
+
+        // mTLS material (Secreton-provisioned). When a CA cert is supplied the
+        // server requires clients to present a cert signed by it — mutual auth,
+        // the zero-trust transport for the mesh. Fail closed in production.
+        let tls_config = load_grpc_tls();
+        let is_production = std::env::var("APP_ENVIRONMENT")
+            .map(|v| v.eq_ignore_ascii_case("production"))
+            .unwrap_or(false);
+        let allow_insecure = std::env::var("GRPC_ALLOW_INSECURE").unwrap_or_default() == "true";
+        if tls_config.is_none() && is_production && !allow_insecure {
+            return Err("gRPC mTLS required in production: set GRPC_TLS_CERT_PATH, \
+                 GRPC_TLS_KEY_PATH and GRPC_TLS_CA_PATH (Secreton PKI), or set \
+                 GRPC_ALLOW_INSECURE=true for transitional deploys"
+                .into());
+        }
+
+        let grpc_config = authenc_grpc::GrpcServerConfig {
+            bind_address: grpc_addr,
+            tls_config,
+            enable_logging: true,
+            enable_auth: true,
+        };
+
+        info!("Starting gRPC server on {}", grpc_addr);
+        tokio::spawn(async move {
+            if let Err(e) = authenc_grpc::GrpcServerBuilder::new(grpc_config)
+                .with_service(grpc_service)
+                .serve()
+                .await
+            {
+                tracing::error!("gRPC server terminated: {}", e);
+            }
+        });
+    }
 
     // Integrasi gRPC client (optional, enabled via INTEGRASI_GRPC_URL env var)
     if let Ok(integrasi_url) = std::env::var("INTEGRASI_GRPC_URL") {
