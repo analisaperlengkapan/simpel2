@@ -165,6 +165,16 @@ jobs:
             echo "have_files=true" >> "$GITHUB_OUTPUT"
             { echo "files<<__EOF__"; echo "$files"; echo "__EOF__"; } >> "$GITHUB_OUTPUT"
           fi
+      # Verus is NOT self-contained: each release pins an exact rustc and shells
+      # out to `rustup run <toolchain>`. Release 0.2026.05.31.5dd6d83 needs
+      # 1.95.0 — install it via setup-rust (per-job isolated RUSTUP_HOME) so the
+      # bundled verus driver finds its toolchain. Bump in lockstep with VERUS_TAG.
+      - uses: ./.github/actions/setup-rust
+        if: steps.detect.outputs.have_files == 'true'
+        with:
+          toolchain: "1.95.0"
+          cache-key: verus
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install Verus
         if: steps.detect.outputs.have_files == 'true'
         shell: bash
