@@ -26,11 +26,11 @@ use lib_perlengkapan::contracts::{
     AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
 };
 
+use analisis::AnalisisService;
 use dashboard::services::DashboardService;
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
-use analisis::AnalisisService;
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
 use services::PerlengkapanService;
 
