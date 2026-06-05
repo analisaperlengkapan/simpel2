@@ -17,6 +17,11 @@ impl DashboardService {
         Self { db_pool }
     }
 
+    /// Lightweight SIMAN summary card (`/dashboard/stats`).
+    pub async fn get_dashboard_stats(&self) -> Result<DashboardStats, AppError> {
+        repository::fetch_dashboard_stats(&self.db_pool).await
+    }
+
     /// Get complete perlengkapan dashboard metrics
     pub async fn get_perlengkapan_dashboard_metrics(
         &self,

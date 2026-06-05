@@ -16,10 +16,10 @@ use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::ApiResponse;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::{Claims, ClientIp};
 use crate::state::AppState;
+use lib_perlengkapan::response::ApiResponse;
 
 fn require_admin(claims: &Claims) -> AppResult<()> {
     if claims.is_cross_satker_role() {

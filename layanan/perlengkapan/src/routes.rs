@@ -7,16 +7,19 @@ use axum::{
     routing::{delete, get, post, put},
 };
 
+use crate::export::handlers::{download_export_job, export_to_excel, get_export_job_status};
 use crate::{
-    AppState, dashboard, handlers::*, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas,
-    pemakaian_bmn, roadmap_sarpras,
+    AppState, dashboard, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn,
+    roadmap_sarpras,
 };
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
-        .route("/health", get(health_check))
         // Dashboard
-        .route("/dashboard/stats", get(get_dashboard_stats))
+        .route(
+            "/dashboard/stats",
+            get(dashboard::handlers::get_dashboard_stats),
+        )
         .route(
             "/dashboard/perlengkapan",
             get(dashboard::handlers::get_perlengkapan_dashboard_metrics),
@@ -53,8 +56,11 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::bank_aset::get_bank_aset_detail),
         )
         // Analisis Kebutuhan
-        .route("/analisis", get(get_all_analisis).post(create_analisis))
-        .route("/analisis/{id}", get(get_analisis_by_id))
+        .route(
+            "/analisis",
+            get(crate::analisis::get_all_analisis).post(crate::analisis::create_analisis),
+        )
+        .route("/analisis/{id}", get(crate::analisis::get_analisis_by_id))
         // Penghapusan BMN (Workflow-enabled)
         .route(
             "/penghapusan-bmn",

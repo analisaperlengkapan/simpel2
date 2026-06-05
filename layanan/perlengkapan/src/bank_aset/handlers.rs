@@ -9,10 +9,10 @@ use super::{
     models::*,
     repository::{BankAsetRepository, ListFilter},
 };
-use crate::models::{ApiResponse, PaginatedResponse};
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::middleware::Claims;
 use crate::state::AppState;
+use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 #[derive(Debug, Deserialize)]
 pub struct ListQuery {

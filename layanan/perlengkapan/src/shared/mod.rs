@@ -35,6 +35,7 @@ pub mod health;
 pub mod logging;
 pub mod metrics;
 pub mod middleware;
+pub mod pagination;
 pub mod pdf;
 pub mod policy;
 pub mod rate_limit;

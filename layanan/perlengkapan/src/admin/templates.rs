@@ -24,10 +24,10 @@ use crate::dokumen::TemplateService;
 use crate::dokumen::template_models::{
     DocumentTemplate, ListTemplatesQuery, ListTemplatesResponse,
 };
-use crate::models::ApiResponse;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::Claims;
 use crate::state::AppState;
+use lib_perlengkapan::response::ApiResponse;
 
 fn require_admin(claims: &Claims) -> AppResult<()> {
     if claims.is_cross_satker_role() {
