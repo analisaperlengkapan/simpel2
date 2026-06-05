@@ -11,9 +11,9 @@ use axum::{
 };
 use deadpool_postgres::Pool;
 
-use crate::models::{ApiResponse, PaginatedResponse};
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::Claims;
+use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 use super::models::{
     AuditFilter, AuditLogEntry, MasterListQuery, MasterRecord, MasterSource, MasterUpsertRequest,

@@ -13,10 +13,10 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::services::PakaianDinasService;
-use crate::models::{ApiResponse, PaginatedResponse};
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
 use crate::shared::pagination::PaginationQuery;
+use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 // ============ Query Parameters ============
 

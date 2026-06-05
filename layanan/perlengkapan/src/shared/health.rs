@@ -265,7 +265,7 @@ pub struct IntegrasiCircuitStatus {
 /// authenticated user may read it — knowing SIMAN is down is not sensitive.
 pub async fn integrasi_circuit_status(
     State(client): State<Option<crate::shared::grpc::clients::IntegrasiClient>>,
-) -> Json<crate::models::ApiResponse<Vec<IntegrasiCircuitStatus>>> {
+) -> Json<lib_perlengkapan::response::ApiResponse<Vec<IntegrasiCircuitStatus>>> {
     use crate::shared::resilience::CircuitState;
 
     let statuses = match client {
@@ -289,7 +289,7 @@ pub async fn integrasi_circuit_status(
         None => Vec::new(),
     };
 
-    Json(crate::models::ApiResponse::success(
+    Json(lib_perlengkapan::response::ApiResponse::success(
         statuses,
         "Status sirkuit integrasi".to_string(),
     ))

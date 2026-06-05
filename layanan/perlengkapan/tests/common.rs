@@ -6,12 +6,12 @@ use layanan_perlengkapan::shared::{
 };
 use layanan_perlengkapan::{
     dashboard::services::DashboardService,
+    export::ExportService,
     kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository},
     pakaian_dinas::{PakaianDinasRepository, PakaianDinasService},
     pemakaian_bmn::{PemakaianBmnRepository, PemakaianBmnService},
     penghapusan_bmn::PenghapusanBmnService,
     roadmap_sarpras::{RoadmapRepository, RoadmapService},
-    services::PerlengkapanService,
     state::AppState,
     workflow::engine::WorkflowEngine,
 };
@@ -158,7 +158,7 @@ pub async fn teardown_test_db(db_name: &str) {
 pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let (db, db_name) = setup_test_db().await;
 
-    let service = PerlengkapanService::new(Arc::new(db.clone()));
+    let export_service = ExportService::new(Arc::new(db.clone()));
     let analisis_service =
         layanan_perlengkapan::analisis::AnalisisService::new(Arc::new(db.clone()));
     let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
@@ -215,7 +215,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         );
 
     let state = AppState {
-        service,
+        export_service,
         analisis_service,
         authenc: AuthencClient::dummy(),
         pakaian_dinas_service,

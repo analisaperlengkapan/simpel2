@@ -1,76 +1,27 @@
-//! # Request Handlers
+//! # Export Handlers
 //!
-//! HTTP request handlers for the Perlengkapan service
+//! HTTP handlers for the generic Excel export feature.
 
 use axum::{
     Json,
     extract::{Path, Query, State},
     http::StatusCode,
+    response::{IntoResponse, Response},
 };
-use serde::Deserialize;
 use uuid::Uuid;
 
+use crate::export::models::{ExportJobResponse, ExportJobStatusResponse, ExportQuery};
+use crate::export::services::ExportService;
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
-use crate::{models::*, services::PerlengkapanService};
-
-// Health check handler
-pub async fn health_check() -> Result<Json<ApiResponse<String>>, AppError> {
-    Ok(Json(ApiResponse::success(
-        "Service is healthy".to_string(),
-        "Health check passed".to_string(),
-    )))
-}
-
-// ============================================================================
-// Export Handlers
-// ============================================================================
-
-use axum::response::{IntoResponse, Response};
-
-/// Export query parameters
-#[derive(Debug, Deserialize)]
-pub struct ExportQuery {
-    /// Entity type to export (kebutuhan_bmn, pakaian_dinas, etc.)
-    pub entity_type: String,
-    /// JSON-encoded filters
-    pub filters: Option<String>,
-    /// Maximum number of rows to export
-    pub limit: Option<u32>,
-    /// Tahun anggaran filter
-    pub tahun_anggaran: Option<i32>,
-    /// Satker ID filter
-    pub satker_id: Option<Uuid>,
-    /// Status filter
-    pub status: Option<String>,
-}
-
-/// Export job response
-#[derive(Debug, serde::Serialize)]
-pub struct ExportJobResponse {
-    pub job_id: Uuid,
-    pub status: String,
-    pub message: String,
-}
-
-/// Export job status response
-#[derive(Debug, serde::Serialize)]
-pub struct ExportJobStatusResponse {
-    pub job_id: Uuid,
-    pub status: String,
-    pub progress: Option<f32>,
-    pub document_id: Option<Uuid>,
-    pub error_message: Option<String>,
-    pub created_at: String,
-    pub completed_at: Option<String>,
-}
+use lib_perlengkapan::response::ApiResponse;
 
 /// Export to Excel handler
 ///
 /// For small datasets (<1000 rows), returns Excel file synchronously.
 /// For large datasets (>=1000 rows), queues an async export job.
 pub async fn export_to_excel(
-    State(service): State<PerlengkapanService>,
+    State(service): State<ExportService>,
     Query(query): Query<ExportQuery>,
     _claims: Claims,
 ) -> Result<Response, AppError> {
@@ -121,7 +72,7 @@ pub async fn export_to_excel(
 
 /// Get export job status
 pub async fn get_export_job_status(
-    State(service): State<PerlengkapanService>,
+    State(service): State<ExportService>,
     Path(job_id): Path<Uuid>,
     _claims: Claims,
 ) -> Result<Json<ApiResponse<ExportJobStatusResponse>>, AppError> {
@@ -135,7 +86,7 @@ pub async fn get_export_job_status(
 
 /// Download completed export job
 pub async fn download_export_job(
-    State(service): State<PerlengkapanService>,
+    State(service): State<ExportService>,
     Path(job_id): Path<Uuid>,
     _claims: Claims,
 ) -> Result<Response, AppError> {
@@ -159,7 +110,7 @@ pub async fn download_export_job(
 }
 
 /// Validate entity type
-fn validate_entity_type(entity_type: &str) -> Result<(), AppError> {
+pub(crate) fn validate_entity_type(entity_type: &str) -> Result<(), AppError> {
     match entity_type {
         "kebutuhan_bmn" | "pakaian_dinas" | "roadmap_sarpras" | "riwayat_pemenuhan" => Ok(()),
         _ => Err(bad_request(&format!(

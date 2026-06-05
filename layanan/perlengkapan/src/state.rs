@@ -10,14 +10,14 @@ use crate::shared::grpc::clients::{AuthencClient, IntegrasiClient};
 use crate::shared::rate_limit::RateLimiter;
 use crate::{
     analisis::AnalisisService, dashboard, dashboard::services::DashboardService,
-    kebutuhan_bmn::KebutuhanBmnService, pakaian_dinas::PakaianDinasService,
+    export::ExportService, kebutuhan_bmn::KebutuhanBmnService, pakaian_dinas::PakaianDinasService,
     pemakaian_bmn::PemakaianBmnService, penghapusan_bmn::PenghapusanBmnService,
-    roadmap_sarpras::RoadmapService, services::PerlengkapanService,
+    roadmap_sarpras::RoadmapService,
 };
 
 #[derive(Clone)]
 pub struct AppState {
-    pub service: PerlengkapanService,
+    pub export_service: ExportService,
     pub analisis_service: AnalisisService,
     pub authenc: AuthencClient,
     pub pakaian_dinas_service: PakaianDinasService,
@@ -55,9 +55,9 @@ pub struct AppState {
     pub integrasi_client: Option<IntegrasiClient>,
 }
 
-impl FromRef<AppState> for PerlengkapanService {
+impl FromRef<AppState> for ExportService {
     fn from_ref(state: &AppState) -> Self {
-        state.service.clone()
+        state.export_service.clone()
     }
 }
 

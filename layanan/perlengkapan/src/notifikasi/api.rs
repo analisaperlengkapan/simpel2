@@ -13,11 +13,11 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::models::ApiResponse;
 use crate::notifikasi::in_app::InAppNotificationChannel;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::middleware::Claims;
 use crate::state::AppState;
+use lib_perlengkapan::response::ApiResponse;
 
 /// Serializable DTO mirroring the `notifikasi.in_app_notifications` columns
 /// the UI actually needs. We don't expose `metadata` raw — the frontend

@@ -11,9 +11,9 @@ use axum::{
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::ApiResponse;
 use crate::shared::error::AppError;
 use crate::shared::middleware::{Claims, ClientIp};
+use lib_perlengkapan::response::ApiResponse;
 
 use super::models::*;
 use super::services::PemakaianBmnService;
@@ -174,10 +174,10 @@ pub async fn generate_konsep_surat(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
     claims: Claims,
-) -> Result<Json<crate::models::ApiResponse<IzinPemakaianBmn>>, AppError> {
+) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
     let permit = service.generate_konsep_surat(id, claims.user_id).await?;
 
-    Ok(Json(crate::models::ApiResponse::success(
+    Ok(Json(lib_perlengkapan::response::ApiResponse::success(
         permit,
         "Konsep surat izin pemakaian BMN berhasil digenerate (DOCX + PDF)".to_string(),
     )))
@@ -275,12 +275,12 @@ pub async fn upload_signed_pdf(
     Path(id): Path<Uuid>,
     claims: Claims,
     Json(body): Json<UploadSignedPdfRequest>,
-) -> Result<Json<crate::models::ApiResponse<IzinPemakaianBmn>>, AppError> {
+) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
     let permit = service
         .upload_signed_pdf(id, body.signed_pdf_url, claims.user_id)
         .await?;
 
-    Ok(Json(crate::models::ApiResponse::success(
+    Ok(Json(lib_perlengkapan::response::ApiResponse::success(
         permit,
         "PDF izin pemakaian BMN yang ditandatangani berhasil diupload. Proses selesai.".to_string(),
     )))

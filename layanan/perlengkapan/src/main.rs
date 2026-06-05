@@ -19,8 +19,8 @@ use layanan_perlengkapan::shared::{
     rate_limit::{RateLimitConfig, RateLimiter},
 };
 use layanan_perlengkapan::{
-    analisis, dashboard, dokumen, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn,
-    penghapusan_bmn, roadmap_sarpras, routes, services, workflow,
+    analisis, dashboard, dokumen, export, kebutuhan_bmn, notifikasi, pakaian_dinas, pemakaian_bmn,
+    penghapusan_bmn, roadmap_sarpras, routes, workflow,
 };
 use lib_perlengkapan::contracts::{
     AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
@@ -28,11 +28,11 @@ use lib_perlengkapan::contracts::{
 
 use analisis::AnalisisService;
 use dashboard::services::DashboardService;
+use export::ExportService;
 use kebutuhan_bmn::{KebutuhanBmnService, PgKebutuhanBmnRepository};
 use pakaian_dinas::{PakaianDinasRepository, PakaianDinasService};
 use pemakaian_bmn::PemakaianBmnService;
 use roadmap_sarpras::{RoadmapRepository, RoadmapService};
-use services::PerlengkapanService;
 
 use layanan_perlengkapan::AppState;
 
@@ -322,8 +322,8 @@ async fn main() -> anyhow::Result<()> {
     info!("Adding essential database indexes...");
     layanan_perlengkapan::shared::db_optimization::add_essential_indexes(db.pool()).await?;
 
-    // Create main service with repository wrapper
-    let service = PerlengkapanService::new(Arc::new(db.clone()));
+    // Generic Excel export feature service (own repository trait, shared `db`).
+    let export_service = ExportService::new(Arc::new(db.clone()));
     // Analisis Kebutuhan feature service (own repository trait, shared `db`).
     let analisis_service = AnalisisService::new(Arc::new(db.clone()));
 
@@ -504,7 +504,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Create AppState
     let state = AppState {
-        service,
+        export_service,
         analisis_service,
         authenc: authenc_client,
         pakaian_dinas_service,
