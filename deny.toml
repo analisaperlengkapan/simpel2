@@ -26,6 +26,17 @@ ignore = [
   "RUSTSEC-2026-0098", # rustls-webpki - URI name constraints
   "RUSTSEC-2026-0099", # rustls-webpki - wildcard name constraints
   "RUSTSEC-2026-0104", # rustls-webpki - panic in CRL parsing
+  # pqcrypto-* unmaintained: upstream PQClean project archived (no security
+  # vulnerability, maintenance-status only). These wrap the NIST PQC reference
+  # impls (ML-KEM/ML-DSA/Falcon) used by secreton-crypto + authenc `quantum`.
+  # No drop-in maintained successor yet; the algorithms/params are frozen NIST
+  # standards so the archived code is stable. Track a maintained successor
+  # (e.g. RustCrypto ml-kem/ml-dsa) and migrate when mature.
+  "RUSTSEC-2026-0161", # pqcrypto-mlkem (unmaintained)
+  "RUSTSEC-2026-0162", # pqcrypto-traits (unmaintained)
+  "RUSTSEC-2026-0163", # pqcrypto-internals (unmaintained)
+  "RUSTSEC-2026-0165", # pqcrypto-falcon (unmaintained)
+  "RUSTSEC-2026-0166", # pqcrypto-mldsa (unmaintained)
 ]
 
 [licenses]
