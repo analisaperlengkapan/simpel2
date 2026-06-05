@@ -8,7 +8,9 @@ pub struct BackupConfig {
     /// Enable automated backups
     pub enabled: bool,
 
-    /// Cron schedule for automated backups (e.g., "0 2 * * *" for daily at 2 AM)
+    /// Cron schedule for automated backups. NOTE: the `cron` crate uses a
+    /// 6-field expression (seconds first), so daily-at-2-AM is "0 0 2 * * *"
+    /// (sec min hour day month weekday), not the 5-field "0 2 * * *".
     pub schedule: String,
 
     /// Retention period in days
@@ -199,7 +201,7 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             enabled: true,
-            schedule: "0 2 * * *".to_string(), // Daily at 2 AM
+            schedule: "0 0 2 * * *".to_string(), // Daily at 2 AM (6-field cron: sec min hour ...)
             retention_days: 30,
             storage_type: StorageType::Local,
             storage_config: StorageConfig::Local(LocalStorageConfig {

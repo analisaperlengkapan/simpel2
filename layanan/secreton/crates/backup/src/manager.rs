@@ -132,8 +132,10 @@ impl BackupManager {
         let retention_days = self.config.retention_days;
 
         tokio::spawn(async move {
-            // Run cleanup daily at 3 AM (1 hour after backup)
-            let cleanup_schedule = "0 3 * * *";
+            // Run cleanup daily at 3 AM (1 hour after backup). 6-field cron
+            // (seconds first) — a 5-field expr fails to parse and would make
+            // this task log-and-return, so cleanup would never run.
+            let cleanup_schedule = "0 0 3 * * *";
             let schedule = match cron::Schedule::from_str(cleanup_schedule) {
                 Ok(s) => s,
                 Err(e) => {
@@ -1414,7 +1416,14 @@ mod tests {
         assert!(compressed.len() < data.len());
     }
 
+    // Integration test: exercises the real pg_dump path, which needs both the
+    // `pg_dump` binary AND a reachable PostgreSQL matching the test config.
+    // Skipped by default (CI runners have neither); run with `--ignored` in an
+    // environment with a live DB. The unit-level backup logic (encryption,
+    // compression, metadata, retention, restore) is covered by the non-ignored
+    // tests above/below.
     #[tokio::test]
+    #[ignore = "requires pg_dump + a reachable PostgreSQL (integration)"]
     async fn test_create_backup() {
         let (manager, _temp_dir) = create_test_manager().await;
 
@@ -1472,6 +1481,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires pg_dump + a reachable PostgreSQL (integration)"]
     async fn test_list_backups() {
         let (manager, _temp_dir) = create_test_manager().await;
 
@@ -1488,6 +1498,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires pg_dump + a reachable PostgreSQL (integration)"]
     async fn test_delete_backup() {
         let (manager, _temp_dir) = create_test_manager().await;
 
@@ -1626,6 +1637,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "requires pg_dump + a reachable PostgreSQL (integration)"]
     async fn test_manual_cleanup() {
         let (manager, _temp_dir) = create_test_manager().await;
 
