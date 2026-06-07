@@ -9,9 +9,7 @@
 use crate::components::guards::{PortalAdminLayout, PortalAuthLayout};
 use crate::components::session_timeout_modal::SessionTimeoutModal;
 use crate::features::auth::AuthService;
-use crate::features::session_monitor::{
-    setup_cross_tab_session_sync, setup_session_refresh_monitor,
-};
+use crate::features::session::{setup_cross_tab_session_sync, setup_session_refresh_monitor};
 use crate::routes;
 
 use crate::pages::*;
