@@ -1,141 +1,9 @@
-//! # Pakaian Dinas Data Models
-//!
-//! Data models for official uniform management system.
-//! Includes master data, transaction data, and workflow tracking.
-
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use tokio_postgres::Row;
 use uuid::Uuid;
-use validator::Validate;
 
-// ============ Enums ============
-
-/// Gender options for uniform specifications
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum Gender {
-    L,     // Laki-laki (Male)
-    P,     // Perempuan (Female)
-    Semua, // All genders
-}
-
-impl Gender {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_uppercase().as_str() {
-            "L" => Gender::L,
-            "P" => Gender::P,
-            _ => Gender::Semua,
-        }
-    }
-
-    pub fn to_db_string(&self) -> &'static str {
-        match self {
-            Gender::L => "L",
-            Gender::P => "P",
-            Gender::Semua => "SEMUA",
-        }
-    }
-}
-
-/// Ukuran group for clothing categories
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum UkuranGroup {
-    Baju,
-    Celana,
-    Sepatu,
-}
-
-impl UkuranGroup {
-    pub fn from_str(s: &str) -> Self {
-        match s.to_uppercase().as_str() {
-            "BAJU" => UkuranGroup::Baju,
-            "CELANA" => UkuranGroup::Celana,
-            "SEPATU" => UkuranGroup::Sepatu,
-            _ => UkuranGroup::Baju,
-        }
-    }
-
-    pub fn to_db_string(&self) -> &'static str {
-        match self {
-            UkuranGroup::Baju => "BAJU",
-            UkuranGroup::Celana => "CELANA",
-            UkuranGroup::Sepatu => "SEPATU",
-        }
-    }
-}
-
-/// Workflow status codes for pakaian dinas requests
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum AktivitasStatus {
-    Input = 1000,
-    SubmitToValidator = 1001,
-    SubmitToValidatorWilayah = 1012,
-    RevisiPelaksana = 1003,
-    RevisiSatker = 1005,
-    Ditolak = 1006,
-    RevisiWilayah = 1007,
-    SubmitToPusat = 1004,
-    SubmitToPusatFromWilayah = 1010,
-    Selesai = 1008,
-    StartKejagung = 1009,
-    StartNonKejagung = 1011,
-}
-
-impl AktivitasStatus {
-    pub fn from_i32(code: i32) -> Option<Self> {
-        match code {
-            1000 => Some(AktivitasStatus::Input),
-            1001 => Some(AktivitasStatus::SubmitToValidator),
-            1003 => Some(AktivitasStatus::RevisiPelaksana),
-            1004 => Some(AktivitasStatus::SubmitToPusat),
-            1005 => Some(AktivitasStatus::RevisiSatker),
-            1006 => Some(AktivitasStatus::Ditolak),
-            1007 => Some(AktivitasStatus::RevisiWilayah),
-            1008 => Some(AktivitasStatus::Selesai),
-            1009 => Some(AktivitasStatus::StartKejagung),
-            1010 => Some(AktivitasStatus::SubmitToPusatFromWilayah),
-            1011 => Some(AktivitasStatus::StartNonKejagung),
-            1012 => Some(AktivitasStatus::SubmitToValidatorWilayah),
-            _ => None,
-        }
-    }
-
-    pub fn to_i32(&self) -> i32 {
-        match self {
-            AktivitasStatus::Input => 1000,
-            AktivitasStatus::SubmitToValidator => 1001,
-            AktivitasStatus::SubmitToValidatorWilayah => 1012,
-            AktivitasStatus::RevisiPelaksana => 1003,
-            AktivitasStatus::RevisiSatker => 1005,
-            AktivitasStatus::Ditolak => 1006,
-            AktivitasStatus::RevisiWilayah => 1007,
-            AktivitasStatus::SubmitToPusat => 1004,
-            AktivitasStatus::SubmitToPusatFromWilayah => 1010,
-            AktivitasStatus::Selesai => 1008,
-            AktivitasStatus::StartKejagung => 1009,
-            AktivitasStatus::StartNonKejagung => 1011,
-        }
-    }
-
-    pub fn label(&self) -> &'static str {
-        match self {
-            AktivitasStatus::Input => "Input",
-            AktivitasStatus::SubmitToValidator => "Diajukan ke Validator",
-            AktivitasStatus::SubmitToValidatorWilayah => "Diajukan ke Validator Wilayah",
-            AktivitasStatus::RevisiPelaksana => "Revisi Pelaksana",
-            AktivitasStatus::RevisiSatker => "Revisi Satker",
-            AktivitasStatus::Ditolak => "Ditolak",
-            AktivitasStatus::RevisiWilayah => "Revisi Wilayah",
-            AktivitasStatus::SubmitToPusat => "Diajukan ke Pusat",
-            AktivitasStatus::SubmitToPusatFromWilayah => "Diajukan ke Pusat dari Wilayah",
-            AktivitasStatus::Selesai => "Selesai",
-            AktivitasStatus::StartKejagung => "Mulai (Kejagung)",
-            AktivitasStatus::StartNonKejagung => "Mulai (Non-Kejagung)",
-        }
-    }
-}
+use super::*;
 
 // ============ Master Data Models ============
 
@@ -150,7 +18,6 @@ pub struct JenisPakaianDinas {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
-
 impl JenisPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -163,21 +30,6 @@ impl JenisPakaianDinas {
         }
     }
 }
-
-/// Request DTO for creating/updating Jenis Pakaian Dinas
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateJenisPakaianDinasRequest {
-    #[validate(length(
-        min = 1,
-        max = 255,
-        message = "Nama harus diisi dan maksimal 255 karakter"
-    ))]
-    pub nama: String,
-    pub deskripsi: Option<String>,
-    #[serde(default = "default_true")]
-    pub is_active: bool,
-}
-
 /// Master table: Spesifikasi Pakaian Dinas (Uniform Specifications)
 /// Example: Kemeja PDH, Celana PDH, Sepatu Dinas
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -194,7 +46,6 @@ pub struct SpesifikasiPakaianDinas {
     // Joined fields
     pub jenis_pakaian_nama: Option<String>,
 }
-
 impl SpesifikasiPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -211,22 +62,6 @@ impl SpesifikasiPakaianDinas {
         }
     }
 }
-
-/// Request DTO for creating/updating Spesifikasi
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateSpesifikasiRequest {
-    pub jenis_pakaian_dinas_id: Uuid,
-    #[validate(length(min = 1, max = 255, message = "Nama harus diisi"))]
-    pub nama: String,
-    #[validate(length(min = 1, max = 10, message = "Gender harus diisi"))]
-    pub gender: String, // L, P, or SEMUA
-    #[validate(length(min = 1, max = 50, message = "Ukuran group harus diisi"))]
-    pub ukuran_group: String, // BAJU, CELANA, or SEPATU
-    pub deskripsi: Option<String>,
-    #[serde(default = "default_true")]
-    pub is_active: bool,
-}
-
 /// Photo attachment for specification
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpesifikasiFoto {
@@ -236,7 +71,6 @@ pub struct SpesifikasiFoto {
     pub filename: String,
     pub created_at: DateTime<Utc>,
 }
-
 impl SpesifikasiFoto {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -248,7 +82,6 @@ impl SpesifikasiFoto {
         }
     }
 }
-
 /// Master table: SubSpesifikasi Pakaian Dinas
 /// Example: Kemeja Lengan Panjang, Kemeja Lengan Pendek
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -263,7 +96,6 @@ pub struct SubSpesifikasiPakaianDinas {
     // Joined fields
     pub spesifikasi_nama: Option<String>,
 }
-
 impl SubSpesifikasiPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -278,19 +110,6 @@ impl SubSpesifikasiPakaianDinas {
         }
     }
 }
-
-/// Request DTO for creating SubSpesifikasi
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreateSubSpesifikasiRequest {
-    pub spesifikasi_id: Uuid,
-    #[validate(length(min = 1, max = 255, message = "Nama harus diisi"))]
-    pub nama: String,
-    #[validate(length(min = 1, max = 10, message = "Gender harus diisi"))]
-    pub gender: String,
-    #[serde(default = "default_true")]
-    pub is_active: bool,
-}
-
 /// Master table: Ukuran (Sizes)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Ukuran {
@@ -298,7 +117,6 @@ pub struct Ukuran {
     pub group: String,
     pub urutan: i32,
 }
-
 impl Ukuran {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -308,7 +126,6 @@ impl Ukuran {
         }
     }
 }
-
 // ============ Transaction Models ============
 
 /// Main request header for uniform procurement
@@ -334,7 +151,6 @@ pub struct PengajuanPakaianDinas {
     pub total_satker: Option<i64>,
     pub satker_selesai: Option<i64>,
 }
-
 impl PengajuanPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -373,31 +189,6 @@ impl PengajuanPakaianDinas {
         }
     }
 }
-
-/// Request DTO for creating Pengajuan
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreatePengajuanRequest {
-    #[validate(length(min = 1, max = 255, message = "Nama pengajuan harus diisi"))]
-    pub nama: String,
-    pub deskripsi: Option<String>,
-    pub tgl_mulai: Option<NaiveDate>,
-    pub tgl_selesai: Option<NaiveDate>,
-    #[serde(default = "default_true")]
-    pub is_reguler: bool,
-    pub tahun: Option<i32>,
-    #[validate(length(min = 1, message = "Pilihan satker harus diisi"))]
-    pub pilihan_satker: String,
-    #[serde(default)]
-    pub dengan_unit_kerja: bool,
-    pub jenis_pakaian_dinas_id: Option<Uuid>,
-    pub spesifikasi_ids: Vec<Uuid>,    // Selected specifications
-    pub satker_ids: Option<Vec<Uuid>>, // Selected satkers (if pilihan_satker = "sebagian")
-    /// Wilayah Kejaksaan Tinggi (#19) — wajib jika `pilihan_satker = "wilayah"`.
-    /// Satker di-resolve otomatis dari `integrasi.mysimkari_satker.wilayah`.
-    #[serde(default)]
-    pub wilayah_id: Option<String>,
-}
-
 /// Selected satkers for a pengajuan
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatkerTerpilih {
@@ -409,7 +200,6 @@ pub struct PengajuanSatkerTerpilih {
     pub satker_nama: Option<String>,
     pub satker_kode: Option<String>,
 }
-
 impl PengajuanSatkerTerpilih {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -422,7 +212,6 @@ impl PengajuanSatkerTerpilih {
         }
     }
 }
-
 /// Clothing items selected for a pengajuan
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanPakaian {
@@ -437,7 +226,6 @@ pub struct PengajuanPakaian {
     pub subspesifikasi_nama: Option<String>,
     pub subspesifikasi_gender: Option<String>,
 }
-
 impl PengajuanPakaian {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -454,7 +242,6 @@ impl PengajuanPakaian {
         }
     }
 }
-
 /// Per-satker submission
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatker {
@@ -476,7 +263,6 @@ pub struct PengajuanSatker {
     pub aktivitas_label: Option<String>,
     pub total_pegawai: Option<i64>,
 }
-
 impl PengajuanSatker {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -499,7 +285,6 @@ impl PengajuanSatker {
         }
     }
 }
-
 /// Employee data within a satker submission
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatkerPegawai {
@@ -516,7 +301,6 @@ pub struct PengajuanSatkerPegawai {
     pub with_hijab: bool,
     pub created_at: DateTime<Utc>,
 }
-
 impl PengajuanSatkerPegawai {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -535,33 +319,6 @@ impl PengajuanSatkerPegawai {
         }
     }
 }
-
-/// Request DTO for creating/updating employee with sizes
-#[derive(Debug, Deserialize, Validate)]
-pub struct CreatePegawaiUkuranRequest {
-    #[validate(length(min = 1, message = "NIP harus diisi"))]
-    pub nip: String,
-    #[validate(length(min = 1, message = "Nama harus diisi"))]
-    pub nama: String,
-    pub pangkat: Option<String>,
-    pub jabatan: Option<String>,
-    pub eselon: Option<String>,
-    #[validate(length(min = 1, max = 1, message = "Jenis kelamin harus L atau P"))]
-    pub jenis_kelamin: String,
-    pub gol_kd: Option<String>,
-    pub jenis: Option<String>,
-    #[serde(default)]
-    pub with_hijab: bool,
-    pub ukuran: Vec<PegawaiUkuranItem>,
-}
-
-/// Size entry for a specific clothing item
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PegawaiUkuranItem {
-    pub pakaian_id: Uuid,
-    pub ukuran: String,
-}
-
 /// Employee's clothing size within a submission
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatkerPegawaiUkuran {
@@ -573,7 +330,6 @@ pub struct PengajuanSatkerPegawaiUkuran {
     pub pakaian_nama: Option<String>,
     pub ukuran_group: Option<String>,
 }
-
 impl PengajuanSatkerPegawaiUkuran {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -586,7 +342,6 @@ impl PengajuanSatkerPegawaiUkuran {
         }
     }
 }
-
 /// Workflow activity history
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatkerAktivitas {
@@ -601,7 +356,6 @@ pub struct PengajuanSatkerAktivitas {
     pub role: Option<String>,
     pub created_at: DateTime<Utc>,
 }
-
 impl PengajuanSatkerAktivitas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -618,15 +372,6 @@ impl PengajuanSatkerAktivitas {
         }
     }
 }
-
-/// Request DTO for workflow action (approve/reject)
-#[derive(Debug, Deserialize, Validate)]
-pub struct ValidatorActionRequest {
-    pub pengajuan_satker_id: Uuid,
-    pub aksi: String, // "approve" or "reject"
-    pub komentar: Option<String>,
-}
-
 // ============ Persistent Employee Size Models ============
 
 /// Persistent per-employee profile for pakaian dinas. Stores the uniform
@@ -653,7 +398,6 @@ pub struct PegawaiPakaianDinas {
     pub last_pengajuan_satker_pegawai_id: Option<Uuid>,
     pub updated_at: DateTime<Utc>,
 }
-
 impl PegawaiPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -676,120 +420,6 @@ impl PegawaiPakaianDinas {
         }
     }
 }
-
-/// Request DTO for personal uniform sizes (self-service)
-#[derive(Debug, Deserialize, Validate)]
-pub struct UpdatePersonalUkuranRequest {
-    #[validate(length(min = 1, message = "Ukuran baju harus diisi"))]
-    pub ukuran_baju: String,
-    #[validate(length(min = 1, message = "Ukuran celana harus diisi"))]
-    pub ukuran_celana: String,
-    #[validate(length(min = 1, message = "Ukuran sepatu harus diisi"))]
-    pub ukuran_sepatu: String,
-    #[serde(default)]
-    pub with_hijab: bool,
-}
-
-/// Full profile upsert — used by satker operators to set the reporting
-/// fields that MySIMKARI does not carry (eselon, gender, jenis pegawai,
-/// hijab flag, mapped unit kerja) alongside sizes. Called during the
-/// pakaian dinas wizard and by the admin bulk-import.
-#[derive(Debug, Deserialize, Validate)]
-pub struct UpsertPegawaiProfileRequest {
-    #[validate(length(min = 1, max = 30, message = "NIP tidak valid"))]
-    pub nip: String,
-    pub nama: Option<String>,
-    pub pangkat: Option<String>,
-    pub jabatan: Option<String>,
-    pub eselon: Option<String>,
-    /// "L" or "P"
-    pub jenis_kelamin: Option<String>,
-    /// "TU", "Jaksa", etc.
-    pub jenis_pegawai: Option<String>,
-    #[serde(default)]
-    pub with_hijab: bool,
-    pub mapped_unit_kerja: Option<String>,
-    pub kode_satker: Option<String>,
-    pub ukuran_baju: Option<String>,
-    pub ukuran_celana: Option<String>,
-    pub ukuran_sepatu: Option<String>,
-}
-
-// ============ Report Models ============
-
-/// Summary report by size
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LaporanRekapUkuran {
-    pub pakaian_nama: String,
-    pub ukuran_group: String,
-    pub ukuran: String,
-    pub jumlah_laki: i64,
-    pub jumlah_perempuan: i64,
-    pub jumlah_total: i64,
-}
-
-impl LaporanRekapUkuran {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            pakaian_nama: row.get("pakaian_nama"),
-            ukuran_group: row.get("ukuran_group"),
-            ukuran: row.get("ukuran"),
-            jumlah_laki: row.get("jumlah_laki"),
-            jumlah_perempuan: row.get("jumlah_perempuan"),
-            jumlah_total: row.get("jumlah_total"),
-        }
-    }
-}
-
-/// Detail list report
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LaporanDaftarPegawai {
-    pub nip: String,
-    pub nama: String,
-    pub satker_nama: String,
-    pub jabatan: Option<String>,
-    pub pangkat: Option<String>,
-    pub jenis_kelamin: String,
-    pub gol_kd: Option<String>,
-    pub jenis: Option<String>,
-    pub eselon: Option<String>,
-    pub ukuran_baju: Option<String>,
-    pub ukuran_celana: Option<String>,
-    pub ukuran_sepatu: Option<String>,
-    pub with_hijab: bool,
-}
-
-impl LaporanDaftarPegawai {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            nip: row.get("nip"),
-            nama: row.get("nama"),
-            satker_nama: row.get("satker_nama"),
-            jabatan: row.try_get("jabatan").ok(),
-            pangkat: row.try_get("pangkat").ok(),
-            jenis_kelamin: row.get("jenis_kelamin"),
-            gol_kd: row.try_get("gol_kd").ok(),
-            jenis: row.try_get("jenis").ok(),
-            eselon: row.try_get("eselon").ok(),
-            ukuran_baju: row.try_get("ukuran_baju").ok(),
-            ukuran_celana: row.try_get("ukuran_celana").ok(),
-            ukuran_sepatu: row.try_get("ukuran_sepatu").ok(),
-            with_hijab: row.try_get("with_hijab").unwrap_or(false),
-        }
-    }
-}
-
-/// Report filter options
-#[derive(Debug, Clone, Deserialize, Default)]
-pub struct LaporanFilter {
-    pub pengajuan_id: Option<Uuid>,
-    pub tahun: Option<i32>,
-    pub satker_id: Option<Uuid>,
-    pub jenis_kelamin: Option<String>,
-    pub eselon: Option<String>,
-    pub jenis: Option<String>,
-}
-
 // ============ MySIMKARI Integration Models ============
 
 /// Employee data from MySIMKARI integration
@@ -814,29 +444,6 @@ pub struct MysimkariPegawai {
     pub gol_kd: Option<String>,
     pub satker_id: Option<Uuid>,
 }
-
-/// Info kesegaran sinkronisasi MySIMKARI (Fase 2.4) untuk banner wizard ukuran.
-#[derive(Debug, Clone, Serialize)]
-pub struct PegawaiSyncInfo {
-    pub sumber: String,
-    /// Nama state sinkronisasi (SYNC_STATE_COMPLETED / FAILED / RUNNING / ...).
-    pub state: String,
-    pub last_sync_at: Option<String>,
-    /// `true` jika sync terakhir COMPLETED dan ada timestamp.
-    pub segar: bool,
-    pub records_synced: i64,
-    pub error_message: Option<String>,
-}
-
-/// Roster pegawai satker + info kesegaran sinkronisasi (Fase 2.4).
-#[derive(Debug, Clone, Serialize)]
-pub struct PegawaiRosterWithSync {
-    pub pegawai: Vec<MysimkariPegawai>,
-    pub total: i64,
-    /// `None` bila integrasi tidak tersedia / probe gagal (tidak diketahui).
-    pub sync: Option<PegawaiSyncInfo>,
-}
-
 impl MysimkariPegawai {
     pub fn from_row(row: &Row) -> Self {
         Self {
@@ -878,95 +485,5 @@ impl MysimkariPegawai {
             with_hijab: existing_sizes.map(|s| s.with_hijab).unwrap_or(false),
             ukuran: vec![], // Will be filled from existing sizes or user input
         }
-    }
-}
-
-// ============ Utility Functions ============
-
-fn default_true() -> bool {
-    true
-}
-
-// ============ Tests ============
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_gender_conversion() {
-        assert_eq!(Gender::from_str("L"), Gender::L);
-        assert_eq!(Gender::from_str("P"), Gender::P);
-        assert_eq!(Gender::from_str("SEMUA"), Gender::Semua);
-        assert_eq!(Gender::from_str("semua"), Gender::Semua);
-        assert_eq!(Gender::from_str("unknown"), Gender::Semua);
-    }
-
-    #[test]
-    fn test_ukuran_group_conversion() {
-        assert_eq!(UkuranGroup::from_str("BAJU"), UkuranGroup::Baju);
-        assert_eq!(UkuranGroup::from_str("CELANA"), UkuranGroup::Celana);
-        assert_eq!(UkuranGroup::from_str("SEPATU"), UkuranGroup::Sepatu);
-        assert_eq!(UkuranGroup::from_str("baju"), UkuranGroup::Baju);
-    }
-
-    #[test]
-    fn test_aktivitas_status_conversion() {
-        assert_eq!(
-            AktivitasStatus::from_i32(1000),
-            Some(AktivitasStatus::Input)
-        );
-        assert_eq!(
-            AktivitasStatus::from_i32(1008),
-            Some(AktivitasStatus::Selesai)
-        );
-        assert_eq!(AktivitasStatus::from_i32(9999), None);
-        assert_eq!(AktivitasStatus::Input.to_i32(), 1000);
-    }
-
-    #[test]
-    fn test_aktivitas_label() {
-        assert_eq!(AktivitasStatus::Input.label(), "Input");
-        assert_eq!(AktivitasStatus::Selesai.label(), "Selesai");
-    }
-
-    #[test]
-    fn test_pengajuan_is_open() {
-        let mut pengajuan = PengajuanPakaianDinas {
-            id: Uuid::new_v4(),
-            nama: "Test".to_string(),
-            deskripsi: None,
-            tgl_mulai: None,
-            tgl_selesai: None,
-            is_reguler: true,
-            tahun: 2026,
-            pilihan_satker: "all".to_string(),
-            dengan_unit_kerja: false,
-            jenis_pakaian_dinas_id: None,
-            aktivitas_id: 1000,
-            created_by: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-            jenis_pakaian_nama: None,
-            aktivitas_label: None,
-            total_satker: None,
-            satker_selesai: None,
-        };
-
-        // No end date = open
-        assert!(pengajuan.is_open());
-
-        // Non-regular = always open
-        pengajuan.is_reguler = false;
-        pengajuan.tgl_selesai = Some(NaiveDate::from_ymd_opt(2020, 1, 1).unwrap());
-        assert!(pengajuan.is_open());
-
-        // Regular with past end date = closed
-        pengajuan.is_reguler = true;
-        assert!(!pengajuan.is_open());
-
-        // Regular with future end date = open
-        pengajuan.tgl_selesai = Some(NaiveDate::from_ymd_opt(2030, 12, 31).unwrap());
-        assert!(pengajuan.is_open());
     }
 }
