@@ -65,10 +65,16 @@ layanan/perlengkapan/
     ├── state.rs            # AppState (carries Arc<dyn DocumentGenerator>
     │                       #            + Arc<dyn NotificationSender>)
     ├── routes.rs           # axum router composition
-    ├── handlers.rs         # shared handler scaffolding
     ├── migrations.rs       # refinery::embed_migrations! runner
+    │                       # (NB: no top-level handlers/models/services/
+    │                       #  repository.rs — the old catch-all was
+    │                       #  dissolved into feature modules, see below)
     │
-    ├── grpc_clients.rs     # authenc/secreton/integrasi clients (external)
+    ├── shared/             # infra lintas-fitur: db, grpc, middleware,
+    │                       #   cache, events, error, health, pagination, …
+    ├── analisis/           # CRUD analisis_kebutuhan (eks catch-all)
+    ├── export/             # generic xlsx export jobs (eks catch-all)
+    ├── audit/              # audit-log query surface
     │
     ├── bank_aset/          # BMN catalog
     ├── kebutuhan_bmn/      # needs assessment + SIMAN integration
@@ -80,9 +86,9 @@ layanan/perlengkapan/
     ├── dashboard/          # KPI dashboard + WebSocket
     ├── admin/              # user/role admin (local to perlengkapan)
     ├── workflow/           # approval state machine + SLA monitor
-    │   ├── engine.rs       # holds Arc<dyn DocumentGenerator>
-    │   │                   #     + Arc<dyn NotificationSender>
-    │   ├── sla.rs          # idem
+    │   ├── engine/         # split: mod (types+ctors) + transition +
+    │   │                   #   documents + notifications submodules
+    │   ├── sla.rs
     │   ├── sla_scheduler.rs
     │   └── notification_types.rs  # WorkflowNotificationType +
     │                                # to_notification_message() adapter
@@ -94,6 +100,28 @@ layanan/perlengkapan/
     └── bantuan/            # FAQ, ticketing, knowledge base, chatbot
         └── ticket.rs       # injects NotificationSender for tiket events
 ```
+
+### Layout per modul fitur (konvensi F0-A)
+
+Tiap modul fitur memakai `handlers` · `models` · `services` · `repository`
+(+ `mod.rs`). **Bila satu berkas tumbuh besar (>~30KB / ratusan baris), pecah
+menjadi direktori submodul kohesif** dengan `mod.rs` yang me-`pub use <grp>::*`
+sehingga path publik lama (`crate::<modul>::models::*`, dll) tetap utuh:
+
+- `kebutuhan_bmn/` — `handlers/` (per-handler-group + `params`), `models/`
+  (`status`/`entities`/`requests`/`responses`), `services/`, `repository/`
+  (`mod` = trait, `pg` = impl).
+- `pemakaian_bmn/` — `models/`, `services/`, `repository/` (per-fitur).
+- `pakaian_dinas/` — `models/`, `repository/`.
+- `bantuan/` — `handlers/` (per-fitur; `mod.rs` menyimpan `routes()`).
+- `workflow/engine/` — `transition`/`documents`/`notifications` (inherent
+  impl boleh dipecah lintas-berkas selama submodul = descendant module;
+  method privat yang dipanggil lintas-berkas → `pub(crate)`). **Trait impl
+  TIDAK dipecah** (koherensi: satu blok — lihat `repository/pg.rs`).
+
+Aturan saat memecah: submodul pakai path absolut `crate::<modul>::…` (bukan
+`super::…`, sebab makna `super` berubah saat berkas turun satu level); `mod.rs`
+mempertahankan re-export glob. Murni pemindahan kode — tanpa ubah perilaku.
 
 ### Why this shape
 
@@ -290,14 +318,18 @@ that pattern lives in authenc, not here). End-to-end:
    )
    ```
 
-2. **Handler** — drop the function in the per-domain `handlers.rs` (or
-   `<module>/handlers.rs` for larger surfaces). Extractor ordering
-   matters in axum: `State` first, then custom extractors (`Claims`),
-   then `Path` / `Query`, with `Json(body)` last.
+2. **Handler** — drop the function in `<module>/handlers.rs`, or in the
+   relevant `<module>/handlers/<group>.rs` when that module's handlers are
+   split into a directory (e.g. `kebutuhan_bmn`, `bantuan`). The
+   re-exporting `mod.rs` keeps the `crate::<module>::<fn>` path stable.
+   Extractor ordering matters in axum: `State` first, then custom
+   extractors (`Claims`), then `Path` / `Query`, with `Json(body)` last.
 
 3. **Service / repository** — keep the handler thin; business rules and
-   DB I/O go in `<module>/service.rs` and `<module>/repository.rs`. The
-   handler wires through `AppState`.
+   DB I/O go in `<module>/services(.rs|/…)` and
+   `<module>/repository(.rs|/…)` — single file for small modules, a
+   directory of cohesive submodules (re-exported via `mod.rs`) for large
+   ones. The handler wires through `AppState`.
 
 4. **Migration** — schema lives under `migrations/` as `V###__name.sql`
    and runs through `refinery` from `main.rs` (`migrations::run()`).
