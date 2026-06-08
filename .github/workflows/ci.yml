@@ -1019,15 +1019,12 @@ jobs:
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: antarmuka/perlengkapan/tests/e2e
-      - name: Install Playwright browsers
-        working-directory: antarmuka/perlengkapan/tests/e2e
-        run: npx playwright install --with-deps chromium
-      # F5-A: bring up the real e2e stack (base compose + e2e overlay) so the
-      # SMOKE suite runs real-auth against authenc (REST :18088, captcha-debug)
-      # + perlengkapan FE (:3001). Throwaway secrets — ephemeral test DB.
+      # F5-A: bring up the real e2e stack (base compose + e2e overlay). The SMOKE
+      # suite runs from the official Playwright container (browsers + system deps
+      # baked in) — ARC blocks `playwright install --with-deps` (no-new-privileges
+      # prevents sudo apt). The Playwright container joins the compose network and
+      # reaches services by NAME (perlengkapan:8080, authenc:8088), avoiding dind
+      # host-port/localhost issues. Throwaway secrets — ephemeral test DB.
       - name: Bring up e2e stack
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -1035,23 +1032,30 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build \
             postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan
-          echo "Waiting for authenc REST (:18088) and perlengkapan FE (:3001)…"
-          for i in $(seq 1 60); do
-            if curl -sf http://localhost:18088/health >/dev/null \
-               && curl -sf http://localhost:3001/perlengkapan/ >/dev/null; then
-              echo "stack ready after ${i} tries"; break
-            fi
-            sleep 5
-            if [ "$i" = "60" ]; then echo "::error::e2e stack did not become ready"; exit 1; fi
-          done
+      - name: Wait for stack (authenc + perlengkapan FE, on compose network)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
+            for i in $(seq 1 60); do
+              if curl -sf http://authenc:8088/health >/dev/null \
+                 && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null; then
+                echo "stack ready after $i tries"; exit 0; fi
+              sleep 5
+            done
+            echo "stack did not become ready"; exit 1'
       - name: Run Playwright SMOKE (perlengkapan-smoke)
-        working-directory: antarmuka/perlengkapan/tests/e2e
-        env:
-          CI: "true"
-          BASE_URL: http://localhost:3001
-          PERLENGKAPAN_URL: http://localhost:3001
-          AUTHENC_URL: http://localhost:18088
-        run: npx playwright test --project=perlengkapan-smoke
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          docker run --rm --network "$NET" \
+            -v "$PWD/antarmuka/perlengkapan/tests/e2e":/e2e -w /e2e \
+            -e CI=true \
+            -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            mcr.microsoft.com/playwright:v1.60.0-jammy \
+            sh -c "npm ci --no-audit --no-fund && npx playwright test --project=perlengkapan-smoke"
       - name: e2e stack logs (on failure)
         if: failure()
         run: |
