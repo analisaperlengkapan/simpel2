@@ -6,14 +6,16 @@
 //!
 //! Currently exports:
 //! - [`Popover`] — controlled floating panel anchored to a trigger.
+//! - [`Tooltip`] — hover / focus styled wrapper around `Popover`.
 //!
 //! Planned (will land alongside concrete usage demand):
-//! - `Tooltip` — hover / focus styled wrapper around `Popover`.
 //! - `Dropdown` — `Popover` + menu role + keyboard navigation.
 
 pub mod popover;
+pub mod tooltip;
 
 pub use popover::Popover;
+pub use tooltip::Tooltip;
 
 #[doc(hidden)]
 pub use floating_ui_leptos;
