@@ -879,19 +879,17 @@ jobs:
         # yang perlu di-rewrite. Unit/integration tests tetap jalan.
         run: cargo test ${{ matrix.packages }} --all-targets --no-fail-fast ${{ matrix.test_args }}
 
-  # NOTE: Test Monolith di-skip karena simpelv1 tidak punya Laravel
-  # migrations (schema disimpan sebagai pgsql SQL dump di
-  # `monolith/simpelv1/database/dbsimpelv1.sql.gz`). PHPUnit fail
-  # dengan `no such table: users` saat coba akses DB via sqlite.
-  # Solution future: convert SQL dump ke Laravel migrations, atau
-  # spin up pgsql service di CI dengan loaded dump. Sampai itu
-  # tersedia, job di-disable. Bukan fake-success — explicitly skipped.
+  # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
+  # INTEGRATION contract tests only (authenc/secreton via Http::fake): they
+  # exercise simpelv1's real internal functions (clients + EnforceTokenRevocation
+  # middleware) WITHOUT a live stack or DB (array cache/session). All legacy/AI
+  # tests were removed (user decision). DB-touching tests (e.g. integrasi pegawai/
+  # BMN, #41) need the schema — convert dbsimpelv1.sql.gz dump → Laravel
+  # migrations/schema (F5-A.3) before adding those; not required for this suite.
   test-monolith:
     name: Test Monolith (PHPUnit)
     needs: detect
-    # Always skip via false condition. Re-enable saat migrations
-    # tersedia (lihat NOTE di atas).
-    if: false && needs.detect.outputs.monolith-any == 'true'
+    if: needs.detect.outputs.monolith-any == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -926,25 +924,15 @@ jobs:
             serversideup/php:8.2-cli artisan key:generate --force
       - name: Prepare sqlite test DB (file-based)
         run: |
-          # phpunit.xml override DB ke sqlite file. File harus exist +
-          # readable+writable oleh container user. Hapus dulu kalau
-          # ada residu dari run sebelumnya, lalu touch.
+          # phpunit.xml sets DB_CONNECTION=sqlite (file). The integration suite
+          # uses Http::fake + array cache/session and does not hit the DB, but the
+          # file must exist so Laravel boots cleanly if anything resolves the
+          # connection. No migrations run (none exist yet — schema conversion is
+          # F5-A.3, needed only for DB-touching tests like #41).
           rm -f /tmp/simpelv1-test.sqlite
           touch /tmp/simpelv1-test.sqlite
           chmod 666 /tmp/simpelv1-test.sqlite
-      - name: Run migrations (sqlite file)
-        working-directory: monolith/simpelv1
-        run: |
-          docker run --rm \
-            -v "$PWD":/app \
-            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            -e DB_CONNECTION=sqlite \
-            -e DB_DATABASE=/tmp/simpelv1-test.sqlite \
-            --entrypoint php \
-            serversideup/php:8.2-cli artisan migrate --force --no-interaction 2>&1 | tail -10
-      - name: PHPUnit
+      - name: PHPUnit (Integration suite)
         working-directory: monolith/simpelv1
         run: |
           docker run --rm \
@@ -953,7 +941,7 @@ jobs:
             -w /app \
             -u "$(id -u):$(id -g)" \
             --entrypoint vendor/bin/phpunit \
-            serversideup/php:8.2-cli --no-coverage
+            serversideup/php:8.2-cli --testsuite Integration --no-coverage
 
   # ── E2E Playwright: portal & perlengkapan as SEPARATE, PARALLEL jobs ──
   # Both are listed in ci-summary.needs, so once enabled they are hard-required
