@@ -11,6 +11,7 @@ description: Release/deploy SIMPel to staging or production via the mandatory st
 guardrails; the values/specifics live there.
 
 ## Hard rules (non-negotiable)
+
 - **NEVER deploy prod-only.** `simpel.kejaksaan.go.id` is a government system —
   every change goes **staging → promote → production**. No `helm upgrade` to
   `simpelv2-production` that didn't first pass `simpelv2-staging`.
@@ -22,6 +23,7 @@ guardrails; the values/specifics live there.
   (no rebuild); the image that passed staging QA is bit-for-bit what runs in prod.
 
 ## Flow
+
 1. **Build & push** — push git tag `vX.Y.Z-rcN` → `release.yml` builds+pushes all
    images (immutable digest) + cosign + SBOM/provenance + Trivy.
 2. **Deploy STAGING** — `helm upgrade --install simpel infra/helm/simpel -f
@@ -41,19 +43,23 @@ Pre-flight: `helm lint infra/helm/simpel -f infra/helm/simpel/values-<env>.yaml`
 and render-diff (`infra/helm/deploy.sh <env> template`) before upgrading.
 
 ## Rollback
+
 ```bash
 helm history simpel -n simpelv2-<env>
 helm rollback simpel <REVISION> -n simpelv2-<env> --wait
 ```
+
 Keep the previous final tag available so you can roll forward to a known-good digest.
 
 ## One-time prod prerequisites (don't skip on a fresh environment)
+
 Bootstrap+unseal Secreton, DigiCert `simpelv2-tls-secret` in `istio-system`,
 MetalLB IP pool, `secretonAuth.enabled=true`. From F2H (when activating): gRPC mTLS
 cert (or `GRPC_ALLOW_INSECURE=true`), Secreton DB role for dynamic creds, Stakater
 Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
 
 ## Gotchas
+
 - `release.yml` / `promote.yml` run on ARC ephemeral runners; heavy image+docker
   builds — don't trigger many releases in parallel (saturates runners).
 - The `imagePullPolicy` is `IfNotPresent` in both envs (safe with immutable tags).

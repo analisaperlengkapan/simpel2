@@ -27,7 +27,7 @@ Frontend SIMPEL menggunakan arsitektur **Microfrontend** berbasis WebAssembly (W
 3. **Penggunaan Token**: Sertakan JWT di *header* HTTP untuk setiap permintaan REST ke backend.
 
 > **Catatan**: Gunakan *hooks* dari `lib_ui::hooks::use_auth` untuk standardisasi.
-
+>
 > **Skill:** untuk pengembangan/refactor Leptos (model reaktif, Resource/Action,
 > ErrorBoundary, pitfalls reaktivitas) pakai Skill **`leptos-expert`** (`.claude/skills/`).
 

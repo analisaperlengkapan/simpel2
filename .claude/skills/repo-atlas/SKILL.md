@@ -10,6 +10,7 @@ mental model a new engineer needs — *what exists, how it connects, where to lo
 grounded in real code, not guesses.
 
 ## Method
+
 1. **Start from the maps, don't re-derive.** Read root `AGENTS.md` (AI Routing
    Guide) + the relevant per-domain `AGENTS.md` first; they encode the intended
    structure. The atlas *explains/visualizes* that + verifies it against code.
@@ -23,6 +24,7 @@ grounded in real code, not guesses.
    point-in-time and may be stale. Cite `path:line` so claims are checkable.
 
 ## Output structure (per atlas / per subsystem)
+
 - **Overview** — one paragraph: purpose + where it sits in the monorepo.
 - **Components table** — module/crate · responsibility · key entry point (`file:line`).
 - **Architecture diagram** — a **mermaid** `flowchart`/`sequenceDiagram` of the real
@@ -35,6 +37,7 @@ grounded in real code, not guesses.
 - **Gotchas** — non-obvious coupling, drift, TODOs (verified, not speculative).
 
 ## Output location & guardrails
+
 - Default: render the atlas **in the response** (markdown + mermaid). Persist only
   if the user names a target. **Do NOT write into `docs/`** (curated, hands-off per
   repo rules) — if persisting, use a path the user chooses (e.g. a new dir) or
@@ -45,6 +48,7 @@ grounded in real code, not guesses.
   faithful to current code and note anything you couldn't verify.
 
 ## Scope control
+
 Ask/confirm the scope before a big sweep: whole monorepo (high-level), one domain
 (`layanan/perlengkapan`, `antarmuka/portal`, `lib/`), or one flow. A focused,
 verified subsystem atlas beats a shallow everything-map.

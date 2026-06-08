@@ -10,6 +10,7 @@ Read first: `layanan/AGENTS.md` + the service's `layanan/<svc>/AGENTS.md`
 the gotchas; the per-service deltas live there.
 
 ## Vertical slice (perlengkapan-style feature module)
+
 A feature lives in `src/<modul>/` with `handlers · models · services · repository`
 (+ `mod.rs`). Large files split into directories with a re-exporting `mod.rs` (keep
 `crate::<modul>::*` paths stable). Steps:
@@ -31,6 +32,7 @@ A feature lives in `src/<modul>/` with `handlers · models · services · reposi
 Verify: `cargo check -p <crate> --all-targets` + `cargo fmt --check` + tests green.
 
 ## Refinery migration conventions
+
 Schema lives in `<svc>/migrations/` as **`V###__name.sql`**, embedded & run by
 refinery from `main.rs` (`migrations::run`).
 - **NEVER `ALTER` a migration after it's merged** — append a new `V###__` file.
@@ -45,6 +47,7 @@ refinery from `main.rs` (`migrations::run`).
   Don't attempt a squash here; just append.
 
 ## Common pitfalls
+
 - Forgetting a route registration → handler compiles but 404s.
 - Wrong extractor order → opaque axum trait errors.
 - Putting ORM/`Row` mapping or `tokio-postgres` types in `lib-perlengkapan` → breaks

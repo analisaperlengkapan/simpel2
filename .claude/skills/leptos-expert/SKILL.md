@@ -10,6 +10,7 @@ Make SIMPel's Leptos frontends idiomatic and correct — not just scaffold a rou
 auth flow, perf) — read it first; this Skill adds the reactive depth + pitfalls.
 
 ## Reactive model (Leptos 0.8)
+
 - **State:** `signal()` for owned state; `Memo`/derived signals for computed values
   (don't clone+recompute). Prefer `Signal::derive` over cloning state into closures.
 - **Async data:** `Resource` + `<Suspense>`/`<Transition>` — **not** ad-hoc
@@ -21,6 +22,7 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
   not deep prop-drilling. SIMPel puts `UserSession` in context at `app.rs`.
 
 ## Component idioms
+
 - `#[component]`, `#[prop(into)]` (ergonomic conversions), `#[prop(optional)]`,
   `#[prop(default = …)]`; `Callback`/`Children`/`ChildrenFn` for composition.
 - A `ChildrenFn` body must stay `Fn` — capture `Copy` handles (`StoredValue`,
@@ -28,6 +30,7 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
 - Keep views small; split into child `#[component]`s; stable keys in `<For key=…>`.
 
 ## Repo conventions
+
 - **Feature-first:** put the view in `src/features/<domain>/` (page/components/api/
   state), `components/` only for dumb/shared; shared-worthy → `lib/ui`. (Details:
   `antarmuka/AGENTS.md` → "Struktur feature-first".)
@@ -40,6 +43,7 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
   set `#![recursion_limit = "256"]`.
 
 ## Common pitfalls (debug reactivity)
+
 - **View not updating** → you read the signal *outside* a reactive context (captured
   the value, not the signal). Read inside the view/closure, or use a derived signal.
 - **Borrow/already-borrowed panic** → holding a `read()` guard across a `.set()`;
@@ -50,6 +54,7 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
   use `gloo_net` for fetch.
 
 ## Sub-procedure: add a feature route
+
 Scaffold under `features/<domain>/` (page + optional api/state), import the view in
 the router, wrap with the right guard layout (`PortalAuthLayout`/`AdminLayout` etc.),
 verify wasm check + e2e. For the full backend side, pair with `add-backend-feature`.

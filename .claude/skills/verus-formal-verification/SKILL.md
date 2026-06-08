@@ -14,6 +14,7 @@ group, 2-of-2 XOR sharing correctness).
 proven, gotchas) and the `project-verus-formal-verification` memory.
 
 ## Conventions (always-active facts live in `lib/AGENTS.md`)
+
 - Proof file = `<crate>/verus/<source>_proof.rs` (e.g. `verus/shamir_proof.rs`
   proves `src/shamir.rs`). **Outside** `src/`/`tests/`/`benches/`/`examples/` so
   Cargo ignores it — **never** add a `mod` for it.
@@ -26,12 +27,14 @@ proven, gotchas) and the `project-verus-formal-verification` memory.
   anywhere ⇒ green no-op). No workflow edits needed to add a proof.
 
 ## Toolchain (Verus is NOT self-contained)
+
 Each Verus release pins an exact rustc and shells out to `rustup run`. Current
 pin: **Verus `release/0.2026.05.31.5dd6d83`** needs **rustc 1.95.0**. Releases are
 date-tagged `.zip`s (`release/0.YYYY.MM.DD.hash`). Bump rustc in lockstep with the
 tag (see `VERUS_TAG`/`setup-rust toolchain: "1.95.0"` in security.yml).
 
 Run locally:
+
 ```bash
 rustup toolchain install 1.95.0
 # download + unzip the matching Verus release, then:
@@ -39,6 +42,7 @@ RUSTUP_TOOLCHAIN=1.95.0 ./verus-x86-linux/verus path/to/<name>_proof.rs
 ```
 
 ## Writing a proof (subset)
+
 - Wrap everything in `verus! { ... }`. Model with `spec fn` (pure, math-int),
   prove with `proof fn` carrying `requires`/`ensures`.
 - Mirror the real algorithm's *structure* in `spec` (e.g. Horner form for
@@ -47,6 +51,7 @@ RUSTUP_TOOLCHAIN=1.95.0 ./verus-x86-linux/verus path/to/<name>_proof.rs
   masking); `by(nonlinear_arith)` for multiplication/modular facts.
 
 ## Diagnostics (when it won't verify)
+
 - **postcondition not satisfied** → the `ensures` isn't implied; add intermediate
   `assert`s to find where the chain breaks; check `spec` actually models the code.
 - **recommends not met** → a `spec fn` precondition (e.g. index in range) is

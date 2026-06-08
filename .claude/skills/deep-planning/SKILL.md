@@ -11,6 +11,7 @@ Cursor-style agent); this is the lean Claude Code version. For interactive plan
 approval, use **plan mode** (EnterPlanMode/ExitPlanMode) to present the final plan.
 
 ## Primitive mapping (vs the old agent)
+
 - `@codebase` / broad search → **`Explore` subagent** (fan-out; conclusions + file:line).
 - `@think`/`@sequentialthinking` → your own reasoning; for a structured strategy use
   the **`Plan` subagent**.
@@ -19,6 +20,7 @@ approval, use **plan mode** (EnterPlanMode/ExitPlanMode) to present the final pl
 - writing the plan/docs → Write/Edit (don't touch `docs/`; a scratch plan file is fine).
 
 ## Stages (confirm at each checkpoint before proceeding)
+
 1. **Analysis** — map the affected area with `repo-atlas`/`Explore`; state the
    problem, current behavior, constraints (read the relevant `AGENTS.md`).
 2. **Requirements** `[Req]` — enumerate functional + non-functional requirements,
@@ -35,6 +37,7 @@ approval, use **plan mode** (EnterPlanMode/ExitPlanMode) to present the final pl
    keep each step compiling/green; commit incrementally.
 
 ## Principles (match repo norms)
+
 - **Verify against real code/data**, not assumptions; cite `file:line`. Diagrams in
   **mermaid**. Avoid speculative features (justify each technical proposal).
 - Respect deploy/lib/feature-first guardrails (staging→prod, WASM-safe lib, Helm-only,

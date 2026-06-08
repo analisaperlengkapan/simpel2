@@ -11,26 +11,31 @@ Secreton = Vault-like secret manager. **Read first:** `infra/AGENTS.md`
 mutations to the *deployment* still go via Helm (see `deploy-to-environment`).
 
 ## Init + unseal (once per environment, fresh deploy)
+
 ```bash
 kubectl exec secreton-0 -n simpelv2-<env> -- \
   secreton operator init -shamir-shares=5 -shamir-threshold=3   # save keys OFFLINE
 secreton operator unseal <key>   # × 3 (threshold)
 ```
+
 - **Unseal keys + root token: NEVER stored in k8s** — offline only (password
   manager / separate KMS). After bootstrap, **revoke root**.
 - A restarted/rescheduled `secreton-0` comes up **sealed** → must be unsealed again
   (auto-unseal via KMS is the F6 hardening).
 
 ## Bootstrap auth backend + roles + policies
+
 ```bash
 SECRETON_TOKEN=<root> ./infra/helm/bootstrap-secreton.sh <staging|production>
 # ...then, after services are wired and healthy:
 ./infra/helm/bootstrap-secreton.sh <env> --revoke-root
 ```
+
 Run **once per env**, BEFORE flipping `secretonAuth.enabled=true`. Each service has a
 ServiceAccount annotated `secreton.simpel.io/role: <name>` (zero-trust SA-token auth).
 
 ## Dynamic database credentials (per-service onboarding)
+
 Vault-style leases instead of a static `DATABASE_URL`:
 1. `ConfigureDatabaseConnection` (point Secreton at the PG instance).
 2. `CreateDatabaseRole` (the role the service will assume).
@@ -42,6 +47,7 @@ Vault-style leases instead of a static `DATABASE_URL`:
    `layanan/perlengkapan/src/main.rs` `spawn_db_lease_renewal`).
 
 ## Incident playbook
+
 - **Pods CrashLoop "sealed"/can't fetch secret** → `secreton-0` is sealed (restart?)
   → unseal ×threshold; confirm the SA role + policy exist (bootstrap ran?).
 - **Service 500s after rotation** → lease expired without renewal; pod should have
@@ -52,6 +58,7 @@ Vault-style leases instead of a static `DATABASE_URL`:
   confirm `secreton.simpel.io/role` annotation + SA token mount.
 
 ## Guardrails
+
 - Production secrets: **source of truth = `kv/<service>/...` in Secreton**, never a
   k8s Secret object or repo `.env`.
 - Never echo secret values into logs/CI output.
