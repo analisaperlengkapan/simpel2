@@ -124,9 +124,9 @@ impl WorkflowEngine {
             );
         }
 
-        let request = lib_perlengkapan::contracts::DocumentRequest {
+        let request = crate::contracts::DocumentRequest {
             template_id: template_id.to_string(),
-            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            format: crate::contracts::DocumentFormat::Pdf,
             data,
             locale: None,
             requested_by: None,

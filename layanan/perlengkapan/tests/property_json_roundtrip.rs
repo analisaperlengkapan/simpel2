@@ -7,11 +7,11 @@
 //! breaks symmetry (rename without `#[serde(rename)]`, missing default on
 //! a removed field, etc.) is caught here before it ships.
 
-use lib_perlengkapan::audit::{AuditAction, AuditEvent};
-use lib_perlengkapan::contracts::{
+use layanan_perlengkapan::contracts::{
     DocumentArtifact, DocumentFormat, DocumentRequest, NotificationChannel, NotificationMessage,
     NotificationPriority, NotificationReceipt, StorageHandle,
 };
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use lib_perlengkapan::pagination::PageParams;
 use lib_perlengkapan::response::{ApiResponse, ErrorBody, PageMeta, PaginatedResponse};
 use proptest::prelude::*;

@@ -15,7 +15,6 @@ backend = [
   "dep:deadpool-postgres",
   "dep:regex",
 ]
-contracts = ["dep:async-trait", "dep:bytes"]
 frontend = []
 wasm = ["dep:wasm-bindgen", "uuid/js"]
 
@@ -37,7 +36,6 @@ tokio-postgres = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 deadpool-postgres = { workspace = true, optional = true }
 regex = { workspace = true, optional = true }
-bytes = { workspace = true, optional = true }
 
 # WASM support
 wasm-bindgen = { workspace = true, optional = true }

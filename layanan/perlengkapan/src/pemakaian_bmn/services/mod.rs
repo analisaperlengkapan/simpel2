@@ -16,8 +16,8 @@ use super::repository::PemakaianBmnRepository;
 pub struct PemakaianBmnService {
     repository: Arc<PemakaianBmnRepository>,
     workflow_engine: Arc<WorkflowEngine>,
-    notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
-    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
+    notifier: Option<Arc<dyn crate::contracts::NotificationSender>>,
+    docs: Option<Arc<dyn crate::contracts::DocumentGenerator>>,
 }
 
 impl PemakaianBmnService {
@@ -36,7 +36,7 @@ impl PemakaianBmnService {
     /// Inject the notification sender (replaces the deleted gRPC client).
     pub fn with_notification_sender(
         mut self,
-        notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
+        notifier: Arc<dyn crate::contracts::NotificationSender>,
     ) -> Self {
         self.notifier = Some(notifier);
         self
@@ -45,7 +45,7 @@ impl PemakaianBmnService {
     /// Inject the document generator (replaces the deleted gRPC client).
     pub fn with_document_generator(
         mut self,
-        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
+        docs: Arc<dyn crate::contracts::DocumentGenerator>,
     ) -> Self {
         self.docs = Some(docs);
         self

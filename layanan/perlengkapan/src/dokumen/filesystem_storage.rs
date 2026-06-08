@@ -10,10 +10,10 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::contracts::{DocumentStorage, StorageHandle};
 use async_trait::async_trait;
 use chrono::Utc;
 use lib_perlengkapan::ServiceError;
-use lib_perlengkapan::contracts::{DocumentStorage, StorageHandle};
 use sha2::{Digest, Sha256};
 
 const DEFAULT_ROOT: &str = "/tmp/perlengkapan/docs";

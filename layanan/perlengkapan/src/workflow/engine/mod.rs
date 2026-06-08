@@ -92,15 +92,15 @@ pub struct WorkflowEngine {
 
     /// Document generator (port). Optional because document generation is
     /// only meaningful for entity types that produce SK/surat after approval.
-    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
+    docs: Option<Arc<dyn crate::contracts::DocumentGenerator>>,
 
     /// Notification sender (port).
-    notifier: Option<Arc<dyn lib_perlengkapan::contracts::NotificationSender>>,
+    notifier: Option<Arc<dyn crate::contracts::NotificationSender>>,
 
     /// Audit sink (port). Optional — dev/test boleh tanpa, produksi wajib
     /// terinjeksi agar setiap transisi tercatat di `perlengkapan.audit_log`
     /// (BPK-ready).
-    audit_sink: Option<Arc<dyn lib_perlengkapan::contracts::AuditSink>>,
+    audit_sink: Option<Arc<dyn crate::contracts::AuditSink>>,
 
     /// V1.4: in-process event bus. Optional — bila ter-inject, setiap
     /// transisi sukses mem-publish `DomainEvent::WorkflowTransitioned`
@@ -128,7 +128,7 @@ impl WorkflowEngine {
     /// Inject a document generator (replaces the deleted gRPC client).
     pub fn with_document_generator(
         mut self,
-        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
+        docs: Arc<dyn crate::contracts::DocumentGenerator>,
     ) -> Self {
         self.docs = Some(docs);
         self
@@ -136,17 +136,14 @@ impl WorkflowEngine {
     /// Inject a notification sender (replaces the deleted gRPC client).
     pub fn with_notification_sender(
         mut self,
-        notifier: Arc<dyn lib_perlengkapan::contracts::NotificationSender>,
+        notifier: Arc<dyn crate::contracts::NotificationSender>,
     ) -> Self {
         self.notifier = Some(notifier);
         self
     }
     /// Inject the audit sink (typically `PgAuditSink`). Setiap transisi
     /// sukses akan mem-publish AuditEvent ke sink ini.
-    pub fn with_audit_sink(
-        mut self,
-        audit_sink: Arc<dyn lib_perlengkapan::contracts::AuditSink>,
-    ) -> Self {
+    pub fn with_audit_sink(mut self, audit_sink: Arc<dyn crate::contracts::AuditSink>) -> Self {
         self.audit_sink = Some(audit_sink);
         self
     }

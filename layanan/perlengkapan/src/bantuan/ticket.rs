@@ -1,10 +1,10 @@
 use super::error::AppError;
 use super::models::{SupportTicket, TicketComment};
-use deadpool_postgres::Pool;
-use lib_perlengkapan::audit::{AuditAction, AuditEvent};
-use lib_perlengkapan::contracts::{
+use crate::contracts::{
     AuditSink, NotificationChannel, NotificationMessage, NotificationPriority, NotificationSender,
 };
+use deadpool_postgres::Pool;
+use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 use std::sync::Arc;
 use uuid::Uuid;
 

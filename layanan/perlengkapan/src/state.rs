@@ -1,9 +1,7 @@
 use axum::extract::FromRef;
 use std::sync::Arc;
 
-use lib_perlengkapan::contracts::{
-    AuditSink, DocumentGenerator, DocumentStorage, NotificationSender,
-};
+use crate::contracts::{AuditSink, DocumentGenerator, DocumentStorage, NotificationSender};
 
 use crate::shared::cache::CacheManager;
 use crate::shared::grpc::clients::{AuthencClient, IntegrasiClient};

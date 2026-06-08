@@ -4,11 +4,11 @@
 //! The workflow engine produces values of [`WorkflowNotificationType`] +
 //! [`NotificationPriority`] and the [`to_notification_message`] adapter
 //! converts them into the
-//! [`lib_perlengkapan::contracts::NotificationMessage`] DTO that the
-//! [`NotificationSender`](lib_perlengkapan::contracts::NotificationSender)
+//! [`crate::contracts::NotificationMessage`] DTO that the
+//! [`NotificationSender`](crate::contracts::NotificationSender)
 //! trait consumes.
 
-use lib_perlengkapan::contracts::{
+use crate::contracts::{
     NotificationChannel, NotificationMessage, NotificationPriority as ContractPriority,
 };
 use uuid::Uuid;
@@ -16,7 +16,7 @@ use uuid::Uuid;
 /// Notification priority levels used by the workflow engine.
 ///
 /// Wire-distinct from the contract's
-/// [`NotificationPriority`](lib_perlengkapan::contracts::NotificationPriority)
+/// [`NotificationPriority`](crate::contracts::NotificationPriority)
 /// only because the workflow needed a `Normal` variant historically; mapped
 /// one-to-one in [`to_contract_priority`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -200,7 +200,7 @@ impl WorkflowNotificationType {
 
 /// Convert a workflow-domain notification into the cross-module
 /// [`NotificationMessage`] DTO consumed by the
-/// [`NotificationSender`](lib_perlengkapan::contracts::NotificationSender)
+/// [`NotificationSender`](crate::contracts::NotificationSender)
 /// trait.
 pub fn to_notification_message(
     recipient: Uuid,

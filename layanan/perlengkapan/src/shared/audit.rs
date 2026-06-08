@@ -10,8 +10,8 @@
 use async_trait::async_trait;
 use deadpool_postgres::Pool;
 
+use crate::contracts::AuditSink;
 use lib_perlengkapan::audit::{AuditAction, AuditEvent};
-use lib_perlengkapan::contracts::AuditSink;
 use lib_perlengkapan::error::{ServiceError, ServiceResult};
 
 /// PostgreSQL-backed `AuditSink`. Writes every event to

@@ -2,7 +2,7 @@
 //!
 //! Types for the BPK-ready audit reader at `GET /audit`. This reads the
 //! canonical cross-module sink `perlengkapan.audit_log` (written by every
-//! module via [`lib_perlengkapan::contracts::AuditSink`]), as opposed to
+//! module via [`crate::contracts::AuditSink`]), as opposed to
 //! `/admin/audit` which only surfaces workflow transitions.
 
 use serde::{Deserialize, Serialize};

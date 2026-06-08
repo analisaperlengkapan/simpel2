@@ -221,7 +221,7 @@ async fn test_sla_escalation_with_notification() {
     let config = WorkflowConfig::default_kebutuhan_bmn();
 
     // Stand up the in-process NotifikasiService (no gRPC server needed).
-    let notifier: std::sync::Arc<dyn lib_perlengkapan::contracts::NotificationSender> =
+    let notifier: std::sync::Arc<dyn layanan_perlengkapan::contracts::NotificationSender> =
         std::sync::Arc::new(
             layanan_perlengkapan::notifikasi::service::NotifikasiService::new(pool.clone()),
         );

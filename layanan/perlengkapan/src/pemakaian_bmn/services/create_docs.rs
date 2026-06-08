@@ -159,16 +159,16 @@ impl PemakaianBmnService {
         let docx_path = format!("{}/konsep-surat.docx", dir);
         let pdf_path = format!("{}/konsep-surat.pdf", dir);
 
-        let docx_request = lib_perlengkapan::contracts::DocumentRequest {
+        let docx_request = crate::contracts::DocumentRequest {
             template_id: template_id.clone(),
-            format: lib_perlengkapan::contracts::DocumentFormat::Docx,
+            format: crate::contracts::DocumentFormat::Docx,
             data: data.clone(),
             locale: None,
             requested_by: None,
         };
-        let pdf_request = lib_perlengkapan::contracts::DocumentRequest {
+        let pdf_request = crate::contracts::DocumentRequest {
             template_id: template_id.clone(),
-            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            format: crate::contracts::DocumentFormat::Pdf,
             data,
             locale: None,
             requested_by: None,

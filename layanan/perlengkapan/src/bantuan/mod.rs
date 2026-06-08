@@ -1,7 +1,7 @@
 //! Bantuan module — FAQ, ticketing, knowledge base, chatbot, analytics,
 //! rate limiting, captcha, GDPR export/import. Notifikasi integration goes
-//! through the [`lib_perlengkapan::contracts::NotificationSender`] +
-//! [`lib_perlengkapan::contracts::AuditSink`] traits wired into
+//! through the [`crate::contracts::NotificationSender`] +
+//! [`crate::contracts::AuditSink`] traits wired into
 //! [`AppState`](crate::state::AppState).
 
 #![allow(dead_code)]

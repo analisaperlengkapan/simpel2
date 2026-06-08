@@ -1,7 +1,7 @@
 //! Notifikasi module — email/SMS/WhatsApp/push/in-app delivery, templates,
 //! preferences, queue processing, WebSocket fan-out. Cross-module callers
 //! (workflow, bantuan) reach this module through the
-//! [`lib_perlengkapan::contracts::NotificationSender`] trait wired into
+//! [`crate::contracts::NotificationSender`] trait wired into
 //! [`AppState`](crate::state::AppState).
 
 // Many services and queue processors contain placeholder/stub fields with

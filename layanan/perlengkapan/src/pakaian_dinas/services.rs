@@ -10,11 +10,11 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::repository::PakaianDinasRepository;
+use crate::contracts::AuditSink;
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
 use lib_perlengkapan::audit::{AuditAction, AuditEvent};
-use lib_perlengkapan::contracts::AuditSink;
 
 /// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
 /// `AppError::BadRequest` (422) jika:

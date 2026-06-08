@@ -4,6 +4,7 @@
 // Requirements: REQ-W003
 // ============================================================================
 
+use crate::contracts::NotificationSender;
 use crate::shared::metrics;
 use crate::workflow::config::WorkflowConfig;
 use crate::workflow::notification_types::{
@@ -11,7 +12,6 @@ use crate::workflow::notification_types::{
 };
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::Pool;
-use lib_perlengkapan::contracts::NotificationSender;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;

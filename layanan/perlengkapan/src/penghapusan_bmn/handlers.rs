@@ -20,6 +20,7 @@
 
 use super::models::*;
 use super::services::PenghapusanBmnService;
+use crate::contracts::DocumentStorage;
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
 use axum::{
@@ -27,7 +28,6 @@ use axum::{
     extract::{Multipart, Path, Query, State},
     http::StatusCode,
 };
-use lib_perlengkapan::contracts::DocumentStorage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
