@@ -25,6 +25,7 @@ use Tests\TestCase;
 class AuthencIntegrationTest extends TestCase
 {
     private const GW = 'http://authenc-gw.test';
+
     private const VERIFY = self::GW.'/v1/tokens/verify';
 
     protected function setUp(): void
@@ -42,7 +43,7 @@ class AuthencIntegrationTest extends TestCase
     {
         Http::fake([self::VERIFY => Http::response(['claims' => ['sub' => 'u1', 'sid' => 's1']], 200)]);
 
-        $claims = (new AuthencGrpcClient())->verifyToken('tok');
+        $claims = (new AuthencGrpcClient)->verifyToken('tok');
 
         $this->assertIsArray($claims);
         $this->assertSame('u1', $claims['sub']);
@@ -52,22 +53,22 @@ class AuthencIntegrationTest extends TestCase
     {
         Http::fake([self::VERIFY => Http::response(['error' => 'invalid'], 401)]);
 
-        $this->assertNull((new AuthencGrpcClient())->verifyToken('tok'));
+        $this->assertNull((new AuthencGrpcClient)->verifyToken('tok'));
     }
 
     public function test_is_token_active_three_states(): void
     {
         // active
         Http::fake([self::VERIFY => Http::response(['claims' => ['sub' => 'u1']], 200)]);
-        $this->assertTrue((new AuthencGrpcClient())->isTokenActive('tok'));
+        $this->assertTrue((new AuthencGrpcClient)->isTokenActive('tok'));
 
         // definitively revoked/expired (4xx)
         Http::fake([self::VERIFY => Http::response(['error' => 'revoked'], 401)]);
-        $this->assertFalse((new AuthencGrpcClient())->isTokenActive('tok'));
+        $this->assertFalse((new AuthencGrpcClient)->isTokenActive('tok'));
 
         // indeterminate (5xx) → null (fail-open upstream)
         Http::fake([self::VERIFY => Http::response('boom', 503)]);
-        $this->assertNull((new AuthencGrpcClient())->isTokenActive('tok'));
+        $this->assertNull((new AuthencGrpcClient)->isTokenActive('tok'));
     }
 
     // ── EnforceTokenRevocation middleware ────────────────────────────────
