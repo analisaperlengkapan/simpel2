@@ -21,6 +21,10 @@
 //! come from `leptos_use` — re-exported via `lib_ui::prelude`.
 
 // Allow clippy warnings for common patterns in this crate
+// Leptos view! trees expand into deeply-nested generic types; the default
+// query/recursion depth (128) overflows under release optimization. Match the
+// 256 already used by the portal/perlengkapan binaries.
+#![recursion_limit = "256"]
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::useless_vec)]
 #![allow(clippy::manual_range_contains)]

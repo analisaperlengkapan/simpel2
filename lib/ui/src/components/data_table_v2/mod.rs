@@ -1,25 +1,43 @@
-//! Future home of the [`leptos_struct_table`]-backed `<DataTable>`.
+//! [`leptos_struct_table`]-backed typed table primitives.
 //!
-//! `leptos-struct-table` is wired up as a `lib-ui` dependency (with
-//! `chrono` and `uuid` features) so derive macros for our domain
-//! types resolve. The actual `<DataTable>` wrapper is intentionally
-//! deferred — see Phase 5a in
-//! `.claude/plans/coba-kritisi-uraian-berikut-pure-rossum.md`.
+//! `leptos-struct-table` (with `chrono` + `uuid` features) provides the
+//! `#[derive(TableRow)]` macro and the [`TableContent`] component; this module
+//! adds the project theme and a curated re-export surface so feature code can
+//! build typed, sortable tables without depending on `leptos_struct_table`
+//! directly.
 //!
-//! Once the workspace build is healthy enough to verify the
-//! migration, this module will export:
-//! - `<DataTable rows=... class_provider=SimpelTableClasses />` — a
-//!   thin theme wrapper over `leptos_struct_table::TableContent`.
-//! - A `class_providers::SimpelTableClasses` struct that emits the
-//!   project's Navy/Gold Tailwind classes for header/row/cell cells.
+//! ## Usage
+//! ```ignore
+//! use lib_ui::components::data_table_v2::{SimpelTableClasses, TableContent, TableRow};
 //!
-//! At that point:
-//! - `lib/ui/src/components/display.rs::Table` collapses into a
-//!   `pub use` re-export.
-//! - `antarmuka/perlengkapan/src/components/layout/data_table.rs` is
-//!   deleted in favor of this typed primitive.
-//! - `pagination_controls.rs` either moves here or is replaced by
-//!   `leptos_struct_table`'s built-in pagination.
+//! #[derive(TableRow, Clone)]
+//! #[table(classes_provider = "SimpelTableClasses")]
+//! struct AssetRow {
+//!     kode: String,
+//!     nama: String,
+//! }
+//!
+//! view! { <TableContent rows scroll_container="html" /> }
+//! ```
+//!
+//! ## Follow-up (needs a concrete consumer to validate generics)
+//! - A thin opinionated `<DataTable rows=.../>` wrapper that injects
+//!   [`SimpelTableClasses`] and sensible defaults — deferred until the first
+//!   feature migrates so the generic `TableRow` bounds can be verified against
+//!   a real row type.
+//! - Collapse `components::display::Table` into a re-export and delete
+//!   `antarmuka/perlengkapan/src/components/layout/data_table.rs`.
+
+mod class_providers;
+
+pub use class_providers::SimpelTableClasses;
+
+// Curated re-exports: the building blocks consumers need to declare and render
+// a typed table, so feature code imports from `lib_ui`, not the upstream crate.
+pub use leptos_struct_table::{
+    ColumnSort, DefaultTableCellRenderer, DefaultTableRowRenderer, TableClassesProvider,
+    TableContent, TableRow,
+};
 
 #[doc(hidden)]
 pub use leptos_struct_table;

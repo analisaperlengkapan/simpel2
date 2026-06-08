@@ -145,3 +145,7 @@ pub fn setup_session_refresh_monitor(
         });
     }
 }
+
+// ---- F0-B: sessions management page ----
+pub mod sessions;
+pub use sessions::*;
