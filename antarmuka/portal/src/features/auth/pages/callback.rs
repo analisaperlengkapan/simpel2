@@ -3,9 +3,9 @@
 //! Handles OAuth2 authorization code callback from Authenc
 
 #[allow(unused_imports)]
-use crate::features::auth::{AuthService, UserSession};
+use crate::features::auth::oauth::OAuthClient;
 #[allow(unused_imports)]
-use crate::features::oauth::OAuthClient;
+use crate::features::auth::{AuthService, UserSession};
 use leptos::prelude::*;
 
 /// OAuth callback page component
