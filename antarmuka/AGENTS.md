@@ -27,6 +27,43 @@ Frontend SIMPEL menggunakan arsitektur **Microfrontend** berbasis WebAssembly (W
 3. **Penggunaan Token**: Sertakan JWT di *header* HTTP untuk setiap permintaan REST ke backend.
 
 > **Catatan**: Gunakan *hooks* dari `lib_ui::hooks::use_auth` untuk standardisasi.
+>
+> **Skill:** untuk pengembangan/refactor Leptos (model reaktif, Resource/Action,
+> ErrorBoundary, pitfalls reaktivitas) pakai Skill **`leptos-expert`** (`.claude/skills/`).
+
+### Struktur feature-first (F0-B)
+
+Tiap app diorganisir **per bounded-context di `src/features/<domain>/`**, bukan
+page-centric. Konvensi (portal sudah mengikuti ini; `perlengkapan` menyusul):
+
+```
+antarmuka/<app>/src/
+  main.rs  lib.rs  app.rs        # root component + provide_context global
+  routes.rs                      # rute bertipe (satu sumber)
+  features/
+    <domain>/                    # mis. dashboard, profile, admin, kebutuhan_bmn
+      mod.rs                     # `pub mod` + re-export glob (jaga path publik)
+      page.rs | pages/           # komponen route-target
+      components/                # komponen lokal fitur (opsional)
+      api.rs                     # klien HTTP bertipe fitur (opsional)
+      state.rs                   # signal/Resource/Action khusus fitur (opsional)
+    auth/                        # context/service + OAuth + login/callback pages
+    session/                     # cross-tab session monitor + sessions page
+  components/                    # HANYA komponen dumb/shared lintas-fitur
+  utils/                         # helper non-domain (BUKAN tempat API domain)
+  tests/e2e/
+```
+
+Aturan:
+- **Halaman milik fiturnya** — `pages/<x>.rs` lama → `features/<domain>/`. `mod.rs`
+  me-`pub use` ulang sehingga path `crate::features::*` tetap stabil; `app.rs`
+  meng-impor view dari modul fitur.
+- `components/` top-level **hanya** untuk komponen dumb/shared; komponen domain
+  tinggal di fiturnya. Komponen shared yang layak naik → `lib/ui`.
+- Cross-cutting (mis. `microfrontends` registry) boleh tetap modul datar.
+- Saat memecah/memindah: pakai path absolut `crate::features::…`, jaga re-export
+  `mod.rs`. Murni pemindahan kode — verifikasi `cargo check --target
+  wasm32-unknown-unknown -p <app>` + `trunk build` hijau.
 
 ---
 
@@ -160,7 +197,9 @@ let debounced_search = Memo::new(move |_| {
 
 ### 1. Add a new MFE route with auth guard
 
-Both Portal and Perlengkapan MFE use `leptos_router` with parent-route
+Place the route's view component in its feature module
+(`src/features/<domain>/`, see "Struktur feature-first" above), then wire it in
+the router. Both Portal and Perlengkapan MFE use `leptos_router` with parent-route
 layouts as guards (Next.js-style `layout.tsx`). The shape:
 
 ```rust

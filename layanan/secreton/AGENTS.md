@@ -4,6 +4,10 @@
 
 ## Service Context
 
+> **Skill:** untuk operasi/insiden Secreton (init/unseal, bootstrap role/policy,
+> provisioning dynamic DB creds, recovery saat sealed) pakai Skill **`secreton-ops`**
+> (`.claude/skills/`).
+
 **Secreton** is the secrets management, transit encryption, and PKI service for SIMPEL. It is a Rust binary in the simpelv2 monorepo (`layanan/secreton/`). It exposes a REST API (Axum 0.8), a gRPC API (Tonic 0.14), and a CLI tool (clap).
 
 **Binary:** `api_server` (crate `secreton-api`)  

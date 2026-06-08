@@ -55,6 +55,11 @@ Urutan baku:
 5. **Deploy PRODUCTION**: `helm upgrade` `simpel` di `simpelv2-production` (`values-production.yaml`) dengan tag final.
 6. **Uji PRODUCTION**: smoke + e2e. Bila regresi → `helm rollback`.
 
+> **Skill:** prosedur lengkap + guardrail + perintah ada di Skill
+> **`deploy-to-environment`** (`.claude/skills/`). Pakai saat rilis/deploy/promote/rollback.
+> Untuk diagnosa/troubleshoot cluster (CrashLoop/Pending/Istio/Calico/ARC/MetalLB/
+> Longhorn) → Skill **`kubectl-cluster-ops`** (read/diagnose + emergency; mutasi tetap via Helm).
+
 Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `istio-system`, MetalLB IP pool (lihat section terkait di bawah).
 
 ### 4. Image Registry & Tag

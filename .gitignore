@@ -233,5 +233,8 @@ recipe.json
 !**/profile.rs
 .env
 
-# Local AI assistant artifacts
-.claude/
+# Local AI assistant artifacts (keep local settings out of VCS, but
+# share team Skills — see F0-D). `.claude/*` (not `.claude/`) so a child
+# dir can be re-included; a fully-ignored dir cannot.
+.claude/*
+!.claude/skills/
