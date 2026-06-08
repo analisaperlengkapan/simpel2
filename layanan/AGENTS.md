@@ -26,6 +26,8 @@ Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
 
 > **Skill:** untuk menambah/ubah fitur backend (route→handler→service→repository→
 > migrasi refinery→test) pakai Skill **`add-backend-feature`** (`.claude/skills/`).
+> Ops/insiden Secreton (seal/unseal, dynamic DB creds) → Skill **`secreton-ops`**;
+> proof Verus utk crypto → Skill **`verus-formal-verification`**.
 
 Backend SIMPEL terbagi menjadi dua jenis layanan:
 

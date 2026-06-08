@@ -102,10 +102,10 @@ Top-level (unauthenticated):
 
 **Middleware stack (outer → inner):**
 
-1. `standard_cors` (lib-common) — CORS
-2. `correlation_id_middleware` (lib-common) — X-Correlation-ID
-3. `RequestLogger` (lib-common) — structured request logging
-4. `security_headers_middleware` (lib-common) — HSTS, CSP, X-Frame-Options
+1. `standard_cors` (lib-backend) — CORS
+2. `correlation_id_middleware` (lib-backend) — X-Correlation-ID
+3. `RequestLogger` (lib-backend) — structured request logging
+4. `security_headers_middleware` (lib-backend) — HSTS, CSP, X-Frame-Options
 5. `request_rate_middleware` — per-IP rate limiting
 6. _(on /v1 only)_
    - `seal_check_middleware` — returns 503 if vault sealed
@@ -332,12 +332,10 @@ cargo fmt --all && cargo clippy --workspace
 
 ## Deployment
 
-K8s manifests in `deploy/`:
-
-- `deploy/staging/` — 6 YAML files (namespace, secrets, configmaps, postgres, statefulset, ingress-rbac, autoscaling)
-- `deploy/kubernetes/` — 6 YAML files (production)
-
-Current staging: StatefulSet in `simpelv2-staging` namespace on microk8s. Image: `localhost:32000/simpelv2/secreton:stag-v6`
+Deploy **hanya** via umbrella Helm chart `infra/helm/simpel/` (GitOps; plain-YAML/Kustomize
+lama sudah dihapus). Image: `ghcr.io/analisaperlengkapan/simpel2/secreton:vX.Y.Z`
+(SemVer immutable — dilarang `latest`/`stag`/`prod`). Alur deploy WAJIB staging→promote→production.
+Detail: [`infra/AGENTS.md`](../../infra/AGENTS.md) + Skill `deploy-to-environment` / `secreton-ops`.
 
 ## Coding Patterns
 
@@ -488,7 +486,7 @@ Test suites in `tests/`:
 |----------|------|
 | Root AGENTS.md | `/AGENTS.md` |
 | Authenc AGENTS.md | `/layanan/authenc/AGENTS.md` |
-| lib-common | `/lib/common/AGENTS.md` |
+| lib-backend / lib-core | `/lib/AGENTS.md` |
 | Secreton README | `/layanan/secreton/README.md` |
 | Config reference | `/layanan/secreton/secreton.toml.example` |
 | Deployment manifests | `/layanan/secreton/deploy/` |
