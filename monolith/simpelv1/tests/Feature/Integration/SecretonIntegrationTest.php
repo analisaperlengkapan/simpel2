@@ -55,20 +55,29 @@ class SecretonIntegrationTest extends TestCase
         $this->assertSame('u', $creds['username']);
     }
 
-    public function test_get_api_key_returns_key_or_null(): void
+    // One fake per test: Http::fake keeps the FIRST stub per URL, so a second
+    // Http::fake() for the same URL inside one test would be ignored.
+
+    public function test_get_api_key_returns_key_when_present(): void
     {
         Http::fake([self::GW.'/v1/api-keys/*' => Http::response(['api_key' => 'k-123'], 200)]);
         $this->assertSame('k-123', (new SecrethonGrpcClient)->getApiKey('maps'));
+    }
 
+    public function test_get_api_key_returns_null_on_error(): void
+    {
         Http::fake([self::GW.'/v1/api-keys/*' => Http::response('', 500)]);
         $this->assertNull((new SecrethonGrpcClient)->getApiKey('maps'));
     }
 
-    public function test_health_reflects_gateway_status(): void
+    public function test_health_true_when_gateway_up(): void
     {
         Http::fake([self::GW.'/healthz' => Http::response('ok', 200)]);
         $this->assertTrue((new SecrethonGrpcClient)->health());
+    }
 
+    public function test_health_false_when_gateway_down(): void
+    {
         Http::fake([self::GW.'/healthz' => Http::response('down', 503)]);
         $this->assertFalse((new SecrethonGrpcClient)->health());
     }

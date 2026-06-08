@@ -56,17 +56,23 @@ class AuthencIntegrationTest extends TestCase
         $this->assertNull((new AuthencGrpcClient)->verifyToken('tok'));
     }
 
-    public function test_is_token_active_three_states(): void
+    // isTokenActive is 3-state; one fake per test (Http::fake keeps the FIRST
+    // stub per URL, so re-faking the same URL within one test does not work).
+
+    public function test_is_token_active_true_when_active(): void
     {
-        // active
         Http::fake([self::VERIFY => Http::response(['claims' => ['sub' => 'u1']], 200)]);
         $this->assertTrue((new AuthencGrpcClient)->isTokenActive('tok'));
+    }
 
-        // definitively revoked/expired (4xx)
+    public function test_is_token_active_false_when_revoked(): void
+    {
         Http::fake([self::VERIFY => Http::response(['error' => 'revoked'], 401)]);
         $this->assertFalse((new AuthencGrpcClient)->isTokenActive('tok'));
+    }
 
-        // indeterminate (5xx) → null (fail-open upstream)
+    public function test_is_token_active_null_when_gateway_error(): void
+    {
         Http::fake([self::VERIFY => Http::response('boom', 503)]);
         $this->assertNull((new AuthencGrpcClient)->isTokenActive('tok'));
     }
