@@ -24,6 +24,9 @@ Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
 
 ## 🏛️ Backend Architecture
 
+> **Skill:** untuk menambah/ubah fitur backend (route→handler→service→repository→
+> migrasi refinery→test) pakai Skill **`add-backend-feature`** (`.claude/skills/`).
+
 Backend SIMPEL terbagi menjadi dua jenis layanan:
 
 1. **Domain Services** (e.g., `layanan-perlengkapan`, `layanan-integrasi`): Menangani logika bisnis spesifik dan menerima *traffic* dari Microfrontends (via REST API).
