@@ -66,12 +66,12 @@ impl SearchEngineDb {
             param_idx += 1;
         }
 
-        if let Some(ref status_list) = query.filters.status {
-            if !status_list.is_empty() {
-                sql.push_str(&format!(" AND k.status_kode = ANY(${})", param_idx));
-                params.push(Box::new(status_list.clone()));
-                param_idx += 1;
-            }
+        if let Some(ref status_list) = query.filters.status
+            && !status_list.is_empty()
+        {
+            sql.push_str(&format!(" AND k.status_kode = ANY(${})", param_idx));
+            params.push(Box::new(status_list.clone()));
+            param_idx += 1;
         }
         let _ = param_idx;
 
@@ -177,17 +177,17 @@ impl SearchEngineDb {
             param_idx += 1;
         }
 
-        if let Some(ref priority_levels) = query.filters.priority_level {
-            if !priority_levels.is_empty() {
-                sql.push_str(&format!(" AND b.prioritas = ANY(${})", param_idx));
-                // Convert priority levels to integers
-                let priority_ints: Vec<i32> = priority_levels
-                    .iter()
-                    .filter_map(|p| p.parse().ok())
-                    .collect();
-                params.push(Box::new(priority_ints));
-                param_idx += 1;
-            }
+        if let Some(ref priority_levels) = query.filters.priority_level
+            && !priority_levels.is_empty()
+        {
+            sql.push_str(&format!(" AND b.prioritas = ANY(${})", param_idx));
+            // Convert priority levels to integers
+            let priority_ints: Vec<i32> = priority_levels
+                .iter()
+                .filter_map(|p| p.parse().ok())
+                .collect();
+            params.push(Box::new(priority_ints));
+            param_idx += 1;
         }
         let _ = param_idx;
 
