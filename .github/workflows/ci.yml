@@ -1055,20 +1055,26 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # Build the smoke image (context shipped to dind — a bind-mount would
+      # resolve against the dind daemon, not the runner checkout, so the tests
+      # wouldn't be present), then run it on the compose network.
       - name: Run Playwright SMOKE (perlengkapan-smoke)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker build -t simpel-e2e-smoke \
+            -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e \
+            antarmuka/perlengkapan/tests/e2e
           docker run --rm --network "$NET" \
-            -v "$PWD/antarmuka/perlengkapan/tests/e2e":/e2e -w /e2e \
-            -e CI=true \
-            -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
             -e BASE_URL=http://perlengkapan:8080 \
             -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
             -e AUTHENC_URL=http://authenc:8088 \
-            mcr.microsoft.com/playwright:v1.60.0-jammy \
-            sh -c "npm ci --no-audit --no-fund && npx playwright test --project=perlengkapan-smoke"
+            simpel-e2e-smoke
       - name: e2e stack logs (on failure)
         if: failure()
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
             logs --no-color --tail=200 || true
