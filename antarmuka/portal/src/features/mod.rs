@@ -6,6 +6,7 @@
 //! - `session/`  — cross-tab session monitor
 //! - `microfrontends` — cross-cutting microfrontend registry
 
+pub mod admin;
 pub mod apps;
 pub mod auth;
 pub mod dashboard;
@@ -15,5 +16,6 @@ pub mod notifications;
 pub mod profile;
 pub mod session;
 
+pub use admin::*;
 pub use auth::*;
 pub use microfrontends::*;

@@ -8,6 +8,7 @@
 
 use crate::components::guards::{PortalAdminLayout, PortalAuthLayout};
 use crate::components::session_timeout_modal::SessionTimeoutModal;
+use crate::features::admin::*;
 use crate::features::apps::AppsPage;
 use crate::features::auth::AuthService;
 use crate::features::auth::{
