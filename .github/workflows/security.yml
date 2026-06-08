@@ -217,6 +217,51 @@ jobs:
           done <<< '${{ steps.detect.outputs.files }}'
           exit $STATUS
 
+  # Helm/K8s manifest lint — ADVISORY (F5-A). Lint the *rendered* chart so the
+  # checks see real YAML (probes, resource limits, runAsNonRoot, latest-tag, …),
+  # not raw templates. Starts advisory (continue-on-error) to inventory pre-existing
+  # findings; flip to blocking in F5/F6 once cleared (per plan F5-A.6 / F6-X).
+  # Path-gated to infra/helm changes so unrelated PRs skip the heavy steps.
+  helm-lint:
+    name: Helm Lint & kube-linter
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect helm changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            helm:
+              - 'infra/helm/**'
+              - '.github/workflows/security.yml'
+      - name: Setup Helm
+        if: steps.filter.outputs.helm == 'true'
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.20.2
+      - name: helm lint (advisory)
+        if: steps.filter.outputs.helm == 'true'
+        continue-on-error: true
+        run: |
+          helm lint infra/helm/simpel -f infra/helm/simpel/values-staging.yaml
+          helm lint infra/helm/simpel -f infra/helm/simpel/values-production.yaml
+      - name: Render manifests (staging + production)
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          mkdir -p rendered
+          helm template simpel infra/helm/simpel \
+            -f infra/helm/simpel/values-staging.yaml > rendered/staging.yaml
+          helm template simpel infra/helm/simpel \
+            -f infra/helm/simpel/values-production.yaml > rendered/production.yaml
+      - name: kube-linter (advisory — inventory findings; flip to blocking in F5/F6)
+        if: steps.filter.outputs.helm == 'true'
+        continue-on-error: true
+        uses: stackrox/kube-linter-action@v1.0.7
+        with:
+          directory: rendered
+          config: infra/lint/.kube-linter.yaml
+
   # ── Summary ─────────────────────────────────────────
   security-summary:
     name: Security Summary
@@ -225,6 +270,7 @@ jobs:
       - cargo-audit
       - cargo-deny
       - gitleaks
+      - helm-lint
       - semgrep
       - trivy-fs
       - verus-verify

@@ -1,0 +1,17 @@
+# kube-linter configuration — SIMPEL Helm chart (rendered-manifest lint).
+#
+# Used by the `helm-lint` job in .github/workflows/security.yml, which runs
+# kube-linter against `helm template` OUTPUT (real K8s objects) — not raw
+# templates — so checks see actual probes, resource limits, securityContext,
+# image tags, etc.
+#
+# Status: ADVISORY (F5-A) — the CI job is `continue-on-error: true` to inventory
+# pre-existing findings. Once triaged/cleared, flip the job to blocking (F5/F6,
+# per plan F5-A.6 + F6-X) so chart regressions (missing probes, latest tags,
+# no resource limits) fail the build.
+checks:
+  # Run kube-linter's default recommended check set.
+  doNotAutoAddDefaults: false
+  # Triaged/accepted findings go here with a one-line rationale before we flip
+  # the job to blocking. Keep empty during the inventory pass.
+  exclude: []
