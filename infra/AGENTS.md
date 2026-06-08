@@ -57,6 +57,8 @@ Urutan baku:
 
 > **Skill:** prosedur lengkap + guardrail + perintah ada di Skill
 > **`deploy-to-environment`** (`.claude/skills/`). Pakai saat rilis/deploy/promote/rollback.
+> Untuk diagnosa/troubleshoot cluster (CrashLoop/Pending/Istio/Calico/ARC/MetalLB/
+> Longhorn) → Skill **`kubectl-cluster-ops`** (read/diagnose + emergency; mutasi tetap via Helm).
 
 Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `istio-system`, MetalLB IP pool (lihat section terkait di bawah).
 
