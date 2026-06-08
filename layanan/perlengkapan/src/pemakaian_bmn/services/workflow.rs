@@ -173,7 +173,7 @@ impl PemakaianBmnService {
     async fn generate_permit_document(
         &self,
         permit: &IzinPemakaianBmn,
-        docs: &dyn lib_perlengkapan::contracts::DocumentGenerator,
+        docs: &dyn crate::contracts::DocumentGenerator,
     ) -> AppResult<(Uuid, String)> {
         // Prepare document data
         let mut document_data = serde_json::json!({
@@ -234,9 +234,9 @@ impl PemakaianBmnService {
         let max_retries = 3;
 
         loop {
-            let request = lib_perlengkapan::contracts::DocumentRequest {
+            let request = crate::contracts::DocumentRequest {
                 template_id: template_id.to_string(),
-                format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+                format: crate::contracts::DocumentFormat::Pdf,
                 data: document_data.clone(),
                 locale: None,
                 requested_by: None,

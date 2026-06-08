@@ -146,62 +146,6 @@ impl fmt::Display for ParsedKodeBarang {
 }
 
 /// Kode barang autocomplete search
-#[cfg(feature = "backend")]
-pub struct KodeBarangAutocomplete;
-
-#[cfg(feature = "backend")]
-impl KodeBarangAutocomplete {
-    /// Build SQL query for autocomplete search
-    ///
-    /// Searches by kode barang or nama barang with fuzzy matching
-    pub fn build_search_sql(search_term: &str, limit: i32) -> (String, Vec<String>) {
-        let sql = r#"
-            SELECT
-                kode_barang,
-                nama_barang,
-                similarity(kode_barang, $1) + similarity(nama_barang, $1) as relevance
-            FROM ms_barang
-            WHERE
-                kode_barang % $1 OR nama_barang % $1
-            ORDER BY relevance DESC
-            LIMIT $2
-        "#;
-
-        (
-            sql.to_string(),
-            vec![search_term.to_string(), limit.to_string()],
-        )
-    }
-
-    /// Build SQL query for autocomplete by category
-    pub fn build_search_by_category_sql(
-        search_term: &str,
-        category: &str,
-        limit: i32,
-    ) -> (String, Vec<String>) {
-        let sql = r#"
-            SELECT
-                kode_barang,
-                nama_barang,
-                similarity(kode_barang, $1) + similarity(nama_barang, $1) as relevance
-            FROM ms_barang
-            WHERE
-                (kode_barang % $1 OR nama_barang % $1)
-                AND kode_barang LIKE $2
-            ORDER BY relevance DESC
-            LIMIT $3
-        "#;
-
-        (
-            sql.to_string(),
-            vec![
-                search_term.to_string(),
-                format!("{}%", category),
-                limit.to_string(),
-            ],
-        )
-    }
-}
 
 /// Autocomplete result
 #[derive(Debug, Clone)]
@@ -219,18 +163,6 @@ impl AutocompleteResult {
             kode_barang,
             nama_barang,
             relevance,
-        }
-    }
-}
-
-#[cfg(feature = "backend")]
-impl AutocompleteResult {
-    /// Create from database row
-    pub fn from_row(row: &tokio_postgres::Row) -> Self {
-        Self {
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            relevance: row.get("relevance"),
         }
     }
 }

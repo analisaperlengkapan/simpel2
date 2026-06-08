@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Riwayat Pemenuhan model - tracks fulfillment history
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -27,28 +24,6 @@ pub struct RiwayatPemenuhan {
     pub keterangan: Option<String>,
     pub created_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
-}
-
-#[cfg(feature = "backend")]
-impl RiwayatPemenuhan {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            kebutuhan_bmn_id: row.get("kebutuhan_bmn_id"),
-            roadmap_id: row.get("roadmap_id"),
-            satker_id: row.get("satker_id"),
-            tahun_anggaran: row.get("tahun_anggaran"),
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            jumlah_terpenuhi: row.get("jumlah_terpenuhi"),
-            sumber_data: row.get("sumber_data"),
-            tanggal_pemenuhan: row.get("tanggal_pemenuhan"),
-            nilai_perolehan: row.get("nilai_perolehan"),
-            keterangan: row.get("keterangan"),
-            created_at: row.get("created_at"),
-            created_by: row.get("created_by"),
-        }
-    }
 }
 
 /// Request to create Riwayat Pemenuhan
@@ -91,15 +66,4 @@ pub struct FulfillmentBySumber {
     pub sumber_data: String,
     pub jumlah: i32,
     pub nilai: f64,
-}
-
-#[cfg(feature = "backend")]
-impl FulfillmentBySumber {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            sumber_data: row.get("sumber_data"),
-            jumlah: row.get("jumlah"),
-            nilai: row.get("nilai"),
-        }
-    }
 }

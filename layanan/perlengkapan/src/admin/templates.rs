@@ -2,7 +2,7 @@
 //!
 //! Surfaces the existing [`dokumen::TemplateService`] CRUD as REST and adds
 //! a `/preview` endpoint that drives the
-//! [`lib_perlengkapan::contracts::DocumentGenerator::preview`] port so the
+//! [`crate::contracts::DocumentGenerator::preview`] port so the
 //! frontend can render a live PDF/DOCX/HTML preview in an iframe without
 //! persisting an artifact.
 //!
@@ -18,7 +18,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
-use lib_perlengkapan::contracts::{DocumentFormat, DocumentGenerator, DocumentRequest};
+use crate::contracts::{DocumentFormat, DocumentGenerator, DocumentRequest};
 
 use crate::dokumen::TemplateService;
 use crate::dokumen::template_models::{

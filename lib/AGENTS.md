@@ -57,7 +57,7 @@ mindmap
 | `lib-core/` | WASM + Backend | Tipe WASM-safe (validators, config structs, auth claims, audit types). **DILARANG** dependensi async (`tokio`, `axum`). |
 | `lib-backend/` | Backend Only | Infrastruktur Axum, deadpool-postgres, Redis, gRPC, telemetry. Gunakan feature flags (`axum`, `db`, `jwt`, `grpc`). |
 | `lib-crypto/` | WASM + Backend | Shamir, Argon2, bcrypt, AES-GCM (feature-gated). Semua WASM-compatible. |
-| `lib-perlengkapan/` | Perlengkapan Domain | Murni menyimpan `Model` dan Logika BMN. Jangan tambahkan HTTP Handlers di sini! |
+| `lib-perlengkapan/` | Perlengkapan Domain (WASM-safe murni) | DTO/`Model` + domain BMN murni. Sejak F0-C: **tanpa** feature `backend`, `tokio-postgres`, `from_row`, atau trait kontrak service — semua itu di `layanan/perlengkapan` (repository `FromPgRow`/`search_db`, `contracts.rs`). Jangan tambah HTTP handler/ORM/async di sini. |
 | `lib-ui/` | Leptos WASM | Hanya khusus komponen visual. Bebas dari logika *fetching* HTTP spesifik (gunakan callbacks). |
 
 Masing-masing pustaka memiliki file `AGENTS.md` yang lebih detail di dalam direktorinya. Cek file tersebut saat masuk ke folder bersangkutan!
@@ -111,6 +111,7 @@ Diagram cepat keputusan:
 - Dipakai oleh MFE atau backend, primitif kripto → `lib-crypto`.
 - Dipakai backend saja, axum/tokio/db/grpc → `lib-backend`
   (gate dengan feature flag — `axum`, `db`, `grpc`, dll).
-- Domain BMN (model, validation, contract) → `lib-perlengkapan`.
+- Domain BMN (model, validation, domain murni — WASM-safe) → `lib-perlengkapan`.
+  Trait kontrak service + ORM (`from_row`) → `layanan/perlengkapan`, BUKAN di sini.
 - Domain authenc/secreton → **JANGAN** di `lib/`, pakai crates internal
   service (`layanan/authenc/crates/*`, `layanan/secreton/crates/*`).

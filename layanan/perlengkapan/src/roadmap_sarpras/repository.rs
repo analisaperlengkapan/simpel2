@@ -7,6 +7,45 @@ use crate::shared::error::AppError;
 use lib_perlengkapan::models::{ForecastSnapshot, YearlyData};
 use uuid::Uuid;
 
+/// BE-local row mapping for the lib-perlengkapan forecast DTOs.
+///
+/// Kept out of `lib-perlengkapan` (F0-C) so that crate stays WASM-safe; the
+/// orphan rule means a foreign type needs a local trait rather than an inherent
+/// `from_row`. Call sites (`YearlyData::from_row`, `ForecastSnapshot::from_row`)
+/// resolve through this trait, in scope within this module.
+trait FromPgRow {
+    fn from_row(row: &tokio_postgres::Row) -> Self;
+}
+
+impl FromPgRow for YearlyData {
+    fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            tahun: row.get("tahun_anggaran"),
+            total_kebutuhan: row.get::<_, i64>("total_kebutuhan"),
+            total_existing: row.get::<_, i64>("total_existing"),
+            total_gap: row.get::<_, i64>("total_gap"),
+            jumlah_satker: row.get::<_, i64>("jumlah_satker"),
+            estimasi_total_biaya: row
+                .get::<_, Option<f64>>("estimasi_total_biaya")
+                .unwrap_or(0.0),
+        }
+    }
+}
+
+impl FromPgRow for ForecastSnapshot {
+    fn from_row(row: &tokio_postgres::Row) -> Self {
+        Self {
+            id: row.get("id"),
+            method: row.get("method"),
+            confidence_level: row.get("confidence_level"),
+            satker_id: row.get("satker_id"),
+            kode_barang: row.get("kode_barang"),
+            predictions_json: row.get("predictions_json"),
+            created_at: row.get("created_at"),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RoadmapRepository {
     db: Database,

@@ -2,7 +2,7 @@
 //!
 //! BPK-ready reader over `perlengkapan.audit_log` — the canonical
 //! cross-module sink written by every module via
-//! [`lib_perlengkapan::contracts::AuditSink`] (table V028, retention V037).
+//! [`crate::contracts::AuditSink`] (table V028, retention V037).
 //!
 //! Distinct from `/admin/audit`, which surfaces only workflow transitions
 //! (`workflow_transitions`). This endpoint spans login/export/document/

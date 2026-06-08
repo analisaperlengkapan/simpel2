@@ -71,7 +71,7 @@ lib-backend = { workspace = true, features = [
   "db",
   "axum",
 ] }
-lib-perlengkapan = { workspace = true, features = ["backend", "contracts"] }
+lib-perlengkapan = { workspace = true }
 
 # Sibling services. The alias keeps the historical import path
 # `layanan_perlengkapan_integrasi` working in the moved kebutuhan_bmn code; it

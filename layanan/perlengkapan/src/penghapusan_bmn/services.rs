@@ -26,7 +26,7 @@ pub struct PenghapusanBmnService {
     pool: Pool,
     repository: PenghapusanBmnRepository,
     workflow_engine: Arc<WorkflowEngine>,
-    docs: Option<Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>>,
+    docs: Option<Arc<dyn crate::contracts::DocumentGenerator>>,
 }
 
 impl PenghapusanBmnService {
@@ -42,7 +42,7 @@ impl PenghapusanBmnService {
     /// Inject the document generator (used by the konsep SK dual-format flow).
     pub fn with_document_generator(
         mut self,
-        docs: Arc<dyn lib_perlengkapan::contracts::DocumentGenerator>,
+        docs: Arc<dyn crate::contracts::DocumentGenerator>,
     ) -> Self {
         self.docs = Some(docs);
         self
@@ -423,16 +423,16 @@ impl PenghapusanBmnService {
         let docx_path = format!("{}/konsep-sk.docx", dir);
         let pdf_path = format!("{}/konsep-sk.pdf", dir);
 
-        let docx_request = lib_perlengkapan::contracts::DocumentRequest {
+        let docx_request = crate::contracts::DocumentRequest {
             template_id: template_id.clone(),
-            format: lib_perlengkapan::contracts::DocumentFormat::Docx,
+            format: crate::contracts::DocumentFormat::Docx,
             data: data.clone(),
             locale: None,
             requested_by: None,
         };
-        let pdf_request = lib_perlengkapan::contracts::DocumentRequest {
+        let pdf_request = crate::contracts::DocumentRequest {
             template_id,
-            format: lib_perlengkapan::contracts::DocumentFormat::Pdf,
+            format: crate::contracts::DocumentFormat::Pdf,
             data,
             locale: None,
             requested_by: None,

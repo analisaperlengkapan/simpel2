@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Kebutuhan BMN model - represents BMN requirements per satker per year
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -31,32 +28,6 @@ pub struct KebutuhanBmn {
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
-}
-
-#[cfg(feature = "backend")]
-impl KebutuhanBmn {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            jumlah_kebutuhan: row.get("jumlah_kebutuhan"),
-            jumlah_existing_baik: row.get("jumlah_existing_baik"),
-            gap: row.get("gap"),
-            tahun_anggaran: row.get("tahun_anggaran"),
-            status: row.get("status"),
-            prioritas: row.get("prioritas"),
-            justifikasi: row.get("justifikasi"),
-            estimasi_harga_satuan: row.get("estimasi_harga_satuan"),
-            estimasi_total: row.get("estimasi_total"),
-            is_sbsk: row.get("is_sbsk"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            created_by: row.get("created_by"),
-            updated_by: row.get("updated_by"),
-        }
-    }
 }
 
 /// Request to create a new Kebutuhan BMN

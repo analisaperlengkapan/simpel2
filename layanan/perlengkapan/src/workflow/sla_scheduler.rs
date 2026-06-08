@@ -4,10 +4,10 @@
 // Requirements: REQ-W003, REQ-N008
 // ============================================================================
 
+use crate::contracts::NotificationSender;
 use crate::workflow::config::WorkflowConfig;
 use crate::workflow::sla::SlaMonitor;
 use deadpool_postgres::Pool;
-use lib_perlengkapan::contracts::NotificationSender;
 use std::sync::Arc;
 use tokio_cron_scheduler::{Job, JobScheduler};
 use tracing::{error, info, warn};

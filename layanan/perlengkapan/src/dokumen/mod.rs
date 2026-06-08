@@ -1,8 +1,8 @@
 //! Dokumen module — document generation, templates, storage, OCR, archival.
 //! Cross-module callers (workflow, pemakaian/penghapusan, /admin/templates)
 //! reach this module through the
-//! [`lib_perlengkapan::contracts::DocumentGenerator`] +
-//! [`lib_perlengkapan::contracts::DocumentStorage`] traits wired into
+//! [`crate::contracts::DocumentGenerator`] +
+//! [`crate::contracts::DocumentStorage`] traits wired into
 //! [`AppState`](crate::state::AppState).
 
 pub mod archive;

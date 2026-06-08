@@ -40,7 +40,7 @@ bytes = { workspace = true }
 rand = { workspace = true }
 lib-core = { workspace = true }
 lib-backend = { workspace = true, features = ["telemetry", "db", "env-config"] }
-lib-perlengkapan = { workspace = true, features = ["backend"] }
+lib-perlengkapan = { workspace = true }
 prometheus = { workspace = true }
 
 # gRPC dependencies (optional, for server mode)

@@ -3,7 +3,7 @@
 //! Wraps the postgres-backed `notifikasi.in_app_notifications` table so
 //! callers (the workflow engine, the bantuan tiket service, etc.) can
 //! produce notifications through the
-//! [`lib_perlengkapan::contracts::NotificationSender`] trait instead of the
+//! [`crate::contracts::NotificationSender`] trait instead of the
 //! dropped internal gRPC client.
 //!
 //! Channel coverage:
@@ -15,14 +15,14 @@
 //!   wiring (next iteration).
 
 use super::email::EmailService;
+use crate::contracts::{
+    NotificationChannel, NotificationMessage, NotificationPriority, NotificationReceipt,
+    NotificationSender,
+};
 use async_trait::async_trait;
 use chrono::Utc;
 use deadpool_postgres::Pool;
 use lib_perlengkapan::ServiceError;
-use lib_perlengkapan::contracts::{
-    NotificationChannel, NotificationMessage, NotificationPriority, NotificationReceipt,
-    NotificationSender,
-};
 use std::sync::Arc;
 use uuid::Uuid;
 

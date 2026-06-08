@@ -8,9 +8,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Forecast method selection
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -46,22 +43,6 @@ pub struct YearlyData {
     pub total_gap: i64,
     pub jumlah_satker: i64,
     pub estimasi_total_biaya: f64,
-}
-
-#[cfg(feature = "backend")]
-impl YearlyData {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            tahun: row.get("tahun_anggaran"),
-            total_kebutuhan: row.get::<_, i64>("total_kebutuhan"),
-            total_existing: row.get::<_, i64>("total_existing"),
-            total_gap: row.get::<_, i64>("total_gap"),
-            jumlah_satker: row.get::<_, i64>("jumlah_satker"),
-            estimasi_total_biaya: row
-                .get::<_, Option<f64>>("estimasi_total_biaya")
-                .unwrap_or(0.0),
-        }
-    }
 }
 
 /// A single predicted year produced by the forecasting engine
@@ -110,19 +91,4 @@ pub struct ForecastSnapshot {
     pub kode_barang: Option<String>,
     pub predictions_json: String,
     pub created_at: DateTime<Utc>,
-}
-
-#[cfg(feature = "backend")]
-impl ForecastSnapshot {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            method: row.get("method"),
-            confidence_level: row.get("confidence_level"),
-            satker_id: row.get("satker_id"),
-            kode_barang: row.get("kode_barang"),
-            predictions_json: row.get("predictions_json"),
-            created_at: row.get("created_at"),
-        }
-    }
 }

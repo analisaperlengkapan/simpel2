@@ -4,6 +4,7 @@ pub mod analisis;
 pub mod audit;
 pub mod bank_aset;
 pub mod bantuan;
+pub mod contracts;
 pub mod dashboard;
 pub mod dokumen;
 pub mod export;

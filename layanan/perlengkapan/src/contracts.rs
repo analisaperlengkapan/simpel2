@@ -5,35 +5,31 @@
 //! keeps `workflow` (the orchestrator) decoupled from `dokumen` and
 //! `notifikasi` (the leaf services).
 //!
-//! Concrete impls live in the service crate:
+//! Concrete impls live alongside in this crate:
 //! - `DocumentGenerator` → `src/dokumen/service.rs`
 //! - `NotificationSender` → `src/notifikasi/service.rs`
 //! - `AuditSink` → `src/shared/audit.rs`
-//! - `DocumentStorage` → `src/dokumen/storage.rs` (FilesystemStorage now,
-//!   S3Storage in a future PR).
+//! - `DocumentStorage` → `src/dokumen/filesystem_storage.rs`
 //!
-//! This module is gated on the `contracts` feature so the lib stays light for
-//! WASM consumers.
-
-#![cfg(feature = "contracts")]
+//! Moved out of `lib-perlengkapan` (F0-C): these traits use `async-trait` +
+//! `bytes` and are only implemented/consumed here, so `lib-perlengkapan` stays
+//! a pure WASM-safe DTO/domain crate. The DTOs the traits carry
+//! (`AuditEvent`, `ServiceResult`) remain in `lib-perlengkapan`.
 
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-
-use crate::audit::AuditEvent;
-use crate::error::ServiceResult;
+use lib_perlengkapan::audit::AuditEvent;
+use lib_perlengkapan::error::ServiceResult;
 
 // ---------------------------------------------------------------------------
 // DocumentGenerator (workflow → dokumen)
 // ---------------------------------------------------------------------------
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DocumentFormat {
     Pdf,
     Excel,
@@ -44,22 +40,17 @@ pub enum DocumentFormat {
     Csv,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentRequest {
     pub template_id: String,
     pub format: DocumentFormat,
     /// JSON-shaped data the template engine renders into.
-    #[cfg(feature = "serde")]
     pub data: serde_json::Value,
-    #[cfg(not(feature = "serde"))]
-    pub data: String,
     pub locale: Option<String>,
     pub requested_by: Option<Uuid>,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentArtifact {
     pub document_id: Uuid,
     pub filename: String,
@@ -84,8 +75,7 @@ pub trait DocumentGenerator: Send + Sync {
 // NotificationSender (workflow/bantuan → notifikasi)
 // ---------------------------------------------------------------------------
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NotificationChannel {
     Email,
     Sms,
@@ -94,8 +84,7 @@ pub enum NotificationChannel {
     InApp,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum NotificationPriority {
     Low,
     Medium,
@@ -103,8 +92,7 @@ pub enum NotificationPriority {
     Critical,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotificationMessage {
     /// Logical event name (e.g. "workflow.approval_required",
     /// "tiket.dibuat"). Maps to a Handlebars template id.
@@ -116,10 +104,7 @@ pub struct NotificationMessage {
     pub body: String,
     /// Optional template variables. Merged with user/system context before
     /// rendering.
-    #[cfg(feature = "serde")]
     pub variables: Option<serde_json::Value>,
-    #[cfg(not(feature = "serde"))]
-    pub variables: Option<String>,
     /// Optional deeplink URL the in-app/push notification opens.
     pub deeplink: Option<String>,
     /// SMTP destination. Required when [`NotificationChannel::Email`] is in
@@ -127,15 +112,11 @@ pub struct NotificationMessage {
     /// when this is `None` rather than scanning the DB for a fallback. Keep
     /// this populated upstream wherever you already have the user record in
     /// hand (workflow engine, ticket service, etc.).
-    #[cfg_attr(
-        feature = "serde",
-        serde(default, skip_serializing_if = "Option::is_none")
-    )]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recipient_email: Option<String>,
 }
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NotificationReceipt {
     pub notification_id: Uuid,
     pub queued_at: DateTime<Utc>,
@@ -164,8 +145,7 @@ pub trait AuditSink: Send + Sync {
 // S3-compatible storage in a follow-up PR without touching the dokumen module
 // itself.
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StorageHandle {
     pub key: String,
     pub size_bytes: u64,

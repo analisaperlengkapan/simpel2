@@ -7,17 +7,20 @@
 //!
 //! - `serde` - Enables serialization (enabled by default).
 //! - `backend` - Enables backend-specific functionality (tokio-postgres row conversion).
-//! - `contracts` - Enables cross-module trait contracts (`DocumentGenerator`,
-//!   `NotificationSender`, `AuditSink`, `DocumentStorage`). Used by the
-//!   service crate; not WASM-compatible because of `bytes` + `async-trait`.
 //! - `frontend` - Enables frontend-specific functionality.
 //! - `wasm` - Enables WASM bindings for browser usage.
+//!
+//! The cross-module service trait contracts (`DocumentGenerator`,
+//! `NotificationSender`, `AuditSink`, `DocumentStorage`) used to live here
+//! behind a `contracts` feature; as of F0-C they live in the service crate
+//! (`layanan/perlengkapan/src/contracts.rs`), their only implementor, so this
+//! crate stays WASM-safe (no `bytes` / `async-trait` from contracts).
 //!
 //! ## Usage
 //!
 //! ```toml
 //! # Backend service
-//! lib-perlengkapan = { workspace = true, features = ["backend", "contracts"] }
+//! lib-perlengkapan = { workspace = true, features = ["backend"] }
 //!
 //! # Frontend (WASM)
 //! lib-perlengkapan = { workspace = true, features = ["frontend", "wasm"] }
@@ -32,13 +35,9 @@ pub mod pagination;
 pub mod prioritization;
 pub mod response;
 pub mod search;
-pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod validation;
-
-#[cfg(feature = "contracts")]
-pub mod contracts;
 
 // Re-export commonly used types at crate root
 pub use audit::{AuditAction, AuditEvent};

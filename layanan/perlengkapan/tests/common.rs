@@ -201,7 +201,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let docx_generator = std::sync::Arc::new(layanan_perlengkapan::dokumen::DocxGenerator::new(
         layanan_perlengkapan::dokumen::TemplateService::new(),
     ));
-    let docs: std::sync::Arc<dyn lib_perlengkapan::contracts::DocumentGenerator> =
+    let docs: std::sync::Arc<dyn layanan_perlengkapan::contracts::DocumentGenerator> =
         std::sync::Arc::new(layanan_perlengkapan::dokumen::service::DokumenService::new(
             db.pool().clone(),
             template_service,
@@ -209,7 +209,7 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
             excel_generator,
             docx_generator,
         ));
-    let notifier: std::sync::Arc<dyn lib_perlengkapan::contracts::NotificationSender> =
+    let notifier: std::sync::Arc<dyn layanan_perlengkapan::contracts::NotificationSender> =
         std::sync::Arc::new(
             layanan_perlengkapan::notifikasi::service::NotifikasiService::new(db.pool().clone()),
         );

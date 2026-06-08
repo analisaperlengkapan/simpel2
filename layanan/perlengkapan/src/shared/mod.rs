@@ -7,7 +7,7 @@
 //! corresponds to a section of the plan:
 //!
 //! - [`audit`] — concrete `PgAuditSink` impl of
-//!   [`lib_perlengkapan::contracts::AuditSink`].
+//!   [`crate::contracts::AuditSink`].
 //! - [`cache`] — cache manager wrapping deadpool-redis (`cache_strategy`
 //!   originally).
 //! - [`connection_config`] — db connection options helper.
@@ -41,3 +41,4 @@ pub mod policy;
 pub mod rate_limit;
 pub mod repo;
 pub mod resilience;
+pub mod search_db;

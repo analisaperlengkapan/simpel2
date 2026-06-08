@@ -3,7 +3,7 @@
 //! Wraps [`TemplateService`] + [`PdfGenerator`] + [`ExcelGenerator`] +
 //! [`DocxGenerator`] so the workflow module (and any future caller) can
 //! request document generation through the
-//! [`lib_perlengkapan::contracts::DocumentGenerator`] trait instead of
+//! [`crate::contracts::DocumentGenerator`] trait instead of
 //! the dropped internal gRPC client. Persisted artifacts go through the
 //! [`DocumentStorage`] port (filesystem today via
 //! [`super::FilesystemStorage`], S3 in a follow-up), so this service
@@ -13,13 +13,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::contracts::{
+    DocumentArtifact, DocumentFormat, DocumentGenerator, DocumentRequest, DocumentStorage,
+};
 use async_trait::async_trait;
 use chrono::Utc;
 use deadpool_postgres::Pool;
 use lib_perlengkapan::ServiceError;
-use lib_perlengkapan::contracts::{
-    DocumentArtifact, DocumentFormat, DocumentGenerator, DocumentRequest, DocumentStorage,
-};
 use uuid::Uuid;
 
 use super::docx_generator::DocxGenerator;
