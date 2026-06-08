@@ -28,6 +28,9 @@ Frontend SIMPEL menggunakan arsitektur **Microfrontend** berbasis WebAssembly (W
 
 > **Catatan**: Gunakan *hooks* dari `lib_ui::hooks::use_auth` untuk standardisasi.
 
+> **Skill:** untuk pengembangan/refactor Leptos (model reaktif, Resource/Action,
+> ErrorBoundary, pitfalls reaktivitas) pakai Skill **`leptos-expert`** (`.claude/skills/`).
+
 ### Struktur feature-first (F0-B)
 
 Tiap app diorganisir **per bounded-context di `src/features/<domain>/`**, bukan
