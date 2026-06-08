@@ -1,0 +1,35 @@
+# =====================================================================
+# E2E test stack overlay (F5-A) — Playwright real-auth e2e
+# =====================================================================
+# The base docker-compose.yml exposes authenc only over gRPC (:50051). The
+# browser-driven real-auth e2e suites need authenc's REST API reachable AND a
+# way to solve the login captcha headlessly. This overlay adds exactly that,
+# nothing else — so it composes on top of the base stack:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build
+#
+# What it changes (authenc only):
+#   1. Build authenc WITH the `captcha-debug` feature (compile-time gated:
+#      authenc-api/captcha-debug; layanan/authenc/Dockerfile `ARG CAPTCHA_DEBUG`).
+#      Enables GET /api/captcha/debug/{challenge_id} so Playwright can fetch the
+#      captcha answer and complete a *real* login (see the helper in
+#      antarmuka/*/tests/e2e — mirrors portal-auth-e2e.spec.ts).
+#   2. Publish authenc REST (:8088) on host :18088 — the AUTHENC_URL default the
+#      e2e specs proxy `/api/**` to. gRPC :50051 from the base is kept (compose
+#      concatenates `ports`), so no need to repeat it here.
+#
+# Test users: migrations 044/047 seed NIP 199203142014031001 (password = the
+# NIP, Argon2id) with operator_satker / validator_wilayah / validator_pusat /
+# admin roles — applied automatically on authenc startup.
+#
+# Frontend config (api_url/authenc_url) stays origin-relative as in the base;
+# the Playwright suites proxy `/api/**` to the host-published backends
+# (authenc :18088, perlengkapan :3020), so no FE env changes are needed here.
+services:
+  authenc:
+    build:
+      args:
+        # 1 => `cargo build --features authenc-api/captcha-debug` (see Dockerfile)
+        CAPTCHA_DEBUG: "1"
+    ports:
+      - "18088:8088" # REST API for e2e real-auth + captcha-debug
