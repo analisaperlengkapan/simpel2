@@ -17,6 +17,7 @@ pub mod error_boundary;
 pub mod feedback;
 pub mod floating;
 pub mod forms;
+pub mod guards;
 pub mod icon;
 pub mod layout;
 pub mod logo;

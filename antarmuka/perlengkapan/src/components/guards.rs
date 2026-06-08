@@ -1,84 +1,86 @@
 //! Route guards that reflect the JWT-backed session.
 //!
+//! Thin wrappers over the shared [`lib_ui::components::guards::AuthGate`]
+//! primitive (F0-B dedup): `AuthGate` owns the "authenticated → (authorized →
+//! children | forbidden) | unauthenticated" skeleton; this module supplies the
+//! Perlengkapan-specific bits — session source (`user_session` context or
+//! `AuthService::load_session()`), the external-login **redirect** as the
+//! unauthenticated view, and the Perlengkapan-styled forbidden page. Behavior is
+//! preserved exactly; only the shared skeleton is factored out.
+//!
 //! ## Layout Guards (recommended)
-//!
-//! Use `AuthenticatedLayout` and `AdminLayout` as parent route views to
-//! protect all nested children automatically — similar to Next.js `layout.tsx`
-//! or Laravel `Route::middleware('auth')->group(...)`.
-//!
 //! ```rust,ignore
 //! <ParentRoute path=path!("/") view=AuthenticatedLayout>
 //!     <Route path=path!("/dashboard") view=DashboardHome />
-//!     <Route path=path!("/bank-aset/daftar") view=BankAsetListPage />
 //! </ParentRoute>
 //! <ParentRoute path=path!("/admin") view=AdminLayout>
 //!     <Route path=path!("/users") view=AdminUsersPage />
 //! </ParentRoute>
 //! ```
-//!
-//! ## Inline Guards (legacy)
-//!
-//! `SessionAuthGuard` and `SessionAdminGuard` wrap individual route views.
-//! Prefer the layout approach for new routes.
 
 use crate::features::auth::{AuthService, UserSession};
 use crate::routes;
 use leptos::prelude::*;
 use leptos_router::components::A;
+use lib_ui::components::guards::AuthGate;
+
+/// Resolve the active session: prefer the reactive context signal (so logout /
+/// cross-tab storage events re-evaluate guards), fall back to localStorage.
+fn current_session(ctx: Option<ReadSignal<Option<UserSession>>>) -> Option<UserSession> {
+    match ctx {
+        Some(sig) => sig.get(),
+        None => AuthService::load_session(),
+    }
+}
+
+fn redirect_view() -> ViewFn {
+    ViewFn::from(|| view! { <RedirectToPerlengkapanLogin /> })
+}
+
+fn forbidden_view() -> ViewFn {
+    ViewFn::from(|| view! { <ForbiddenPage /> })
+}
 
 // ============================================================================
 // LAYOUT GUARDS — wrap all child routes automatically (Next.js / Laravel style)
 // ============================================================================
 
-/// Authenticated layout guard. Use as a `ParentRoute` view to protect all
-/// nested children. Unauthenticated visitors are redirected to login.
-///
-/// Reads the global `user_session` signal from context so logout / cross-tab
-/// storage events re-evaluate this guard reactively. Falls back to
-/// `AuthService::load_session()` if the context is missing (e.g. in tests).
-///
-/// This replaces wrapping every `<Route>` with `<SessionAuthGuard>`.
+/// Authenticated layout guard. Unauthenticated visitors are redirected to login.
 #[component]
 pub fn AuthenticatedLayout() -> impl IntoView {
-    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+    let ctx = use_context::<ReadSignal<Option<UserSession>>>();
+    let authed = Signal::derive(move || current_session(ctx).is_some());
 
-    move || {
-        let session = match session_ctx {
-            Some(sig) => sig.get(),
-            None => AuthService::load_session(),
-        };
-        match session {
-            Some(_) => view! { <leptos_router::components::Outlet /> }.into_any(),
-            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
-        }
+    view! {
+        <AuthGate authenticated=authed unauthenticated=redirect_view()>
+            <leptos_router::components::Outlet />
+        </AuthGate>
     }
 }
 
-/// Admin layout guard. Use as a `ParentRoute` view to protect all nested
-/// children. Non-admin users see a forbidden page; unauthenticated visitors
+/// Admin layout guard. Non-admins see a forbidden page; unauthenticated visitors
 /// are redirected to login.
-///
-/// Reads the global `user_session` signal from context so logout / cross-tab
-/// storage events re-evaluate this guard reactively.
 #[component]
 pub fn AdminLayout() -> impl IntoView {
-    let session_ctx = use_context::<ReadSignal<Option<UserSession>>>();
+    let ctx = use_context::<ReadSignal<Option<UserSession>>>();
+    let authed = Signal::derive(move || current_session(ctx).is_some());
+    let is_admin =
+        Signal::derive(move || current_session(ctx).map(|s| s.is_admin()).unwrap_or(false));
 
-    move || {
-        let session = match session_ctx {
-            Some(sig) => sig.get(),
-            None => AuthService::load_session(),
-        };
-        match session {
-            Some(s) if s.is_admin() => view! { <leptos_router::components::Outlet /> }.into_any(),
-            Some(_) => view! { <ForbiddenPage /> }.into_any(),
-            None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
-        }
+    view! {
+        <AuthGate
+            authenticated=authed
+            authorized=is_admin
+            unauthenticated=redirect_view()
+            forbidden=forbidden_view()
+        >
+            <leptos_router::components::Outlet />
+        </AuthGate>
     }
 }
 
 // ============================================================================
-// INLINE GUARDS — legacy per-route wrappers (kept for backward compat)
+// INLINE GUARDS — per-route wrappers
 // ============================================================================
 
 #[component]
@@ -88,10 +90,12 @@ pub fn SessionAuthGuard(
 ) -> impl IntoView {
     let _ = user_session;
     let children = StoredValue::new_local(children);
+    let authed = Signal::derive(move || AuthService::load_session().is_some());
 
-    move || match AuthService::load_session() {
-        Some(_) => children.with_value(|c| c().into_any()),
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+    view! {
+        <AuthGate authenticated=authed unauthenticated=redirect_view()>
+            {move || children.with_value(|c| c())}
+        </AuthGate>
     }
 }
 
@@ -102,11 +106,22 @@ pub fn SessionAdminGuard(
 ) -> impl IntoView {
     let _ = user_session;
     let children = StoredValue::new_local(children);
+    let authed = Signal::derive(move || AuthService::load_session().is_some());
+    let is_admin = Signal::derive(move || {
+        AuthService::load_session()
+            .map(|s| s.is_admin())
+            .unwrap_or(false)
+    });
 
-    move || match AuthService::load_session() {
-        Some(session) if session.is_admin() => children.with_value(|c| c().into_any()),
-        Some(_) => view! { <ForbiddenPage /> }.into_any(),
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+    view! {
+        <AuthGate
+            authenticated=authed
+            authorized=is_admin
+            unauthenticated=redirect_view()
+            forbidden=forbidden_view()
+        >
+            {move || children.with_value(|c| c())}
+        </AuthGate>
     }
 }
 
@@ -120,52 +135,62 @@ pub fn RoleGuard(
 ) -> impl IntoView {
     let roles = StoredValue::new(roles);
     let children = StoredValue::new_local(children);
+    let authed = Signal::derive(move || AuthService::load_session().is_some());
+    let allowed = Signal::derive(move || {
+        AuthService::load_session()
+            .map(|s| roles.with_value(|req| req.iter().any(|r| s.has_role(r.as_str()))))
+            .unwrap_or(false)
+    });
 
-    move || match AuthService::load_session() {
-        Some(session) => {
-            let allowed =
-                roles.with_value(|required| required.iter().any(|r| session.has_role(r.as_str())));
-            if allowed {
-                children.with_value(|c| c().into_any())
-            } else {
-                view! { <ForbiddenPage /> }.into_any()
-            }
-        }
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+    view! {
+        <AuthGate
+            authenticated=authed
+            authorized=allowed
+            unauthenticated=redirect_view()
+            forbidden=forbidden_view()
+        >
+            {move || children.with_value(|c| c())}
+        </AuthGate>
     }
 }
 
-/// Gate UI to a specific satker. Admins bypass the check so pusat users can
-/// still inspect any satker without needing a cross-role hack.
+/// Gate UI to a specific satker. Admins / validator pusat bypass the check so
+/// pusat users can inspect any satker.
 #[component]
 pub fn SatkerGuard(#[prop(into)] satker_code: String, children: ChildrenFn) -> impl IntoView {
     let satker_code = StoredValue::new(satker_code);
     let children = StoredValue::new_local(children);
+    let authed = Signal::derive(move || AuthService::load_session().is_some());
+    let allowed = Signal::derive(move || {
+        AuthService::load_session()
+            .map(|s| {
+                if s.is_admin() || s.is_validator_pusat() {
+                    return true;
+                }
+                satker_code.with_value(|req| {
+                    s.satker_code
+                        .as_deref()
+                        .map(|c| c == req.as_str())
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false)
+    });
 
-    move || match AuthService::load_session() {
-        Some(session) => {
-            if session.is_admin() || session.is_validator_pusat() {
-                return children.with_value(|c| c().into_any());
-            }
-            let ok = satker_code.with_value(|required| {
-                session
-                    .satker_code
-                    .as_deref()
-                    .map(|s| s == required.as_str())
-                    .unwrap_or(false)
-            });
-            if ok {
-                children.with_value(|c| c().into_any())
-            } else {
-                view! { <ForbiddenPage /> }.into_any()
-            }
-        }
-        None => view! { <RedirectToPerlengkapanLogin /> }.into_any(),
+    view! {
+        <AuthGate
+            authenticated=authed
+            authorized=allowed
+            unauthenticated=redirect_view()
+            forbidden=forbidden_view()
+        >
+            {move || children.with_value(|c| c())}
+        </AuthGate>
     }
 }
 
 // ============================================================================
-// SHARED UI — redirect & forbidden pages
+// SHARED UI — Perlengkapan-specific redirect & forbidden pages (unchanged UX)
 // ============================================================================
 
 #[component]
