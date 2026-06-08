@@ -11,8 +11,8 @@
 //! `SessionAuthGuard` and `SessionAdminGuard` wrap individual route views.
 //! Prefer the layout approach for new routes.
 
+use crate::features::auth::LoginPage;
 use crate::features::auth::UserSession;
-use crate::pages::LoginPage;
 use crate::routes;
 use crate::utils::app_state::use_app_state;
 use leptos::prelude::*;

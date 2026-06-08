@@ -1,13 +1,21 @@
 //! Features module - Business logic and domain services
+//!
+//! Feature-first layout (F0-B): each bounded context owns a directory.
+//! - `auth/`     — auth context/service + OAuth flow + login/callback pages
+//! - `mfa/`      — TOTP setup/verification + backup codes
+//! - `session/`  — cross-tab session monitor
+//! - `microfrontends` — cross-cutting microfrontend registry
 
+pub mod admin;
+pub mod apps;
 pub mod auth;
+pub mod dashboard;
+pub mod mfa;
 pub mod microfrontends;
-pub mod oauth;
-pub mod session_monitor;
+pub mod notifications;
+pub mod profile;
+pub mod session;
 
-#[cfg(test)]
-mod auth_tests;
-
+pub use admin::*;
 pub use auth::*;
 pub use microfrontends::*;
-pub use oauth::*;

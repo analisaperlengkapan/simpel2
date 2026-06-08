@@ -101,7 +101,7 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 # (from `env-filter`) and `tracing-serde` (from `json`) into the bundle.
 uuid = { version = "1.23.2", features = ["v4", "serde", "js"] }
 time = { version = "0.3.47", features = ["serde", "macros"] }
-chrono = { version = "0.4.44", features = ["serde"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 tokio-cron-scheduler = "0.15.1"
 anyhow = "1.0.102"
 thiserror = "2.0.18"
@@ -453,7 +453,7 @@ gloo-timers = { version = "0.4.0", features = ["futures"] }
 # WASM utilities
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
-log = "0.4.31"
+log = "0.4.32"
 
 # Utilities
 futures = "0.3.32"
@@ -510,11 +510,11 @@ data-encoding = "2.11.0"
 fpe = "0.6.1"
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa", "ecdsa", "std"] }
 ssh-encoding = "0.3.0"
-aws-config = "1.8.17"
-aws-sdk-s3 = "1.134.0"
+aws-config = "1.8.18"
+aws-sdk-s3 = "1.135.0"
 aws-sdk-iam = "1.112.0"
-aws-sdk-sts = "1.105.0"
-aws-sdk-kms = "1.109.0"
+aws-sdk-sts = "1.106.0"
+aws-sdk-kms = "1.110.0"
 aws-types = "1.3.16"
 aws-credential-types = "1.2.14"
 google-cloudkms1 = "7.0.0+20251203"
