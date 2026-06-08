@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Izin Pemakaian BMN model - usage permits for vehicles, housing, laptops
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -38,39 +35,6 @@ pub struct IzinPemakaianBmn {
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
-}
-
-#[cfg(feature = "backend")]
-impl IzinPemakaianBmn {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            nomor_izin: row.get("nomor_izin"),
-            bmn_id: row.get("bmn_id"),
-            bmn_type: row.get("bmn_type"),
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            pegawai_nip: row.get("pegawai_nip"),
-            pegawai_nama: row.get("pegawai_nama"),
-            satker_id: row.get("satker_id"),
-            tanggal_mulai: row.get("tanggal_mulai"),
-            tanggal_akhir: row.get("tanggal_akhir"),
-            status: row.get("status"),
-            keperluan: row.get("keperluan"),
-            dokumen_pendukung: row.get("dokumen_pendukung"),
-            workflow_status: row.get("workflow_status"),
-            approved_by: row.get("approved_by"),
-            approved_at: row.get("approved_at"),
-            revoked_by: row.get("revoked_by"),
-            revoked_at: row.get("revoked_at"),
-            revoke_reason: row.get("revoke_reason"),
-            parent_izin_id: row.get("parent_izin_id"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            created_by: row.get("created_by"),
-            updated_by: row.get("updated_by"),
-        }
-    }
 }
 
 /// Request to create Izin Pemakaian BMN
@@ -133,21 +97,6 @@ pub struct AvailableBmn {
     pub has_active_permit: bool,
 }
 
-#[cfg(feature = "backend")]
-impl AvailableBmn {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            bmn_id: row.get("bmn_id"),
-            bmn_type: row.get("bmn_type"),
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            satker_id: row.get("satker_id"),
-            kondisi: row.get("kondisi"),
-            has_active_permit: row.get("has_active_permit"),
-        }
-    }
-}
-
 /// Usage history per BMN
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -183,26 +132,4 @@ pub struct BmnUtilizationReport {
     pub bmn_with_active_permit: i64,
     pub bmn_available: i64,
     pub utilization_rate: f64,
-}
-
-#[cfg(feature = "backend")]
-impl BmnUtilizationReport {
-    pub fn from_row(row: &Row) -> Self {
-        let total_bmn: i64 = row.get("total_bmn");
-        let bmn_with_active_permit: i64 = row.get("bmn_with_active_permit");
-        let utilization_rate = if total_bmn > 0 {
-            (bmn_with_active_permit as f64 / total_bmn as f64) * 100.0
-        } else {
-            0.0
-        };
-
-        Self {
-            satker_id: row.get("satker_id"),
-            bmn_type: row.get("bmn_type"),
-            total_bmn,
-            bmn_with_active_permit,
-            bmn_available: total_bmn - bmn_with_active_permit,
-            utilization_rate,
-        }
-    }
 }

@@ -35,7 +35,6 @@ pub mod pagination;
 pub mod prioritization;
 pub mod response;
 pub mod search;
-pub mod traits;
 pub mod types;
 pub mod utils;
 pub mod validation;

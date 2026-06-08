@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Pakaian Dinas model - represents uniform requirements
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -29,30 +26,6 @@ pub struct PakaianDinas {
     pub updated_at: DateTime<Utc>,
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
-}
-
-#[cfg(feature = "backend")]
-impl PakaianDinas {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            pegawai_nip: row.get("pegawai_nip"),
-            pegawai_nama: row.get("pegawai_nama"),
-            satker_id: row.get("satker_id"),
-            jenis_pakaian: row.get("jenis_pakaian"),
-            ukuran: row.get("ukuran"),
-            jumlah: row.get("jumlah"),
-            tahun_anggaran: row.get("tahun_anggaran"),
-            status: row.get("status"),
-            tanggal_terakhir_terima: row.get("tanggal_terakhir_terima"),
-            masa_pakai_bulan: row.get("masa_pakai_bulan"),
-            eligible_for_new: row.get("eligible_for_new"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-            created_by: row.get("created_by"),
-            updated_by: row.get("updated_by"),
-        }
-    }
 }
 
 /// Request to create Pakaian Dinas requirement
@@ -82,17 +55,4 @@ pub struct RekapitulasiPakaianDinas {
     pub total_pegawai: i64,
     pub total_jumlah: i64,
     pub satker_id: Option<Uuid>,
-}
-
-#[cfg(feature = "backend")]
-impl RekapitulasiPakaianDinas {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            jenis_pakaian: row.get("jenis_pakaian"),
-            ukuran: row.get("ukuran"),
-            total_pegawai: row.get("total_pegawai"),
-            total_jumlah: row.get("total_jumlah"),
-            satker_id: row.get("satker_id"),
-        }
-    }
 }

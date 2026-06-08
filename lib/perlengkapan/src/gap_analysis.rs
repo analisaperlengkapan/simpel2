@@ -7,9 +7,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "backend")]
-use std::collections::HashMap;
-
 /// Gap analysis result for a single kode barang
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -64,130 +61,6 @@ impl GapAnalysisResult {
 }
 
 /// Gap analyzer with caching support
-#[cfg(feature = "backend")]
-pub struct GapAnalyzer {
-    cache: HashMap<String, GapAnalysisResult>,
-    cache_ttl_seconds: i64,
-}
-
-#[cfg(feature = "backend")]
-impl GapAnalyzer {
-    /// Create a new gap analyzer with default cache TTL (1 hour)
-    pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-            cache_ttl_seconds: 3600,
-        }
-    }
-
-    /// Create a new gap analyzer with custom cache TTL
-    pub fn with_cache_ttl(cache_ttl_seconds: i64) -> Self {
-        Self {
-            cache: HashMap::new(),
-            cache_ttl_seconds,
-        }
-    }
-
-    /// Calculate gap for a single kode barang
-    ///
-    /// This method checks the cache first. If not found or expired,
-    /// it calculates the gap and stores it in the cache.
-    pub fn calculate_gap(
-        &mut self,
-        satker_id: Uuid,
-        kode_barang: String,
-        nama_barang: String,
-        standard_quantity: i32,
-        existing_good_quantity: i32,
-    ) -> GapAnalysisResult {
-        let cache_key = format!("{}:{}", satker_id, kode_barang);
-
-        // Check cache
-        if let Some(cached_result) = self.cache.get(&cache_key) {
-            let age = Utc::now()
-                .signed_duration_since(cached_result.calculated_at)
-                .num_seconds();
-
-            if age < self.cache_ttl_seconds {
-                return cached_result.clone();
-            }
-        }
-
-        // Calculate new result
-        let result = GapAnalysisResult::new(
-            kode_barang,
-            nama_barang,
-            satker_id,
-            standard_quantity,
-            existing_good_quantity,
-        );
-
-        // Store in cache
-        self.cache.insert(cache_key, result.clone());
-
-        result
-    }
-
-    /// Calculate gaps for multiple kode barang
-    pub fn calculate_gaps_batch(&mut self, items: Vec<GapAnalysisInput>) -> Vec<GapAnalysisResult> {
-        items
-            .into_iter()
-            .map(|input| {
-                self.calculate_gap(
-                    input.satker_id,
-                    input.kode_barang,
-                    input.nama_barang,
-                    input.standard_quantity,
-                    input.existing_good_quantity,
-                )
-            })
-            .collect()
-    }
-
-    /// Clear the cache
-    pub fn clear_cache(&mut self) {
-        self.cache.clear();
-    }
-
-    /// Invalidate cache for a specific satker
-    pub fn invalidate_satker_cache(&mut self, satker_id: Uuid) {
-        let satker_prefix = format!("{}:", satker_id);
-        self.cache.retain(|key, _| !key.starts_with(&satker_prefix));
-    }
-
-    /// Get cache statistics
-    pub fn cache_stats(&self) -> CacheStats {
-        let now = Utc::now();
-        let mut valid_entries = 0;
-        let mut expired_entries = 0;
-
-        for result in self.cache.values() {
-            let age = now
-                .signed_duration_since(result.calculated_at)
-                .num_seconds();
-
-            if age < self.cache_ttl_seconds {
-                valid_entries += 1;
-            } else {
-                expired_entries += 1;
-            }
-        }
-
-        CacheStats {
-            total_entries: self.cache.len(),
-            valid_entries,
-            expired_entries,
-            ttl_seconds: self.cache_ttl_seconds,
-        }
-    }
-}
-
-#[cfg(feature = "backend")]
-impl Default for GapAnalyzer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// Input for gap analysis calculation
 #[derive(Debug, Clone)]
@@ -300,65 +173,6 @@ mod tests {
 
         assert_eq!(result.gap, -2);
         assert!(!result.has_gap());
-    }
-
-    #[cfg(feature = "backend")]
-    #[test]
-    fn test_gap_analyzer_caching() {
-        let mut analyzer = GapAnalyzer::new();
-        let satker_id = Uuid::new_v4();
-
-        let result1 = analyzer.calculate_gap(
-            satker_id,
-            "1.01.01.01.001".to_string(),
-            "Meja Kerja".to_string(),
-            10,
-            6,
-        );
-
-        let result2 = analyzer.calculate_gap(
-            satker_id,
-            "1.01.01.01.001".to_string(),
-            "Meja Kerja".to_string(),
-            10,
-            6,
-        );
-
-        // Should return cached result
-        assert_eq!(result1.calculated_at, result2.calculated_at);
-
-        let stats = analyzer.cache_stats();
-        assert_eq!(stats.total_entries, 1);
-        assert_eq!(stats.valid_entries, 1);
-    }
-
-    #[cfg(feature = "backend")]
-    #[test]
-    fn test_gap_analyzer_batch() {
-        let mut analyzer = GapAnalyzer::new();
-        let satker_id = Uuid::new_v4();
-
-        let inputs = vec![
-            GapAnalysisInput {
-                satker_id,
-                kode_barang: "1.01.01.01.001".to_string(),
-                nama_barang: "Meja Kerja".to_string(),
-                standard_quantity: 10,
-                existing_good_quantity: 6,
-            },
-            GapAnalysisInput {
-                satker_id,
-                kode_barang: "1.01.01.01.002".to_string(),
-                nama_barang: "Kursi Kerja".to_string(),
-                standard_quantity: 20,
-                existing_good_quantity: 15,
-            },
-        ];
-
-        let results = analyzer.calculate_gaps_batch(inputs);
-        assert_eq!(results.len(), 2);
-        assert_eq!(results[0].gap, 4);
-        assert_eq!(results[1].gap, 5);
     }
 
     #[test]

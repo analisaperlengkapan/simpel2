@@ -8,9 +8,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[cfg(feature = "backend")]
-use tokio_postgres::Row;
-
 /// Mapping Kodefikasi model - maps non-standard kode barang to standard
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -26,25 +23,6 @@ pub struct MappingKodefikasi {
     pub catatan_mapping: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-}
-
-#[cfg(feature = "backend")]
-impl MappingKodefikasi {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            id: row.get("id"),
-            satker_id: row.get("satker_id"),
-            kode_barang_lama: row.get("kode_barang_lama"),
-            nama_barang_lama: row.get("nama_barang_lama"),
-            kode_barang_baru_id: row.get("kode_barang_baru_id"),
-            kode_barang_baru: row.get("kode_barang_baru"),
-            nama_barang_baru: row.get("nama_barang_baru"),
-            status_mapping: row.get("status_mapping"),
-            catatan_mapping: row.get("catatan_mapping"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        }
-    }
 }
 
 /// Result of checking whether a BMN code is standard or non-standard
@@ -75,18 +53,4 @@ pub struct NonStandardKodeBarang {
     pub source: String, // SIMAN, MANUAL_INPUT
     pub detected_at: DateTime<Utc>,
     pub is_mapped: bool,
-}
-
-#[cfg(feature = "backend")]
-impl NonStandardKodeBarang {
-    pub fn from_row(row: &Row) -> Self {
-        Self {
-            kode_barang: row.get("kode_barang"),
-            nama_barang: row.get("nama_barang"),
-            satker_id: row.get("satker_id"),
-            source: row.get("source"),
-            detected_at: row.get("detected_at"),
-            is_mapped: row.get("is_mapped"),
-        }
-    }
 }
