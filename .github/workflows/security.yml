@@ -237,7 +237,7 @@ jobs:
               - '.github/workflows/security.yml'
       - name: Setup Helm
         if: steps.filter.outputs.helm == 'true'
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.20.2
       - name: helm lint (advisory)
