@@ -336,7 +336,7 @@ jobs:
       # tambahan adalah signed attestation di GitHub yang opsional).
       - name: Attest build provenance
         if: github.event.repository.visibility == 'public'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_PREFIX }}-${{ matrix.image.name }}
           subject-digest: ${{ steps.build.outputs.digest }}
