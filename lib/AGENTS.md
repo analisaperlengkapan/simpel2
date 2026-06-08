@@ -102,6 +102,17 @@ Jika perlu trait/util yang membutuhkan tokio atau koneksi DB, taruh
 di `lib-backend`. Jika perlu sharing antar backend service tanpa async,
 tetap WASM-safe — taruh di `lib-core`.
 
+### Formal verification (Verus)
+
+Bukti formal untuk kripto/keamanan-sensitif diletakkan di `<crate>/verus/<source>_proof.rs`
+(mis. `lib/crypto/verus/shamir_proof.rs`) — **di luar** `src/`/`tests/`/`benches/`/
+`examples/` agar Cargo mengabaikannya; **jangan** `mod`-kan. **Jangan inline `verus!`
+ke `src/`** (memaksa rustc 1.95 + `vstd`, mematahkan build stable; proof = model
+abstrak int/GF(2), bukan tipe asli) — cukup komentar `// FORMAL VERIFICATION:` di
+source yang menunjuk ke proof. CI (`security.yml` job *Verus Formal Verification*)
+auto-detect `verus!` (advisory). Detail prosedur/diagnostik: Skill
+**`verus-formal-verification`** (+ `lib/crypto/verus/README.md`).
+
 ### 3. Decide where new code belongs
 
 Diagram cepat keputusan:
