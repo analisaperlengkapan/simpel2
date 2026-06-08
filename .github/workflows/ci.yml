@@ -588,7 +588,12 @@ jobs:
           - name: layanan-integrasi
             package: layanan-integrasi
           - name: layanan-secreton
-            package: secreton
+            # The top-level `secreton` package is target-less (no lib/bin — only
+            # tests/examples/benches), so `cargo build -p secreton` compiled
+            # NOTHING (false green, ~5min download-only). The deployable binary
+            # is `secreton-api::api_server` — mirror layanan/secreton/Dockerfile.
+            package: secreton-api
+            extra_args: "--bin api_server --features raft-consensus"
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -603,7 +608,7 @@ jobs:
         # avoid 'could not parse/generate dep info' from stale .d files.
         run: rm -rf target
       - name: cargo build --release -p ${{ matrix.package }}
-        run: cargo build --release -p ${{ matrix.package }}
+        run: cargo build --release -p ${{ matrix.package }} ${{ matrix.extra_args }}
 
   build-monolith-assets:
     name: Build Monolith Assets (Vite)
