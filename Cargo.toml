@@ -453,7 +453,7 @@ gloo-timers = { version = "0.4.0", features = ["futures"] }
 # WASM utilities
 console_error_panic_hook = "0.1.7"
 console_log = "1.0.0"
-log = "0.4.31"
+log = "0.4.32"
 
 # Utilities
 futures = "0.3.32"
