@@ -1118,3 +1118,14 @@ pub struct MfaStatus {
 }
 
 // Internal structures for JWT parsing removed - using lib_core::jwt::Claims
+
+// ---- F0-B: oauth + tests live under the auth feature ----
+pub mod oauth;
+pub use oauth::*;
+
+#[cfg(test)]
+mod tests;
+
+// ---- F0-B: auth feature pages ----
+pub mod pages;
+pub use pages::*;
