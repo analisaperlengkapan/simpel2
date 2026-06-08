@@ -66,7 +66,7 @@ impl KebutuhanBmnService {
         &self,
         query: lib_perlengkapan::search::SearchQuery,
     ) -> AppResult<lib_perlengkapan::search::SearchResults<KebutuhanBmnSummary>> {
-        use lib_perlengkapan::search::SearchEngineDb;
+        use crate::shared::search_db::SearchEngineDb;
 
         let search_engine = SearchEngineDb::new(self.repository.pool().clone());
 
@@ -85,7 +85,7 @@ impl KebutuhanBmnService {
         partial_query: &str,
         limit: i32,
     ) -> AppResult<Vec<String>> {
-        use lib_perlengkapan::search::SearchEngineDb;
+        use crate::shared::search_db::SearchEngineDb;
 
         let search_engine = SearchEngineDb::new(self.repository.pool().clone());
 

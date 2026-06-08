@@ -41,3 +41,4 @@ pub mod policy;
 pub mod rate_limit;
 pub mod repo;
 pub mod resilience;
+pub mod search_db;
