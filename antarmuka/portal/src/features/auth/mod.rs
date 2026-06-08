@@ -1125,3 +1125,7 @@ pub use oauth::*;
 
 #[cfg(test)]
 mod tests;
+
+// ---- F0-B: auth feature pages ----
+pub mod pages;
+pub use pages::*;
