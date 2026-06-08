@@ -25,7 +25,7 @@ graph TD
 
 **ATURAN WAJIB (MANDATORY RULES):**
 
-1. ⛔ **JANGAN** membuat model database *ORM-specific* (seperti `sea-query` entities atau `sqlx` structs) yang bocor ke dalam ekosistem WASM. Pisahkan menggunakan *feature flag* `backend`.
+1. ⛔ **JANGAN** membuat model database *ORM-specific* (mapping `tokio_postgres::Row` → struct, `from_row`, query SQL) di crate ini. Sejak **F0-C** crate ini **WASM-safe murni** — tidak ada lagi *feature flag* `backend`, tidak ada `tokio-postgres`/`async-trait`. Pemetaan baris DB & engine pencarian tinggal di *layer* repository service (`layanan/perlengkapan/src/.../repository`, mis. trait lokal `FromPgRow`, `shared/search_db.rs`). Begitu pula **trait kontrak service** (`DocumentGenerator`/`NotificationSender`/`AuditSink`/`DocumentStorage`) → ada di `layanan/perlengkapan/src/contracts.rs`, bukan di sini.
 2. ✅ **SELALU** gunakan penamaan bidang (*fields*) sesuai standar leksikal Kejaksaan (Misalnya `kode_satker`, bukan `office_code`; `kode_barang`, bukan `item_id`).
 3. ✅ Semua *Structs* harus di-*derive* dengan `serde::Serialize` dan `serde::Deserialize` (*by default*).
 4. ✅ Terapkan validasi *Type-Safe*! Gunakan `validator` atau modul `validation/` yang ada untuk memastikan data mentah sesuai dengan parameter `Sistem Informasi Perlengkapan` sebelum diproses ke *layer* terluar.
@@ -131,17 +131,20 @@ pub enum ValidationError {
 
 ### Integration with Backend Validation
 
-Di backend, gunakan feature flag `backend` untuk ORM-specific validation:
+Validasi yang menyentuh database (mis. cek keunikan `kode_barang`) **TIDAK** boleh
+ada di crate ini — sejak F0-C tak ada lagi feature `backend`. Letakkan di *layer*
+service (`layanan/perlengkapan/src/.../repository` atau `services`), yang memanggil
+validasi murni dari sini lalu menambah cek DB-nya sendiri:
 
 ```rust
-#[cfg(feature = "backend")]
+// di layanan/perlengkapan (punya akses Database):
 pub async fn validate_unique_kode_barang(
     db: &Database,
     kode: &str,
-) -> Result<(), ValidationError> {
-    let exists = db.check_kode_barang_exists(kode).await?;
-    if exists {
-        return Err(ValidationError::new("kode_barang_must_be_unique"));
+) -> Result<(), AppError> {
+    lib_perlengkapan::validation::validate_format(kode)?; // murni (WASM-safe)
+    if db.check_kode_barang_exists(kode).await? {
+        return Err(AppError::conflict("kode_barang_must_be_unique"));
     }
     Ok(())
 }
@@ -149,13 +152,11 @@ pub async fn validate_unique_kode_barang(
 
 ### WASM Compatibility
 
-Pastikan semua validasi berjalan di WASM tanpa I/O sistem:
+Seluruh isi crate ini WAJIB jalan di WASM tanpa I/O sistem (tak ada async/DB):
 
 ```rust
-// ✅ Validasi murni - OK untuk WASM
+// ✅ Validasi murni - satu-satunya bentuk yang boleh di sini
 pub fn validate_format(kode: &str) -> Result<(), ValidationError> { ... }
 
-// ❌ Validasi dengan database - HARUS di feature flag "backend"
-#[cfg(feature = "backend")]
-pub async fn validate_unique(db: &Database, kode: &str) -> Result<(), ValidationError> { ... }
+// ❌ Validasi dengan database → pindah ke layer service, BUKAN di lib-perlengkapan
 ```
