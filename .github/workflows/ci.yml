@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run the Playwright e2e smoke stack (on-demand validation, independent of vars.E2E_ENABLED)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -961,6 +966,9 @@ jobs:
     name: E2E Playwright (portal)
     needs:
       [detect, build-antarmuka-portal, build-backend, build-monolith-assets]
+    # NOTE: portal e2e stack bring-up not yet wired (F5-C) — keep it gated by
+    # E2E_ENABLED only; the on-demand `run_e2e` validation path is wired for
+    # e2e-perlengkapan (which has the docker-compose stack steps) for now.
     if: |
       !cancelled() &&
       vars.E2E_ENABLED == 'true' &&
@@ -1002,12 +1010,12 @@ jobs:
         build-backend,
         build-monolith-assets,
       ]
+    # Self-contained (compose builds the stack) — see e2e-portal note above.
     if: |
       !cancelled() &&
-      vars.E2E_ENABLED == 'true' &&
-      needs.detect.outputs.rust-frontend == 'true' &&
-      needs.build-antarmuka-perlengkapan.result == 'success' &&
-      needs.build-backend.result == 'success'
+      (vars.E2E_ENABLED == 'true' || github.event.inputs.run_e2e == 'true') &&
+      needs.build-antarmuka-perlengkapan.result != 'failure' &&
+      needs.build-backend.result != 'failure'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
