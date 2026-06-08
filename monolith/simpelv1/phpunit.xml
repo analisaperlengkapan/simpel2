@@ -5,11 +5,12 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory suffix="Test.php">./tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory suffix="Test.php">./tests/Feature</directory>
+        <!-- F5-A (#31): the only tests kept are simpelv1 ↔ Rust-service
+             integration contract tests (authenc/secreton/… via Http::fake).
+             All legacy/AI/example tests were removed (user decision). Add
+             back Unit/Feature suites here if non-integration tests return. -->
+        <testsuite name="Integration">
+            <directory suffix="Test.php">./tests/Feature/Integration</directory>
         </testsuite>
     </testsuites>
     <source>
