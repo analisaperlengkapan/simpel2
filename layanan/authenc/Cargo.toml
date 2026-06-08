@@ -3,11 +3,11 @@
 
 [package]
 name = "authenc"
+publish = false
 version.workspace = true
 edition = "2024"
 rust-version = "1.90"
 authors = ["SIMPEL Team <security@kejaksaan.go.id>"]
-license = "Apache-2.0"
 description = "Enterprise-grade Identity and Access Management (IAM) service for SIMPEL"
 repository = "https://github.com/analisaperlengkapan/simpel2"
 homepage = "https://simpel.kejaksaan.go.id"

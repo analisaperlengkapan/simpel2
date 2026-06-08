@@ -14,7 +14,7 @@
 - 🛡️ **Keamanan & Autentikasi**: IAM kustom (*Authenc*) dengan OAuth2/OIDC, MFA, RBAC, SAML, WebAuthn, dan manajemen rahasia (*Secreton*)
 - 🧩 **Microfrontend (WASM)**: Antarmuka reaktif dibangun dengan Leptos 0.8 — Portal (SSO Gateway) dan Perlengkapan (BMN)
 - ⚙️ **Backend Services**: API asinkron berperforma tinggi dengan Axum 0.8, komunikasi antar-layanan via gRPC (Tonic)
-- 📦 **Workspace Terintegrasi**: Seluruh ~32 crate dikelola dalam satu `Cargo.toml` workspace dengan dependensi terpusat
+- 📦 **Workspace Terintegrasi**: Seluruh ~34 crate dikelola dalam satu `Cargo.toml` workspace dengan dependensi terpusat
 
 ---
 
@@ -65,7 +65,7 @@ simpel2/
 │   ├── portal/              #   Portal Gateway & SSO
 │   └── perlengkapan/        #   Modul operasional BMN
 ├── layanan/                 # Backend & Core Services
-│   ├── perlengkapan/crates/ #   4 crates: api, dokumen, notifikasi, bantuan
+│   ├── perlengkapan/        #   Layanan backend BMN terpadu (kebutuhan, dokumen, notifikasi, bantuan, dll)
 │   ├── integrasi/           #   Integrasi layanan eksternal (MySIMKARI, SIMAN)
 │   ├── authenc/crates/      #   10 crates: types, core, crypto, storage, api, iam-api,
 │   │                        #              grpc, mfa, federation, webauthn
@@ -74,7 +74,9 @@ simpel2/
 │                            #              backup, health, replication
 ├── lib/                     # Shared Libraries
 │   ├── ui/                  #   Komponen Antarmuka (Leptos)
-│   ├── common/              #   Utilitas bersama (types, config, crypto)
+│   ├── core/                #   Tipe data aman WASM (WASM-safe types)
+│   ├── backend/             #   Infrastruktur backend (database, gRPC, middleware)
+│   ├── crypto/              #   Primitif kriptografi bersama
 │   └── perlengkapan/        #   Tipe domain perlengkapan
 ├── tests/                   # Integration & E2E tests
 ├── docs/                    # Dokumentasi engineering
@@ -129,7 +131,7 @@ cd antarmuka/perlengkapan && trunk serve --port 8081 --open
 ```bash
 cargo run --bin layanan-perlengkapan
 cargo run --bin authenc
-cargo run --bin secreton
+cargo run --bin api_server
 ```
 
 ### 4. Verifikasi Workspace
