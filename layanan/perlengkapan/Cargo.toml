@@ -3,7 +3,6 @@ name = "layanan-perlengkapan"
 version.workspace = true
 edition.workspace = true
 authors = ["SIMPEL Team"]
-license.workspace = true
 description = "Unified Perlengkapan service (BMN, workflow, dokumen, notifikasi, bantuan)"
 publish = false
 
@@ -18,8 +17,6 @@ path = "src/lib.rs"
 [features]
 default = []
 integration-tests = []
-# Enables the optional clamav virus-scanning hook in dokumen::security.
-virus-scan = ["dep:clamav-client"]
 
 [dependencies]
 # Web framework
@@ -106,7 +103,6 @@ rand = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 regex = { workspace = true }
-clamav-client = { workspace = true, optional = true }
 
 # Notifikasi module (email/SMS/WhatsApp/push/in-app, queue, scheduler)
 lettre = { workspace = true }

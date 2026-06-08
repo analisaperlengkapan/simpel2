@@ -1,8 +1,8 @@
 [package]
 name = "perlengkapan-microfrontend"
+publish = false
 version.workspace = true
 edition.workspace = true
-license.workspace = true
 authors = ["SIMPEL Team <simpelv2@kejaksaan.go.id>"]
 description = "Sistem Informasi Manajemen Perlengkapan"
 

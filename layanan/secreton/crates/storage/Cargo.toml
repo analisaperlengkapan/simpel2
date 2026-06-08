@@ -1,9 +1,9 @@
 [package]
 name = "secreton-storage"
+publish = false
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
-license.workspace = true
 description = "Secure storage backend for Secreton vault system"
 keywords = ["storage", "database", "vault", "security"]
 

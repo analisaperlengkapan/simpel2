@@ -66,6 +66,13 @@ allow = [
 # Confidence threshold for license detection
 confidence-threshold = 0.8
 
+# SIMPEL is a closed-source/proprietary project: our own workspace crates carry
+# no `license` field and are all `publish = false`. Skip the license check for
+# those private crates so cargo-deny doesn't flag them as `unlicensed`
+# (third-party dependency licenses are still enforced by the `allow` list above).
+[licenses.private]
+ignore = true
+
 [[licenses.clarify]]
 name = "ring"
 expression = "MIT AND ISC AND OpenSSL"

@@ -65,12 +65,11 @@ version = "0.1.0"
 edition = "2024"
 authors = ["SIMPEL Team"]
 rust-version = "1.96"
-license = "Apache-2.0"
+
 
 [workspace.dependencies]
 # Axum Backend Dependencies - Latest Stable
 axum = { version = "0.8.9", features = ["macros", "multipart", "ws"] }
-axum-extra = { version = "0.12.6", features = ["typed-header"] }
 tokio = { version = "1.52.3", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
@@ -123,11 +122,6 @@ postgres-types = { version = "0.2.13", features = [
   "with-time-0_3",
 ] }
 refinery = { version = "0.9.1", features = ["tokio-postgres"] }
-sea-query = { version = "1.0.1", features = [
-  "postgres-array",
-  "with-chrono",
-  "with-uuid",
-] }
 
 # Security & Authentication (Updated for latest security)
 # Ed25519 preferred over RSA for better security and performance
@@ -136,7 +130,6 @@ jsonwebtoken = { version = "10.4.0", default-features = false, features = [
   "aws_lc_rs",
   "use_pem",
 ] } # Updated to v10 with aws_lc_rs backend
-oauth2 = "5.0.0"
 rand = { version = "0.8.5", features = [
   "std",
   "std_rng",
@@ -176,10 +169,8 @@ redis = { version = "1.2.2", features = [
   "connection-manager",
   "aio",
 ] }
-mongodb = "3.7.0"
 
-# Message Queue & Event Streaming
-amqprs = { version = "2.1.5", features = ["tls"] }
+# Event Streaming
 tokio-stream = "0.1.18"
 
 # Configuration & Templates (Updated)
@@ -218,7 +209,6 @@ validator = { version = "0.20.0", features = [
 opentelemetry = "0.32.0"
 opentelemetry-otlp = { version = "0.32.0", features = ["tonic", "tls"] }
 prometheus = "0.14.0"
-sentry = { version = "0.48.2", features = ["tracing"] }
 metrics = "0.24.6"
 metrics-exporter-prometheus = "0.18.3"
 tracing-opentelemetry = "0.33.0"
@@ -319,8 +309,6 @@ base32 = "0.5.1"
 # Decimal calculations for financial data
 bigdecimal = { version = "0.4.10", features = ["serde"] }
 
-# Antivirus scanning
-clamav-client = "2.2.0"
 
 # Template engines
 handlebars = "6.4.1"
@@ -334,14 +322,11 @@ ring = "0.17.14"
 serde_yaml = "0.9.34+deprecated"
 toml = "1.1.2+spec-1.1.0"
 csv = "1.4.0"                    # CSV parsing
-calamine = "0.35.0"              # Excel reading
 rust_xlsxwriter = "0.95.0"       # Excel writing
 
 # Utility libraries
 tokio-util = "0.7.18"
-walkdir = "2.5.0"
 mime = "0.3.17"
-sentry-tracing = "0.48.2"
 tempfile = "3.27.0"
 
 # Dev dependencies (for testing)
@@ -349,7 +334,6 @@ tokio-test = "0.4.5"
 wiremock = "0.6.5"
 mockall = "0.14.0"
 serial_test = "3.5.0"
-assert-json-diff = "2.0.2"
 
 # Leptos Frontend Dependencies - Latest Available Stable
 leptos = { version = "0.8.19" }
@@ -452,7 +436,6 @@ gloo-timers = { version = "0.4.0", features = ["futures"] }
 
 # WASM utilities
 console_error_panic_hook = "0.1.7"
-console_log = "1.0.0"
 log = "0.4.32"
 
 # Utilities
@@ -498,7 +481,6 @@ scrypt = "0.11.0"
 cbc = "0.2.1"
 rcgen = "0.14.8"
 pem = "3.0.6"
-der-parser = "10.0.0"
 warp = "0.4.3"
 tonic-build = "0.14.6"
 tonic-prost = "0.14.6"

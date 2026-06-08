@@ -1,8 +1,8 @@
 [package]
 name = "lib-crypto"
+publish = false
 version.workspace = true
 edition = "2024"
-license.workspace = true
 description = "Cryptographic primitives for SIMPEL (Shamir, password hashing, AES-GCM, KDF)"
 
 [dependencies]

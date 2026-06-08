@@ -3,10 +3,10 @@
 
 [package]
 name = "secreton"
+publish = false
 version.workspace = true
 edition = "2024"
 authors = ["Cipherce Security Team <security@cipherce.io>"]
-license = "Apache-2.0"
 repository = "https://github.com/cipherce/secreton-vault"
 homepage = "https://cipherce.io/secreton"
 description = "Advanced Security Vault System with Quantum-Safe Cryptography by Cipherce"

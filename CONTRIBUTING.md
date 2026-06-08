@@ -78,11 +78,15 @@ Mulai langkah kecil Anda hari ini — dari:
    # Start database dan cache
    docker compose up -d postgres redis
 
-   # Jalankan backend
+   # Jalankan backend services (di terminal terpisah untuk masing-masing service)
    cargo run --bin layanan-perlengkapan
+   cargo run --bin authenc
+   cargo run --bin api_server
 
    # Jalankan frontend (di terminal terpisah)
    cd antarmuka/portal && trunk serve --port 8080 --open
+   # atau untuk perlengkapan:
+   cd antarmuka/perlengkapan && trunk serve --port 8081 --open
    ```
 
 ### ⚠️ Batasan Arsitektural Penting (Wajib Dibaca)

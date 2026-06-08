@@ -1,11 +1,11 @@
 [package]
 name = "lib-ui"
+publish = false
 version.workspace = true
 edition.workspace = true
 rust-version = "1.90"
 authors = ["Tim Pengembang SIMPEL <dev@kejaksaan.go.id>"]
 description = "Clean, focused, production-ready component library untuk Kejaksaan RI"
-license = "MIT"
 readme = "README.md"
 
 [lib]

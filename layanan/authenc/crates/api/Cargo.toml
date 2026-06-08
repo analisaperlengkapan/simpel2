@@ -1,9 +1,9 @@
 [package]
 name = "authenc-api"
+publish = false
 version.workspace = true
 edition = "2024"
 rust-version = "1.90"
-license.workspace = true
 
 [dependencies]
 # Internal authenc crate dependencies
