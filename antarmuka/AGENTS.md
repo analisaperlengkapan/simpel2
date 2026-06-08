@@ -195,6 +195,10 @@ let debounced_search = Memo::new(move |_| {
 
 ## 📋 Common Tasks
 
+> **Catatan:** sebagian contoh di bawah masih menampilkan layout transisi `perlengkapan`
+> (`pages/`, `src/api/<modul>.rs`) yang sedang dimigrasi. **Kode baru ikut feature-first**
+> (`features/<domain>/{page,api,state}.rs`, lihat "Struktur feature-first (F0-B)" di atas).
+
 ### 1. Add a new MFE route with auth guard
 
 Place the route's view component in its feature module

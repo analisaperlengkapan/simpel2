@@ -35,7 +35,7 @@ Infrastruktur SIMPEL berfokus pada **Keamanan Tingkat Tinggi (Zero-Trust)** dan 
   - `infra/helm/simpel/` — chart aplikasi (umbrella).
   - `infra/helm/metallb/` — chart cluster-scoped untuk MetalLB.
 - DILARANG mengubah resource langsung di cluster (`kubectl edit`, `kubectl patch`). Semua perubahan WAJIB melalui `values-<env>.yaml` atau template di repo ini, lalu `helm upgrade`.
-- Per-MR review apps memakai `./infra/helm/deploy.sh review-<slug> install` (lihat `.gitlab-ci.yml` job `deploy:review`).
+- Per-MR review apps memakai `./infra/helm/deploy.sh review-<slug> install` (GitLab CI — job `deploy:review` di `.gitlab-ci.yml`; **alur rilis utama staging→prod = GitHub Actions `release.yml`/`promote.yml`**).
 
 ### 3. Pemisahan Lingkungan
 
@@ -94,7 +94,7 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
 ### Yang masih k8s Secret (unavoidable)
 
 - `ghcr-pull` (image pull) — kubelet butuh sebelum pod start.
-- `simpel-tls` di `istio-system` — Istio gateway baca dari k8s Secret.
+- `simpelv2-tls-secret` di `istio-system` — Istio gateway baca dari k8s Secret.
 - Bootstrap unseal keys → **TIDAK** disimpan di k8s; offline-only (password manager / KMS terpisah).
 
 ### Rotasi Secret Runtime (F2H 2H-B)
@@ -131,7 +131,7 @@ tidak mematikan layanan.
 - **Apply ke cluster**:
 
   ```bash
-  kubectl -n istio-system create secret tls simpel-tls \
+  kubectl -n istio-system create secret tls simpelv2-tls-secret \
     --cert=/path/to/digicert-fullchain.pem \
     --key=/path/to/private-key.pem \
     --dry-run=client -o yaml | kubectl apply -f -

@@ -148,10 +148,10 @@ flowchart TB
     end
 
     subgraph Perlengkapan["⚙️ Layanan Perlengkapan"]
-        API["API Crate"]
-        DOC["Dokumen Crate"]
-        NOTIF["Notifikasi Crate"]
-        BANTUAN["Bantuan Crate"]
+        API["HTTP/Router (src/)"]
+        DOC["dokumen module"]
+        NOTIF["notifikasi module"]
+        BANTUAN["bantuan module"]
     end
 
     subgraph Core["🔐 Core Services"]
@@ -341,7 +341,7 @@ that pattern lives in authenc, not here). End-to-end:
 
 ### 2. Add Validation Rule
 
-1. Add validation function in `crates/api/src/validation.rs`:
+1. Add validation function in modul fitur terkait (mis. `src/<fitur>/models.rs`):
 
 ```rust
 use validator::Validate;
@@ -420,7 +420,7 @@ new bundles — current entries:
 
 1. Update proto file in `proto/`
 2. Regenerate code: `cargo build -p layanan-perlengkapan`
-3. Implement service in `crates/api/src/grpc/`
+3. Implement service in `src/shared/grpc/`
 4. Add to router
 
 ---
@@ -483,15 +483,17 @@ new bundles — current entries:
 
 | File | Purpose |
 |------|---------|
-| `crates/api/src/main.rs` | Application entry point |
-| `crates/api/src/lib.rs` | Router and state setup |
-| `crates/api/src/handlers/` | HTTP request handlers |
-| `crates/api/src/models/` | Data models and DTOs |
-| `crates/api/src/config.rs` | Configuration loading |
-| `crates/api/build.rs` | Proto file compilation |
-| `crates/dokumen/src/lib.rs` | Document management logic |
-| `crates/notifikasi/src/lib.rs` | Notification service logic |
-| `crates/bantuan/src/lib.rs` | Help/ticket system logic |
+| `src/main.rs` | Bin entrypoint, wires `AppState` |
+| `src/lib.rs` | Module declarations |
+| `src/routes.rs` | Router composition (gabung `routes()` per fitur) |
+| `src/state.rs` | `AppState` + `FromRef` |
+| `src/<fitur>/handlers.rs` | HTTP request handlers (per fitur) |
+| `src/<fitur>/models.rs` | Data models & DTOs (per fitur) |
+| `src/shared/` | Infra lintas-fitur (db, grpc, cache, middleware, dll) |
+| `build.rs` | Proto file compilation |
+| `src/dokumen/` | Document management module |
+| `src/notifikasi/` | Notification module |
+| `src/bantuan/` | Help/ticket module |
 
 ---
 
@@ -522,7 +524,7 @@ cargo build -p layanan-perlengkapan --release
 ### Development
 
 ```bash
-cd layanan/perlengkapan/crates/api
+cd layanan/perlengkapan
 cargo run
 ```
 

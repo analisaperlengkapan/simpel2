@@ -124,7 +124,7 @@ kubectl -n simpelv2-production create secret docker-registry ghcr-pull \
 openssl x509 -in /path/to/digicert-fullchain.pem -noout -subject -issuer -dates
 # Verify: subject CN matches simpel.kejaksaan.go.id, NotAfter > 30 days
 
-kubectl -n istio-system create secret tls simpel-tls \
+kubectl -n istio-system create secret tls simpelv2-tls-secret \
   --cert=/path/to/digicert-fullchain.pem \
   --key=/path/to/private-key.pem \
   --dry-run=client -o yaml | kubectl apply -f -
@@ -285,11 +285,11 @@ DigiCert cert berlaku 1 tahun. Reminder rotate H-30 sebelum expire.
 
 ```bash
 # Verify current expiry
-kubectl -n istio-system get secret simpel-tls -o jsonpath='{.data.tls\.crt}' \
+kubectl -n istio-system get secret simpelv2-tls-secret -o jsonpath='{.data.tls\.crt}' \
   | base64 -d | openssl x509 -noout -dates
 
 # Apply new PEM (Istio gateway hot-reload via SDS, no restart needed)
-kubectl -n istio-system create secret tls simpel-tls \
+kubectl -n istio-system create secret tls simpelv2-tls-secret \
   --cert=/path/to/new-fullchain.pem \
   --key=/path/to/new-private-key.pem \
   --dry-run=client -o yaml | kubectl apply -f -
