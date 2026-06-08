@@ -9,6 +9,7 @@
 pub mod auth;
 pub mod mfa;
 pub mod microfrontends;
+pub mod notifications;
 pub mod session;
 
 pub use auth::*;

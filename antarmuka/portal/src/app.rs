@@ -9,10 +9,14 @@
 use crate::components::guards::{PortalAdminLayout, PortalAuthLayout};
 use crate::components::session_timeout_modal::SessionTimeoutModal;
 use crate::features::auth::AuthService;
-use crate::features::auth::{CallbackPage, LoggedOutPage, LoginPage, PasswordChangePage};
+use crate::features::auth::{
+    CallbackPage, LoggedOutPage, LoginPage, PasskeysPage, PasswordChangePage,
+};
 use crate::features::mfa::{
     MfaBackupCodesPage, MfaBackupVerificationPage, MfaSetupPage, MfaVerificationPage,
 };
+use crate::features::notifications::NotificationsPage;
+use crate::features::session::SessionsPage;
 use crate::features::session::{setup_cross_tab_session_sync, setup_session_refresh_monitor};
 use crate::routes;
 
