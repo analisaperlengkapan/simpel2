@@ -964,8 +964,13 @@ jobs:
   # E2E_ENABLED=true. After that these become blocking via ci-summary.
   e2e-portal:
     name: E2E Playwright (portal)
-    needs:
-      [detect, build-antarmuka-portal, build-backend, build-monolith-assets]
+    # Portal smoke = portal FE + authenc only (login via real authenc, proxy
+    # /api/** → authenc). It does NOT touch simpelv1, so it must NOT wait on
+    # build-monolith-assets (Vite). These build-* needs are fail-fast gates (the
+    # e2e job builds its own stack via compose); monolith adds no signal here.
+    # A full cross-app SSO e2e incl. simpelv1 belongs to the comprehensive
+    # staging suite (F5-C) — add monolith back there deliberately.
+    needs: [detect, build-antarmuka-portal, build-backend]
     # NOTE: portal e2e stack bring-up not yet wired (F5-C) — keep it gated by
     # E2E_ENABLED only; the on-demand `run_e2e` validation path is wired for
     # e2e-perlengkapan (which has the docker-compose stack steps) for now.
@@ -1003,13 +1008,10 @@ jobs:
 
   e2e-perlengkapan:
     name: E2E Playwright (perlengkapan)
-    needs:
-      [
-        detect,
-        build-antarmuka-perlengkapan,
-        build-backend,
-        build-monolith-assets,
-      ]
+    # Compose stack = authenc + perlengkapan + integrasi + secreton + postgres +
+    # redis (NO simpelv1) → no dependency on build-monolith-assets (Vite). The
+    # build-* needs are fail-fast gates only (the job builds its own stack).
+    needs: [detect, build-antarmuka-perlengkapan, build-backend]
     # Self-contained (compose builds the stack) — see e2e-portal note above.
     if: |
       !cancelled() &&
