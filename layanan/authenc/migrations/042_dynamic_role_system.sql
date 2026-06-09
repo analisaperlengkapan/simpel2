@@ -17,6 +17,11 @@
 -- 1. ROLE TYPE REGISTRY (Replaces hardcoded enums)
 -- ============================================================================
 
+-- F5-B: views/functions below filter `roles.deleted_at IS NULL`, but the roles
+-- table (001_initial_schema) has no deleted_at column. Add it (soft-delete
+-- support) before those objects are created. Idempotent.
+ALTER TABLE roles ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
 -- Role types table (replaces OrganizationRole enum)
 CREATE TABLE IF NOT EXISTS role_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -579,8 +584,8 @@ SELECT DISTINCT
     c.code AS capability_code,
     c.resource_type,
     c.action,
-    NULL AS role_id,
-    NULL AS role_name,
+    NULL::uuid AS role_id,
+    NULL::varchar AS role_name,
     'policy' AS grant_source
 FROM users u
 JOIN user_policies up ON u.id = up.user_id

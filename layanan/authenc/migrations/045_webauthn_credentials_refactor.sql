@@ -6,6 +6,13 @@
 -- Rename old table to preserve data
 ALTER TABLE IF EXISTS webauthn_credentials RENAME TO webauthn_credentials_old;
 
+-- F5-B: indexes follow the table rename but keep their original names, which
+-- would collide with the new indexes created below. Drop the carried-over names
+-- (they remain on webauthn_credentials_old, dropped with it at end of migration).
+DROP INDEX IF EXISTS idx_webauthn_credentials_user_id;
+DROP INDEX IF EXISTS idx_webauthn_credentials_cred_id;
+DROP INDEX IF EXISTS idx_webauthn_credentials_last_used;
+
 -- Create new webauthn_credentials table with updated schema
 CREATE TABLE webauthn_credentials (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,7 +57,7 @@ COMMENT ON COLUMN webauthn_credentials.last_used IS
 
 -- Migrate data from old table (if it exists and has data)
 -- Note: This is a best-effort migration. Manual verification may be needed.
-DO $
+DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'webauthn_credentials_old') THEN
         -- Log migration start
@@ -62,20 +69,19 @@ BEGIN
         RAISE NOTICE 'Old webauthn_credentials data preserved in webauthn_credentials_old';
         RAISE NOTICE 'Manual migration may be required for existing credentials';
     END IF;
-END $;
+END $$;
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON webauthn_credentials TO authenc;
 
 -- Add trigger to update last_used automatically (optional)
 CREATE OR REPLACE FUNCTION update_webauthn_credential_last_used()
-RETURNS TRIGGER AS $
+RETURNS TRIGGER AS $$
 BEGIN
     -- This trigger can be used by application to auto-update last_used
     -- Currently, application handles this explicitly
     RETURN NEW;
 END;
-$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql;
 
 -- Note: Trigger not created by default, application handles last_used updates
 -- CREATE TRIGGER trigger_update_webauthn_credential_last_used

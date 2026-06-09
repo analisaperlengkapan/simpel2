@@ -51,7 +51,7 @@ RETURNS void
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY mfa_statistics;
+    REFRESH MATERIALIZED VIEW mfa_statistics;
 END;
 $$;
 

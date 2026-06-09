@@ -79,9 +79,11 @@ CREATE TABLE IF NOT EXISTS initial_access_tokens (
     last_used_at TIMESTAMPTZ
 );
 
+-- F5-B: NOW() is not IMMUTABLE and cannot appear in a partial-index predicate.
+-- Index live (non-revoked) tokens; expiry is filtered at query time.
 CREATE INDEX IF NOT EXISTS idx_initial_access_tokens_hash
 ON initial_access_tokens(token_hash)
-WHERE revoked = false AND (expires_at IS NULL OR expires_at > NOW());
+WHERE revoked = false;
 
 CREATE INDEX IF NOT EXISTS idx_initial_access_tokens_realm
 ON initial_access_tokens(realm_id)

@@ -7,10 +7,12 @@
 //!   * Kubernetes: a Helm pre-install/pre-upgrade hook Job runs it before the
 //!     Deployment rolls.
 //!
-//! It pins `search_path=authenc,public` on every connection and creates the
-//! `authenc` schema up front, so all tables are created in `authenc` from
-//! migration 001 onward and `040_use_authenc_schema`'s in-place move becomes a
-//! no-op — making the accreted migration set fresh-appliable (F5-B).
+//! Topology (F5-B): authenc shares the `dbsimpelv2` database with perlengkapan.
+//! Most authenc tables live in `public` (the app queries them unqualified); only
+//! a few are referenced schema-qualified (`authenc.token_revocations` [050],
+//! `authenc.totp_secrets` / `authenc.mfa_backup_codes` [049]). So we run with
+//! the default search_path (public) and just ensure the `authenc` schema exists
+//! up front for those qualified CREATE TABLEs.
 //!
 //! Exit code: 0 only if every pending migration applied; 1 on any failure
 //! (the runner is fail-soft per-migration, so we inspect the aggregate result).
@@ -34,8 +36,8 @@ async fn main() {
         }
     };
 
-    info!("authenc-migrate: connecting (search_path=authenc,public)…");
-    let db = match Database::new_with_search_path(&database_url, 5, Some("authenc,public")).await {
+    info!("authenc-migrate: connecting (default search_path = public)…");
+    let db = match Database::new(&database_url, 5).await {
         Ok(db) => db,
         Err(e) => {
             error!("Failed to connect to database: {e}");
@@ -43,8 +45,8 @@ async fn main() {
         }
     };
 
-    // Ensure the dedicated schema exists before any unqualified CREATE TABLE
-    // (which would otherwise target the first entry in search_path = authenc).
+    // Ensure the `authenc` schema exists before the schema-qualified CREATE
+    // TABLEs (049/050). Unqualified tables go to public (default search_path).
     match db.get_connection().await {
         Ok(client) => {
             if let Err(e) = client

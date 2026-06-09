@@ -295,9 +295,6 @@ SET policy_ids = (
 WHERE profile_type = 'fapi-1-advanced';
 
 -- Grant permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_policies TO authenc;
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_profiles TO authenc;
-GRANT SELECT, INSERT, UPDATE, DELETE ON client_policy_assignments TO authenc;
 
 -- Create view for client policies with full details
 CREATE OR REPLACE VIEW v_client_policies_with_profiles AS
@@ -317,7 +314,6 @@ FROM client_policies cp
 LEFT JOIN client_profiles prof ON cp.id = ANY(prof.policy_ids)
 GROUP BY cp.id;
 
-GRANT SELECT ON v_client_policies_with_profiles TO authenc;
 
 -- Create view for client profile details with policies
 CREATE OR REPLACE VIEW v_client_profiles_with_policies AS
@@ -340,7 +336,6 @@ FROM client_profiles prof
 LEFT JOIN client_policies cp ON cp.id = ANY(prof.policy_ids)
 GROUP BY prof.id;
 
-GRANT SELECT ON v_client_profiles_with_policies TO authenc;
 
 -- Create view for client assignments with full details
 CREATE OR REPLACE VIEW v_client_policy_assignments_detail AS
@@ -368,7 +363,6 @@ FROM client_policy_assignments cpa
 LEFT JOIN client_policies cp ON cpa.policy_id = cp.id
 LEFT JOIN client_profiles prof ON cpa.profile_id = prof.id;
 
-GRANT SELECT ON v_client_policy_assignments_detail TO authenc;
 
 -- Analytics: Count policies by type
 CREATE OR REPLACE VIEW v_client_policy_stats AS
@@ -382,7 +376,6 @@ SELECT
 FROM client_policies
 GROUP BY realm_id, policy_type;
 
-GRANT SELECT ON v_client_policy_stats TO authenc;
 
 -- Analytics: Profile usage statistics
 CREATE OR REPLACE VIEW v_client_profile_usage AS
@@ -398,4 +391,3 @@ FROM client_profiles prof
 LEFT JOIN client_policy_assignments cpa ON cpa.profile_id = prof.id AND cpa.enabled = true
 GROUP BY prof.id;
 
-GRANT SELECT ON v_client_profile_usage TO authenc;

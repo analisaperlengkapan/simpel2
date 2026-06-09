@@ -175,7 +175,3 @@ COMMENT ON FUNCTION cleanup_expired_webauthn_challenges() IS
 'Cleans up expired WebAuthn challenges. Should be called periodically via cron/scheduler.';
 
 -- Grant necessary permissions (adjust based on your role setup)
-GRANT SELECT, INSERT, UPDATE, DELETE ON webauthn_credentials TO authenc;
-GRANT SELECT, INSERT, UPDATE, DELETE ON webauthn_challenges TO authenc;
-GRANT SELECT, INSERT ON webauthn_audit_log TO authenc;
-GRANT EXECUTE ON FUNCTION cleanup_expired_webauthn_challenges() TO authenc;

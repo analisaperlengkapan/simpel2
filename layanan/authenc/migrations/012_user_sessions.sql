@@ -157,6 +157,12 @@ CREATE TABLE IF NOT EXISTS refresh_token_history (
     reason TEXT
 );
 
+-- F5-B: the token-hash indexes below reference columns that were never added to
+-- user_sessions (only offline_token_hash is added, in the DO block above).
+-- Add token_hash / refresh_token_hash so the indexes are valid. Idempotent.
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64);
+ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS refresh_token_hash VARCHAR(64);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_realm_id ON user_sessions(realm_id);

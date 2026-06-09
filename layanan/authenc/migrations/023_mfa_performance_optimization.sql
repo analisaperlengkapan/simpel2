@@ -1,6 +1,11 @@
 -- Migration: MFA Performance Optimization
 -- Description: Adds optimized indexes and database improvements for MFA operations
 
+-- F5-B: satker_code is added to users by 032_satker_hierarchy, which runs AFTER
+-- this migration. The MFA indexes/views below reference users.satker_code, so
+-- ensure the column exists here (idempotent; 032 also uses IF NOT EXISTS).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS satker_code VARCHAR(50) NOT NULL DEFAULT 'UNKNOWN';
+
 -- Composite indexes for common MFA query patterns
 CREATE INDEX IF NOT EXISTS idx_users_mfa_enabled_setup_at
     ON users(mfa_enabled, mfa_setup_at)

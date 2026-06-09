@@ -12,7 +12,7 @@
 -- `authenc-crypto` envelope encryption helpers.
 
 CREATE TABLE IF NOT EXISTS authenc.totp_secrets (
-    user_id UUID PRIMARY KEY REFERENCES authenc.users(id) ON DELETE CASCADE,
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     secret TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -22,7 +22,7 @@ COMMENT ON TABLE  authenc.totp_secrets         IS 'Per-user TOTP secret (base32)
 COMMENT ON COLUMN authenc.totp_secrets.secret  IS 'Base32-encoded TOTP secret; rotate on disable/re-enroll';
 
 CREATE TABLE IF NOT EXISTS authenc.mfa_backup_codes (
-    user_id UUID NOT NULL REFERENCES authenc.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     code TEXT NOT NULL,
     used BOOLEAN NOT NULL DEFAULT FALSE,
     used_at TIMESTAMP WITH TIME ZONE,

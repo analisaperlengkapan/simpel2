@@ -412,6 +412,6 @@ COMMENT ON MATERIALIZED VIEW captcha_analytics IS 'Aggregated CAPTCHA analytics 
 
 COMMENT ON FUNCTION cleanup_expired_captcha_challenges() IS 'Cleans up expired CAPTCHA challenges and related data';
 COMMENT ON FUNCTION get_captcha_difficulty(INET, VARCHAR) IS 'Determines appropriate CAPTCHA difficulty for IP/session';
-COMMENT ON FUNCTION record_captcha_validation(UUID, INET, TEXT, TEXT, BOOLEAN, NUMERIC, VARCHAR, UUID) IS 'Records a CAPTCHA validation attempt with all metadata';
+COMMENT ON FUNCTION record_captcha_validation(UUID, INET, TEXT, TEXT, BOOLEAN, DOUBLE PRECISION, VARCHAR, UUID) IS 'Records a CAPTCHA validation attempt with all metadata';
 COMMENT ON FUNCTION get_captcha_analytics_summary(INTEGER) IS 'Returns summary analytics for CAPTCHA system performance';
 COMMENT ON FUNCTION refresh_captcha_analytics() IS 'Refreshes the CAPTCHA analytics materialized view';

@@ -17,18 +17,19 @@ BEGIN;
 -- 1. Create perlengkapan application/client registration
 -- ============================================================================
 
-INSERT INTO clients (id, realm_id, client_id, name, description, enabled, client_type, protocol, base_url, redirect_uris, created_at, updated_at)
+-- F5-B: the real table is `oauth2_clients` (001_initial_schema), not `clients`,
+-- and its columns differ (client_name not name; NOT NULL client_secret_hash;
+-- no description/protocol/base_url). Public client → empty secret hash.
+INSERT INTO oauth2_clients (id, realm_id, client_id, client_secret_hash, client_name, client_type, redirect_uris, enabled, created_at, updated_at)
 SELECT
     gen_random_uuid(),
     r.id,
     'perlengkapan',
+    '',
     'SIMPEL Perlengkapan',
-    'Sistem Informasi Manajemen Perlengkapan - BMN lifecycle management',
-    true,
     'public',
-    'openid-connect',
-    '/perlengkapan',
     ARRAY['/perlengkapan/*', '/dashboard/*'],
+    true,
     NOW(),
     NOW()
 FROM realms r
@@ -120,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_role_permissions_resource ON role_permissions(res
 
 -- Operator Satker permissions
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
-SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
+SELECT r.id, perm.permission, perm.resource, perm.actions::text[], perm.conditions
 FROM roles r
 CROSS JOIN (VALUES
     ('manage', 'kebutuhan_bmn', '{create,read,update,delete,submit}', '{"scope": "own_satker"}'::jsonb),
@@ -138,7 +139,7 @@ ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
 -- Validator Wilayah permissions
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
-SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
+SELECT r.id, perm.permission, perm.resource, perm.actions::text[], perm.conditions
 FROM roles r
 CROSS JOIN (VALUES
     ('validate', 'kebutuhan_bmn', '{read,validate,return,forward}', '{"scope": "wilayah"}'::jsonb),
@@ -156,7 +157,7 @@ ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
 -- Validator Pusat permissions
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
-SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
+SELECT r.id, perm.permission, perm.resource, perm.actions::text[], perm.conditions
 FROM roles r
 CROSS JOIN (VALUES
     ('approve', 'kebutuhan_bmn', '{read,approve,reject,return}', '{"scope": "pusat"}'::jsonb),
@@ -175,7 +176,7 @@ ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
 -- Admin permissions (full access)
 INSERT INTO role_permissions (role_id, permission, resource, actions, conditions)
-SELECT r.id, perm.permission, perm.resource, perm.actions, perm.conditions
+SELECT r.id, perm.permission, perm.resource, perm.actions::text[], perm.conditions
 FROM roles r
 CROSS JOIN (VALUES
     ('admin', 'users', '{create,read,update,delete,assign_role}', '{"scope": "all"}'::jsonb),
@@ -203,14 +204,16 @@ ON CONFLICT (role_id, permission, resource) DO NOTHING;
 
 -- Create the user (password: hashed NIP as initial password)
 -- The password_hash is a real Argon2id hash of '199203142014031001'
-INSERT INTO users (id, realm_id, username, email, first_name, last_name, enabled, email_verified, password_hash, created_at, updated_at)
+-- F5-B: first_name/last_name are added later (046_user_extended_fields) and set
+-- by 047_update_seed_user_extended_fields — don't reference them here. The
+-- password lives in users.password_hash (the app verifies via this column; there
+-- is no separate `credentials` table). Argon2id hash of '199203142014031001'.
+INSERT INTO users (id, realm_id, username, email, enabled, email_verified, password_hash, created_at, updated_at)
 SELECT
     gen_random_uuid(),
     r.id,
     '199203142014031001',
     '199203142014031001@kejaksaan.go.id',
-    'Admin',
-    'Perlengkapan',
     true,
     true,
     '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M',
@@ -222,21 +225,6 @@ ON CONFLICT (username) WHERE deleted_at IS NULL DO UPDATE SET
     enabled = true,
     password_hash = EXCLUDED.password_hash,
     updated_at = NOW();
-
--- Set password credential (Argon2id hash of '199203142014031001')
--- In production, this would be properly hashed by the auth service
-INSERT INTO credentials (id, user_id, credential_type, secret_data, credential_data, created_at)
-SELECT
-    gen_random_uuid(),
-    u.id,
-    'password',
-    -- Real Argon2id hash of '199203142014031001' (m=65536, t=3, p=4)
-    '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M',
-    '{"algorithm": "argon2id", "hash_iterations": 3}',
-    NOW()
-FROM users u
-WHERE u.username = '199203142014031001'
-ON CONFLICT DO NOTHING;
 
 -- ============================================================================
 -- 5. Assign ALL perlengkapan roles to the seed user
@@ -317,8 +305,6 @@ SELECT
     u.id AS user_id,
     u.username,
     u.email,
-    u.first_name,
-    u.last_name,
     r.name AS role_name,
     r.description AS role_description,
     ua_satker.value AS satker_code,
