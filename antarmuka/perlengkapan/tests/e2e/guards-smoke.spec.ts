@@ -13,9 +13,13 @@
  */
 import { test, expect } from '@playwright/test';
 
-// A route behind AuthGate (same one the legacy UI specs exercise).
-const PROTECTED_ROUTE = '/perlengkapan/dashboard/kebutuhan-bmn/daftar';
-const LOGIN_HINT = /login/i; // redirect target contains "login" (routes::path::LOGIN)
+// A route behind AuthGate. NOTE the canonical microfrontend mount point is
+// `/perlengkapan/simpel/v2/` (Trunk public_url + <base href> + nginx try_files
+// fallback). Routes are relative to that base, e.g. `/kebutuhan-bmn/daftar`
+// (src/lib.rs). A bare `/perlengkapan/...` path 404s at nginx (no SPA fallback)
+// so the WASM never boots and the guard can't run — use the full v2 path.
+const PROTECTED_ROUTE = '/perlengkapan/simpel/v2/kebutuhan-bmn/daftar';
+const LOGIN_HINT = /login/i; // redirect target contains "login" (routes::path::LOGIN = /perlengkapan/simpel/v2/login)
 
 test.describe('Perlengkapan guards — unauthenticated (AuthGate redirect)', () => {
   // No session: fresh empty storage, ignore the project's authenticated state.
