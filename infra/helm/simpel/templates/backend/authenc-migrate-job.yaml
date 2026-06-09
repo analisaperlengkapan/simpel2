@@ -1,0 +1,69 @@
+{{- /*
+  authenc schema migration — Helm pre-install/pre-upgrade hook Job.
+
+  authenc does NOT migrate on app startup; schema is applied out-of-band so
+  replicas never race. This hook runs the `authenc-migrate` binary (same image
+  as the authenc Deployment) BEFORE the Deployment rolls. If it fails, the
+  install/upgrade fails (verify-before-bless). Mirrors the docker-compose
+  `authenc-migrate` service used locally / in e2e.
+
+  Gate: .Values.authenc.enabled and .Values.authenc.migrationJob.enabled
+  (default true when authenc is enabled).
+*/ -}}
+{{- if and .Values.authenc.enabled (ne .Values.authenc.migrationJob.enabled false) }}
+{{- $ctx := . -}}
+{{- $values := .Values.authenc -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "simpel.fullname" . }}-authenc-migrate
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-migrate" "component" "identity") | nindent 4 }}
+  annotations:
+    # Run before workloads on both install and upgrade; clean up old hook Job
+    # first, and remove on success (keep failed Jobs for debugging).
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  # Migrations can take a while on a cold/large DB; give the Job room.
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-migrate" "component" "identity") | nindent 8 }}
+      annotations:
+        # No Istio sidecar — a sidecar would never exit and the Job would hang.
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      {{- include "simpel.imagePullSecrets" $ctx | nindent 6 }}
+      {{- with (include "simpel.nodeSelector" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- with (include "simpel.tolerations" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- include "simpel.podSecurityContext" $values | nindent 6 }}
+      containers:
+        - name: authenc-migrate
+          image: {{ include "simpel.image" (dict "top" $ctx "spec" $values.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" $ctx) $values.image.pullPolicy }}
+          command: ["./authenc-migrate"]
+          {{- include "simpel.containerSecurityContext" $values | nindent 10 }}
+          env:
+            - name: RUST_LOG
+              value: "info"
+            # Same source as the authenc Deployment (values.yaml authenc.env).
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: authenc-url
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+{{- end }}
