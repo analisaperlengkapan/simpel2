@@ -54,6 +54,13 @@ tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 name = "authenc"
 path = "src/main.rs"
 
+# One-shot migration runner (out-of-band schema apply; never on app startup).
+# Run by the docker-compose `authenc-migrate` service and the Helm pre-upgrade
+# hook Job so replicas don't race. See src/bin/migrate.rs.
+[[bin]]
+name = "authenc-migrate"
+path = "src/bin/migrate.rs"
+
 [features]
 captcha-debug = []
 

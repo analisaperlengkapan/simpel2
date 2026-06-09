@@ -40,6 +40,23 @@ impl Database {
     /// }
     /// ```
     pub async fn new(database_url: &str, pool_size: usize) -> Result<Self> {
+        Self::new_with_search_path(database_url, pool_size, None).await
+    }
+
+    /// Create a Database whose every pooled connection pins a libpq
+    /// `search_path` (e.g. `"authenc,public"`).
+    ///
+    /// The running service relies on the DB-level default set by migration
+    /// `040_use_authenc_schema` (`ALTER DATABASE ... SET search_path`), which
+    /// only affects *new* sessions. The migration runner, however, reuses
+    /// pooled connections across the schema move, so it must pin the path per
+    /// connection to apply post-040 migrations against the `authenc` schema.
+    /// `new()` keeps the historical behaviour (no override).
+    pub async fn new_with_search_path(
+        database_url: &str,
+        pool_size: usize,
+        search_path: Option<&str>,
+    ) -> Result<Self> {
         info!(
             "Initializing database connection pool with {} connections",
             pool_size
@@ -62,6 +79,11 @@ impl Database {
         pool_config.password = config
             .get_password()
             .map(|p| String::from_utf8_lossy(p).to_string());
+        if let Some(sp) = search_path {
+            // libpq per-connection option, applied to every connection the pool
+            // hands out (so the runner's helper queries share the path too).
+            pool_config.options = Some(format!("-c search_path={}", sp));
+        }
 
         pool_config.manager = Some(ManagerConfig {
             recycling_method: RecyclingMethod::Fast,
@@ -87,6 +109,14 @@ impl Database {
         info!("Database connection pool initialized successfully");
 
         Ok(Self { pool })
+    }
+
+    /// Clone of the underlying connection pool.
+    ///
+    /// Used by the standalone migration binary, which hands the pool to
+    /// [`crate::run_migrations`]. The pool is `Arc`-backed, so cloning is cheap.
+    pub fn pool(&self) -> Pool {
+        self.pool.clone()
     }
 
     /// Get a connection from the pool
