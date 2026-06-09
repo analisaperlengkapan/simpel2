@@ -971,12 +971,16 @@ jobs:
     # A full cross-app SSO e2e incl. simpelv1 belongs to the comprehensive
     # staging suite (F5-C) — add monolith back there deliberately.
     needs: [detect, build-antarmuka-portal, build-backend]
-    # NOTE: portal e2e stack bring-up not yet wired (F5-C) — keep it gated by
-    # E2E_ENABLED only; the on-demand `run_e2e` validation path is wired for
-    # e2e-perlengkapan (which has the docker-compose stack steps) for now.
+    # NOTE: portal e2e has NO stack bring-up yet (the run step below points at an
+    # empty baseURL — F5-C will wire a real compose stack like e2e-perlengkapan).
+    # It is therefore gated by its OWN var `E2E_PORTAL_ENABLED` (kept unset →
+    # skipped → SKIP in ci-summary, non-blocking). `E2E_ENABLED` is reserved for
+    # the validated, self-contained perlengkapan guards smoke (the #482 / F6
+    # blocker) so flipping it to blocking does NOT activate this un-wired job.
+    # Flip E2E_PORTAL_ENABLED=true only after F5-C wires the portal stack.
     if: |
       !cancelled() &&
-      vars.E2E_ENABLED == 'true' &&
+      vars.E2E_PORTAL_ENABLED == 'true' &&
       needs.detect.outputs.rust-frontend == 'true' &&
       needs.build-antarmuka-portal.result == 'success' &&
       needs.build-backend.result == 'success'
@@ -1013,9 +1017,18 @@ jobs:
     # build-* needs are fail-fast gates only (the job builds its own stack).
     needs: [detect, build-antarmuka-perlengkapan, build-backend]
     # Self-contained (compose builds the stack) — see e2e-portal note above.
+    # Blocking gate via E2E_ENABLED, but only when perlengkapan FE or any Rust
+    # backend actually changed (skips → SKIP, non-blocking, on docs/infra-only
+    # PRs so the ~50min stack build doesn't run for nothing). The on-demand
+    # `run_e2e` dispatch path always runs regardless of the change filter.
     if: |
       !cancelled() &&
-      (vars.E2E_ENABLED == 'true' || github.event.inputs.run_e2e == 'true') &&
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (vars.E2E_ENABLED == 'true' &&
+         (needs.detect.outputs.rust-frontend == 'true' ||
+          needs.detect.outputs.rust-backend == 'true'))
+      ) &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&
       needs.build-backend.result != 'failure'
     runs-on: arc-simpel
