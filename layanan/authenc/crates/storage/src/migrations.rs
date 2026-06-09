@@ -214,9 +214,28 @@ impl MigrationRunner {
                     applied_count += 1;
                 }
                 Err(e) => {
+                    // tokio_postgres::Error Display is the opaque "db error"; pull
+                    // the real Postgres detail (message/code/detail/where) so
+                    // migration failures are actually diagnosable.
+                    let detail = e
+                        .as_db_error()
+                        .map(|db| {
+                            format!(
+                                "{} (SQLSTATE {}){}{}",
+                                db.message(),
+                                db.code().code(),
+                                db.detail()
+                                    .map(|d| format!(" | detail: {d}"))
+                                    .unwrap_or_default(),
+                                db.where_()
+                                    .map(|w| format!(" | where: {w}"))
+                                    .unwrap_or_default(),
+                            )
+                        })
+                        .unwrap_or_else(|| e.to_string());
                     let error_msg = format!(
                         "Failed to apply migration {} - {}: {}",
-                        migration.version, migration.name, e
+                        migration.version, migration.name, detail
                     );
                     error!("❌ {}", error_msg);
                     errors.push(error_msg);

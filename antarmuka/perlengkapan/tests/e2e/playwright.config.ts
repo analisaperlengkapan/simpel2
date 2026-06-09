@@ -6,6 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 // require('dotenv').config();
 
+/** storageState produced by auth.setup.ts (real authenc login → JWT in localStorage). */
+const STORAGE_STATE = 'results/.auth/perlengkapan.json';
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -55,6 +58,25 @@ export default defineConfig({
 
   /* Configure projects by test category */
   projects: [
+    // Real-auth setup: logs the seeded user in against authenc and writes the
+    // JWT into Perlengkapan localStorage, saved as storageState for reuse.
+    {
+      name: 'setup',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: '**/auth.setup.ts',
+    },
+    // F5-A SMOKE — real-auth merge gate (guards regression #482). Runs against
+    // the real e2e stack (docker-compose.e2e.yml). Authenticated specs reuse the
+    // storageState from `setup`.
+    {
+      name: 'perlengkapan-smoke',
+      use: { ...devices['Desktop Chrome'], storageState: STORAGE_STATE },
+      dependencies: ['setup'],
+      testMatch: ['**/guards-smoke.spec.ts'],
+    },
+    // LEGACY mock UI specs — kept for the F5-C comprehensive rewrite. They use
+    // the dead mock session and are NOT part of the smoke gate; do not run them
+    // against the real stack until rewritten (F5-C / task #33).
     {
       name: 'perlengkapan-chromium',
       use: { ...devices['Desktop Chrome'] },

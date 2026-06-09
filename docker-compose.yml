@@ -47,10 +47,31 @@ services:
   # =====================================================
   # Core gRPC Services
   # =====================================================
+  # One-shot schema migration (out-of-band, never on app startup). Runs the
+  # authenc-migrate binary baked into the same image, then exits. authenc waits
+  # for it to complete so replicas never race on migrations. Mirrors the Helm
+  # pre-upgrade hook Job used in k8s.
+  authenc-migrate:
+    image: simpel2-authenc:local
+    container_name: authenc-migrate
+    command: ["./authenc-migrate"]
+    restart: "no"
+    environment:
+      RUST_LOG: info
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - simpel-network
+
   authenc:
     build:
       context: .
       dockerfile: layanan/authenc/Dockerfile
+    # Shared with authenc-migrate so the image (incl. the migrate binary) is
+    # built once; authenc-migrate references this same tag.
+    image: simpel2-authenc:local
     container_name: authenc
     ports:
       - "50051:50051"
@@ -65,6 +86,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      authenc-migrate:
+        condition: service_completed_successfully
     networks:
       - simpel-network
 

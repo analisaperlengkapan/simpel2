@@ -89,6 +89,14 @@ impl Database {
         Ok(Self { pool })
     }
 
+    /// Clone of the underlying connection pool.
+    ///
+    /// Used by the standalone migration binary, which hands the pool to
+    /// [`crate::run_migrations`]. The pool is `Arc`-backed, so cloning is cheap.
+    pub fn pool(&self) -> Pool {
+        self.pool.clone()
+    }
+
     /// Get a connection from the pool
     pub async fn get_connection(&self) -> Result<deadpool_postgres::Object> {
         self.pool

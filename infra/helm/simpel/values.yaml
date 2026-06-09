@@ -255,6 +255,10 @@ authenc:
     name: layanan-authenc
     tag: ""                                # fallback ke global.imageTag
   replicas: 1
+  # Schema migration via pre-install/pre-upgrade hook Job (out-of-band; authenc
+  # never self-migrates → replicas don't race). See backend/authenc-migrate-job.yaml.
+  migrationJob:
+    enabled: true
   service:
     ports:
       - { name: http,    port: 8088 }

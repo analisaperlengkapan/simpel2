@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: "Run the Playwright e2e smoke stack (on-demand validation, independent of vars.E2E_ENABLED)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -959,11 +964,23 @@ jobs:
   # E2E_ENABLED=true. After that these become blocking via ci-summary.
   e2e-portal:
     name: E2E Playwright (portal)
-    needs:
-      [detect, build-antarmuka-portal, build-backend, build-monolith-assets]
+    # Portal smoke = portal FE + authenc only (login via real authenc, proxy
+    # /api/** → authenc). It does NOT touch simpelv1, so it must NOT wait on
+    # build-monolith-assets (Vite). These build-* needs are fail-fast gates (the
+    # e2e job builds its own stack via compose); monolith adds no signal here.
+    # A full cross-app SSO e2e incl. simpelv1 belongs to the comprehensive
+    # staging suite (F5-C) — add monolith back there deliberately.
+    needs: [detect, build-antarmuka-portal, build-backend]
+    # NOTE: portal e2e has NO stack bring-up yet (the run step below points at an
+    # empty baseURL — F5-C will wire a real compose stack like e2e-perlengkapan).
+    # It is therefore gated by its OWN var `E2E_PORTAL_ENABLED` (kept unset →
+    # skipped → SKIP in ci-summary, non-blocking). `E2E_ENABLED` is reserved for
+    # the validated, self-contained perlengkapan guards smoke (the #482 / F6
+    # blocker) so flipping it to blocking does NOT activate this un-wired job.
+    # Flip E2E_PORTAL_ENABLED=true only after F5-C wires the portal stack.
     if: |
       !cancelled() &&
-      vars.E2E_ENABLED == 'true' &&
+      vars.E2E_PORTAL_ENABLED == 'true' &&
       needs.detect.outputs.rust-frontend == 'true' &&
       needs.build-antarmuka-portal.result == 'success' &&
       needs.build-backend.result == 'success'
@@ -995,35 +1012,94 @@ jobs:
 
   e2e-perlengkapan:
     name: E2E Playwright (perlengkapan)
-    needs:
-      [
-        detect,
-        build-antarmuka-perlengkapan,
-        build-backend,
-        build-monolith-assets,
-      ]
+    # Compose stack = authenc + perlengkapan + integrasi + secreton + postgres +
+    # redis (NO simpelv1) → no dependency on build-monolith-assets (Vite). The
+    # build-* needs are fail-fast gates only (the job builds its own stack).
+    needs: [detect, build-antarmuka-perlengkapan, build-backend]
+    # Self-contained (compose builds the stack) — see e2e-portal note above.
+    # Blocking gate via E2E_ENABLED, but only when perlengkapan FE or any Rust
+    # backend actually changed (skips → SKIP, non-blocking, on docs/infra-only
+    # PRs so the ~50min stack build doesn't run for nothing). The on-demand
+    # `run_e2e` dispatch path always runs regardless of the change filter.
     if: |
       !cancelled() &&
-      vars.E2E_ENABLED == 'true' &&
-      needs.detect.outputs.rust-frontend == 'true' &&
-      needs.build-antarmuka-perlengkapan.result == 'success' &&
-      needs.build-backend.result == 'success'
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (vars.E2E_ENABLED == 'true' &&
+         (needs.detect.outputs.rust-frontend == 'true' ||
+          needs.detect.outputs.rust-backend == 'true'))
+      ) &&
+      needs.build-antarmuka-perlengkapan.result != 'failure' &&
+      needs.build-backend.result != 'failure'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup-node
-        with:
-          working-directory: antarmuka/perlengkapan/tests/e2e
-      - name: Install Playwright browsers
-        working-directory: antarmuka/perlengkapan/tests/e2e
-        run: npx playwright install --with-deps chromium
-      # F5: replace with real stack bring-up (webServer/docker-compose).
-      - name: Run Playwright (perlengkapan-chromium)
-        working-directory: antarmuka/perlengkapan/tests/e2e
+      # The custom ARC runner image ships the docker CLI (talks to the dind
+      # sidecar) but NOT the `docker compose` v2 plugin — install it per-job into
+      # the user's cli-plugins dir (no image rebuild). Pinned version.
+      - name: Install Docker Compose v2 plugin
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      # F5-A: bring up the real e2e stack (base compose + e2e overlay). The SMOKE
+      # suite runs from the official Playwright container (browsers + system deps
+      # baked in) — ARC blocks `playwright install --with-deps` (no-new-privileges
+      # prevents sudo apt). The Playwright container joins the compose network and
+      # reaches services by NAME (perlengkapan:8080, authenc:8088), avoiding dind
+      # host-port/localhost issues. Throwaway secrets — ephemeral test DB.
+      - name: Bring up e2e stack
         env:
-          CI: "true"
-          BASE_URL: ${{ vars.E2E_BASE_URL || 'http://localhost:8080' }}
-        run: npx playwright test --project=perlengkapan-chromium
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build \
+            postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan
+      - name: Wait for stack (authenc + perlengkapan FE, on compose network)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
+            for i in $(seq 1 60); do
+              if curl -sf http://authenc:8088/health >/dev/null \
+                 && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null; then
+                echo "stack ready after $i tries"; exit 0; fi
+              sleep 5
+            done
+            echo "stack did not become ready"; exit 1'
+      # Build the smoke image (context shipped to dind — a bind-mount would
+      # resolve against the dind daemon, not the runner checkout, so the tests
+      # wouldn't be present), then run it on the compose network.
+      - name: Run Playwright SMOKE (perlengkapan-smoke)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker build -t simpel-e2e-smoke \
+            -f antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e \
+            antarmuka/perlengkapan/tests/e2e
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            simpel-e2e-smoke
+      - name: e2e stack logs (on failure)
+        if: failure()
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=200 || true
+      - name: Tear down e2e stack
+        if: always()
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v7

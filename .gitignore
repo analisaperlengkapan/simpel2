@@ -138,6 +138,7 @@ pnpm-lock.yaml
 yarn.lock
 package-lock.json
 !tests/e2e/package-lock.json
+!**/tests/e2e/package-lock.json
 !monolith/simpelv1/package-lock.json
 npm-debug.log*
 lerna-debug.log*
