@@ -212,11 +212,12 @@ impl MySIMKARITransformer {
             .as_ref()
             .and_then(|code| self.satker_mapper.map_satker_code(code));
 
-        if satker_code.is_some() && simpel_satker_code.is_none() {
+        if let Some(code) = &satker_code
+            && simpel_satker_code.is_none()
+        {
             warn!(
                 "No SIMPEL satker code mapping found for MySIMKARI code: {} (NIP: {})",
-                satker_code.as_ref().unwrap(),
-                nip
+                code, nip
             );
         }
 

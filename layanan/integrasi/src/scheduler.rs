@@ -363,7 +363,8 @@ async fn save_data(table_name: &str, data: &[serde_json::Value], config: &Config
                 warn!("  ⚠ Database storage requested but no DB config available");
             }
         }
-        "json" | _ => {
+        // Default output format: JSON.
+        _ => {
             let output_dir = &config.output_dir;
             let filename = format!("{}/{}.json", output_dir, table_name);
 
