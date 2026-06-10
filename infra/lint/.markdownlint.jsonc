@@ -31,6 +31,9 @@
   "MD058": false, // blanks-around-tables (compact tables ok)
   "MD059": false, // descriptive-link-text — "click here"/"more" ok di
                   // docs internal; rule baru v0.18, banyak false positive.
+  "MD060": false, // table-column-style — delimiter row kompak (|---|) ok;
+                  // rule baru v0.40, sekategori MD055/056/058 (kosmetik tabel),
+                  // memicu churn repo-wide pada tabel kompak yang sudah ada.
 
   // ── Style preferences explicitly set ────────────────────────────
   "MD046": { "style": "fenced" }, // prefer fenced code blocks

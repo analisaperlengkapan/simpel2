@@ -500,8 +500,9 @@ konsumen fetch-at-read/baca cross-schema, dilarang duplikasi.
    - ⚠️ Tabel split lama `siman_aset_{tanah,gedung_bangunan,alat_besar,angkutan_bermotor}`
      = **LEGACY/duplikat** (jangan dibuat ulang) → migrasi ke `siman_aset WHERE jenis_aset=…`.
 
-**Migrasi:** runner **`integrasi-migrate`** (`src/bin/migrate.rs`, embed `001_init_schema.sql`
-+ `002_enhance_integration_schema.sql` via `include_str!`, idempotent). Extension dibuat
+**Migrasi:** runner **`integrasi-migrate`** (`src/bin/migrate.rs`, embed
+`001_init_schema.sql` + `002_enhance_integration_schema.sql` via `include_str!`,
+idempotent). Extension dibuat
 `WITH SCHEMA public` (jangan mendarat di schema `integrasi`). Jalan **pertama** dalam urutan
 bring-up (integrasi → authenc → perlengkapan); lihat `layanan/AGENTS.md`.
 

@@ -77,8 +77,8 @@ Backend SIMPEL terbagi menjadi dua jenis layanan:
 
 - Tiap service punya **runner migrasi** sendiri (out-of-band, idempotent):
   `integrasi-migrate` (`integrasi/src/bin/migrate.rs`, embed via `include_str!`) →
-  `authenc-migrate` (`authenc/.../bin/migrate.rs`, refinery, set `CREATE SCHEMA authenc`
-  + search_path) → perlengkapan self-migrate refinery `embed_migrations!` saat boot.
+  `authenc-migrate` (`authenc/.../bin/migrate.rs`, refinery, set `CREATE SCHEMA
+  authenc` + search_path) → perlengkapan self-migrate refinery `embed_migrations!` saat boot.
 - **Urutan WAJIB: `integrasi-migrate` → `authenc-migrate` → perlengkapan** (cross-schema
   FK butuh schema hulu sudah ada). Di-wire via `docker-compose` (`depends_on …
   service_completed_successfully`) **dan** Helm hook Job (`*-migrate-job.yaml`,
