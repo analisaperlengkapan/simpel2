@@ -154,16 +154,18 @@ async fn test_session_management() {
     // Test create session
     let result = db_ops::sessions::create_user_session(
         &db,
-        user_id,
-        realm_id,
-        None,
-        "test_token_123",
-        Some("refresh_token_456"),
-        3600, // 1 hour
-        Some("127.0.0.1"),
-        Some("Mozilla/5.0"),
-        Some("password"),
-        Some("openid-connect"),
+        db_ops::sessions::NewUserSession {
+            user_id,
+            realm_id,
+            client_id: None,
+            token: "test_token_123",
+            refresh_token: Some("refresh_token_456"),
+            expires_in: 3600, // 1 hour
+            ip_address: Some("127.0.0.1"),
+            user_agent: Some("Mozilla/5.0"),
+            authentication_method: Some("password"),
+            protocol: Some("openid-connect"),
+        },
     )
     .await;
 
@@ -258,16 +260,18 @@ async fn test_refresh_token_rotation() {
     // Create session first
     let session_result = db_ops::sessions::create_user_session(
         &db,
-        user_id,
-        realm_id,
-        None,
-        "access_token",
-        Some("old_refresh_token"),
-        3600,
-        Some("127.0.0.1"),
-        Some("Mozilla/5.0"),
-        Some("password"),
-        Some("openid-connect"),
+        db_ops::sessions::NewUserSession {
+            user_id,
+            realm_id,
+            client_id: None,
+            token: "access_token",
+            refresh_token: Some("old_refresh_token"),
+            expires_in: 3600,
+            ip_address: Some("127.0.0.1"),
+            user_agent: Some("Mozilla/5.0"),
+            authentication_method: Some("password"),
+            protocol: Some("openid-connect"),
+        },
     )
     .await;
 

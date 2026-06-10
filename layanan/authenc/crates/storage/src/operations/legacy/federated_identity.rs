@@ -230,19 +230,36 @@ pub async fn get_identity_provider_mappers(
         .collect())
 }
 
+/// Parameters for creating an identity-broker configuration.
+pub struct NewIdentityBrokerConfig<'a> {
+    pub realm_id: Uuid,
+    pub alias: &'a str,
+    pub display_name: Option<&'a str>,
+    pub provider_type: &'a str,
+    pub first_broker_login_flow: Option<&'a str>,
+    pub post_broker_login_flow: Option<&'a str>,
+    pub trust_email: bool,
+    pub store_token: bool,
+    pub link_only: bool,
+    pub config: &'a JsonValue,
+}
+
 pub async fn create_identity_broker_config(
     db: &Database,
-    realm_id: Uuid,
-    alias: &str,
-    display_name: Option<&str>,
-    provider_type: &str,
-    first_broker_login_flow: Option<&str>,
-    post_broker_login_flow: Option<&str>,
-    trust_email: bool,
-    store_token: bool,
-    link_only: bool,
-    config: &JsonValue,
+    params: NewIdentityBrokerConfig<'_>,
 ) -> Result<Uuid> {
+    let NewIdentityBrokerConfig {
+        realm_id,
+        alias,
+        display_name,
+        provider_type,
+        first_broker_login_flow,
+        post_broker_login_flow,
+        trust_email,
+        store_token,
+        link_only,
+        config,
+    } = params;
     let query = r#"
         INSERT INTO identity_broker_configs (
             realm_id, alias, display_name, provider_type,
@@ -354,20 +371,38 @@ pub async fn get_realm_identity_broker_configs(
         .collect())
 }
 
+/// Parameters for logging a federated-authentication event.
+pub struct FederatedAuthLog<'a> {
+    pub user_id: Option<Uuid>,
+    pub realm_id: Uuid,
+    pub identity_provider_alias: &'a str,
+    pub federated_user_id: Option<&'a str>,
+    pub success: bool,
+    pub error_code: Option<&'a str>,
+    pub error_message: Option<&'a str>,
+    pub action: &'a str,
+    pub ip_address: Option<&'a str>,
+    pub user_agent: Option<&'a str>,
+    pub session_id: Option<Uuid>,
+}
+
 pub async fn log_federated_authentication(
     db: &Database,
-    user_id: Option<Uuid>,
-    realm_id: Uuid,
-    identity_provider_alias: &str,
-    federated_user_id: Option<&str>,
-    success: bool,
-    error_code: Option<&str>,
-    error_message: Option<&str>,
-    action: &str,
-    ip_address: Option<&str>,
-    user_agent: Option<&str>,
-    session_id: Option<Uuid>,
+    entry: FederatedAuthLog<'_>,
 ) -> Result<Uuid> {
+    let FederatedAuthLog {
+        user_id,
+        realm_id,
+        identity_provider_alias,
+        federated_user_id,
+        success,
+        error_code,
+        error_message,
+        action,
+        ip_address,
+        user_agent,
+        session_id,
+    } = entry;
     let query = r#"
         INSERT INTO federated_auth_log (
             user_id, realm_id, identity_provider_alias, federated_user_id,

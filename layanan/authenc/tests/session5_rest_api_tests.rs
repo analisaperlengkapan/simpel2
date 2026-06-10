@@ -57,16 +57,18 @@ async fn test_event_listener_register_and_list() {
 
     let _listener_id = authenc::database::operations::events::register_event_listener(
         &db,
-        realm_id,
-        "Test Listener",
-        "webhook",
-        true, // enabled
-        Some(&listener_config),
-        Some(vec!["LOGIN".to_string(), "LOGOUT".to_string()]),
-        5,    // priority
-        true, // is_async
-        true, // retry_on_failure
-        3,    // max_retries
+        authenc::database::operations::events::NewEventListener {
+            realm_id,
+            name: "Test Listener",
+            listener_type: "webhook",
+            enabled: true,
+            config: Some(&listener_config),
+            event_types: Some(vec!["LOGIN".to_string(), "LOGOUT".to_string()]),
+            priority: 5,
+            is_async: true,
+            retry_on_failure: true,
+            max_retries: 3,
+        },
     )
     .await
     .expect("Failed to register listener");
@@ -95,16 +97,18 @@ async fn test_event_webhook_registration() {
     // Create listener first
     let listener_id = authenc::database::operations::events::register_event_listener(
         &db,
-        realm_id,
-        "Webhook Listener",
-        "webhook",
-        true, // enabled
-        None,
-        None,
-        3,     // priority
-        false, // is_async
-        true,  // retry_on_failure
-        300,   // max_retries
+        authenc::database::operations::events::NewEventListener {
+            realm_id,
+            name: "Webhook Listener",
+            listener_type: "webhook",
+            enabled: true,
+            config: None,
+            event_types: None,
+            priority: 3,
+            is_async: false,
+            retry_on_failure: true,
+            max_retries: 300,
+        },
     )
     .await
     .expect("Failed to create listener");
@@ -112,17 +116,19 @@ async fn test_event_webhook_registration() {
     // Register webhook
     let webhook_id = authenc::database::operations::events::register_webhook(
         &db,
-        listener_id,
-        realm_id,
-        "POST",
-        "https://webhook.example.com/events",
-        Some("bearer"),
-        Some(&json!({"token": "secret123"})),
-        Some(&json!({"Content-Type": "application/json"})),
-        Some("{{ event_type }}: {{ message }}"),
-        Some("webhook_secret_key"),
-        true,
-        30,
+        authenc::database::operations::events::NewWebhook {
+            listener_id,
+            realm_id,
+            url: "https://webhook.example.com/events",
+            http_method: "POST",
+            auth_type: Some("bearer"),
+            auth_credentials: Some(&json!({"token": "secret123"})),
+            custom_headers: Some(&json!({"Content-Type": "application/json"})),
+            payload_template: Some("{{ event_type }}: {{ message }}"),
+            secret_key: Some("webhook_secret_key"),
+            verify_ssl: true,
+            timeout_seconds: 30,
+        },
     )
     .await
     .expect("Failed to register webhook");
@@ -169,7 +175,12 @@ async fn test_event_log_query_with_filters() {
 
     // Query events
     let events = authenc::database::operations::events::query_event_log(
-        &db, realm_id, None, None, None, None, None, None, None, 0, 10,
+        &db,
+        authenc::database::operations::events::EventLogQuery {
+            realm_id,
+            limit: 10,
+            ..Default::default()
+        },
     )
     .await
     .expect("Failed to query events");
@@ -179,16 +190,12 @@ async fn test_event_log_query_with_filters() {
     // Query with category filter
     let filtered_events = authenc::database::operations::events::query_event_log(
         &db,
-        realm_id,
-        Some("AUTH".to_string()),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        0,
-        10,
+        authenc::database::operations::events::EventLogQuery {
+            realm_id,
+            event_category: Some("AUTH".to_string()),
+            limit: 10,
+            ..Default::default()
+        },
     )
     .await
     .expect("Failed to query with filter");

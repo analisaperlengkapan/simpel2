@@ -2,19 +2,36 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
+/// Parameters for creating an OAuth2 social-provider configuration.
+pub struct NewProviderConfig<'a> {
+    pub realm_id: Uuid,
+    pub provider_name: &'a str,
+    pub alias: &'a str,
+    pub display_name: Option<&'a str>,
+    pub authorization_url: &'a str,
+    pub token_url: &'a str,
+    pub user_info_url: Option<&'a str>,
+    pub client_id: &'a str,
+    pub client_secret: &'a str,
+    pub scopes: &'a str,
+}
+
 pub async fn create_provider_config(
     db: &Database,
-    realm_id: Uuid,
-    provider_name: &str,
-    alias: &str,
-    display_name: Option<&str>,
-    authorization_url: &str,
-    token_url: &str,
-    user_info_url: Option<&str>,
-    client_id: &str,
-    client_secret: &str,
-    scopes: &str,
+    params: NewProviderConfig<'_>,
 ) -> Result<serde_json::Value> {
+    let NewProviderConfig {
+        realm_id,
+        provider_name,
+        alias,
+        display_name,
+        authorization_url,
+        token_url,
+        user_info_url,
+        client_id,
+        client_secret,
+        scopes,
+    } = params;
     let query = r#"
         INSERT INTO oauth2_provider_configs (
             realm_id, provider_name, alias, display_name,
@@ -227,21 +244,37 @@ pub async fn validate_oauth2_state(
     })))
 }
 
-pub async fn record_token_exchange(
-    db: &Database,
-    provider_config_id: Uuid,
-    user_id: Option<Uuid>,
-    authorization_code: Option<&str>,
-    access_token: Option<&str>,
-    refresh_token: Option<&str>,
-    expires_in: Option<i32>,
-    scope: Option<&str>,
-    provider_user_id: Option<&str>,
-    provider_email: Option<&str>,
-    user_info_raw: Option<serde_json::Value>,
-    success: bool,
-    error_message: Option<&str>,
-) -> Result<()> {
+/// Parameters for recording an OAuth2 token exchange.
+pub struct TokenExchangeRecord<'a> {
+    pub provider_config_id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub authorization_code: Option<&'a str>,
+    pub access_token: Option<&'a str>,
+    pub refresh_token: Option<&'a str>,
+    pub expires_in: Option<i32>,
+    pub scope: Option<&'a str>,
+    pub provider_user_id: Option<&'a str>,
+    pub provider_email: Option<&'a str>,
+    pub user_info_raw: Option<serde_json::Value>,
+    pub success: bool,
+    pub error_message: Option<&'a str>,
+}
+
+pub async fn record_token_exchange(db: &Database, record: TokenExchangeRecord<'_>) -> Result<()> {
+    let TokenExchangeRecord {
+        provider_config_id,
+        user_id,
+        authorization_code,
+        access_token,
+        refresh_token,
+        expires_in,
+        scope,
+        provider_user_id,
+        provider_email,
+        user_info_raw,
+        success,
+        error_message,
+    } = record;
     let access_token_hash = access_token.map(|t| {
         let mut hasher = Sha256::new();
         hasher.update(t.as_bytes());

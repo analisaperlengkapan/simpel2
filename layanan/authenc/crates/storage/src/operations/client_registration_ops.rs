@@ -291,21 +291,41 @@ pub async fn get_or_create_default_policy(
 }
 
 /// Log client registration audit event
+/// Parameters for a client-registration audit-log entry.
+pub struct RegistrationAuditEntry<'a> {
+    pub event_type: &'a str,
+    pub client_id: Option<Uuid>,
+    pub client_identifier: Option<&'a str>,
+    pub realm_id: Option<Uuid>,
+    pub ip_address: Option<&'a str>,
+    pub user_agent: Option<&'a str>,
+    pub initial_access_token_id: Option<Uuid>,
+    pub registration_access_token_id: Option<Uuid>,
+    pub success: bool,
+    pub error_code: Option<&'a str>,
+    pub error_description: Option<&'a str>,
+    pub metadata: Option<serde_json::Value>,
+}
+
 pub async fn log_registration_audit(
     db: &Database,
-    event_type: &str,
-    client_id: Option<Uuid>,
-    client_identifier: Option<&str>,
-    realm_id: Option<Uuid>,
-    ip_address: Option<&str>,
-    user_agent: Option<&str>,
-    initial_access_token_id: Option<Uuid>,
-    registration_access_token_id: Option<Uuid>,
-    success: bool,
-    error_code: Option<&str>,
-    error_description: Option<&str>,
-    metadata: Option<serde_json::Value>,
+    entry: RegistrationAuditEntry<'_>,
 ) -> Result<()> {
+    let RegistrationAuditEntry {
+        event_type,
+        client_id,
+        client_identifier,
+        realm_id,
+        ip_address,
+        user_agent,
+        initial_access_token_id,
+        registration_access_token_id,
+        success,
+        error_code,
+        error_description,
+        metadata,
+    } = entry;
+
     let id = Uuid::new_v4();
     let now = Utc::now();
 
