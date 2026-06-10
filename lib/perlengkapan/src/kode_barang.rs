@@ -145,7 +145,7 @@ impl fmt::Display for ParsedKodeBarang {
     }
 }
 
-/// Kode barang autocomplete search
+// Kode barang autocomplete search
 
 /// Autocomplete result
 #[derive(Debug, Clone)]
