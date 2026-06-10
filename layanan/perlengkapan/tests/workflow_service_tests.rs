@@ -45,14 +45,14 @@ mod workflow_service_tests {
         }
 
         fn is_valid_transition(&self, new_state: &WorkflowState) -> bool {
-            match (&self.current_state, new_state) {
-                (WorkflowState::Draft, WorkflowState::Submitted) => true,
-                (WorkflowState::Submitted, WorkflowState::ReviewedWilayah) => true,
-                (WorkflowState::ReviewedWilayah, WorkflowState::ReviewedPusat) => true,
-                (WorkflowState::ReviewedPusat, WorkflowState::Approved) => true,
-                (WorkflowState::ReviewedPusat, WorkflowState::Rejected) => true,
-                _ => false,
-            }
+            matches!(
+                (&self.current_state, new_state),
+                (WorkflowState::Draft, WorkflowState::Submitted)
+                    | (WorkflowState::Submitted, WorkflowState::ReviewedWilayah)
+                    | (WorkflowState::ReviewedWilayah, WorkflowState::ReviewedPusat)
+                    | (WorkflowState::ReviewedPusat, WorkflowState::Approved)
+                    | (WorkflowState::ReviewedPusat, WorkflowState::Rejected)
+            )
         }
     }
 

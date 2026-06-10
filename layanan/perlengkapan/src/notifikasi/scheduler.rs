@@ -321,8 +321,7 @@ impl NotificationScheduler {
 mod tests {
     #[test]
     fn test_scheduler_creation() {
-        // This is a placeholder test
-        // In production, you would test with a mock pool
-        assert!(true);
+        // Placeholder: real coverage (with a mock pool) lands with the
+        // comprehensive suite (#33); for now this only exercises linkage.
     }
 }

@@ -58,8 +58,8 @@ pub struct PegawaiInfo {
     pub foto: Option<String>,
 }
 /// Hasil cek pegawai-in-satker (Fase 1.11). Dipakai oleh form pemakaian
-/// BMN: operator input NIP → sistem auto-lookup + tampilkan info pegawai
-/// + pemakaian aktif + histori. Validator Satker & Approver Satker juga
+/// BMN: operator input NIP → sistem auto-lookup, tampilkan info pegawai,
+/// pemakaian aktif, dan histori. Validator Satker & Approver Satker juga
 /// melihat info yang sama (transparansi sejak hulu).
 #[derive(Debug, Clone, Serialize)]
 pub struct CekPegawaiResponse {

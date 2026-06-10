@@ -11,6 +11,8 @@ pub enum Gender {
     Semua, // All genders
 }
 impl Gender {
+    // Infallible parse (defaults on unknown) → named ctor, not FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "L" => Gender::L,
@@ -36,6 +38,8 @@ pub enum UkuranGroup {
     Sepatu,
 }
 impl UkuranGroup {
+    // Infallible parse (defaults on unknown) → named ctor, not FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_uppercase().as_str() {
             "BAJU" => UkuranGroup::Baju,

@@ -18,8 +18,8 @@ impl PemakaianBmnService {
     // ========================================================================
 
     /// Cek pegawai-in-satker (Fase 1.11). Lookup pegawai dari MySIMKARI
-    /// cache, validate satker match, return info pegawai + pemakaian aktif
-    /// + histori. Jika pegawai tidak ditemukan ATAU satker mismatch →
+    /// cache, validate satker match, return info pegawai, pemakaian aktif,
+    /// dan histori. Jika pegawai tidak ditemukan ATAU satker mismatch →
     /// `AppError::BadRequest` dgn pesan persis stakeholder.
     pub async fn cek_pegawai_in_satker(
         &self,

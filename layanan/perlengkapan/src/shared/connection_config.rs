@@ -265,10 +265,11 @@ mod tests {
 
     #[test]
     fn test_database_pool_config_validation() {
-        let mut config = DatabasePoolConfig::default();
-
         // Test invalid max_size
-        config.max_size = 0;
+        let mut config = DatabasePoolConfig {
+            max_size: 0,
+            ..Default::default()
+        };
         assert!(config.validate().is_err());
 
         // Test invalid min_idle

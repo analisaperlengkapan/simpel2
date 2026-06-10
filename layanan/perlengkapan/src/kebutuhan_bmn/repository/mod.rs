@@ -18,6 +18,9 @@ use crate::shared::error::{AppError, AppResult};
 
 #[cfg_attr(test, mockall::automock)]
 #[async_trait]
+// Some repository methods carry many columns as positional params; bundling
+// them into structs would only add indirection at the call sites.
+#[allow(clippy::too_many_arguments)]
 pub trait KebutuhanBmnRepository: Send + Sync {
     // Pengajuan CRUD
     async fn create_pengajuan(

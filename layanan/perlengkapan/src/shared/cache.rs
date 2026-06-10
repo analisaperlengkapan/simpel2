@@ -75,9 +75,9 @@ pub enum CacheKey {
     },
 }
 
-impl ToString for CacheKey {
-    fn to_string(&self) -> String {
-        match self {
+impl std::fmt::Display for CacheKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             CacheKey::ReferenceData { table, id } => format!("ref:{}:{}", table, id),
             CacheKey::GapAnalysis {
                 satker_id,
@@ -131,7 +131,8 @@ impl ToString for CacheKey {
                 satker_code,
                 status.as_deref().unwrap_or("all")
             ),
-        }
+        };
+        write!(f, "{s}")
     }
 }
 

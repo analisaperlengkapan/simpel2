@@ -141,8 +141,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_scheduler_creation() {
-        // This is a placeholder test
-        // In a real scenario, we would mock the service and test the scheduler
-        assert!(true);
+        // Placeholder: real coverage (mock service + scheduler) lands with the
+        // comprehensive suite (#33); for now this only exercises linkage.
     }
 }

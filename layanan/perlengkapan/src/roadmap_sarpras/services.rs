@@ -39,7 +39,7 @@ impl RoadmapService {
         }
 
         let method = request.method.unwrap_or_default();
-        let horizon = request.horizon_years.unwrap_or(5).max(1).min(10);
+        let horizon = request.horizon_years.unwrap_or(5).clamp(1, 10);
         let confidence = request.confidence_level.unwrap_or(0.95).clamp(0.5, 0.99);
 
         let predictions = match method {

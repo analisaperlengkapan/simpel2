@@ -211,11 +211,10 @@ impl DashboardService {
         worksheet.write_string_with_format(0, 1, "Count", &header_format)?;
 
         // Data
-        let mut row = 1;
-        for (status, count) in &metrics.total_by_status {
+        for (i, (status, count)) in metrics.total_by_status.iter().enumerate() {
+            let row = (i + 1) as u32;
             worksheet.write_string(row, 0, status)?;
             worksheet.write_number(row, 1, *count as f64)?;
-            row += 1;
         }
 
         worksheet.autofit();
@@ -283,11 +282,10 @@ impl DashboardService {
         worksheet.write_string_with_format(0, 1, "Count", &header_format)?;
 
         // Data
-        let mut row = 1;
-        for (jenis, count) in &metrics.total_by_jenis {
+        for (i, (jenis, count)) in metrics.total_by_jenis.iter().enumerate() {
+            let row = (i + 1) as u32;
             worksheet.write_string(row, 0, jenis)?;
             worksheet.write_number(row, 1, *count as f64)?;
-            row += 1;
         }
 
         worksheet.autofit();

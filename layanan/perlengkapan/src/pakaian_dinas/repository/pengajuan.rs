@@ -62,11 +62,11 @@ impl PakaianDinasRepository {
             )
         };
 
-        let rows = if tahun.is_some() {
+        let rows = if let Some(tahun) = tahun {
             client
                 .query(
                     &data_sql,
-                    &[&tahun.unwrap(), &(per_page as i64), &(offset as i64)],
+                    &[&tahun, &(per_page as i64), &(offset as i64)],
                 )
                 .await
         } else {
