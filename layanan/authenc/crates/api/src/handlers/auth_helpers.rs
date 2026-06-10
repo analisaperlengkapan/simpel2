@@ -58,6 +58,60 @@ impl AuthError {
     }
 }
 
+/// Custom JWT claim marking a **half-authenticated** token: issued AFTER password
+/// verification but BEFORE MFA completion. Such a token may ONLY drive the MFA
+/// verification step (`/mfa/verify`, `/mfa/verify-recovery`) — it must NEVER be
+/// accepted on a protected endpoint, otherwise an attacker with just the password
+/// would gain full access and MFA would provide no security.
+const MFA_PENDING_CLAIM: &str = "mfa_pending";
+
+fn claims_are_mfa_pending(claims: &authenc_crypto::jwt::TokenClaims) -> bool {
+    claims
+        .custom
+        .get(MFA_PENDING_CLAIM)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+/// Mint a short-lived (5 min) MFA-pending temp token after a correct password,
+/// when the account requires MFA. Carries `mfa_pending=true` so it cannot be used
+/// as an access token. The MFA verify handlers exchange it for full tokens.
+pub fn generate_mfa_temp_token(state: &Arc<ApiState>, user_id: Uuid) -> Result<String, AuthError> {
+    let claims = authenc_crypto::jwt::TokenClaims::new(
+        user_id.to_string(),
+        state.jwt_service.issuer().to_string(),
+        chrono::Duration::minutes(5),
+    )
+    .with_scope("mfa".to_string())
+    .with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true));
+
+    state
+        .jwt_service
+        .generate_token(&claims)
+        .map_err(|e| AuthError::unauthorized(format!("Failed to issue MFA token: {}", e)))
+}
+
+/// Verify a temporary MFA token (from the verify request body or Authorization
+/// header) and return the user id. REQUIRES the `mfa_pending` claim, so a regular
+/// access token cannot be replayed to skip/spoof the MFA step.
+pub async fn verify_mfa_pending_token(
+    state: &Arc<ApiState>,
+    token: &str,
+) -> Result<Uuid, AuthError> {
+    let claims = state
+        .jwt_service
+        .verify_token(token)
+        .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    if !claims_are_mfa_pending(&claims) {
+        return Err(AuthError::unauthorized(
+            "Token bukan token verifikasi MFA yang sah",
+        ));
+    }
+
+    Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
+}
+
 /// Extract bearer token from Authorization header.
 ///
 /// # Arguments
@@ -107,6 +161,11 @@ pub async fn extract_user_from_token(
         .verify_token(&token)
         .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
 
+    // A half-authenticated MFA-pending token must not reach protected endpoints.
+    if claims_are_mfa_pending(&claims) {
+        return Err(AuthError::unauthorized("MFA verification required"));
+    }
+
     // Extract user ID from subject claim
     Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
 }
@@ -129,6 +188,11 @@ pub async fn verify_token_from_body(state: &Arc<ApiState>, token: &str) -> Resul
         .jwt_service
         .verify_token(token)
         .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    // A half-authenticated MFA-pending token must not reach protected endpoints.
+    if claims_are_mfa_pending(&claims) {
+        return Err(AuthError::unauthorized("MFA verification required"));
+    }
 
     // Extract user ID from subject claim
     Uuid::parse_str(&claims.sub).map_err(|_| AuthError::unauthorized("Invalid user ID in token"))
@@ -213,6 +277,11 @@ pub fn extract_user_with_password_check(
         .jwt_service
         .verify_token(&token)
         .map_err(|e| AuthError::unauthorized(format!("Invalid or expired token: {}", e)))?;
+
+    // A half-authenticated MFA-pending token must not reach protected endpoints.
+    if claims_are_mfa_pending(&claims) {
+        return Err(AuthError::unauthorized("MFA verification required"));
+    }
 
     check_password_change_required_from_claims(&claims)?;
 
@@ -312,6 +381,32 @@ mod tests {
         let result = extract_bearer_token(&headers);
         assert!(result.is_err());
         assert!(result.unwrap_err().message.contains("expected 'Bearer"));
+    }
+
+    #[test]
+    fn test_mfa_pending_claim_detection() {
+        use authenc_crypto::jwt::TokenClaims;
+        // A normal token has no mfa_pending claim → treated as fully authenticated.
+        let plain = TokenClaims::new(
+            Uuid::new_v4().to_string(),
+            "iss".to_string(),
+            chrono::Duration::minutes(5),
+        );
+        assert!(!claims_are_mfa_pending(&plain));
+
+        // A half-authenticated token carries mfa_pending=true.
+        let pending =
+            plain.with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true));
+        assert!(claims_are_mfa_pending(&pending));
+
+        // mfa_pending=false is also treated as not-pending.
+        let explicit_false = TokenClaims::new(
+            Uuid::new_v4().to_string(),
+            "iss".to_string(),
+            chrono::Duration::minutes(5),
+        )
+        .with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(false));
+        assert!(!claims_are_mfa_pending(&explicit_false));
     }
 
     #[test]
