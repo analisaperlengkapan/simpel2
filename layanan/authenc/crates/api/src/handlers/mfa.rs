@@ -474,8 +474,8 @@ pub async fn mfa_verify_recovery_handler(
 ) -> Result<Json<MfaVerifyResponse>, MfaApiError> {
     // Recovery is a login-completion step: authenticate via the MFA-pending temp
     // token (Authorization header), not a full access token.
-    let temp_token =
-        auth_helpers::extract_bearer_token(&headers).map_err(|e| MfaApiError::unauthorized(e.message))?;
+    let temp_token = auth_helpers::extract_bearer_token(&headers)
+        .map_err(|e| MfaApiError::unauthorized(e.message))?;
     let user_id = auth_helpers::verify_mfa_pending_token(&state, &temp_token)
         .await
         .map_err(|e| MfaApiError::unauthorized(e.message))?;

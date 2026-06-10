@@ -76,10 +76,7 @@ fn claims_are_mfa_pending(claims: &authenc_crypto::jwt::TokenClaims) -> bool {
 /// Mint a short-lived (5 min) MFA-pending temp token after a correct password,
 /// when the account requires MFA. Carries `mfa_pending=true` so it cannot be used
 /// as an access token. The MFA verify handlers exchange it for full tokens.
-pub fn generate_mfa_temp_token(
-    state: &Arc<ApiState>,
-    user_id: Uuid,
-) -> Result<String, AuthError> {
+pub fn generate_mfa_temp_token(state: &Arc<ApiState>, user_id: Uuid) -> Result<String, AuthError> {
     let claims = authenc_crypto::jwt::TokenClaims::new(
         user_id.to_string(),
         state.jwt_service.issuer().to_string(),
@@ -398,7 +395,8 @@ mod tests {
         assert!(!claims_are_mfa_pending(&plain));
 
         // A half-authenticated token carries mfa_pending=true.
-        let pending = plain.with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true));
+        let pending =
+            plain.with_custom_claim(MFA_PENDING_CLAIM.to_string(), serde_json::json!(true));
         assert!(claims_are_mfa_pending(&pending));
 
         // mfa_pending=false is also treated as not-pending.
