@@ -261,6 +261,9 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     let password_hasher = Arc::new(Argon2PasswordHasher::new());
     let brute_force_protector = Arc::new(BruteForceProtectorImpl::new());
+    // Same instance shared into ApiState so the login handler can enforce CAPTCHA
+    // once a username crosses the failure threshold (#49).
+    let brute_force_protector_for_state = brute_force_protector.clone();
 
     // OAuth2 stores
     let code_store = Arc::new(InMemoryAuthorizationCodeStore::new());
@@ -347,7 +350,8 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         db.clone(),
         revocation_store.clone(),
         captcha_service,
-    );
+    )
+    .with_brute_force_protector(brute_force_protector_for_state);
 
     // Background sweep: purge revocation rows past their expires_at so the table
     // doesn't grow unbounded. Hourly is plenty — rows only matter until `exp`.

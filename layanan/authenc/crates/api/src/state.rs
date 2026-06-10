@@ -3,8 +3,8 @@
 use std::sync::Arc;
 
 use authenc_core::services::{
-    AuthenticationServiceImpl, ClientRegistrationService, OAuth2ServiceImpl,
-    RealmManagementServiceImpl, UserManagementServiceImpl,
+    AuthenticationServiceImpl, BruteForceProtectorImpl, ClientRegistrationService,
+    OAuth2ServiceImpl, RealmManagementServiceImpl, UserManagementServiceImpl,
 };
 use authenc_crypto::jwt::JwtService;
 use authenc_federation::IntegrasiGrpcClient;
@@ -57,6 +57,12 @@ pub struct ApiState {
 
     /// gRPC client for layanan-integrasi (pegawai/satker data)
     pub integrasi_client: Option<Arc<IntegrasiGrpcClient>>,
+
+    /// Brute-force protector — the SAME instance wired into `auth_service`, shared
+    /// here so the login handler can query `is_captcha_required(username)` and
+    /// enforce a solved CAPTCHA on the REST login path (#49). `None` only in
+    /// test/gRPC construction that does not exercise the captcha gate.
+    pub brute_force_protector: Option<Arc<BruteForceProtectorImpl>>,
 }
 
 impl ApiState {
@@ -90,7 +96,15 @@ impl ApiState {
             revocation_store,
             captcha_service,
             integrasi_client: None,
+            brute_force_protector: None,
         }
+    }
+
+    /// Share the brute-force protector (same instance as `auth_service`) so the
+    /// login handler can enforce CAPTCHA once `captcha_threshold` failures hit (#49).
+    pub fn with_brute_force_protector(mut self, protector: Arc<BruteForceProtectorImpl>) -> Self {
+        self.brute_force_protector = Some(protector);
+        self
     }
 
     /// Set integrasi gRPC client
