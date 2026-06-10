@@ -376,18 +376,18 @@ pub async fn login_handler(
             // The previous code returned the auth-service stub `mfa_<uuid>`, which
             // is NOT a JWT, so `/mfa/verify` could never decode it → MFA login was
             // broken end-to-end.
-            let temp_token =
-                match auth_helpers::generate_mfa_temp_token(&state, *user_id.as_uuid()) {
-                    Ok(t) => t,
-                    Err(e) => {
-                        return ErrorResponse {
-                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                            error: "token_error".to_string(),
-                            message: e.message,
-                        }
-                        .into_response();
+            let temp_token = match auth_helpers::generate_mfa_temp_token(&state, *user_id.as_uuid())
+            {
+                Ok(t) => t,
+                Err(e) => {
+                    return ErrorResponse {
+                        status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        error: "token_error".to_string(),
+                        message: e.message,
                     }
-                };
+                    .into_response();
+                }
+            };
 
             (
                 axum::http::StatusCode::OK,
