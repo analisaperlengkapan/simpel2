@@ -160,6 +160,17 @@ impl CaptchaService {
             Ok(false)
         }
     }
+
+    /// Redeem a previously solved challenge as a single-use login token (#49).
+    ///
+    /// The login handler calls this when brute-force protection requires a
+    /// CAPTCHA: the `captcha_token` returned by `POST /captcha/verify` IS the
+    /// solved challenge id, and this consumes it atomically (single-use, bounded
+    /// by the challenge's expiry). Returns `true` iff the challenge was solved,
+    /// unexpired, and not already consumed.
+    pub async fn redeem_solved(&self, challenge_id: Uuid) -> Result<bool> {
+        self.db.consume_solved_captcha(challenge_id).await
+    }
 }
 
 // ============================================

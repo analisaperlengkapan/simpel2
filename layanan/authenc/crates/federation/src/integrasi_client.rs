@@ -20,6 +20,86 @@ use integrasi_proto::{
     MysimkariSatker, Pagination,
 };
 
+use authenc_types::domain::satker::{Satker, SatkerType};
+use std::collections::HashMap;
+
+/// Classify a satker into the authenc `SatkerType`. The Kejaksaan classification
+/// (kejagung/kejati/kejari/cabjari) may live in EITHER `tipe_satker` OR
+/// `kategori_satker` upstream, so we match against both. Best-effort keyword
+/// match — MySIMKARI is the identity SoT (#42); verify exact values vs the real
+/// API pull at staging. Order matters: check `cabang/cabjari` before
+/// `negeri/kejari` (a cabjari sits under a kejari but is its own type).
+pub fn classify_satker_type(tipe_satker: &str, kategori_satker: &str) -> SatkerType {
+    let t = format!("{tipe_satker} {kategori_satker}").to_lowercase();
+    if t.contains("agung") || t.contains("kejagung") || t.contains("pusat") {
+        SatkerType::Pusat
+    } else if t.contains("tinggi") || t.contains("kejati") {
+        SatkerType::KejaksaanTinggi
+    } else if t.contains("cabang") || t.contains("cabjari") {
+        SatkerType::Cabang
+    } else if t.contains("negeri") || t.contains("kejari") {
+        SatkerType::KejaksaanNegeri
+    } else {
+        SatkerType::UnitKhusus
+    }
+}
+
+/// Convert an integrasi `MysimkariSatker` (SoT identity) into the authenc
+/// read-model `Satker`. authenc does NOT own this data — it derives it from
+/// integrasi (1-way), so `id` is synthesized and timestamps are set at fetch.
+///
+/// Hierarchy is an **adjacency list keyed by upstream id**: `parent_id` references
+/// the PARENT row's `api_id` (not its `kode_satker`). authenc's `SatkerHierarchy`
+/// keys by `code`, so we resolve `parent_id -> parent's kode_satker` via
+/// `api_id_to_code`. Fallback: if `parent_id` doesn't match any `api_id` it may
+/// already be a `kode_satker` (kept as-is). `level` stays 0 (RBAC traversal uses
+/// `parent_code`, not level).
+pub fn mysimkari_to_satker(ms: &MysimkariSatker, api_id_to_code: &HashMap<&str, &str>) -> Satker {
+    let now = chrono::Utc::now();
+    let parent_code = {
+        let p = ms.parent_id.trim();
+        if p.is_empty() {
+            None
+        } else if let Some(code) = api_id_to_code.get(p) {
+            Some((*code).to_string())
+        } else {
+            Some(p.to_string()) // fallback: parent_id may already be a kode_satker
+        }
+    };
+    let mut attributes = serde_json::Map::new();
+    if !ms.wilayah.is_empty() {
+        attributes.insert("wilayah".into(), ms.wilayah.clone().into());
+    }
+    if !ms.provinsi.is_empty() {
+        attributes.insert("provinsi".into(), ms.provinsi.clone().into());
+    }
+    if !ms.kategori_satker.is_empty() {
+        attributes.insert("kategori_satker".into(), ms.kategori_satker.clone().into());
+    }
+    Satker {
+        // Synthetic id — the read-model is keyed by `code` (RBAC key), not id.
+        id: uuid::Uuid::new_v4(),
+        code: ms.kode_satker.clone(),
+        name: ms.nama_satker.clone(),
+        description: if ms.alamat.is_empty() {
+            None
+        } else {
+            Some(ms.alamat.clone())
+        },
+        parent_code,
+        level: 0,
+        satker_type: classify_satker_type(&ms.tipe_satker, &ms.kategori_satker),
+        active: true,
+        attributes: if attributes.is_empty() {
+            None
+        } else {
+            Some(serde_json::Value::Object(attributes))
+        },
+        created_at: now,
+        updated_at: now,
+    }
+}
+
 /// gRPC client wrapper for the integrasi service
 #[derive(Clone)]
 pub struct IntegrasiGrpcClient {
@@ -196,5 +276,24 @@ impl IntegrasiGrpcClient {
             })?;
 
         Ok(response.into_inner().items)
+    }
+
+    /// Fetch the full satker list and map it to the authenc `Satker` read-model
+    /// (identity SoT = integrasi/MySIMKARI). Used to build the RBAC hierarchy.
+    ///
+    /// Two-pass: first index `api_id -> kode_satker`, then map each record so the
+    /// adjacency-list `parent_id` (which references the parent's upstream id)
+    /// resolves to the parent's `kode_satker` (authenc's hierarchy key).
+    pub async fn get_satker_readmodel(&self) -> Result<Vec<Satker>> {
+        let items = self.get_satker_list().await?;
+        let api_id_to_code: HashMap<&str, &str> = items
+            .iter()
+            .filter(|m| !m.api_id.is_empty())
+            .map(|m| (m.api_id.as_str(), m.kode_satker.as_str()))
+            .collect();
+        Ok(items
+            .iter()
+            .map(|m| mysimkari_to_satker(m, &api_id_to_code))
+            .collect())
     }
 }

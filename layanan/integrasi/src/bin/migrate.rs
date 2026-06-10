@@ -37,6 +37,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "002_enhance_integration_schema.sql",
         include_str!("../../migrations/002_enhance_integration_schema.sql"),
     ),
+    (
+        "003_satker_code_mapping.sql",
+        include_str!("../../migrations/003_satker_code_mapping.sql"),
+    ),
 ];
 
 #[tokio::main]

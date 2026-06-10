@@ -189,14 +189,10 @@ pub fn create_iam_router(state: Arc<IamApiState>) -> Router {
         // ============================================================
         // Satker (Government Hierarchy) Management
         // ============================================================
-        .route(
-            "/api/v1/iam/satker",
-            get(satker::list_satkers).post(satker::create_satker),
-        )
-        .route(
-            "/api/v1/iam/satker/{id}",
-            get(satker::get_satker).put(satker::update_satker),
-        )
+        // Satker identity is read-only here (SoT = integrasi/MySIMKARI, #42);
+        // no POST/PUT — authenc does not master satker data.
+        .route("/api/v1/iam/satker", get(satker::list_satkers))
+        .route("/api/v1/iam/satker/{id}", get(satker::get_satker))
         .route(
             "/api/v1/iam/satker/{id}/hierarchy",
             get(satker::get_satker_hierarchy),

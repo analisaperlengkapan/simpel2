@@ -500,8 +500,20 @@ konsumen fetch-at-read/baca cross-schema, dilarang duplikasi.
    - ⚠️ Tabel split lama `siman_aset_{tanah,gedung_bangunan,alat_besar,angkutan_bermotor}`
      = **LEGACY/duplikat** (jangan dibuat ulang) → migrasi ke `siman_aset WHERE jenis_aset=…`.
 
+5. **Cross-ref satker (#43) — integrasi = pemilik mapping**
+   - **`satker_code_map`** — cross-ref kanonik MySIMKARI `kode_satker` ↔ SIMAN
+     `kdsatker_keu` (dua sistem kode BEDA; hanya `nama_satker` yang sama). integrasi
+     memiliki kedua sumber → mapping = SoT di sini.
+   - View `v_satker_code_map_auto` = kandidat best-effort by `nama_satker` ternormalisasi;
+     `v_satker_code_map` = manual-verified ∪ auto. **Konsumen (perlengkapan `bank_aset`
+     scoping BMN per-satker) JOIN via `v_satker_code_map`, BUKAN match string `nama_satker`.**
+   - ⚠️ **Validasi nilai nyata di staging (P2/F5-E)** — apakah kode benar-benar beda &
+     name-match resolve bersih; promote baris ke `satker_code_map` (`verified=true`) saat
+     dikonfirmasi (additive, jangan ubah migrasi).
+
 **Migrasi:** runner **`integrasi-migrate`** (`src/bin/migrate.rs`, embed
-`001_init_schema.sql` + `002_enhance_integration_schema.sql` via `include_str!`,
+`001_init_schema.sql` + `002_enhance_integration_schema.sql` +
+`003_satker_code_mapping.sql` via `include_str!`,
 idempotent). Extension dibuat
 `WITH SCHEMA public` (jangan mendarat di schema `integrasi`). Jalan **pertama** dalam urutan
 bring-up (integrasi → authenc → perlengkapan); lihat `layanan/AGENTS.md`.

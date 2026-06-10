@@ -163,6 +163,13 @@ Browser → Portal MFE → REST API (layanan) → gRPC → Authenc
   `auth_helpers`: `generate_mfa_temp_token` (mint), `verify_mfa_pending_token`
   (REQUIRE claim). Endpoint terproteksi (`extract_user_from_token` dkk) **MENOLAK**
   token `mfa_pending` → tak bisa skip 2FA. Verify sukses → tukar jadi access+refresh penuh.
+- **CAPTCHA enforced server-side (#49):** setelah `captcha_threshold` gagal
+  (BruteForceProtector), `POST /api/v1/auth/login` WAJIB menyertakan `captcha_token`
+  (= id challenge yang sudah di-solve via `POST /api/captcha/verify`). Login
+  me-**redeem** challenge itu **single-use** (`consume_solved_captcha`, dihapus →
+  tak bisa di-replay; freshness dibatasi `expires_at` ≤5 mnt). Token captcha
+  cosmetic lama (tak tervalidasi) sudah dibuang. FE captcha widget (`lib-ui`)
+  punya prop `reset` untuk menarik challenge baru tiap login gagal.
 
 ### 5. gRPC Service
 

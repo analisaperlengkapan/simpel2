@@ -360,13 +360,16 @@ message GetMysimkariSatkerResponse {
 message MysimkariSatker {
   string kode_satker = 1;
   string nama_satker = 2;
-  string alamat = 3;
-  string telepon = 4;
-  string email = 5;
-  string kode_wilayah = 6;
-  string nama_wilayah = 7;
-  int32 jumlah_pegawai = 8;
-  map<string, string> extra_fields = 9;
+  string tipe_satker = 3;       // hierarchy: maps to SatkerType (Pusat/Tinggi/Negeri/Cabang)
+  string parent_id = 4;         // hierarchy: parent satker code (root = empty)
+  string wilayah = 5;           // regional grouping
+  string provinsi = 6;
+  string alamat = 7;            // <- column alamat_satker
+  string telepon = 8;           // <- column telp_satker
+  string website = 9;           // <- column website_satker
+  string kategori_satker = 10;  // classification (may hold kejari/cabjari/kejati)
+  string api_id = 11;           // upstream MySIMKARI id; parent_id references THIS (adjacency list)
+  map<string, string> extra_fields = 12;
 }
 
 message GetMysimkariPegawaiRequest {

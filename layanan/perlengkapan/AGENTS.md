@@ -211,6 +211,10 @@ flowchart TB
   mis. `batch_operation_log.user_id → authenc.users`). JANGAN duplikasi data master —
   fetch-at-read/baca cross-schema (SSoT). Sub-domain `dokumen`/`notifikasi`/`cache`
   dibuat oleh migrasi perlengkapan. Lihat `layanan/AGENTS.md` → Database Architecture.
+- **Scoping BMN per-satker (#43):** `bank_aset` saat ini mencocokkan satker via string
+  `nama_satker` (rapuh — MySIMKARI `kode_satker` ≠ SIMAN `kdsatker_keu`). Target: JOIN via
+  `integrasi.v_satker_code_map` (mapping kanonik, pemilik = integrasi), **bukan** name-match.
+  Migrasi konsumen ini menunggu mapping ter-verifikasi di staging (P2/F5-E).
 - Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &
   authenc migrate selesai (urutan bring-up). Penamaan: `satker_id`/`satker_nama`/
