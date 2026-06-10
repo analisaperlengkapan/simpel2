@@ -175,8 +175,7 @@ impl PdfGenerator {
             // Create new page if needed
             if y_position.0 < 20.0 {
                 all_page_ops.push(current_ops);
-                current_ops = Vec::new();
-                current_ops.push(set_font_op.clone());
+                current_ops = vec![set_font_op.clone()];
                 y_position = Mm(280.0);
             }
         }

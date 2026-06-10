@@ -196,10 +196,8 @@ impl PakaianDinasRepository {
             )
         };
 
-        let count_row = if jenis_id.is_some() {
-            client
-                .query_one(&count_query, &[jenis_id.as_ref().unwrap()])
-                .await
+        let count_row = if let Some(jid) = jenis_id.as_ref() {
+            client.query_one(&count_query, &[jid]).await
         } else {
             client.query_one(&count_query, &[]).await
         }

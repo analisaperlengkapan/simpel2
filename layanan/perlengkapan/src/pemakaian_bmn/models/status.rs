@@ -150,6 +150,8 @@ impl JenisBmn {
         }
     }
 
+    // Returns Option, not Result → named constructor rather than FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "KENDARAAN_BERMOTOR" => Some(Self::KendaraanBermotor),

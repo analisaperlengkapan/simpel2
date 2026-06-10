@@ -5,7 +5,9 @@ use deadpool_postgres::Pool;
 use serde_json::Value;
 use uuid::Uuid;
 
-#[allow(dead_code)]
+// Flat audit-log writer: args map 1:1 to columns; a param struct would only
+// add indirection.
+#[allow(dead_code, clippy::too_many_arguments)]
 pub async fn insert_audit_log(
     pool: &Pool,
     user_id: Option<Uuid>,

@@ -8,7 +8,6 @@ use deadpool_postgres::Pool;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum Role {
     User,
     Agent,
@@ -16,7 +15,8 @@ pub enum Role {
 }
 
 impl Role {
-    #[allow(dead_code)]
+    // Returns Option (not Result), so a named constructor rather than FromStr.
+    #[allow(dead_code, clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "user" => Some(Role::User),

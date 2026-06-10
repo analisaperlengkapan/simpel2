@@ -188,6 +188,8 @@ pub enum PilihanSatker {
     Wilayah,
 }
 impl PilihanSatker {
+    // Infallible parse (defaults on unknown) → named ctor, not FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "sebagian" => Self::Sebagian,

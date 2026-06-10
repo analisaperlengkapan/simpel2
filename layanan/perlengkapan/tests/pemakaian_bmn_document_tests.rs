@@ -1,3 +1,7 @@
+// Placeholder smoke tests; real assertions land with the comprehensive
+// suite (#33 / F5-C). Until then these assert reachability, not outcomes.
+#![allow(clippy::assertions_on_constants)]
+
 //! # Pemakaian BMN Document Generation Tests
 //!
 //! Tests for permit document generation during activation

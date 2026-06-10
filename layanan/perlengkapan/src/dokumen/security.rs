@@ -10,6 +10,8 @@ pub enum Role {
 }
 
 impl Role {
+    // Returns Option, not Result → named constructor rather than FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "owner" => Some(Role::Owner),

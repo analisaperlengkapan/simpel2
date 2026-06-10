@@ -65,6 +65,9 @@ impl PakaianDinasRepository {
     /// `aktivitas_id` lands on `pengajuan_pakaian_dinas_satker` and an audit-
     /// friendly row is appended to `pengajuan_pakaian_dinas_satker_aktivitas`
     /// so the per-satker timeline has real history.
+    // Each arg is a distinct transition/activity column; a param struct would
+    // only add indirection.
+    #[allow(clippy::too_many_arguments)]
     pub async fn transition_satker_with_activity(
         &self,
         satker_id: Uuid,
