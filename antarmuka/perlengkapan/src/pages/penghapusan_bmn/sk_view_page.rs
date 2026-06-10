@@ -397,9 +397,12 @@ pub fn SkViewPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_completed_requests() -> Result<Vec<PenghapusanRequest>, crate::api::AppError> {
-    // Fetch requests with status DOCUMENT_GENERATED or COMPLETED
+    // Fetch requests whose SK sudah di-generate (jalur Pusat & Wilayah),
+    // ditandatangani, atau selesai — yang punya dokumen SK untuk dilihat.
+    // Pakai canonical state names (lihat PenghapusanBmnStatus::to_state_name);
+    // `DOCUMENT_GENERATED` lama bukan state nyata → tak pernah match.
     let response =
-        gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=DOCUMENT_GENERATED,COMPLETED")
+        gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=KONSEP_SK_GENERATED,KONSEP_SK_WILAYAH_GENERATED,SK_SIGNED,SK_SIGNED_WILAYAH,COMPLETED")
             .send()
             .await
             .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
