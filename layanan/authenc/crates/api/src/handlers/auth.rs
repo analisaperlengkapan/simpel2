@@ -1112,8 +1112,7 @@ mod tests {
 
     #[test]
     fn test_login_request_with_captcha_token() {
-        let json =
-            r#"{"username":"u","password":"p","captcha_token":"3f2504e0-4f89-41d3-9a0c-0305e82c3301"}"#;
+        let json = r#"{"username":"u","password":"p","captcha_token":"3f2504e0-4f89-41d3-9a0c-0305e82c3301"}"#;
         let request: LoginRequest = serde_json::from_str(json).unwrap();
         assert_eq!(
             request.captcha_token.as_deref(),
