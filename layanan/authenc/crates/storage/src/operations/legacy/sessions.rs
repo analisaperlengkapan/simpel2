@@ -2,19 +2,37 @@
 use super::*;
 use sha2::{Digest, Sha256};
 
+/// Parameters for creating a new user session.
+pub struct NewUserSession<'a> {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub client_id: Option<Uuid>,
+    pub token: &'a str,
+    pub refresh_token: Option<&'a str>,
+    pub expires_in: i64,
+    pub ip_address: Option<&'a str>,
+    pub user_agent: Option<&'a str>,
+    pub authentication_method: Option<&'a str>,
+    pub protocol: Option<&'a str>,
+}
+
 pub async fn create_user_session(
     db: &Database,
-    user_id: Uuid,
-    realm_id: Uuid,
-    client_id: Option<Uuid>,
-    token: &str,
-    refresh_token: Option<&str>,
-    expires_in: i64,
-    ip_address: Option<&str>,
-    user_agent: Option<&str>,
-    authentication_method: Option<&str>,
-    protocol: Option<&str>,
+    params: NewUserSession<'_>,
 ) -> Result<serde_json::Value> {
+    let NewUserSession {
+        user_id,
+        realm_id,
+        client_id,
+        token,
+        refresh_token,
+        expires_in,
+        ip_address,
+        user_agent,
+        authentication_method,
+        protocol,
+    } = params;
+
     // Hash tokens for storage
     let token_hash = hash_token(token);
     let refresh_token_hash = refresh_token.map(hash_token);

@@ -227,13 +227,9 @@ impl SatkerHierarchy {
         let ancestors2 = self.get_ancestors(code2);
 
         // Find the first common ancestor (closest to the nodes)
-        for ancestor in ancestors2 {
-            if ancestors1.contains(&ancestor) {
-                return Some(ancestor);
-            }
-        }
-
-        None
+        ancestors2
+            .into_iter()
+            .find(|ancestor| ancestors1.contains(ancestor))
     }
 
     /// Get the level of a satker in the hierarchy

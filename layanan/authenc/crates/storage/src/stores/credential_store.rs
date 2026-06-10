@@ -312,8 +312,7 @@ mod tests {
     #[test]
     fn test_credential_nickname() {
         let nickname = Some("My Security Key".to_string());
-        assert!(nickname.is_some());
-        assert_eq!(nickname.unwrap(), "My Security Key");
+        assert_eq!(nickname.as_deref(), Some("My Security Key"));
     }
 
     #[test]
@@ -321,8 +320,7 @@ mod tests {
         let now = Utc::now();
         let last_used: Option<DateTime<Utc>> = Some(now);
 
-        assert!(last_used.is_some());
-        assert_eq!(last_used.unwrap(), now);
+        assert_eq!(last_used, Some(now));
     }
 
     #[test]

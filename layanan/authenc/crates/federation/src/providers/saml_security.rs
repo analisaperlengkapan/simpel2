@@ -150,8 +150,10 @@ mod tests {
 
     #[test]
     fn test_saml_security_config_disabled() {
-        let mut config = SamlSecurityConfig::default();
-        config.enable_xml_security = false;
+        let config = SamlSecurityConfig {
+            enable_xml_security: false,
+            ..Default::default()
+        };
         let validator = SamlSecurityValidator::new(config).unwrap();
         let xml = "<invalid";
         assert!(validator.validate_xml_security(xml).is_ok());

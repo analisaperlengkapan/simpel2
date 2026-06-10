@@ -22,6 +22,12 @@
 /// once they are defined in `authenc-core`.
 pub struct CaptchaGrpcService;
 
+impl Default for CaptchaGrpcService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CaptchaGrpcService {
     /// Create a new stub CAPTCHA gRPC service
     pub fn new() -> Self {

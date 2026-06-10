@@ -178,8 +178,10 @@ mod tests {
 
     #[test]
     fn test_validate_config() {
-        let mut config = MfaFallbackConfig::default();
-        config.storage_path = PathBuf::from("/tmp/test_mfa_storage.enc");
+        let mut config = MfaFallbackConfig {
+            storage_path: PathBuf::from("/tmp/test_mfa_storage.enc"),
+            ..Default::default()
+        };
 
         // Should pass validation
         assert!(config.validate().is_ok());

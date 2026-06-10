@@ -118,7 +118,6 @@ mod tests {
             }
             Err(_) => {
                 // Expected to fail without Kafka
-                assert!(true);
             }
         }
     }

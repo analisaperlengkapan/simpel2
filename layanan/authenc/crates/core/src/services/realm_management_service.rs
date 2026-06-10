@@ -519,12 +519,13 @@ mod tests {
     }
 
     fn master_realm() -> Realm {
-        let mut realm = Realm::default();
-        realm.id = Realm::MASTER_ID;
-        realm.name = "master".to_string();
-        realm.display_name = Some("Master".to_string());
-        realm.enabled = true;
-        realm
+        Realm {
+            id: Realm::MASTER_ID,
+            name: "master".to_string(),
+            display_name: Some("Master".to_string()),
+            enabled: true,
+            ..Default::default()
+        }
     }
 
     // ── Master realm protection tests ────────────────────────────────────

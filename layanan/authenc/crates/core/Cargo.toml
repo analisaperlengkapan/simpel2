@@ -65,9 +65,17 @@ aws-config = { workspace = true, optional = true }
 aws-credential-types = { workspace = true, optional = true }
 openssl = { version = "0.10.80", optional = true }
 quick-xml = { workspace = true, features = ["serialize"], optional = true }
+metrics = { workspace = true, optional = true }
 
 [features]
 default = []
+# `dev`/`test` gate test/dev-stub code paths in federation/saml_security (self-
+# contained logic switches; declared so the cfgs are recognized). `metrics` wires
+# the optional `metrics` facade crate for event_publisher/event_retention
+# instrumentation. Utilization review tracked as a follow-up (see #45).
+dev = []
+metrics = ["dep:metrics"]
+test = []
 redis-cache = ["redis"]
 kafka = ["rdkafka"]
 webauthn = ["webauthn-rs", "webauthn-rs-proto"]

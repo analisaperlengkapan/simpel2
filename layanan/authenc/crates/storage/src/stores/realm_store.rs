@@ -522,11 +522,15 @@ mod tests {
 
     #[test]
     fn test_realm_enabled_flag() {
-        let mut enabled_realm = Realm::default();
-        enabled_realm.enabled = true;
+        let enabled_realm = Realm {
+            enabled: true,
+            ..Default::default()
+        };
 
-        let mut disabled_realm = Realm::default();
-        disabled_realm.enabled = false;
+        let disabled_realm = Realm {
+            enabled: false,
+            ..Default::default()
+        };
 
         assert!(enabled_realm.enabled);
         assert!(!disabled_realm.enabled);

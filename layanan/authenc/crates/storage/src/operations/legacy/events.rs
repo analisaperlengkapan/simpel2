@@ -5,19 +5,33 @@ use chrono::{DateTime, Utc};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
-pub async fn register_event_listener(
-    db: &Database,
-    realm_id: Uuid,
-    name: &str,
-    listener_type: &str,
-    enabled: bool,
-    config: Option<&JsonValue>,
-    event_types: Option<Vec<String>>,
-    priority: i32,
-    is_async: bool,
-    retry_on_failure: bool,
-    max_retries: i32,
-) -> Result<Uuid> {
+/// Parameters for registering an event listener.
+pub struct NewEventListener<'a> {
+    pub realm_id: Uuid,
+    pub name: &'a str,
+    pub listener_type: &'a str,
+    pub enabled: bool,
+    pub config: Option<&'a JsonValue>,
+    pub event_types: Option<Vec<String>>,
+    pub priority: i32,
+    pub is_async: bool,
+    pub retry_on_failure: bool,
+    pub max_retries: i32,
+}
+
+pub async fn register_event_listener(db: &Database, params: NewEventListener<'_>) -> Result<Uuid> {
+    let NewEventListener {
+        realm_id,
+        name,
+        listener_type,
+        enabled,
+        config,
+        event_types,
+        priority,
+        is_async,
+        retry_on_failure,
+        max_retries,
+    } = params;
     let query = r#"
         INSERT INTO event_listeners (
             realm_id, name, listener_type, enabled, config,
@@ -140,19 +154,34 @@ pub async fn log_event(
     Ok(rows[0].get(0))
 }
 
-pub async fn query_event_log(
-    db: &Database,
-    realm_id: Uuid,
-    event_category: Option<String>,
-    event_type: Option<String>,
-    resource_type: Option<String>,
-    user_id: Option<Uuid>,
-    from_date: Option<DateTime<Utc>>,
-    to_date: Option<DateTime<Utc>>,
-    success_only: Option<bool>,
-    offset: i64,
-    limit: i64,
-) -> Result<Vec<JsonValue>> {
+/// Filter parameters for querying the event log.
+#[derive(Default)]
+pub struct EventLogQuery {
+    pub realm_id: Uuid,
+    pub event_category: Option<String>,
+    pub event_type: Option<String>,
+    pub resource_type: Option<String>,
+    pub user_id: Option<Uuid>,
+    pub from_date: Option<DateTime<Utc>>,
+    pub to_date: Option<DateTime<Utc>>,
+    pub success_only: Option<bool>,
+    pub offset: i64,
+    pub limit: i64,
+}
+
+pub async fn query_event_log(db: &Database, query_params: EventLogQuery) -> Result<Vec<JsonValue>> {
+    let EventLogQuery {
+        realm_id,
+        event_category,
+        event_type,
+        resource_type,
+        user_id,
+        from_date,
+        to_date,
+        success_only,
+        offset,
+        limit,
+    } = query_params;
     let mut where_clauses = vec![String::from("realm_id = $1")];
     let mut param_index = 2;
 
@@ -291,20 +320,35 @@ pub async fn record_listener_execution(
     Ok(rows[0].get(0))
 }
 
-pub async fn register_webhook(
-    db: &Database,
-    listener_id: Uuid,
-    realm_id: Uuid,
-    url: &str,
-    http_method: &str,
-    auth_type: Option<&str>,
-    auth_credentials: Option<&JsonValue>,
-    custom_headers: Option<&JsonValue>,
-    payload_template: Option<&str>,
-    secret_key: Option<&str>,
-    verify_ssl: bool,
-    timeout_seconds: i32,
-) -> Result<Uuid> {
+/// Parameters for registering an event webhook.
+pub struct NewWebhook<'a> {
+    pub listener_id: Uuid,
+    pub realm_id: Uuid,
+    pub url: &'a str,
+    pub http_method: &'a str,
+    pub auth_type: Option<&'a str>,
+    pub auth_credentials: Option<&'a JsonValue>,
+    pub custom_headers: Option<&'a JsonValue>,
+    pub payload_template: Option<&'a str>,
+    pub secret_key: Option<&'a str>,
+    pub verify_ssl: bool,
+    pub timeout_seconds: i32,
+}
+
+pub async fn register_webhook(db: &Database, params: NewWebhook<'_>) -> Result<Uuid> {
+    let NewWebhook {
+        listener_id,
+        realm_id,
+        url,
+        http_method,
+        auth_type,
+        auth_credentials,
+        custom_headers,
+        payload_template,
+        secret_key,
+        verify_ssl,
+        timeout_seconds,
+    } = params;
     let query = r#"
         INSERT INTO event_webhooks (
             listener_id, realm_id, url, http_method, auth_type,

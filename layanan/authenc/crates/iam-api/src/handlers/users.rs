@@ -139,7 +139,7 @@ pub async fn list_users(
     Query(params): Query<ListUsersQuery>,
 ) -> ApiResult<Json<PaginatedUsers>> {
     let realm_id = RealmId::from_uuid(params.realm_id.unwrap_or(MASTER_REALM_ID));
-    let page_size = params.page_size.min(100).max(1);
+    let page_size = params.page_size.clamp(1, 100);
     let page = params.page.max(1);
     let offset = ((page - 1) * page_size) as usize;
     let limit = page_size as usize;

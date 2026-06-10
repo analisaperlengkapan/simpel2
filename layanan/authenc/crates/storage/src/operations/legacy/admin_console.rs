@@ -380,20 +380,38 @@ pub async fn terminate_admin_session(
     Ok(rows_affected > 0)
 }
 
+/// Parameters for creating an admin-console notification.
+pub struct NewAdminNotification<'a> {
+    pub realm_id: Uuid,
+    pub notification_type: &'a str,
+    pub title: &'a str,
+    pub message: &'a str,
+    pub target_admin_user_id: Option<Uuid>,
+    pub target_role: Option<&'a str>,
+    pub action_url: Option<&'a str>,
+    pub action_label: Option<&'a str>,
+    pub priority: i32,
+    pub expires_in_seconds: Option<i64>,
+    pub metadata: Option<&'a JsonValue>,
+}
+
 pub async fn create_admin_notification(
     db: &Database,
-    realm_id: Uuid,
-    notification_type: &str,
-    title: &str,
-    message: &str,
-    target_admin_user_id: Option<Uuid>,
-    target_role: Option<&str>,
-    action_url: Option<&str>,
-    action_label: Option<&str>,
-    priority: i32,
-    expires_in_seconds: Option<i64>,
-    metadata: Option<&JsonValue>,
+    params: NewAdminNotification<'_>,
 ) -> Result<Uuid> {
+    let NewAdminNotification {
+        realm_id,
+        notification_type,
+        title,
+        message,
+        target_admin_user_id,
+        target_role,
+        action_url,
+        action_label,
+        priority,
+        expires_in_seconds,
+        metadata,
+    } = params;
     let expires_at = expires_in_seconds.map(|seconds| Utc::now() + Duration::seconds(seconds));
 
     let query = r#"

@@ -143,9 +143,12 @@ pub struct UserProfileResponse {
 /// `(resolved_name, inserted_at, is_authoritative)` — `is_authoritative` is
 /// `true` when the name came from a successful gRPC lookup, `false` when it is
 /// a fallback (raw code due to error / not-found).
-static SATKER_CACHE: std::sync::LazyLock<
-    tokio::sync::RwLock<std::collections::HashMap<String, (String, std::time::Instant, bool)>>,
-> = std::sync::LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
+/// A cached satker resolution: `(resolved_name, inserted_at, is_authoritative)`.
+type SatkerCacheEntry = (String, std::time::Instant, bool);
+type SatkerCacheMap = std::collections::HashMap<String, SatkerCacheEntry>;
+
+static SATKER_CACHE: std::sync::LazyLock<tokio::sync::RwLock<SatkerCacheMap>> =
+    std::sync::LazyLock::new(|| tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
 /// How long a successfully-resolved cached satker name stays valid.
 const SATKER_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(600);

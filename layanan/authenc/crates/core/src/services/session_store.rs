@@ -7,6 +7,30 @@ use authenc_storage::operations as db_ops;
 use authenc_types::domain::Session;
 use authenc_types::{AuthencError, Result};
 
+/// Parameters for creating a new persisted user session.
+pub struct NewSession<'a> {
+    /// The user ID for the session
+    pub user_id: Uuid,
+    /// The realm ID for the session
+    pub realm_id: Uuid,
+    /// Optional client ID
+    pub client_id: Option<Uuid>,
+    /// The access token
+    pub token: &'a str,
+    /// Optional refresh token
+    pub refresh_token: Option<&'a str>,
+    /// Session expiration in seconds
+    pub expires_in: i64,
+    /// Optional client IP address
+    pub ip_address: Option<&'a str>,
+    /// Optional user agent string
+    pub user_agent: Option<&'a str>,
+    /// Optional authentication method
+    pub auth_method: Option<&'a str>,
+    /// Optional protocol (openid-connect, saml, etc.)
+    pub protocol: Option<&'a str>,
+}
+
 /// Session store for managing user authentication sessions
 pub struct SessionStore {
     /// Database connection
@@ -354,37 +378,12 @@ impl SessionStore {
         Ok(())
     }
 
-    /// Create a new user session with persistence
-    ///
-    /// # Arguments
-    /// * `user_id` - The user ID for the session
-    /// * `realm_id` - The realm ID for the session
-    /// * `client_id` - Optional client ID
-    /// * `token` - The access token
-    /// * `refresh_token` - Optional refresh token
-    /// * `expires_in` - Session expiration in seconds
-    /// * `ip_address` - Optional client IP address
-    /// * `user_agent` - Optional user agent string
-    /// * `auth_method` - Optional authentication method
-    /// * `protocol` - Optional protocol (openid-connect, saml, etc.)
+    /// Create a new user session with persistence.
     ///
     /// # Returns
     /// * `Result<Uuid, AuthencError>` with the session ID
-    pub async fn create_session(
-        &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-        client_id: Option<Uuid>,
-        token: &str,
-        refresh_token: Option<&str>,
-        expires_in: i64,
-        ip_address: Option<&str>,
-        user_agent: Option<&str>,
-        auth_method: Option<&str>,
-        protocol: Option<&str>,
-    ) -> Result<Uuid> {
-        let result = db_ops::sessions::create_user_session(
-            &self.db,
+    pub async fn create_session(&self, params: NewSession<'_>) -> Result<Uuid> {
+        let NewSession {
             user_id,
             realm_id,
             client_id,
@@ -395,6 +394,22 @@ impl SessionStore {
             user_agent,
             auth_method,
             protocol,
+        } = params;
+
+        let result = db_ops::sessions::create_user_session(
+            &self.db,
+            db_ops::sessions::NewUserSession {
+                user_id,
+                realm_id,
+                client_id,
+                token,
+                refresh_token,
+                expires_in,
+                ip_address,
+                user_agent,
+                authentication_method: auth_method,
+                protocol,
+            },
         )
         .await?;
 

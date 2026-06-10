@@ -140,10 +140,10 @@ impl<C: SecretonClient> JwtKeyManager<C> {
         let key_data = secret_value;
 
         // Decode from base64 if needed
-        let key_bytes = if key_data.starts_with("base64:") {
+        let key_bytes = if let Some(b64) = key_data.strip_prefix("base64:") {
             use base64::{Engine as _, engine::general_purpose::STANDARD};
             STANDARD
-                .decode(&key_data[7..])
+                .decode(b64)
                 .map_err(|e| AuthencError::crypto(format!("Base64 decode error: {}", e)))?
         } else {
             let bytes = key_data.as_bytes().to_vec();

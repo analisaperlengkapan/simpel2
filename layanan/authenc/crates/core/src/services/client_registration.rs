@@ -548,18 +548,20 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         // Audit log
         db_ops::log_registration_audit(
             &self.db,
-            "REGISTER",
-            Some(stored_client.id),
-            Some(&stored_client.client_id),
-            self.realm_id,
-            None,
-            None,
-            None,
-            None,
-            true,
-            None,
-            None,
-            Some(serde_json::json!({"method": "dynamic_registration"})),
+            db_ops::RegistrationAuditEntry {
+                event_type: "REGISTER",
+                client_id: Some(stored_client.id),
+                client_identifier: Some(&stored_client.client_id),
+                realm_id: self.realm_id,
+                ip_address: None,
+                user_agent: None,
+                initial_access_token_id: None,
+                registration_access_token_id: None,
+                success: true,
+                error_code: None,
+                error_description: None,
+                metadata: Some(serde_json::json!({"method": "dynamic_registration"})),
+            },
         )
         .await?;
 
@@ -711,18 +713,20 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         // Audit log
         db_ops::log_registration_audit(
             &self.db,
-            "UPDATE",
-            Some(updated_client.id),
-            Some(&updated_client.client_id),
-            self.realm_id,
-            None,
-            None,
-            None,
-            None,
-            true,
-            None,
-            None,
-            Some(serde_json::json!({"method": "update"})),
+            db_ops::RegistrationAuditEntry {
+                event_type: "UPDATE",
+                client_id: Some(updated_client.id),
+                client_identifier: Some(&updated_client.client_id),
+                realm_id: self.realm_id,
+                ip_address: None,
+                user_agent: None,
+                initial_access_token_id: None,
+                registration_access_token_id: None,
+                success: true,
+                error_code: None,
+                error_description: None,
+                metadata: Some(serde_json::json!({"method": "update"})),
+            },
         )
         .await?;
 
@@ -756,18 +760,20 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         // Audit log
         db_ops::log_registration_audit(
             &self.db,
-            "DELETE",
-            None,
-            Some(client_id),
-            self.realm_id,
-            None,
-            None,
-            None,
-            None,
-            true,
-            None,
-            None,
-            Some(serde_json::json!({"method": "delete"})),
+            db_ops::RegistrationAuditEntry {
+                event_type: "DELETE",
+                client_id: None,
+                client_identifier: Some(client_id),
+                realm_id: self.realm_id,
+                ip_address: None,
+                user_agent: None,
+                initial_access_token_id: None,
+                registration_access_token_id: None,
+                success: true,
+                error_code: None,
+                error_description: None,
+                metadata: Some(serde_json::json!({"method": "delete"})),
+            },
         )
         .await?;
 
