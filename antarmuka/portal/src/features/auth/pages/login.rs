@@ -46,6 +46,10 @@ pub fn LoginPage(
     let (captcha_token, setcaptcha_token) = signal(None::<String>);
     let (_show_captcha, _set_show_captcha) = signal(true); // Always show CAPTCHA from start
     let (failed_attempts, set_failed_attempts) = signal(0u32);
+    // Bumped after a failed login so the CAPTCHA widget fetches a FRESH challenge:
+    // the server now redeems the solved challenge single-use (#49), so a retry must
+    // solve a new one rather than re-send a consumed token.
+    let (captcha_reset, set_captcha_reset) = signal(0u32);
 
     // WebAuthn / Passkey state
     let (passkey_loading, set_passkey_loading) = signal(false);
@@ -292,6 +296,7 @@ pub fn LoginPage(
                     set_error_message.set(msg);
                     set_is_loading.set(false);
                     setcaptcha_token.set(None); // Reset CAPTCHA on failure
+                    set_captcha_reset.update(|n| *n += 1); // fetch a fresh challenge (#49)
                 }
             }
         });
@@ -428,6 +433,7 @@ pub fn LoginPage(
                                 difficulty=3u8
                                 accessibility_enabled=true
                                 behavioral_analysis=true
+                                reset=captcha_reset
                                 class="captcha-login"
                             />
                         </div>
