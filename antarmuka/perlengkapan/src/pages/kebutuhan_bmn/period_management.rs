@@ -314,7 +314,7 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
                             .data
                             .satkers
                             .iter()
-                            .map(|s| s.ms_satker_id.clone())
+                            .map(|s| s.satker_id.clone())
                             .collect();
                         set_satker_ids.set(ids);
                     }

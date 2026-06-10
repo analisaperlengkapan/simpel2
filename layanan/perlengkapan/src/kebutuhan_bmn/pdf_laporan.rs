@@ -75,9 +75,9 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
     pdf.advance(7.0);
     let satker_label = analisis
         .satker
-        .nm_satker
+        .satker_nama
         .clone()
-        .unwrap_or_else(|| format!("Satker {}", analisis.satker.ms_satker_id));
+        .unwrap_or_else(|| format!("Satker {}", analisis.satker.satker_id));
     pdf.write_centered(&satker_label, SECTION_FONT, false);
     pdf.advance(10.0);
 
@@ -85,7 +85,7 @@ fn render_pdf(analisis: &AnalisisKelayakanResponse) -> AppResult<Vec<u8>> {
     pdf.write_text("IDENTITAS SATKER", SECTION_FONT, true, MARGIN_L);
     pdf.advance(7.0);
     let satker_info: Vec<(&str, String)> = vec![
-        ("Kode Satker", analisis.satker.ms_satker_id.clone()),
+        ("Kode Satker", analisis.satker.satker_id.clone()),
         ("Nama Satker", satker_label.clone()),
         ("Status", analisis.satker.status.label().to_string()),
         ("Prioritas", analisis.satker.prioritas.to_string()),

@@ -116,3 +116,21 @@ pub struct LastSyncInfo {
     pub total_aset: i64,
     pub source: String,
 }
+
+/// One selectable filter value plus how many assets carry it (for dropdowns).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FilterOption {
+    pub value: String,
+    pub count: i64,
+}
+
+/// Distinct values per filterable column, served to the FE so filter dropdowns
+/// are populated dynamically from real SIMAN data (jenis BMN, kategori, kondisi,
+/// satker) rather than hard-coded lists.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct BankAsetFilterOptions {
+    pub jenis: Vec<FilterOption>,
+    pub kategori: Vec<FilterOption>,
+    pub kondisi: Vec<FilterOption>,
+    pub satker: Vec<FilterOption>,
+}

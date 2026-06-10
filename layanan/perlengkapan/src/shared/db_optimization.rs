@@ -365,17 +365,11 @@ pub async fn add_essential_indexes(pool: &Pool) -> Result<(), AppError> {
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_pengajuan ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(pengajuan_id)",
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_user ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(user_id)",
         "CREATE INDEX IF NOT EXISTS idx_workflow_aktivitas_created ON perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas(created_at)",
-        // Integration schema indexes
-        "CREATE INDEX IF NOT EXISTS idx_siman_aset_satker ON integrasi.siman_aset_tanah(satker_id)",
-        "CREATE INDEX IF NOT EXISTS idx_siman_aset_kode ON integrasi.siman_aset_tanah(kode_barang)",
-        "CREATE INDEX IF NOT EXISTS idx_siman_aset_kondisi ON integrasi.siman_aset_tanah(kondisi)",
-        "CREATE INDEX IF NOT EXISTS idx_siman_aset_synced ON integrasi.siman_aset_tanah(synced_at)",
-        // Full-text search indexes using pg_trgm
+        // NOTE: integrasi.* tables (incl. the unified integrasi.siman_aset) are
+        // OWNED by layanan-integrasi (SSoT) and indexed by ITS migrations — do not
+        // create indexes on them from perlengkapan (cross-service write).
+        // Full-text search extension (indexes themselves live in the migrations).
         "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-        "CREATE INDEX IF NOT EXISTS idx_kebutuhan_bmn_nama_trgm ON perlengkapan.kebutuhan_bmn USING gin(nama_barang gin_trgm_ops)",
-        "CREATE INDEX IF NOT EXISTS idx_pakaian_dinas_nama_trgm ON perlengkapan.pakaian_dinas USING gin(pegawai_nama gin_trgm_ops)",
-        // JSONB indexes for raw_data
-        "CREATE INDEX IF NOT EXISTS idx_siman_aset_raw_data ON integrasi.siman_aset_tanah USING gin(raw_data)",
     ];
 
     for index_sql in indexes {

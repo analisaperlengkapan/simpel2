@@ -470,10 +470,10 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                         <div class="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-center">
                             <div>
                                 <h2 class="text-xl font-bold text-slate-100">
-                                    {satker.nm_satker.clone().unwrap_or_else(|| satker.ms_satker_id.clone())}
+                                    {satker.satker_nama.clone().unwrap_or_else(|| satker.satker_id.clone())}
                                 </h2>
                                 <p class="mt-1 text-sm text-slate-400">
-                                    "Kode Satker: " <span class="font-mono text-slate-300">{satker.ms_satker_id.clone()}</span>
+                                    "Kode Satker: " <span class="font-mono text-slate-300">{satker.satker_id.clone()}</span>
                                 </p>
                             </div>
                             <span class=format!("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium {}", badge_class)>

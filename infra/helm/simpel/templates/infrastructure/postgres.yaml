@@ -103,13 +103,9 @@ spec:
                   optional: true
             - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
             {{- if $cfg.init.enabled }}
-            - name: AUTHENC_DB_PASSWORD
-              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
+            # Only secreton keeps a dedicated DB role (F5-B topology); the
+            # dbsimpelv2 trio connects as the POSTGRES_USER superuser.
             - name: SECRETON_DB_PASSWORD
-              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
-            - name: PERLENGKAPAN_DB_PASSWORD
-              valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
-            - name: INTEGRASI_DB_PASSWORD
               valueFrom: { secretKeyRef: { name: postgres-credentials, key: password, optional: true } }
             {{- end }}
           volumeMounts:

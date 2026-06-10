@@ -90,14 +90,14 @@ pub async fn fetch_gap_analysis(
             k.jumlah_kebutuhan AS standard_quantity,
             COALESCE(
                 (SELECT COUNT(*)
-                 FROM integrasi.siman_aset_tanah sa
+                 FROM integrasi.siman_aset sa
                  WHERE sa.kode_barang = k.kode_barang
                    AND sa.kondisi = 'BAIK'),
                 0
             ) AS existing_good_quantity,
             k.jumlah_kebutuhan - COALESCE(
                 (SELECT COUNT(*)
-                 FROM integrasi.siman_aset_tanah sa
+                 FROM integrasi.siman_aset sa
                  WHERE sa.kode_barang = k.kode_barang
                    AND sa.kondisi = 'BAIK'),
                 0
@@ -236,7 +236,7 @@ pub async fn fetch_asset_utilization(db_pool: &Pool) -> Result<AssetUtilization,
         SELECT
             COUNT(*) as total_assets,
             SUM(CASE WHEN kondisi = 'BAIK' THEN 1 ELSE 0 END) as assets_in_good_condition
-        FROM integrasi.siman_aset_tanah
+        FROM integrasi.siman_aset
     "#;
 
     let row = client.query_one(query, &[]).await?;

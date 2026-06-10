@@ -59,6 +59,13 @@ wiremock = { workspace = true }
 tonic-build = { workspace = true }
 tonic-prost-build = { workspace = true }
 
+# Out-of-band schema migration runner (no grpc feature needed). Run by the
+# docker-compose `integrasi-migrate` service and the Helm pre-upgrade hook Job
+# before any consumer boots. See src/bin/migrate.rs.
+[[bin]]
+name = "integrasi-migrate"
+path = "src/bin/migrate.rs"
+
 [[bin]]
 name = "scheduler"
 path = "src/bin/scheduler.rs"

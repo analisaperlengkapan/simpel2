@@ -122,6 +122,7 @@ struct ApiResponseWrap<T> {
 pub struct ListFilter {
     pub page: i32,
     pub per_page: i32,
+    pub jenis: Option<String>,
     pub kategori: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,
@@ -150,6 +151,11 @@ pub async fn fetch_list(filter: &ListFilter) -> AppResult<PaginatedResponse<Bank
     };
     push_query(&mut url, "page", &page.to_string());
     push_query(&mut url, "per_page", &per_page.to_string());
+    if let Some(v) = &filter.jenis {
+        if !v.is_empty() {
+            push_query(&mut url, "jenis", v);
+        }
+    }
     if let Some(v) = &filter.kategori {
         if !v.is_empty() {
             push_query(&mut url, "kategori", v);
@@ -257,6 +263,31 @@ pub async fn fetch_sebaran() -> AppResult<BankAsetSebaran> {
 pub async fn fetch_last_sync() -> AppResult<LastSyncInfo> {
     let url = format!("{API_BASE}/bank-aset/last-sync");
     let resp: ApiResponseWrap<LastSyncInfo> = api_get(&url).await?;
+    if !resp.success {
+        return Err(AppError::server(resp.message));
+    }
+    Ok(resp.data)
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct FilterOption {
+    pub value: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Deserialize, Default)]
+pub struct BankAsetFilterOptions {
+    pub jenis: Vec<FilterOption>,
+    pub kategori: Vec<FilterOption>,
+    pub kondisi: Vec<FilterOption>,
+    pub satker: Vec<FilterOption>,
+}
+
+/// Distinct filter values (jenis BMN, kategori, kondisi, satker) for populating
+/// the filter dropdowns dynamically from real SIMAN data.
+pub async fn fetch_filter_options() -> AppResult<BankAsetFilterOptions> {
+    let url = format!("{API_BASE}/bank-aset/filter-options");
+    let resp: ApiResponseWrap<BankAsetFilterOptions> = api_get(&url).await?;
     if !resp.success {
         return Err(AppError::server(resp.message));
     }

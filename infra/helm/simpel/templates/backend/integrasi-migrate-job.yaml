@@ -1,0 +1,80 @@
+{{- /*
+  integrasi schema migration — Helm pre-install/pre-upgrade hook Job.
+
+  integrasi does NOT migrate on app startup; historically its tables were created
+  ad-hoc at sync time, so consumers reading `integrasi.*` cross-schema before any
+  sync ran (perlengkapan bank_aset + its dashboard views) found no tables. This
+  hook runs the `integrasi-migrate` binary (same image as the layanan-integrasi
+  Deployment) BEFORE any workload rolls. If it fails, the install/upgrade fails
+  (verify-before-bless). Mirrors the docker-compose `integrasi-migrate` service.
+
+  Hook-weight -6 → runs before authenc-migrate (-5). Bring-up order:
+  integrasi-migrate → authenc-migrate → perlengkapan.
+
+  Topology (F5-B): targets the shared dbsimpelv2 (`url` secret key). authenc +
+  integrasi + perlengkapan all share dbsimpelv2, each in its own schema, because
+  perlengkapan reads `integrasi.*` / `authenc.*` cross-schema (JOINs + an FK) and
+  cross-schema only resolves within one database. secreton + simpelv1 stay
+  isolated on their own databases.
+
+  Gate: .Values.layananIntegrasi.enabled and .Values.layananIntegrasi.migrationJob.enabled
+  (default true when layananIntegrasi is enabled).
+*/ -}}
+{{- if and .Values.layananIntegrasi.enabled (ne .Values.layananIntegrasi.migrationJob.enabled false) }}
+{{- $ctx := . -}}
+{{- $values := .Values.layananIntegrasi -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "simpel.fullname" . }}-integrasi-migrate
+  namespace: {{ include "simpel.namespace" . }}
+  labels:
+    {{- include "simpel.componentLabels" (dict "top" $ctx "name" "integrasi-migrate" "component" "backend") | nindent 4 }}
+  annotations:
+    # Run before workloads on both install and upgrade; clean up old hook Job
+    # first, and remove on success (keep failed Jobs for debugging).
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-6"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  # Migrations can take a while on a cold/large DB; give the Job room.
+  activeDeadlineSeconds: 1800
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "simpel.componentLabels" (dict "top" $ctx "name" "integrasi-migrate" "component" "backend") | nindent 8 }}
+      annotations:
+        # No Istio sidecar — a sidecar would never exit and the Job would hang.
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      {{- include "simpel.imagePullSecrets" $ctx | nindent 6 }}
+      {{- with (include "simpel.nodeSelector" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- with (include "simpel.tolerations" $ctx) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      {{- include "simpel.podSecurityContext" $values | nindent 6 }}
+      containers:
+        - name: integrasi-migrate
+          image: {{ include "simpel.image" (dict "top" $ctx "spec" $values.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" $ctx) $values.image.pullPolicy }}
+          command: ["./integrasi-migrate"]
+          {{- include "simpel.containerSecurityContext" $values | nindent 10 }}
+          env:
+            - name: RUST_LOG
+              value: "info"
+            # Same source as the layanan-integrasi Deployment (values.yaml):
+            # shared dbsimpelv2 (F5-B topology).
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: url
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: "1",  memory: 512Mi }
+{{- end }}

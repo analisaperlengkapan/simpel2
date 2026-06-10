@@ -37,7 +37,7 @@ pub struct PengajuanSummary {
 pub struct SatkerDetail {
     pub id: Uuid,
     pub pengajuan_id: Uuid,
-    pub ms_satker_id: String,
+    pub satker_id: String,
     pub status_kode: i32,
 }
 

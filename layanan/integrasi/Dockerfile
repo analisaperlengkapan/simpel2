@@ -21,7 +21,10 @@ COPY . .
 RUN sed -i '/^members = \[/,/^\]/c\members = [\n    "lib/core", "lib/backend", "lib/crypto",\n    "lib/perlengkapan",\n    "layanan/integrasi",\n]' Cargo.toml && \
     sed -i '/^default-members = \[/,/^\]/c\default-members = [\n    "layanan/integrasi",\n]' Cargo.toml
 
-RUN cargo build --release -p layanan-integrasi --features grpc --bin layanan-integrasi-server
+# Build the gRPC server plus the out-of-band schema migration runner. The
+# migrate binary doesn't need the grpc feature but builds fine under it.
+RUN cargo build --release -p layanan-integrasi --features grpc \
+    --bin layanan-integrasi-server --bin integrasi-migrate
 
 # ============================================
 # Runtime stage
@@ -33,6 +36,7 @@ WORKDIR /usr/app
 RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/src/app/target/release/layanan-integrasi-server /usr/app/layanan-integrasi
+COPY --from=builder /usr/src/app/target/release/integrasi-migrate /usr/app/integrasi-migrate
 
 RUN mkdir -p output
 

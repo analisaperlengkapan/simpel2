@@ -191,7 +191,7 @@ impl PemakaianBmnRepository {
         // Total BMN count (from SIMAN integration)
         let total_bmn_query = r#"
             SELECT COUNT(DISTINCT nup) as total
-            FROM integrasi.siman_aset_tanah
+            FROM integrasi.siman_aset
             WHERE kondisi = 'BAIK'
         "#;
 
@@ -232,7 +232,7 @@ impl PemakaianBmnRepository {
                         ELSE 'LAINNYA'
                     END as jenis_bmn,
                     COUNT(DISTINCT nup) as total_bmn
-                FROM integrasi.siman_aset_tanah
+                FROM integrasi.siman_aset
                 WHERE kondisi = 'BAIK'
                 GROUP BY jenis_bmn
             ),
@@ -322,7 +322,7 @@ impl PemakaianBmnRepository {
                  WHERE bmn_nup = s.nup) as last_used_date,
                 (CURRENT_DATE - (SELECT MAX(tanggal_selesai) FROM perlengkapan.izin_pemakaian_bmn
                  WHERE bmn_nup = s.nup)) as days_since_last_use
-            FROM integrasi.siman_aset_tanah s
+            FROM integrasi.siman_aset s
             WHERE s.kondisi = 'BAIK'
             AND s.nup NOT IN (
                 SELECT DISTINCT bmn_nup FROM perlengkapan.izin_pemakaian_bmn
@@ -455,7 +455,7 @@ impl PemakaianBmnRepository {
     ) -> Result<i64, tokio_postgres::Error> {
         let total: i64 = client
             .query_one(
-                "SELECT COUNT(DISTINCT nup) AS c FROM integrasi.siman_aset_tanah WHERE kondisi = 'BAIK'",
+                "SELECT COUNT(DISTINCT nup) AS c FROM integrasi.siman_aset WHERE kondisi = 'BAIK'",
                 &[],
             )
             .await?

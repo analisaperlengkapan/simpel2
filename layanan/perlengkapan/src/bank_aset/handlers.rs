@@ -20,6 +20,7 @@ pub struct ListQuery {
     pub page: i32,
     #[serde(default = "default_per_page")]
     pub per_page: i32,
+    pub jenis: Option<String>,
     pub kategori: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,
@@ -54,6 +55,7 @@ pub async fn list_bank_aset(
     let filter = ListFilter {
         page: query.page,
         per_page: query.per_page,
+        jenis: query.jenis,
         kategori: query.kategori,
         kondisi: query.kondisi,
         satker: query.satker,
@@ -153,5 +155,19 @@ pub async fn get_bank_aset_last_sync(
     Ok(Json(ApiResponse::success(
         data,
         "Last sync info retrieved successfully".to_string(),
+    )))
+}
+
+/// Distinct filter values (jenis BMN, kategori, kondisi, satker) for populating
+/// the FE filter dropdowns dynamically from real data.
+pub async fn get_bank_aset_filter_options(
+    State(state): State<AppState>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<BankAsetFilterOptions>>, AppError> {
+    let repo = BankAsetRepository::new(state.db_pool.clone());
+    let data = repo.filter_options().await?;
+    Ok(Json(ApiResponse::success(
+        data,
+        "Filter options retrieved successfully".to_string(),
     )))
 }

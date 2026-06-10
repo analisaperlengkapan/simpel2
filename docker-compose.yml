@@ -112,10 +112,35 @@ services:
     networks:
       - simpel-network
 
+  # One-shot schema migration for the `integrasi.*` schema. integrasi has no
+  # startup migration path — its tables were historically created ad-hoc at sync
+  # time, so consumers that read `integrasi.*` cross-schema before any sync ran
+  # (perlengkapan bank_aset + its dashboard views) found no tables. This runs the
+  # integrasi-migrate binary, then exits. It targets dbsimpelv2 (NOT a separate
+  # database) because perlengkapan reads `integrasi.siman_aset` cross-schema and
+  # cross-schema only resolves within one database. Mirrors the Helm pre-upgrade
+  # hook Job. Bring-up order: integrasi-migrate → authenc-migrate → perlengkapan.
+  integrasi-migrate:
+    image: simpel2-integrasi:local
+    container_name: integrasi-migrate
+    command: ["./integrasi-migrate"]
+    restart: "no"
+    environment:
+      RUST_LOG: info
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - simpel-network
+
   layanan-integrasi:
     build:
       context: .
       dockerfile: layanan/integrasi/Dockerfile
+    # Shared with integrasi-migrate so the image (incl. the migrate binary) is
+    # built once; integrasi-migrate references this same tag.
+    image: simpel2-integrasi:local
     container_name: layanan-integrasi
     ports:
       - "50052:50052"
@@ -125,12 +150,17 @@ services:
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
-      DB_NAME: dbintegration
+      # Shares dbsimpelv2 so its sync writes land where consumers read
+      # `integrasi.*` cross-schema (same DB as authenc + perlengkapan).
+      DB_NAME: dbsimpelv2
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
       AUTHENC_GRPC_URL: authenc:50051
       SECRETON_GRPC_URL: secreton:50053
     depends_on:
       postgres:
         condition: service_healthy
+      integrasi-migrate:
+        condition: service_completed_successfully
       authenc:
         condition: service_started
       secreton:
@@ -162,6 +192,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      # perlengkapan self-migrates (refinery) on boot: its views read
+      # `integrasi.mysimkari_satker` and V010 FKs `authenc.users`, so both
+      # schemas must exist first.
+      integrasi-migrate:
+        condition: service_completed_successfully
+      authenc-migrate:
+        condition: service_completed_successfully
       authenc:
         condition: service_started
     networks:

@@ -55,7 +55,7 @@ impl MappingRepository {
         let count_query = format!(
             r#"
             SELECT COUNT(DISTINCT (sa.kode_barang, sa.nama_barang, sa.satker_id))
-            FROM integrasi.siman_aset_tanah sa
+            FROM integrasi.siman_aset sa
             LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
             WHERE {}
             "#,
@@ -78,7 +78,7 @@ impl MappingRepository {
                 sa.nama_barang as nama_lama,
                 sa.satker_id,
                 COUNT(*) as jumlah_aset
-            FROM integrasi.siman_aset_tanah sa
+            FROM integrasi.siman_aset sa
             LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
             WHERE {}
             GROUP BY sa.kode_barang, sa.nama_barang, sa.satker_id
@@ -142,7 +142,7 @@ impl MappingRepository {
                     r#"
                     SELECT
                         mb.id, mb.kode, mb.nama, mb.kategori,
-                        (SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
+                        (SELECT COUNT(*) FROM integrasi.siman_aset sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
                     FROM perlengkapan.ms_barang mb
                     WHERE mb.kode ILIKE $1 OR mb.nama ILIKE $2
                     ORDER BY mb.kode
@@ -175,7 +175,7 @@ impl MappingRepository {
                     r#"
                     SELECT
                         mb.id, mb.kode, mb.nama, mb.kategori,
-                        (SELECT COUNT(*) FROM integrasi.siman_aset_tanah sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
+                        (SELECT COUNT(*) FROM integrasi.siman_aset sa WHERE sa.kode_barang = mb.kode) as jumlah_aset
                     FROM perlengkapan.ms_barang mb
                     ORDER BY mb.kode
                     LIMIT $1 OFFSET $2
@@ -241,7 +241,7 @@ impl MappingRepository {
                 r#"
                 WITH non_standard AS (
                     SELECT COUNT(DISTINCT sa.kode_barang) as total
-                    FROM integrasi.siman_aset_tanah sa
+                    FROM integrasi.siman_aset sa
                     LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
                     WHERE mb.id IS NULL
                 ),
@@ -285,7 +285,7 @@ impl MappingRepository {
                     mk.status_mapping,
                     mb2.kode as kode_baru,
                     mb2.nama as nama_baru
-                FROM integrasi.siman_aset_tanah sa
+                FROM integrasi.siman_aset sa
                 LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
                 LEFT JOIN perlengkapan.mapping_kodefikasi mk ON sa.kode_barang = mk.kode_barang_lama
                     AND sa.satker_id = mk.satker_id
@@ -335,7 +335,7 @@ impl MappingRepository {
                 COUNT(DISTINCT CASE WHEN mb.id IS NULL THEN sa.kode_barang END) as total_non_standard,
                 COUNT(DISTINCT CASE WHEN mk.status_mapping = 'VERIFIED' THEN mk.id END) as total_mapped
             FROM authenc.satkers s
-            LEFT JOIN integrasi.siman_aset_tanah sa ON s.id = sa.satker_id
+            LEFT JOIN integrasi.siman_aset sa ON s.id = sa.satker_id
             LEFT JOIN perlengkapan.ms_barang mb ON sa.kode_barang = mb.kode
             LEFT JOIN perlengkapan.mapping_kodefikasi mk ON sa.kode_barang = mk.kode_barang_lama
                 AND sa.satker_id = mk.satker_id
