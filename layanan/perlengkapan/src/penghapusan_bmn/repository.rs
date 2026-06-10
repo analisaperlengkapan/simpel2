@@ -253,11 +253,17 @@ impl PenghapusanBmnRepository {
             // canonical state names stored in the `status` column, then match
             // with ANY(...). Without this the FE reviewer/SK queues compared a
             // raw alias/comma string against a single canonical value → 0 rows.
+            let has_tokens = status.split(',').any(|s| !s.trim().is_empty());
             let normalized = PenghapusanBmnStatus::normalize_status_filter(status);
             if !normalized.is_empty() {
                 where_clauses.push(format!("status = ANY(${})", param_count));
                 params.push(Box::new(normalized));
                 param_count += 1;
+            } else if has_tokens {
+                // A status filter was requested but no token resolved to a real
+                // state → match nothing, rather than silently widening to all
+                // rows. (A blank `?status=` falls through as a no-op = all.)
+                where_clauses.push("FALSE".to_string());
             }
         }
 
