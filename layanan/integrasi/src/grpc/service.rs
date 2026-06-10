@@ -556,48 +556,84 @@ impl IntegrasiService for IntegrasiServiceImpl {
             req.kode_satker, page
         );
 
-        // Count total
-        let count_query = "SELECT COUNT(*) FROM integrasi.mysimkari_satker";
-        let total_items: i64 = match self.state.db_client.query_one(count_query, &[]).await {
-            Ok(row) => row.try_get(0).unwrap_or(0),
-            Err(e) => {
-                error!("Failed to count mysimkari_satker: {}", e);
-                0
+        // Optional exact-match filter on kode_satker (empty = no filter).
+        let kode_filter = req.kode_satker.trim().to_string();
+        let has_filter = !kode_filter.is_empty();
+
+        // Count total (honoring the filter so pagination stays consistent)
+        let total_items: i64 = if has_filter {
+            let count_query =
+                "SELECT COUNT(*) FROM integrasi.mysimkari_satker WHERE kode_satker = $1";
+            match self
+                .state
+                .db_client
+                .query_one(count_query, &[&kode_filter])
+                .await
+            {
+                Ok(row) => row.try_get(0).unwrap_or(0),
+                Err(e) => {
+                    error!("Failed to count mysimkari_satker: {}", e);
+                    0
+                }
+            }
+        } else {
+            let count_query = "SELECT COUNT(*) FROM integrasi.mysimkari_satker";
+            match self.state.db_client.query_one(count_query, &[]).await {
+                Ok(row) => row.try_get(0).unwrap_or(0),
+                Err(e) => {
+                    error!("Failed to count mysimkari_satker: {}", e);
+                    0
+                }
             }
         };
 
-        // Query data
-        let query = r#"
-            SELECT kode_satker, nama_satker, alamat, telepon, email,
-                   kode_wilayah, nama_wilayah, jumlah_pegawai
+        // Query data — REAL columns (table has tipe_satker/parent_id/wilayah/provinsi/
+        // alamat_satker/telp_satker/website_satker, NOT alamat/email/kode_wilayah/etc).
+        let base_select = r#"
+            SELECT api_id, kode_satker, nama_satker, tipe_satker, parent_id, wilayah,
+                   provinsi, alamat_satker, telp_satker, website_satker, kategori_satker
             FROM integrasi.mysimkari_satker
-            ORDER BY kode_satker
-            LIMIT $1 OFFSET $2
         "#;
+        fn map_row(row: &tokio_postgres::Row) -> MysimkariSatker {
+            MysimkariSatker {
+                kode_satker: row.try_get("kode_satker").unwrap_or_default(),
+                nama_satker: row.try_get("nama_satker").unwrap_or_default(),
+                tipe_satker: row.try_get("tipe_satker").unwrap_or_default(),
+                parent_id: row.try_get("parent_id").unwrap_or_default(),
+                wilayah: row.try_get("wilayah").unwrap_or_default(),
+                provinsi: row.try_get("provinsi").unwrap_or_default(),
+                alamat: row.try_get("alamat_satker").unwrap_or_default(),
+                telepon: row.try_get("telp_satker").unwrap_or_default(),
+                website: row.try_get("website_satker").unwrap_or_default(),
+                kategori_satker: row.try_get("kategori_satker").unwrap_or_default(),
+                // upstream id; parent_id of OTHER rows references this (adjacency list)
+                api_id: row.try_get("api_id").unwrap_or_default(),
+                extra_fields: HashMap::new(),
+            }
+        }
 
-        let items: Vec<MysimkariSatker> = match self
-            .state
-            .db_client
-            .query(query, &[&(per_page as i64), &offset])
-            .await
-        {
-            Ok(rows) => rows
-                .iter()
-                .map(|row| MysimkariSatker {
-                    kode_satker: row.try_get("kode_satker").unwrap_or_default(),
-                    nama_satker: row.try_get("nama_satker").unwrap_or_default(),
-                    alamat: row.try_get("alamat").unwrap_or_default(),
-                    telepon: row.try_get("telepon").unwrap_or_default(),
-                    email: row.try_get("email").unwrap_or_default(),
-                    kode_wilayah: row.try_get("kode_wilayah").unwrap_or_default(),
-                    nama_wilayah: row.try_get("nama_wilayah").unwrap_or_default(),
-                    jumlah_pegawai: row.try_get::<_, i32>("jumlah_pegawai").unwrap_or(0),
-                    extra_fields: HashMap::new(),
-                })
-                .collect(),
-            Err(e) => {
-                error!("Failed to query mysimkari_satker: {}", e);
-                Vec::new()
+        let items: Vec<MysimkariSatker> = if has_filter {
+            let query = format!("{base_select} WHERE kode_satker = $1 ORDER BY kode_satker");
+            match self.state.db_client.query(&query, &[&kode_filter]).await {
+                Ok(rows) => rows.iter().map(map_row).collect(),
+                Err(e) => {
+                    error!("Failed to query mysimkari_satker: {}", e);
+                    Vec::new()
+                }
+            }
+        } else {
+            let query = format!("{base_select} ORDER BY kode_satker LIMIT $1 OFFSET $2");
+            match self
+                .state
+                .db_client
+                .query(&query, &[&(per_page as i64), &offset])
+                .await
+            {
+                Ok(rows) => rows.iter().map(map_row).collect(),
+                Err(e) => {
+                    error!("Failed to query mysimkari_satker: {}", e);
+                    Vec::new()
+                }
             }
         };
 

@@ -3,7 +3,6 @@
 use axum::{
     Json,
     extract::{Path, Query, State},
-    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -23,28 +22,10 @@ pub enum SatkerType {
     Cabang,
 }
 
-/// Create satker request
-#[derive(Debug, Deserialize)]
-pub struct CreateSatkerRequest {
-    pub code: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub parent_code: Option<String>,
-    pub level: i32,
-    pub satker_type: SatkerType,
-    pub attributes: Option<serde_json::Value>,
-}
-
-/// Update satker request
-#[derive(Debug, Deserialize)]
-pub struct UpdateSatkerRequest {
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub parent_code: Option<String>,
-    pub level: Option<i32>,
-    pub satker_type: Option<SatkerType>,
-    pub attributes: Option<serde_json::Value>,
-}
+// NOTE (#42): satker IDENTITY is owned by integrasi/MySIMKARI (SoT). authenc no
+// longer creates/updates/deletes satker master data, so Create/UpdateSatkerRequest
+// and the POST/PUT handlers were removed. Reads below serve the integrasi
+// read-model; RBAC assignment endpoints remain.
 
 /// Satker response
 #[derive(Debug, Serialize)]
@@ -115,15 +96,6 @@ pub struct CrossSatkerValidation {
 // ============================================================
 // Helper Mapping Functions
 // ============================================================
-
-fn map_api_type_to_domain(api_type: SatkerType) -> authenc_types::domain::satker::SatkerType {
-    match api_type {
-        SatkerType::Kejaksaan => authenc_types::domain::satker::SatkerType::Pusat,
-        SatkerType::Kejati => authenc_types::domain::satker::SatkerType::KejaksaanTinggi,
-        SatkerType::Kejari => authenc_types::domain::satker::SatkerType::KejaksaanNegeri,
-        SatkerType::Cabang => authenc_types::domain::satker::SatkerType::Cabang,
-    }
-}
 
 fn map_domain_type_to_api(domain_type: authenc_types::domain::satker::SatkerType) -> SatkerType {
     match domain_type {
@@ -199,53 +171,6 @@ pub async fn list_satkers(
 
     let response = satkers.into_iter().map(map_domain_to_response).collect();
     Ok(Json(response))
-}
-
-/// POST /api/v1/iam/satker - Create a new satker
-pub async fn create_satker(
-    State(state): State<Arc<IamApiState>>,
-    Json(request): Json<CreateSatkerRequest>,
-) -> ApiResult<(StatusCode, Json<SatkerResponse>)> {
-    let domain_type = map_api_type_to_domain(request.satker_type);
-    let satker = state
-        .satker_service
-        .create_satker(
-            request.code,
-            request.name,
-            request.description,
-            request.parent_code,
-            request.level,
-            domain_type,
-            request.attributes,
-        )
-        .await
-        .map_err(ApiError)?;
-
-    Ok((StatusCode::CREATED, Json(map_domain_to_response(satker))))
-}
-
-/// PUT /api/v1/iam/satker/{id} - Update a satker
-pub async fn update_satker(
-    State(state): State<Arc<IamApiState>>,
-    Path(code): Path<String>,
-    Json(request): Json<UpdateSatkerRequest>,
-) -> ApiResult<Json<SatkerResponse>> {
-    let domain_type = request.satker_type.map(map_api_type_to_domain);
-    let satker = state
-        .satker_service
-        .update_satker(
-            &code,
-            request.name,
-            request.description,
-            request.parent_code,
-            request.level,
-            domain_type,
-            request.attributes,
-        )
-        .await
-        .map_err(ApiError)?;
-
-    Ok(Json(map_domain_to_response(satker)))
 }
 
 /// GET /api/v1/iam/satker/{id}/hierarchy - Get satker hierarchy information

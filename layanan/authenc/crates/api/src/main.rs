@@ -456,17 +456,36 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Create Satker management and authorization services
-    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new(
-        (*db).clone(),
-    ));
-    let all_satkers = match db.get_all_satkers().await {
-        Ok(s) => s,
-        Err(e) => {
-            warn!("Failed to retrieve satkers from database: {}", e);
-            Vec::new()
+    // Satker identity = integrasi/MySIMKARI (SoT, #42). Build the read-model once
+    // and feed BOTH the read view and the RBAC hierarchy from it; fall back to the
+    // local DB cache only if integrasi is unreachable at startup (resilience, not
+    // a second master).
+    let all_satkers = match &state.integrasi_client {
+        Some(client) => match client.get_satker_readmodel().await {
+            Ok(s) if !s.is_empty() => {
+                info!(
+                    "Loaded {} satkers from integrasi read-model (identity SoT)",
+                    s.len()
+                );
+                s
+            }
+            Ok(_) => {
+                warn!("integrasi returned 0 satkers; falling back to local DB cache");
+                db.get_all_satkers().await.unwrap_or_default()
+            }
+            Err(e) => {
+                warn!("integrasi satker read-model failed ({e}); falling back to local DB cache");
+                db.get_all_satkers().await.unwrap_or_default()
+            }
+        },
+        None => {
+            warn!("No integrasi client configured; using local DB satker cache");
+            db.get_all_satkers().await.unwrap_or_default()
         }
     };
+    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new(
+        all_satkers.clone(),
+    ));
     let satker_auth_service = Arc::new(authenc_core::services::SatkerAuthorizationService::new(
         all_satkers,
     ));
