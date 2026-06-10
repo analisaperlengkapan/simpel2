@@ -131,6 +131,10 @@ impl MonsaktiClient {
     }
 
     /// Clone untuk parallel processing - Token tidak di-share, DB client shared via Arc
+    // Inherent `clone` intentionally kept as a named method: db_client is shared
+    // via Arc while tokens are deep-cloned, so the sharing semantics are explicit
+    // at call sites rather than hidden behind a derived `Clone`.
+    #[allow(clippy::should_implement_trait)]
     pub fn clone(&self) -> Self {
         Self {
             client: self.client.clone(),
@@ -646,6 +650,9 @@ impl MonsaktiClient {
     }
 
     /// Helper: Log API call ke tabel api_log (fire-and-forget, tidak mengganggu flow utama)
+    // Flat audit-log helper: each arg maps 1:1 to an api_log column; bundling them
+    // into a struct would only add an indirection with no call-site benefit.
+    #[allow(clippy::too_many_arguments)]
     async fn log_api_call(
         &self,
         module: &str,
@@ -874,8 +881,10 @@ impl MonsaktiClient {
     }
 
     /// Menentukan token key yang tepat berdasarkan endpoint MySIMKARI.
+    ///
     /// - Endpoint pegawai (`pegawai-satker`, `pegawai`, `pegawai-aktif`, `pegawai-mutasi`) → "MYSIMKARI_PEGAWAI"
     /// - Endpoint lainnya (`get-satker`, dll) → "MYSIMKARI"
+    ///
     /// Jika token MYSIMKARI_PEGAWAI belum dikonfigurasi, fallback ke "MYSIMKARI".
     fn mysimkari_token_key(endpoint: &str) -> &'static str {
         match endpoint {

@@ -60,7 +60,7 @@ impl GapAnalysisResult {
     }
 }
 
-/// Gap analyzer with caching support
+// Gap analyzer with caching support
 
 /// Input for gap analysis calculation
 #[derive(Debug, Clone)]
