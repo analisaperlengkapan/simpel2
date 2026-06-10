@@ -108,6 +108,25 @@ impl Database {
         Ok(())
     }
 
+    /// Atomically consume a SOLVED, unexpired CAPTCHA challenge for login (#49).
+    ///
+    /// Single-use: the `DELETE ... RETURNING` lets exactly one caller win, so a
+    /// solved challenge cannot be replayed for a second login. Returns `true`
+    /// iff a fresh (unexpired), already-solved challenge was consumed. Freshness
+    /// is bounded by the challenge's own `expires_at` (≤5 min after creation).
+    pub async fn consume_solved_captcha(&self, id: Uuid) -> Result<bool> {
+        let client = self.get_connection().await?;
+
+        let query = r#"
+            DELETE FROM captcha_challenges
+            WHERE id = $1 AND solved = true AND expires_at > NOW()
+            RETURNING id
+        "#;
+
+        let row = client.query_opt(query, &[&id]).await?;
+        Ok(row.is_some())
+    }
+
     /// Record a CAPTCHA validation attempt using the stored procedure
     pub async fn record_captcha_validation_attempt(
         &self,

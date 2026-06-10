@@ -18,7 +18,6 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use uuid::Uuid;
@@ -181,11 +180,14 @@ pub async fn captcha_verify_handler(
         .await
     {
         Ok(true) => {
-            // Generate a verification token
-            let token = format!("captcha_{}_{}", Uuid::new_v4(), Utc::now().timestamp());
+            // The solved challenge id IS the single-use login token (#49): the
+            // login handler redeems it via `consume_solved_captcha`, which deletes
+            // the row so it cannot be replayed. (Previously a cosmetic random
+            // token was returned that the server never validated — captcha was not
+            // actually enforced on login.)
             Ok(Json(VerifyResponse {
                 success: true,
-                token: Some(token),
+                token: Some(req.challenge_id.clone()),
                 message: "Verifikasi berhasil".to_string(),
                 risk_score: Some(0.1),
             }))

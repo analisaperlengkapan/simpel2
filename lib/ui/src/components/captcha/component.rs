@@ -34,6 +34,12 @@ pub fn Captcha(
     /// Enable behavioral analysis
     #[prop(default = true)]
     behavioral_analysis: bool,
+    /// External reset trigger: bump this counter (e.g. after a failed login that
+    /// consumed the solved challenge, #49) to fetch a FRESH challenge and clear
+    /// the previous answer. Without it the widget would keep showing an
+    /// already-consumed/expired challenge.
+    #[prop(optional, into)]
+    reset: Option<Signal<u32>>,
 ) -> impl IntoView {
     let (state, set_state) = signal(CaptchaState::default());
     let (challenge_data, set_challenge_data) = signal(None::<ChallengeResponse>);
@@ -192,8 +198,17 @@ pub fn Captcha(
     };
 
     Effect::new(move |_| {
-        // Track refresh trigger
+        // Track refresh trigger (internal: wrong-answer refresh) and the optional
+        // external reset signal (parent-driven, e.g. after a failed login that
+        // consumed the solved challenge, #49).
         let _ = refresh_trigger.get();
+        if let Some(reset) = reset {
+            let _ = reset.get();
+        }
+
+        // A fresh challenge invalidates any previously typed answer / feedback.
+        set_input_value.set(String::new());
+        set_validation_status.set(super::validation_feedback::ValidationStatus::Idle);
 
         set_state.update(|s| {
             s.loading = true;

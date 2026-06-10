@@ -23,6 +23,11 @@ pub struct LoginRequest {
     pub password: String,
     /// Optional realm ID (defaults to master realm)
     pub realm_id: Option<Uuid>,
+    /// Single-use CAPTCHA token (the solved challenge id returned by
+    /// `POST /api/captcha/verify`). Required once the username crosses the
+    /// brute-force CAPTCHA threshold (#49); ignored otherwise.
+    #[serde(default)]
+    pub captcha_token: Option<String>,
 }
 
 /// Login response payload
@@ -279,6 +284,48 @@ pub async fn login_handler(
         AuthFailureReason, AuthResult, Credentials, RealmId, domain::Realm,
         traits::AuthenticationService,
     };
+
+    // CAPTCHA gate (#49): once brute-force protection flags this username
+    // (>= captcha_threshold failures within the window), a solved CAPTCHA is
+    // MANDATORY before we even attempt authentication. The `captcha_token` is the
+    // id of a challenge already solved via `POST /captcha/verify`; we redeem it
+    // server-side (single-use, bounded by the challenge's expiry) — never trusting
+    // a client-minted opaque token. Same protector instance as `auth_service`, so
+    // the flag reflects real failure state.
+    if let Some(protector) = state.brute_force_protector.as_ref()
+        && protector.is_captcha_required(&request.username).await
+    {
+        let token = request.captcha_token.as_deref().unwrap_or("").trim();
+
+        if token.is_empty() {
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "captcha_required".to_string(),
+                message: "Verifikasi CAPTCHA diperlukan setelah beberapa percobaan gagal."
+                    .to_string(),
+            }
+            .into_response();
+        }
+
+        let redeemed = match Uuid::parse_str(token) {
+            Ok(challenge_id) => state
+                .captcha_service
+                .redeem_solved(challenge_id)
+                .await
+                .unwrap_or(false),
+            Err(_) => false,
+        };
+
+        if !redeemed {
+            return ErrorResponse {
+                status_code: axum::http::StatusCode::UNAUTHORIZED,
+                error: "invalid_captcha".to_string(),
+                message: "CAPTCHA tidak valid atau kedaluwarsa. Silakan ulangi verifikasi."
+                    .to_string(),
+            }
+            .into_response();
+        }
+    }
 
     // Default to master realm if none provided (master realm = all-zeros UUID)
     let realm_id = RealmId::from_uuid(request.realm_id.unwrap_or(Realm::MASTER_ID));
@@ -1059,6 +1106,19 @@ mod tests {
         let request: LoginRequest = serde_json::from_str(json).unwrap();
         assert_eq!(request.username, "testuser");
         assert_eq!(request.password, "testpass");
+        // captcha_token is optional and defaults to None when absent (#49).
+        assert!(request.captcha_token.is_none());
+    }
+
+    #[test]
+    fn test_login_request_with_captcha_token() {
+        let json =
+            r#"{"username":"u","password":"p","captcha_token":"3f2504e0-4f89-41d3-9a0c-0305e82c3301"}"#;
+        let request: LoginRequest = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            request.captcha_token.as_deref(),
+            Some("3f2504e0-4f89-41d3-9a0c-0305e82c3301")
+        );
     }
 
     #[test]
