@@ -588,7 +588,7 @@ async fn fetch_dashboard_data(
     satker_id: Option<Uuid>,
     jenis_bmn: Option<String>,
 ) -> Result<ActiveUsageMonitoringDashboard, crate::api::AppError> {
-    let mut url = "/api/v1/pemakaian-bmn/monitoring/active-usage".to_string();
+    let mut url = "/api/v1/perlengkapan/pemakaian-bmn/monitoring/active-usage".to_string();
     let mut params = Vec::new();
 
     if let Some(id) = satker_id {
@@ -624,7 +624,7 @@ async fn fetch_utilization_report(
     satker_id: Option<Uuid>,
     jenis_bmn: Option<String>,
 ) -> Result<BmnUtilizationReport, crate::api::AppError> {
-    let mut url = "/api/v1/pemakaian-bmn/monitoring/utilization-report".to_string();
+    let mut url = "/api/v1/perlengkapan/pemakaian-bmn/monitoring/utilization-report".to_string();
     let mut params = Vec::new();
 
     if let Some(id) = satker_id {

@@ -52,7 +52,7 @@ pub enum DashboardUpdate {
 ///
 /// # Example
 /// ```javascript
-/// const ws = new WebSocket('ws://localhost:8093/api/pembinaan/perlengkapan/dashboard/ws');
+/// const ws = new WebSocket('ws://localhost:8093/api/v1/perlengkapan/dashboard/ws');
 /// ws.onmessage = (event) => {
 ///     const update = JSON.parse(event.data);
 ///     console.log('Dashboard update:', update);

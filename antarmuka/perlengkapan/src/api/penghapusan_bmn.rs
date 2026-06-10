@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 // SK PENGHAPUSAN BMN WORKFLOW API FUNCTIONS
 // ============================================================================
 
-const PENGHAPUSAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/penghapusan-bmn";
+const PENGHAPUSAN_BMN_BASE: &str = "/api/v1/perlengkapan/penghapusan-bmn";
 
 // --- List Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]

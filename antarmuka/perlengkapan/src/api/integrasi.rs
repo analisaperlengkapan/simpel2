@@ -1,4 +1,4 @@
-//! Frontend client for `/api/pembinaan/perlengkapan/integrasi/*`.
+//! Frontend client for `/api/v1/perlengkapan/integrasi/*`.
 //!
 //! Backs the global circuit-breaker banner in `app_chrome`: when SIMAN /
 //! MySIMKARI / MonSAKTI trip their breaker (Fase 2.2), the banner warns the

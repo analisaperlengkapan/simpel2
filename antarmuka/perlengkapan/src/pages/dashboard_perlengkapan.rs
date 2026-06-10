@@ -143,7 +143,7 @@ async fn fetch_perlengkapan_dashboard(
     satker_id: Option<String>,
 ) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
     let mut url = format!(
-        "/api/v1/dashboard/perlengkapan?tahun_anggaran={}",
+        "/api/v1/perlengkapan/dashboard/perlengkapan?tahun_anggaran={}",
         tahun_anggaran
     );
 
@@ -201,7 +201,7 @@ async fn query_perlengkapan_dashboard(
 }
 
 async fn fetch_wilayah_options() -> Result<Vec<WilayahOption>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/wilayah")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/wilayah")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -223,9 +223,9 @@ async fn fetch_satker_options(
     wilayah_code: Option<String>,
 ) -> Result<Vec<SatkerOption>, crate::api::AppError> {
     let url = if let Some(code) = wilayah_code {
-        format!("/api/v1/satker?wilayah_code={}", code)
+        format!("/api/v1/perlengkapan/satker?wilayah_code={}", code)
     } else {
-        "/api/v1/satker".to_string()
+        "/api/v1/perlengkapan/satker".to_string()
     };
 
     let response = gloo_net::http::Request::get(&url)

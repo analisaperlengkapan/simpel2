@@ -310,11 +310,11 @@ fn AnalysisContent(
 fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
     let (show_preview, set_show_preview) = signal(false);
     let preview_url = format!(
-        "/api/v1/kebutuhan-bmn/satker/{}/laporan/preview?format=pdf",
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/laporan/preview?format=pdf",
         satker_id
     );
     let download_url = format!(
-        "/api/v1/kebutuhan-bmn/satker/{}/laporan/download?format=pdf",
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/laporan/download?format=pdf",
         satker_id
     );
     let download_url_for_click = download_url.clone();
@@ -406,7 +406,7 @@ fn GapAnalysisTable(data: Vec<GapAnalysisItem>) -> impl IntoView {
 // ============================================================================
 
 async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/kebutuhan-bmn/satker?status_kode=2003")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2003")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -427,7 +427,7 @@ async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate
 }
 
 async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, crate::api::AppError> {
-    let url = format!("/api/v1/kebutuhan-bmn/satker/{}/analisis", satker_id);
+    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/analisis", satker_id);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await

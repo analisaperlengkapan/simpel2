@@ -419,7 +419,7 @@ pub fn ReviewPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_requests_for_review() -> Result<Vec<PenghapusanRequest>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/penghapusan-bmn?status=SUBMITTED")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=SUBMITTED")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -443,7 +443,7 @@ async fn submit_validator_wilayah_action(
     request_id: Uuid,
     request: ValidatorWilayahActionRequest,
 ) -> Result<(), crate::api::AppError> {
-    let url = format!("/api/v1/penghapusan-bmn/{}/validator-wilayah", request_id);
+    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/validator-wilayah", request_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?

@@ -51,7 +51,7 @@ fn build_export_url(
     jenis_pegawai: &Option<String>,
 ) -> String {
     let mut url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}",
+        "/api/v1/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}",
         jenis_laporan, jenis_file
     );
     if let Some(v) = pengajuan {

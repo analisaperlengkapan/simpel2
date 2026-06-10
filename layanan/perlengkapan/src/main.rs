@@ -586,7 +586,7 @@ fn build_router(state: AppState) -> Router {
     // Combine all routes
     Router::new()
         .merge(health_routes)
-        .nest("/api/pembinaan/perlengkapan", api_routes)
+        .nest("/api/v1/perlengkapan", api_routes)
         .layer(axum::middleware::from_fn(
             middleware::metrics::track_metrics,
         ))

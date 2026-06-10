@@ -562,13 +562,26 @@ docker build -t layanan-perlengkapan:latest .
 ```
 antarmuka/perlengkapan (WASM)
   → reads JWT from localStorage key `auth_token`
-  → calls REST API at /api/pembinaan/perlengkapan/*
+  → calls REST API at /api/v1/perlengkapan/*
   → layanan-perlengkapan (Axum)
     → validates JWT via gRPC → authenc-grpc
     → fetches secrets via gRPC → secreton-grpc
     → queries PostgreSQL via deadpool-postgres
     → returns JSON response
 ```
+
+> **Canonical API prefix (WAJIB): `/api/v1/perlengkapan/*`.** The Axum router
+> mounts `api_routes` at `/api/v1/perlengkapan` (`src/main.rs`), the FE client
+> sets `API_BASE = "/api/v1/perlengkapan"` (`antarmuka/perlengkapan/src/api/client.rs`),
+> and Istio routes `prefix: /api/v1/perlengkapan` → `layanan-perlengkapan:3020`
+> **without rewrite** in all three `infra/helm/simpel/values*.yaml`. This sits in
+> authenc's `/api/v1/*` namespace alongside `/api/v1/{auth,iam,oauth2}` (authenc),
+> partitioning portal vs perlengkapan-v1 (Laravel, `/perlengkapan/simpel/v1`) vs
+> perlengkapan-v2 (this service). The legacy `/api/pembinaan/perlengkapan` +
+> rewrite-from-`/api/perlengkapan/` prefixes are **removed** (pre-prod, no
+> back-compat). Any new endpoint is reached at `/api/v1/perlengkapan/<route>`;
+> FE calls must go through the `api/client.rs` helpers (which prepend `API_BASE`)
+> or use the full canonical path — never a bare `/api/v1/<domain>`.
 
 ### Cross-Microfrontend Auth
 

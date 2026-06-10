@@ -807,7 +807,7 @@ istio:
         destination: { host: authenc, port: 8088 }
       - match: { prefix: /api/auth }
         destination: { host: authenc, port: 8088 }
-      - match: { prefix: /api/perlengkapan }
+      - match: { prefix: /api/v1/perlengkapan }
         destination: { host: layanan-perlengkapan, port: 3020 }
       - match: { prefix: /perlengkapan/simpel/v1 }
         rewrite: /
