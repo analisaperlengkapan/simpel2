@@ -930,7 +930,7 @@ mod tests {
         assert!(stats.total_secrets >= 3);
         assert_eq!(stats.total_keys, stats.total_secrets);
         // MemoryBackend might return 0 size if not tracking correctly or optimized
-        assert!(stats.storage_usage_bytes >= 0);
+        let _ = stats.storage_usage_bytes;
         assert!(
             stats.uptime_seconds >= 1,
             "Uptime should be at least 1 second"
