@@ -191,11 +191,11 @@ impl PemakaianBmnService {
             .map_err(|e| AppError::Internal(format!("write {}: {}", pdf_path, e)))?;
 
         let docx_url = format!(
-            "/api/pembinaan/perlengkapan/pemakaian-bmn/{}/konsep-surat.docx",
+            "/api/v1/perlengkapan/pemakaian-bmn/{}/konsep-surat.docx",
             id
         );
         let pdf_url = format!(
-            "/api/pembinaan/perlengkapan/pemakaian-bmn/{}/konsep-surat.pdf",
+            "/api/v1/perlengkapan/pemakaian-bmn/{}/konsep-surat.pdf",
             id
         );
 

@@ -19,7 +19,7 @@ use super::services::RoadmapService;
 
 /// Generate a forecast from historical kebutuhan BMN data.
 ///
-/// GET /api/pembinaan/perlengkapan/forecast
+/// GET /api/v1/perlengkapan/forecast
 pub async fn get_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastQuery>,
@@ -31,7 +31,7 @@ pub async fn get_forecast(
 
 /// Get forecast summary statistics (quick overview).
 ///
-/// GET /api/pembinaan/perlengkapan/forecast/summary
+/// GET /api/v1/perlengkapan/forecast/summary
 pub async fn get_forecast_summary(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastSummaryQuery>,
@@ -44,7 +44,7 @@ pub async fn get_forecast_summary(
 
 /// Compare current forecast with previous snapshots.
 ///
-/// GET /api/pembinaan/perlengkapan/forecast/compare
+/// GET /api/v1/perlengkapan/forecast/compare
 pub async fn get_forecast_compare(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastCompareQuery>,
@@ -74,7 +74,7 @@ pub async fn get_forecast_compare(
 
 /// Export forecast data as CSV.
 ///
-/// GET /api/pembinaan/perlengkapan/forecast/export
+/// GET /api/v1/perlengkapan/forecast/export
 pub async fn export_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastExportQuery>,

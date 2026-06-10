@@ -186,7 +186,7 @@ istio:
     hosts: ["*"]
     defaultRedirect: ""                     # final route catch-all → portal
     routes:
-      - match: { prefix: /api/perlengkapan }
+      - match: { prefix: /api/v1/perlengkapan }
         destination: { host: layanan-perlengkapan, port: 3020 }
         timeout: 30s
         retries: { attempts: 3, perTryTimeout: 10s }

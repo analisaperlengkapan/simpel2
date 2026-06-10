@@ -163,11 +163,7 @@ istio:
         destination: { host: perlengkapan, port: 8080 }
       - match: { prefix: /pembinaan/perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
-      - match: { prefix: /api/perlengkapan/ }
-        rewrite: /api/pembinaan/perlengkapan/
-        destination: { host: layanan-perlengkapan, port: 3020 }
-        timeout: 30s
-      - match: { prefix: /api/pembinaan/perlengkapan }
+      - match: { prefix: /api/v1/perlengkapan }
         destination: { host: layanan-perlengkapan, port: 3020 }
         timeout: 30s
       - match: { prefix: /api/v1/auth }

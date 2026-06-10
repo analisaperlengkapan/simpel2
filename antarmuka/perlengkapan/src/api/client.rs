@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 
 use crate::api::error::{AppError, AppResult};
 
-pub const API_BASE: &str = "/api/pembinaan/perlengkapan";
+pub const API_BASE: &str = "/api/v1/perlengkapan/perlengkapan";
 
 const AUTH_TOKEN_KEY: &str = "auth_token";
 

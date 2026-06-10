@@ -399,7 +399,7 @@ pub fn SkViewPage() -> impl IntoView {
 async fn fetch_completed_requests() -> Result<Vec<PenghapusanRequest>, crate::api::AppError> {
     // Fetch requests with status DOCUMENT_GENERATED or COMPLETED
     let response =
-        gloo_net::http::Request::get("/api/v1/penghapusan-bmn?status=DOCUMENT_GENERATED,COMPLETED")
+        gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=DOCUMENT_GENERATED,COMPLETED")
             .send()
             .await
             .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;

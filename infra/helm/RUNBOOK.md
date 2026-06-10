@@ -173,7 +173,7 @@ helm upgrade simpel infra/helm/simpel \
 
 ```bash
 curl -sf https://simpel.kejaksaan.go.id/api/v1/auth/health
-curl -sf https://simpel.kejaksaan.go.id/api/perlengkapan/health
+curl -sf https://simpel.kejaksaan.go.id/api/v1/perlengkapan/health
 curl -sf https://simpel.kejaksaan.go.id/portal/ | grep -q '<title>'
 ```
 

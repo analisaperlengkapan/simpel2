@@ -493,7 +493,7 @@ pub fn BmnSelectionPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_bmn_list() -> Result<Vec<BmnItem>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/bmn/available")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/pemakaian-bmn/bmn/available")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -511,7 +511,7 @@ async fn fetch_bmn_list() -> Result<Vec<BmnItem>, crate::api::AppError> {
 }
 
 async fn check_bmn_availability(nup: &str) -> Result<BmnAvailabilityResponse, crate::api::AppError> {
-    let url = format!("/api/v1/pemakaian-bmn/bmn/{}/availability", nup);
+    let url = format!("/api/v1/perlengkapan/pemakaian-bmn/bmn/{}/availability", nup);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await
@@ -530,7 +530,7 @@ async fn check_bmn_availability(nup: &str) -> Result<BmnAvailabilityResponse, cr
 }
 
 async fn fetch_bmn_usage_history(nup: &str) -> Result<BmnUsageStats, crate::api::AppError> {
-    let url = format!("/api/v1/pemakaian-bmn/bmn/{}/history", nup);
+    let url = format!("/api/v1/perlengkapan/pemakaian-bmn/bmn/{}/history", nup);
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await

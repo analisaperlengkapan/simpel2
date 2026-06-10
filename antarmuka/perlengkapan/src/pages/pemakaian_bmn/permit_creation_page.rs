@@ -385,7 +385,7 @@ pub fn PermitCreationPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_pegawai_list() -> Result<Vec<Pegawai>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/pegawai")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/pemakaian-bmn/pegawai")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -406,7 +406,7 @@ async fn fetch_pegawai_list() -> Result<Vec<Pegawai>, crate::api::AppError> {
 }
 
 async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/pemakaian-bmn/bmn/available")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/pemakaian-bmn/bmn/available")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -427,7 +427,7 @@ async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
 }
 
 async fn create_permit_api(request: CreatePermitRequest) -> Result<Permit, crate::api::AppError> {
-    let response = gloo_net::http::Request::post("/api/v1/pemakaian-bmn")
+    let response = gloo_net::http::Request::post("/api/v1/perlengkapan/pemakaian-bmn")
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
@@ -457,7 +457,7 @@ async fn add_bmn_to_permit(permit_id: Uuid, bmn: BmnItem) -> Result<(), crate::a
         nama_barang: bmn.nama_barang,
     };
 
-    let url = format!("/api/v1/pemakaian-bmn/{}/bmn", permit_id);
+    let url = format!("/api/v1/perlengkapan/pemakaian-bmn/{}/bmn", permit_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?

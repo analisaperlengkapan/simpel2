@@ -253,7 +253,7 @@ pub struct MonitoringSummaryCards {
     pub tidak_dipakai: Option<i64>,
 }
 
-const PEMAKAIAN_BMN_BASE: &str = "/api/pembinaan/perlengkapan/pemakaian-bmn";
+const PEMAKAIAN_BMN_BASE: &str = "/api/v1/perlengkapan/perlengkapan/pemakaian-bmn";
 
 // --- List Permits ---
 #[cfg(target_arch = "wasm32")]

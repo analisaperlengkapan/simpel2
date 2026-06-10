@@ -272,7 +272,7 @@ pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, crat
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/dashboard/stats";
+    let url = "/api/v1/perlengkapan/perlengkapan/dashboard/stats";
 
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
@@ -318,7 +318,7 @@ pub async fn fetch_analisis(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/analisis?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/analisis?page={}&per_page={}",
         page, per_page
     );
 
@@ -364,7 +364,7 @@ pub async fn create_analisis(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/analisis";
+    let url = "/api/v1/perlengkapan/perlengkapan/analisis";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;

@@ -400,7 +400,7 @@ async fn search_all_modules(
     tahun: Option<i32>,
     page: i32,
 ) -> Result<SearchResponse, crate::api::AppError> {
-    let mut url = "/api/v1/search?".to_string();
+    let mut url = "/api/v1/perlengkapan/search?".to_string();
     url.push_str(&format!("q={}", query));
     url.push_str(&format!("&page={}", page));
 

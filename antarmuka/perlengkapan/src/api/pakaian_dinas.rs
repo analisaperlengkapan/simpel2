@@ -391,7 +391,7 @@ pub async fn fetch_jenis_pakaian_dinas(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/jenis?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/jenis?page={}&per_page={}",
         page, per_page
     );
 
@@ -436,7 +436,7 @@ pub async fn fetch_jenis_pakaian_dinas(
 pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
     use crate::api::client::auth_get_json;
     let resp: ApiResponse<Vec<String>> =
-        auth_get_json("/api/pembinaan/perlengkapan/kebutuhan-bmn/wilayah").await?;
+        auth_get_json("/api/v1/perlengkapan/perlengkapan/kebutuhan-bmn/wilayah").await?;
     Ok(resp.data)
 }
 
@@ -452,7 +452,7 @@ pub async fn create_jenis_pakaian_dinas(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/jenis";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/jenis";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -491,7 +491,7 @@ pub async fn update_jenis_pakaian_dinas(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/jenis/{}", id);
+    let url = format!("/api/v1/perlengkapan/perlengkapan/pakaian-dinas/jenis/{}", id);
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -530,7 +530,7 @@ pub async fn delete_jenis_pakaian_dinas(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/jenis/{}", id);
+    let url = format!("/api/v1/perlengkapan/perlengkapan/pakaian-dinas/jenis/{}", id);
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -572,7 +572,7 @@ pub async fn fetch_spesifikasi_pakaian(
     use gloo_net::http::Request;
 
     let mut url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/spesifikasi?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/spesifikasi?page={}&per_page={}",
         page, per_page
     );
     if let Some(jid) = jenis_id {
@@ -622,7 +622,7 @@ pub async fn create_spesifikasi_pakaian(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/spesifikasi";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/spesifikasi";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -662,7 +662,7 @@ pub async fn update_spesifikasi_pakaian(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/spesifikasi/{}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/spesifikasi/{}",
         id
     );
     let token = get_auth_token().ok_or_else(|| {
@@ -704,7 +704,7 @@ pub async fn delete_spesifikasi_pakaian(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/spesifikasi/{}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/spesifikasi/{}",
         id
     );
     let token = get_auth_token().ok_or_else(|| {
@@ -748,7 +748,7 @@ pub async fn fetch_subspesifikasi_pakaian(
     use gloo_net::http::Request;
 
     let mut url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/subspesifikasi?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/subspesifikasi?page={}&per_page={}",
         page, per_page
     );
     if let Some(sid) = spesifikasi_id {
@@ -798,7 +798,7 @@ pub async fn create_subspesifikasi_pakaian(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/subspesifikasi";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/subspesifikasi";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -838,7 +838,7 @@ pub async fn fetch_master_ukuran(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let mut url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran".to_string();
+    let mut url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/ukuran".to_string();
     if let Some(g) = group {
         url.push_str(&format!("?group={}", g));
     }
@@ -885,7 +885,7 @@ pub async fn fetch_pengajuan_pakaian_dinas(
     use gloo_net::http::Request;
 
     let mut url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pengajuan?page={}&per_page={}",
         page, per_page
     );
     if let Some(t) = tahun {
@@ -935,7 +935,7 @@ pub async fn create_pengajuan_pakaian_dinas(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pengajuan";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -973,7 +973,7 @@ pub async fn delete_pengajuan_pakaian_dinas(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = format!("/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan/{}", id);
+    let url = format!("/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pengajuan/{}", id);
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -1015,7 +1015,7 @@ pub async fn fetch_pengajuan_satker(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/pengajuan/{}/satker?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pengajuan/{}/satker?page={}&per_page={}",
         pengajuan_id, page, per_page
     );
 
@@ -1064,7 +1064,7 @@ pub async fn fetch_pakaian_satker_aktivitas(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/satker/{}/aktivitas",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/satker/{}/aktivitas",
         satker_id
     );
     let token = get_auth_token().ok_or_else(|| {
@@ -1100,7 +1100,7 @@ pub async fn process_validator_action(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/validator-action";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/validator-action";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -1143,7 +1143,7 @@ pub async fn fetch_pegawai_ukuran(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
 
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
@@ -1182,7 +1182,7 @@ pub async fn upsert_pegawai_ukuran(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let url = "/api/pembinaan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
+    let url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/ukuran-pakaian-pegawai";
     let token = get_auth_token().ok_or_else(|| {
         crate::api::AppError::network("No authentication token found".to_string())
     })?;
@@ -1225,7 +1225,7 @@ pub async fn fetch_pegawai_by_satker(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/pegawai-satker/{}?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pegawai-satker/{}?page={}&per_page={}",
         satker_id, page, per_page
     );
 
@@ -1275,7 +1275,7 @@ pub async fn fetch_pegawai_with_sizes(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/pegawai-satker/{}/with-sizes?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pegawai-satker/{}/with-sizes?page={}&per_page={}",
         satker_id, page, per_page
     );
 
@@ -1324,7 +1324,7 @@ pub async fn fetch_pegawai_roster_sync(
     use gloo_net::http::Request;
 
     let url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/pegawai-satker/{}/roster",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/pegawai-satker/{}/roster",
         satker_id
     );
     let token = get_auth_token().ok_or_else(|| {
@@ -1367,7 +1367,7 @@ pub async fn fetch_laporan_rekap_ukuran(
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
 
-    let mut url = "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/rekap-ukuran".to_string();
+    let mut url = "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/laporan/rekap-ukuran".to_string();
     let mut params = vec![];
     if let Some(ref pid) = query.pengajuan_id {
         params.push(format!("pengajuan_id={}", pid));
@@ -1431,7 +1431,7 @@ pub async fn fetch_laporan_daftar_pegawai(
     use gloo_net::http::Request;
 
     let mut url = format!(
-        "/api/pembinaan/perlengkapan/pakaian-dinas/laporan/daftar-pegawai?page={}&per_page={}",
+        "/api/v1/perlengkapan/perlengkapan/pakaian-dinas/laporan/daftar-pegawai?page={}&per_page={}",
         page, per_page
     );
     if let Some(ref pid) = query.pengajuan_id {

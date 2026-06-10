@@ -688,7 +688,7 @@ fn ActionModal(
 
 async fn fetch_submissions_for_review() -> Result<Vec<SatkerSubmission>, AppError> {
     // status_kode = 2002 (SUBMIT_SATKER — menunggu Validator Wilayah)
-    let response = gloo_net::http::Request::get("/api/v1/kebutuhan-bmn/satker?status_kode=2002")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2002")
         .send()
         .await?;
 
@@ -703,7 +703,7 @@ async fn fetch_submissions_for_review() -> Result<Vec<SatkerSubmission>, AppErro
 }
 
 async fn fetch_satker_detail(satker_id: Uuid) -> Result<SatkerDetail, AppError> {
-    let url = format!("/api/v1/kebutuhan-bmn/satker/{}", satker_id);
+    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/satker/{}", satker_id);
     let response = gloo_net::http::Request::get(&url).send().await?;
 
     if !response.ok() {
@@ -723,7 +723,7 @@ async fn submit_validator_wilayah_action(
     request: ValidatorWilayahActionRequest,
 ) -> Result<SatkerDetail, AppError> {
     let url = format!(
-        "/api/v1/kebutuhan-bmn/satker/{}/validator-wilayah",
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/validator-wilayah",
         satker_id
     );
     let response = gloo_net::http::Request::post(&url)

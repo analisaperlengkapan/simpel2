@@ -341,7 +341,7 @@ pub fn RequestCreationPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/penghapusan-bmn/bmn/available")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn/bmn/available")
         .send()
         .await
         .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
@@ -364,7 +364,7 @@ async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
 async fn create_penghapusan_request(
     request: CreatePenghapusanRequest,
 ) -> Result<PenghapusanRequest, crate::api::AppError> {
-    let response = gloo_net::http::Request::post("/api/v1/penghapusan-bmn")
+    let response = gloo_net::http::Request::post("/api/v1/perlengkapan/penghapusan-bmn")
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
         .send()
@@ -396,7 +396,7 @@ async fn add_bmn_to_request(request_id: Uuid, bmn: BmnItem) -> Result<(), crate:
         alasan_penghapusan: "Sesuai alasan umum".to_string(),
     };
 
-    let url = format!("/api/v1/penghapusan-bmn/{}/bmn", request_id);
+    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/bmn", request_id);
     let response = gloo_net::http::Request::post(&url)
         .json(&request)
         .map_err(|e| crate::api::AppError::Unknown(format!("Serialization error: {}", e)))?
@@ -423,7 +423,7 @@ async fn upload_document(
         .append_with_blob("file", &file)
         .map_err(|_| "Failed to append file")?;
 
-    let url = format!("/api/v1/penghapusan-bmn/{}/attachments", request_id);
+    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/attachments", request_id);
 
     let response = gloo_net::http::Request::post(&url)
         .body(form_data)

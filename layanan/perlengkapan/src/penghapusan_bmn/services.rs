@@ -455,11 +455,11 @@ impl PenghapusanBmnService {
         })?;
 
         let docx_url = format!(
-            "/api/pembinaan/perlengkapan/penghapusan-bmn/{}/konsep-sk.docx",
+            "/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.docx",
             id
         );
         let pdf_url = format!(
-            "/api/pembinaan/perlengkapan/penghapusan-bmn/{}/konsep-sk.pdf",
+            "/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.pdf",
             id
         );
 
