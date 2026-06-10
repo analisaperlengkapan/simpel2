@@ -139,27 +139,33 @@ mod tests {
 
     #[test]
     fn test_login_failure_rate() {
-        let mut metrics = ComplianceMetrics::default();
-        metrics.total_logins = 100;
-        metrics.failed_logins = 10;
+        let metrics = ComplianceMetrics {
+            total_logins: 100,
+            failed_logins: 10,
+            ..Default::default()
+        };
 
         assert_eq!(metrics.login_failure_rate(), 10.0);
     }
 
     #[test]
     fn test_mfa_adoption_rate() {
-        let mut metrics = ComplianceMetrics::default();
-        metrics.active_users = 100;
-        metrics.mfa_enabled_users = 75;
+        let metrics = ComplianceMetrics {
+            active_users: 100,
+            mfa_enabled_users: 75,
+            ..Default::default()
+        };
 
         assert_eq!(metrics.mfa_adoption_rate(), 75.0);
     }
 
     #[test]
     fn test_mfa_success_rate() {
-        let mut metrics = ComplianceMetrics::default();
-        metrics.mfa_verifications = 90;
-        metrics.failed_mfa_verifications = 10;
+        let metrics = ComplianceMetrics {
+            mfa_verifications: 90,
+            failed_mfa_verifications: 10,
+            ..Default::default()
+        };
 
         assert_eq!(metrics.mfa_success_rate(), 90.0);
     }

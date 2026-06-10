@@ -204,6 +204,9 @@ pub mod secreton_integration {
     use super::*;
 
     /// Secreton client trait for key storage
+    // Internal trait used only behind `&dyn`/generics in-crate; `async fn` here
+    // is fine and keeps the signatures readable.
+    #[allow(async_fn_in_trait)]
     pub trait SecretonClient: Send + Sync {
         /// Store a key in Secreton
         async fn store_key(&self, path: &str, key: &[u8]) -> Result<()>;

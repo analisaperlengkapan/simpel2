@@ -629,7 +629,6 @@ pub mod hybrid {
     use super::*;
 
     const AES_GCM_NONCE_SIZE: usize = 12;
-    const AES_GCM_TAG_SIZE: usize = 16;
 
     /// Hybrid key exchange using ML-KEM + HKDF for AES-GCM key derivation
     pub fn key_exchange(pk: &mlkem::PublicKey) -> Result<(mlkem::Ciphertext, Vec<u8>)> {

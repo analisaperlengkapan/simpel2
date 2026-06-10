@@ -4,7 +4,7 @@
 //! They test the transaction API and error handling logic.
 
 #[cfg(test)]
-mod transaction_tests {
+mod tests {
     use authenc_types::{AuthencError, Result};
 
     #[test]
@@ -61,8 +61,7 @@ mod transaction_tests {
         // Simulate a successful transaction closure
         let result: Result<i32> = Ok(42);
 
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert!(matches!(result, Ok(42)));
     }
 
     #[tokio::test]

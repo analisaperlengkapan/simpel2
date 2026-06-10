@@ -76,10 +76,11 @@ impl FlexibleScope {
         // Fallback exact match
         self.org_scope == satker_code
     }
+}
 
-    /// Convert to string representation
-    pub fn to_string(&self) -> String {
-        format!("{}:{}:{}", self.base, self.resource, self.org_scope)
+impl std::fmt::Display for FlexibleScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}:{}", self.base, self.resource, self.org_scope)
     }
 }
 

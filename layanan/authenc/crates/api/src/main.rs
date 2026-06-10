@@ -506,10 +506,12 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let iam_router = create_iam_router(Arc::new(iam_state));
 
     // App config - development CORS + disabled CSRF for API service
-    let mut config = AppConfig::default();
-    config.cors = CorsConfig::new(Environment::Development);
-    config.csrf = CsrfConfig {
-        enabled: false,
+    let config = AppConfig {
+        cors: CorsConfig::new(Environment::Development),
+        csrf: CsrfConfig {
+            enabled: false,
+            ..Default::default()
+        },
         ..Default::default()
     };
 

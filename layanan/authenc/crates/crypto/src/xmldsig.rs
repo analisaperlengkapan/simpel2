@@ -1194,10 +1194,13 @@ pub enum RevocationStatus {
     Unknown,
 }
 
+/// Timestamped byte-blob cache keyed by URL/cert-id: value = (raw bytes, expiry).
+type TimedByteCache = Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>;
+
 /// CRL Manager for downloading, parsing, and caching Certificate Revocation Lists
 pub struct CrlManager {
     /// Cache of downloaded CRL bytes: URL -> (raw_bytes, expiration_time)
-    cache: Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>,
+    cache: TimedByteCache,
     /// How long to cache CRLs (default: 1 hour)
     cache_duration: Duration,
     /// HTTP client for downloading CRLs
@@ -1560,7 +1563,7 @@ pub struct OcspClient {
     http_client: reqwest::Client,
 
     /// Cache of OCSP responses (cert_id -> (response, expiration))
-    response_cache: Arc<Mutex<HashMap<String, (Vec<u8>, SystemTime)>>>,
+    response_cache: TimedByteCache,
 
     /// How long to cache OCSP responses (default: 5 minutes)
     cache_duration: Duration,

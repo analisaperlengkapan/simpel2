@@ -447,7 +447,6 @@ mod tests {
             }
             Err(_) => {
                 // Expected without Kafka
-                assert!(true);
             }
         }
     }

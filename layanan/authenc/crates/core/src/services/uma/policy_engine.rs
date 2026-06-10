@@ -255,6 +255,12 @@ pub struct AttributeCondition {
 /// Policy engine for evaluating policies
 pub struct PolicyEngine {}
 
+impl Default for PolicyEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PolicyEngine {
     /// Create new policy engine
     pub fn new() -> Self {

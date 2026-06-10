@@ -299,19 +299,16 @@ impl CacheMetricsSnapshot {
         ));
         output.push_str(&format!("# TYPE {}_operations_total counter\n", prefix));
         output.push_str(&format!(
-            "{}{{operation=\"get\"}} {}\n",
-            format!("{}_operations_total", prefix),
-            self.get_operations
+            "{}_operations_total{{operation=\"get\"}} {}\n",
+            prefix, self.get_operations
         ));
         output.push_str(&format!(
-            "{}{{operation=\"set\"}} {}\n",
-            format!("{}_operations_total", prefix),
-            self.set_operations
+            "{}_operations_total{{operation=\"set\"}} {}\n",
+            prefix, self.set_operations
         ));
         output.push_str(&format!(
-            "{}{{operation=\"delete\"}} {}\n\n",
-            format!("{}_operations_total", prefix),
-            self.delete_operations
+            "{}_operations_total{{operation=\"delete\"}} {}\n\n",
+            prefix, self.delete_operations
         ));
 
         output.push_str(&format!(
@@ -353,18 +350,18 @@ impl CacheMetricsSnapshot {
         ));
         output.push_str(&format!("# TYPE {}_latency_milliseconds gauge\n", prefix));
         output.push_str(&format!(
-            "{}{{operation=\"get\"}} {:.3}\n",
-            format!("{}_latency_milliseconds", prefix),
+            "{}_latency_milliseconds{{operation=\"get\"}} {:.3}\n",
+            prefix,
             self.avg_get_latency_micros / 1000.0
         ));
         output.push_str(&format!(
-            "{}{{operation=\"set\"}} {:.3}\n",
-            format!("{}_latency_milliseconds", prefix),
+            "{}_latency_milliseconds{{operation=\"set\"}} {:.3}\n",
+            prefix,
             self.avg_set_latency_micros / 1000.0
         ));
         output.push_str(&format!(
-            "{}{{operation=\"delete\"}} {:.3}\n\n",
-            format!("{}_latency_milliseconds", prefix),
+            "{}_latency_milliseconds{{operation=\"delete\"}} {:.3}\n\n",
+            prefix,
             self.avg_delete_latency_micros / 1000.0
         ));
 

@@ -120,6 +120,8 @@ mod documentation_tests {
         // 3. User enables TOTP - enable_totp_handler
         // 4. User verifies TOTP - verify_totp_handler
         // 5. User logs out - logout_handler
-        assert!(true);
+        //
+        // Placeholder documenting the intended flow; real end-to-end coverage is
+        // built in the comprehensive suite (see #33).
     }
 }

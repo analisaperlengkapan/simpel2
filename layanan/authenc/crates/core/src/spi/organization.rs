@@ -101,6 +101,7 @@ impl OrganizationRole {
     }
 
     /// Convert string to OrganizationRole
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "OWNER" => Some(OrganizationRole::Owner),

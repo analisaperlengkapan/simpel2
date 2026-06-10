@@ -7,6 +7,9 @@ use std::time::Duration;
 use tokio::sync::{RwLock, broadcast, mpsc};
 use tokio::time;
 
+/// A cluster message: `(sender_node_id, payload_bytes)`.
+type NodeMessage = (String, Vec<u8>);
+
 /// Cluster node status
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NodeStatus {
@@ -90,7 +93,7 @@ pub trait ClusterCommunication: Send + Sync {
     /// Broadcast a message to all nodes in the cluster
     async fn broadcast_message(&self, message: &[u8]) -> Result<()>;
     /// Receive a message from the cluster
-    async fn receive_message(&self) -> Result<(String, Vec<u8>)>;
+    async fn receive_message(&self) -> Result<NodeMessage>;
 }
 
 /// In-memory cluster communication for development/testing
@@ -98,16 +101,16 @@ pub struct InMemoryClusterCommunication {
     /// Node ID of this instance
     node_id: String,
     /// Shared broadcast channel for all nodes
-    broadcast_tx: broadcast::Sender<(String, Vec<u8>)>,
+    broadcast_tx: broadcast::Sender<NodeMessage>,
     /// Receiver for broadcast messages
-    broadcast_rx: RwLock<Option<broadcast::Receiver<(String, Vec<u8>)>>>,
+    broadcast_rx: RwLock<Option<broadcast::Receiver<NodeMessage>>>,
     /// Individual message channels for direct messaging
-    message_channels: Arc<RwLock<HashMap<String, mpsc::UnboundedSender<(String, Vec<u8>)>>>>,
+    message_channels: Arc<RwLock<HashMap<String, mpsc::UnboundedSender<NodeMessage>>>>,
 }
 
 impl InMemoryClusterCommunication {
     /// Create a new in-memory cluster communication instance
-    pub fn new(node_id: String, broadcast_tx: broadcast::Sender<(String, Vec<u8>)>) -> Self {
+    pub fn new(node_id: String, broadcast_tx: broadcast::Sender<NodeMessage>) -> Self {
         let broadcast_rx = broadcast_tx.subscribe();
         Self {
             node_id,
@@ -145,7 +148,7 @@ impl ClusterCommunication for InMemoryClusterCommunication {
         Ok(())
     }
 
-    async fn receive_message(&self) -> Result<(String, Vec<u8>)> {
+    async fn receive_message(&self) -> Result<NodeMessage> {
         // Try broadcast messages first
         if let Some(rx) = self.broadcast_rx.write().await.as_mut() {
             match rx.try_recv() {
@@ -175,11 +178,11 @@ pub struct JGroupsClusterCommunication {
     /// Name of the JGroups channel
     channel_name: String,
     /// Message queue for incoming messages
-    message_queue: Arc<RwLock<Vec<(String, Vec<u8>)>>>,
+    message_queue: Arc<RwLock<Vec<NodeMessage>>>,
     /// Sender for outgoing messages
     outgoing_tx: mpsc::UnboundedSender<(Option<String>, Vec<u8>)>,
     /// Receiver for incoming messages
-    incoming_rx: Arc<RwLock<mpsc::UnboundedReceiver<(String, Vec<u8>)>>>,
+    incoming_rx: Arc<RwLock<mpsc::UnboundedReceiver<NodeMessage>>>,
 }
 
 impl JGroupsClusterCommunication {
@@ -187,7 +190,7 @@ impl JGroupsClusterCommunication {
     pub fn new(channel_name: String) -> Self {
         let (outgoing_tx, mut outgoing_rx): (mpsc::UnboundedSender<(Option<String>, Vec<u8>)>, _) =
             mpsc::unbounded_channel();
-        let (incoming_tx, incoming_rx): (mpsc::UnboundedSender<(String, Vec<u8>)>, _) =
+        let (incoming_tx, incoming_rx): (mpsc::UnboundedSender<NodeMessage>, _) =
             mpsc::unbounded_channel();
 
         // Background task to simulate JGroups message processing
@@ -195,12 +198,12 @@ impl JGroupsClusterCommunication {
             while let Some((target, message)) = outgoing_rx.recv().await {
                 // In production, this would send via JGroups
                 // For now, we simulate by echoing back
-                if target.is_none() {
+                if let Some(node) = target {
+                    // Unicast - send to specific node
+                    let _ = incoming_tx.send((node, message));
+                } else {
                     // Broadcast - echo to all nodes
                     let _ = incoming_tx.send(("broadcast".to_string(), message));
-                } else {
-                    // Unicast - send to specific node
-                    let _ = incoming_tx.send((target.unwrap(), message));
                 }
             }
         });
@@ -230,7 +233,7 @@ impl ClusterCommunication for JGroupsClusterCommunication {
         Ok(())
     }
 
-    async fn receive_message(&self) -> Result<(String, Vec<u8>)> {
+    async fn receive_message(&self) -> Result<NodeMessage> {
         let mut rx = self.incoming_rx.write().await;
         rx.recv()
             .await
@@ -547,7 +550,7 @@ impl ClusterManager {
         node_id: String,
         node_address: String,
         cluster_name: String,
-    ) -> (Self, broadcast::Sender<(String, Vec<u8>)>) {
+    ) -> (Self, broadcast::Sender<NodeMessage>) {
         let (broadcast_tx, _broadcast_rx) = broadcast::channel(100);
 
         let communication = Box::new(InMemoryClusterCommunication::new(

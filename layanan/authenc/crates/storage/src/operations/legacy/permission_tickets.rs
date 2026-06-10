@@ -187,8 +187,8 @@ pub async fn get_granted_resources(
         "#
     };
 
-    let rows = if name_filter.is_some() {
-        let pattern = format!("%{}%", name_filter.unwrap());
+    let rows = if let Some(filter) = name_filter {
+        let pattern = format!("%{}%", filter);
         db.query(
             query,
             &[&user_id, &pattern, &(limit as i64), &(offset as i64)],

@@ -294,6 +294,8 @@ impl EventType {
     }
 
     /// Convert string to EventType
+    // Returns Option, not Result → named constructor rather than FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "LOGIN" => Some(EventType::Login),
@@ -494,6 +496,8 @@ impl OperationType {
     }
 
     /// Convert string to OperationType
+    // Returns Option, not Result → named constructor rather than FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "CREATE" => Some(OperationType::Create),
@@ -629,6 +633,8 @@ impl ResourceType {
     }
 
     /// Convert string to ResourceType
+    // Returns Option, not Result → named constructor rather than FromStr.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "REALM" => Some(ResourceType::Realm),

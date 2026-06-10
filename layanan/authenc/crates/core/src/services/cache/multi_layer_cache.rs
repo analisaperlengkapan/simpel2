@@ -46,14 +46,17 @@ impl Default for MultiLayerCacheConfig {
 /// - L1: Fast in-memory cache for hot data
 /// - L2: Distributed Redis cache for shared data
 /// # Cache-aside Pattern
+///
 /// On GET:
 /// 1. Check L1 cache (in-memory)
 /// 2. If miss, check L2 cache (Redis)
 /// 3. If hit in L2, populate L1 and return
 /// 4. If miss in both, return None
+///
 /// On SET:
 /// 1. Write to both L1 and L2
 /// 2. Use shorter TTL for L1 (60s) vs L2 (configurable)
+///
 /// On DELETE:
 /// 1. Delete from both L1 and L2
 pub struct MultiLayerCache {

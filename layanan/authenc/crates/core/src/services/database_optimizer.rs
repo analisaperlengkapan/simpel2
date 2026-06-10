@@ -367,11 +367,12 @@ mod tests {
 
     #[test]
     fn test_metrics_update() {
-        let mut metrics = DatabaseMetrics::default();
-
         // Simulate updating metrics
-        metrics.total_queries = 1;
-        metrics.avg_query_time_ms = 50.0;
+        let metrics = DatabaseMetrics {
+            total_queries: 1,
+            avg_query_time_ms: 50.0,
+            ..Default::default()
+        };
 
         assert_eq!(metrics.total_queries, 1);
         assert_eq!(metrics.avg_query_time_ms, 50.0);
