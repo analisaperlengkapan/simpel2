@@ -124,10 +124,19 @@ flowchart TD
 
 ### 2. Database
 
-- **Pool**: `deadpool-postgres` (default pool_size=20)
-- **Migrations**: `refinery` (SQL files di `migrations/`)
-- **Operations**: Prepared statements wajib, transaction handling untuk multi-step ops
-- **Terpisah**: Authenc memiliki database sendiri (bukan shared dengan layanan lain)
+- **Pool**: `deadpool-postgres` (default pool_size=20); `Database::new` set
+  `options=-c search_path=authenc,public` di tiap koneksi → query unqualified resolve
+  ke schema `authenc`, fallback `public` (extension/fungsi bersama).
+- **Schema `authenc` (bukan `public`)** di **shared `dbsimpelv2`** (bersama integrasi +
+  perlengkapan; perlengkapan ber-FK ke `authenc.users`). Authenc **TIDAK** punya DB
+  sendiri lagi — lihat `layanan/AGENTS.md` → Database Architecture.
+- **Migrations**: baseline+seed via binari out-of-band **`authenc-migrate`**
+  (`crates/api/src/bin/migrate.rs`) — `CREATE SCHEMA authenc` + `run_migrations`; app
+  **tidak** self-migrate (replika tak balapan). File: `001_baseline.sql` (schema) +
+  `002_seed.sql` (realm/roles/oauth2_clients + seed user). Pra-prod boleh squash.
+- **Operations**: Prepared statements wajib, transaction handling untuk multi-step ops.
+- **Peran: IAM MURNI** — identitas satker SoT = MySIMKARI via integrasi (read-model),
+  RBAC authenc ber-FK `satker_code` (lihat #42 SSoT). BUKAN master data referensi.
 
 ### 3. Cryptography
 

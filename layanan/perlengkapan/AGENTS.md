@@ -134,9 +134,10 @@ mempertahankan re-export glob. Murni pemindahan kode — tanpa ubah perilaku.
 - **No internal gRPC**: the old workflow → dokumen / workflow → notifikasi
   proto-over-Tonic clients are gone. Direct in-process trait dispatch
   removes the serialization hop and the second binary.
-- **Migrations**: `migrations/V*.sql` is the source of truth, applied by
-  refinery on startup. The legacy hand-coded `Database::migrate` runs
-  after, for tables that don't have a refinery file yet.
+- **Migrations**: `migrations/V*.sql` (baseline `V001__baseline.sql` +
+  `V002__seed.sql`) is the source of truth, applied by `refinery` on startup
+  (`migrations::run`), then `add_essential_indexes`. The old hand-coded
+  `Database::migrate` bootstrap was removed in F4 — refinery is the only path.
 
 ### Communication Flow
 
@@ -205,7 +206,15 @@ flowchart TB
 ### 3. Database Layer
 
 - Use `deadpool-postgres` for connection pooling
-- Each crate should have its own database schema if needed
+- **Schema `perlengkapan` di shared `dbsimpelv2`** (bersama `authenc` + `integrasi`);
+  baca data master **cross-schema** dari `integrasi.*` & `authenc.*` (JOIN/FK nyata,
+  mis. `batch_operation_log.user_id → authenc.users`). JANGAN duplikasi data master —
+  fetch-at-read/baca cross-schema (SSoT). Sub-domain `dokumen`/`notifikasi`/`cache`
+  dibuat oleh migrasi perlengkapan. Lihat `layanan/AGENTS.md` → Database Architecture.
+- Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
+  `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &
+  authenc migrate selesai (urutan bring-up). Penamaan: `satker_id`/`satker_nama`/
+  `nama_barang`/`nama_pegawai` (bukan `ms_satker_id`/`nm_satker`/`nama` generik).
 - Use prepared statements for frequently executed queries
 - Implement proper transaction handling
 

@@ -245,9 +245,32 @@ helm rollback simpel -n simpelv2-staging --wait
 
 CronJob, scheduler, dan StatefulSet (`secreton`, `postgres`) di-roll
 dengan PVC tetap utuh — rollback tidak menghapus data, hanya
-mengembalikan spek manifest. Untuk schema migration regression, perlu
-**manual** rollback DB migration via `refinery` CLI; chart tidak
-mengontrol skema DB.
+mengembalikan spek manifest.
+
+#### 🔒 Migrasi WAJIB expand/contract (agar `helm rollback` aman tanpa restore DB)
+
+> **Prinsip (F-REL):** **app rollback = `helm rollback`** (revisi N→N-1);
+> **DB restore = LAST RESORT manual** (Velero / `pg_dump`, human-gated). Agar
+> rollback aplikasi **tak pernah** butuh restore DB, **setiap migrasi WAJIB
+> expand/contract** — additive & backward-compatible dalam satu rilis.
+
+- **Expand dulu (rilis ini):** hanya perubahan **aditif & kompatibel-mundur** —
+  `ADD COLUMN` nullable / ber-default, tabel/index baru, `CREATE … IF NOT EXISTS`.
+  Kode versi LAMA (target rollback) **harus tetap jalan** di atas skema BARU.
+- **Contract nanti (rilis BERIKUTNYA):** perubahan destruktif (`DROP COLUMN`,
+  `NOT NULL`, rename, `DROP TABLE`) hanya **setelah** versi yang masih memakainya
+  tak lagi di-deploy/di-rollback-able. Pisahkan minimal satu rilis.
+- **DILARANG** menggabung expand+contract destruktif dalam rilis yang sama —
+  itu membuat `helm rollback` butuh restore DB (= jalur kehilangan data).
+- **Rename = 3 langkah lintas-rilis:** (1) add kolom baru + dual-write; (2)
+  backfill + baca kolom baru; (3) drop kolom lama. Bukan `ALTER … RENAME` sekali jalan.
+- **Migrasi idempotent + reversibel-secara-data:** hook `*-migrate-job.yaml` boleh
+  jalan ulang (pre-upgrade); jangan ada operasi yang merusak saat re-run.
+- Konsekuensi: pada rollback app, **JANGAN** rollback DB. Skema BARU (aditif)
+  tetap kompatibel dengan kode LAMA. Restore DB hanya bila migrasi melanggar aturan
+  ini (insiden) — gunakan Velero/`pg_dump` terbaru, dengan human gate.
+- Aturan **authoring** migrasi (file `V###`/baseline, no-ALTER-after-merge,
+  search_path, penamaan) ada di Skill `add-backend-feature` + `layanan/AGENTS.md`.
 
 ### 3. Update values tanpa restart workload yang tidak butuh
 
