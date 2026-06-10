@@ -125,5 +125,31 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
         shell: bash
         run: |
-          gh pr review --approve "$PR_URL" || true
-          gh pr merge --auto --squash "$PR_URL"
+          GH_BIN="gh"
+          if ! command -v gh &> /dev/null; then
+            echo "gh CLI not found. Downloading standalone binary..."
+            GH_VERSION="2.50.0"
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "x86_64" ]; then
+              ARCH="amd64"
+            elif [ "$ARCH" = "aarch64" ]; then
+              ARCH="arm64"
+            else
+              ARCH="amd64"
+            fi
+            URL="https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz"
+            mkdir -p /tmp/gh-cli
+            if command -v curl &> /dev/null; then
+              curl -sSL "$URL" | tar xz -C /tmp/gh-cli --strip-components=1
+            elif command -v wget &> /dev/null; then
+              wget -qO- "$URL" | tar xz -C /tmp/gh-cli --strip-components=1
+            else
+              echo "Error: neither curl nor wget found. Cannot install GitHub CLI." >&2
+              exit 1
+            fi
+            GH_BIN="/tmp/gh-cli/bin/gh"
+            chmod +x "$GH_BIN"
+          fi
+
+          "$GH_BIN" pr review --approve "$PR_URL" || true
+          "$GH_BIN" pr merge --auto --squash "$PR_URL"

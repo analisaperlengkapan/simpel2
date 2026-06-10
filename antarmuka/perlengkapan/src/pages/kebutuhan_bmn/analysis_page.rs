@@ -24,7 +24,7 @@ use uuid::Uuid;
 pub struct SatkerSubmission {
     pub id: Uuid,
     pub pengajuan_id: Uuid,
-    pub ms_satker_id: String,
+    pub satker_id: String,
     pub satker_nama: Option<String>,
     pub status_kode: i32,
     pub status_nama: Option<String>,
@@ -42,7 +42,7 @@ pub struct AnalysisData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SatkerDetail {
     pub id: Uuid,
-    pub ms_satker_id: String,
+    pub satker_id: String,
     pub satker_nama: Option<String>,
     pub status_kode: i32,
     pub barang_items: Vec<BarangItem>,
@@ -208,7 +208,7 @@ pub fn AnalysisPage() -> impl IntoView {
                                                     on:click=move |_| load_analysis(sub_id)
                                                 >
                                                     <div class="text-sm font-semibold text-slate-200">
-                                                        {sub.satker_nama.clone().unwrap_or_else(|| sub.ms_satker_id.clone())}
+                                                        {sub.satker_nama.clone().unwrap_or_else(|| sub.satker_id.clone())}
                                                     </div>
                                                     <div class="mt-1 text-xs text-slate-400">
                                                         "Prioritas: " {sub.prioritas}

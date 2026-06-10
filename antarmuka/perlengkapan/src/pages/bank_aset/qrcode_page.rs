@@ -87,6 +87,7 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
         let filter = ListFilter {
             page: 1,
             per_page: PER_PAGE,
+            jenis: None,
             kategori: non_empty(&kategori.get()),
             kondisi: None,
             satker: None,

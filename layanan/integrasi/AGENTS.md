@@ -113,8 +113,9 @@ layanan/integrasi/
 │   ├── fetch_to_database.rs    # Main integration example
 │   └── siman_example.rs        # SIMAN-specific test
 ├── migrations/
-│   ├── 001_init_schema.sql     # Complete DB schema
-│   └── 002_rollback.sql        # Rollback script
+│   ├── 001_init_schema.sql              # Base schema (unified siman_aset)
+│   └── 002_enhance_integration_schema.sql  # sync_status + enhancements
+│   # (embedded into the `integrasi-migrate` binary via include_str!)
 └── .env.example                # Environment template
 ```
 
@@ -358,7 +359,7 @@ pub async fn save_to_database(
 ) -> Result<usize, MonsaktiError> {
     // Auto-generate table name
     let table_name = format!("{}_{}", module.to_lowercase(), endpoint.to_lowercase());
-    // Examples: "adm_ref_admin", "ang_data_ang", "siman_aset_tanah"
+    // Examples: "adm_ref_admin", "ang_data_ang" (MonSAKTI dynamic tables)
 
     if let Some(array) = data.as_array() {
         bulk_insert_postgres(db, &table_name, array).await?
@@ -467,7 +468,10 @@ pub async fn get_row_count(
 
 ## 🗃️ Database Schema
 
-**Schema:** `integrasi` (isolated namespace)
+**Schema:** `integrasi` **dalam shared `dbsimpelv2`** (bersama `authenc` + `perlengkapan`;
+dibaca cross-schema oleh perlengkapan). BUKAN database terisolasi — lihat
+`layanan/AGENTS.md` → Database Architecture. integrasi = **SoT data master eksternal**;
+konsumen fetch-at-read/baca cross-schema, dilarang duplikasi.
 
 **Tables:**
 
@@ -488,13 +492,19 @@ pub async fn get_row_count(
    - `mysimkari_satker` - Work units
    - `mysimkari_pegawai` - Employees
 
-4. **SIMAN (4 main tables)**
-   - `siman_aset_tanah` - Land assets
-   - `siman_aset_gedung_bangunan` - Buildings
-   - `siman_aset_alat_besar` - Heavy equipment
-   - `siman_aset_angkutan_bermotor` - Vehicles
+4. **SIMAN — `siman_aset` UNIFIED (SoT)**
+   - **`siman_aset`** — satu tabel, diskriminator kolom `jenis_aset`
+     (tanah/gedung_bangunan/alat_besar/angkutan_bermotor/…). Dilayani gRPC
+     (`grpc/service.rs` "unified siman_aset filtered by jenis_aset") & dibaca
+     perlengkapan `bank_aset/repository.rs`.
+   - ⚠️ Tabel split lama `siman_aset_{tanah,gedung_bangunan,alat_besar,angkutan_bermotor}`
+     = **LEGACY/duplikat** (jangan dibuat ulang) → migrasi ke `siman_aset WHERE jenis_aset=…`.
 
-**Migration:** `migrations/001_init_schema.sql` (single file, 482 lines)
+**Migrasi:** runner **`integrasi-migrate`** (`src/bin/migrate.rs`, embed
+`001_init_schema.sql` + `002_enhance_integration_schema.sql` via `include_str!`,
+idempotent). Extension dibuat
+`WITH SCHEMA public` (jangan mendarat di schema `integrasi`). Jalan **pertama** dalam urutan
+bring-up (integrasi → authenc → perlengkapan); lihat `layanan/AGENTS.md`.
 
 ## 🚀 Common Tasks
 

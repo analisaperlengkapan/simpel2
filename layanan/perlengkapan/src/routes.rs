@@ -52,6 +52,10 @@ pub fn create_routes(state: AppState) -> Router {
             get(crate::bank_aset::get_bank_aset_last_sync),
         )
         .route(
+            "/bank-aset/filter-options",
+            get(crate::bank_aset::get_bank_aset_filter_options),
+        )
+        .route(
             "/bank-aset/{id}",
             get(crate::bank_aset::get_bank_aset_detail),
         )

@@ -26,7 +26,7 @@ use uuid::Uuid;
 pub struct SatkerSubmission {
     pub id: Uuid,
     pub pengajuan_id: Uuid,
-    pub ms_satker_id: String,
+    pub satker_id: String,
     pub satker_nama: Option<String>,
     pub status_kode: i32,
     pub status_nama: Option<String>,
@@ -39,7 +39,7 @@ pub struct SatkerSubmission {
 pub struct SatkerDetail {
     pub id: Uuid,
     pub pengajuan_id: Uuid,
-    pub ms_satker_id: String,
+    pub satker_id: String,
     pub satker_nama: Option<String>,
     pub status_kode: i32,
     pub status_nama: Option<String>,
@@ -251,7 +251,7 @@ pub fn ReviewPage() -> impl IntoView {
                                                 let satker_label = sub
                                                     .satker_nama
                                                     .clone()
-                                                    .unwrap_or_else(|| sub.ms_satker_id.clone());
+                                                    .unwrap_or_else(|| sub.satker_id.clone());
                                                 let created_label = sub.created_at.format("%d %b %Y %H:%M").to_string();
                                                 let is_selected = Signal::derive(move || {
                                                     selected_submission
@@ -365,7 +365,7 @@ fn DetailPanel(
     let satker_label = detail
         .satker_nama
         .clone()
-        .unwrap_or_else(|| detail.ms_satker_id.clone());
+        .unwrap_or_else(|| detail.satker_id.clone());
     let barang_items = detail.barang_items.clone();
     let has_docs = barang_items
         .iter()
@@ -378,7 +378,7 @@ fn DetailPanel(
             <SectionCard title="Informasi Satker" icon="fas fa-building">
                 <dl class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <InfoField label="Nama Satker" value=satker_label />
-                    <InfoField label="Kode Satker" value=detail.ms_satker_id.clone() />
+                    <InfoField label="Kode Satker" value=detail.satker_id.clone() />
                     <div>
                         <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">"Status"</dt>
                         <dd class="mt-1">

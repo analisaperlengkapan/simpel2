@@ -127,7 +127,11 @@ jobs:
           format: "sarif"
           output: "trivy-fs.sarif"
           severity: "HIGH,CRITICAL"
-          exit-code: "0"
+          # Advisory but VISIBLE: fail the job on fixable HIGH/CRITICAL so it
+          # shows red (a green check gets overlooked). Non-blocking for merges —
+          # the Security Summary only gates on gitleaks. SARIF still uploads
+          # (next step is if: always()) so findings also land in the Security tab.
+          exit-code: "1"
           ignore-unfixed: "true"
           scanners: "vuln,secret,misconfig"
       - name: Upload Trivy SARIF
@@ -217,10 +221,12 @@ jobs:
           done <<< '${{ steps.detect.outputs.files }}'
           exit $STATUS
 
-  # Helm/K8s manifest lint — ADVISORY (F5-A). Lint the *rendered* chart so the
-  # checks see real YAML (probes, resource limits, runAsNonRoot, latest-tag, …),
-  # not raw templates. Starts advisory (continue-on-error) to inventory pre-existing
-  # findings; flip to blocking in F5/F6 once cleared (per plan F5-A.6 / F6-X).
+  # Helm/K8s manifest lint — ADVISORY but VISIBLE (F5-A). Lint the *rendered*
+  # chart so the checks see real YAML (probes, resource limits, runAsNonRoot,
+  # latest-tag, …), not raw templates. Findings make the job show RED (a green
+  # check gets overlooked) but do NOT block merges — the Security Summary only
+  # gates on gitleaks. Flip to a true blocking gate in F5/F6 once the 8 known
+  # findings are cleared (per plan F5-A.6 / F6-X, task #46).
   # Path-gated to infra/helm changes so unrelated PRs skip the heavy steps.
   helm-lint:
     name: Helm Lint & kube-linter
@@ -240,9 +246,8 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: v3.20.2
-      - name: helm lint (advisory)
+      - name: helm lint (advisory — visible)
         if: steps.filter.outputs.helm == 'true'
-        continue-on-error: true
         run: |
           helm lint infra/helm/simpel -f infra/helm/simpel/values-staging.yaml
           helm lint infra/helm/simpel -f infra/helm/simpel/values-production.yaml
@@ -254,9 +259,8 @@ jobs:
             -f infra/helm/simpel/values-staging.yaml > rendered/staging.yaml
           helm template simpel infra/helm/simpel \
             -f infra/helm/simpel/values-production.yaml > rendered/production.yaml
-      - name: kube-linter (advisory — inventory findings; flip to blocking in F5/F6)
+      - name: kube-linter (advisory — visible; flip to blocking in F5/F6)
         if: steps.filter.outputs.helm == 'true'
-        continue-on-error: true
         uses: stackrox/kube-linter-action@v1.0.7
         with:
           directory: rendered
@@ -317,7 +321,17 @@ jobs:
                   icon="⚠️ FINDINGS"; advisory_fail=1
                 fi
                 ;;
-              cancelled) icon="🚫 CANCEL"; block_fail=1 ;;
+              cancelled)
+                # Cancelled biasanya = run di-supersede oleh push baru
+                # (concurrency). Hanya fail-closed bila job BLOCKING (gitleaks)
+                # yang batal — tak bisa pastikan tak ada secret bocor. Job
+                # advisory yang batal = netral (bukan red palsu).
+                if echo " $BLOCKING " | grep -q " $job "; then
+                  icon="🚫 CANCEL"; block_fail=1
+                else
+                  icon="🚫 CANCEL"
+                fi
+                ;;
               *) icon="$result" ;;
             esac
             echo "| $job | $icon | $category |" >> "$GITHUB_STEP_SUMMARY"

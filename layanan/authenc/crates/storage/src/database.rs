@@ -63,6 +63,14 @@ impl Database {
             .get_password()
             .map(|p| String::from_utf8_lossy(p).to_string());
 
+        // F5-B topology: authenc owns the dedicated `authenc` schema in the shared
+        // dbsimpelv2 (clear ownership + per-schema least-privilege). Every
+        // connection resolves unqualified objects to `authenc` first, falling back
+        // to `public` for shared extension functions (uuid_generate_v4) and the
+        // shared trigger fn (update_updated_at_column). This covers the app, the
+        // migration runner (so schema_migrations also lands in authenc), and tests.
+        pool_config.options = Some("-c search_path=authenc,public".to_string());
+
         pool_config.manager = Some(ManagerConfig {
             recycling_method: RecyclingMethod::Fast,
         });

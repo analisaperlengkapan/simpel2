@@ -11,9 +11,13 @@
 CREATE SCHEMA IF NOT EXISTS integrasi;
 SET search_path TO integrasi, public;
 
--- Enable extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+-- Enable extensions in the PUBLIC schema (NOT integrasi). integrasi-migrate runs
+-- first in the shared dbsimpelv2, so these must land in public where authenc and
+-- perlengkapan also resolve them (e.g. public.uuid_generate_v4, gin_trgm_ops).
+-- WITH SCHEMA public is explicit so the SET search_path above doesn't place them
+-- in the integrasi schema.
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+CREATE EXTENSION IF NOT EXISTS "pg_trgm" WITH SCHEMA public;
 
 -- ============================================================================
 -- AUDIT & LOGGING (2 tables — consolidated)
@@ -80,11 +84,44 @@ CREATE TABLE IF NOT EXISTS monsakti_tokens (
 CREATE TABLE IF NOT EXISTS siman_aset (
     id BIGSERIAL PRIMARY KEY,
     jenis_aset TEXT NOT NULL,
-    -- Remaining columns are added dynamically from API response
-    -- via ensure_table_exists() self-healing schema mechanism
+    -- Stable consumer-facing columns. Declared explicitly (rather than left purely
+    -- dynamic) so a FRESH database can create dependent views/queries and so
+    -- consumers (perlengkapan bank_aset/dashboard/pemakaian_bmn/mapping) resolve at
+    -- fresh-apply time. ensure_table_exists() (db.rs) still ADDs any extra SIMAN API
+    -- fields on top at sync time — this is the guaranteed subset.
+    kategori_aset TEXT,
+    no_aset TEXT,
+    ur_sskel TEXT,
+    nama TEXT,
+    kd_brg TEXT,
+    merk TEXT,
+    tipe TEXT,
+    ur_kondisi TEXT,
+    kondisi TEXT,
+    alamat TEXT,
+    nama_satker TEXT,
+    kdsatker_keu TEXT,
+    -- satker_id (uuid) + nama_barang are DERIVED/convenience columns for consumers
+    -- that join SIMAN assets to a local satker (perlengkapan mapping_kodefikasi).
+    -- Nullable; populated via the satker mapping (kode_satker↔kdsatker_keu, task
+    -- #43) + sync. Until then queries that use them return empty (no crash).
+    satker_id UUID,
+    nama_barang TEXT,
+    kode_barang TEXT,
+    nup TEXT,
+    rph_aset TEXT,
+    tgl_perlh TEXT,
+    raw_data JSONB,
     synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_siman_aset_jenis ON siman_aset(jenis_aset);
+CREATE INDEX IF NOT EXISTS idx_siman_aset_nup ON siman_aset(nup) WHERE nup IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_siman_aset_satker ON siman_aset(kdsatker_keu) WHERE kdsatker_keu IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_siman_aset_kode_barang ON siman_aset(kode_barang) WHERE kode_barang IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_siman_aset_raw_gin ON siman_aset USING gin(raw_data);
 
 -- ============================================================================
 -- MYSIMKARI (2 tables)
@@ -527,7 +564,7 @@ END $$;
 
 COMMENT ON SCHEMA integrasi IS 'Integration service: MonSAKTI + MySIMKARI + SIMAN data';
 COMMENT ON TABLE api_log IS 'Unified audit log: API calls, batch ops, sync, token events';
-COMMENT ON TABLE api_tokens IS 'Active API tokens per module';
+COMMENT ON TABLE monsakti_tokens IS 'Active API tokens per module';
 COMMENT ON TABLE siman_aset IS 'SIMAN v2.0: All 15 jenis aset in a single table';
 COMMENT ON TABLE mysimkari_satker IS 'MySIMKARI: Satuan kerja master data';
 COMMENT ON TABLE mysimkari_pegawai IS 'MySIMKARI: Pegawai master data';

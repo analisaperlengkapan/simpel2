@@ -26,6 +26,10 @@ impl BankAsetRepository {
         let mut conditions: Vec<String> = Vec::new();
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
 
+        if let Some(jenis) = &filter.jenis {
+            params.push(Box::new(jenis.clone()));
+            conditions.push(format!("jenis_aset = ${}", params.len()));
+        }
         if let Some(cat) = &filter.kategori {
             params.push(Box::new(cat.clone()));
             conditions.push(format!("kategori_aset = ${}", params.len()));
@@ -392,11 +396,57 @@ impl BankAsetRepository {
             source: "SIMAN".to_string(),
         })
     }
+
+    /// Distinct values (with counts) for the filterable columns, so the FE can
+    /// populate filter dropdowns DYNAMICALLY from the actual data instead of
+    /// hard-coded lists. Columns are a fixed allow-list (no arbitrary-column SQL).
+    pub async fn filter_options(&self) -> AppResult<BankAsetFilterOptions> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
+
+        // (label_expr, column) — column names are a hard-coded allow-list.
+        async fn distinct(
+            client: &deadpool_postgres::Object,
+            col: &str,
+        ) -> AppResult<Vec<FilterOption>> {
+            // `col` is from the fixed allow-list below, never user input.
+            let sql = format!(
+                "SELECT {col} AS value, COUNT(*)::BIGINT AS count
+                 FROM integrasi.siman_aset
+                 WHERE {col} IS NOT NULL AND {col} <> ''
+                 GROUP BY {col}
+                 ORDER BY count DESC, value ASC
+                 LIMIT 500"
+            );
+            let rows = client
+                .query(&sql, &[])
+                .await
+                .map_err(|e| AppError::Database(e.to_string()))?;
+            Ok(rows
+                .iter()
+                .map(|r| FilterOption {
+                    value: r.get("value"),
+                    count: r.get("count"),
+                })
+                .collect())
+        }
+
+        Ok(BankAsetFilterOptions {
+            jenis: distinct(&client, "jenis_aset").await?,
+            kategori: distinct(&client, "kategori_aset").await?,
+            kondisi: distinct(&client, "ur_kondisi").await?,
+            satker: distinct(&client, "nama_satker").await?,
+        })
+    }
 }
 
 pub struct ListFilter {
     pub page: i32,
     pub per_page: i32,
+    pub jenis: Option<String>,
     pub kategori: Option<String>,
     pub kondisi: Option<String>,
     pub satker: Option<String>,

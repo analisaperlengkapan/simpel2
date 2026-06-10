@@ -131,9 +131,9 @@ pub struct PengajuanKebutuhanBmnAsset {
 pub struct PengajuanKebutuhanBmnSatker {
     pub id: String,
     pub pengajuan_id: String,
-    pub ms_satker_id: String,
-    pub ms_satker_pusat_id: Option<String>,
-    pub nm_satker: Option<String>,
+    pub satker_id: String,
+    pub satker_pusat_id: Option<String>,
+    pub satker_nama: Option<String>,
     pub status_kode: i32,
     pub prioritas: i32,
     // Operator satker fields

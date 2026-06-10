@@ -49,7 +49,7 @@ impl KebutuhanBmnService {
 
         // Fetch pegawai data from MySIMKARI for final analysis by Validator Pusat
         let data_pegawai = self
-            .get_mysimkari_pegawai_data(&satker.ms_satker_id)
+            .get_mysimkari_pegawai_data(&satker.satker_id)
             .await
             .ok();
 

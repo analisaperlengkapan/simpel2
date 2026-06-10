@@ -57,12 +57,13 @@ spec:
           env:
             - name: RUST_LOG
               value: "info"
-            # Same source as the authenc Deployment (values.yaml authenc.env).
+            # Same source as the authenc Deployment (values.yaml authenc.env):
+            # shared dbsimpelv2 (F5-B topology), authenc tables in their schema.
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: postgres-credentials
-                  key: authenc-url
+                  key: url
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits:   { cpu: "1",  memory: 512Mi }

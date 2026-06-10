@@ -148,12 +148,12 @@ secrets:
     username: simpelv2
     password: ""                           # WAJIB diisi via values-secrets.yaml saat bootstrap
     databases:
+      # F5-B topology: authenc + integrasi + perlengkapan SHARE dbsimpelv2
+      # (schema-per-service, cross-schema reads). secreton (vault) + simpelv1
+      # (legacy) stay isolated on their own databases.
       simpelv2: dbsimpelv2
-      simpelv1: dbsimpelv1                 # Laravel monolith DB (legacy simpelv1)
-      authenc: authenc
-      secreton: secreton
-      perlengkapan: perlengkapan
-      integrasi: integrasi
+      simpelv1: dbsimpelv1                 # Laravel monolith DB (legacy simpelv1) — ISOLATED
+      secreton: secreton                   # secret manager — ISOLATED
   integration: {}                          # MONSAKTI_*, MYSIMKARI_*, SIMAN_* sebagai key→value
   simpelv1: {}                             # DB_USERNAME / DB_PASSWORD / APP_KEY
 
@@ -313,8 +313,11 @@ authenc:
       valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_ENDPOINT, optional: true } }
     - name: INTEGRASI_GRPC_URL
       valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+    # F5-B topology: authenc, integrasi, perlengkapan SHARE dbsimpelv2 (key: url),
+    # each in its own schema, because perlengkapan reads integrasi.* / authenc.*
+    # cross-schema (JOINs + an FK) which only resolves within one database.
     - name: DATABASE_URL
-      valueFrom: { secretKeyRef: { name: postgres-credentials, key: authenc-url } }
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: url } }
   istioInjection: false                    # authenc tidak pakai sidecar; DR DISABLE
   topologySpreadConstraints:
     enabled: false                         # production override true
@@ -419,6 +422,11 @@ layananIntegrasi:
   # gRPC server (Deployment) — terima request dari layanan-perlengkapan + admin manual trigger.
   # Scheduler binary dipanggil per-provider via CronJob (lihat .cronjobs di bawah).
   replicas: 1
+  # Schema migration via pre-install/pre-upgrade hook Job (out-of-band; integrasi
+  # never self-migrates → tables exist before consumers read integrasi.* cross-schema).
+  # See backend/integrasi-migrate-job.yaml. Runs before authenc-migrate (hook-weight).
+  migrationJob:
+    enabled: true
   service:
     ports:
       - { name: grpc, port: 50051, appProtocol: grpc }
@@ -432,6 +440,11 @@ layananIntegrasi:
     fsGroup: 1000
   containerSecurityContext: {}
   probes:
+    startup:                               # connect DB + bind gRPC; migrasi via Job terpisah (integrasi-migrate)
+      type: tcp
+      port: 50051
+      periodSeconds: 10
+      failureThreshold: 18                 # ~180s; kalibrasi @staging (F5-E)
     liveness:
       type: tcp
       port: 50051
@@ -453,8 +466,10 @@ layananIntegrasi:
     - { name: STORAGE_TYPE, value: "database" }
     - name: RUST_LOG
       valueFrom: { configMapKeyRef: { name: simpelv2-config, key: RUST_LOG } }
+    # Shares dbsimpelv2 (key: url) — its sync writes land where consumers read
+    # integrasi.* cross-schema. See authenc note above.
     - name: DATABASE_URL
-      valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: url } }
   istioInjection: true
   istioProxyResources:
     cpu: { request: 50m, limit: 500m }
@@ -522,6 +537,12 @@ layananPerlengkapan:
     fsGroup: 1000
   containerSecurityContext: {}
   probes:
+    startup:                               # BE jalankan refinery migrations + add_essential_indexes saat boot → window besar
+      type: http
+      path: /health
+      port: 3020
+      periodSeconds: 10
+      failureThreshold: 30                 # ~300s cold start; kalibrasi dari boot-time nyata @staging (F5-E)
     liveness:
       type: http
       path: /health
@@ -545,10 +566,10 @@ layananPerlengkapan:
       valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_GRPC_URL, optional: true } }
     - name: INTEGRASI_GRPC_URL
       valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+    # Shares dbsimpelv2 (key: url) — reads integrasi.* / authenc.* cross-schema
+    # (no separate INTEGRASI_DATABASE_URL: cross-schema is same-DB). See authenc note.
     - name: DATABASE_URL
-      valueFrom: { secretKeyRef: { name: postgres-credentials, key: perlengkapan-url } }
-    - name: INTEGRASI_DATABASE_URL
-      valueFrom: { secretKeyRef: { name: postgres-credentials, key: integrasi-url } }
+      valueFrom: { secretKeyRef: { name: postgres-credentials, key: url } }
     # Dynamic DB credentials (F2H 2H-B). When set, the service issues short-lived
     # creds from Secreton's database secrets engine and renews the lease instead
     # of using the static DATABASE_URL above. Requires Secreton-side setup
@@ -712,6 +733,12 @@ perlengkapan:
     fsGroup: 101
   containerSecurityContext: {}
   probes:
+    startup:                               # FE statik (WASM) — boot cepat, startupProbe defensif
+      type: http
+      path: /health
+      port: 8080
+      periodSeconds: 5
+      failureThreshold: 12                 # ~60s
     liveness:
       type: http
       path: /health

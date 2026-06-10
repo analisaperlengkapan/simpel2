@@ -199,6 +199,12 @@ spec:
             {{- end }}
           resources:
             {{- toYaml $cfg.resources | nindent 12 }}
+          startupProbe:
+            # Laravel cold boot (cache config/route/view, package discovery);
+            # secret fetch ada di initContainer (tak dihitung di sini).
+            httpGet: { path: /health, port: http, scheme: HTTP }
+            periodSeconds: 10
+            failureThreshold: 18           # ~180s; kalibrasi dari boot-time nyata @staging (F5-E)
           livenessProbe:
             httpGet: { path: /healthz, port: http, scheme: HTTP }
             initialDelaySeconds: 30

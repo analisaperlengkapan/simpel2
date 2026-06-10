@@ -1,6 +1,8 @@
 -- F5-B squashed baseline (pg_dump --schema-only of the repaired migration set,
--- 2026-06-09). Replaces the 44 accreted NNN_*.sql. Public-majority topology +
--- dedicated authenc schema for token_revocations/totp_secrets/mfa_backup_codes.
+-- 2026-06-09). Replaces the 44 accreted NNN_*.sql. ALL authenc tables live in the
+-- dedicated `authenc` schema (clear ownership + per-schema least-privilege in the
+-- shared dbsimpelv2). Only uuid_generate_v4 (extension) and update_updated_at_column
+-- (shared trigger fn) stay in public. App connects with search_path=authenc,public.
 
 --
 -- PostgreSQL database dump
@@ -15,7 +17,7 @@ SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', 'public, authenc', false);
+SELECT pg_catalog.set_config('search_path', 'authenc, public', false);
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
@@ -32,7 +34,7 @@ CREATE SCHEMA IF NOT EXISTS authenc;
 -- Name: SCHEMA authenc; Type: COMMENT; Schema: -; Owner: -
 --
 
-COMMENT ON SCHEMA authenc IS 'Authenc-owned tables referenced schema-qualified (token_revocations, totp_secrets, mfa_backup_codes). Most authenc tables live in public.';
+COMMENT ON SCHEMA authenc IS 'Authenc-owned schema: ALL authenc identity/IAM tables live here (shared dbsimpelv2). Consumers (perlengkapan) read authenc.* cross-schema. App search_path=authenc,public.';
 
 
 --
@@ -53,7 +55,7 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 -- Name: add_password_to_history(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.add_password_to_history() RETURNS trigger
+CREATE FUNCTION authenc.add_password_to_history() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -93,14 +95,14 @@ $$;
 -- Name: FUNCTION add_password_to_history(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.add_password_to_history() IS 'Trigger function to automatically track password changes';
+COMMENT ON FUNCTION authenc.add_password_to_history() IS 'Trigger function to automatically track password changes';
 
 
 --
 -- Name: audit_service_account_changes(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.audit_service_account_changes() RETURNS trigger
+CREATE FUNCTION authenc.audit_service_account_changes() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -177,7 +179,7 @@ $$;
 -- Name: audit_service_account_role_changes(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.audit_service_account_role_changes() RETURNS trigger
+CREATE FUNCTION authenc.audit_service_account_role_changes() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -219,7 +221,7 @@ $$;
 -- Name: check_consent_required(uuid, uuid, text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.check_consent_required(p_user_id uuid, p_client_id uuid, p_requested_scopes text[]) RETURNS TABLE(consent_needed boolean, missing_scopes text[])
+CREATE FUNCTION authenc.check_consent_required(p_user_id uuid, p_client_id uuid, p_requested_scopes text[]) RETURNS TABLE(consent_needed boolean, missing_scopes text[])
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -263,7 +265,7 @@ $$;
 -- Name: check_password_expiration(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.check_password_expiration(p_user_id uuid, p_expiration_days integer DEFAULT 90) RETURNS TABLE(is_expired boolean, days_until_expiration integer, should_warn boolean)
+CREATE FUNCTION authenc.check_password_expiration(p_user_id uuid, p_expiration_days integer DEFAULT 90) RETURNS TABLE(is_expired boolean, days_until_expiration integer, should_warn boolean)
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -299,14 +301,14 @@ $$;
 -- Name: FUNCTION check_password_expiration(p_user_id uuid, p_expiration_days integer); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.check_password_expiration(p_user_id uuid, p_expiration_days integer) IS 'Check if a user password has expired or will expire soon';
+COMMENT ON FUNCTION authenc.check_password_expiration(p_user_id uuid, p_expiration_days integer) IS 'Check if a user password has expired or will expire soon';
 
 
 --
 -- Name: cleanup_expired_captcha_challenges(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.cleanup_expired_captcha_challenges() RETURNS bigint
+CREATE FUNCTION authenc.cleanup_expired_captcha_challenges() RETURNS bigint
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -336,14 +338,14 @@ $$;
 -- Name: FUNCTION cleanup_expired_captcha_challenges(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.cleanup_expired_captcha_challenges() IS 'Cleans up expired CAPTCHA challenges and related data';
+COMMENT ON FUNCTION authenc.cleanup_expired_captcha_challenges() IS 'Cleans up expired CAPTCHA challenges and related data';
 
 
 --
 -- Name: cleanup_expired_data(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.cleanup_expired_data() RETURNS void
+CREATE FUNCTION authenc.cleanup_expired_data() RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -363,7 +365,7 @@ $$;
 -- Name: cleanup_expired_webauthn_challenges(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.cleanup_expired_webauthn_challenges() RETURNS integer
+CREATE FUNCTION authenc.cleanup_expired_webauthn_challenges() RETURNS integer
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -382,14 +384,14 @@ $$;
 -- Name: FUNCTION cleanup_expired_webauthn_challenges(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.cleanup_expired_webauthn_challenges() IS 'Cleans up expired WebAuthn challenges. Should be called periodically via cron/scheduler.';
+COMMENT ON FUNCTION authenc.cleanup_expired_webauthn_challenges() IS 'Cleans up expired WebAuthn challenges. Should be called periodically via cron/scheduler.';
 
 
 --
 -- Name: get_batch_mfa_status(uuid[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_batch_mfa_status(user_ids uuid[]) RETURNS TABLE(user_id uuid, mfa_enabled boolean, mfa_setup_at timestamp with time zone, mfa_last_used timestamp with time zone)
+CREATE FUNCTION authenc.get_batch_mfa_status(user_ids uuid[]) RETURNS TABLE(user_id uuid, mfa_enabled boolean, mfa_setup_at timestamp with time zone, mfa_last_used timestamp with time zone)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -411,14 +413,14 @@ $$;
 -- Name: FUNCTION get_batch_mfa_status(user_ids uuid[]); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_batch_mfa_status(user_ids uuid[]) IS 'Optimized function to get MFA status for multiple users';
+COMMENT ON FUNCTION authenc.get_batch_mfa_status(user_ids uuid[]) IS 'Optimized function to get MFA status for multiple users';
 
 
 --
 -- Name: get_captcha_analytics_summary(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_captcha_analytics_summary(p_days integer DEFAULT 7) RETURNS TABLE(total_challenges bigint, solved_challenges bigint, success_rate numeric, avg_difficulty numeric, bot_detection_rate numeric, unique_ips bigint, high_risk_attempts bigint)
+CREATE FUNCTION authenc.get_captcha_analytics_summary(p_days integer DEFAULT 7) RETURNS TABLE(total_challenges bigint, solved_challenges bigint, success_rate numeric, avg_difficulty numeric, bot_detection_rate numeric, unique_ips bigint, high_risk_attempts bigint)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -451,14 +453,14 @@ $$;
 -- Name: FUNCTION get_captcha_analytics_summary(p_days integer); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_captcha_analytics_summary(p_days integer) IS 'Returns summary analytics for CAPTCHA system performance';
+COMMENT ON FUNCTION authenc.get_captcha_analytics_summary(p_days integer) IS 'Returns summary analytics for CAPTCHA system performance';
 
 
 --
 -- Name: get_captcha_difficulty(inet, character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_captcha_difficulty(p_ip_address inet, p_session_id character varying DEFAULT NULL::character varying) RETURNS smallint
+CREATE FUNCTION authenc.get_captcha_difficulty(p_ip_address inet, p_session_id character varying DEFAULT NULL::character varying) RETURNS smallint
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -515,14 +517,14 @@ $$;
 -- Name: FUNCTION get_captcha_difficulty(p_ip_address inet, p_session_id character varying); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_captcha_difficulty(p_ip_address inet, p_session_id character varying) IS 'Determines appropriate CAPTCHA difficulty for IP/session';
+COMMENT ON FUNCTION authenc.get_captcha_difficulty(p_ip_address inet, p_session_id character varying) IS 'Determines appropriate CAPTCHA difficulty for IP/session';
 
 
 --
 -- Name: get_mfa_compliance_summary(text[], text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_mfa_compliance_summary(p_satker_codes text[] DEFAULT NULL::text[], p_role_names text[] DEFAULT NULL::text[]) RETURNS TABLE(total_users bigint, mfa_enabled_users bigint, compliance_percentage numeric, non_compliant_users bigint)
+CREATE FUNCTION authenc.get_mfa_compliance_summary(p_satker_codes text[] DEFAULT NULL::text[], p_role_names text[] DEFAULT NULL::text[]) RETURNS TABLE(total_users bigint, mfa_enabled_users bigint, compliance_percentage numeric, non_compliant_users bigint)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -561,7 +563,7 @@ $$;
 -- Name: get_mfa_usage_trends(integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_mfa_usage_trends(p_days integer DEFAULT 30) RETURNS TABLE(date date, successful_verifications bigint, failed_verifications bigint, unique_users bigint, new_setups bigint)
+CREATE FUNCTION authenc.get_mfa_usage_trends(p_days integer DEFAULT 30) RETURNS TABLE(date date, successful_verifications bigint, failed_verifications bigint, unique_users bigint, new_setups bigint)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -585,7 +587,7 @@ $$;
 -- Name: get_password_history(uuid, integer); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_password_history(p_user_id uuid, p_limit integer DEFAULT 5) RETURNS TABLE(password_hash text, created_at timestamp with time zone)
+CREATE FUNCTION authenc.get_password_history(p_user_id uuid, p_limit integer DEFAULT 5) RETURNS TABLE(password_hash text, created_at timestamp with time zone)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -603,14 +605,14 @@ $$;
 -- Name: FUNCTION get_password_history(p_user_id uuid, p_limit integer); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_password_history(p_user_id uuid, p_limit integer) IS 'Retrieve password history for a user';
+COMMENT ON FUNCTION authenc.get_password_history(p_user_id uuid, p_limit integer) IS 'Retrieve password history for a user';
 
 
 --
 -- Name: get_recommended_challenge_type(character varying, numeric); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_recommended_challenge_type(p_user_id character varying, p_risk_score numeric DEFAULT 0.5) RETURNS character varying
+CREATE FUNCTION authenc.get_recommended_challenge_type(p_user_id character varying, p_risk_score numeric DEFAULT 0.5) RETURNS character varying
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -647,14 +649,14 @@ $$;
 -- Name: FUNCTION get_recommended_challenge_type(p_user_id character varying, p_risk_score numeric); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_recommended_challenge_type(p_user_id character varying, p_risk_score numeric) IS 'Returns recommended challenge type based on user history and risk score';
+COMMENT ON FUNCTION authenc.get_recommended_challenge_type(p_user_id character varying, p_risk_score numeric) IS 'Returns recommended challenge type based on user history and risk score';
 
 
 --
 -- Name: get_recommended_difficulty(character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_recommended_difficulty(p_user_id character varying) RETURNS smallint
+CREATE FUNCTION authenc.get_recommended_difficulty(p_user_id character varying) RETURNS smallint
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -673,14 +675,14 @@ $$;
 -- Name: FUNCTION get_recommended_difficulty(p_user_id character varying); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_recommended_difficulty(p_user_id character varying) IS 'Returns recommended difficulty level for user';
+COMMENT ON FUNCTION authenc.get_recommended_difficulty(p_user_id character varying) IS 'Returns recommended difficulty level for user';
 
 
 --
 -- Name: get_user_mfa_status(uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.get_user_mfa_status(p_user_id uuid) RETURNS TABLE(mfa_enabled boolean, mfa_setup_at timestamp with time zone, mfa_last_used timestamp with time zone)
+CREATE FUNCTION authenc.get_user_mfa_status(p_user_id uuid) RETURNS TABLE(mfa_enabled boolean, mfa_setup_at timestamp with time zone, mfa_last_used timestamp with time zone)
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -701,14 +703,14 @@ $$;
 -- Name: FUNCTION get_user_mfa_status(p_user_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.get_user_mfa_status(p_user_id uuid) IS 'Optimized function for single user MFA status lookup';
+COMMENT ON FUNCTION authenc.get_user_mfa_status(p_user_id uuid) IS 'Optimized function for single user MFA status lookup';
 
 
 --
 -- Name: log_mfa_admin_action(uuid, uuid, character varying, text, jsonb); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.log_mfa_admin_action(p_admin_user_id uuid, p_target_user_id uuid, p_action character varying, p_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT NULL::jsonb) RETURNS uuid
+CREATE FUNCTION authenc.log_mfa_admin_action(p_admin_user_id uuid, p_target_user_id uuid, p_action character varying, p_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT NULL::jsonb) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -737,14 +739,14 @@ $$;
 -- Name: FUNCTION log_mfa_admin_action(p_admin_user_id uuid, p_target_user_id uuid, p_action character varying, p_reason text, p_metadata jsonb); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.log_mfa_admin_action(p_admin_user_id uuid, p_target_user_id uuid, p_action character varying, p_reason text, p_metadata jsonb) IS 'Logs MFA administrative actions for audit purposes';
+COMMENT ON FUNCTION authenc.log_mfa_admin_action(p_admin_user_id uuid, p_target_user_id uuid, p_action character varying, p_reason text, p_metadata jsonb) IS 'Logs MFA administrative actions for audit purposes';
 
 
 --
 -- Name: prevent_circular_groups(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.prevent_circular_groups() RETURNS trigger
+CREATE FUNCTION authenc.prevent_circular_groups() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -772,7 +774,7 @@ $$;
 -- Name: record_captcha_validation(uuid, inet, text, text, boolean, double precision, character varying, uuid); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.record_captcha_validation(p_challenge_id uuid, p_ip_address inet, p_user_agent text, p_answer_provided text, p_success boolean, p_confidence_score double precision DEFAULT NULL::double precision, p_risk_assessment character varying DEFAULT 'Medium'::character varying, p_behavioral_metrics_id uuid DEFAULT NULL::uuid) RETURNS uuid
+CREATE FUNCTION authenc.record_captcha_validation(p_challenge_id uuid, p_ip_address inet, p_user_agent text, p_answer_provided text, p_success boolean, p_confidence_score double precision DEFAULT NULL::double precision, p_risk_assessment character varying DEFAULT 'Medium'::character varying, p_behavioral_metrics_id uuid DEFAULT NULL::uuid) RETURNS uuid
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -817,14 +819,14 @@ $$;
 -- Name: FUNCTION record_captcha_validation(p_challenge_id uuid, p_ip_address inet, p_user_agent text, p_answer_provided text, p_success boolean, p_confidence_score double precision, p_risk_assessment character varying, p_behavioral_metrics_id uuid); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.record_captcha_validation(p_challenge_id uuid, p_ip_address inet, p_user_agent text, p_answer_provided text, p_success boolean, p_confidence_score double precision, p_risk_assessment character varying, p_behavioral_metrics_id uuid) IS 'Records a CAPTCHA validation attempt with all metadata';
+COMMENT ON FUNCTION authenc.record_captcha_validation(p_challenge_id uuid, p_ip_address inet, p_user_agent text, p_answer_provided text, p_success boolean, p_confidence_score double precision, p_risk_assessment character varying, p_behavioral_metrics_id uuid) IS 'Records a CAPTCHA validation attempt with all metadata';
 
 
 --
 -- Name: refresh_captcha_analytics(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.refresh_captcha_analytics() RETURNS void
+CREATE FUNCTION authenc.refresh_captcha_analytics() RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -837,14 +839,14 @@ $$;
 -- Name: FUNCTION refresh_captcha_analytics(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.refresh_captcha_analytics() IS 'Refreshes the CAPTCHA analytics materialized view';
+COMMENT ON FUNCTION authenc.refresh_captcha_analytics() IS 'Refreshes the CAPTCHA analytics materialized view';
 
 
 --
 -- Name: refresh_mfa_statistics(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.refresh_mfa_statistics() RETURNS void
+CREATE FUNCTION authenc.refresh_mfa_statistics() RETURNS void
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -857,14 +859,14 @@ $$;
 -- Name: FUNCTION refresh_mfa_statistics(); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.refresh_mfa_statistics() IS 'Refreshes the MFA statistics materialized view';
+COMMENT ON FUNCTION authenc.refresh_mfa_statistics() IS 'Refreshes the MFA statistics materialized view';
 
 
 --
 -- Name: trigger_refresh_captcha_analytics(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.trigger_refresh_captcha_analytics() RETURNS trigger
+CREATE FUNCTION authenc.trigger_refresh_captcha_analytics() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -886,7 +888,7 @@ $$;
 -- Name: trigger_refresh_mfa_statistics(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.trigger_refresh_mfa_statistics() RETURNS trigger
+CREATE FUNCTION authenc.trigger_refresh_mfa_statistics() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -908,7 +910,7 @@ $$;
 -- Name: update_captcha_type_effectiveness(character varying, boolean, numeric, boolean); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_captcha_type_effectiveness(p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric, p_bot_detected boolean) RETURNS void
+CREATE FUNCTION authenc.update_captcha_type_effectiveness(p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric, p_bot_detected boolean) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -942,14 +944,14 @@ $$;
 -- Name: FUNCTION update_captcha_type_effectiveness(p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric, p_bot_detected boolean); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.update_captcha_type_effectiveness(p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric, p_bot_detected boolean) IS 'Updates global effectiveness metrics for challenge types';
+COMMENT ON FUNCTION authenc.update_captcha_type_effectiveness(p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric, p_bot_detected boolean) IS 'Updates global effectiveness metrics for challenge types';
 
 
 --
 -- Name: update_captcha_user_history(character varying, character varying, boolean, numeric); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_captcha_user_history(p_user_id character varying, p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric) RETURNS void
+CREATE FUNCTION authenc.update_captcha_user_history(p_user_id character varying, p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric) RETURNS void
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -1031,14 +1033,14 @@ $$;
 -- Name: FUNCTION update_captcha_user_history(p_user_id character varying, p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.update_captcha_user_history(p_user_id character varying, p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric) IS 'Updates user history and adjusts difficulty after challenge completion';
+COMMENT ON FUNCTION authenc.update_captcha_user_history(p_user_id character varying, p_challenge_type character varying, p_success boolean, p_completion_time_secs numeric) IS 'Updates user history and adjusts difficulty after challenge completion';
 
 
 --
 -- Name: update_child_group_paths(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_child_group_paths() RETURNS trigger
+CREATE FUNCTION authenc.update_child_group_paths() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1056,7 +1058,7 @@ $$;
 -- Name: update_client_policy_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_client_policy_timestamp() RETURNS trigger
+CREATE FUNCTION authenc.update_client_policy_timestamp() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1070,7 +1072,7 @@ $$;
 -- Name: update_client_scopes_timestamp(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_client_scopes_timestamp() RETURNS trigger
+CREATE FUNCTION authenc.update_client_scopes_timestamp() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1084,7 +1086,7 @@ $$;
 -- Name: update_group_path(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_group_path() RETURNS trigger
+CREATE FUNCTION authenc.update_group_path() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -1105,7 +1107,7 @@ $$;
 -- Name: update_satker_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_satker_updated_at() RETURNS trigger
+CREATE FUNCTION authenc.update_satker_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1119,7 +1121,7 @@ $$;
 -- Name: update_service_account_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_service_account_updated_at() RETURNS trigger
+CREATE FUNCTION authenc.update_service_account_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1147,7 +1149,7 @@ $$;
 -- Name: update_webauthn_credential_last_used(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_webauthn_credential_last_used() RETURNS trigger
+CREATE FUNCTION authenc.update_webauthn_credential_last_used() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
@@ -1162,7 +1164,7 @@ $$;
 -- Name: user_can_access_path(uuid, character varying, character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.user_can_access_path(p_user_id uuid, p_path character varying, p_action character varying) RETURNS boolean
+CREATE FUNCTION authenc.user_can_access_path(p_user_id uuid, p_path character varying, p_action character varying) RETURNS boolean
     LANGUAGE plpgsql STABLE
     AS $$
 DECLARE
@@ -1233,14 +1235,14 @@ $$;
 -- Name: FUNCTION user_can_access_path(p_user_id uuid, p_path character varying, p_action character varying); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.user_can_access_path(p_user_id uuid, p_path character varying, p_action character varying) IS 'Check if user can access a path with given action (Vault-style)';
+COMMENT ON FUNCTION authenc.user_can_access_path(p_user_id uuid, p_path character varying, p_action character varying) IS 'Check if user can access a path with given action (Vault-style)';
 
 
 --
 -- Name: user_has_capability(uuid, character varying); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.user_has_capability(p_user_id uuid, p_capability_code character varying) RETURNS boolean
+CREATE FUNCTION authenc.user_has_capability(p_user_id uuid, p_capability_code character varying) RETURNS boolean
     LANGUAGE plpgsql STABLE
     AS $$
 BEGIN
@@ -1257,14 +1259,14 @@ $$;
 -- Name: FUNCTION user_has_capability(p_user_id uuid, p_capability_code character varying); Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON FUNCTION public.user_has_capability(p_user_id uuid, p_capability_code character varying) IS 'Check if user has a specific capability';
+COMMENT ON FUNCTION authenc.user_has_capability(p_user_id uuid, p_capability_code character varying) IS 'Check if user has a specific capability';
 
 
 --
 -- Name: validate_client_scopes(uuid, text[]); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.validate_client_scopes(p_client_id uuid, p_requested_scopes text[]) RETURNS TABLE(valid boolean, invalid_scopes text[])
+CREATE FUNCTION authenc.validate_client_scopes(p_client_id uuid, p_requested_scopes text[]) RETURNS TABLE(valid boolean, invalid_scopes text[])
     LANGUAGE plpgsql
     AS $$
 DECLARE
@@ -1366,7 +1368,7 @@ COMMENT ON COLUMN authenc.totp_secrets.secret IS 'Base32-encoded TOTP secret; ro
 -- Name: access_levels; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.access_levels (
+CREATE TABLE authenc.access_levels (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -1386,28 +1388,28 @@ CREATE TABLE public.access_levels (
 -- Name: TABLE access_levels; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.access_levels IS 'Dynamic access level registry - replaces AccessLevel enum';
+COMMENT ON TABLE authenc.access_levels IS 'Dynamic access level registry - replaces AccessLevel enum';
 
 
 --
 -- Name: COLUMN access_levels.numeric_level; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.access_levels.numeric_level IS 'Higher number = more privileges';
+COMMENT ON COLUMN authenc.access_levels.numeric_level IS 'Higher number = more privileges';
 
 
 --
 -- Name: COLUMN access_levels.capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.access_levels.capabilities IS 'JSON array of capability codes this level grants';
+COMMENT ON COLUMN authenc.access_levels.capabilities IS 'JSON array of capability codes this level grants';
 
 
 --
 -- Name: account_linking_requests; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.account_linking_requests (
+CREATE TABLE authenc.account_linking_requests (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     realm_id uuid NOT NULL,
@@ -1429,7 +1431,7 @@ CREATE TABLE public.account_linking_requests (
 -- Name: actor_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.actor_types (
+CREATE TABLE authenc.actor_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -1446,21 +1448,21 @@ CREATE TABLE public.actor_types (
 -- Name: TABLE actor_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.actor_types IS 'Dynamic actor type registry - replaces hardcoded actor_type strings';
+COMMENT ON TABLE authenc.actor_types IS 'Dynamic actor type registry - replaces hardcoded actor_type strings';
 
 
 --
 -- Name: COLUMN actor_types.is_human; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.actor_types.is_human IS 'Whether this actor type represents human users';
+COMMENT ON COLUMN authenc.actor_types.is_human IS 'Whether this actor type represents human users';
 
 
 --
 -- Name: admin_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_audit_log (
+CREATE TABLE authenc.admin_audit_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     admin_user_id uuid,
@@ -1492,28 +1494,28 @@ CREATE TABLE public.admin_audit_log (
 -- Name: COLUMN admin_audit_log.geolocation_data; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_audit_log.geolocation_data IS 'Geolocation data for the admin IP address';
+COMMENT ON COLUMN authenc.admin_audit_log.geolocation_data IS 'Geolocation data for the admin IP address';
 
 
 --
 -- Name: COLUMN admin_audit_log.request_payload; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_audit_log.request_payload IS 'Sanitized request payload for admin operations';
+COMMENT ON COLUMN authenc.admin_audit_log.request_payload IS 'Sanitized request payload for admin operations';
 
 
 --
 -- Name: COLUMN admin_audit_log.response_payload; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_audit_log.response_payload IS 'Sanitized response payload for admin operations';
+COMMENT ON COLUMN authenc.admin_audit_log.response_payload IS 'Sanitized response payload for admin operations';
 
 
 --
 -- Name: admin_console_preferences; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_console_preferences (
+CREATE TABLE authenc.admin_console_preferences (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     admin_user_id uuid NOT NULL,
     realm_id uuid NOT NULL,
@@ -1540,7 +1542,7 @@ CREATE TABLE public.admin_console_preferences (
 -- Name: admin_console_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_console_sessions (
+CREATE TABLE authenc.admin_console_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     admin_user_id uuid NOT NULL,
@@ -1563,7 +1565,7 @@ CREATE TABLE public.admin_console_sessions (
 -- Name: admin_dashboard_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_dashboard_metrics (
+CREATE TABLE authenc.admin_dashboard_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     metric_type character varying(100) NOT NULL,
@@ -1582,7 +1584,7 @@ CREATE TABLE public.admin_dashboard_metrics (
 -- Name: admin_events; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_events (
+CREATE TABLE authenc.admin_events (
     id character varying(36) NOT NULL,
     "time" timestamp with time zone DEFAULT now() NOT NULL,
     realm_id character varying(36) NOT NULL,
@@ -1607,14 +1609,14 @@ CREATE TABLE public.admin_events (
 -- Name: COLUMN admin_events.geolocation_data; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_events.geolocation_data IS 'Geolocation data for admin events';
+COMMENT ON COLUMN authenc.admin_events.geolocation_data IS 'Geolocation data for admin events';
 
 
 --
 -- Name: admin_level_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_level_types (
+CREATE TABLE authenc.admin_level_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -1636,35 +1638,35 @@ CREATE TABLE public.admin_level_types (
 -- Name: TABLE admin_level_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.admin_level_types IS 'Dynamic admin level hierarchy - replaces AdminLevel enum';
+COMMENT ON TABLE authenc.admin_level_types IS 'Dynamic admin level hierarchy - replaces AdminLevel enum';
 
 
 --
 -- Name: COLUMN admin_level_types.hierarchy_level; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_level_types.hierarchy_level IS 'Higher number = higher authority';
+COMMENT ON COLUMN authenc.admin_level_types.hierarchy_level IS 'Higher number = higher authority';
 
 
 --
 -- Name: COLUMN admin_level_types.scope_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_level_types.scope_type IS 'Type of scope this level manages (satker, wilayah, pusat, etc)';
+COMMENT ON COLUMN authenc.admin_level_types.scope_type IS 'Type of scope this level manages (satker, wilayah, pusat, etc)';
 
 
 --
 -- Name: COLUMN admin_level_types.can_manage_levels; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.admin_level_types.can_manage_levels IS 'JSON array of level codes this level can manage';
+COMMENT ON COLUMN authenc.admin_level_types.can_manage_levels IS 'JSON array of level codes this level can manage';
 
 
 --
 -- Name: admin_notifications; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.admin_notifications (
+CREATE TABLE authenc.admin_notifications (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     notification_type character varying(100) NOT NULL,
@@ -1688,7 +1690,7 @@ CREATE TABLE public.admin_notifications (
 -- Name: audit_integrity_checks; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.audit_integrity_checks (
+CREATE TABLE authenc.audit_integrity_checks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     check_time timestamp without time zone DEFAULT now() NOT NULL,
     events_checked integer DEFAULT 0 NOT NULL,
@@ -1706,7 +1708,7 @@ CREATE TABLE public.audit_integrity_checks (
 -- Name: audit_integrity_failures; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.audit_integrity_failures (
+CREATE TABLE authenc.audit_integrity_failures (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     check_id uuid NOT NULL,
     event_type character varying(50) NOT NULL,
@@ -1723,7 +1725,7 @@ CREATE TABLE public.audit_integrity_failures (
 -- Name: audit_logs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.audit_logs (
+CREATE TABLE authenc.audit_logs (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     event_type character varying(100) NOT NULL,
@@ -1749,7 +1751,7 @@ CREATE TABLE public.audit_logs (
 -- Name: authentication_executions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authentication_executions (
+CREATE TABLE authenc.authentication_executions (
     id uuid NOT NULL,
     flow_id uuid NOT NULL,
     authenticator character varying(255),
@@ -1767,7 +1769,7 @@ CREATE TABLE public.authentication_executions (
 -- Name: authentication_flows; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authentication_flows (
+CREATE TABLE authenc.authentication_flows (
     id uuid NOT NULL,
     realm_id uuid NOT NULL,
     alias character varying(255) NOT NULL,
@@ -1784,7 +1786,7 @@ CREATE TABLE public.authentication_flows (
 -- Name: authentication_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authentication_sessions (
+CREATE TABLE authenc.authentication_sessions (
     id uuid NOT NULL,
     realm_id uuid NOT NULL,
     user_id uuid,
@@ -1812,7 +1814,7 @@ CREATE TABLE public.authentication_sessions (
 -- Name: authenticator_configs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authenticator_configs (
+CREATE TABLE authenc.authenticator_configs (
     id uuid NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -1830,7 +1832,7 @@ CREATE TABLE public.authenticator_configs (
 -- Name: authenticator_execution_results; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authenticator_execution_results (
+CREATE TABLE authenc.authenticator_execution_results (
     id uuid NOT NULL,
     execution_id uuid NOT NULL,
     session_id uuid,
@@ -1847,7 +1849,7 @@ CREATE TABLE public.authenticator_execution_results (
 -- Name: authenticator_executions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authenticator_executions (
+CREATE TABLE authenc.authenticator_executions (
     id uuid NOT NULL,
     realm_id uuid NOT NULL,
     flow_id uuid NOT NULL,
@@ -1864,7 +1866,7 @@ CREATE TABLE public.authenticator_executions (
 -- Name: authorization_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.authorization_policies (
+CREATE TABLE authenc.authorization_policies (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     description text,
@@ -1888,35 +1890,35 @@ CREATE TABLE public.authorization_policies (
 -- Name: TABLE authorization_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.authorization_policies IS 'Vault-style authorization policies';
+COMMENT ON TABLE authenc.authorization_policies IS 'Vault-style authorization policies';
 
 
 --
 -- Name: COLUMN authorization_policies.path_pattern; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.authorization_policies.path_pattern IS 'Glob pattern for resource paths';
+COMMENT ON COLUMN authenc.authorization_policies.path_pattern IS 'Glob pattern for resource paths';
 
 
 --
 -- Name: COLUMN authorization_policies.capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.authorization_policies.capabilities IS 'JSON array of capability codes granted by this policy';
+COMMENT ON COLUMN authenc.authorization_policies.capabilities IS 'JSON array of capability codes granted by this policy';
 
 
 --
 -- Name: COLUMN authorization_policies.conditions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.authorization_policies.conditions IS 'JSON conditions for policy evaluation';
+COMMENT ON COLUMN authenc.authorization_policies.conditions IS 'JSON conditions for policy evaluation';
 
 
 --
 -- Name: capabilities; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.capabilities (
+CREATE TABLE authenc.capabilities (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -1939,56 +1941,56 @@ CREATE TABLE public.capabilities (
 -- Name: TABLE capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.capabilities IS 'Fine-grained capabilities/permissions registry';
+COMMENT ON TABLE authenc.capabilities IS 'Fine-grained capabilities/permissions registry';
 
 
 --
 -- Name: COLUMN capabilities.code; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.code IS 'Unique capability code (e.g., users:read, secrets:write)';
+COMMENT ON COLUMN authenc.capabilities.code IS 'Unique capability code (e.g., users:read, secrets:write)';
 
 
 --
 -- Name: COLUMN capabilities.resource_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.resource_type IS 'Resource type this capability applies to';
+COMMENT ON COLUMN authenc.capabilities.resource_type IS 'Resource type this capability applies to';
 
 
 --
 -- Name: COLUMN capabilities.action; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.action IS 'Action type (read, write, delete, admin, etc)';
+COMMENT ON COLUMN authenc.capabilities.action IS 'Action type (read, write, delete, admin, etc)';
 
 
 --
 -- Name: COLUMN capabilities.is_dangerous; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.is_dangerous IS 'Dangerous capabilities require extra confirmation';
+COMMENT ON COLUMN authenc.capabilities.is_dangerous IS 'Dangerous capabilities require extra confirmation';
 
 
 --
 -- Name: COLUMN capabilities.requires_mfa; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.requires_mfa IS 'Capability requires MFA verification';
+COMMENT ON COLUMN authenc.capabilities.requires_mfa IS 'Capability requires MFA verification';
 
 
 --
 -- Name: COLUMN capabilities.requires_approval; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.capabilities.requires_approval IS 'Capability requires approval workflow';
+COMMENT ON COLUMN authenc.capabilities.requires_approval IS 'Capability requires approval workflow';
 
 
 --
 -- Name: captcha_behavioral_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_behavioral_metrics (
+CREATE TABLE authenc.captcha_behavioral_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     challenge_id uuid NOT NULL,
     session_id character varying(255) NOT NULL,
@@ -2008,14 +2010,14 @@ CREATE TABLE public.captcha_behavioral_metrics (
 -- Name: TABLE captcha_behavioral_metrics; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_behavioral_metrics IS 'Stores behavioral analysis data for bot detection';
+COMMENT ON TABLE authenc.captcha_behavioral_metrics IS 'Stores behavioral analysis data for bot detection';
 
 
 --
 -- Name: captcha_challenges; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_challenges (
+CREATE TABLE authenc.captcha_challenges (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     challenge_type character varying(50) NOT NULL,
     difficulty_level smallint NOT NULL,
@@ -2038,14 +2040,14 @@ CREATE TABLE public.captcha_challenges (
 -- Name: TABLE captcha_challenges; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_challenges IS 'Stores CAPTCHA challenges with encrypted data and metadata';
+COMMENT ON TABLE authenc.captcha_challenges IS 'Stores CAPTCHA challenges with encrypted data and metadata';
 
 
 --
 -- Name: captcha_validation_attempts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_validation_attempts (
+CREATE TABLE authenc.captcha_validation_attempts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     challenge_id uuid NOT NULL,
     ip_address inet NOT NULL,
@@ -2065,14 +2067,14 @@ CREATE TABLE public.captcha_validation_attempts (
 -- Name: TABLE captcha_validation_attempts; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_validation_attempts IS 'Audit log of all CAPTCHA validation attempts';
+COMMENT ON TABLE authenc.captcha_validation_attempts IS 'Audit log of all CAPTCHA validation attempts';
 
 
 --
 -- Name: captcha_analytics; Type: MATERIALIZED VIEW; Schema: public; Owner: -
 --
 
-CREATE MATERIALIZED VIEW public.captcha_analytics AS
+CREATE MATERIALIZED VIEW authenc.captcha_analytics AS
  SELECT date(c.created_at) AS date,
     c.challenge_type,
     c.difficulty_level,
@@ -2092,9 +2094,9 @@ CREATE MATERIALIZED VIEW public.captcha_analytics AS
     count(*) FILTER (WHERE ((va.risk_assessment)::text = 'High'::text)) AS high_risk_attempts,
     count(*) FILTER (WHERE ((va.risk_assessment)::text = 'Critical'::text)) AS critical_risk_attempts,
     max(c.created_at) AS last_updated
-   FROM ((public.captcha_challenges c
-     LEFT JOIN public.captcha_behavioral_metrics bm ON ((c.id = bm.challenge_id)))
-     LEFT JOIN public.captcha_validation_attempts va ON ((c.id = va.challenge_id)))
+   FROM ((authenc.captcha_challenges c
+     LEFT JOIN authenc.captcha_behavioral_metrics bm ON ((c.id = bm.challenge_id)))
+     LEFT JOIN authenc.captcha_validation_attempts va ON ((c.id = va.challenge_id)))
   WHERE (c.created_at >= (now() - '90 days'::interval))
   GROUP BY (date(c.created_at)), c.challenge_type, c.difficulty_level
   WITH NO DATA;
@@ -2104,14 +2106,14 @@ CREATE MATERIALIZED VIEW public.captcha_analytics AS
 -- Name: MATERIALIZED VIEW captcha_analytics; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON MATERIALIZED VIEW public.captcha_analytics IS 'Aggregated CAPTCHA analytics for monitoring and reporting';
+COMMENT ON MATERIALIZED VIEW authenc.captcha_analytics IS 'Aggregated CAPTCHA analytics for monitoring and reporting';
 
 
 --
 -- Name: captcha_bot_detection_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_bot_detection_metrics (
+CREATE TABLE authenc.captcha_bot_detection_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     total_detections bigint NOT NULL,
@@ -2135,7 +2137,7 @@ CREATE TABLE public.captcha_bot_detection_metrics (
 -- Name: captcha_difficulty_adjustments; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_difficulty_adjustments (
+CREATE TABLE authenc.captcha_difficulty_adjustments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     ip_pattern cidr,
     session_pattern character varying(255),
@@ -2153,14 +2155,14 @@ CREATE TABLE public.captcha_difficulty_adjustments (
 -- Name: TABLE captcha_difficulty_adjustments; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_difficulty_adjustments IS 'Configuration for adaptive difficulty adjustments';
+COMMENT ON TABLE authenc.captcha_difficulty_adjustments IS 'Configuration for adaptive difficulty adjustments';
 
 
 --
 -- Name: captcha_performance_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_performance_metrics (
+CREATE TABLE authenc.captcha_performance_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     challenge_generation_latency_ms bigint NOT NULL,
@@ -2181,7 +2183,7 @@ CREATE TABLE public.captcha_performance_metrics (
 -- Name: captcha_security_event_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_security_event_metrics (
+CREATE TABLE authenc.captcha_security_event_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     attack_attempts bigint NOT NULL,
@@ -2198,7 +2200,7 @@ CREATE TABLE public.captcha_security_event_metrics (
 -- Name: captcha_type_effectiveness; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_type_effectiveness (
+CREATE TABLE authenc.captcha_type_effectiveness (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     challenge_type character varying(100) NOT NULL,
     usage_count integer DEFAULT 0 NOT NULL,
@@ -2220,14 +2222,14 @@ CREATE TABLE public.captcha_type_effectiveness (
 -- Name: TABLE captcha_type_effectiveness; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_type_effectiveness IS 'Global effectiveness metrics for each challenge type';
+COMMENT ON TABLE authenc.captcha_type_effectiveness IS 'Global effectiveness metrics for each challenge type';
 
 
 --
 -- Name: captcha_user_type_performance; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_user_type_performance (
+CREATE TABLE authenc.captcha_user_type_performance (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id character varying(255) NOT NULL,
     challenge_type character varying(100) NOT NULL,
@@ -2246,14 +2248,14 @@ CREATE TABLE public.captcha_user_type_performance (
 -- Name: TABLE captcha_user_type_performance; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_user_type_performance IS 'Tracks user performance by challenge type';
+COMMENT ON TABLE authenc.captcha_user_type_performance IS 'Tracks user performance by challenge type';
 
 
 --
 -- Name: captcha_type_analytics; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.captcha_type_analytics AS
+CREATE VIEW authenc.captcha_type_analytics AS
  SELECT cte.challenge_type,
     cte.usage_count,
     cte.success_rate,
@@ -2264,8 +2266,8 @@ CREATE VIEW public.captcha_type_analytics AS
     count(DISTINCT cutp.user_id) AS unique_users,
     avg(cutp.success_rate) AS avg_user_success_rate,
     cte.last_updated
-   FROM (public.captcha_type_effectiveness cte
-     LEFT JOIN public.captcha_user_type_performance cutp ON (((cte.challenge_type)::text = (cutp.challenge_type)::text)))
+   FROM (authenc.captcha_type_effectiveness cte
+     LEFT JOIN authenc.captcha_user_type_performance cutp ON (((cte.challenge_type)::text = (cutp.challenge_type)::text)))
   GROUP BY cte.challenge_type, cte.usage_count, cte.success_rate, cte.avg_completion_time_secs, cte.bot_detection_rate, cte.user_satisfaction, cte.effectiveness_score, cte.last_updated
   ORDER BY cte.effectiveness_score DESC;
 
@@ -2274,7 +2276,7 @@ CREATE VIEW public.captcha_type_analytics AS
 -- Name: captcha_user_experience_metrics; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_user_experience_metrics (
+CREATE TABLE authenc.captcha_user_experience_metrics (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     average_completion_time_ms bigint NOT NULL,
@@ -2295,7 +2297,7 @@ CREATE TABLE public.captcha_user_experience_metrics (
 -- Name: captcha_user_history; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.captcha_user_history (
+CREATE TABLE authenc.captcha_user_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id character varying(255) NOT NULL,
     session_id character varying(255),
@@ -2316,14 +2318,14 @@ CREATE TABLE public.captcha_user_history (
 -- Name: TABLE captcha_user_history; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.captcha_user_history IS 'Stores user challenge history and preferences for personalization';
+COMMENT ON TABLE authenc.captcha_user_history IS 'Stores user challenge history and preferences for personalization';
 
 
 --
 -- Name: client_default_scopes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_default_scopes (
+CREATE TABLE authenc.client_default_scopes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     client_id uuid NOT NULL,
     scope_id uuid NOT NULL,
@@ -2335,14 +2337,14 @@ CREATE TABLE public.client_default_scopes (
 -- Name: TABLE client_default_scopes; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_default_scopes IS 'Default scopes automatically granted to clients without consent';
+COMMENT ON TABLE authenc.client_default_scopes IS 'Default scopes automatically granted to clients without consent';
 
 
 --
 -- Name: client_optional_scopes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_optional_scopes (
+CREATE TABLE authenc.client_optional_scopes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     client_id uuid NOT NULL,
     scope_id uuid NOT NULL,
@@ -2354,14 +2356,14 @@ CREATE TABLE public.client_optional_scopes (
 -- Name: TABLE client_optional_scopes; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_optional_scopes IS 'Optional scopes that clients can request (may require user consent)';
+COMMENT ON TABLE authenc.client_optional_scopes IS 'Optional scopes that clients can request (may require user consent)';
 
 
 --
 -- Name: client_scopes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_scopes (
+CREATE TABLE authenc.client_scopes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -2385,49 +2387,49 @@ CREATE TABLE public.client_scopes (
 -- Name: TABLE client_scopes; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_scopes IS 'Reusable OAuth2/OIDC scope definitions with consent metadata';
+COMMENT ON TABLE authenc.client_scopes IS 'Reusable OAuth2/OIDC scope definitions with consent metadata';
 
 
 --
 -- Name: COLUMN client_scopes.name; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_scopes.name IS 'OAuth2 scope name (e.g., "openid", "read:aset")';
+COMMENT ON COLUMN authenc.client_scopes.name IS 'OAuth2 scope name (e.g., "openid", "read:aset")';
 
 
 --
 -- Name: COLUMN client_scopes.consent_required; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_scopes.consent_required IS 'Whether user must explicitly consent to this scope';
+COMMENT ON COLUMN authenc.client_scopes.consent_required IS 'Whether user must explicitly consent to this scope';
 
 
 --
 -- Name: COLUMN client_scopes.display_on_consent_screen; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_scopes.display_on_consent_screen IS 'Whether to show this scope in consent UI';
+COMMENT ON COLUMN authenc.client_scopes.display_on_consent_screen IS 'Whether to show this scope in consent UI';
 
 
 --
 -- Name: COLUMN client_scopes.include_in_token_scope; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_scopes.include_in_token_scope IS 'Whether to include scope in token scope claim';
+COMMENT ON COLUMN authenc.client_scopes.include_in_token_scope IS 'Whether to include scope in token scope claim';
 
 
 --
 -- Name: COLUMN client_scopes.attributes; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_scopes.attributes IS 'Custom attributes for scope (audience, resources, etc.)';
+COMMENT ON COLUMN authenc.client_scopes.attributes IS 'Custom attributes for scope (audience, resources, etc.)';
 
 
 --
 -- Name: oauth2_clients; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_clients (
+CREATE TABLE authenc.oauth2_clients (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     client_id character varying(255) NOT NULL,
     client_secret_hash character varying(255) NOT NULL,
@@ -2483,7 +2485,7 @@ CREATE TABLE public.oauth2_clients (
 -- Name: client_all_scopes; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.client_all_scopes AS
+CREATE VIEW authenc.client_all_scopes AS
  SELECT c.id AS client_id,
     c.client_id AS client_identifier,
     cs.id AS scope_id,
@@ -2493,9 +2495,9 @@ CREATE VIEW public.client_all_scopes AS
     cs.consent_required,
     cs.display_on_consent_screen,
     'default'::text AS scope_type
-   FROM ((public.oauth2_clients c
-     JOIN public.client_default_scopes cds ON ((c.id = cds.client_id)))
-     JOIN public.client_scopes cs ON ((cds.scope_id = cs.id)))
+   FROM ((authenc.oauth2_clients c
+     JOIN authenc.client_default_scopes cds ON ((c.id = cds.client_id)))
+     JOIN authenc.client_scopes cs ON ((cds.scope_id = cs.id)))
   WHERE (cs.enabled = true)
 UNION ALL
  SELECT c.id AS client_id,
@@ -2507,9 +2509,9 @@ UNION ALL
     cs.consent_required,
     cs.display_on_consent_screen,
     'optional'::text AS scope_type
-   FROM ((public.oauth2_clients c
-     JOIN public.client_optional_scopes cos ON ((c.id = cos.client_id)))
-     JOIN public.client_scopes cs ON ((cos.scope_id = cs.id)))
+   FROM ((authenc.oauth2_clients c
+     JOIN authenc.client_optional_scopes cos ON ((c.id = cos.client_id)))
+     JOIN authenc.client_scopes cs ON ((cos.scope_id = cs.id)))
   WHERE (cs.enabled = true);
 
 
@@ -2517,7 +2519,7 @@ UNION ALL
 -- Name: client_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_policies (
+CREATE TABLE authenc.client_policies (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -2541,49 +2543,49 @@ CREATE TABLE public.client_policies (
 -- Name: TABLE client_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_policies IS 'Client security policies for OAuth2/OIDC enforcement';
+COMMENT ON TABLE authenc.client_policies IS 'Client security policies for OAuth2/OIDC enforcement';
 
 
 --
 -- Name: COLUMN client_policies.conditions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policies.conditions IS 'Array of condition identifiers that must be met';
+COMMENT ON COLUMN authenc.client_policies.conditions IS 'Array of condition identifiers that must be met';
 
 
 --
 -- Name: COLUMN client_policies.condition_config; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policies.condition_config IS 'JSON configuration for conditions';
+COMMENT ON COLUMN authenc.client_policies.condition_config IS 'JSON configuration for conditions';
 
 
 --
 -- Name: COLUMN client_policies.executors; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policies.executors IS 'Array of executor identifiers to run';
+COMMENT ON COLUMN authenc.client_policies.executors IS 'Array of executor identifiers to run';
 
 
 --
 -- Name: COLUMN client_policies.executor_config; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policies.executor_config IS 'JSON configuration for executors';
+COMMENT ON COLUMN authenc.client_policies.executor_config IS 'JSON configuration for executors';
 
 
 --
 -- Name: COLUMN client_policies.priority; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policies.priority IS 'Higher priority policies execute first';
+COMMENT ON COLUMN authenc.client_policies.priority IS 'Higher priority policies execute first';
 
 
 --
 -- Name: client_policy_assignments; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_policy_assignments (
+CREATE TABLE authenc.client_policy_assignments (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     client_id uuid NOT NULL,
     policy_id uuid,
@@ -2602,28 +2604,28 @@ CREATE TABLE public.client_policy_assignments (
 -- Name: TABLE client_policy_assignments; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_policy_assignments IS 'Associates policies and profiles with clients';
+COMMENT ON TABLE authenc.client_policy_assignments IS 'Associates policies and profiles with clients';
 
 
 --
 -- Name: COLUMN client_policy_assignments.assignment_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policy_assignments.assignment_type IS 'Either "direct" for policy or "profile" for profile assignment';
+COMMENT ON COLUMN authenc.client_policy_assignments.assignment_type IS 'Either "direct" for policy or "profile" for profile assignment';
 
 
 --
 -- Name: COLUMN client_policy_assignments.priority_override; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_policy_assignments.priority_override IS 'Overrides policy priority for this specific assignment';
+COMMENT ON COLUMN authenc.client_policy_assignments.priority_override IS 'Overrides policy priority for this specific assignment';
 
 
 --
 -- Name: client_profiles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_profiles (
+CREATE TABLE authenc.client_profiles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -2643,28 +2645,28 @@ CREATE TABLE public.client_profiles (
 -- Name: TABLE client_profiles; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_profiles IS 'Reusable collections of client policies';
+COMMENT ON TABLE authenc.client_profiles IS 'Reusable collections of client policies';
 
 
 --
 -- Name: COLUMN client_profiles.policy_ids; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_profiles.policy_ids IS 'Array of policy UUIDs included in this profile';
+COMMENT ON COLUMN authenc.client_profiles.policy_ids IS 'Array of policy UUIDs included in this profile';
 
 
 --
 -- Name: COLUMN client_profiles.is_builtin; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.client_profiles.is_builtin IS 'Built-in profiles cannot be deleted';
+COMMENT ON COLUMN authenc.client_profiles.is_builtin IS 'Built-in profiles cannot be deleted';
 
 
 --
 -- Name: client_registration_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_registration_audit_log (
+CREATE TABLE authenc.client_registration_audit_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     event_type character varying(50) NOT NULL,
     client_id uuid,
@@ -2686,14 +2688,14 @@ CREATE TABLE public.client_registration_audit_log (
 -- Name: TABLE client_registration_audit_log; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_registration_audit_log IS 'Audit trail for all client registration operations';
+COMMENT ON TABLE authenc.client_registration_audit_log IS 'Audit trail for all client registration operations';
 
 
 --
 -- Name: client_registration_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_registration_policies (
+CREATE TABLE authenc.client_registration_policies (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name text NOT NULL,
@@ -2721,14 +2723,14 @@ CREATE TABLE public.client_registration_policies (
 -- Name: TABLE client_registration_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_registration_policies IS 'Policies controlling dynamic client registration per realm';
+COMMENT ON TABLE authenc.client_registration_policies IS 'Policies controlling dynamic client registration per realm';
 
 
 --
 -- Name: client_registration_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_registration_tokens (
+CREATE TABLE authenc.client_registration_tokens (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     token_hash text NOT NULL,
     client_id uuid NOT NULL,
@@ -2745,14 +2747,14 @@ CREATE TABLE public.client_registration_tokens (
 -- Name: TABLE client_registration_tokens; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_registration_tokens IS 'RFC 7592: Registration access tokens for managing dynamically registered OAuth2 clients';
+COMMENT ON TABLE authenc.client_registration_tokens IS 'RFC 7592: Registration access tokens for managing dynamically registered OAuth2 clients';
 
 
 --
 -- Name: client_scope_mappings; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.client_scope_mappings (
+CREATE TABLE authenc.client_scope_mappings (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     scope_id uuid NOT NULL,
     protocol_mapper_id uuid NOT NULL,
@@ -2764,14 +2766,14 @@ CREATE TABLE public.client_scope_mappings (
 -- Name: TABLE client_scope_mappings; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.client_scope_mappings IS 'Maps scopes to protocol mappers for claim generation';
+COMMENT ON TABLE authenc.client_scope_mappings IS 'Maps scopes to protocol mappers for claim generation';
 
 
 --
 -- Name: event_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.event_log (
+CREATE TABLE authenc.event_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     event_type character varying(100) NOT NULL,
@@ -2802,35 +2804,35 @@ CREATE TABLE public.event_log (
 -- Name: TABLE event_log; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.event_log IS 'Comprehensive audit log with enhanced context including IP, user agent, geolocation, and sanitized payloads';
+COMMENT ON TABLE authenc.event_log IS 'Comprehensive audit log with enhanced context including IP, user agent, geolocation, and sanitized payloads';
 
 
 --
 -- Name: COLUMN event_log.geolocation_data; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.event_log.geolocation_data IS 'Geolocation data for the IP address (country, city, coordinates)';
+COMMENT ON COLUMN authenc.event_log.geolocation_data IS 'Geolocation data for the IP address (country, city, coordinates)';
 
 
 --
 -- Name: COLUMN event_log.request_payload; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.event_log.request_payload IS 'Sanitized request payload (PII removed)';
+COMMENT ON COLUMN authenc.event_log.request_payload IS 'Sanitized request payload (PII removed)';
 
 
 --
 -- Name: COLUMN event_log.response_payload; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.event_log.response_payload IS 'Sanitized response payload (PII removed)';
+COMMENT ON COLUMN authenc.event_log.response_payload IS 'Sanitized response payload (PII removed)';
 
 
 --
 -- Name: comprehensive_audit_trail; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.comprehensive_audit_trail AS
+CREATE VIEW authenc.comprehensive_audit_trail AS
  SELECT event_log.id,
     event_log.created_at,
     event_log.event_type,
@@ -2849,7 +2851,7 @@ CREATE VIEW public.comprehensive_audit_trail AS
     event_log.success,
     event_log.error_message,
     'event_log'::text AS source_table
-   FROM public.event_log
+   FROM authenc.event_log
 UNION ALL
  SELECT admin_audit_log.id,
     admin_audit_log.created_at,
@@ -2869,7 +2871,7 @@ UNION ALL
     (admin_audit_log.error_message IS NULL) AS success,
     admin_audit_log.error_message,
     'admin_audit_log'::text AS source_table
-   FROM public.admin_audit_log
+   FROM authenc.admin_audit_log
   ORDER BY 2 DESC;
 
 
@@ -2877,14 +2879,14 @@ UNION ALL
 -- Name: VIEW comprehensive_audit_trail; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON VIEW public.comprehensive_audit_trail IS 'Unified view of all audit events with enhanced context from both user and admin logs';
+COMMENT ON VIEW authenc.comprehensive_audit_trail IS 'Unified view of all audit events with enhanced context from both user and admin logs';
 
 
 --
 -- Name: credential_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.credential_types (
+CREATE TABLE authenc.credential_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -2905,21 +2907,21 @@ CREATE TABLE public.credential_types (
 -- Name: TABLE credential_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.credential_types IS 'Dynamic credential type registry - replaces CredentialType enum';
+COMMENT ON TABLE authenc.credential_types IS 'Dynamic credential type registry - replaces CredentialType enum';
 
 
 --
 -- Name: COLUMN credential_types.config_schema; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.credential_types.config_schema IS 'JSON schema for credential configuration';
+COMMENT ON COLUMN authenc.credential_types.config_schema IS 'JSON schema for credential configuration';
 
 
 --
 -- Name: custom_themes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.custom_themes (
+CREATE TABLE authenc.custom_themes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -2944,7 +2946,7 @@ CREATE TABLE public.custom_themes (
 -- Name: device_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.device_sessions (
+CREATE TABLE authenc.device_sessions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     device_id uuid,
     user_id uuid NOT NULL,
@@ -2967,7 +2969,7 @@ CREATE TABLE public.device_sessions (
 -- Name: device_trust_history; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.device_trust_history (
+CREATE TABLE authenc.device_trust_history (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     device_id uuid NOT NULL,
     previous_score numeric(3,2),
@@ -2982,7 +2984,7 @@ CREATE TABLE public.device_trust_history (
 -- Name: devices; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.devices (
+CREATE TABLE authenc.devices (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     device_name character varying(255),
@@ -3009,7 +3011,7 @@ CREATE TABLE public.devices (
 -- Name: event_listener_executions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.event_listener_executions (
+CREATE TABLE authenc.event_listener_executions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     event_log_id uuid NOT NULL,
     listener_id uuid NOT NULL,
@@ -3027,7 +3029,7 @@ CREATE TABLE public.event_listener_executions (
 -- Name: event_listeners; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.event_listeners (
+CREATE TABLE authenc.event_listeners (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -3048,7 +3050,7 @@ CREATE TABLE public.event_listeners (
 -- Name: event_webhooks; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.event_webhooks (
+CREATE TABLE authenc.event_webhooks (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     listener_id uuid NOT NULL,
     realm_id uuid NOT NULL,
@@ -3070,7 +3072,7 @@ CREATE TABLE public.event_webhooks (
 -- Name: events; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.events (
+CREATE TABLE authenc.events (
     id character varying(36) NOT NULL,
     "time" timestamp with time zone DEFAULT now() NOT NULL,
     event_type character varying(100) NOT NULL,
@@ -3091,14 +3093,14 @@ CREATE TABLE public.events (
 -- Name: COLUMN events.user_agent; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.events.user_agent IS 'User agent string from the client';
+COMMENT ON COLUMN authenc.events.user_agent IS 'User agent string from the client';
 
 
 --
 -- Name: federated_auth_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.federated_auth_log (
+CREATE TABLE authenc.federated_auth_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid,
     realm_id uuid NOT NULL,
@@ -3119,7 +3121,7 @@ CREATE TABLE public.federated_auth_log (
 -- Name: federated_identities; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.federated_identities (
+CREATE TABLE authenc.federated_identities (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     identity_provider_id uuid NOT NULL,
@@ -3137,7 +3139,7 @@ CREATE TABLE public.federated_identities (
 -- Name: federated_identity_links; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.federated_identity_links (
+CREATE TABLE authenc.federated_identity_links (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     realm_id uuid NOT NULL,
@@ -3160,7 +3162,7 @@ CREATE TABLE public.federated_identity_links (
 -- Name: group_attributes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.group_attributes (
+CREATE TABLE authenc.group_attributes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -3173,7 +3175,7 @@ CREATE TABLE public.group_attributes (
 -- Name: group_roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.group_roles (
+CREATE TABLE authenc.group_roles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     group_id uuid NOT NULL,
     role_id uuid NOT NULL,
@@ -3186,7 +3188,7 @@ CREATE TABLE public.group_roles (
 -- Name: groups; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.groups (
+CREATE TABLE authenc.groups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     parent_id uuid,
@@ -3203,7 +3205,7 @@ CREATE TABLE public.groups (
 -- Name: identity_broker_configs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.identity_broker_configs (
+CREATE TABLE authenc.identity_broker_configs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     alias character varying(255) NOT NULL,
@@ -3226,7 +3228,7 @@ CREATE TABLE public.identity_broker_configs (
 -- Name: identity_provider_mappers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.identity_provider_mappers (
+CREATE TABLE authenc.identity_provider_mappers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     identity_provider_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -3244,7 +3246,7 @@ CREATE TABLE public.identity_provider_mappers (
 -- Name: identity_providers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.identity_providers (
+CREATE TABLE authenc.identity_providers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     display_name character varying(255) NOT NULL,
@@ -3265,7 +3267,7 @@ CREATE TABLE public.identity_providers (
 -- Name: initial_access_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.initial_access_tokens (
+CREATE TABLE authenc.initial_access_tokens (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     token_hash text NOT NULL,
     realm_id uuid,
@@ -3284,14 +3286,14 @@ CREATE TABLE public.initial_access_tokens (
 -- Name: TABLE initial_access_tokens; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.initial_access_tokens IS 'RFC 7591: Initial access tokens to protect client registration endpoint';
+COMMENT ON TABLE authenc.initial_access_tokens IS 'RFC 7591: Initial access tokens to protect client registration endpoint';
 
 
 --
 -- Name: key_rotation_audit; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.key_rotation_audit (
+CREATE TABLE authenc.key_rotation_audit (
     id uuid NOT NULL,
     "timestamp" timestamp with time zone DEFAULT now() NOT NULL,
     key_id character varying(255) NOT NULL,
@@ -3309,77 +3311,77 @@ CREATE TABLE public.key_rotation_audit (
 -- Name: TABLE key_rotation_audit; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.key_rotation_audit IS 'Audit log for automatic key rotation events';
+COMMENT ON TABLE authenc.key_rotation_audit IS 'Audit log for automatic key rotation events';
 
 
 --
 -- Name: COLUMN key_rotation_audit.id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.id IS 'Unique identifier for the rotation event';
+COMMENT ON COLUMN authenc.key_rotation_audit.id IS 'Unique identifier for the rotation event';
 
 
 --
 -- Name: COLUMN key_rotation_audit."timestamp"; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit."timestamp" IS 'When the rotation occurred';
+COMMENT ON COLUMN authenc.key_rotation_audit."timestamp" IS 'When the rotation occurred';
 
 
 --
 -- Name: COLUMN key_rotation_audit.key_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.key_id IS 'Identifier of the key that was rotated';
+COMMENT ON COLUMN authenc.key_rotation_audit.key_id IS 'Identifier of the key that was rotated';
 
 
 --
 -- Name: COLUMN key_rotation_audit.key_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.key_type IS 'Type of key (jwt_signing, session_encryption, mfa_encryption, etc.)';
+COMMENT ON COLUMN authenc.key_rotation_audit.key_type IS 'Type of key (jwt_signing, session_encryption, mfa_encryption, etc.)';
 
 
 --
 -- Name: COLUMN key_rotation_audit.old_version; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.old_version IS 'Previous version number of the key';
+COMMENT ON COLUMN authenc.key_rotation_audit.old_version IS 'Previous version number of the key';
 
 
 --
 -- Name: COLUMN key_rotation_audit.new_version; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.new_version IS 'New version number after rotation';
+COMMENT ON COLUMN authenc.key_rotation_audit.new_version IS 'New version number after rotation';
 
 
 --
 -- Name: COLUMN key_rotation_audit.status; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.status IS 'Status of the rotation (Success, Failed, InProgress, Scheduled)';
+COMMENT ON COLUMN authenc.key_rotation_audit.status IS 'Status of the rotation (Success, Failed, InProgress, Scheduled)';
 
 
 --
 -- Name: COLUMN key_rotation_audit.error_message; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.error_message IS 'Error message if rotation failed';
+COMMENT ON COLUMN authenc.key_rotation_audit.error_message IS 'Error message if rotation failed';
 
 
 --
 -- Name: COLUMN key_rotation_audit.initiated_by; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.key_rotation_audit.initiated_by IS 'User or system that initiated the rotation';
+COMMENT ON COLUMN authenc.key_rotation_audit.initiated_by IS 'User or system that initiated the rotation';
 
 
 --
 -- Name: mfa_admin_actions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.mfa_admin_actions (
+CREATE TABLE authenc.mfa_admin_actions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     admin_user_id uuid,
     target_user_id uuid NOT NULL,
@@ -3397,42 +3399,42 @@ CREATE TABLE public.mfa_admin_actions (
 -- Name: TABLE mfa_admin_actions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.mfa_admin_actions IS 'Audit log for all MFA administrative actions';
+COMMENT ON TABLE authenc.mfa_admin_actions IS 'Audit log for all MFA administrative actions';
 
 
 --
 -- Name: COLUMN mfa_admin_actions.admin_user_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.mfa_admin_actions.admin_user_id IS 'ID of the administrator performing the action (NULL for system actions)';
+COMMENT ON COLUMN authenc.mfa_admin_actions.admin_user_id IS 'ID of the administrator performing the action (NULL for system actions)';
 
 
 --
 -- Name: COLUMN mfa_admin_actions.target_user_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.mfa_admin_actions.target_user_id IS 'ID of the user being affected by the action';
+COMMENT ON COLUMN authenc.mfa_admin_actions.target_user_id IS 'ID of the user being affected by the action';
 
 
 --
 -- Name: COLUMN mfa_admin_actions.action; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.mfa_admin_actions.action IS 'Type of action performed (account_unlock, mfa_reset, etc.)';
+COMMENT ON COLUMN authenc.mfa_admin_actions.action IS 'Type of action performed (account_unlock, mfa_reset, etc.)';
 
 
 --
 -- Name: COLUMN mfa_admin_actions.reason; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.mfa_admin_actions.reason IS 'Reason provided by the administrator for the action';
+COMMENT ON COLUMN authenc.mfa_admin_actions.reason IS 'Reason provided by the administrator for the action';
 
 
 --
 -- Name: mfa_devices; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.mfa_devices (
+CREATE TABLE authenc.mfa_devices (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     device_type character varying(50) NOT NULL,
@@ -3450,7 +3452,7 @@ CREATE TABLE public.mfa_devices (
 -- Name: mfa_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.mfa_policies (
+CREATE TABLE authenc.mfa_policies (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     policy_data jsonb NOT NULL,
     created_by uuid,
@@ -3464,14 +3466,14 @@ CREATE TABLE public.mfa_policies (
 -- Name: TABLE mfa_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.mfa_policies IS 'Stores MFA policy configurations for the organization';
+COMMENT ON TABLE authenc.mfa_policies IS 'Stores MFA policy configurations for the organization';
 
 
 --
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.users (
+CREATE TABLE authenc.users (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     username character varying(255) NOT NULL,
     email character varying(255) NOT NULL,
@@ -3517,56 +3519,56 @@ CREATE TABLE public.users (
 -- Name: COLUMN users.mfa_enabled; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.mfa_enabled IS 'Whether multi-factor authentication is enabled for this user';
+COMMENT ON COLUMN authenc.users.mfa_enabled IS 'Whether multi-factor authentication is enabled for this user';
 
 
 --
 -- Name: COLUMN users.mfa_setup_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.mfa_setup_at IS 'Timestamp when MFA was first set up for this user';
+COMMENT ON COLUMN authenc.users.mfa_setup_at IS 'Timestamp when MFA was first set up for this user';
 
 
 --
 -- Name: COLUMN users.mfa_last_used; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.mfa_last_used IS 'Timestamp when MFA was last used for authentication';
+COMMENT ON COLUMN authenc.users.mfa_last_used IS 'Timestamp when MFA was last used for authentication';
 
 
 --
 -- Name: COLUMN users.password_changed_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.password_changed_at IS 'Timestamp when the password was last changed';
+COMMENT ON COLUMN authenc.users.password_changed_at IS 'Timestamp when the password was last changed';
 
 
 --
 -- Name: COLUMN users.password_expires_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.password_expires_at IS 'Timestamp when the password will expire';
+COMMENT ON COLUMN authenc.users.password_expires_at IS 'Timestamp when the password will expire';
 
 
 --
 -- Name: COLUMN users.require_password_change; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.require_password_change IS 'Flag indicating user must change password on next login';
+COMMENT ON COLUMN authenc.users.require_password_change IS 'Flag indicating user must change password on next login';
 
 
 --
 -- Name: COLUMN users.password_history_count; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.users.password_history_count IS 'Number of password changes for this user';
+COMMENT ON COLUMN authenc.users.password_history_count IS 'Number of password changes for this user';
 
 
 --
 -- Name: mfa_statistics; Type: MATERIALIZED VIEW; Schema: public; Owner: -
 --
 
-CREATE MATERIALIZED VIEW public.mfa_statistics AS
+CREATE MATERIALIZED VIEW authenc.mfa_statistics AS
  SELECT u.satker_code,
     count(*) AS total_users,
     count(*) FILTER (WHERE (u.mfa_enabled = true)) AS mfa_enabled_users,
@@ -3575,7 +3577,7 @@ CREATE MATERIALIZED VIEW public.mfa_statistics AS
     count(*) FILTER (WHERE ((u.mfa_enabled = true) AND (u.mfa_last_used >= (now() - '7 days'::interval)))) AS mfa_active_7d,
     count(*) FILTER (WHERE ((u.mfa_enabled = true) AND (u.mfa_last_used >= (now() - '1 day'::interval)))) AS mfa_active_1d,
     max(u.updated_at) AS last_updated
-   FROM public.users u
+   FROM authenc.users u
   WHERE ((u.enabled = true) AND (u.deleted_at IS NULL))
   GROUP BY u.satker_code
   WITH NO DATA;
@@ -3585,14 +3587,14 @@ CREATE MATERIALIZED VIEW public.mfa_statistics AS
 -- Name: MATERIALIZED VIEW mfa_statistics; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON MATERIALIZED VIEW public.mfa_statistics IS 'Aggregated MFA statistics by satker for reporting';
+COMMENT ON MATERIALIZED VIEW authenc.mfa_statistics IS 'Aggregated MFA statistics by satker for reporting';
 
 
 --
 -- Name: oauth2_access_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_access_tokens (
+CREATE TABLE authenc.oauth2_access_tokens (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     token_hash character varying(255) NOT NULL,
     refresh_token_hash character varying(255),
@@ -3617,7 +3619,7 @@ CREATE TABLE public.oauth2_access_tokens (
 -- Name: oauth2_authorization_codes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_authorization_codes (
+CREATE TABLE authenc.oauth2_authorization_codes (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(255) NOT NULL,
     client_id uuid NOT NULL,
@@ -3637,7 +3639,7 @@ CREATE TABLE public.oauth2_authorization_codes (
 -- Name: oauth2_provider_configs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_provider_configs (
+CREATE TABLE authenc.oauth2_provider_configs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     provider_name character varying(100) NOT NULL,
@@ -3671,7 +3673,7 @@ CREATE TABLE public.oauth2_provider_configs (
 -- Name: oauth2_states; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_states (
+CREATE TABLE authenc.oauth2_states (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     state_token character varying(255) NOT NULL,
     provider_config_id uuid NOT NULL,
@@ -3695,7 +3697,7 @@ CREATE TABLE public.oauth2_states (
 -- Name: oauth2_token_exchanges; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.oauth2_token_exchanges (
+CREATE TABLE authenc.oauth2_token_exchanges (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     provider_config_id uuid NOT NULL,
     user_id uuid,
@@ -3721,7 +3723,7 @@ CREATE TABLE public.oauth2_token_exchanges (
 -- Name: offline_tokens; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.offline_tokens (
+CREATE TABLE authenc.offline_tokens (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     realm_id uuid NOT NULL,
@@ -3742,7 +3744,7 @@ CREATE TABLE public.offline_tokens (
 -- Name: organization_domains; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.organization_domains (
+CREATE TABLE authenc.organization_domains (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organization_id uuid NOT NULL,
     domain character varying(255) NOT NULL,
@@ -3759,7 +3761,7 @@ CREATE TABLE public.organization_domains (
 -- Name: organization_identity_providers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.organization_identity_providers (
+CREATE TABLE authenc.organization_identity_providers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organization_id uuid NOT NULL,
     identity_provider_id uuid NOT NULL,
@@ -3774,7 +3776,7 @@ CREATE TABLE public.organization_identity_providers (
 -- Name: organization_invitations; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.organization_invitations (
+CREATE TABLE authenc.organization_invitations (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organization_id uuid NOT NULL,
     email character varying(255) NOT NULL,
@@ -3793,7 +3795,7 @@ CREATE TABLE public.organization_invitations (
 -- Name: organization_members; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.organization_members (
+CREATE TABLE authenc.organization_members (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organization_id uuid NOT NULL,
     user_id uuid NOT NULL,
@@ -3811,7 +3813,7 @@ CREATE TABLE public.organization_members (
 -- Name: organizations; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.organizations (
+CREATE TABLE authenc.organizations (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     display_name character varying(255),
@@ -3832,7 +3834,7 @@ CREATE TABLE public.organizations (
 -- Name: password_history; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.password_history (
+CREATE TABLE authenc.password_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     password_hash text NOT NULL,
@@ -3844,35 +3846,35 @@ CREATE TABLE public.password_history (
 -- Name: TABLE password_history; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.password_history IS 'Stores password history for users to prevent password reuse';
+COMMENT ON TABLE authenc.password_history IS 'Stores password history for users to prevent password reuse';
 
 
 --
 -- Name: COLUMN password_history.user_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.password_history.user_id IS 'Reference to the user who owns this password history entry';
+COMMENT ON COLUMN authenc.password_history.user_id IS 'Reference to the user who owns this password history entry';
 
 
 --
 -- Name: COLUMN password_history.password_hash; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.password_history.password_hash IS 'Argon2 hash of the previous password';
+COMMENT ON COLUMN authenc.password_history.password_hash IS 'Argon2 hash of the previous password';
 
 
 --
 -- Name: COLUMN password_history.created_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.password_history.created_at IS 'Timestamp when this password was changed';
+COMMENT ON COLUMN authenc.password_history.created_at IS 'Timestamp when this password was changed';
 
 
 --
 -- Name: permission_tickets; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.permission_tickets (
+CREATE TABLE authenc.permission_tickets (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     resource_id uuid,
     scope_id uuid,
@@ -3891,7 +3893,7 @@ CREATE TABLE public.permission_tickets (
 -- Name: protocol_mappers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.protocol_mappers (
+CREATE TABLE authenc.protocol_mappers (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     client_id uuid,
     realm_id uuid NOT NULL,
@@ -3910,7 +3912,7 @@ CREATE TABLE public.protocol_mappers (
 -- Name: realm_theme_settings; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.realm_theme_settings (
+CREATE TABLE authenc.realm_theme_settings (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     realm_id uuid NOT NULL,
     login_theme_id uuid,
@@ -3927,7 +3929,7 @@ CREATE TABLE public.realm_theme_settings (
 -- Name: realms; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.realms (
+CREATE TABLE authenc.realms (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     display_name character varying(255),
@@ -3980,7 +3982,7 @@ CREATE TABLE public.realms (
 -- Name: refresh_token_history; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.refresh_token_history (
+CREATE TABLE authenc.refresh_token_history (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_session_id uuid NOT NULL,
     old_token_hash character varying(64) NOT NULL,
@@ -3997,7 +3999,7 @@ CREATE TABLE public.refresh_token_history (
 -- Name: resource_servers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.resource_servers (
+CREATE TABLE authenc.resource_servers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     client_id character varying(255) NOT NULL,
     name character varying(255),
@@ -4016,7 +4018,7 @@ CREATE TABLE public.resource_servers (
 -- Name: resources; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.resources (
+CREATE TABLE authenc.resources (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     display_name character varying(255),
@@ -4038,7 +4040,7 @@ CREATE TABLE public.resources (
 -- Name: role_capabilities; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.role_capabilities (
+CREATE TABLE authenc.role_capabilities (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     role_id uuid NOT NULL,
     capability_id uuid NOT NULL,
@@ -4053,21 +4055,21 @@ CREATE TABLE public.role_capabilities (
 -- Name: TABLE role_capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.role_capabilities IS 'Mapping of roles to their granted capabilities';
+COMMENT ON TABLE authenc.role_capabilities IS 'Mapping of roles to their granted capabilities';
 
 
 --
 -- Name: COLUMN role_capabilities.conditions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.role_capabilities.conditions IS 'JSON conditions for conditional capability grants';
+COMMENT ON COLUMN authenc.role_capabilities.conditions IS 'JSON conditions for conditional capability grants';
 
 
 --
 -- Name: role_hierarchy; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.role_hierarchy (
+CREATE TABLE authenc.role_hierarchy (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     parent_role_id uuid NOT NULL,
     child_role_id uuid NOT NULL,
@@ -4080,14 +4082,14 @@ CREATE TABLE public.role_hierarchy (
 -- Name: TABLE role_hierarchy; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.role_hierarchy IS 'Role composition - parent roles inherit child role capabilities';
+COMMENT ON TABLE authenc.role_hierarchy IS 'Role composition - parent roles inherit child role capabilities';
 
 
 --
 -- Name: role_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.role_permissions (
+CREATE TABLE authenc.role_permissions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     role_id uuid NOT NULL,
     permission character varying(255) NOT NULL,
@@ -4102,7 +4104,7 @@ CREATE TABLE public.role_permissions (
 -- Name: role_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.role_policies (
+CREATE TABLE authenc.role_policies (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     role_id uuid NOT NULL,
     policy_id uuid NOT NULL,
@@ -4116,14 +4118,14 @@ CREATE TABLE public.role_policies (
 -- Name: TABLE role_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.role_policies IS 'Mapping of roles to authorization policies';
+COMMENT ON TABLE authenc.role_policies IS 'Mapping of roles to authorization policies';
 
 
 --
 -- Name: role_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.role_types (
+CREATE TABLE authenc.role_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -4144,35 +4146,35 @@ CREATE TABLE public.role_types (
 -- Name: TABLE role_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.role_types IS 'Dynamic role type registry - replaces hardcoded role enums';
+COMMENT ON TABLE authenc.role_types IS 'Dynamic role type registry - replaces hardcoded role enums';
 
 
 --
 -- Name: COLUMN role_types.is_system; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.role_types.is_system IS 'System roles cannot be deleted but can be modified';
+COMMENT ON COLUMN authenc.role_types.is_system IS 'System roles cannot be deleted but can be modified';
 
 
 --
 -- Name: COLUMN role_types.is_assignable; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.role_types.is_assignable IS 'Whether this role type can be assigned to users';
+COMMENT ON COLUMN authenc.role_types.is_assignable IS 'Whether this role type can be assigned to users';
 
 
 --
 -- Name: COLUMN role_types.priority; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.role_types.priority IS 'Higher priority roles take precedence in conflicts';
+COMMENT ON COLUMN authenc.role_types.priority IS 'Higher priority roles take precedence in conflicts';
 
 
 --
 -- Name: roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.roles (
+CREATE TABLE authenc.roles (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     description text,
@@ -4189,7 +4191,7 @@ CREATE TABLE public.roles (
 -- Name: saml_assertion_cache; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.saml_assertion_cache (
+CREATE TABLE authenc.saml_assertion_cache (
     assertion_id character varying(255) NOT NULL,
     used_at timestamp with time zone DEFAULT now() NOT NULL,
     expires_at timestamp with time zone NOT NULL
@@ -4200,35 +4202,35 @@ CREATE TABLE public.saml_assertion_cache (
 -- Name: TABLE saml_assertion_cache; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.saml_assertion_cache IS 'Cache of used SAML assertion IDs to prevent replay attacks';
+COMMENT ON TABLE authenc.saml_assertion_cache IS 'Cache of used SAML assertion IDs to prevent replay attacks';
 
 
 --
 -- Name: COLUMN saml_assertion_cache.assertion_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.saml_assertion_cache.assertion_id IS 'Unique SAML assertion ID from the AssertionID attribute';
+COMMENT ON COLUMN authenc.saml_assertion_cache.assertion_id IS 'Unique SAML assertion ID from the AssertionID attribute';
 
 
 --
 -- Name: COLUMN saml_assertion_cache.used_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.saml_assertion_cache.used_at IS 'Timestamp when the assertion was first used';
+COMMENT ON COLUMN authenc.saml_assertion_cache.used_at IS 'Timestamp when the assertion was first used';
 
 
 --
 -- Name: COLUMN saml_assertion_cache.expires_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.saml_assertion_cache.expires_at IS 'Timestamp when the cache entry expires (typically 5 minutes after use)';
+COMMENT ON COLUMN authenc.saml_assertion_cache.expires_at IS 'Timestamp when the cache entry expires (typically 5 minutes after use)';
 
 
 --
 -- Name: saml_identity_providers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.saml_identity_providers (
+CREATE TABLE authenc.saml_identity_providers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     entity_id text NOT NULL,
     metadata_url text,
@@ -4250,7 +4252,7 @@ CREATE TABLE public.saml_identity_providers (
 -- Name: saml_messages; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.saml_messages (
+CREATE TABLE authenc.saml_messages (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     saml_id character varying(255) NOT NULL,
     message_type character varying(50) NOT NULL,
@@ -4269,7 +4271,7 @@ CREATE TABLE public.saml_messages (
 -- Name: saml_service_providers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.saml_service_providers (
+CREATE TABLE authenc.saml_service_providers (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     entity_id text NOT NULL,
     metadata_url text,
@@ -4291,7 +4293,7 @@ CREATE TABLE public.saml_service_providers (
 -- Name: saml_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.saml_sessions (
+CREATE TABLE authenc.saml_sessions (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     session_id text NOT NULL,
     user_id uuid NOT NULL,
@@ -4310,7 +4312,7 @@ CREATE TABLE public.saml_sessions (
 -- Name: satker_admin_roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.satker_admin_roles (
+CREATE TABLE authenc.satker_admin_roles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     satker_code character varying(50) NOT NULL,
@@ -4327,21 +4329,21 @@ CREATE TABLE public.satker_admin_roles (
 -- Name: TABLE satker_admin_roles; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.satker_admin_roles IS 'Administrative roles scoped to specific satkers';
+COMMENT ON TABLE authenc.satker_admin_roles IS 'Administrative roles scoped to specific satkers';
 
 
 --
 -- Name: COLUMN satker_admin_roles.admin_level; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satker_admin_roles.admin_level IS 'Level of administrative authority (AdminSatker, AdminWilayah, AdminEselonI, AdminPusat)';
+COMMENT ON COLUMN authenc.satker_admin_roles.admin_level IS 'Level of administrative authority (AdminSatker, AdminWilayah, AdminEselonI, AdminPusat)';
 
 
 --
 -- Name: satker_audit_logs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.satker_audit_logs (
+CREATE TABLE authenc.satker_audit_logs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     satker_code character varying(50) NOT NULL,
     user_id uuid,
@@ -4357,14 +4359,14 @@ CREATE TABLE public.satker_audit_logs (
 -- Name: TABLE satker_audit_logs; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.satker_audit_logs IS 'Audit trail for satker-related operations';
+COMMENT ON TABLE authenc.satker_audit_logs IS 'Audit trail for satker-related operations';
 
 
 --
 -- Name: satkers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.satkers (
+CREATE TABLE authenc.satkers (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     code character varying(50) NOT NULL,
     name character varying(200) NOT NULL,
@@ -4386,42 +4388,42 @@ CREATE TABLE public.satkers (
 -- Name: TABLE satkers; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.satkers IS 'Organizational units (Satuan Kerja) in the Attorney General''s Office hierarchy';
+COMMENT ON TABLE authenc.satkers IS 'Organizational units (Satuan Kerja) in the Attorney General''s Office hierarchy';
 
 
 --
 -- Name: COLUMN satkers.code; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satkers.code IS 'Unique identifier code for the satker';
+COMMENT ON COLUMN authenc.satkers.code IS 'Unique identifier code for the satker';
 
 
 --
 -- Name: COLUMN satkers.parent_code; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satkers.parent_code IS 'Code of the parent satker in the hierarchy';
+COMMENT ON COLUMN authenc.satkers.parent_code IS 'Code of the parent satker in the hierarchy';
 
 
 --
 -- Name: COLUMN satkers.level; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satkers.level IS 'Depth level in the hierarchy (0 = root)';
+COMMENT ON COLUMN authenc.satkers.level IS 'Depth level in the hierarchy (0 = root)';
 
 
 --
 -- Name: COLUMN satkers.satker_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satkers.satker_type IS 'Type of satker (Pusat, KejaksaanTinggi, KejaksaanNegeri, etc.)';
+COMMENT ON COLUMN authenc.satkers.satker_type IS 'Type of satker (Pusat, KejaksaanTinggi, KejaksaanNegeri, etc.)';
 
 
 --
 -- Name: satker_hierarchy_view; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.satker_hierarchy_view AS
+CREATE VIEW authenc.satker_hierarchy_view AS
  WITH RECURSIVE satker_tree AS (
          SELECT satkers.id,
             satkers.code,
@@ -4432,7 +4434,7 @@ CREATE VIEW public.satker_hierarchy_view AS
             satkers.active,
             (satkers.code)::text AS path,
             (satkers.name)::text AS full_path
-           FROM public.satkers
+           FROM authenc.satkers
           WHERE ((satkers.parent_code IS NULL) AND (satkers.active = true))
         UNION ALL
          SELECT s.id,
@@ -4444,7 +4446,7 @@ CREATE VIEW public.satker_hierarchy_view AS
             s.active,
             ((st.path || ' > '::text) || (s.code)::text) AS path,
             ((st.full_path || ' > '::text) || (s.name)::text) AS full_path
-           FROM (public.satkers s
+           FROM (authenc.satkers s
              JOIN satker_tree st ON (((s.parent_code)::text = (st.code)::text)))
           WHERE (s.active = true)
         )
@@ -4465,14 +4467,14 @@ CREATE VIEW public.satker_hierarchy_view AS
 -- Name: VIEW satker_hierarchy_view; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON VIEW public.satker_hierarchy_view IS 'Hierarchical view of satkers with full path information';
+COMMENT ON VIEW authenc.satker_hierarchy_view IS 'Hierarchical view of satkers with full path information';
 
 
 --
 -- Name: satker_permissions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.satker_permissions (
+CREATE TABLE authenc.satker_permissions (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     satker_code character varying(50) NOT NULL,
@@ -4492,28 +4494,28 @@ CREATE TABLE public.satker_permissions (
 -- Name: TABLE satker_permissions; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.satker_permissions IS 'Explicit permissions granted to users for specific satkers';
+COMMENT ON TABLE authenc.satker_permissions IS 'Explicit permissions granted to users for specific satkers';
 
 
 --
 -- Name: COLUMN satker_permissions.include_children; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satker_permissions.include_children IS 'Whether permission extends to child satkers';
+COMMENT ON COLUMN authenc.satker_permissions.include_children IS 'Whether permission extends to child satkers';
 
 
 --
 -- Name: COLUMN satker_permissions.include_parents; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satker_permissions.include_parents IS 'Whether permission extends to parent satkers';
+COMMENT ON COLUMN authenc.satker_permissions.include_parents IS 'Whether permission extends to parent satkers';
 
 
 --
 -- Name: satker_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.satker_types (
+CREATE TABLE authenc.satker_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -4532,21 +4534,21 @@ CREATE TABLE public.satker_types (
 -- Name: TABLE satker_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.satker_types IS 'Dynamic Satker type hierarchy - replaces SatkerType enum';
+COMMENT ON TABLE authenc.satker_types IS 'Dynamic Satker type hierarchy - replaces SatkerType enum';
 
 
 --
 -- Name: COLUMN satker_types.code_pattern; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.satker_types.code_pattern IS 'Regex pattern for satker codes of this type';
+COMMENT ON COLUMN authenc.satker_types.code_pattern IS 'Regex pattern for satker codes of this type';
 
 
 --
 -- Name: scope_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.scope_types (
+CREATE TABLE authenc.scope_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -4567,21 +4569,21 @@ CREATE TABLE public.scope_types (
 -- Name: TABLE scope_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.scope_types IS 'Dynamic scope type registry - replaces RoleScope enum';
+COMMENT ON TABLE authenc.scope_types IS 'Dynamic scope type registry - replaces RoleScope enum';
 
 
 --
 -- Name: COLUMN scope_types.scope_pattern; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.scope_types.scope_pattern IS 'Regex pattern for matching scope identifiers';
+COMMENT ON COLUMN authenc.scope_types.scope_pattern IS 'Regex pattern for matching scope identifiers';
 
 
 --
 -- Name: scopes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.scopes (
+CREATE TABLE authenc.scopes (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     display_name character varying(255),
@@ -4597,7 +4599,7 @@ CREATE TABLE public.scopes (
 -- Name: service_account_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.service_account_audit_log (
+CREATE TABLE authenc.service_account_audit_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     service_account_id uuid NOT NULL,
     event_type character varying(50) NOT NULL,
@@ -4616,14 +4618,14 @@ CREATE TABLE public.service_account_audit_log (
 -- Name: TABLE service_account_audit_log; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.service_account_audit_log IS 'Comprehensive audit trail for all service account operations';
+COMMENT ON TABLE authenc.service_account_audit_log IS 'Comprehensive audit trail for all service account operations';
 
 
 --
 -- Name: service_account_roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.service_account_roles (
+CREATE TABLE authenc.service_account_roles (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     service_account_id uuid NOT NULL,
     role_id uuid NOT NULL,
@@ -4637,14 +4639,14 @@ CREATE TABLE public.service_account_roles (
 -- Name: TABLE service_account_roles; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.service_account_roles IS 'Role assignments for service accounts, determines API access permissions';
+COMMENT ON TABLE authenc.service_account_roles IS 'Role assignments for service accounts, determines API access permissions';
 
 
 --
 -- Name: service_accounts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.service_accounts (
+CREATE TABLE authenc.service_accounts (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name character varying(200) NOT NULL,
     description text,
@@ -4666,35 +4668,35 @@ CREATE TABLE public.service_accounts (
 -- Name: TABLE service_accounts; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.service_accounts IS 'Service accounts for machine-to-machine authentication using OAuth2 client credentials grant';
+COMMENT ON TABLE authenc.service_accounts IS 'Service accounts for machine-to-machine authentication using OAuth2 client credentials grant';
 
 
 --
 -- Name: COLUMN service_accounts.client_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.service_accounts.client_id IS 'OAuth2 client identifier, must be unique across all realms';
+COMMENT ON COLUMN authenc.service_accounts.client_id IS 'OAuth2 client identifier, must be unique across all realms';
 
 
 --
 -- Name: COLUMN service_accounts.client_secret_hash; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.service_accounts.client_secret_hash IS 'Bcrypt-hashed client secret (cost factor 12)';
+COMMENT ON COLUMN authenc.service_accounts.client_secret_hash IS 'Bcrypt-hashed client secret (cost factor 12)';
 
 
 --
 -- Name: COLUMN service_accounts.last_used_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.service_accounts.last_used_at IS 'Timestamp of last successful authentication, used for monitoring and security audits';
+COMMENT ON COLUMN authenc.service_accounts.last_used_at IS 'Timestamp of last successful authentication, used for monitoring and security audits';
 
 
 --
 -- Name: sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.sessions (
+CREATE TABLE authenc.sessions (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     token_hash character varying(255) NOT NULL,
@@ -4711,7 +4713,7 @@ CREATE TABLE public.sessions (
 -- Name: social_accounts; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.social_accounts (
+CREATE TABLE authenc.social_accounts (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     provider character varying(50) NOT NULL,
@@ -4732,7 +4734,7 @@ CREATE TABLE public.social_accounts (
 -- Name: social_login_configs; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.social_login_configs (
+CREATE TABLE authenc.social_login_configs (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     oauth2_config_id uuid NOT NULL,
     provider_type character varying(50) NOT NULL,
@@ -4759,7 +4761,7 @@ CREATE TABLE public.social_login_configs (
 -- Name: software_statement_issuers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.software_statement_issuers (
+CREATE TABLE authenc.software_statement_issuers (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     name text NOT NULL,
     issuer text NOT NULL,
@@ -4776,14 +4778,14 @@ CREATE TABLE public.software_statement_issuers (
 -- Name: TABLE software_statement_issuers; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.software_statement_issuers IS 'RFC 7591: Trusted issuers of software statements (signed JWTs)';
+COMMENT ON TABLE authenc.software_statement_issuers IS 'RFC 7591: Trusted issuers of software statements (signed JWTs)';
 
 
 --
 -- Name: theme_inheritance; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.theme_inheritance (
+CREATE TABLE authenc.theme_inheritance (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     theme_id uuid NOT NULL,
     parent_theme_id uuid,
@@ -4799,7 +4801,7 @@ CREATE TABLE public.theme_inheritance (
 -- Name: theme_resources; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.theme_resources (
+CREATE TABLE authenc.theme_resources (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     theme_id uuid NOT NULL,
     resource_name character varying(255) NOT NULL,
@@ -4819,7 +4821,7 @@ CREATE TABLE public.theme_resources (
 -- Name: theme_templates; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.theme_templates (
+CREATE TABLE authenc.theme_templates (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     theme_id uuid NOT NULL,
     template_name character varying(255) NOT NULL,
@@ -4838,7 +4840,7 @@ CREATE TABLE public.theme_templates (
 -- Name: theme_types; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.theme_types (
+CREATE TABLE authenc.theme_types (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     code character varying(100) NOT NULL,
     name character varying(255) NOT NULL,
@@ -4855,14 +4857,14 @@ CREATE TABLE public.theme_types (
 -- Name: TABLE theme_types; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.theme_types IS 'Dynamic theme type registry - replaces ThemeType enum';
+COMMENT ON TABLE authenc.theme_types IS 'Dynamic theme type registry - replaces ThemeType enum';
 
 
 --
 -- Name: token_exchange_audit; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.token_exchange_audit (
+CREATE TABLE authenc.token_exchange_audit (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     subject_token_type character varying(255) NOT NULL,
     requested_token_type character varying(255),
@@ -4895,42 +4897,42 @@ CREATE TABLE public.token_exchange_audit (
 -- Name: TABLE token_exchange_audit; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.token_exchange_audit IS 'Audit log for OAuth 2.0 Token Exchange (RFC 8693) operations';
+COMMENT ON TABLE authenc.token_exchange_audit IS 'Audit log for OAuth 2.0 Token Exchange (RFC 8693) operations';
 
 
 --
 -- Name: COLUMN token_exchange_audit.subject_token_type; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.token_exchange_audit.subject_token_type IS 'URN identifier of the subject token type (e.g., urn:ietf:params:oauth:token-type:access_token)';
+COMMENT ON COLUMN authenc.token_exchange_audit.subject_token_type IS 'URN identifier of the subject token type (e.g., urn:ietf:params:oauth:token-type:access_token)';
 
 
 --
 -- Name: COLUMN token_exchange_audit.delegation_enabled; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.token_exchange_audit.delegation_enabled IS 'True if this was a delegation scenario with actor token';
+COMMENT ON COLUMN authenc.token_exchange_audit.delegation_enabled IS 'True if this was a delegation scenario with actor token';
 
 
 --
 -- Name: COLUMN token_exchange_audit.audience; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.token_exchange_audit.audience IS 'Target audience for the issued token (RFC 8693 audience parameter)';
+COMMENT ON COLUMN authenc.token_exchange_audit.audience IS 'Target audience for the issued token (RFC 8693 audience parameter)';
 
 
 --
 -- Name: COLUMN token_exchange_audit.resource; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.token_exchange_audit.resource IS 'Target resource for the issued token (RFC 8693 resource parameter)';
+COMMENT ON COLUMN authenc.token_exchange_audit.resource IS 'Target resource for the issued token (RFC 8693 resource parameter)';
 
 
 --
 -- Name: uma_permission_requests; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.uma_permission_requests (
+CREATE TABLE authenc.uma_permission_requests (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     ticket character varying(255) NOT NULL,
     resource_id uuid,
@@ -4948,7 +4950,7 @@ CREATE TABLE public.uma_permission_requests (
 -- Name: uma_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.uma_policies (
+CREATE TABLE authenc.uma_policies (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     name character varying(255) NOT NULL,
     description text,
@@ -4971,7 +4973,7 @@ CREATE TABLE public.uma_policies (
 -- Name: user_consent_scopes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_consent_scopes (
+CREATE TABLE authenc.user_consent_scopes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     client_id uuid NOT NULL,
@@ -4986,14 +4988,14 @@ CREATE TABLE public.user_consent_scopes (
 -- Name: TABLE user_consent_scopes; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.user_consent_scopes IS 'Structured user consent tracking per scope';
+COMMENT ON TABLE authenc.user_consent_scopes IS 'Structured user consent tracking per scope';
 
 
 --
 -- Name: user_active_consents; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.user_active_consents AS
+CREATE VIEW authenc.user_active_consents AS
  SELECT ucs.user_id,
     ucs.client_id,
     c.client_id AS client_identifier,
@@ -5003,9 +5005,9 @@ CREATE VIEW public.user_active_consents AS
     ucs.granted_at,
     ucs.expires_at,
     ucs.consent_source
-   FROM ((public.user_consent_scopes ucs
-     JOIN public.oauth2_clients c ON ((ucs.client_id = c.id)))
-     JOIN public.client_scopes cs ON ((ucs.scope_id = cs.id)))
+   FROM ((authenc.user_consent_scopes ucs
+     JOIN authenc.oauth2_clients c ON ((ucs.client_id = c.id)))
+     JOIN authenc.client_scopes cs ON ((ucs.scope_id = cs.id)))
   WHERE ((ucs.expires_at IS NULL) OR (ucs.expires_at > now()));
 
 
@@ -5013,7 +5015,7 @@ CREATE VIEW public.user_active_consents AS
 -- Name: user_attributes; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_attributes (
+CREATE TABLE authenc.user_attributes (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     name character varying(255) NOT NULL,
@@ -5026,7 +5028,7 @@ CREATE TABLE public.user_attributes (
 -- Name: user_consents; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_consents (
+CREATE TABLE authenc.user_consents (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     client_id character varying(255) NOT NULL,
@@ -5041,7 +5043,7 @@ CREATE TABLE public.user_consents (
 -- Name: user_groups; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_groups (
+CREATE TABLE authenc.user_groups (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     group_id uuid NOT NULL,
@@ -5055,7 +5057,7 @@ CREATE TABLE public.user_groups (
 -- Name: user_policies; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_policies (
+CREATE TABLE authenc.user_policies (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     policy_id uuid NOT NULL,
@@ -5070,14 +5072,14 @@ CREATE TABLE public.user_policies (
 -- Name: TABLE user_policies; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.user_policies IS 'Direct user-to-policy mappings for explicit grants';
+COMMENT ON TABLE authenc.user_policies IS 'Direct user-to-policy mappings for explicit grants';
 
 
 --
 -- Name: user_roles; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_roles (
+CREATE TABLE authenc.user_roles (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     role_id uuid NOT NULL,
@@ -5089,7 +5091,7 @@ CREATE TABLE public.user_roles (
 -- Name: user_sessions; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.user_sessions (
+CREATE TABLE authenc.user_sessions (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     session_id character varying(255) NOT NULL,
     user_id uuid NOT NULL,
@@ -5126,7 +5128,7 @@ CREATE TABLE public.user_sessions (
 -- Name: v_client_policies_with_profiles; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_client_policies_with_profiles AS
+CREATE VIEW authenc.v_client_policies_with_profiles AS
 SELECT
     NULL::uuid AS id,
     NULL::uuid AS realm_id,
@@ -5149,7 +5151,7 @@ SELECT
 -- Name: v_client_policy_assignments_detail; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_client_policy_assignments_detail AS
+CREATE VIEW authenc.v_client_policy_assignments_detail AS
  SELECT cpa.id,
     cpa.client_id,
     cpa.policy_id,
@@ -5164,23 +5166,23 @@ CREATE VIEW public.v_client_policy_assignments_detail AS
             WHEN ((cpa.assignment_type)::text = 'profile'::text) THEN json_build_object('type', 'profile', 'id', prof.id, 'name', prof.name, 'description', prof.description, 'policy_count', array_length(prof.policy_ids, 1))
             ELSE NULL::json
         END AS assignment_details
-   FROM ((public.client_policy_assignments cpa
-     LEFT JOIN public.client_policies cp ON ((cpa.policy_id = cp.id)))
-     LEFT JOIN public.client_profiles prof ON ((cpa.profile_id = prof.id)));
+   FROM ((authenc.client_policy_assignments cpa
+     LEFT JOIN authenc.client_policies cp ON ((cpa.policy_id = cp.id)))
+     LEFT JOIN authenc.client_profiles prof ON ((cpa.profile_id = prof.id)));
 
 
 --
 -- Name: v_client_policy_stats; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_client_policy_stats AS
+CREATE VIEW authenc.v_client_policy_stats AS
  SELECT client_policies.realm_id,
     client_policies.policy_type,
     count(*) AS total_policies,
     count(*) FILTER (WHERE (client_policies.enabled = true)) AS enabled_policies,
     count(*) FILTER (WHERE (client_policies.enabled = false)) AS disabled_policies,
     avg(client_policies.priority) AS avg_priority
-   FROM public.client_policies
+   FROM authenc.client_policies
   GROUP BY client_policies.realm_id, client_policies.policy_type;
 
 
@@ -5188,7 +5190,7 @@ CREATE VIEW public.v_client_policy_stats AS
 -- Name: v_client_profile_usage; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_client_profile_usage AS
+CREATE VIEW authenc.v_client_profile_usage AS
 SELECT
     NULL::uuid AS profile_id,
     NULL::uuid AS realm_id,
@@ -5203,7 +5205,7 @@ SELECT
 -- Name: v_client_profiles_with_policies; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_client_profiles_with_policies AS
+CREATE VIEW authenc.v_client_profiles_with_policies AS
 SELECT
     NULL::uuid AS id,
     NULL::uuid AS realm_id,
@@ -5223,24 +5225,24 @@ SELECT
 -- Name: v_role_hierarchy_capabilities; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_role_hierarchy_capabilities AS
+CREATE VIEW authenc.v_role_hierarchy_capabilities AS
  WITH RECURSIVE role_tree AS (
          SELECT r.id AS role_id,
             r.name AS role_name,
             c.code AS capability_code,
             0 AS depth
-           FROM ((public.roles r
-             JOIN public.role_capabilities rc ON ((r.id = rc.role_id)))
-             JOIN public.capabilities c ON ((rc.capability_id = c.id)))
+           FROM ((authenc.roles r
+             JOIN authenc.role_capabilities rc ON ((r.id = rc.role_id)))
+             JOIN authenc.capabilities c ON ((rc.capability_id = c.id)))
           WHERE (r.deleted_at IS NULL)
         UNION ALL
          SELECT rh.child_role_id AS role_id,
             cr.name AS role_name,
             rt.capability_code,
             (rt.depth + 1)
-           FROM ((public.role_hierarchy rh
+           FROM ((authenc.role_hierarchy rh
              JOIN role_tree rt ON ((rh.parent_role_id = rt.role_id)))
-             JOIN public.roles cr ON ((rh.child_role_id = cr.id)))
+             JOIN authenc.roles cr ON ((rh.child_role_id = cr.id)))
           WHERE ((cr.deleted_at IS NULL) AND (rt.depth < 10))
         )
  SELECT DISTINCT role_tree.role_id,
@@ -5255,14 +5257,14 @@ CREATE VIEW public.v_role_hierarchy_capabilities AS
 -- Name: VIEW v_role_hierarchy_capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON VIEW public.v_role_hierarchy_capabilities IS 'View showing all capabilities for roles including inherited ones';
+COMMENT ON VIEW authenc.v_role_hierarchy_capabilities IS 'View showing all capabilities for roles including inherited ones';
 
 
 --
 -- Name: v_user_effective_capabilities; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_user_effective_capabilities AS
+CREATE VIEW authenc.v_user_effective_capabilities AS
  SELECT DISTINCT u.id AS user_id,
     u.username,
     c.id AS capability_id,
@@ -5272,11 +5274,11 @@ CREATE VIEW public.v_user_effective_capabilities AS
     r.id AS role_id,
     r.name AS role_name,
     'role'::text AS grant_source
-   FROM ((((public.users u
-     JOIN public.user_roles ur ON ((u.id = ur.user_id)))
-     JOIN public.roles r ON ((ur.role_id = r.id)))
-     JOIN public.role_capabilities rc ON ((r.id = rc.role_id)))
-     JOIN public.capabilities c ON ((rc.capability_id = c.id)))
+   FROM ((((authenc.users u
+     JOIN authenc.user_roles ur ON ((u.id = ur.user_id)))
+     JOIN authenc.roles r ON ((ur.role_id = r.id)))
+     JOIN authenc.role_capabilities rc ON ((r.id = rc.role_id)))
+     JOIN authenc.capabilities c ON ((rc.capability_id = c.id)))
   WHERE ((u.deleted_at IS NULL) AND (r.deleted_at IS NULL) AND (c.deleted_at IS NULL) AND ((rc.expires_at IS NULL) OR (rc.expires_at > now())))
 UNION
  SELECT DISTINCT u.id AS user_id,
@@ -5288,11 +5290,11 @@ UNION
     NULL::uuid AS role_id,
     NULL::character varying AS role_name,
     'policy'::text AS grant_source
-   FROM ((((public.users u
-     JOIN public.user_policies up ON ((u.id = up.user_id)))
-     JOIN public.authorization_policies ap ON ((up.policy_id = ap.id)))
+   FROM ((((authenc.users u
+     JOIN authenc.user_policies up ON ((u.id = up.user_id)))
+     JOIN authenc.authorization_policies ap ON ((up.policy_id = ap.id)))
      CROSS JOIN LATERAL jsonb_array_elements_text(ap.capabilities) cap_code(value))
-     JOIN public.capabilities c ON (((c.code)::text = cap_code.value)))
+     JOIN authenc.capabilities c ON (((c.code)::text = cap_code.value)))
   WHERE ((u.deleted_at IS NULL) AND (ap.deleted_at IS NULL) AND (ap.enabled = true) AND (c.deleted_at IS NULL) AND ((up.expires_at IS NULL) OR (up.expires_at > now())));
 
 
@@ -5300,14 +5302,14 @@ UNION
 -- Name: VIEW v_user_effective_capabilities; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON VIEW public.v_user_effective_capabilities IS 'Consolidated view of all user capabilities from roles and policies';
+COMMENT ON VIEW authenc.v_user_effective_capabilities IS 'Consolidated view of all user capabilities from roles and policies';
 
 
 --
 -- Name: v_user_perlengkapan_roles; Type: VIEW; Schema: public; Owner: -
 --
 
-CREATE VIEW public.v_user_perlengkapan_roles AS
+CREATE VIEW authenc.v_user_perlengkapan_roles AS
  SELECT u.id AS user_id,
     u.username,
     u.email,
@@ -5316,12 +5318,12 @@ CREATE VIEW public.v_user_perlengkapan_roles AS
     ua_satker.value AS satker_code,
     ua_satker_name.value AS satker_name,
     ua_active.value AS active_role
-   FROM (((((public.users u
-     JOIN public.user_roles ur ON ((u.id = ur.user_id)))
-     JOIN public.roles r ON ((ur.role_id = r.id)))
-     LEFT JOIN public.user_attributes ua_satker ON (((u.id = ua_satker.user_id) AND ((ua_satker.name)::text = 'satker_code'::text))))
-     LEFT JOIN public.user_attributes ua_satker_name ON (((u.id = ua_satker_name.user_id) AND ((ua_satker_name.name)::text = 'satker_name'::text))))
-     LEFT JOIN public.user_attributes ua_active ON (((u.id = ua_active.user_id) AND ((ua_active.name)::text = 'active_role'::text))))
+   FROM (((((authenc.users u
+     JOIN authenc.user_roles ur ON ((u.id = ur.user_id)))
+     JOIN authenc.roles r ON ((ur.role_id = r.id)))
+     LEFT JOIN authenc.user_attributes ua_satker ON (((u.id = ua_satker.user_id) AND ((ua_satker.name)::text = 'satker_code'::text))))
+     LEFT JOIN authenc.user_attributes ua_satker_name ON (((u.id = ua_satker_name.user_id) AND ((ua_satker_name.name)::text = 'satker_name'::text))))
+     LEFT JOIN authenc.user_attributes ua_active ON (((u.id = ua_active.user_id) AND ((ua_active.name)::text = 'active_role'::text))))
   WHERE ((r.name)::text = ANY ((ARRAY['operator_satker'::character varying, 'validator_wilayah'::character varying, 'validator_pusat'::character varying, 'admin'::character varying])::text[]));
 
 
@@ -5329,7 +5331,7 @@ CREATE VIEW public.v_user_perlengkapan_roles AS
 -- Name: webauthn_audit_log; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.webauthn_audit_log (
+CREATE TABLE authenc.webauthn_audit_log (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     credential_id bytea,
@@ -5347,14 +5349,14 @@ CREATE TABLE public.webauthn_audit_log (
 -- Name: TABLE webauthn_audit_log; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.webauthn_audit_log IS 'Audit log for all WebAuthn operations (registration, authentication, errors)';
+COMMENT ON TABLE authenc.webauthn_audit_log IS 'Audit log for all WebAuthn operations (registration, authentication, errors)';
 
 
 --
 -- Name: webauthn_challenges; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.webauthn_challenges (
+CREATE TABLE authenc.webauthn_challenges (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     challenge text NOT NULL,
@@ -5370,14 +5372,14 @@ CREATE TABLE public.webauthn_challenges (
 -- Name: TABLE webauthn_challenges; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.webauthn_challenges IS 'Stores WebAuthn registration and authentication challenges with TTL';
+COMMENT ON TABLE authenc.webauthn_challenges IS 'Stores WebAuthn registration and authentication challenges with TTL';
 
 
 --
 -- Name: webauthn_credentials; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.webauthn_credentials (
+CREATE TABLE authenc.webauthn_credentials (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     user_id uuid NOT NULL,
     cred_id bytea NOT NULL,
@@ -5392,63 +5394,63 @@ CREATE TABLE public.webauthn_credentials (
 -- Name: TABLE webauthn_credentials; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.webauthn_credentials IS 'Stores WebAuthn/FIDO2 passkey credentials for passwordless authentication';
+COMMENT ON TABLE authenc.webauthn_credentials IS 'Stores WebAuthn/FIDO2 passkey credentials for passwordless authentication';
 
 
 --
 -- Name: COLUMN webauthn_credentials.id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.id IS 'Unique credential ID (database primary key)';
+COMMENT ON COLUMN authenc.webauthn_credentials.id IS 'Unique credential ID (database primary key)';
 
 
 --
 -- Name: COLUMN webauthn_credentials.user_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.user_id IS 'User ID this credential belongs to';
+COMMENT ON COLUMN authenc.webauthn_credentials.user_id IS 'User ID this credential belongs to';
 
 
 --
 -- Name: COLUMN webauthn_credentials.cred_id; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.cred_id IS 'WebAuthn credential ID (binary, from authenticator)';
+COMMENT ON COLUMN authenc.webauthn_credentials.cred_id IS 'WebAuthn credential ID (binary, from authenticator)';
 
 
 --
 -- Name: COLUMN webauthn_credentials.cred; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.cred IS 'Full Passkey object from webauthn-rs (includes public key, counter, etc.)';
+COMMENT ON COLUMN authenc.webauthn_credentials.cred IS 'Full Passkey object from webauthn-rs (includes public key, counter, etc.)';
 
 
 --
 -- Name: COLUMN webauthn_credentials.nickname; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.nickname IS 'Optional user-assigned nickname (e.g., "My YubiKey", "iPhone Touch ID")';
+COMMENT ON COLUMN authenc.webauthn_credentials.nickname IS 'Optional user-assigned nickname (e.g., "My YubiKey", "iPhone Touch ID")';
 
 
 --
 -- Name: COLUMN webauthn_credentials.created_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.created_at IS 'When this credential was registered';
+COMMENT ON COLUMN authenc.webauthn_credentials.created_at IS 'When this credential was registered';
 
 
 --
 -- Name: COLUMN webauthn_credentials.last_used; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials.last_used IS 'When this credential was last used for authentication';
+COMMENT ON COLUMN authenc.webauthn_credentials.last_used IS 'When this credential was last used for authentication';
 
 
 --
 -- Name: webauthn_credentials_old; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.webauthn_credentials_old (
+CREATE TABLE authenc.webauthn_credentials_old (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     user_id uuid NOT NULL,
     credential_id text NOT NULL,
@@ -5479,42 +5481,42 @@ CREATE TABLE public.webauthn_credentials_old (
 -- Name: COLUMN webauthn_credentials_old.attestation_certificates; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.attestation_certificates IS 'Certificate chain from direct/enterprise attestation (PEM format, JSON array)';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.attestation_certificates IS 'Certificate chain from direct/enterprise attestation (PEM format, JSON array)';
 
 
 --
 -- Name: COLUMN webauthn_credentials_old.attestation_statement; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.attestation_statement IS 'Attestation statement from authenticator (format-specific, JSONB)';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.attestation_statement IS 'Attestation statement from authenticator (format-specific, JSONB)';
 
 
 --
 -- Name: COLUMN webauthn_credentials_old.authenticator_metadata; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.authenticator_metadata IS 'Metadata from FIDO Metadata Service including manufacturer, model, certification level';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.authenticator_metadata IS 'Metadata from FIDO Metadata Service including manufacturer, model, certification level';
 
 
 --
 -- Name: COLUMN webauthn_credentials_old.backup_eligible; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.backup_eligible IS 'Indicates if the credential can be backed up (multi-device credentials)';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.backup_eligible IS 'Indicates if the credential can be backed up (multi-device credentials)';
 
 
 --
 -- Name: COLUMN webauthn_credentials_old.backup_state; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.backup_state IS 'Indicates if the credential is currently backed up';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.backup_state IS 'Indicates if the credential is currently backed up';
 
 
 --
 -- Name: COLUMN webauthn_credentials_old.attestation_conveyance; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.webauthn_credentials_old.attestation_conveyance IS 'Attestation conveyance preference used during registration (none/indirect/direct/enterprise)';
+COMMENT ON COLUMN authenc.webauthn_credentials_old.attestation_conveyance IS 'Attestation conveyance preference used during registration (none/indirect/direct/enterprise)';
 
 
 --
@@ -5545,7 +5547,7 @@ ALTER TABLE ONLY authenc.totp_secrets
 -- Name: access_levels access_levels_code_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.access_levels
+ALTER TABLE ONLY authenc.access_levels
     ADD CONSTRAINT access_levels_code_realm_id_key UNIQUE (code, realm_id);
 
 
@@ -5553,7 +5555,7 @@ ALTER TABLE ONLY public.access_levels
 -- Name: access_levels access_levels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.access_levels
+ALTER TABLE ONLY authenc.access_levels
     ADD CONSTRAINT access_levels_pkey PRIMARY KEY (id);
 
 
@@ -5561,7 +5563,7 @@ ALTER TABLE ONLY public.access_levels
 -- Name: account_linking_requests account_linking_requests_confirmation_token_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.account_linking_requests
+ALTER TABLE ONLY authenc.account_linking_requests
     ADD CONSTRAINT account_linking_requests_confirmation_token_key UNIQUE (confirmation_token);
 
 
@@ -5569,7 +5571,7 @@ ALTER TABLE ONLY public.account_linking_requests
 -- Name: account_linking_requests account_linking_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.account_linking_requests
+ALTER TABLE ONLY authenc.account_linking_requests
     ADD CONSTRAINT account_linking_requests_pkey PRIMARY KEY (id);
 
 
@@ -5577,7 +5579,7 @@ ALTER TABLE ONLY public.account_linking_requests
 -- Name: actor_types actor_types_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.actor_types
+ALTER TABLE ONLY authenc.actor_types
     ADD CONSTRAINT actor_types_code_key UNIQUE (code);
 
 
@@ -5585,7 +5587,7 @@ ALTER TABLE ONLY public.actor_types
 -- Name: actor_types actor_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.actor_types
+ALTER TABLE ONLY authenc.actor_types
     ADD CONSTRAINT actor_types_pkey PRIMARY KEY (id);
 
 
@@ -5593,7 +5595,7 @@ ALTER TABLE ONLY public.actor_types
 -- Name: admin_audit_log admin_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_audit_log
+ALTER TABLE ONLY authenc.admin_audit_log
     ADD CONSTRAINT admin_audit_log_pkey PRIMARY KEY (id);
 
 
@@ -5601,7 +5603,7 @@ ALTER TABLE ONLY public.admin_audit_log
 -- Name: admin_console_preferences admin_console_preferences_admin_user_id_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_preferences
+ALTER TABLE ONLY authenc.admin_console_preferences
     ADD CONSTRAINT admin_console_preferences_admin_user_id_realm_id_key UNIQUE (admin_user_id, realm_id);
 
 
@@ -5609,7 +5611,7 @@ ALTER TABLE ONLY public.admin_console_preferences
 -- Name: admin_console_preferences admin_console_preferences_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_preferences
+ALTER TABLE ONLY authenc.admin_console_preferences
     ADD CONSTRAINT admin_console_preferences_pkey PRIMARY KEY (id);
 
 
@@ -5617,7 +5619,7 @@ ALTER TABLE ONLY public.admin_console_preferences
 -- Name: admin_console_sessions admin_console_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_sessions
+ALTER TABLE ONLY authenc.admin_console_sessions
     ADD CONSTRAINT admin_console_sessions_pkey PRIMARY KEY (id);
 
 
@@ -5625,7 +5627,7 @@ ALTER TABLE ONLY public.admin_console_sessions
 -- Name: admin_console_sessions admin_console_sessions_session_token_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_sessions
+ALTER TABLE ONLY authenc.admin_console_sessions
     ADD CONSTRAINT admin_console_sessions_session_token_key UNIQUE (session_token);
 
 
@@ -5633,7 +5635,7 @@ ALTER TABLE ONLY public.admin_console_sessions
 -- Name: admin_dashboard_metrics admin_dashboard_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_dashboard_metrics
+ALTER TABLE ONLY authenc.admin_dashboard_metrics
     ADD CONSTRAINT admin_dashboard_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5641,7 +5643,7 @@ ALTER TABLE ONLY public.admin_dashboard_metrics
 -- Name: admin_dashboard_metrics admin_dashboard_metrics_realm_id_metric_type_metric_name_pe_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_dashboard_metrics
+ALTER TABLE ONLY authenc.admin_dashboard_metrics
     ADD CONSTRAINT admin_dashboard_metrics_realm_id_metric_type_metric_name_pe_key UNIQUE (realm_id, metric_type, metric_name, period_start);
 
 
@@ -5649,7 +5651,7 @@ ALTER TABLE ONLY public.admin_dashboard_metrics
 -- Name: admin_events admin_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_events
+ALTER TABLE ONLY authenc.admin_events
     ADD CONSTRAINT admin_events_pkey PRIMARY KEY (id);
 
 
@@ -5657,7 +5659,7 @@ ALTER TABLE ONLY public.admin_events
 -- Name: admin_level_types admin_level_types_code_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_level_types
+ALTER TABLE ONLY authenc.admin_level_types
     ADD CONSTRAINT admin_level_types_code_realm_id_key UNIQUE (code, realm_id);
 
 
@@ -5665,7 +5667,7 @@ ALTER TABLE ONLY public.admin_level_types
 -- Name: admin_level_types admin_level_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_level_types
+ALTER TABLE ONLY authenc.admin_level_types
     ADD CONSTRAINT admin_level_types_pkey PRIMARY KEY (id);
 
 
@@ -5673,7 +5675,7 @@ ALTER TABLE ONLY public.admin_level_types
 -- Name: admin_notifications admin_notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_notifications
+ALTER TABLE ONLY authenc.admin_notifications
     ADD CONSTRAINT admin_notifications_pkey PRIMARY KEY (id);
 
 
@@ -5681,7 +5683,7 @@ ALTER TABLE ONLY public.admin_notifications
 -- Name: audit_integrity_checks audit_integrity_checks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_integrity_checks
+ALTER TABLE ONLY authenc.audit_integrity_checks
     ADD CONSTRAINT audit_integrity_checks_pkey PRIMARY KEY (id);
 
 
@@ -5689,7 +5691,7 @@ ALTER TABLE ONLY public.audit_integrity_checks
 -- Name: audit_integrity_failures audit_integrity_failures_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_integrity_failures
+ALTER TABLE ONLY authenc.audit_integrity_failures
     ADD CONSTRAINT audit_integrity_failures_pkey PRIMARY KEY (id);
 
 
@@ -5697,7 +5699,7 @@ ALTER TABLE ONLY public.audit_integrity_failures
 -- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_logs
+ALTER TABLE ONLY authenc.audit_logs
     ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
 
 
@@ -5705,7 +5707,7 @@ ALTER TABLE ONLY public.audit_logs
 -- Name: authentication_executions authentication_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_executions
+ALTER TABLE ONLY authenc.authentication_executions
     ADD CONSTRAINT authentication_executions_pkey PRIMARY KEY (id);
 
 
@@ -5713,7 +5715,7 @@ ALTER TABLE ONLY public.authentication_executions
 -- Name: authentication_flows authentication_flows_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_flows
+ALTER TABLE ONLY authenc.authentication_flows
     ADD CONSTRAINT authentication_flows_pkey PRIMARY KEY (id);
 
 
@@ -5721,7 +5723,7 @@ ALTER TABLE ONLY public.authentication_flows
 -- Name: authentication_flows authentication_flows_realm_id_alias_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_flows
+ALTER TABLE ONLY authenc.authentication_flows
     ADD CONSTRAINT authentication_flows_realm_id_alias_key UNIQUE (realm_id, alias);
 
 
@@ -5729,7 +5731,7 @@ ALTER TABLE ONLY public.authentication_flows
 -- Name: authentication_sessions authentication_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_sessions
+ALTER TABLE ONLY authenc.authentication_sessions
     ADD CONSTRAINT authentication_sessions_pkey PRIMARY KEY (id);
 
 
@@ -5737,7 +5739,7 @@ ALTER TABLE ONLY public.authentication_sessions
 -- Name: authenticator_configs authenticator_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_configs
+ALTER TABLE ONLY authenc.authenticator_configs
     ADD CONSTRAINT authenticator_configs_pkey PRIMARY KEY (id);
 
 
@@ -5745,7 +5747,7 @@ ALTER TABLE ONLY public.authenticator_configs
 -- Name: authenticator_configs authenticator_configs_realm_id_alias_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_configs
+ALTER TABLE ONLY authenc.authenticator_configs
     ADD CONSTRAINT authenticator_configs_realm_id_alias_key UNIQUE (realm_id, alias);
 
 
@@ -5753,7 +5755,7 @@ ALTER TABLE ONLY public.authenticator_configs
 -- Name: authenticator_execution_results authenticator_execution_results_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_execution_results
+ALTER TABLE ONLY authenc.authenticator_execution_results
     ADD CONSTRAINT authenticator_execution_results_pkey PRIMARY KEY (id);
 
 
@@ -5761,7 +5763,7 @@ ALTER TABLE ONLY public.authenticator_execution_results
 -- Name: authenticator_executions authenticator_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_executions
+ALTER TABLE ONLY authenc.authenticator_executions
     ADD CONSTRAINT authenticator_executions_pkey PRIMARY KEY (id);
 
 
@@ -5769,7 +5771,7 @@ ALTER TABLE ONLY public.authenticator_executions
 -- Name: authorization_policies authorization_policies_name_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authorization_policies
+ALTER TABLE ONLY authenc.authorization_policies
     ADD CONSTRAINT authorization_policies_name_realm_id_key UNIQUE (name, realm_id);
 
 
@@ -5777,7 +5779,7 @@ ALTER TABLE ONLY public.authorization_policies
 -- Name: authorization_policies authorization_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authorization_policies
+ALTER TABLE ONLY authenc.authorization_policies
     ADD CONSTRAINT authorization_policies_pkey PRIMARY KEY (id);
 
 
@@ -5785,7 +5787,7 @@ ALTER TABLE ONLY public.authorization_policies
 -- Name: capabilities capabilities_code_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.capabilities
+ALTER TABLE ONLY authenc.capabilities
     ADD CONSTRAINT capabilities_code_realm_id_key UNIQUE (code, realm_id);
 
 
@@ -5793,7 +5795,7 @@ ALTER TABLE ONLY public.capabilities
 -- Name: capabilities capabilities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.capabilities
+ALTER TABLE ONLY authenc.capabilities
     ADD CONSTRAINT capabilities_pkey PRIMARY KEY (id);
 
 
@@ -5801,7 +5803,7 @@ ALTER TABLE ONLY public.capabilities
 -- Name: captcha_behavioral_metrics captcha_behavioral_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_behavioral_metrics
+ALTER TABLE ONLY authenc.captcha_behavioral_metrics
     ADD CONSTRAINT captcha_behavioral_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5809,7 +5811,7 @@ ALTER TABLE ONLY public.captcha_behavioral_metrics
 -- Name: captcha_bot_detection_metrics captcha_bot_detection_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_bot_detection_metrics
+ALTER TABLE ONLY authenc.captcha_bot_detection_metrics
     ADD CONSTRAINT captcha_bot_detection_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5817,7 +5819,7 @@ ALTER TABLE ONLY public.captcha_bot_detection_metrics
 -- Name: captcha_challenges captcha_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_challenges
+ALTER TABLE ONLY authenc.captcha_challenges
     ADD CONSTRAINT captcha_challenges_pkey PRIMARY KEY (id);
 
 
@@ -5825,7 +5827,7 @@ ALTER TABLE ONLY public.captcha_challenges
 -- Name: captcha_difficulty_adjustments captcha_difficulty_adjustments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_difficulty_adjustments
+ALTER TABLE ONLY authenc.captcha_difficulty_adjustments
     ADD CONSTRAINT captcha_difficulty_adjustments_pkey PRIMARY KEY (id);
 
 
@@ -5833,7 +5835,7 @@ ALTER TABLE ONLY public.captcha_difficulty_adjustments
 -- Name: captcha_performance_metrics captcha_performance_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_performance_metrics
+ALTER TABLE ONLY authenc.captcha_performance_metrics
     ADD CONSTRAINT captcha_performance_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5841,7 +5843,7 @@ ALTER TABLE ONLY public.captcha_performance_metrics
 -- Name: captcha_security_event_metrics captcha_security_event_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_security_event_metrics
+ALTER TABLE ONLY authenc.captcha_security_event_metrics
     ADD CONSTRAINT captcha_security_event_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5849,7 +5851,7 @@ ALTER TABLE ONLY public.captcha_security_event_metrics
 -- Name: captcha_type_effectiveness captcha_type_effectiveness_challenge_type_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_type_effectiveness
+ALTER TABLE ONLY authenc.captcha_type_effectiveness
     ADD CONSTRAINT captcha_type_effectiveness_challenge_type_key UNIQUE (challenge_type);
 
 
@@ -5857,7 +5859,7 @@ ALTER TABLE ONLY public.captcha_type_effectiveness
 -- Name: captcha_type_effectiveness captcha_type_effectiveness_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_type_effectiveness
+ALTER TABLE ONLY authenc.captcha_type_effectiveness
     ADD CONSTRAINT captcha_type_effectiveness_pkey PRIMARY KEY (id);
 
 
@@ -5865,7 +5867,7 @@ ALTER TABLE ONLY public.captcha_type_effectiveness
 -- Name: captcha_user_experience_metrics captcha_user_experience_metrics_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_user_experience_metrics
+ALTER TABLE ONLY authenc.captcha_user_experience_metrics
     ADD CONSTRAINT captcha_user_experience_metrics_pkey PRIMARY KEY (id);
 
 
@@ -5873,7 +5875,7 @@ ALTER TABLE ONLY public.captcha_user_experience_metrics
 -- Name: captcha_user_history captcha_user_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_user_history
+ALTER TABLE ONLY authenc.captcha_user_history
     ADD CONSTRAINT captcha_user_history_pkey PRIMARY KEY (id);
 
 
@@ -5881,7 +5883,7 @@ ALTER TABLE ONLY public.captcha_user_history
 -- Name: captcha_user_type_performance captcha_user_type_performance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_user_type_performance
+ALTER TABLE ONLY authenc.captcha_user_type_performance
     ADD CONSTRAINT captcha_user_type_performance_pkey PRIMARY KEY (id);
 
 
@@ -5889,7 +5891,7 @@ ALTER TABLE ONLY public.captcha_user_type_performance
 -- Name: captcha_validation_attempts captcha_validation_attempts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_validation_attempts
+ALTER TABLE ONLY authenc.captcha_validation_attempts
     ADD CONSTRAINT captcha_validation_attempts_pkey PRIMARY KEY (id);
 
 
@@ -5897,7 +5899,7 @@ ALTER TABLE ONLY public.captcha_validation_attempts
 -- Name: client_default_scopes client_default_scopes_client_id_scope_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_default_scopes
+ALTER TABLE ONLY authenc.client_default_scopes
     ADD CONSTRAINT client_default_scopes_client_id_scope_id_key UNIQUE (client_id, scope_id);
 
 
@@ -5905,7 +5907,7 @@ ALTER TABLE ONLY public.client_default_scopes
 -- Name: client_default_scopes client_default_scopes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_default_scopes
+ALTER TABLE ONLY authenc.client_default_scopes
     ADD CONSTRAINT client_default_scopes_pkey PRIMARY KEY (id);
 
 
@@ -5913,7 +5915,7 @@ ALTER TABLE ONLY public.client_default_scopes
 -- Name: client_optional_scopes client_optional_scopes_client_id_scope_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_optional_scopes
+ALTER TABLE ONLY authenc.client_optional_scopes
     ADD CONSTRAINT client_optional_scopes_client_id_scope_id_key UNIQUE (client_id, scope_id);
 
 
@@ -5921,7 +5923,7 @@ ALTER TABLE ONLY public.client_optional_scopes
 -- Name: client_optional_scopes client_optional_scopes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_optional_scopes
+ALTER TABLE ONLY authenc.client_optional_scopes
     ADD CONSTRAINT client_optional_scopes_pkey PRIMARY KEY (id);
 
 
@@ -5929,7 +5931,7 @@ ALTER TABLE ONLY public.client_optional_scopes
 -- Name: client_policies client_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policies
+ALTER TABLE ONLY authenc.client_policies
     ADD CONSTRAINT client_policies_pkey PRIMARY KEY (id);
 
 
@@ -5937,7 +5939,7 @@ ALTER TABLE ONLY public.client_policies
 -- Name: client_policies client_policies_realm_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policies
+ALTER TABLE ONLY authenc.client_policies
     ADD CONSTRAINT client_policies_realm_id_name_key UNIQUE (realm_id, name);
 
 
@@ -5945,7 +5947,7 @@ ALTER TABLE ONLY public.client_policies
 -- Name: client_policy_assignments client_policy_assignments_client_id_policy_id_profile_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policy_assignments
+ALTER TABLE ONLY authenc.client_policy_assignments
     ADD CONSTRAINT client_policy_assignments_client_id_policy_id_profile_id_key UNIQUE (client_id, policy_id, profile_id);
 
 
@@ -5953,7 +5955,7 @@ ALTER TABLE ONLY public.client_policy_assignments
 -- Name: client_policy_assignments client_policy_assignments_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policy_assignments
+ALTER TABLE ONLY authenc.client_policy_assignments
     ADD CONSTRAINT client_policy_assignments_pkey PRIMARY KEY (id);
 
 
@@ -5961,7 +5963,7 @@ ALTER TABLE ONLY public.client_policy_assignments
 -- Name: client_profiles client_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_profiles
+ALTER TABLE ONLY authenc.client_profiles
     ADD CONSTRAINT client_profiles_pkey PRIMARY KEY (id);
 
 
@@ -5969,7 +5971,7 @@ ALTER TABLE ONLY public.client_profiles
 -- Name: client_profiles client_profiles_realm_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_profiles
+ALTER TABLE ONLY authenc.client_profiles
     ADD CONSTRAINT client_profiles_realm_id_name_key UNIQUE (realm_id, name);
 
 
@@ -5977,7 +5979,7 @@ ALTER TABLE ONLY public.client_profiles
 -- Name: client_registration_audit_log client_registration_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_audit_log
+ALTER TABLE ONLY authenc.client_registration_audit_log
     ADD CONSTRAINT client_registration_audit_log_pkey PRIMARY KEY (id);
 
 
@@ -5985,7 +5987,7 @@ ALTER TABLE ONLY public.client_registration_audit_log
 -- Name: client_registration_policies client_registration_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_policies
+ALTER TABLE ONLY authenc.client_registration_policies
     ADD CONSTRAINT client_registration_policies_pkey PRIMARY KEY (id);
 
 
@@ -5993,7 +5995,7 @@ ALTER TABLE ONLY public.client_registration_policies
 -- Name: client_registration_policies client_registration_policies_realm_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_policies
+ALTER TABLE ONLY authenc.client_registration_policies
     ADD CONSTRAINT client_registration_policies_realm_id_name_key UNIQUE (realm_id, name);
 
 
@@ -6001,7 +6003,7 @@ ALTER TABLE ONLY public.client_registration_policies
 -- Name: client_registration_tokens client_registration_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_tokens
+ALTER TABLE ONLY authenc.client_registration_tokens
     ADD CONSTRAINT client_registration_tokens_pkey PRIMARY KEY (id);
 
 
@@ -6009,7 +6011,7 @@ ALTER TABLE ONLY public.client_registration_tokens
 -- Name: client_registration_tokens client_registration_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_tokens
+ALTER TABLE ONLY authenc.client_registration_tokens
     ADD CONSTRAINT client_registration_tokens_token_hash_key UNIQUE (token_hash);
 
 
@@ -6017,7 +6019,7 @@ ALTER TABLE ONLY public.client_registration_tokens
 -- Name: client_scope_mappings client_scope_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scope_mappings
+ALTER TABLE ONLY authenc.client_scope_mappings
     ADD CONSTRAINT client_scope_mappings_pkey PRIMARY KEY (id);
 
 
@@ -6025,7 +6027,7 @@ ALTER TABLE ONLY public.client_scope_mappings
 -- Name: client_scope_mappings client_scope_mappings_scope_id_protocol_mapper_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scope_mappings
+ALTER TABLE ONLY authenc.client_scope_mappings
     ADD CONSTRAINT client_scope_mappings_scope_id_protocol_mapper_id_key UNIQUE (scope_id, protocol_mapper_id);
 
 
@@ -6033,7 +6035,7 @@ ALTER TABLE ONLY public.client_scope_mappings
 -- Name: client_scopes client_scopes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scopes
+ALTER TABLE ONLY authenc.client_scopes
     ADD CONSTRAINT client_scopes_pkey PRIMARY KEY (id);
 
 
@@ -6041,7 +6043,7 @@ ALTER TABLE ONLY public.client_scopes
 -- Name: client_scopes client_scopes_realm_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scopes
+ALTER TABLE ONLY authenc.client_scopes
     ADD CONSTRAINT client_scopes_realm_id_name_key UNIQUE (realm_id, name);
 
 
@@ -6049,7 +6051,7 @@ ALTER TABLE ONLY public.client_scopes
 -- Name: credential_types credential_types_code_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.credential_types
+ALTER TABLE ONLY authenc.credential_types
     ADD CONSTRAINT credential_types_code_realm_id_key UNIQUE (code, realm_id);
 
 
@@ -6057,7 +6059,7 @@ ALTER TABLE ONLY public.credential_types
 -- Name: credential_types credential_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.credential_types
+ALTER TABLE ONLY authenc.credential_types
     ADD CONSTRAINT credential_types_pkey PRIMARY KEY (id);
 
 
@@ -6065,7 +6067,7 @@ ALTER TABLE ONLY public.credential_types
 -- Name: custom_themes custom_themes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.custom_themes
+ALTER TABLE ONLY authenc.custom_themes
     ADD CONSTRAINT custom_themes_pkey PRIMARY KEY (id);
 
 
@@ -6073,7 +6075,7 @@ ALTER TABLE ONLY public.custom_themes
 -- Name: device_sessions device_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_sessions
+ALTER TABLE ONLY authenc.device_sessions
     ADD CONSTRAINT device_sessions_pkey PRIMARY KEY (id);
 
 
@@ -6081,7 +6083,7 @@ ALTER TABLE ONLY public.device_sessions
 -- Name: device_trust_history device_trust_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_trust_history
+ALTER TABLE ONLY authenc.device_trust_history
     ADD CONSTRAINT device_trust_history_pkey PRIMARY KEY (id);
 
 
@@ -6089,7 +6091,7 @@ ALTER TABLE ONLY public.device_trust_history
 -- Name: devices devices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.devices
+ALTER TABLE ONLY authenc.devices
     ADD CONSTRAINT devices_pkey PRIMARY KEY (id);
 
 
@@ -6097,7 +6099,7 @@ ALTER TABLE ONLY public.devices
 -- Name: devices devices_user_id_device_fingerprint_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.devices
+ALTER TABLE ONLY authenc.devices
     ADD CONSTRAINT devices_user_id_device_fingerprint_key UNIQUE (user_id, device_fingerprint);
 
 
@@ -6105,7 +6107,7 @@ ALTER TABLE ONLY public.devices
 -- Name: event_listener_executions event_listener_executions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listener_executions
+ALTER TABLE ONLY authenc.event_listener_executions
     ADD CONSTRAINT event_listener_executions_pkey PRIMARY KEY (id);
 
 
@@ -6113,7 +6115,7 @@ ALTER TABLE ONLY public.event_listener_executions
 -- Name: event_listeners event_listeners_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listeners
+ALTER TABLE ONLY authenc.event_listeners
     ADD CONSTRAINT event_listeners_pkey PRIMARY KEY (id);
 
 
@@ -6121,7 +6123,7 @@ ALTER TABLE ONLY public.event_listeners
 -- Name: event_listeners event_listeners_realm_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listeners
+ALTER TABLE ONLY authenc.event_listeners
     ADD CONSTRAINT event_listeners_realm_id_name_key UNIQUE (realm_id, name);
 
 
@@ -6129,7 +6131,7 @@ ALTER TABLE ONLY public.event_listeners
 -- Name: event_log event_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_log
+ALTER TABLE ONLY authenc.event_log
     ADD CONSTRAINT event_log_pkey PRIMARY KEY (id);
 
 
@@ -6137,7 +6139,7 @@ ALTER TABLE ONLY public.event_log
 -- Name: event_webhooks event_webhooks_listener_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_webhooks
+ALTER TABLE ONLY authenc.event_webhooks
     ADD CONSTRAINT event_webhooks_listener_id_key UNIQUE (listener_id);
 
 
@@ -6145,7 +6147,7 @@ ALTER TABLE ONLY public.event_webhooks
 -- Name: event_webhooks event_webhooks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_webhooks
+ALTER TABLE ONLY authenc.event_webhooks
     ADD CONSTRAINT event_webhooks_pkey PRIMARY KEY (id);
 
 
@@ -6153,7 +6155,7 @@ ALTER TABLE ONLY public.event_webhooks
 -- Name: events events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.events
+ALTER TABLE ONLY authenc.events
     ADD CONSTRAINT events_pkey PRIMARY KEY (id);
 
 
@@ -6161,7 +6163,7 @@ ALTER TABLE ONLY public.events
 -- Name: federated_auth_log federated_auth_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_auth_log
+ALTER TABLE ONLY authenc.federated_auth_log
     ADD CONSTRAINT federated_auth_log_pkey PRIMARY KEY (id);
 
 
@@ -6169,7 +6171,7 @@ ALTER TABLE ONLY public.federated_auth_log
 -- Name: federated_identities federated_identities_identity_provider_id_external_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identities
+ALTER TABLE ONLY authenc.federated_identities
     ADD CONSTRAINT federated_identities_identity_provider_id_external_id_key UNIQUE (identity_provider_id, external_id);
 
 
@@ -6177,7 +6179,7 @@ ALTER TABLE ONLY public.federated_identities
 -- Name: federated_identities federated_identities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identities
+ALTER TABLE ONLY authenc.federated_identities
     ADD CONSTRAINT federated_identities_pkey PRIMARY KEY (id);
 
 
@@ -6185,7 +6187,7 @@ ALTER TABLE ONLY public.federated_identities
 -- Name: federated_identity_links federated_identity_links_identity_provider_alias_federated__key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identity_links
+ALTER TABLE ONLY authenc.federated_identity_links
     ADD CONSTRAINT federated_identity_links_identity_provider_alias_federated__key UNIQUE (identity_provider_alias, federated_user_id);
 
 
@@ -6193,7 +6195,7 @@ ALTER TABLE ONLY public.federated_identity_links
 -- Name: federated_identity_links federated_identity_links_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identity_links
+ALTER TABLE ONLY authenc.federated_identity_links
     ADD CONSTRAINT federated_identity_links_pkey PRIMARY KEY (id);
 
 
@@ -6201,7 +6203,7 @@ ALTER TABLE ONLY public.federated_identity_links
 -- Name: federated_identity_links federated_identity_links_user_id_identity_provider_alias_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identity_links
+ALTER TABLE ONLY authenc.federated_identity_links
     ADD CONSTRAINT federated_identity_links_user_id_identity_provider_alias_key UNIQUE (user_id, identity_provider_alias);
 
 
@@ -6209,7 +6211,7 @@ ALTER TABLE ONLY public.federated_identity_links
 -- Name: group_attributes group_attributes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_attributes
+ALTER TABLE ONLY authenc.group_attributes
     ADD CONSTRAINT group_attributes_pkey PRIMARY KEY (id);
 
 
@@ -6217,7 +6219,7 @@ ALTER TABLE ONLY public.group_attributes
 -- Name: group_roles group_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_roles
+ALTER TABLE ONLY authenc.group_roles
     ADD CONSTRAINT group_roles_pkey PRIMARY KEY (id);
 
 
@@ -6225,7 +6227,7 @@ ALTER TABLE ONLY public.group_roles
 -- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.groups
+ALTER TABLE ONLY authenc.groups
     ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
 
 
@@ -6233,7 +6235,7 @@ ALTER TABLE ONLY public.groups
 -- Name: identity_broker_configs identity_broker_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_broker_configs
+ALTER TABLE ONLY authenc.identity_broker_configs
     ADD CONSTRAINT identity_broker_configs_pkey PRIMARY KEY (id);
 
 
@@ -6241,7 +6243,7 @@ ALTER TABLE ONLY public.identity_broker_configs
 -- Name: identity_broker_configs identity_broker_configs_realm_id_alias_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_broker_configs
+ALTER TABLE ONLY authenc.identity_broker_configs
     ADD CONSTRAINT identity_broker_configs_realm_id_alias_key UNIQUE (realm_id, alias);
 
 
@@ -6249,7 +6251,7 @@ ALTER TABLE ONLY public.identity_broker_configs
 -- Name: identity_provider_mappers identity_provider_mappers_identity_provider_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_provider_mappers
+ALTER TABLE ONLY authenc.identity_provider_mappers
     ADD CONSTRAINT identity_provider_mappers_identity_provider_id_name_key UNIQUE (identity_provider_id, name);
 
 
@@ -6257,7 +6259,7 @@ ALTER TABLE ONLY public.identity_provider_mappers
 -- Name: identity_provider_mappers identity_provider_mappers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_provider_mappers
+ALTER TABLE ONLY authenc.identity_provider_mappers
     ADD CONSTRAINT identity_provider_mappers_pkey PRIMARY KEY (id);
 
 
@@ -6265,7 +6267,7 @@ ALTER TABLE ONLY public.identity_provider_mappers
 -- Name: identity_providers identity_providers_name_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_providers
+ALTER TABLE ONLY authenc.identity_providers
     ADD CONSTRAINT identity_providers_name_realm_id_key UNIQUE (name, realm_id);
 
 
@@ -6273,7 +6275,7 @@ ALTER TABLE ONLY public.identity_providers
 -- Name: identity_providers identity_providers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_providers
+ALTER TABLE ONLY authenc.identity_providers
     ADD CONSTRAINT identity_providers_pkey PRIMARY KEY (id);
 
 
@@ -6281,7 +6283,7 @@ ALTER TABLE ONLY public.identity_providers
 -- Name: initial_access_tokens initial_access_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.initial_access_tokens
+ALTER TABLE ONLY authenc.initial_access_tokens
     ADD CONSTRAINT initial_access_tokens_pkey PRIMARY KEY (id);
 
 
@@ -6289,7 +6291,7 @@ ALTER TABLE ONLY public.initial_access_tokens
 -- Name: initial_access_tokens initial_access_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.initial_access_tokens
+ALTER TABLE ONLY authenc.initial_access_tokens
     ADD CONSTRAINT initial_access_tokens_token_hash_key UNIQUE (token_hash);
 
 
@@ -6297,7 +6299,7 @@ ALTER TABLE ONLY public.initial_access_tokens
 -- Name: key_rotation_audit key_rotation_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.key_rotation_audit
+ALTER TABLE ONLY authenc.key_rotation_audit
     ADD CONSTRAINT key_rotation_audit_pkey PRIMARY KEY (id);
 
 
@@ -6305,7 +6307,7 @@ ALTER TABLE ONLY public.key_rotation_audit
 -- Name: mfa_admin_actions mfa_admin_actions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_admin_actions
+ALTER TABLE ONLY authenc.mfa_admin_actions
     ADD CONSTRAINT mfa_admin_actions_pkey PRIMARY KEY (id);
 
 
@@ -6313,7 +6315,7 @@ ALTER TABLE ONLY public.mfa_admin_actions
 -- Name: mfa_devices mfa_devices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_devices
+ALTER TABLE ONLY authenc.mfa_devices
     ADD CONSTRAINT mfa_devices_pkey PRIMARY KEY (id);
 
 
@@ -6321,7 +6323,7 @@ ALTER TABLE ONLY public.mfa_devices
 -- Name: mfa_policies mfa_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_policies
+ALTER TABLE ONLY authenc.mfa_policies
     ADD CONSTRAINT mfa_policies_pkey PRIMARY KEY (id);
 
 
@@ -6329,7 +6331,7 @@ ALTER TABLE ONLY public.mfa_policies
 -- Name: oauth2_access_tokens oauth2_access_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_access_tokens
+ALTER TABLE ONLY authenc.oauth2_access_tokens
     ADD CONSTRAINT oauth2_access_tokens_pkey PRIMARY KEY (id);
 
 
@@ -6337,7 +6339,7 @@ ALTER TABLE ONLY public.oauth2_access_tokens
 -- Name: oauth2_access_tokens oauth2_access_tokens_refresh_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_access_tokens
+ALTER TABLE ONLY authenc.oauth2_access_tokens
     ADD CONSTRAINT oauth2_access_tokens_refresh_token_hash_key UNIQUE (refresh_token_hash);
 
 
@@ -6345,7 +6347,7 @@ ALTER TABLE ONLY public.oauth2_access_tokens
 -- Name: oauth2_access_tokens oauth2_access_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_access_tokens
+ALTER TABLE ONLY authenc.oauth2_access_tokens
     ADD CONSTRAINT oauth2_access_tokens_token_hash_key UNIQUE (token_hash);
 
 
@@ -6353,7 +6355,7 @@ ALTER TABLE ONLY public.oauth2_access_tokens
 -- Name: oauth2_authorization_codes oauth2_authorization_codes_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_authorization_codes
+ALTER TABLE ONLY authenc.oauth2_authorization_codes
     ADD CONSTRAINT oauth2_authorization_codes_code_key UNIQUE (code);
 
 
@@ -6361,7 +6363,7 @@ ALTER TABLE ONLY public.oauth2_authorization_codes
 -- Name: oauth2_authorization_codes oauth2_authorization_codes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_authorization_codes
+ALTER TABLE ONLY authenc.oauth2_authorization_codes
     ADD CONSTRAINT oauth2_authorization_codes_pkey PRIMARY KEY (id);
 
 
@@ -6369,7 +6371,7 @@ ALTER TABLE ONLY public.oauth2_authorization_codes
 -- Name: oauth2_clients oauth2_clients_client_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_clients
+ALTER TABLE ONLY authenc.oauth2_clients
     ADD CONSTRAINT oauth2_clients_client_id_key UNIQUE (client_id);
 
 
@@ -6377,7 +6379,7 @@ ALTER TABLE ONLY public.oauth2_clients
 -- Name: oauth2_clients oauth2_clients_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_clients
+ALTER TABLE ONLY authenc.oauth2_clients
     ADD CONSTRAINT oauth2_clients_pkey PRIMARY KEY (id);
 
 
@@ -6385,7 +6387,7 @@ ALTER TABLE ONLY public.oauth2_clients
 -- Name: oauth2_provider_configs oauth2_provider_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_provider_configs
+ALTER TABLE ONLY authenc.oauth2_provider_configs
     ADD CONSTRAINT oauth2_provider_configs_pkey PRIMARY KEY (id);
 
 
@@ -6393,7 +6395,7 @@ ALTER TABLE ONLY public.oauth2_provider_configs
 -- Name: oauth2_provider_configs oauth2_provider_configs_realm_id_alias_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_provider_configs
+ALTER TABLE ONLY authenc.oauth2_provider_configs
     ADD CONSTRAINT oauth2_provider_configs_realm_id_alias_key UNIQUE (realm_id, alias);
 
 
@@ -6401,7 +6403,7 @@ ALTER TABLE ONLY public.oauth2_provider_configs
 -- Name: oauth2_states oauth2_states_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_states
+ALTER TABLE ONLY authenc.oauth2_states
     ADD CONSTRAINT oauth2_states_pkey PRIMARY KEY (id);
 
 
@@ -6409,7 +6411,7 @@ ALTER TABLE ONLY public.oauth2_states
 -- Name: oauth2_states oauth2_states_state_token_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_states
+ALTER TABLE ONLY authenc.oauth2_states
     ADD CONSTRAINT oauth2_states_state_token_key UNIQUE (state_token);
 
 
@@ -6417,7 +6419,7 @@ ALTER TABLE ONLY public.oauth2_states
 -- Name: oauth2_token_exchanges oauth2_token_exchanges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_token_exchanges
+ALTER TABLE ONLY authenc.oauth2_token_exchanges
     ADD CONSTRAINT oauth2_token_exchanges_pkey PRIMARY KEY (id);
 
 
@@ -6425,7 +6427,7 @@ ALTER TABLE ONLY public.oauth2_token_exchanges
 -- Name: offline_tokens offline_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.offline_tokens
+ALTER TABLE ONLY authenc.offline_tokens
     ADD CONSTRAINT offline_tokens_pkey PRIMARY KEY (id);
 
 
@@ -6433,7 +6435,7 @@ ALTER TABLE ONLY public.offline_tokens
 -- Name: offline_tokens offline_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.offline_tokens
+ALTER TABLE ONLY authenc.offline_tokens
     ADD CONSTRAINT offline_tokens_token_hash_key UNIQUE (token_hash);
 
 
@@ -6441,7 +6443,7 @@ ALTER TABLE ONLY public.offline_tokens
 -- Name: organization_domains organization_domains_domain_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_domains
+ALTER TABLE ONLY authenc.organization_domains
     ADD CONSTRAINT organization_domains_domain_key UNIQUE (domain);
 
 
@@ -6449,7 +6451,7 @@ ALTER TABLE ONLY public.organization_domains
 -- Name: organization_domains organization_domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_domains
+ALTER TABLE ONLY authenc.organization_domains
     ADD CONSTRAINT organization_domains_pkey PRIMARY KEY (id);
 
 
@@ -6457,7 +6459,7 @@ ALTER TABLE ONLY public.organization_domains
 -- Name: organization_domains organization_domains_verification_token_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_domains
+ALTER TABLE ONLY authenc.organization_domains
     ADD CONSTRAINT organization_domains_verification_token_key UNIQUE (verification_token);
 
 
@@ -6465,7 +6467,7 @@ ALTER TABLE ONLY public.organization_domains
 -- Name: organization_identity_providers organization_identity_provide_organization_id_identity_prov_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_identity_providers
+ALTER TABLE ONLY authenc.organization_identity_providers
     ADD CONSTRAINT organization_identity_provide_organization_id_identity_prov_key UNIQUE (organization_id, identity_provider_id);
 
 
@@ -6473,7 +6475,7 @@ ALTER TABLE ONLY public.organization_identity_providers
 -- Name: organization_identity_providers organization_identity_providers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_identity_providers
+ALTER TABLE ONLY authenc.organization_identity_providers
     ADD CONSTRAINT organization_identity_providers_pkey PRIMARY KEY (id);
 
 
@@ -6481,7 +6483,7 @@ ALTER TABLE ONLY public.organization_identity_providers
 -- Name: organization_invitations organization_invitations_organization_id_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
+ALTER TABLE ONLY authenc.organization_invitations
     ADD CONSTRAINT organization_invitations_organization_id_email_key UNIQUE (organization_id, email);
 
 
@@ -6489,7 +6491,7 @@ ALTER TABLE ONLY public.organization_invitations
 -- Name: organization_invitations organization_invitations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
+ALTER TABLE ONLY authenc.organization_invitations
     ADD CONSTRAINT organization_invitations_pkey PRIMARY KEY (id);
 
 
@@ -6497,7 +6499,7 @@ ALTER TABLE ONLY public.organization_invitations
 -- Name: organization_invitations organization_invitations_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
+ALTER TABLE ONLY authenc.organization_invitations
     ADD CONSTRAINT organization_invitations_token_hash_key UNIQUE (token_hash);
 
 
@@ -6505,7 +6507,7 @@ ALTER TABLE ONLY public.organization_invitations
 -- Name: organization_members organization_members_organization_id_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
+ALTER TABLE ONLY authenc.organization_members
     ADD CONSTRAINT organization_members_organization_id_user_id_key UNIQUE (organization_id, user_id);
 
 
@@ -6513,7 +6515,7 @@ ALTER TABLE ONLY public.organization_members
 -- Name: organization_members organization_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
+ALTER TABLE ONLY authenc.organization_members
     ADD CONSTRAINT organization_members_pkey PRIMARY KEY (id);
 
 
@@ -6521,7 +6523,7 @@ ALTER TABLE ONLY public.organization_members
 -- Name: organizations organizations_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organizations
+ALTER TABLE ONLY authenc.organizations
     ADD CONSTRAINT organizations_name_key UNIQUE (name);
 
 
@@ -6529,7 +6531,7 @@ ALTER TABLE ONLY public.organizations
 -- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organizations
+ALTER TABLE ONLY authenc.organizations
     ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
 
 
@@ -6537,7 +6539,7 @@ ALTER TABLE ONLY public.organizations
 -- Name: password_history password_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.password_history
+ALTER TABLE ONLY authenc.password_history
     ADD CONSTRAINT password_history_pkey PRIMARY KEY (id);
 
 
@@ -6545,7 +6547,7 @@ ALTER TABLE ONLY public.password_history
 -- Name: permission_tickets permission_tickets_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.permission_tickets
+ALTER TABLE ONLY authenc.permission_tickets
     ADD CONSTRAINT permission_tickets_pkey PRIMARY KEY (id);
 
 
@@ -6553,7 +6555,7 @@ ALTER TABLE ONLY public.permission_tickets
 -- Name: protocol_mappers protocol_mappers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.protocol_mappers
+ALTER TABLE ONLY authenc.protocol_mappers
     ADD CONSTRAINT protocol_mappers_pkey PRIMARY KEY (id);
 
 
@@ -6561,7 +6563,7 @@ ALTER TABLE ONLY public.protocol_mappers
 -- Name: protocol_mappers protocol_mappers_unique_name; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.protocol_mappers
+ALTER TABLE ONLY authenc.protocol_mappers
     ADD CONSTRAINT protocol_mappers_unique_name UNIQUE NULLS NOT DISTINCT (client_id, client_scope_id, realm_id, name);
 
 
@@ -6569,7 +6571,7 @@ ALTER TABLE ONLY public.protocol_mappers
 -- Name: realm_theme_settings realm_theme_settings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
+ALTER TABLE ONLY authenc.realm_theme_settings
     ADD CONSTRAINT realm_theme_settings_pkey PRIMARY KEY (id);
 
 
@@ -6577,7 +6579,7 @@ ALTER TABLE ONLY public.realm_theme_settings
 -- Name: realm_theme_settings realm_theme_settings_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
+ALTER TABLE ONLY authenc.realm_theme_settings
     ADD CONSTRAINT realm_theme_settings_realm_id_key UNIQUE (realm_id);
 
 
@@ -6585,7 +6587,7 @@ ALTER TABLE ONLY public.realm_theme_settings
 -- Name: realms realms_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realms
+ALTER TABLE ONLY authenc.realms
     ADD CONSTRAINT realms_pkey PRIMARY KEY (id);
 
 
@@ -6593,7 +6595,7 @@ ALTER TABLE ONLY public.realms
 -- Name: refresh_token_history refresh_token_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.refresh_token_history
+ALTER TABLE ONLY authenc.refresh_token_history
     ADD CONSTRAINT refresh_token_history_pkey PRIMARY KEY (id);
 
 
@@ -6601,7 +6603,7 @@ ALTER TABLE ONLY public.refresh_token_history
 -- Name: resource_servers resource_servers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.resource_servers
+ALTER TABLE ONLY authenc.resource_servers
     ADD CONSTRAINT resource_servers_pkey PRIMARY KEY (id);
 
 
@@ -6609,7 +6611,7 @@ ALTER TABLE ONLY public.resource_servers
 -- Name: resources resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.resources
+ALTER TABLE ONLY authenc.resources
     ADD CONSTRAINT resources_pkey PRIMARY KEY (id);
 
 
@@ -6617,7 +6619,7 @@ ALTER TABLE ONLY public.resources
 -- Name: role_capabilities role_capabilities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_capabilities
+ALTER TABLE ONLY authenc.role_capabilities
     ADD CONSTRAINT role_capabilities_pkey PRIMARY KEY (id);
 
 
@@ -6625,7 +6627,7 @@ ALTER TABLE ONLY public.role_capabilities
 -- Name: role_capabilities role_capabilities_role_id_capability_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_capabilities
+ALTER TABLE ONLY authenc.role_capabilities
     ADD CONSTRAINT role_capabilities_role_id_capability_id_key UNIQUE (role_id, capability_id);
 
 
@@ -6633,7 +6635,7 @@ ALTER TABLE ONLY public.role_capabilities
 -- Name: role_hierarchy role_hierarchy_parent_role_id_child_role_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_hierarchy
+ALTER TABLE ONLY authenc.role_hierarchy
     ADD CONSTRAINT role_hierarchy_parent_role_id_child_role_id_key UNIQUE (parent_role_id, child_role_id);
 
 
@@ -6641,7 +6643,7 @@ ALTER TABLE ONLY public.role_hierarchy
 -- Name: role_hierarchy role_hierarchy_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_hierarchy
+ALTER TABLE ONLY authenc.role_hierarchy
     ADD CONSTRAINT role_hierarchy_pkey PRIMARY KEY (id);
 
 
@@ -6649,7 +6651,7 @@ ALTER TABLE ONLY public.role_hierarchy
 -- Name: role_permissions role_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_permissions
+ALTER TABLE ONLY authenc.role_permissions
     ADD CONSTRAINT role_permissions_pkey PRIMARY KEY (id);
 
 
@@ -6657,7 +6659,7 @@ ALTER TABLE ONLY public.role_permissions
 -- Name: role_permissions role_permissions_role_id_permission_resource_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_permissions
+ALTER TABLE ONLY authenc.role_permissions
     ADD CONSTRAINT role_permissions_role_id_permission_resource_key UNIQUE (role_id, permission, resource);
 
 
@@ -6665,7 +6667,7 @@ ALTER TABLE ONLY public.role_permissions
 -- Name: role_policies role_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_policies
+ALTER TABLE ONLY authenc.role_policies
     ADD CONSTRAINT role_policies_pkey PRIMARY KEY (id);
 
 
@@ -6673,7 +6675,7 @@ ALTER TABLE ONLY public.role_policies
 -- Name: role_policies role_policies_role_id_policy_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_policies
+ALTER TABLE ONLY authenc.role_policies
     ADD CONSTRAINT role_policies_role_id_policy_id_key UNIQUE (role_id, policy_id);
 
 
@@ -6681,7 +6683,7 @@ ALTER TABLE ONLY public.role_policies
 -- Name: role_types role_types_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_types
+ALTER TABLE ONLY authenc.role_types
     ADD CONSTRAINT role_types_code_key UNIQUE (code);
 
 
@@ -6689,7 +6691,7 @@ ALTER TABLE ONLY public.role_types
 -- Name: role_types role_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_types
+ALTER TABLE ONLY authenc.role_types
     ADD CONSTRAINT role_types_pkey PRIMARY KEY (id);
 
 
@@ -6697,7 +6699,7 @@ ALTER TABLE ONLY public.role_types
 -- Name: roles roles_name_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.roles
+ALTER TABLE ONLY authenc.roles
     ADD CONSTRAINT roles_name_realm_id_key UNIQUE (name, realm_id);
 
 
@@ -6705,7 +6707,7 @@ ALTER TABLE ONLY public.roles
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.roles
+ALTER TABLE ONLY authenc.roles
     ADD CONSTRAINT roles_pkey PRIMARY KEY (id);
 
 
@@ -6713,7 +6715,7 @@ ALTER TABLE ONLY public.roles
 -- Name: saml_assertion_cache saml_assertion_cache_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_assertion_cache
+ALTER TABLE ONLY authenc.saml_assertion_cache
     ADD CONSTRAINT saml_assertion_cache_pkey PRIMARY KEY (assertion_id);
 
 
@@ -6721,7 +6723,7 @@ ALTER TABLE ONLY public.saml_assertion_cache
 -- Name: saml_identity_providers saml_identity_providers_entity_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_identity_providers
+ALTER TABLE ONLY authenc.saml_identity_providers
     ADD CONSTRAINT saml_identity_providers_entity_id_key UNIQUE (entity_id);
 
 
@@ -6729,7 +6731,7 @@ ALTER TABLE ONLY public.saml_identity_providers
 -- Name: saml_identity_providers saml_identity_providers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_identity_providers
+ALTER TABLE ONLY authenc.saml_identity_providers
     ADD CONSTRAINT saml_identity_providers_pkey PRIMARY KEY (id);
 
 
@@ -6737,7 +6739,7 @@ ALTER TABLE ONLY public.saml_identity_providers
 -- Name: saml_messages saml_messages_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_messages
+ALTER TABLE ONLY authenc.saml_messages
     ADD CONSTRAINT saml_messages_pkey PRIMARY KEY (id);
 
 
@@ -6745,7 +6747,7 @@ ALTER TABLE ONLY public.saml_messages
 -- Name: saml_messages saml_messages_saml_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_messages
+ALTER TABLE ONLY authenc.saml_messages
     ADD CONSTRAINT saml_messages_saml_id_key UNIQUE (saml_id);
 
 
@@ -6753,7 +6755,7 @@ ALTER TABLE ONLY public.saml_messages
 -- Name: saml_service_providers saml_service_providers_entity_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_service_providers
+ALTER TABLE ONLY authenc.saml_service_providers
     ADD CONSTRAINT saml_service_providers_entity_id_key UNIQUE (entity_id);
 
 
@@ -6761,7 +6763,7 @@ ALTER TABLE ONLY public.saml_service_providers
 -- Name: saml_service_providers saml_service_providers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_service_providers
+ALTER TABLE ONLY authenc.saml_service_providers
     ADD CONSTRAINT saml_service_providers_pkey PRIMARY KEY (id);
 
 
@@ -6769,7 +6771,7 @@ ALTER TABLE ONLY public.saml_service_providers
 -- Name: saml_sessions saml_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_sessions
+ALTER TABLE ONLY authenc.saml_sessions
     ADD CONSTRAINT saml_sessions_pkey PRIMARY KEY (id);
 
 
@@ -6777,7 +6779,7 @@ ALTER TABLE ONLY public.saml_sessions
 -- Name: saml_sessions saml_sessions_session_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_sessions
+ALTER TABLE ONLY authenc.saml_sessions
     ADD CONSTRAINT saml_sessions_session_id_key UNIQUE (session_id);
 
 
@@ -6785,7 +6787,7 @@ ALTER TABLE ONLY public.saml_sessions
 -- Name: satker_admin_roles satker_admin_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_admin_roles
+ALTER TABLE ONLY authenc.satker_admin_roles
     ADD CONSTRAINT satker_admin_roles_pkey PRIMARY KEY (id);
 
 
@@ -6793,7 +6795,7 @@ ALTER TABLE ONLY public.satker_admin_roles
 -- Name: satker_audit_logs satker_audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_audit_logs
+ALTER TABLE ONLY authenc.satker_audit_logs
     ADD CONSTRAINT satker_audit_logs_pkey PRIMARY KEY (id);
 
 
@@ -6801,7 +6803,7 @@ ALTER TABLE ONLY public.satker_audit_logs
 -- Name: satker_permissions satker_permissions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_permissions
+ALTER TABLE ONLY authenc.satker_permissions
     ADD CONSTRAINT satker_permissions_pkey PRIMARY KEY (id);
 
 
@@ -6809,7 +6811,7 @@ ALTER TABLE ONLY public.satker_permissions
 -- Name: satker_types satker_types_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_types
+ALTER TABLE ONLY authenc.satker_types
     ADD CONSTRAINT satker_types_code_key UNIQUE (code);
 
 
@@ -6817,7 +6819,7 @@ ALTER TABLE ONLY public.satker_types
 -- Name: satker_types satker_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_types
+ALTER TABLE ONLY authenc.satker_types
     ADD CONSTRAINT satker_types_pkey PRIMARY KEY (id);
 
 
@@ -6825,7 +6827,7 @@ ALTER TABLE ONLY public.satker_types
 -- Name: satkers satkers_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satkers
+ALTER TABLE ONLY authenc.satkers
     ADD CONSTRAINT satkers_code_key UNIQUE (code);
 
 
@@ -6833,7 +6835,7 @@ ALTER TABLE ONLY public.satkers
 -- Name: satkers satkers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satkers
+ALTER TABLE ONLY authenc.satkers
     ADD CONSTRAINT satkers_pkey PRIMARY KEY (id);
 
 
@@ -6841,7 +6843,7 @@ ALTER TABLE ONLY public.satkers
 -- Name: scope_types scope_types_code_realm_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scope_types
+ALTER TABLE ONLY authenc.scope_types
     ADD CONSTRAINT scope_types_code_realm_id_key UNIQUE (code, realm_id);
 
 
@@ -6849,7 +6851,7 @@ ALTER TABLE ONLY public.scope_types
 -- Name: scope_types scope_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scope_types
+ALTER TABLE ONLY authenc.scope_types
     ADD CONSTRAINT scope_types_pkey PRIMARY KEY (id);
 
 
@@ -6857,7 +6859,7 @@ ALTER TABLE ONLY public.scope_types
 -- Name: scopes scopes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scopes
+ALTER TABLE ONLY authenc.scopes
     ADD CONSTRAINT scopes_pkey PRIMARY KEY (id);
 
 
@@ -6865,7 +6867,7 @@ ALTER TABLE ONLY public.scopes
 -- Name: service_account_audit_log service_account_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_audit_log
+ALTER TABLE ONLY authenc.service_account_audit_log
     ADD CONSTRAINT service_account_audit_log_pkey PRIMARY KEY (id);
 
 
@@ -6873,7 +6875,7 @@ ALTER TABLE ONLY public.service_account_audit_log
 -- Name: service_account_roles service_account_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_roles
+ALTER TABLE ONLY authenc.service_account_roles
     ADD CONSTRAINT service_account_roles_pkey PRIMARY KEY (id);
 
 
@@ -6881,7 +6883,7 @@ ALTER TABLE ONLY public.service_account_roles
 -- Name: service_accounts service_accounts_client_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_accounts
+ALTER TABLE ONLY authenc.service_accounts
     ADD CONSTRAINT service_accounts_client_id_key UNIQUE (client_id);
 
 
@@ -6889,7 +6891,7 @@ ALTER TABLE ONLY public.service_accounts
 -- Name: service_accounts service_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_accounts
+ALTER TABLE ONLY authenc.service_accounts
     ADD CONSTRAINT service_accounts_pkey PRIMARY KEY (id);
 
 
@@ -6897,7 +6899,7 @@ ALTER TABLE ONLY public.service_accounts
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sessions
+ALTER TABLE ONLY authenc.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);
 
 
@@ -6905,7 +6907,7 @@ ALTER TABLE ONLY public.sessions
 -- Name: sessions sessions_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sessions
+ALTER TABLE ONLY authenc.sessions
     ADD CONSTRAINT sessions_token_hash_key UNIQUE (token_hash);
 
 
@@ -6913,7 +6915,7 @@ ALTER TABLE ONLY public.sessions
 -- Name: social_accounts social_accounts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_accounts
+ALTER TABLE ONLY authenc.social_accounts
     ADD CONSTRAINT social_accounts_pkey PRIMARY KEY (id);
 
 
@@ -6921,7 +6923,7 @@ ALTER TABLE ONLY public.social_accounts
 -- Name: social_accounts social_accounts_provider_provider_user_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_accounts
+ALTER TABLE ONLY authenc.social_accounts
     ADD CONSTRAINT social_accounts_provider_provider_user_id_key UNIQUE (provider, provider_user_id);
 
 
@@ -6929,7 +6931,7 @@ ALTER TABLE ONLY public.social_accounts
 -- Name: social_accounts social_accounts_user_id_provider_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_accounts
+ALTER TABLE ONLY authenc.social_accounts
     ADD CONSTRAINT social_accounts_user_id_provider_key UNIQUE (user_id, provider);
 
 
@@ -6937,7 +6939,7 @@ ALTER TABLE ONLY public.social_accounts
 -- Name: social_login_configs social_login_configs_oauth2_config_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_login_configs
+ALTER TABLE ONLY authenc.social_login_configs
     ADD CONSTRAINT social_login_configs_oauth2_config_id_key UNIQUE (oauth2_config_id);
 
 
@@ -6945,7 +6947,7 @@ ALTER TABLE ONLY public.social_login_configs
 -- Name: social_login_configs social_login_configs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_login_configs
+ALTER TABLE ONLY authenc.social_login_configs
     ADD CONSTRAINT social_login_configs_pkey PRIMARY KEY (id);
 
 
@@ -6953,7 +6955,7 @@ ALTER TABLE ONLY public.social_login_configs
 -- Name: software_statement_issuers software_statement_issuers_issuer_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.software_statement_issuers
+ALTER TABLE ONLY authenc.software_statement_issuers
     ADD CONSTRAINT software_statement_issuers_issuer_key UNIQUE (issuer);
 
 
@@ -6961,7 +6963,7 @@ ALTER TABLE ONLY public.software_statement_issuers
 -- Name: software_statement_issuers software_statement_issuers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.software_statement_issuers
+ALTER TABLE ONLY authenc.software_statement_issuers
     ADD CONSTRAINT software_statement_issuers_pkey PRIMARY KEY (id);
 
 
@@ -6969,7 +6971,7 @@ ALTER TABLE ONLY public.software_statement_issuers
 -- Name: theme_inheritance theme_inheritance_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_inheritance
+ALTER TABLE ONLY authenc.theme_inheritance
     ADD CONSTRAINT theme_inheritance_pkey PRIMARY KEY (id);
 
 
@@ -6977,7 +6979,7 @@ ALTER TABLE ONLY public.theme_inheritance
 -- Name: theme_resources theme_resources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_resources
+ALTER TABLE ONLY authenc.theme_resources
     ADD CONSTRAINT theme_resources_pkey PRIMARY KEY (id);
 
 
@@ -6985,7 +6987,7 @@ ALTER TABLE ONLY public.theme_resources
 -- Name: theme_resources theme_resources_theme_id_resource_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_resources
+ALTER TABLE ONLY authenc.theme_resources
     ADD CONSTRAINT theme_resources_theme_id_resource_name_key UNIQUE (theme_id, resource_name);
 
 
@@ -6993,7 +6995,7 @@ ALTER TABLE ONLY public.theme_resources
 -- Name: theme_templates theme_templates_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_templates
+ALTER TABLE ONLY authenc.theme_templates
     ADD CONSTRAINT theme_templates_pkey PRIMARY KEY (id);
 
 
@@ -7001,7 +7003,7 @@ ALTER TABLE ONLY public.theme_templates
 -- Name: theme_templates theme_templates_theme_id_template_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_templates
+ALTER TABLE ONLY authenc.theme_templates
     ADD CONSTRAINT theme_templates_theme_id_template_name_key UNIQUE (theme_id, template_name);
 
 
@@ -7009,7 +7011,7 @@ ALTER TABLE ONLY public.theme_templates
 -- Name: theme_types theme_types_code_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_types
+ALTER TABLE ONLY authenc.theme_types
     ADD CONSTRAINT theme_types_code_key UNIQUE (code);
 
 
@@ -7017,7 +7019,7 @@ ALTER TABLE ONLY public.theme_types
 -- Name: theme_types theme_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_types
+ALTER TABLE ONLY authenc.theme_types
     ADD CONSTRAINT theme_types_pkey PRIMARY KEY (id);
 
 
@@ -7025,7 +7027,7 @@ ALTER TABLE ONLY public.theme_types
 -- Name: token_exchange_audit token_exchange_audit_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.token_exchange_audit
+ALTER TABLE ONLY authenc.token_exchange_audit
     ADD CONSTRAINT token_exchange_audit_pkey PRIMARY KEY (id);
 
 
@@ -7033,7 +7035,7 @@ ALTER TABLE ONLY public.token_exchange_audit
 -- Name: uma_permission_requests uma_permission_requests_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_permission_requests
+ALTER TABLE ONLY authenc.uma_permission_requests
     ADD CONSTRAINT uma_permission_requests_pkey PRIMARY KEY (id);
 
 
@@ -7041,7 +7043,7 @@ ALTER TABLE ONLY public.uma_permission_requests
 -- Name: uma_permission_requests uma_permission_requests_ticket_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_permission_requests
+ALTER TABLE ONLY authenc.uma_permission_requests
     ADD CONSTRAINT uma_permission_requests_ticket_key UNIQUE (ticket);
 
 
@@ -7049,7 +7051,7 @@ ALTER TABLE ONLY public.uma_permission_requests
 -- Name: uma_policies uma_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_policies
+ALTER TABLE ONLY authenc.uma_policies
     ADD CONSTRAINT uma_policies_pkey PRIMARY KEY (id);
 
 
@@ -7057,7 +7059,7 @@ ALTER TABLE ONLY public.uma_policies
 -- Name: captcha_user_history unique_user_history; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_user_history
+ALTER TABLE ONLY authenc.captcha_user_history
     ADD CONSTRAINT unique_user_history UNIQUE (user_id);
 
 
@@ -7065,7 +7067,7 @@ ALTER TABLE ONLY public.captcha_user_history
 -- Name: captcha_user_type_performance unique_user_type_performance; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_user_type_performance
+ALTER TABLE ONLY authenc.captcha_user_type_performance
     ADD CONSTRAINT unique_user_type_performance UNIQUE (user_id, challenge_type);
 
 
@@ -7073,7 +7075,7 @@ ALTER TABLE ONLY public.captcha_user_type_performance
 -- Name: group_attributes uq_group_attributes; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_attributes
+ALTER TABLE ONLY authenc.group_attributes
     ADD CONSTRAINT uq_group_attributes UNIQUE (group_id, name, value);
 
 
@@ -7081,7 +7083,7 @@ ALTER TABLE ONLY public.group_attributes
 -- Name: group_roles uq_group_roles; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_roles
+ALTER TABLE ONLY authenc.group_roles
     ADD CONSTRAINT uq_group_roles UNIQUE (group_id, role_id);
 
 
@@ -7089,7 +7091,7 @@ ALTER TABLE ONLY public.group_roles
 -- Name: groups uq_groups_name_parent; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.groups
+ALTER TABLE ONLY authenc.groups
     ADD CONSTRAINT uq_groups_name_parent UNIQUE (realm_id, parent_id, name);
 
 
@@ -7097,7 +7099,7 @@ ALTER TABLE ONLY public.groups
 -- Name: groups uq_groups_path; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.groups
+ALTER TABLE ONLY authenc.groups
     ADD CONSTRAINT uq_groups_path UNIQUE (realm_id, path);
 
 
@@ -7105,7 +7107,7 @@ ALTER TABLE ONLY public.groups
 -- Name: satker_admin_roles uq_satker_admin_role; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_admin_roles
+ALTER TABLE ONLY authenc.satker_admin_roles
     ADD CONSTRAINT uq_satker_admin_role UNIQUE (user_id, satker_code, admin_level);
 
 
@@ -7113,7 +7115,7 @@ ALTER TABLE ONLY public.satker_admin_roles
 -- Name: satker_permissions uq_satker_permission; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_permissions
+ALTER TABLE ONLY authenc.satker_permissions
     ADD CONSTRAINT uq_satker_permission UNIQUE (user_id, satker_code, permission_type, resource_type, action);
 
 
@@ -7121,7 +7123,7 @@ ALTER TABLE ONLY public.satker_permissions
 -- Name: service_accounts uq_service_account_name_realm; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_accounts
+ALTER TABLE ONLY authenc.service_accounts
     ADD CONSTRAINT uq_service_account_name_realm UNIQUE (name, realm_id);
 
 
@@ -7129,7 +7131,7 @@ ALTER TABLE ONLY public.service_accounts
 -- Name: service_account_roles uq_service_account_role; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_roles
+ALTER TABLE ONLY authenc.service_account_roles
     ADD CONSTRAINT uq_service_account_role UNIQUE (service_account_id, role_id);
 
 
@@ -7137,7 +7139,7 @@ ALTER TABLE ONLY public.service_account_roles
 -- Name: user_groups uq_user_groups; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_groups
+ALTER TABLE ONLY authenc.user_groups
     ADD CONSTRAINT uq_user_groups UNIQUE (user_id, group_id);
 
 
@@ -7145,7 +7147,7 @@ ALTER TABLE ONLY public.user_groups
 -- Name: user_attributes user_attributes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_attributes
+ALTER TABLE ONLY authenc.user_attributes
     ADD CONSTRAINT user_attributes_pkey PRIMARY KEY (id);
 
 
@@ -7153,7 +7155,7 @@ ALTER TABLE ONLY public.user_attributes
 -- Name: user_attributes user_attributes_user_id_name_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_attributes
+ALTER TABLE ONLY authenc.user_attributes
     ADD CONSTRAINT user_attributes_user_id_name_key UNIQUE (user_id, name);
 
 
@@ -7161,7 +7163,7 @@ ALTER TABLE ONLY public.user_attributes
 -- Name: user_consent_scopes user_consent_scopes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consent_scopes
+ALTER TABLE ONLY authenc.user_consent_scopes
     ADD CONSTRAINT user_consent_scopes_pkey PRIMARY KEY (id);
 
 
@@ -7169,7 +7171,7 @@ ALTER TABLE ONLY public.user_consent_scopes
 -- Name: user_consent_scopes user_consent_scopes_user_id_client_id_scope_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consent_scopes
+ALTER TABLE ONLY authenc.user_consent_scopes
     ADD CONSTRAINT user_consent_scopes_user_id_client_id_scope_id_key UNIQUE (user_id, client_id, scope_id);
 
 
@@ -7177,7 +7179,7 @@ ALTER TABLE ONLY public.user_consent_scopes
 -- Name: user_consents user_consents_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consents
+ALTER TABLE ONLY authenc.user_consents
     ADD CONSTRAINT user_consents_pkey PRIMARY KEY (id);
 
 
@@ -7185,7 +7187,7 @@ ALTER TABLE ONLY public.user_consents
 -- Name: user_consents user_consents_user_id_client_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consents
+ALTER TABLE ONLY authenc.user_consents
     ADD CONSTRAINT user_consents_user_id_client_id_key UNIQUE (user_id, client_id);
 
 
@@ -7193,7 +7195,7 @@ ALTER TABLE ONLY public.user_consents
 -- Name: user_groups user_groups_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_groups
+ALTER TABLE ONLY authenc.user_groups
     ADD CONSTRAINT user_groups_pkey PRIMARY KEY (id);
 
 
@@ -7201,7 +7203,7 @@ ALTER TABLE ONLY public.user_groups
 -- Name: user_policies user_policies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_policies
+ALTER TABLE ONLY authenc.user_policies
     ADD CONSTRAINT user_policies_pkey PRIMARY KEY (id);
 
 
@@ -7209,7 +7211,7 @@ ALTER TABLE ONLY public.user_policies
 -- Name: user_policies user_policies_user_id_policy_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_policies
+ALTER TABLE ONLY authenc.user_policies
     ADD CONSTRAINT user_policies_user_id_policy_id_key UNIQUE (user_id, policy_id);
 
 
@@ -7217,7 +7219,7 @@ ALTER TABLE ONLY public.user_policies
 -- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_roles
+ALTER TABLE ONLY authenc.user_roles
     ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
 
 
@@ -7225,7 +7227,7 @@ ALTER TABLE ONLY public.user_roles
 -- Name: user_roles user_roles_user_id_role_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_roles
+ALTER TABLE ONLY authenc.user_roles
     ADD CONSTRAINT user_roles_user_id_role_id_key UNIQUE (user_id, role_id);
 
 
@@ -7233,7 +7235,7 @@ ALTER TABLE ONLY public.user_roles
 -- Name: user_sessions user_sessions_offline_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
+ALTER TABLE ONLY authenc.user_sessions
     ADD CONSTRAINT user_sessions_offline_token_hash_key UNIQUE (offline_token_hash);
 
 
@@ -7241,7 +7243,7 @@ ALTER TABLE ONLY public.user_sessions
 -- Name: user_sessions user_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
+ALTER TABLE ONLY authenc.user_sessions
     ADD CONSTRAINT user_sessions_pkey PRIMARY KEY (id);
 
 
@@ -7249,7 +7251,7 @@ ALTER TABLE ONLY public.user_sessions
 -- Name: user_sessions user_sessions_session_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
+ALTER TABLE ONLY authenc.user_sessions
     ADD CONSTRAINT user_sessions_session_id_key UNIQUE (session_id);
 
 
@@ -7257,7 +7259,7 @@ ALTER TABLE ONLY public.user_sessions
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.users
+ALTER TABLE ONLY authenc.users
     ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
@@ -7265,7 +7267,7 @@ ALTER TABLE ONLY public.users
 -- Name: webauthn_audit_log webauthn_audit_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_audit_log
+ALTER TABLE ONLY authenc.webauthn_audit_log
     ADD CONSTRAINT webauthn_audit_log_pkey PRIMARY KEY (id);
 
 
@@ -7273,7 +7275,7 @@ ALTER TABLE ONLY public.webauthn_audit_log
 -- Name: webauthn_challenges webauthn_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_challenges
+ALTER TABLE ONLY authenc.webauthn_challenges
     ADD CONSTRAINT webauthn_challenges_pkey PRIMARY KEY (id);
 
 
@@ -7281,7 +7283,7 @@ ALTER TABLE ONLY public.webauthn_challenges
 -- Name: webauthn_challenges webauthn_challenges_user_type_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_challenges
+ALTER TABLE ONLY authenc.webauthn_challenges
     ADD CONSTRAINT webauthn_challenges_user_type_unique UNIQUE (user_id, challenge_type, used);
 
 
@@ -7289,7 +7291,7 @@ ALTER TABLE ONLY public.webauthn_challenges
 -- Name: webauthn_credentials webauthn_credentials_cred_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials
+ALTER TABLE ONLY authenc.webauthn_credentials
     ADD CONSTRAINT webauthn_credentials_cred_id_key UNIQUE (cred_id);
 
 
@@ -7297,7 +7299,7 @@ ALTER TABLE ONLY public.webauthn_credentials
 -- Name: webauthn_credentials_old webauthn_credentials_credential_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials_old
+ALTER TABLE ONLY authenc.webauthn_credentials_old
     ADD CONSTRAINT webauthn_credentials_credential_id_key UNIQUE (credential_id);
 
 
@@ -7305,7 +7307,7 @@ ALTER TABLE ONLY public.webauthn_credentials_old
 -- Name: webauthn_credentials_old webauthn_credentials_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials_old
+ALTER TABLE ONLY authenc.webauthn_credentials_old
     ADD CONSTRAINT webauthn_credentials_pkey PRIMARY KEY (id);
 
 
@@ -7313,7 +7315,7 @@ ALTER TABLE ONLY public.webauthn_credentials_old
 -- Name: webauthn_credentials webauthn_credentials_pkey1; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials
+ALTER TABLE ONLY authenc.webauthn_credentials
     ADD CONSTRAINT webauthn_credentials_pkey1 PRIMARY KEY (id);
 
 
@@ -7321,7 +7323,7 @@ ALTER TABLE ONLY public.webauthn_credentials
 -- Name: webauthn_credentials webauthn_credentials_user_cred_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials
+ALTER TABLE ONLY authenc.webauthn_credentials
     ADD CONSTRAINT webauthn_credentials_user_cred_unique UNIQUE (user_id, cred_id);
 
 
@@ -7329,7 +7331,7 @@ ALTER TABLE ONLY public.webauthn_credentials
 -- Name: webauthn_credentials_old webauthn_credentials_user_id_credential_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials_old
+ALTER TABLE ONLY authenc.webauthn_credentials_old
     ADD CONSTRAINT webauthn_credentials_user_id_credential_id_key UNIQUE (user_id, credential_id);
 
 
@@ -7351,3171 +7353,3171 @@ CREATE INDEX idx_token_revocations_expires_at ON authenc.token_revocations USING
 -- Name: idx_access_levels_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_access_levels_code ON public.access_levels USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_access_levels_code ON authenc.access_levels USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_access_levels_numeric; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_access_levels_numeric ON public.access_levels USING btree (numeric_level DESC) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_access_levels_numeric ON authenc.access_levels USING btree (numeric_level DESC) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_account_linking_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_account_linking_expires ON public.account_linking_requests USING btree (expires_at) WHERE ((status)::text = 'PENDING'::text);
+CREATE INDEX idx_account_linking_expires ON authenc.account_linking_requests USING btree (expires_at) WHERE ((status)::text = 'PENDING'::text);
 
 
 --
 -- Name: idx_account_linking_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_account_linking_status ON public.account_linking_requests USING btree (status) WHERE ((status)::text = 'PENDING'::text);
+CREATE INDEX idx_account_linking_status ON authenc.account_linking_requests USING btree (status) WHERE ((status)::text = 'PENDING'::text);
 
 
 --
 -- Name: idx_account_linking_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_account_linking_token ON public.account_linking_requests USING btree (confirmation_token);
+CREATE INDEX idx_account_linking_token ON authenc.account_linking_requests USING btree (confirmation_token);
 
 
 --
 -- Name: idx_account_linking_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_account_linking_user ON public.account_linking_requests USING btree (user_id);
+CREATE INDEX idx_account_linking_user ON authenc.account_linking_requests USING btree (user_id);
 
 
 --
 -- Name: idx_admin_audit_log_action; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_action ON public.admin_audit_log USING btree (action);
+CREATE INDEX idx_admin_audit_log_action ON authenc.admin_audit_log USING btree (action);
 
 
 --
 -- Name: idx_admin_audit_log_admin_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_admin_user ON public.admin_audit_log USING btree (admin_user_id);
+CREATE INDEX idx_admin_audit_log_admin_user ON authenc.admin_audit_log USING btree (admin_user_id);
 
 
 --
 -- Name: idx_admin_audit_log_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_created ON public.admin_audit_log USING btree (created_at DESC);
+CREATE INDEX idx_admin_audit_log_created ON authenc.admin_audit_log USING btree (created_at DESC);
 
 
 --
 -- Name: idx_admin_audit_log_geolocation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_geolocation ON public.admin_audit_log USING gin (geolocation_data);
+CREATE INDEX idx_admin_audit_log_geolocation ON authenc.admin_audit_log USING gin (geolocation_data);
 
 
 --
 -- Name: idx_admin_audit_log_operation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_operation ON public.admin_audit_log USING btree (operation_type, status);
+CREATE INDEX idx_admin_audit_log_operation ON authenc.admin_audit_log USING btree (operation_type, status);
 
 
 --
 -- Name: idx_admin_audit_log_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_realm ON public.admin_audit_log USING btree (realm_id);
+CREATE INDEX idx_admin_audit_log_realm ON authenc.admin_audit_log USING btree (realm_id);
 
 
 --
 -- Name: idx_admin_audit_log_request_payload; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_request_payload ON public.admin_audit_log USING gin (request_payload);
+CREATE INDEX idx_admin_audit_log_request_payload ON authenc.admin_audit_log USING gin (request_payload);
 
 
 --
 -- Name: idx_admin_audit_log_resource; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_resource ON public.admin_audit_log USING btree (resource_type, resource_id);
+CREATE INDEX idx_admin_audit_log_resource ON authenc.admin_audit_log USING btree (resource_type, resource_id);
 
 
 --
 -- Name: idx_admin_audit_log_response_payload; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_audit_log_response_payload ON public.admin_audit_log USING gin (response_payload);
+CREATE INDEX idx_admin_audit_log_response_payload ON authenc.admin_audit_log USING gin (response_payload);
 
 
 --
 -- Name: idx_admin_events_auth_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_auth_user_id ON public.admin_events USING btree (auth_user_id);
+CREATE INDEX idx_admin_events_auth_user_id ON authenc.admin_events USING btree (auth_user_id);
 
 
 --
 -- Name: idx_admin_events_operation_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_operation_type ON public.admin_events USING btree (operation_type);
+CREATE INDEX idx_admin_events_operation_type ON authenc.admin_events USING btree (operation_type);
 
 
 --
 -- Name: idx_admin_events_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_realm_id ON public.admin_events USING btree (realm_id);
+CREATE INDEX idx_admin_events_realm_id ON authenc.admin_events USING btree (realm_id);
 
 
 --
 -- Name: idx_admin_events_realm_resource_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_realm_resource_time ON public.admin_events USING btree (realm_id, resource_type, "time" DESC);
+CREATE INDEX idx_admin_events_realm_resource_time ON authenc.admin_events USING btree (realm_id, resource_type, "time" DESC);
 
 
 --
 -- Name: INDEX idx_admin_events_realm_resource_time; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_admin_events_realm_resource_time IS 'Improves admin audit queries by resource type';
+COMMENT ON INDEX authenc.idx_admin_events_realm_resource_time IS 'Improves admin audit queries by resource type';
 
 
 --
 -- Name: idx_admin_events_resource_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_resource_type ON public.admin_events USING btree (resource_type);
+CREATE INDEX idx_admin_events_resource_type ON authenc.admin_events USING btree (resource_type);
 
 
 --
 -- Name: idx_admin_events_signature; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_signature ON public.admin_events USING btree (signature) WHERE (signature IS NOT NULL);
+CREATE INDEX idx_admin_events_signature ON authenc.admin_events USING btree (signature) WHERE (signature IS NOT NULL);
 
 
 --
 -- Name: idx_admin_events_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_time ON public.admin_events USING btree ("time" DESC);
+CREATE INDEX idx_admin_events_time ON authenc.admin_events USING btree ("time" DESC);
 
 
 --
 -- Name: idx_admin_events_user_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_events_user_time ON public.admin_events USING btree (auth_user_id, "time" DESC) WHERE (auth_user_id IS NOT NULL);
+CREATE INDEX idx_admin_events_user_time ON authenc.admin_events USING btree (auth_user_id, "time" DESC) WHERE (auth_user_id IS NOT NULL);
 
 
 --
 -- Name: INDEX idx_admin_events_user_time; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_admin_events_user_time IS 'Improves admin audit trail queries';
+COMMENT ON INDEX authenc.idx_admin_events_user_time IS 'Improves admin audit trail queries';
 
 
 --
 -- Name: idx_admin_level_types_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_level_types_code ON public.admin_level_types USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_admin_level_types_code ON authenc.admin_level_types USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_admin_level_types_hierarchy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_level_types_hierarchy ON public.admin_level_types USING btree (hierarchy_level DESC) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_admin_level_types_hierarchy ON authenc.admin_level_types USING btree (hierarchy_level DESC) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_admin_level_types_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_level_types_parent ON public.admin_level_types USING btree (parent_level_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_admin_level_types_parent ON authenc.admin_level_types USING btree (parent_level_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_admin_notifications_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_notifications_created ON public.admin_notifications USING btree (created_at DESC);
+CREATE INDEX idx_admin_notifications_created ON authenc.admin_notifications USING btree (created_at DESC);
 
 
 --
 -- Name: idx_admin_notifications_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_notifications_realm ON public.admin_notifications USING btree (realm_id);
+CREATE INDEX idx_admin_notifications_realm ON authenc.admin_notifications USING btree (realm_id);
 
 
 --
 -- Name: idx_admin_notifications_target; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_notifications_target ON public.admin_notifications USING btree (target_admin_user_id, is_read);
+CREATE INDEX idx_admin_notifications_target ON authenc.admin_notifications USING btree (target_admin_user_id, is_read);
 
 
 --
 -- Name: idx_admin_notifications_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_notifications_type ON public.admin_notifications USING btree (notification_type, priority);
+CREATE INDEX idx_admin_notifications_type ON authenc.admin_notifications USING btree (notification_type, priority);
 
 
 --
 -- Name: idx_admin_notifications_unread; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_notifications_unread ON public.admin_notifications USING btree (target_admin_user_id) WHERE (is_read = false);
+CREATE INDEX idx_admin_notifications_unread ON authenc.admin_notifications USING btree (target_admin_user_id) WHERE (is_read = false);
 
 
 --
 -- Name: idx_admin_preferences_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_preferences_realm ON public.admin_console_preferences USING btree (realm_id);
+CREATE INDEX idx_admin_preferences_realm ON authenc.admin_console_preferences USING btree (realm_id);
 
 
 --
 -- Name: idx_admin_preferences_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_preferences_user ON public.admin_console_preferences USING btree (admin_user_id);
+CREATE INDEX idx_admin_preferences_user ON authenc.admin_console_preferences USING btree (admin_user_id);
 
 
 --
 -- Name: idx_admin_sessions_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_sessions_active ON public.admin_console_sessions USING btree (is_active, last_activity_at) WHERE (is_active = true);
+CREATE INDEX idx_admin_sessions_active ON authenc.admin_console_sessions USING btree (is_active, last_activity_at) WHERE (is_active = true);
 
 
 --
 -- Name: idx_admin_sessions_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_sessions_expires ON public.admin_console_sessions USING btree (expires_at) WHERE (is_active = true);
+CREATE INDEX idx_admin_sessions_expires ON authenc.admin_console_sessions USING btree (expires_at) WHERE (is_active = true);
 
 
 --
 -- Name: idx_admin_sessions_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_sessions_realm ON public.admin_console_sessions USING btree (realm_id);
+CREATE INDEX idx_admin_sessions_realm ON authenc.admin_console_sessions USING btree (realm_id);
 
 
 --
 -- Name: idx_admin_sessions_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_sessions_token ON public.admin_console_sessions USING btree (session_token);
+CREATE INDEX idx_admin_sessions_token ON authenc.admin_console_sessions USING btree (session_token);
 
 
 --
 -- Name: idx_admin_sessions_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_admin_sessions_user ON public.admin_console_sessions USING btree (admin_user_id);
+CREATE INDEX idx_admin_sessions_user ON authenc.admin_console_sessions USING btree (admin_user_id);
 
 
 --
 -- Name: idx_audit_integrity_checks_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_integrity_checks_status ON public.audit_integrity_checks USING btree (status);
+CREATE INDEX idx_audit_integrity_checks_status ON authenc.audit_integrity_checks USING btree (status);
 
 
 --
 -- Name: idx_audit_integrity_checks_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_integrity_checks_time ON public.audit_integrity_checks USING btree (check_time DESC);
+CREATE INDEX idx_audit_integrity_checks_time ON authenc.audit_integrity_checks USING btree (check_time DESC);
 
 
 --
 -- Name: idx_audit_integrity_failures_check_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_integrity_failures_check_id ON public.audit_integrity_failures USING btree (check_id);
+CREATE INDEX idx_audit_integrity_failures_check_id ON authenc.audit_integrity_failures USING btree (check_id);
 
 
 --
 -- Name: idx_audit_integrity_failures_detected_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_integrity_failures_detected_at ON public.audit_integrity_failures USING btree (detected_at DESC);
+CREATE INDEX idx_audit_integrity_failures_detected_at ON authenc.audit_integrity_failures USING btree (detected_at DESC);
 
 
 --
 -- Name: idx_audit_integrity_failures_event_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_integrity_failures_event_id ON public.audit_integrity_failures USING btree (event_id);
+CREATE INDEX idx_audit_integrity_failures_event_id ON authenc.audit_integrity_failures USING btree (event_id);
 
 
 --
 -- Name: idx_audit_logs_event_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_event_type ON public.audit_logs USING btree (event_type);
+CREATE INDEX idx_audit_logs_event_type ON authenc.audit_logs USING btree (event_type);
 
 
 --
 -- Name: idx_audit_logs_mfa_events; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_mfa_events ON public.audit_logs USING btree (event_type, "timestamp") WHERE ((event_type)::text = ANY ((ARRAY['mfa_verification_success'::character varying, 'mfa_verification_failed'::character varying, 'mfa_setup_complete'::character varying])::text[]));
+CREATE INDEX idx_audit_logs_mfa_events ON authenc.audit_logs USING btree (event_type, "timestamp") WHERE ((event_type)::text = ANY ((ARRAY['mfa_verification_success'::character varying, 'mfa_verification_failed'::character varying, 'mfa_setup_complete'::character varying])::text[]));
 
 
 --
 -- Name: idx_audit_logs_request_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_request_id ON public.audit_logs USING btree (request_id);
+CREATE INDEX idx_audit_logs_request_id ON authenc.audit_logs USING btree (request_id);
 
 
 --
 -- Name: idx_audit_logs_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_status ON public.audit_logs USING btree (status);
+CREATE INDEX idx_audit_logs_status ON authenc.audit_logs USING btree (status);
 
 
 --
 -- Name: idx_audit_logs_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_timestamp ON public.audit_logs USING btree ("timestamp" DESC);
+CREATE INDEX idx_audit_logs_timestamp ON authenc.audit_logs USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_audit_logs_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_user_id ON public.audit_logs USING btree (user_id);
+CREATE INDEX idx_audit_logs_user_id ON authenc.audit_logs USING btree (user_id);
 
 
 --
 -- Name: idx_audit_logs_user_mfa; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_audit_logs_user_mfa ON public.audit_logs USING btree (user_id, event_type, "timestamp") WHERE ((event_type)::text ~~ 'mfa_%'::text);
+CREATE INDEX idx_audit_logs_user_mfa ON authenc.audit_logs USING btree (user_id, event_type, "timestamp") WHERE ((event_type)::text ~~ 'mfa_%'::text);
 
 
 --
 -- Name: idx_auth_executions_flow; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_executions_flow ON public.authentication_executions USING btree (flow_id);
+CREATE INDEX idx_auth_executions_flow ON authenc.authentication_executions USING btree (flow_id);
 
 
 --
 -- Name: idx_auth_executions_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_executions_priority ON public.authentication_executions USING btree (flow_id, priority);
+CREATE INDEX idx_auth_executions_priority ON authenc.authentication_executions USING btree (flow_id, priority);
 
 
 --
 -- Name: idx_auth_flows_alias; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_flows_alias ON public.authentication_flows USING btree (alias);
+CREATE INDEX idx_auth_flows_alias ON authenc.authentication_flows USING btree (alias);
 
 
 --
 -- Name: idx_auth_flows_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_flows_provider ON public.authentication_flows USING btree (provider_id);
+CREATE INDEX idx_auth_flows_provider ON authenc.authentication_flows USING btree (provider_id);
 
 
 --
 -- Name: idx_auth_flows_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_flows_realm ON public.authentication_flows USING btree (realm_id);
+CREATE INDEX idx_auth_flows_realm ON authenc.authentication_flows USING btree (realm_id);
 
 
 --
 -- Name: idx_auth_policies_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_policies_name ON public.authorization_policies USING btree (name) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_auth_policies_name ON authenc.authorization_policies USING btree (name) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_auth_policies_path; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_policies_path ON public.authorization_policies USING btree (path_pattern) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_auth_policies_path ON authenc.authorization_policies USING btree (path_pattern) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_auth_policies_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_policies_priority ON public.authorization_policies USING btree (priority DESC) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_auth_policies_priority ON authenc.authorization_policies USING btree (priority DESC) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_auth_sessions_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_client ON public.authentication_sessions USING btree (client_id);
+CREATE INDEX idx_auth_sessions_client ON authenc.authentication_sessions USING btree (client_id);
 
 
 --
 -- Name: idx_auth_sessions_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_expires ON public.authentication_sessions USING btree (expires_at);
+CREATE INDEX idx_auth_sessions_expires ON authenc.authentication_sessions USING btree (expires_at);
 
 
 --
 -- Name: idx_auth_sessions_flow; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_flow ON public.authentication_sessions USING btree (flow_id);
+CREATE INDEX idx_auth_sessions_flow ON authenc.authentication_sessions USING btree (flow_id);
 
 
 --
 -- Name: idx_auth_sessions_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_realm ON public.authentication_sessions USING btree (realm_id);
+CREATE INDEX idx_auth_sessions_realm ON authenc.authentication_sessions USING btree (realm_id);
 
 
 --
 -- Name: idx_auth_sessions_state; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_state ON public.authentication_sessions USING btree (auth_state);
+CREATE INDEX idx_auth_sessions_state ON authenc.authentication_sessions USING btree (auth_state);
 
 
 --
 -- Name: idx_auth_sessions_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_auth_sessions_user ON public.authentication_sessions USING btree (user_id);
+CREATE INDEX idx_auth_sessions_user ON authenc.authentication_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_authenticator_configs_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_configs_enabled ON public.authenticator_configs USING btree (realm_id, enabled) WHERE (enabled = true);
+CREATE INDEX idx_authenticator_configs_enabled ON authenc.authenticator_configs USING btree (realm_id, enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_authenticator_configs_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_configs_priority ON public.authenticator_configs USING btree (realm_id, priority);
+CREATE INDEX idx_authenticator_configs_priority ON authenc.authenticator_configs USING btree (realm_id, priority);
 
 
 --
 -- Name: idx_authenticator_configs_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_configs_realm ON public.authenticator_configs USING btree (realm_id);
+CREATE INDEX idx_authenticator_configs_realm ON authenc.authenticator_configs USING btree (realm_id);
 
 
 --
 -- Name: idx_authenticator_configs_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_configs_type ON public.authenticator_configs USING btree (authenticator_type);
+CREATE INDEX idx_authenticator_configs_type ON authenc.authenticator_configs USING btree (authenticator_type);
 
 
 --
 -- Name: idx_authenticator_executions_authenticator; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_executions_authenticator ON public.authenticator_executions USING btree (authenticator_id);
+CREATE INDEX idx_authenticator_executions_authenticator ON authenc.authenticator_executions USING btree (authenticator_id);
 
 
 --
 -- Name: idx_authenticator_executions_flow; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_executions_flow ON public.authenticator_executions USING btree (flow_id);
+CREATE INDEX idx_authenticator_executions_flow ON authenc.authenticator_executions USING btree (flow_id);
 
 
 --
 -- Name: idx_authenticator_executions_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_executions_priority ON public.authenticator_executions USING btree (flow_id, priority);
+CREATE INDEX idx_authenticator_executions_priority ON authenc.authenticator_executions USING btree (flow_id, priority);
 
 
 --
 -- Name: idx_authenticator_executions_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_executions_realm ON public.authenticator_executions USING btree (realm_id);
+CREATE INDEX idx_authenticator_executions_realm ON authenc.authenticator_executions USING btree (realm_id);
 
 
 --
 -- Name: idx_authenticator_executions_requirement; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_executions_requirement ON public.authenticator_executions USING btree (requirement);
+CREATE INDEX idx_authenticator_executions_requirement ON authenc.authenticator_executions USING btree (requirement);
 
 
 --
 -- Name: idx_authenticator_results_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_results_created ON public.authenticator_execution_results USING btree (created_at);
+CREATE INDEX idx_authenticator_results_created ON authenc.authenticator_execution_results USING btree (created_at);
 
 
 --
 -- Name: idx_authenticator_results_execution; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_results_execution ON public.authenticator_execution_results USING btree (execution_id);
+CREATE INDEX idx_authenticator_results_execution ON authenc.authenticator_execution_results USING btree (execution_id);
 
 
 --
 -- Name: idx_authenticator_results_session; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_results_session ON public.authenticator_execution_results USING btree (session_id);
+CREATE INDEX idx_authenticator_results_session ON authenc.authenticator_execution_results USING btree (session_id);
 
 
 --
 -- Name: idx_authenticator_results_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_results_status ON public.authenticator_execution_results USING btree (status);
+CREATE INDEX idx_authenticator_results_status ON authenc.authenticator_execution_results USING btree (status);
 
 
 --
 -- Name: idx_authenticator_results_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_authenticator_results_user ON public.authenticator_execution_results USING btree (user_id);
+CREATE INDEX idx_authenticator_results_user ON authenc.authenticator_execution_results USING btree (user_id);
 
 
 --
 -- Name: idx_behavioral_metrics_challenge; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_behavioral_metrics_challenge ON public.captcha_behavioral_metrics USING btree (challenge_id);
+CREATE INDEX idx_behavioral_metrics_challenge ON authenc.captcha_behavioral_metrics USING btree (challenge_id);
 
 
 --
 -- Name: idx_behavioral_metrics_classification; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_behavioral_metrics_classification ON public.captcha_behavioral_metrics USING btree (classification, created_at DESC);
+CREATE INDEX idx_behavioral_metrics_classification ON authenc.captcha_behavioral_metrics USING btree (classification, created_at DESC);
 
 
 --
 -- Name: idx_behavioral_metrics_risk_score; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_behavioral_metrics_risk_score ON public.captcha_behavioral_metrics USING btree (risk_score DESC, created_at DESC);
+CREATE INDEX idx_behavioral_metrics_risk_score ON authenc.captcha_behavioral_metrics USING btree (risk_score DESC, created_at DESC);
 
 
 --
 -- Name: idx_behavioral_metrics_session; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_behavioral_metrics_session ON public.captcha_behavioral_metrics USING btree (session_id, created_at DESC);
+CREATE INDEX idx_behavioral_metrics_session ON authenc.captcha_behavioral_metrics USING btree (session_id, created_at DESC);
 
 
 --
 -- Name: idx_bot_detection_metrics_accuracy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_bot_detection_metrics_accuracy ON public.captcha_bot_detection_metrics USING btree (accuracy_rate DESC, "timestamp" DESC);
+CREATE INDEX idx_bot_detection_metrics_accuracy ON authenc.captcha_bot_detection_metrics USING btree (accuracy_rate DESC, "timestamp" DESC);
 
 
 --
 -- Name: idx_bot_detection_metrics_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_bot_detection_metrics_timestamp ON public.captcha_bot_detection_metrics USING btree ("timestamp" DESC);
+CREATE INDEX idx_bot_detection_metrics_timestamp ON authenc.captcha_bot_detection_metrics USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_broker_configs_alias; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_broker_configs_alias ON public.identity_broker_configs USING btree (alias);
+CREATE INDEX idx_broker_configs_alias ON authenc.identity_broker_configs USING btree (alias);
 
 
 --
 -- Name: idx_broker_configs_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_broker_configs_enabled ON public.identity_broker_configs USING btree (realm_id) WHERE (enabled = true);
+CREATE INDEX idx_broker_configs_enabled ON authenc.identity_broker_configs USING btree (realm_id) WHERE (enabled = true);
 
 
 --
 -- Name: idx_broker_configs_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_broker_configs_realm ON public.identity_broker_configs USING btree (realm_id);
+CREATE INDEX idx_broker_configs_realm ON authenc.identity_broker_configs USING btree (realm_id);
 
 
 --
 -- Name: idx_capabilities_action; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_capabilities_action ON public.capabilities USING btree (action) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_capabilities_action ON authenc.capabilities USING btree (action) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_capabilities_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_capabilities_code ON public.capabilities USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_capabilities_code ON authenc.capabilities USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_capabilities_resource_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_capabilities_resource_type ON public.capabilities USING btree (resource_type) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_capabilities_resource_type ON authenc.capabilities USING btree (resource_type) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_captcha_analytics_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_captcha_analytics_unique ON public.captcha_analytics USING btree (date, challenge_type, difficulty_level);
+CREATE UNIQUE INDEX idx_captcha_analytics_unique ON authenc.captcha_analytics USING btree (date, challenge_type, difficulty_level);
 
 
 --
 -- Name: idx_captcha_challenges_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_captcha_challenges_expires_at ON public.captcha_challenges USING btree (expires_at);
+CREATE INDEX idx_captcha_challenges_expires_at ON authenc.captcha_challenges USING btree (expires_at);
 
 
 --
 -- Name: idx_captcha_challenges_ip_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_captcha_challenges_ip_created ON public.captcha_challenges USING btree (ip_address, created_at DESC);
+CREATE INDEX idx_captcha_challenges_ip_created ON authenc.captcha_challenges USING btree (ip_address, created_at DESC);
 
 
 --
 -- Name: idx_captcha_challenges_session; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_captcha_challenges_session ON public.captcha_challenges USING btree (session_id, created_at DESC) WHERE (session_id IS NOT NULL);
+CREATE INDEX idx_captcha_challenges_session ON authenc.captcha_challenges USING btree (session_id, created_at DESC) WHERE (session_id IS NOT NULL);
 
 
 --
 -- Name: idx_captcha_challenges_unsolved; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_captcha_challenges_unsolved ON public.captcha_challenges USING btree (created_at DESC) WHERE (solved = false);
+CREATE INDEX idx_captcha_challenges_unsolved ON authenc.captcha_challenges USING btree (created_at DESC) WHERE (solved = false);
 
 
 --
 -- Name: idx_client_default_scopes_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_default_scopes_client ON public.client_default_scopes USING btree (client_id);
+CREATE INDEX idx_client_default_scopes_client ON authenc.client_default_scopes USING btree (client_id);
 
 
 --
 -- Name: idx_client_default_scopes_scope; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_default_scopes_scope ON public.client_default_scopes USING btree (scope_id);
+CREATE INDEX idx_client_default_scopes_scope ON authenc.client_default_scopes USING btree (scope_id);
 
 
 --
 -- Name: idx_client_optional_scopes_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_optional_scopes_client ON public.client_optional_scopes USING btree (client_id);
+CREATE INDEX idx_client_optional_scopes_client ON authenc.client_optional_scopes USING btree (client_id);
 
 
 --
 -- Name: idx_client_optional_scopes_scope; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_optional_scopes_scope ON public.client_optional_scopes USING btree (scope_id);
+CREATE INDEX idx_client_optional_scopes_scope ON authenc.client_optional_scopes USING btree (scope_id);
 
 
 --
 -- Name: idx_client_policies_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policies_enabled ON public.client_policies USING btree (enabled) WHERE (enabled = true);
+CREATE INDEX idx_client_policies_enabled ON authenc.client_policies USING btree (enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_client_policies_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policies_priority ON public.client_policies USING btree (priority DESC);
+CREATE INDEX idx_client_policies_priority ON authenc.client_policies USING btree (priority DESC);
 
 
 --
 -- Name: idx_client_policies_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policies_realm ON public.client_policies USING btree (realm_id);
+CREATE INDEX idx_client_policies_realm ON authenc.client_policies USING btree (realm_id);
 
 
 --
 -- Name: idx_client_policies_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policies_type ON public.client_policies USING btree (policy_type);
+CREATE INDEX idx_client_policies_type ON authenc.client_policies USING btree (policy_type);
 
 
 --
 -- Name: idx_client_policy_assignments_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policy_assignments_client ON public.client_policy_assignments USING btree (client_id);
+CREATE INDEX idx_client_policy_assignments_client ON authenc.client_policy_assignments USING btree (client_id);
 
 
 --
 -- Name: idx_client_policy_assignments_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policy_assignments_enabled ON public.client_policy_assignments USING btree (enabled) WHERE (enabled = true);
+CREATE INDEX idx_client_policy_assignments_enabled ON authenc.client_policy_assignments USING btree (enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_client_policy_assignments_policy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policy_assignments_policy ON public.client_policy_assignments USING btree (policy_id) WHERE (policy_id IS NOT NULL);
+CREATE INDEX idx_client_policy_assignments_policy ON authenc.client_policy_assignments USING btree (policy_id) WHERE (policy_id IS NOT NULL);
 
 
 --
 -- Name: idx_client_policy_assignments_profile; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_policy_assignments_profile ON public.client_policy_assignments USING btree (profile_id) WHERE (profile_id IS NOT NULL);
+CREATE INDEX idx_client_policy_assignments_profile ON authenc.client_policy_assignments USING btree (profile_id) WHERE (profile_id IS NOT NULL);
 
 
 --
 -- Name: idx_client_profiles_builtin; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_profiles_builtin ON public.client_profiles USING btree (is_builtin) WHERE (is_builtin = true);
+CREATE INDEX idx_client_profiles_builtin ON authenc.client_profiles USING btree (is_builtin) WHERE (is_builtin = true);
 
 
 --
 -- Name: idx_client_profiles_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_profiles_enabled ON public.client_profiles USING btree (enabled) WHERE (enabled = true);
+CREATE INDEX idx_client_profiles_enabled ON authenc.client_profiles USING btree (enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_client_profiles_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_profiles_realm ON public.client_profiles USING btree (realm_id);
+CREATE INDEX idx_client_profiles_realm ON authenc.client_profiles USING btree (realm_id);
 
 
 --
 -- Name: idx_client_profiles_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_profiles_type ON public.client_profiles USING btree (profile_type);
+CREATE INDEX idx_client_profiles_type ON authenc.client_profiles USING btree (profile_type);
 
 
 --
 -- Name: idx_client_registration_audit_log_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_audit_log_client ON public.client_registration_audit_log USING btree (client_id, created_at DESC);
+CREATE INDEX idx_client_registration_audit_log_client ON authenc.client_registration_audit_log USING btree (client_id, created_at DESC);
 
 
 --
 -- Name: idx_client_registration_audit_log_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_audit_log_realm ON public.client_registration_audit_log USING btree (realm_id, created_at DESC);
+CREATE INDEX idx_client_registration_audit_log_realm ON authenc.client_registration_audit_log USING btree (realm_id, created_at DESC);
 
 
 --
 -- Name: idx_client_registration_audit_log_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_audit_log_type ON public.client_registration_audit_log USING btree (event_type, created_at DESC);
+CREATE INDEX idx_client_registration_audit_log_type ON authenc.client_registration_audit_log USING btree (event_type, created_at DESC);
 
 
 --
 -- Name: idx_client_registration_policies_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_policies_realm ON public.client_registration_policies USING btree (realm_id) WHERE (enabled = true);
+CREATE INDEX idx_client_registration_policies_realm ON authenc.client_registration_policies USING btree (realm_id) WHERE (enabled = true);
 
 
 --
 -- Name: idx_client_registration_tokens_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_tokens_client ON public.client_registration_tokens USING btree (client_id) WHERE (revoked = false);
+CREATE INDEX idx_client_registration_tokens_client ON authenc.client_registration_tokens USING btree (client_id) WHERE (revoked = false);
 
 
 --
 -- Name: idx_client_registration_tokens_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_registration_tokens_hash ON public.client_registration_tokens USING btree (token_hash) WHERE (revoked = false);
+CREATE INDEX idx_client_registration_tokens_hash ON authenc.client_registration_tokens USING btree (token_hash) WHERE (revoked = false);
 
 
 --
 -- Name: idx_client_scope_mappings_mapper; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scope_mappings_mapper ON public.client_scope_mappings USING btree (protocol_mapper_id);
+CREATE INDEX idx_client_scope_mappings_mapper ON authenc.client_scope_mappings USING btree (protocol_mapper_id);
 
 
 --
 -- Name: idx_client_scope_mappings_scope; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scope_mappings_scope ON public.client_scope_mappings USING btree (scope_id);
+CREATE INDEX idx_client_scope_mappings_scope ON authenc.client_scope_mappings USING btree (scope_id);
 
 
 --
 -- Name: idx_client_scopes_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scopes_enabled ON public.client_scopes USING btree (realm_id, enabled) WHERE (enabled = true);
+CREATE INDEX idx_client_scopes_enabled ON authenc.client_scopes USING btree (realm_id, enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_client_scopes_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scopes_name ON public.client_scopes USING btree (realm_id, name);
+CREATE INDEX idx_client_scopes_name ON authenc.client_scopes USING btree (realm_id, name);
 
 
 --
 -- Name: idx_client_scopes_protocol; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scopes_protocol ON public.client_scopes USING btree (protocol);
+CREATE INDEX idx_client_scopes_protocol ON authenc.client_scopes USING btree (protocol);
 
 
 --
 -- Name: idx_client_scopes_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_client_scopes_realm ON public.client_scopes USING btree (realm_id);
+CREATE INDEX idx_client_scopes_realm ON authenc.client_scopes USING btree (realm_id);
 
 
 --
 -- Name: idx_credential_types_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_credential_types_code ON public.credential_types USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_credential_types_code ON authenc.credential_types USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_custom_themes_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_custom_themes_active ON public.custom_themes USING btree (realm_id, theme_type) WHERE (is_active = true);
+CREATE INDEX idx_custom_themes_active ON authenc.custom_themes USING btree (realm_id, theme_type) WHERE (is_active = true);
 
 
 --
 -- Name: idx_custom_themes_default; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_custom_themes_default ON public.custom_themes USING btree (theme_type) WHERE (is_default = true);
+CREATE INDEX idx_custom_themes_default ON authenc.custom_themes USING btree (theme_type) WHERE (is_default = true);
 
 
 --
 -- Name: idx_custom_themes_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_custom_themes_realm_id ON public.custom_themes USING btree (realm_id);
+CREATE INDEX idx_custom_themes_realm_id ON authenc.custom_themes USING btree (realm_id);
 
 
 --
 -- Name: idx_custom_themes_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_custom_themes_type ON public.custom_themes USING btree (theme_type);
+CREATE INDEX idx_custom_themes_type ON authenc.custom_themes USING btree (theme_type);
 
 
 --
 -- Name: idx_dashboard_metrics_aggregation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dashboard_metrics_aggregation ON public.admin_dashboard_metrics USING btree (aggregation_period);
+CREATE INDEX idx_dashboard_metrics_aggregation ON authenc.admin_dashboard_metrics USING btree (aggregation_period);
 
 
 --
 -- Name: idx_dashboard_metrics_period; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dashboard_metrics_period ON public.admin_dashboard_metrics USING btree (period_start, period_end);
+CREATE INDEX idx_dashboard_metrics_period ON authenc.admin_dashboard_metrics USING btree (period_start, period_end);
 
 
 --
 -- Name: idx_dashboard_metrics_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dashboard_metrics_realm ON public.admin_dashboard_metrics USING btree (realm_id);
+CREATE INDEX idx_dashboard_metrics_realm ON authenc.admin_dashboard_metrics USING btree (realm_id);
 
 
 --
 -- Name: idx_dashboard_metrics_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_dashboard_metrics_type ON public.admin_dashboard_metrics USING btree (metric_type, metric_name);
+CREATE INDEX idx_dashboard_metrics_type ON authenc.admin_dashboard_metrics USING btree (metric_type, metric_name);
 
 
 --
 -- Name: idx_device_sessions_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_active ON public.device_sessions USING btree (user_id) WHERE is_active;
+CREATE INDEX idx_device_sessions_active ON authenc.device_sessions USING btree (user_id) WHERE is_active;
 
 
 --
 -- Name: idx_device_sessions_device_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_device_id ON public.device_sessions USING btree (device_id);
+CREATE INDEX idx_device_sessions_device_id ON authenc.device_sessions USING btree (device_id);
 
 
 --
 -- Name: idx_device_sessions_last_activity; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_last_activity ON public.device_sessions USING btree (last_activity) WHERE is_active;
+CREATE INDEX idx_device_sessions_last_activity ON authenc.device_sessions USING btree (last_activity) WHERE is_active;
 
 
 --
 -- Name: idx_device_sessions_risk_score; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_risk_score ON public.device_sessions USING btree (risk_score) WHERE (is_active AND (risk_score > (0.5)::double precision));
+CREATE INDEX idx_device_sessions_risk_score ON authenc.device_sessions USING btree (risk_score) WHERE (is_active AND (risk_score > (0.5)::double precision));
 
 
 --
 -- Name: idx_device_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_user_id ON public.device_sessions USING btree (user_id);
+CREATE INDEX idx_device_sessions_user_id ON authenc.device_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_device_sessions_user_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_sessions_user_session_id ON public.device_sessions USING btree (user_session_id);
+CREATE INDEX idx_device_sessions_user_session_id ON authenc.device_sessions USING btree (user_session_id);
 
 
 --
 -- Name: idx_device_trust_history_device_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_device_trust_history_device_id ON public.device_trust_history USING btree (device_id);
+CREATE INDEX idx_device_trust_history_device_id ON authenc.device_trust_history USING btree (device_id);
 
 
 --
 -- Name: idx_devices_last_seen; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_devices_last_seen ON public.devices USING btree (last_seen_at);
+CREATE INDEX idx_devices_last_seen ON authenc.devices USING btree (last_seen_at);
 
 
 --
 -- Name: idx_devices_trust_score; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_devices_trust_score ON public.devices USING btree (trust_score);
+CREATE INDEX idx_devices_trust_score ON authenc.devices USING btree (trust_score);
 
 
 --
 -- Name: idx_devices_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_devices_user_id ON public.devices USING btree (user_id);
+CREATE INDEX idx_devices_user_id ON authenc.devices USING btree (user_id);
 
 
 --
 -- Name: idx_difficulty_adjustments_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_difficulty_adjustments_active ON public.captcha_difficulty_adjustments USING btree (active, created_at DESC);
+CREATE INDEX idx_difficulty_adjustments_active ON authenc.captcha_difficulty_adjustments USING btree (active, created_at DESC);
 
 
 --
 -- Name: idx_difficulty_adjustments_ip; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_difficulty_adjustments_ip ON public.captcha_difficulty_adjustments USING btree (ip_pattern) WHERE ((ip_pattern IS NOT NULL) AND (active = true));
+CREATE INDEX idx_difficulty_adjustments_ip ON authenc.captcha_difficulty_adjustments USING btree (ip_pattern) WHERE ((ip_pattern IS NOT NULL) AND (active = true));
 
 
 --
 -- Name: idx_difficulty_adjustments_session; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_difficulty_adjustments_session ON public.captcha_difficulty_adjustments USING btree (session_pattern) WHERE ((session_pattern IS NOT NULL) AND (active = true));
+CREATE INDEX idx_difficulty_adjustments_session ON authenc.captcha_difficulty_adjustments USING btree (session_pattern) WHERE ((session_pattern IS NOT NULL) AND (active = true));
 
 
 --
 -- Name: idx_event_listeners_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_listeners_enabled ON public.event_listeners USING btree (realm_id, enabled) WHERE (enabled = true);
+CREATE INDEX idx_event_listeners_enabled ON authenc.event_listeners USING btree (realm_id, enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_event_listeners_priority; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_listeners_priority ON public.event_listeners USING btree (priority);
+CREATE INDEX idx_event_listeners_priority ON authenc.event_listeners USING btree (priority);
 
 
 --
 -- Name: idx_event_listeners_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_listeners_realm ON public.event_listeners USING btree (realm_id);
+CREATE INDEX idx_event_listeners_realm ON authenc.event_listeners USING btree (realm_id);
 
 
 --
 -- Name: idx_event_listeners_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_listeners_type ON public.event_listeners USING btree (listener_type);
+CREATE INDEX idx_event_listeners_type ON authenc.event_listeners USING btree (listener_type);
 
 
 --
 -- Name: idx_event_log_category_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_category_time ON public.event_log USING btree (event_category, created_at DESC);
+CREATE INDEX idx_event_log_category_time ON authenc.event_log USING btree (event_category, created_at DESC);
 
 
 --
 -- Name: idx_event_log_correlation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_correlation ON public.event_log USING btree (correlation_id);
+CREATE INDEX idx_event_log_correlation ON authenc.event_log USING btree (correlation_id);
 
 
 --
 -- Name: idx_event_log_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_created ON public.event_log USING btree (created_at DESC);
+CREATE INDEX idx_event_log_created ON authenc.event_log USING btree (created_at DESC);
 
 
 --
 -- Name: idx_event_log_geolocation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_geolocation ON public.event_log USING gin (geolocation_data);
+CREATE INDEX idx_event_log_geolocation ON authenc.event_log USING gin (geolocation_data);
 
 
 --
 -- Name: idx_event_log_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_realm ON public.event_log USING btree (realm_id);
+CREATE INDEX idx_event_log_realm ON authenc.event_log USING btree (realm_id);
 
 
 --
 -- Name: idx_event_log_request_payload; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_request_payload ON public.event_log USING gin (request_payload);
+CREATE INDEX idx_event_log_request_payload ON authenc.event_log USING gin (request_payload);
 
 
 --
 -- Name: idx_event_log_resource; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_resource ON public.event_log USING btree (resource_type, resource_id);
+CREATE INDEX idx_event_log_resource ON authenc.event_log USING btree (resource_type, resource_id);
 
 
 --
 -- Name: idx_event_log_response_payload; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_response_payload ON public.event_log USING gin (response_payload);
+CREATE INDEX idx_event_log_response_payload ON authenc.event_log USING gin (response_payload);
 
 
 --
 -- Name: idx_event_log_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_type ON public.event_log USING btree (event_type, event_category);
+CREATE INDEX idx_event_log_type ON authenc.event_log USING btree (event_type, event_category);
 
 
 --
 -- Name: idx_event_log_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_event_log_user ON public.event_log USING btree (user_id);
+CREATE INDEX idx_event_log_user ON authenc.event_log USING btree (user_id);
 
 
 --
 -- Name: idx_events_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_client_id ON public.events USING btree (client_id);
+CREATE INDEX idx_events_client_id ON authenc.events USING btree (client_id);
 
 
 --
 -- Name: idx_events_event_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_event_type ON public.events USING btree (event_type);
+CREATE INDEX idx_events_event_type ON authenc.events USING btree (event_type);
 
 
 --
 -- Name: idx_events_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_realm_id ON public.events USING btree (realm_id);
+CREATE INDEX idx_events_realm_id ON authenc.events USING btree (realm_id);
 
 
 --
 -- Name: idx_events_realm_type_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_realm_type_time ON public.events USING btree (realm_id, event_type, "time" DESC);
+CREATE INDEX idx_events_realm_type_time ON authenc.events USING btree (realm_id, event_type, "time" DESC);
 
 
 --
 -- Name: INDEX idx_events_realm_type_time; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_events_realm_type_time IS 'Improves audit queries by realm and event type';
+COMMENT ON INDEX authenc.idx_events_realm_type_time IS 'Improves audit queries by realm and event type';
 
 
 --
 -- Name: idx_events_signature; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_signature ON public.events USING btree (signature) WHERE (signature IS NOT NULL);
+CREATE INDEX idx_events_signature ON authenc.events USING btree (signature) WHERE (signature IS NOT NULL);
 
 
 --
 -- Name: idx_events_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_time ON public.events USING btree ("time" DESC);
+CREATE INDEX idx_events_time ON authenc.events USING btree ("time" DESC);
 
 
 --
 -- Name: idx_events_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_user_id ON public.events USING btree (user_id);
+CREATE INDEX idx_events_user_id ON authenc.events USING btree (user_id);
 
 
 --
 -- Name: idx_events_user_time; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_events_user_time ON public.events USING btree (user_id, "time" DESC) WHERE (user_id IS NOT NULL);
+CREATE INDEX idx_events_user_time ON authenc.events USING btree (user_id, "time" DESC) WHERE (user_id IS NOT NULL);
 
 
 --
 -- Name: INDEX idx_events_user_time; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_events_user_time IS 'Improves audit trail queries by user';
+COMMENT ON INDEX authenc.idx_events_user_time IS 'Improves audit trail queries by user';
 
 
 --
 -- Name: idx_federated_auth_log_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_auth_log_created ON public.federated_auth_log USING btree (created_at);
+CREATE INDEX idx_federated_auth_log_created ON authenc.federated_auth_log USING btree (created_at);
 
 
 --
 -- Name: idx_federated_auth_log_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_auth_log_provider ON public.federated_auth_log USING btree (identity_provider_alias);
+CREATE INDEX idx_federated_auth_log_provider ON authenc.federated_auth_log USING btree (identity_provider_alias);
 
 
 --
 -- Name: idx_federated_auth_log_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_auth_log_realm ON public.federated_auth_log USING btree (realm_id);
+CREATE INDEX idx_federated_auth_log_realm ON authenc.federated_auth_log USING btree (realm_id);
 
 
 --
 -- Name: idx_federated_auth_log_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_auth_log_user ON public.federated_auth_log USING btree (user_id);
+CREATE INDEX idx_federated_auth_log_user ON authenc.federated_auth_log USING btree (user_id);
 
 
 --
 -- Name: idx_federated_identities_provider_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_identities_provider_id ON public.federated_identities USING btree (identity_provider_id);
+CREATE INDEX idx_federated_identities_provider_id ON authenc.federated_identities USING btree (identity_provider_id);
 
 
 --
 -- Name: idx_federated_identities_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_identities_user_id ON public.federated_identities USING btree (user_id);
+CREATE INDEX idx_federated_identities_user_id ON authenc.federated_identities USING btree (user_id);
 
 
 --
 -- Name: idx_federated_links_federated_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_links_federated_user ON public.federated_identity_links USING btree (identity_provider_alias, federated_user_id);
+CREATE INDEX idx_federated_links_federated_user ON authenc.federated_identity_links USING btree (identity_provider_alias, federated_user_id);
 
 
 --
 -- Name: idx_federated_links_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_links_provider ON public.federated_identity_links USING btree (identity_provider_alias);
+CREATE INDEX idx_federated_links_provider ON authenc.federated_identity_links USING btree (identity_provider_alias);
 
 
 --
 -- Name: idx_federated_links_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_links_realm ON public.federated_identity_links USING btree (realm_id);
+CREATE INDEX idx_federated_links_realm ON authenc.federated_identity_links USING btree (realm_id);
 
 
 --
 -- Name: idx_federated_links_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_federated_links_user ON public.federated_identity_links USING btree (user_id);
+CREATE INDEX idx_federated_links_user ON authenc.federated_identity_links USING btree (user_id);
 
 
 --
 -- Name: idx_group_attributes_group_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_attributes_group_id ON public.group_attributes USING btree (group_id);
+CREATE INDEX idx_group_attributes_group_id ON authenc.group_attributes USING btree (group_id);
 
 
 --
 -- Name: idx_group_attributes_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_attributes_name ON public.group_attributes USING btree (name);
+CREATE INDEX idx_group_attributes_name ON authenc.group_attributes USING btree (name);
 
 
 --
 -- Name: idx_group_attributes_value; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_attributes_value ON public.group_attributes USING btree (value);
+CREATE INDEX idx_group_attributes_value ON authenc.group_attributes USING btree (value);
 
 
 --
 -- Name: idx_group_roles_group_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_roles_group_id ON public.group_roles USING btree (group_id);
+CREATE INDEX idx_group_roles_group_id ON authenc.group_roles USING btree (group_id);
 
 
 --
 -- Name: idx_group_roles_role_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_group_roles_role_id ON public.group_roles USING btree (role_id);
+CREATE INDEX idx_group_roles_role_id ON authenc.group_roles USING btree (role_id);
 
 
 --
 -- Name: idx_groups_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_groups_name ON public.groups USING btree (name);
+CREATE INDEX idx_groups_name ON authenc.groups USING btree (name);
 
 
 --
 -- Name: idx_groups_parent_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_groups_parent_id ON public.groups USING btree (parent_id) WHERE (parent_id IS NOT NULL);
+CREATE INDEX idx_groups_parent_id ON authenc.groups USING btree (parent_id) WHERE (parent_id IS NOT NULL);
 
 
 --
 -- Name: idx_groups_path; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_groups_path ON public.groups USING btree (path);
+CREATE INDEX idx_groups_path ON authenc.groups USING btree (path);
 
 
 --
 -- Name: idx_groups_path_gin; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_groups_path_gin ON public.groups USING gin (to_tsvector('english'::regconfig, path));
+CREATE INDEX idx_groups_path_gin ON authenc.groups USING gin (to_tsvector('english'::regconfig, path));
 
 
 --
 -- Name: idx_groups_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_groups_realm_id ON public.groups USING btree (realm_id);
+CREATE INDEX idx_groups_realm_id ON authenc.groups USING btree (realm_id);
 
 
 --
 -- Name: idx_identity_provider_mappers_provider_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_identity_provider_mappers_provider_id ON public.identity_provider_mappers USING btree (identity_provider_id);
+CREATE INDEX idx_identity_provider_mappers_provider_id ON authenc.identity_provider_mappers USING btree (identity_provider_id);
 
 
 --
 -- Name: idx_identity_providers_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_identity_providers_enabled ON public.identity_providers USING btree (enabled) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_identity_providers_enabled ON authenc.identity_providers USING btree (enabled) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_identity_providers_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_identity_providers_realm_id ON public.identity_providers USING btree (realm_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_identity_providers_realm_id ON authenc.identity_providers USING btree (realm_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_identity_providers_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_identity_providers_type ON public.identity_providers USING btree (provider_type) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_identity_providers_type ON authenc.identity_providers USING btree (provider_type) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_idp_mappers_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_idp_mappers_provider ON public.identity_provider_mappers USING btree (identity_provider_alias);
+CREATE INDEX idx_idp_mappers_provider ON authenc.identity_provider_mappers USING btree (identity_provider_alias);
 
 
 --
 -- Name: idx_idp_mappers_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_idp_mappers_realm ON public.identity_provider_mappers USING btree (realm_id);
+CREATE INDEX idx_idp_mappers_realm ON authenc.identity_provider_mappers USING btree (realm_id);
 
 
 --
 -- Name: idx_idp_mappers_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_idp_mappers_type ON public.identity_provider_mappers USING btree (mapper_type);
+CREATE INDEX idx_idp_mappers_type ON authenc.identity_provider_mappers USING btree (mapper_type);
 
 
 --
 -- Name: idx_initial_access_tokens_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_initial_access_tokens_hash ON public.initial_access_tokens USING btree (token_hash) WHERE (revoked = false);
+CREATE INDEX idx_initial_access_tokens_hash ON authenc.initial_access_tokens USING btree (token_hash) WHERE (revoked = false);
 
 
 --
 -- Name: idx_initial_access_tokens_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_initial_access_tokens_realm ON public.initial_access_tokens USING btree (realm_id) WHERE (revoked = false);
+CREATE INDEX idx_initial_access_tokens_realm ON authenc.initial_access_tokens USING btree (realm_id) WHERE (revoked = false);
 
 
 --
 -- Name: idx_key_rotation_audit_key_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_key_rotation_audit_key_id ON public.key_rotation_audit USING btree (key_id);
+CREATE INDEX idx_key_rotation_audit_key_id ON authenc.key_rotation_audit USING btree (key_id);
 
 
 --
 -- Name: idx_key_rotation_audit_key_id_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_key_rotation_audit_key_id_timestamp ON public.key_rotation_audit USING btree (key_id, "timestamp" DESC);
+CREATE INDEX idx_key_rotation_audit_key_id_timestamp ON authenc.key_rotation_audit USING btree (key_id, "timestamp" DESC);
 
 
 --
 -- Name: idx_key_rotation_audit_key_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_key_rotation_audit_key_type ON public.key_rotation_audit USING btree (key_type);
+CREATE INDEX idx_key_rotation_audit_key_type ON authenc.key_rotation_audit USING btree (key_type);
 
 
 --
 -- Name: idx_key_rotation_audit_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_key_rotation_audit_status ON public.key_rotation_audit USING btree (status);
+CREATE INDEX idx_key_rotation_audit_status ON authenc.key_rotation_audit USING btree (status);
 
 
 --
 -- Name: idx_key_rotation_audit_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_key_rotation_audit_timestamp ON public.key_rotation_audit USING btree ("timestamp" DESC);
+CREATE INDEX idx_key_rotation_audit_timestamp ON authenc.key_rotation_audit USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_listener_executions_event; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_listener_executions_event ON public.event_listener_executions USING btree (event_log_id);
+CREATE INDEX idx_listener_executions_event ON authenc.event_listener_executions USING btree (event_log_id);
 
 
 --
 -- Name: idx_listener_executions_listener; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_listener_executions_listener ON public.event_listener_executions USING btree (listener_id);
+CREATE INDEX idx_listener_executions_listener ON authenc.event_listener_executions USING btree (listener_id);
 
 
 --
 -- Name: idx_listener_executions_retry; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_listener_executions_retry ON public.event_listener_executions USING btree (next_retry_at) WHERE ((next_retry_at IS NOT NULL) AND (success = false));
+CREATE INDEX idx_listener_executions_retry ON authenc.event_listener_executions USING btree (next_retry_at) WHERE ((next_retry_at IS NOT NULL) AND (success = false));
 
 
 --
 -- Name: idx_listener_executions_success; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_listener_executions_success ON public.event_listener_executions USING btree (success);
+CREATE INDEX idx_listener_executions_success ON authenc.event_listener_executions USING btree (success);
 
 
 --
 -- Name: idx_mfa_admin_actions_action; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_action ON public.mfa_admin_actions USING btree (action);
+CREATE INDEX idx_mfa_admin_actions_action ON authenc.mfa_admin_actions USING btree (action);
 
 
 --
 -- Name: idx_mfa_admin_actions_action_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_action_created ON public.mfa_admin_actions USING btree (action, created_at DESC);
+CREATE INDEX idx_mfa_admin_actions_action_created ON authenc.mfa_admin_actions USING btree (action, created_at DESC);
 
 
 --
 -- Name: idx_mfa_admin_actions_admin; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_admin ON public.mfa_admin_actions USING btree (admin_user_id, created_at DESC);
+CREATE INDEX idx_mfa_admin_actions_admin ON authenc.mfa_admin_actions USING btree (admin_user_id, created_at DESC);
 
 
 --
 -- Name: idx_mfa_admin_actions_admin_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_admin_created ON public.mfa_admin_actions USING btree (admin_user_id, created_at DESC);
+CREATE INDEX idx_mfa_admin_actions_admin_created ON authenc.mfa_admin_actions USING btree (admin_user_id, created_at DESC);
 
 
 --
 -- Name: idx_mfa_admin_actions_admin_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_admin_user_id ON public.mfa_admin_actions USING btree (admin_user_id);
+CREATE INDEX idx_mfa_admin_actions_admin_user_id ON authenc.mfa_admin_actions USING btree (admin_user_id);
 
 
 --
 -- Name: idx_mfa_admin_actions_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_created_at ON public.mfa_admin_actions USING btree (created_at);
+CREATE INDEX idx_mfa_admin_actions_created_at ON authenc.mfa_admin_actions USING btree (created_at);
 
 
 --
 -- Name: idx_mfa_admin_actions_target; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_target ON public.mfa_admin_actions USING btree (target_user_id, created_at DESC);
+CREATE INDEX idx_mfa_admin_actions_target ON authenc.mfa_admin_actions USING btree (target_user_id, created_at DESC);
 
 
 --
 -- Name: idx_mfa_admin_actions_target_action_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_target_action_created ON public.mfa_admin_actions USING btree (target_user_id, action, created_at DESC);
+CREATE INDEX idx_mfa_admin_actions_target_action_created ON authenc.mfa_admin_actions USING btree (target_user_id, action, created_at DESC);
 
 
 --
 -- Name: idx_mfa_admin_actions_target_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_admin_actions_target_user_id ON public.mfa_admin_actions USING btree (target_user_id);
+CREATE INDEX idx_mfa_admin_actions_target_user_id ON authenc.mfa_admin_actions USING btree (target_user_id);
 
 
 --
 -- Name: idx_mfa_policies_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_mfa_policies_active ON public.mfa_policies USING btree (active, created_at DESC);
+CREATE INDEX idx_mfa_policies_active ON authenc.mfa_policies USING btree (active, created_at DESC);
 
 
 --
 -- Name: idx_mfa_statistics_satker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_mfa_statistics_satker ON public.mfa_statistics USING btree (satker_code);
+CREATE UNIQUE INDEX idx_mfa_statistics_satker ON authenc.mfa_statistics USING btree (satker_code);
 
 
 --
 -- Name: idx_oauth2_access_tokens_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_access_tokens_expires ON public.oauth2_access_tokens USING btree (expires_at);
+CREATE INDEX idx_oauth2_access_tokens_expires ON authenc.oauth2_access_tokens USING btree (expires_at);
 
 
 --
 -- Name: idx_oauth2_access_tokens_refresh; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_access_tokens_refresh ON public.oauth2_access_tokens USING btree (refresh_token_hash);
+CREATE INDEX idx_oauth2_access_tokens_refresh ON authenc.oauth2_access_tokens USING btree (refresh_token_hash);
 
 
 --
 -- Name: idx_oauth2_access_tokens_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_access_tokens_token ON public.oauth2_access_tokens USING btree (token_hash);
+CREATE INDEX idx_oauth2_access_tokens_token ON authenc.oauth2_access_tokens USING btree (token_hash);
 
 
 --
 -- Name: idx_oauth2_authorization_codes_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_authorization_codes_code ON public.oauth2_authorization_codes USING btree (code);
+CREATE INDEX idx_oauth2_authorization_codes_code ON authenc.oauth2_authorization_codes USING btree (code);
 
 
 --
 -- Name: idx_oauth2_authorization_codes_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_authorization_codes_expires ON public.oauth2_authorization_codes USING btree (expires_at);
+CREATE INDEX idx_oauth2_authorization_codes_expires ON authenc.oauth2_authorization_codes USING btree (expires_at);
 
 
 --
 -- Name: idx_oauth2_clients_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_clients_client_id ON public.oauth2_clients USING btree (client_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_oauth2_clients_client_id ON authenc.oauth2_clients USING btree (client_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_oauth2_clients_registration_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_clients_registration_token ON public.oauth2_clients USING btree (registration_access_token_hash) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_oauth2_clients_registration_token ON authenc.oauth2_clients USING btree (registration_access_token_hash) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_oauth2_configs_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_configs_enabled ON public.oauth2_provider_configs USING btree (realm_id, enabled) WHERE (enabled = true);
+CREATE INDEX idx_oauth2_configs_enabled ON authenc.oauth2_provider_configs USING btree (realm_id, enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_oauth2_configs_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_configs_provider ON public.oauth2_provider_configs USING btree (provider_name);
+CREATE INDEX idx_oauth2_configs_provider ON authenc.oauth2_provider_configs USING btree (provider_name);
 
 
 --
 -- Name: idx_oauth2_configs_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_configs_realm ON public.oauth2_provider_configs USING btree (realm_id);
+CREATE INDEX idx_oauth2_configs_realm ON authenc.oauth2_provider_configs USING btree (realm_id);
 
 
 --
 -- Name: idx_oauth2_exchanges_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_exchanges_created ON public.oauth2_token_exchanges USING btree (created_at);
+CREATE INDEX idx_oauth2_exchanges_created ON authenc.oauth2_token_exchanges USING btree (created_at);
 
 
 --
 -- Name: idx_oauth2_exchanges_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_exchanges_provider ON public.oauth2_token_exchanges USING btree (provider_config_id);
+CREATE INDEX idx_oauth2_exchanges_provider ON authenc.oauth2_token_exchanges USING btree (provider_config_id);
 
 
 --
 -- Name: idx_oauth2_exchanges_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_exchanges_user ON public.oauth2_token_exchanges USING btree (user_id);
+CREATE INDEX idx_oauth2_exchanges_user ON authenc.oauth2_token_exchanges USING btree (user_id);
 
 
 --
 -- Name: idx_oauth2_states_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_states_expires ON public.oauth2_states USING btree (expires_at) WHERE (NOT used);
+CREATE INDEX idx_oauth2_states_expires ON authenc.oauth2_states USING btree (expires_at) WHERE (NOT used);
 
 
 --
 -- Name: idx_oauth2_states_provider; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_states_provider ON public.oauth2_states USING btree (provider_config_id);
+CREATE INDEX idx_oauth2_states_provider ON authenc.oauth2_states USING btree (provider_config_id);
 
 
 --
 -- Name: idx_oauth2_states_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_states_token ON public.oauth2_states USING btree (state_token);
+CREATE INDEX idx_oauth2_states_token ON authenc.oauth2_states USING btree (state_token);
 
 
 --
 -- Name: idx_oauth2_tokens_actor; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_oauth2_tokens_actor ON public.oauth2_access_tokens USING btree (actor_id) WHERE (actor_id IS NOT NULL);
+CREATE INDEX idx_oauth2_tokens_actor ON authenc.oauth2_access_tokens USING btree (actor_id) WHERE (actor_id IS NOT NULL);
 
 
 --
 -- Name: idx_offline_tokens_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_offline_tokens_active ON public.offline_tokens USING btree (user_id, realm_id) WHERE (NOT revoked);
+CREATE INDEX idx_offline_tokens_active ON authenc.offline_tokens USING btree (user_id, realm_id) WHERE (NOT revoked);
 
 
 --
 -- Name: idx_offline_tokens_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_offline_tokens_client_id ON public.offline_tokens USING btree (client_id);
+CREATE INDEX idx_offline_tokens_client_id ON authenc.offline_tokens USING btree (client_id);
 
 
 --
 -- Name: idx_offline_tokens_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_offline_tokens_realm_id ON public.offline_tokens USING btree (realm_id);
+CREATE INDEX idx_offline_tokens_realm_id ON authenc.offline_tokens USING btree (realm_id);
 
 
 --
 -- Name: idx_offline_tokens_token_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_offline_tokens_token_hash ON public.offline_tokens USING btree (token_hash);
+CREATE INDEX idx_offline_tokens_token_hash ON authenc.offline_tokens USING btree (token_hash);
 
 
 --
 -- Name: idx_offline_tokens_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_offline_tokens_user_id ON public.offline_tokens USING btree (user_id);
+CREATE INDEX idx_offline_tokens_user_id ON authenc.offline_tokens USING btree (user_id);
 
 
 --
 -- Name: idx_org_domains_domain; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_domains_domain ON public.organization_domains USING btree (domain);
+CREATE INDEX idx_org_domains_domain ON authenc.organization_domains USING btree (domain);
 
 
 --
 -- Name: idx_org_domains_org_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_domains_org_id ON public.organization_domains USING btree (organization_id);
+CREATE INDEX idx_org_domains_org_id ON authenc.organization_domains USING btree (organization_id);
 
 
 --
 -- Name: idx_org_domains_verified; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_domains_verified ON public.organization_domains USING btree (verified);
+CREATE INDEX idx_org_domains_verified ON authenc.organization_domains USING btree (verified);
 
 
 --
 -- Name: idx_org_idps_org_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_idps_org_id ON public.organization_identity_providers USING btree (organization_id);
+CREATE INDEX idx_org_idps_org_id ON authenc.organization_identity_providers USING btree (organization_id);
 
 
 --
 -- Name: idx_org_invitations_email; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_invitations_email ON public.organization_invitations USING btree (email);
+CREATE INDEX idx_org_invitations_email ON authenc.organization_invitations USING btree (email);
 
 
 --
 -- Name: idx_org_invitations_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_invitations_token ON public.organization_invitations USING btree (token_hash);
+CREATE INDEX idx_org_invitations_token ON authenc.organization_invitations USING btree (token_hash);
 
 
 --
 -- Name: idx_org_members_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_org_members_user_id ON public.organization_members USING btree (user_id);
+CREATE INDEX idx_org_members_user_id ON authenc.organization_members USING btree (user_id);
 
 
 --
 -- Name: idx_organization_invitations_org_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_organization_invitations_org_id ON public.organization_invitations USING btree (organization_id);
+CREATE INDEX idx_organization_invitations_org_id ON authenc.organization_invitations USING btree (organization_id);
 
 
 --
 -- Name: idx_organization_invitations_token; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_organization_invitations_token ON public.organization_invitations USING btree (token_hash);
+CREATE INDEX idx_organization_invitations_token ON authenc.organization_invitations USING btree (token_hash);
 
 
 --
 -- Name: idx_organization_members_org_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_organization_members_org_id ON public.organization_members USING btree (organization_id);
+CREATE INDEX idx_organization_members_org_id ON authenc.organization_members USING btree (organization_id);
 
 
 --
 -- Name: idx_organization_members_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_organization_members_user_id ON public.organization_members USING btree (user_id);
+CREATE INDEX idx_organization_members_user_id ON authenc.organization_members USING btree (user_id);
 
 
 --
 -- Name: idx_organizations_owner_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_organizations_owner_id ON public.organizations USING btree (owner_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_organizations_owner_id ON authenc.organizations USING btree (owner_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_password_history_user_id_created; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_password_history_user_id_created ON public.password_history USING btree (user_id, created_at DESC);
+CREATE INDEX idx_password_history_user_id_created ON authenc.password_history USING btree (user_id, created_at DESC);
 
 
 --
 -- Name: idx_performance_metrics_latency; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_metrics_latency ON public.captcha_performance_metrics USING btree (challenge_generation_latency_ms, validation_latency_ms);
+CREATE INDEX idx_performance_metrics_latency ON authenc.captcha_performance_metrics USING btree (challenge_generation_latency_ms, validation_latency_ms);
 
 
 --
 -- Name: idx_performance_metrics_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_performance_metrics_timestamp ON public.captcha_performance_metrics USING btree ("timestamp" DESC);
+CREATE INDEX idx_performance_metrics_timestamp ON authenc.captcha_performance_metrics USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_permission_tickets_owner; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_permission_tickets_owner ON public.permission_tickets USING btree (owner);
+CREATE INDEX idx_permission_tickets_owner ON authenc.permission_tickets USING btree (owner);
 
 
 --
 -- Name: idx_permission_tickets_requester; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_permission_tickets_requester ON public.permission_tickets USING btree (requester);
+CREATE INDEX idx_permission_tickets_requester ON authenc.permission_tickets USING btree (requester);
 
 
 --
 -- Name: idx_permission_tickets_resource_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_permission_tickets_resource_id ON public.permission_tickets USING btree (resource_id);
+CREATE INDEX idx_permission_tickets_resource_id ON authenc.permission_tickets USING btree (resource_id);
 
 
 --
 -- Name: idx_protocol_mappers_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_client ON public.protocol_mappers USING btree (client_id);
+CREATE INDEX idx_protocol_mappers_client ON authenc.protocol_mappers USING btree (client_id);
 
 
 --
 -- Name: idx_protocol_mappers_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_enabled ON public.protocol_mappers USING btree (client_id, enabled) WHERE (enabled = true);
+CREATE INDEX idx_protocol_mappers_enabled ON authenc.protocol_mappers USING btree (client_id, enabled) WHERE (enabled = true);
 
 
 --
 -- Name: idx_protocol_mappers_protocol; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_protocol ON public.protocol_mappers USING btree (protocol);
+CREATE INDEX idx_protocol_mappers_protocol ON authenc.protocol_mappers USING btree (protocol);
 
 
 --
 -- Name: idx_protocol_mappers_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_realm ON public.protocol_mappers USING btree (realm_id);
+CREATE INDEX idx_protocol_mappers_realm ON authenc.protocol_mappers USING btree (realm_id);
 
 
 --
 -- Name: idx_protocol_mappers_scope; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_scope ON public.protocol_mappers USING btree (client_scope_id);
+CREATE INDEX idx_protocol_mappers_scope ON authenc.protocol_mappers USING btree (client_scope_id);
 
 
 --
 -- Name: idx_protocol_mappers_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_protocol_mappers_type ON public.protocol_mappers USING btree (mapper_type);
+CREATE INDEX idx_protocol_mappers_type ON authenc.protocol_mappers USING btree (mapper_type);
 
 
 --
 -- Name: idx_realm_theme_settings_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_realm_theme_settings_realm_id ON public.realm_theme_settings USING btree (realm_id);
+CREATE INDEX idx_realm_theme_settings_realm_id ON authenc.realm_theme_settings USING btree (realm_id);
 
 
 --
 -- Name: idx_realms_name_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_realms_name_unique ON public.realms USING btree (name) WHERE (deleted_at IS NULL);
+CREATE UNIQUE INDEX idx_realms_name_unique ON authenc.realms USING btree (name) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_refresh_token_history_rotated_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_refresh_token_history_rotated_at ON public.refresh_token_history USING btree (rotated_at);
+CREATE INDEX idx_refresh_token_history_rotated_at ON authenc.refresh_token_history USING btree (rotated_at);
 
 
 --
 -- Name: idx_refresh_token_history_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_refresh_token_history_session_id ON public.refresh_token_history USING btree (user_session_id);
+CREATE INDEX idx_refresh_token_history_session_id ON authenc.refresh_token_history USING btree (user_session_id);
 
 
 --
 -- Name: idx_refresh_token_history_suspicious; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_refresh_token_history_suspicious ON public.refresh_token_history USING btree (user_session_id) WHERE suspicious;
+CREATE INDEX idx_refresh_token_history_suspicious ON authenc.refresh_token_history USING btree (user_session_id) WHERE suspicious;
 
 
 --
 -- Name: idx_resource_servers_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resource_servers_client_id ON public.resource_servers USING btree (client_id);
+CREATE INDEX idx_resource_servers_client_id ON authenc.resource_servers USING btree (client_id);
 
 
 --
 -- Name: idx_resource_servers_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resource_servers_realm_id ON public.resource_servers USING btree (realm_id);
+CREATE INDEX idx_resource_servers_realm_id ON authenc.resource_servers USING btree (realm_id);
 
 
 --
 -- Name: idx_resources_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resources_name ON public.resources USING btree (name);
+CREATE INDEX idx_resources_name ON authenc.resources USING btree (name);
 
 
 --
 -- Name: idx_resources_owner; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resources_owner ON public.resources USING btree (owner);
+CREATE INDEX idx_resources_owner ON authenc.resources USING btree (owner);
 
 
 --
 -- Name: idx_resources_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resources_realm_id ON public.resources USING btree (realm_id);
+CREATE INDEX idx_resources_realm_id ON authenc.resources USING btree (realm_id);
 
 
 --
 -- Name: idx_resources_resource_server_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_resources_resource_server_id ON public.resources USING btree (resource_server_id);
+CREATE INDEX idx_resources_resource_server_id ON authenc.resources USING btree (resource_server_id);
 
 
 --
 -- Name: idx_role_capabilities_capability_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_capabilities_capability_id ON public.role_capabilities USING btree (capability_id);
+CREATE INDEX idx_role_capabilities_capability_id ON authenc.role_capabilities USING btree (capability_id);
 
 
 --
 -- Name: idx_role_capabilities_role_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_capabilities_role_id ON public.role_capabilities USING btree (role_id);
+CREATE INDEX idx_role_capabilities_role_id ON authenc.role_capabilities USING btree (role_id);
 
 
 --
 -- Name: idx_role_hierarchy_child; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_hierarchy_child ON public.role_hierarchy USING btree (child_role_id);
+CREATE INDEX idx_role_hierarchy_child ON authenc.role_hierarchy USING btree (child_role_id);
 
 
 --
 -- Name: idx_role_hierarchy_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_hierarchy_parent ON public.role_hierarchy USING btree (parent_role_id);
+CREATE INDEX idx_role_hierarchy_parent ON authenc.role_hierarchy USING btree (parent_role_id);
 
 
 --
 -- Name: idx_role_permissions_resource; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_permissions_resource ON public.role_permissions USING btree (resource);
+CREATE INDEX idx_role_permissions_resource ON authenc.role_permissions USING btree (resource);
 
 
 --
 -- Name: idx_role_permissions_role; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_permissions_role ON public.role_permissions USING btree (role_id);
+CREATE INDEX idx_role_permissions_role ON authenc.role_permissions USING btree (role_id);
 
 
 --
 -- Name: idx_role_policies_policy_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_policies_policy_id ON public.role_policies USING btree (policy_id);
+CREATE INDEX idx_role_policies_policy_id ON authenc.role_policies USING btree (policy_id);
 
 
 --
 -- Name: idx_role_policies_role_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_policies_role_id ON public.role_policies USING btree (role_id);
+CREATE INDEX idx_role_policies_role_id ON authenc.role_policies USING btree (role_id);
 
 
 --
 -- Name: idx_role_types_category; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_types_category ON public.role_types USING btree (category) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_role_types_category ON authenc.role_types USING btree (category) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_role_types_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_types_code ON public.role_types USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_role_types_code ON authenc.role_types USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_role_types_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_role_types_realm_id ON public.role_types USING btree (realm_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_role_types_realm_id ON authenc.role_types USING btree (realm_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_roles_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_roles_realm_id ON public.roles USING btree (realm_id);
+CREATE INDEX idx_roles_realm_id ON authenc.roles USING btree (realm_id);
 
 
 --
 -- Name: idx_saml_assertion_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_assertion_expires ON public.saml_assertion_cache USING btree (expires_at);
+CREATE INDEX idx_saml_assertion_expires ON authenc.saml_assertion_cache USING btree (expires_at);
 
 
 --
 -- Name: idx_saml_idp_entity_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_idp_entity_id ON public.saml_identity_providers USING btree (entity_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_saml_idp_entity_id ON authenc.saml_identity_providers USING btree (entity_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_saml_messages_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_messages_expires_at ON public.saml_messages USING btree (expires_at);
+CREATE INDEX idx_saml_messages_expires_at ON authenc.saml_messages USING btree (expires_at);
 
 
 --
 -- Name: idx_saml_messages_saml_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_messages_saml_id ON public.saml_messages USING btree (saml_id);
+CREATE INDEX idx_saml_messages_saml_id ON authenc.saml_messages USING btree (saml_id);
 
 
 --
 -- Name: idx_saml_messages_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_messages_session_id ON public.saml_messages USING btree (session_id) WHERE (session_id IS NOT NULL);
+CREATE INDEX idx_saml_messages_session_id ON authenc.saml_messages USING btree (session_id) WHERE (session_id IS NOT NULL);
 
 
 --
 -- Name: idx_saml_sessions_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_sessions_expires ON public.saml_sessions USING btree (expires_at);
+CREATE INDEX idx_saml_sessions_expires ON authenc.saml_sessions USING btree (expires_at);
 
 
 --
 -- Name: idx_saml_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_sessions_user_id ON public.saml_sessions USING btree (user_id);
+CREATE INDEX idx_saml_sessions_user_id ON authenc.saml_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_saml_sp_entity_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_saml_sp_entity_id ON public.saml_service_providers USING btree (entity_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_saml_sp_entity_id ON authenc.saml_service_providers USING btree (entity_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_satker_admin_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_admin_expires ON public.satker_admin_roles USING btree (expires_at) WHERE (expires_at IS NOT NULL);
+CREATE INDEX idx_satker_admin_expires ON authenc.satker_admin_roles USING btree (expires_at) WHERE (expires_at IS NOT NULL);
 
 
 --
 -- Name: idx_satker_admin_level; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_admin_level ON public.satker_admin_roles USING btree (admin_level) WHERE (active = true);
+CREATE INDEX idx_satker_admin_level ON authenc.satker_admin_roles USING btree (admin_level) WHERE (active = true);
 
 
 --
 -- Name: idx_satker_admin_roles_level_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_admin_roles_level_code ON public.satker_admin_roles USING btree (admin_level);
+CREATE INDEX idx_satker_admin_roles_level_code ON authenc.satker_admin_roles USING btree (admin_level);
 
 
 --
 -- Name: idx_satker_admin_satker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_admin_satker ON public.satker_admin_roles USING btree (satker_code) WHERE (active = true);
+CREATE INDEX idx_satker_admin_satker ON authenc.satker_admin_roles USING btree (satker_code) WHERE (active = true);
 
 
 --
 -- Name: idx_satker_admin_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_admin_user ON public.satker_admin_roles USING btree (user_id) WHERE (active = true);
+CREATE INDEX idx_satker_admin_user ON authenc.satker_admin_roles USING btree (user_id) WHERE (active = true);
 
 
 --
 -- Name: idx_satker_audit_operation; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_audit_operation ON public.satker_audit_logs USING btree (operation);
+CREATE INDEX idx_satker_audit_operation ON authenc.satker_audit_logs USING btree (operation);
 
 
 --
 -- Name: idx_satker_audit_satker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_audit_satker ON public.satker_audit_logs USING btree (satker_code);
+CREATE INDEX idx_satker_audit_satker ON authenc.satker_audit_logs USING btree (satker_code);
 
 
 --
 -- Name: idx_satker_audit_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_audit_timestamp ON public.satker_audit_logs USING btree ("timestamp" DESC);
+CREATE INDEX idx_satker_audit_timestamp ON authenc.satker_audit_logs USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_satker_audit_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_audit_user ON public.satker_audit_logs USING btree (user_id);
+CREATE INDEX idx_satker_audit_user ON authenc.satker_audit_logs USING btree (user_id);
 
 
 --
 -- Name: idx_satker_perm_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_perm_expires ON public.satker_permissions USING btree (expires_at) WHERE (expires_at IS NOT NULL);
+CREATE INDEX idx_satker_perm_expires ON authenc.satker_permissions USING btree (expires_at) WHERE (expires_at IS NOT NULL);
 
 
 --
 -- Name: idx_satker_perm_satker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_perm_satker ON public.satker_permissions USING btree (satker_code);
+CREATE INDEX idx_satker_perm_satker ON authenc.satker_permissions USING btree (satker_code);
 
 
 --
 -- Name: idx_satker_perm_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_perm_type ON public.satker_permissions USING btree (permission_type);
+CREATE INDEX idx_satker_perm_type ON authenc.satker_permissions USING btree (permission_type);
 
 
 --
 -- Name: idx_satker_perm_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_perm_user ON public.satker_permissions USING btree (user_id);
+CREATE INDEX idx_satker_perm_user ON authenc.satker_permissions USING btree (user_id);
 
 
 --
 -- Name: idx_satker_types_hierarchy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_types_hierarchy ON public.satker_types USING btree (hierarchy_level DESC);
+CREATE INDEX idx_satker_types_hierarchy ON authenc.satker_types USING btree (hierarchy_level DESC);
 
 
 --
 -- Name: idx_satker_types_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satker_types_parent ON public.satker_types USING btree (parent_type_id);
+CREATE INDEX idx_satker_types_parent ON authenc.satker_types USING btree (parent_type_id);
 
 
 --
 -- Name: idx_satkers_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_active ON public.satkers USING btree (active);
+CREATE INDEX idx_satkers_active ON authenc.satkers USING btree (active);
 
 
 --
 -- Name: idx_satkers_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_code ON public.satkers USING btree (code) WHERE (active = true);
+CREATE INDEX idx_satkers_code ON authenc.satkers USING btree (code) WHERE (active = true);
 
 
 --
 -- Name: idx_satkers_hierarchy; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_hierarchy ON public.satkers USING btree (parent_code, level, code) WHERE (active = true);
+CREATE INDEX idx_satkers_hierarchy ON authenc.satkers USING btree (parent_code, level, code) WHERE (active = true);
 
 
 --
 -- Name: idx_satkers_level; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_level ON public.satkers USING btree (level) WHERE (active = true);
+CREATE INDEX idx_satkers_level ON authenc.satkers USING btree (level) WHERE (active = true);
 
 
 --
 -- Name: idx_satkers_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_name ON public.satkers USING gin (to_tsvector('indonesian'::regconfig, (name)::text));
+CREATE INDEX idx_satkers_name ON authenc.satkers USING gin (to_tsvector('indonesian'::regconfig, (name)::text));
 
 
 --
 -- Name: idx_satkers_parent_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_satkers_parent_code ON public.satkers USING btree (parent_code) WHERE (active = true);
+CREATE INDEX idx_satkers_parent_code ON authenc.satkers USING btree (parent_code) WHERE (active = true);
 
 
 --
 -- Name: idx_scope_types_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scope_types_code ON public.scope_types USING btree (code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_scope_types_code ON authenc.scope_types USING btree (code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_scope_types_parent; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scope_types_parent ON public.scope_types USING btree (parent_scope_type_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_scope_types_parent ON authenc.scope_types USING btree (parent_scope_type_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_scopes_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scopes_name ON public.scopes USING btree (name);
+CREATE INDEX idx_scopes_name ON authenc.scopes USING btree (name);
 
 
 --
 -- Name: idx_scopes_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scopes_realm_id ON public.scopes USING btree (realm_id);
+CREATE INDEX idx_scopes_realm_id ON authenc.scopes USING btree (realm_id);
 
 
 --
 -- Name: idx_scopes_resource_server_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_scopes_resource_server_id ON public.scopes USING btree (resource_server_id);
+CREATE INDEX idx_scopes_resource_server_id ON authenc.scopes USING btree (resource_server_id);
 
 
 --
 -- Name: idx_security_event_metrics_attacks; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_security_event_metrics_attacks ON public.captcha_security_event_metrics USING btree (attack_attempts DESC, "timestamp" DESC);
+CREATE INDEX idx_security_event_metrics_attacks ON authenc.captcha_security_event_metrics USING btree (attack_attempts DESC, "timestamp" DESC);
 
 
 --
 -- Name: idx_security_event_metrics_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_security_event_metrics_timestamp ON public.captcha_security_event_metrics USING btree ("timestamp" DESC);
+CREATE INDEX idx_security_event_metrics_timestamp ON authenc.captcha_security_event_metrics USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_service_account_audit_event_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_audit_event_type ON public.service_account_audit_log USING btree (event_type);
+CREATE INDEX idx_service_account_audit_event_type ON authenc.service_account_audit_log USING btree (event_type);
 
 
 --
 -- Name: idx_service_account_audit_performed_by; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_audit_performed_by ON public.service_account_audit_log USING btree (performed_by) WHERE (performed_by IS NOT NULL);
+CREATE INDEX idx_service_account_audit_performed_by ON authenc.service_account_audit_log USING btree (performed_by) WHERE (performed_by IS NOT NULL);
 
 
 --
 -- Name: idx_service_account_audit_sa_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_audit_sa_id ON public.service_account_audit_log USING btree (service_account_id);
+CREATE INDEX idx_service_account_audit_sa_id ON authenc.service_account_audit_log USING btree (service_account_id);
 
 
 --
 -- Name: idx_service_account_audit_success; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_audit_success ON public.service_account_audit_log USING btree (success) WHERE (success = false);
+CREATE INDEX idx_service_account_audit_success ON authenc.service_account_audit_log USING btree (success) WHERE (success = false);
 
 
 --
 -- Name: idx_service_account_audit_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_audit_timestamp ON public.service_account_audit_log USING btree ("timestamp" DESC);
+CREATE INDEX idx_service_account_audit_timestamp ON authenc.service_account_audit_log USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_service_account_roles_granted_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_roles_granted_at ON public.service_account_roles USING btree (granted_at DESC);
+CREATE INDEX idx_service_account_roles_granted_at ON authenc.service_account_roles USING btree (granted_at DESC);
 
 
 --
 -- Name: idx_service_account_roles_role_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_roles_role_id ON public.service_account_roles USING btree (role_id);
+CREATE INDEX idx_service_account_roles_role_id ON authenc.service_account_roles USING btree (role_id);
 
 
 --
 -- Name: idx_service_account_roles_sa_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_account_roles_sa_id ON public.service_account_roles USING btree (service_account_id);
+CREATE INDEX idx_service_account_roles_sa_id ON authenc.service_account_roles USING btree (service_account_id);
 
 
 --
 -- Name: idx_service_accounts_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_accounts_client_id ON public.service_accounts USING btree (client_id) WHERE (enabled = true);
+CREATE INDEX idx_service_accounts_client_id ON authenc.service_accounts USING btree (client_id) WHERE (enabled = true);
 
 
 --
 -- Name: idx_service_accounts_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_accounts_enabled ON public.service_accounts USING btree (enabled);
+CREATE INDEX idx_service_accounts_enabled ON authenc.service_accounts USING btree (enabled);
 
 
 --
 -- Name: idx_service_accounts_last_used; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_accounts_last_used ON public.service_accounts USING btree (last_used_at DESC NULLS LAST) WHERE (enabled = true);
+CREATE INDEX idx_service_accounts_last_used ON authenc.service_accounts USING btree (last_used_at DESC NULLS LAST) WHERE (enabled = true);
 
 
 --
 -- Name: idx_service_accounts_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_accounts_name ON public.service_accounts USING gin (to_tsvector('english'::regconfig, (name)::text));
+CREATE INDEX idx_service_accounts_name ON authenc.service_accounts USING gin (to_tsvector('english'::regconfig, (name)::text));
 
 
 --
 -- Name: idx_service_accounts_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_service_accounts_realm_id ON public.service_accounts USING btree (realm_id) WHERE (enabled = true);
+CREATE INDEX idx_service_accounts_realm_id ON authenc.service_accounts USING btree (realm_id) WHERE (enabled = true);
 
 
 --
 -- Name: idx_sessions_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sessions_expires_at ON public.sessions USING btree (expires_at);
+CREATE INDEX idx_sessions_expires_at ON authenc.sessions USING btree (expires_at);
 
 
 --
 -- Name: idx_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_sessions_user_id ON public.sessions USING btree (user_id);
+CREATE INDEX idx_sessions_user_id ON authenc.sessions USING btree (user_id);
 
 
 --
 -- Name: idx_social_login_configs_oauth; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_social_login_configs_oauth ON public.social_login_configs USING btree (oauth2_config_id);
+CREATE INDEX idx_social_login_configs_oauth ON authenc.social_login_configs USING btree (oauth2_config_id);
 
 
 --
 -- Name: idx_social_login_configs_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_social_login_configs_type ON public.social_login_configs USING btree (provider_type);
+CREATE INDEX idx_social_login_configs_type ON authenc.social_login_configs USING btree (provider_type);
 
 
 --
 -- Name: idx_software_statement_issuers_issuer; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_software_statement_issuers_issuer ON public.software_statement_issuers USING btree (issuer) WHERE (enabled = true);
+CREATE INDEX idx_software_statement_issuers_issuer ON authenc.software_statement_issuers USING btree (issuer) WHERE (enabled = true);
 
 
 --
 -- Name: idx_theme_inheritance_parent_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_inheritance_parent_id ON public.theme_inheritance USING btree (parent_theme_id);
+CREATE INDEX idx_theme_inheritance_parent_id ON authenc.theme_inheritance USING btree (parent_theme_id);
 
 
 --
 -- Name: idx_theme_inheritance_theme_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_inheritance_theme_id ON public.theme_inheritance USING btree (theme_id);
+CREATE INDEX idx_theme_inheritance_theme_id ON authenc.theme_inheritance USING btree (theme_id);
 
 
 --
 -- Name: idx_theme_resources_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_resources_name ON public.theme_resources USING btree (theme_id, resource_name);
+CREATE INDEX idx_theme_resources_name ON authenc.theme_resources USING btree (theme_id, resource_name);
 
 
 --
 -- Name: idx_theme_resources_theme_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_resources_theme_id ON public.theme_resources USING btree (theme_id);
+CREATE INDEX idx_theme_resources_theme_id ON authenc.theme_resources USING btree (theme_id);
 
 
 --
 -- Name: idx_theme_resources_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_resources_type ON public.theme_resources USING btree (resource_type);
+CREATE INDEX idx_theme_resources_type ON authenc.theme_resources USING btree (resource_type);
 
 
 --
 -- Name: idx_theme_templates_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_templates_name ON public.theme_templates USING btree (theme_id, template_name);
+CREATE INDEX idx_theme_templates_name ON authenc.theme_templates USING btree (theme_id, template_name);
 
 
 --
 -- Name: idx_theme_templates_theme_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_templates_theme_id ON public.theme_templates USING btree (theme_id);
+CREATE INDEX idx_theme_templates_theme_id ON authenc.theme_templates USING btree (theme_id);
 
 
 --
 -- Name: idx_theme_templates_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_theme_templates_type ON public.theme_templates USING btree (template_type);
+CREATE INDEX idx_theme_templates_type ON authenc.theme_templates USING btree (template_type);
 
 
 --
 -- Name: idx_token_exchange_actor; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_actor ON public.token_exchange_audit USING btree (actor_id, created_at DESC) WHERE (actor_id IS NOT NULL);
+CREATE INDEX idx_token_exchange_actor ON authenc.token_exchange_audit USING btree (actor_id, created_at DESC) WHERE (actor_id IS NOT NULL);
 
 
 --
 -- Name: idx_token_exchange_audience; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_audience ON public.token_exchange_audit USING btree (audience) WHERE (audience IS NOT NULL);
+CREATE INDEX idx_token_exchange_audience ON authenc.token_exchange_audit USING btree (audience) WHERE (audience IS NOT NULL);
 
 
 --
 -- Name: idx_token_exchange_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_client ON public.token_exchange_audit USING btree (target_client_id, created_at DESC);
+CREATE INDEX idx_token_exchange_client ON authenc.token_exchange_audit USING btree (target_client_id, created_at DESC);
 
 
 --
 -- Name: idx_token_exchange_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_created_at ON public.token_exchange_audit USING btree (created_at DESC);
+CREATE INDEX idx_token_exchange_created_at ON authenc.token_exchange_audit USING btree (created_at DESC);
 
 
 --
 -- Name: idx_token_exchange_metadata; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_metadata ON public.token_exchange_audit USING gin (metadata) WHERE (metadata IS NOT NULL);
+CREATE INDEX idx_token_exchange_metadata ON authenc.token_exchange_audit USING gin (metadata) WHERE (metadata IS NOT NULL);
 
 
 --
 -- Name: idx_token_exchange_subject_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_subject_user ON public.token_exchange_audit USING btree (subject_user_id, created_at DESC);
+CREATE INDEX idx_token_exchange_subject_user ON authenc.token_exchange_audit USING btree (subject_user_id, created_at DESC);
 
 
 --
 -- Name: idx_token_exchange_success; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_token_exchange_success ON public.token_exchange_audit USING btree (success, created_at DESC);
+CREATE INDEX idx_token_exchange_success ON authenc.token_exchange_audit USING btree (success, created_at DESC);
 
 
 --
 -- Name: idx_type_effectiveness_score; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_type_effectiveness_score ON public.captcha_type_effectiveness USING btree (effectiveness_score DESC);
+CREATE INDEX idx_type_effectiveness_score ON authenc.captcha_type_effectiveness USING btree (effectiveness_score DESC);
 
 
 --
 -- Name: idx_type_effectiveness_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_type_effectiveness_type ON public.captcha_type_effectiveness USING btree (challenge_type);
+CREATE INDEX idx_type_effectiveness_type ON authenc.captcha_type_effectiveness USING btree (challenge_type);
 
 
 --
 -- Name: idx_type_effectiveness_updated; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_type_effectiveness_updated ON public.captcha_type_effectiveness USING btree (last_updated DESC);
+CREATE INDEX idx_type_effectiveness_updated ON authenc.captcha_type_effectiveness USING btree (last_updated DESC);
 
 
 --
 -- Name: idx_uma_permission_requests_resource_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_uma_permission_requests_resource_id ON public.uma_permission_requests USING btree (resource_id);
+CREATE INDEX idx_uma_permission_requests_resource_id ON authenc.uma_permission_requests USING btree (resource_id);
 
 
 --
 -- Name: idx_uma_permission_requests_status; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_uma_permission_requests_status ON public.uma_permission_requests USING btree (status);
+CREATE INDEX idx_uma_permission_requests_status ON authenc.uma_permission_requests USING btree (status);
 
 
 --
 -- Name: idx_uma_permission_requests_ticket; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_uma_permission_requests_ticket ON public.uma_permission_requests USING btree (ticket);
+CREATE INDEX idx_uma_permission_requests_ticket ON authenc.uma_permission_requests USING btree (ticket);
 
 
 --
 -- Name: idx_uma_policies_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_uma_policies_realm_id ON public.uma_policies USING btree (realm_id);
+CREATE INDEX idx_uma_policies_realm_id ON authenc.uma_policies USING btree (realm_id);
 
 
 --
 -- Name: idx_uma_policies_resource_server_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_uma_policies_resource_server_id ON public.uma_policies USING btree (resource_server_id);
+CREATE INDEX idx_uma_policies_resource_server_id ON authenc.uma_policies USING btree (resource_server_id);
 
 
 --
 -- Name: idx_user_attributes_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_attributes_name ON public.user_attributes USING btree (name);
+CREATE INDEX idx_user_attributes_name ON authenc.user_attributes USING btree (name);
 
 
 --
 -- Name: idx_user_attributes_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_attributes_user ON public.user_attributes USING btree (user_id);
+CREATE INDEX idx_user_attributes_user ON authenc.user_attributes USING btree (user_id);
 
 
 --
 -- Name: idx_user_consent_scopes_client; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_consent_scopes_client ON public.user_consent_scopes USING btree (client_id);
+CREATE INDEX idx_user_consent_scopes_client ON authenc.user_consent_scopes USING btree (client_id);
 
 
 --
 -- Name: idx_user_consent_scopes_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_consent_scopes_expires ON public.user_consent_scopes USING btree (expires_at) WHERE (expires_at IS NOT NULL);
+CREATE INDEX idx_user_consent_scopes_expires ON authenc.user_consent_scopes USING btree (expires_at) WHERE (expires_at IS NOT NULL);
 
 
 --
 -- Name: idx_user_consent_scopes_scope; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_consent_scopes_scope ON public.user_consent_scopes USING btree (scope_id);
+CREATE INDEX idx_user_consent_scopes_scope ON authenc.user_consent_scopes USING btree (scope_id);
 
 
 --
 -- Name: idx_user_consent_scopes_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_consent_scopes_user ON public.user_consent_scopes USING btree (user_id);
+CREATE INDEX idx_user_consent_scopes_user ON authenc.user_consent_scopes USING btree (user_id);
 
 
 --
 -- Name: idx_user_experience_metrics_satisfaction; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_experience_metrics_satisfaction ON public.captcha_user_experience_metrics USING btree (user_satisfaction_score DESC, "timestamp" DESC);
+CREATE INDEX idx_user_experience_metrics_satisfaction ON authenc.captcha_user_experience_metrics USING btree (user_satisfaction_score DESC, "timestamp" DESC);
 
 
 --
 -- Name: idx_user_experience_metrics_timestamp; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_experience_metrics_timestamp ON public.captcha_user_experience_metrics USING btree ("timestamp" DESC);
+CREATE INDEX idx_user_experience_metrics_timestamp ON authenc.captcha_user_experience_metrics USING btree ("timestamp" DESC);
 
 
 --
 -- Name: idx_user_groups_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_groups_active ON public.user_groups USING btree (user_id, group_id) WHERE (expires_at IS NULL);
+CREATE INDEX idx_user_groups_active ON authenc.user_groups USING btree (user_id, group_id) WHERE (expires_at IS NULL);
 
 
 --
 -- Name: idx_user_groups_group_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_groups_group_id ON public.user_groups USING btree (group_id);
+CREATE INDEX idx_user_groups_group_id ON authenc.user_groups USING btree (group_id);
 
 
 --
 -- Name: idx_user_groups_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_groups_user_id ON public.user_groups USING btree (user_id);
+CREATE INDEX idx_user_groups_user_id ON authenc.user_groups USING btree (user_id);
 
 
 --
 -- Name: idx_user_history_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_history_session_id ON public.captcha_user_history USING btree (session_id) WHERE (session_id IS NOT NULL);
+CREATE INDEX idx_user_history_session_id ON authenc.captcha_user_history USING btree (session_id) WHERE (session_id IS NOT NULL);
 
 
 --
 -- Name: idx_user_history_updated; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_history_updated ON public.captcha_user_history USING btree (updated_at DESC);
+CREATE INDEX idx_user_history_updated ON authenc.captcha_user_history USING btree (updated_at DESC);
 
 
 --
 -- Name: idx_user_history_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_history_user_id ON public.captcha_user_history USING btree (user_id);
+CREATE INDEX idx_user_history_user_id ON authenc.captcha_user_history USING btree (user_id);
 
 
 --
 -- Name: idx_user_policies_policy_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_policies_policy_id ON public.user_policies USING btree (policy_id);
+CREATE INDEX idx_user_policies_policy_id ON authenc.user_policies USING btree (policy_id);
 
 
 --
 -- Name: idx_user_policies_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_policies_user_id ON public.user_policies USING btree (user_id);
+CREATE INDEX idx_user_policies_user_id ON authenc.user_policies USING btree (user_id);
 
 
 --
 -- Name: idx_user_roles_role; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_roles_role ON public.user_roles USING btree (role_id);
+CREATE INDEX idx_user_roles_role ON authenc.user_roles USING btree (role_id);
 
 
 --
 -- Name: idx_user_roles_role_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_roles_role_id ON public.user_roles USING btree (role_id);
+CREATE INDEX idx_user_roles_role_id ON authenc.user_roles USING btree (role_id);
 
 
 --
 -- Name: idx_user_roles_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_roles_user_id ON public.user_roles USING btree (user_id);
+CREATE INDEX idx_user_roles_user_id ON authenc.user_roles USING btree (user_id);
 
 
 --
 -- Name: idx_user_roles_user_role; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_roles_user_role ON public.user_roles USING btree (user_id, role_id);
+CREATE INDEX idx_user_roles_user_role ON authenc.user_roles USING btree (user_id, role_id);
 
 
 --
 -- Name: idx_user_sessions_active; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_active ON public.user_sessions USING btree (user_id, realm_id) WHERE (NOT revoked);
+CREATE INDEX idx_user_sessions_active ON authenc.user_sessions USING btree (user_id, realm_id) WHERE (NOT revoked);
 
 
 --
 -- Name: idx_user_sessions_client_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_client_id ON public.user_sessions USING btree (client_id);
+CREATE INDEX idx_user_sessions_client_id ON authenc.user_sessions USING btree (client_id);
 
 
 --
 -- Name: idx_user_sessions_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_expires ON public.user_sessions USING btree (expires_at);
+CREATE INDEX idx_user_sessions_expires ON authenc.user_sessions USING btree (expires_at);
 
 
 --
 -- Name: idx_user_sessions_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_expires_at ON public.user_sessions USING btree (expires_at) WHERE (NOT revoked);
+CREATE INDEX idx_user_sessions_expires_at ON authenc.user_sessions USING btree (expires_at) WHERE (NOT revoked);
 
 
 --
 -- Name: idx_user_sessions_idle_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_idle_expires_at ON public.user_sessions USING btree (idle_expires_at) WHERE ((NOT revoked) AND (idle_expires_at IS NOT NULL));
+CREATE INDEX idx_user_sessions_idle_expires_at ON authenc.user_sessions USING btree (idle_expires_at) WHERE ((NOT revoked) AND (idle_expires_at IS NOT NULL));
 
 
 --
 -- Name: idx_user_sessions_offline_token_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_offline_token_hash ON public.user_sessions USING btree (offline_token_hash) WHERE (offline_token_hash IS NOT NULL);
+CREATE INDEX idx_user_sessions_offline_token_hash ON authenc.user_sessions USING btree (offline_token_hash) WHERE (offline_token_hash IS NOT NULL);
 
 
 --
 -- Name: idx_user_sessions_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_realm_id ON public.user_sessions USING btree (realm_id);
+CREATE INDEX idx_user_sessions_realm_id ON authenc.user_sessions USING btree (realm_id);
 
 
 --
 -- Name: idx_user_sessions_refresh_token_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_refresh_token_hash ON public.user_sessions USING btree (refresh_token_hash) WHERE (refresh_token_hash IS NOT NULL);
+CREATE INDEX idx_user_sessions_refresh_token_hash ON authenc.user_sessions USING btree (refresh_token_hash) WHERE (refresh_token_hash IS NOT NULL);
 
 
 --
 -- Name: idx_user_sessions_session_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_session_id ON public.user_sessions USING btree (session_id);
+CREATE INDEX idx_user_sessions_session_id ON authenc.user_sessions USING btree (session_id);
 
 
 --
 -- Name: idx_user_sessions_token_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_token_hash ON public.user_sessions USING btree (token_hash);
+CREATE INDEX idx_user_sessions_token_hash ON authenc.user_sessions USING btree (token_hash);
 
 
 --
 -- Name: idx_user_sessions_user_expires; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_user_expires ON public.user_sessions USING btree (user_id, expires_at) WHERE (NOT revoked);
+CREATE INDEX idx_user_sessions_user_expires ON authenc.user_sessions USING btree (user_id, expires_at) WHERE (NOT revoked);
 
 
 --
 -- Name: INDEX idx_user_sessions_user_expires; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_user_sessions_user_expires IS 'Improves active session queries';
+COMMENT ON INDEX authenc.idx_user_sessions_user_expires IS 'Improves active session queries';
 
 
 --
 -- Name: idx_user_sessions_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_sessions_user_id ON public.user_sessions USING btree (user_id);
+CREATE INDEX idx_user_sessions_user_id ON authenc.user_sessions USING btree (user_id);
 
 
 --
 -- Name: idx_user_type_perf_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_type_perf_type ON public.captcha_user_type_performance USING btree (challenge_type, success_rate DESC);
+CREATE INDEX idx_user_type_perf_type ON authenc.captcha_user_type_performance USING btree (challenge_type, success_rate DESC);
 
 
 --
 -- Name: idx_user_type_perf_updated; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_type_perf_updated ON public.captcha_user_type_performance USING btree (updated_at DESC);
+CREATE INDEX idx_user_type_perf_updated ON authenc.captcha_user_type_performance USING btree (updated_at DESC);
 
 
 --
 -- Name: idx_user_type_perf_user; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_user_type_perf_user ON public.captcha_user_type_performance USING btree (user_id, success_rate DESC);
+CREATE INDEX idx_user_type_perf_user ON authenc.captcha_user_type_performance USING btree (user_id, success_rate DESC);
 
 
 --
 -- Name: idx_users_account_locked; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_account_locked ON public.users USING btree (account_locked) WHERE (account_locked = true);
+CREATE INDEX idx_users_account_locked ON authenc.users USING btree (account_locked) WHERE (account_locked = true);
 
 
 --
 -- Name: idx_users_email; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_email ON public.users USING btree (email) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_users_email ON authenc.users USING btree (email) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: INDEX idx_users_email; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_email IS 'Improves user lookup by email (authentication)';
+COMMENT ON INDEX authenc.idx_users_email IS 'Improves user lookup by email (authentication)';
 
 
 --
 -- Name: idx_users_email_mfa_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_email_mfa_enabled ON public.users USING btree (email, mfa_enabled);
+CREATE INDEX idx_users_email_mfa_enabled ON authenc.users USING btree (email, mfa_enabled);
 
 
 --
 -- Name: idx_users_email_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_users_email_unique ON public.users USING btree (email) WHERE (deleted_at IS NULL);
+CREATE UNIQUE INDEX idx_users_email_unique ON authenc.users USING btree (email) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_users_mfa_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_enabled ON public.users USING btree (mfa_enabled);
+CREATE INDEX idx_users_mfa_enabled ON authenc.users USING btree (mfa_enabled);
 
 
 --
 -- Name: idx_users_mfa_enabled_last_used; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_enabled_last_used ON public.users USING btree (mfa_enabled, mfa_last_used) WHERE (mfa_enabled = true);
+CREATE INDEX idx_users_mfa_enabled_last_used ON authenc.users USING btree (mfa_enabled, mfa_last_used) WHERE (mfa_enabled = true);
 
 
 --
 -- Name: INDEX idx_users_mfa_enabled_last_used; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_mfa_enabled_last_used IS 'Composite index for MFA-enabled users with last used timestamp';
+COMMENT ON INDEX authenc.idx_users_mfa_enabled_last_used IS 'Composite index for MFA-enabled users with last used timestamp';
 
 
 --
 -- Name: idx_users_mfa_enabled_setup_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_enabled_setup_at ON public.users USING btree (mfa_enabled, mfa_setup_at) WHERE (mfa_enabled = true);
+CREATE INDEX idx_users_mfa_enabled_setup_at ON authenc.users USING btree (mfa_enabled, mfa_setup_at) WHERE (mfa_enabled = true);
 
 
 --
 -- Name: INDEX idx_users_mfa_enabled_setup_at; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_mfa_enabled_setup_at IS 'Composite index for MFA-enabled users with setup timestamp';
+COMMENT ON INDEX authenc.idx_users_mfa_enabled_setup_at IS 'Composite index for MFA-enabled users with setup timestamp';
 
 
 --
 -- Name: idx_users_mfa_last_used; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_last_used ON public.users USING btree (mfa_last_used);
+CREATE INDEX idx_users_mfa_last_used ON authenc.users USING btree (mfa_last_used);
 
 
 --
 -- Name: idx_users_mfa_recent_activity; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_recent_activity ON public.users USING btree (mfa_last_used DESC) WHERE ((mfa_enabled = true) AND (mfa_last_used IS NOT NULL));
+CREATE INDEX idx_users_mfa_recent_activity ON authenc.users USING btree (mfa_last_used DESC) WHERE ((mfa_enabled = true) AND (mfa_last_used IS NOT NULL));
 
 
 --
 -- Name: INDEX idx_users_mfa_recent_activity; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_mfa_recent_activity IS 'Index for finding recently active MFA users';
+COMMENT ON INDEX authenc.idx_users_mfa_recent_activity IS 'Index for finding recently active MFA users';
 
 
 --
 -- Name: idx_users_mfa_setup_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_setup_at ON public.users USING btree (mfa_setup_at);
+CREATE INDEX idx_users_mfa_setup_at ON authenc.users USING btree (mfa_setup_at);
 
 
 --
 -- Name: idx_users_mfa_setup_required; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_mfa_setup_required ON public.users USING btree (mfa_enabled, mfa_setup_at) WHERE ((mfa_enabled = true) AND (mfa_setup_at IS NULL));
+CREATE INDEX idx_users_mfa_setup_required ON authenc.users USING btree (mfa_enabled, mfa_setup_at) WHERE ((mfa_enabled = true) AND (mfa_setup_at IS NULL));
 
 
 --
 -- Name: INDEX idx_users_mfa_setup_required; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_mfa_setup_required IS 'Partial index for users requiring MFA setup';
+COMMENT ON INDEX authenc.idx_users_mfa_setup_required IS 'Partial index for users requiring MFA setup';
 
 
 --
 -- Name: idx_users_nama; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_nama ON public.users USING btree (nama) WHERE ((nama IS NOT NULL) AND (deleted_at IS NULL));
+CREATE INDEX idx_users_nama ON authenc.users USING btree (nama) WHERE ((nama IS NOT NULL) AND (deleted_at IS NULL));
 
 
 --
 -- Name: idx_users_nip; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_nip ON public.users USING btree (nip) WHERE ((nip IS NOT NULL) AND (deleted_at IS NULL));
+CREATE INDEX idx_users_nip ON authenc.users USING btree (nip) WHERE ((nip IS NOT NULL) AND (deleted_at IS NULL));
 
 
 --
 -- Name: idx_users_organization_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_organization_id ON public.users USING btree (organization_id) WHERE ((organization_id IS NOT NULL) AND (deleted_at IS NULL));
+CREATE INDEX idx_users_organization_id ON authenc.users USING btree (organization_id) WHERE ((organization_id IS NOT NULL) AND (deleted_at IS NULL));
 
 
 --
 -- Name: idx_users_realm_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_realm_id ON public.users USING btree (realm_id) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_users_realm_id ON authenc.users USING btree (realm_id) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_users_realm_satker; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_realm_satker ON public.users USING btree (realm_id, satker_code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_users_realm_satker ON authenc.users USING btree (realm_id, satker_code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: INDEX idx_users_realm_satker; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_realm_satker IS 'Composite index for realm + satker filtering';
+COMMENT ON INDEX authenc.idx_users_realm_satker IS 'Composite index for realm + satker filtering';
 
 
 --
 -- Name: idx_users_require_mfa_setup; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_require_mfa_setup ON public.users USING btree (require_mfa_setup) WHERE (require_mfa_setup = true);
+CREATE INDEX idx_users_require_mfa_setup ON authenc.users USING btree (require_mfa_setup) WHERE (require_mfa_setup = true);
 
 
 --
 -- Name: idx_users_satker_code; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_satker_code ON public.users USING btree (satker_code) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_users_satker_code ON authenc.users USING btree (satker_code) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: INDEX idx_users_satker_code; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_satker_code IS 'Improves user filtering by organizational unit';
+COMMENT ON INDEX authenc.idx_users_satker_code IS 'Improves user filtering by organizational unit';
 
 
 --
 -- Name: idx_users_satker_mfa_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_satker_mfa_enabled ON public.users USING btree (satker_code, mfa_enabled);
+CREATE INDEX idx_users_satker_mfa_enabled ON authenc.users USING btree (satker_code, mfa_enabled);
 
 
 --
 -- Name: INDEX idx_users_satker_mfa_enabled; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_satker_mfa_enabled IS 'Index for satker-based MFA reporting';
+COMMENT ON INDEX authenc.idx_users_satker_mfa_enabled IS 'Index for satker-based MFA reporting';
 
 
 --
 -- Name: idx_users_username; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_username ON public.users USING btree (username) WHERE (deleted_at IS NULL);
+CREATE INDEX idx_users_username ON authenc.users USING btree (username) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: INDEX idx_users_username; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_username IS 'Improves user lookup by username (authentication)';
+COMMENT ON INDEX authenc.idx_users_username IS 'Improves user lookup by username (authentication)';
 
 
 --
 -- Name: idx_users_username_mfa_enabled; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_users_username_mfa_enabled ON public.users USING btree (username, mfa_enabled);
+CREATE INDEX idx_users_username_mfa_enabled ON authenc.users USING btree (username, mfa_enabled);
 
 
 --
 -- Name: INDEX idx_users_username_mfa_enabled; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON INDEX public.idx_users_username_mfa_enabled IS 'Composite index for authentication flow optimization';
+COMMENT ON INDEX authenc.idx_users_username_mfa_enabled IS 'Composite index for authentication flow optimization';
 
 
 --
 -- Name: idx_users_username_unique; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_users_username_unique ON public.users USING btree (username) WHERE (deleted_at IS NULL);
+CREATE UNIQUE INDEX idx_users_username_unique ON authenc.users USING btree (username) WHERE (deleted_at IS NULL);
 
 
 --
 -- Name: idx_validation_attempts_challenge; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_validation_attempts_challenge ON public.captcha_validation_attempts USING btree (challenge_id, created_at DESC);
+CREATE INDEX idx_validation_attempts_challenge ON authenc.captcha_validation_attempts USING btree (challenge_id, created_at DESC);
 
 
 --
 -- Name: idx_validation_attempts_ip; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_validation_attempts_ip ON public.captcha_validation_attempts USING btree (ip_address, created_at DESC);
+CREATE INDEX idx_validation_attempts_ip ON authenc.captcha_validation_attempts USING btree (ip_address, created_at DESC);
 
 
 --
 -- Name: idx_validation_attempts_risk; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_validation_attempts_risk ON public.captcha_validation_attempts USING btree (risk_assessment, created_at DESC);
+CREATE INDEX idx_validation_attempts_risk ON authenc.captcha_validation_attempts USING btree (risk_assessment, created_at DESC);
 
 
 --
 -- Name: idx_validation_attempts_success; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_validation_attempts_success ON public.captcha_validation_attempts USING btree (success, created_at DESC);
+CREATE INDEX idx_validation_attempts_success ON authenc.captcha_validation_attempts USING btree (success, created_at DESC);
 
 
 --
 -- Name: idx_webauthn_audit_log_credential_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_audit_log_credential_id ON public.webauthn_audit_log USING btree (credential_id) WHERE (credential_id IS NOT NULL);
+CREATE INDEX idx_webauthn_audit_log_credential_id ON authenc.webauthn_audit_log USING btree (credential_id) WHERE (credential_id IS NOT NULL);
 
 
 --
 -- Name: idx_webauthn_audit_log_event_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_audit_log_event_type ON public.webauthn_audit_log USING btree (event_type, created_at DESC);
+CREATE INDEX idx_webauthn_audit_log_event_type ON authenc.webauthn_audit_log USING btree (event_type, created_at DESC);
 
 
 --
 -- Name: idx_webauthn_audit_log_user_id_created_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_audit_log_user_id_created_at ON public.webauthn_audit_log USING btree (user_id, created_at DESC);
+CREATE INDEX idx_webauthn_audit_log_user_id_created_at ON authenc.webauthn_audit_log USING btree (user_id, created_at DESC);
 
 
 --
 -- Name: idx_webauthn_challenges_expires_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_challenges_expires_at ON public.webauthn_challenges USING btree (expires_at) WHERE (used = false);
+CREATE INDEX idx_webauthn_challenges_expires_at ON authenc.webauthn_challenges USING btree (expires_at) WHERE (used = false);
 
 
 --
 -- Name: idx_webauthn_challenges_user_id_type; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_challenges_user_id_type ON public.webauthn_challenges USING btree (user_id, challenge_type, used, expires_at);
+CREATE INDEX idx_webauthn_challenges_user_id_type ON authenc.webauthn_challenges USING btree (user_id, challenge_type, used, expires_at);
 
 
 --
 -- Name: idx_webauthn_credentials_aaguid; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_aaguid ON public.webauthn_credentials_old USING btree (aaguid) WHERE (aaguid IS NOT NULL);
+CREATE INDEX idx_webauthn_credentials_aaguid ON authenc.webauthn_credentials_old USING btree (aaguid) WHERE (aaguid IS NOT NULL);
 
 
 --
 -- Name: idx_webauthn_credentials_attestation_format; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_attestation_format ON public.webauthn_credentials_old USING btree (attestation_format) WHERE (attestation_format IS NOT NULL);
+CREATE INDEX idx_webauthn_credentials_attestation_format ON authenc.webauthn_credentials_old USING btree (attestation_format) WHERE (attestation_format IS NOT NULL);
 
 
 --
 -- Name: idx_webauthn_credentials_backup_flags; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_backup_flags ON public.webauthn_credentials_old USING btree (backup_eligible, backup_state);
+CREATE INDEX idx_webauthn_credentials_backup_flags ON authenc.webauthn_credentials_old USING btree (backup_eligible, backup_state);
 
 
 --
 -- Name: idx_webauthn_credentials_cred_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_cred_id ON public.webauthn_credentials USING btree (cred_id);
+CREATE INDEX idx_webauthn_credentials_cred_id ON authenc.webauthn_credentials USING btree (cred_id);
 
 
 --
 -- Name: idx_webauthn_credentials_credential_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_credential_id ON public.webauthn_credentials_old USING btree (credential_id);
+CREATE INDEX idx_webauthn_credentials_credential_id ON authenc.webauthn_credentials_old USING btree (credential_id);
 
 
 --
 -- Name: idx_webauthn_credentials_last_used; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_last_used ON public.webauthn_credentials USING btree (last_used DESC NULLS LAST);
+CREATE INDEX idx_webauthn_credentials_last_used ON authenc.webauthn_credentials USING btree (last_used DESC NULLS LAST);
 
 
 --
 -- Name: idx_webauthn_credentials_user_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webauthn_credentials_user_id ON public.webauthn_credentials USING btree (user_id);
+CREATE INDEX idx_webauthn_credentials_user_id ON authenc.webauthn_credentials USING btree (user_id);
 
 
 --
 -- Name: idx_webhooks_listener; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webhooks_listener ON public.event_webhooks USING btree (listener_id);
+CREATE INDEX idx_webhooks_listener ON authenc.event_webhooks USING btree (listener_id);
 
 
 --
 -- Name: idx_webhooks_realm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_webhooks_realm ON public.event_webhooks USING btree (realm_id);
+CREATE INDEX idx_webhooks_realm ON authenc.event_webhooks USING btree (realm_id);
 
 
 --
 -- Name: v_client_policies_with_profiles _RETURN; Type: RULE; Schema: public; Owner: -
 --
 
-CREATE OR REPLACE VIEW public.v_client_policies_with_profiles AS
+CREATE OR REPLACE VIEW authenc.v_client_policies_with_profiles AS
  SELECT cp.id,
     cp.realm_id,
     cp.name,
@@ -10531,8 +10533,8 @@ CREATE OR REPLACE VIEW public.v_client_policies_with_profiles AS
     cp.updated_at,
     cp.created_by,
     COALESCE(json_agg(json_build_object('profile_id', prof.id, 'profile_name', prof.name, 'profile_type', prof.profile_type)) FILTER (WHERE (prof.id IS NOT NULL)), '[]'::json) AS applied_profiles
-   FROM (public.client_policies cp
-     LEFT JOIN public.client_profiles prof ON ((cp.id = ANY (prof.policy_ids))))
+   FROM (authenc.client_policies cp
+     LEFT JOIN authenc.client_profiles prof ON ((cp.id = ANY (prof.policy_ids))))
   GROUP BY cp.id;
 
 
@@ -10540,7 +10542,7 @@ CREATE OR REPLACE VIEW public.v_client_policies_with_profiles AS
 -- Name: v_client_profile_usage _RETURN; Type: RULE; Schema: public; Owner: -
 --
 
-CREATE OR REPLACE VIEW public.v_client_profile_usage AS
+CREATE OR REPLACE VIEW authenc.v_client_profile_usage AS
  SELECT prof.id AS profile_id,
     prof.realm_id,
     prof.name AS profile_name,
@@ -10548,8 +10550,8 @@ CREATE OR REPLACE VIEW public.v_client_profile_usage AS
     prof.is_builtin,
     count(DISTINCT cpa.client_id) AS assigned_clients,
     array_length(prof.policy_ids, 1) AS policy_count
-   FROM (public.client_profiles prof
-     LEFT JOIN public.client_policy_assignments cpa ON (((cpa.profile_id = prof.id) AND (cpa.enabled = true))))
+   FROM (authenc.client_profiles prof
+     LEFT JOIN authenc.client_policy_assignments cpa ON (((cpa.profile_id = prof.id) AND (cpa.enabled = true))))
   GROUP BY prof.id;
 
 
@@ -10557,7 +10559,7 @@ CREATE OR REPLACE VIEW public.v_client_profile_usage AS
 -- Name: v_client_profiles_with_policies _RETURN; Type: RULE; Schema: public; Owner: -
 --
 
-CREATE OR REPLACE VIEW public.v_client_profiles_with_policies AS
+CREATE OR REPLACE VIEW authenc.v_client_profiles_with_policies AS
  SELECT prof.id,
     prof.realm_id,
     prof.name,
@@ -10570,8 +10572,8 @@ CREATE OR REPLACE VIEW public.v_client_profiles_with_policies AS
     prof.updated_at,
     prof.created_by,
     COALESCE(json_agg(json_build_object('policy_id', cp.id, 'policy_name', cp.name, 'policy_type', cp.policy_type, 'priority', cp.priority, 'enabled', cp.enabled) ORDER BY cp.priority DESC) FILTER (WHERE (cp.id IS NOT NULL)), '[]'::json) AS policies
-   FROM (public.client_profiles prof
-     LEFT JOIN public.client_policies cp ON ((cp.id = ANY (prof.policy_ids))))
+   FROM (authenc.client_profiles prof
+     LEFT JOIN authenc.client_policies cp ON ((cp.id = ANY (prof.policy_ids))))
   GROUP BY prof.id;
 
 
@@ -10579,294 +10581,294 @@ CREATE OR REPLACE VIEW public.v_client_profiles_with_policies AS
 -- Name: groups trg_prevent_circular_groups; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_prevent_circular_groups BEFORE INSERT OR UPDATE OF parent_id ON public.groups FOR EACH ROW EXECUTE FUNCTION public.prevent_circular_groups();
+CREATE TRIGGER trg_prevent_circular_groups BEFORE INSERT OR UPDATE OF parent_id ON authenc.groups FOR EACH ROW EXECUTE FUNCTION authenc.prevent_circular_groups();
 
 
 --
 -- Name: groups trg_update_child_group_paths; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_update_child_group_paths AFTER UPDATE OF path ON public.groups FOR EACH ROW WHEN ((old.path IS DISTINCT FROM new.path)) EXECUTE FUNCTION public.update_child_group_paths();
+CREATE TRIGGER trg_update_child_group_paths AFTER UPDATE OF path ON authenc.groups FOR EACH ROW WHEN ((old.path IS DISTINCT FROM new.path)) EXECUTE FUNCTION authenc.update_child_group_paths();
 
 
 --
 -- Name: groups trg_update_group_path; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_update_group_path BEFORE INSERT OR UPDATE OF name, parent_id ON public.groups FOR EACH ROW EXECUTE FUNCTION public.update_group_path();
+CREATE TRIGGER trg_update_group_path BEFORE INSERT OR UPDATE OF name, parent_id ON authenc.groups FOR EACH ROW EXECUTE FUNCTION authenc.update_group_path();
 
 
 --
 -- Name: service_accounts trigger_audit_service_account_changes; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_audit_service_account_changes AFTER INSERT OR DELETE OR UPDATE ON public.service_accounts FOR EACH ROW EXECUTE FUNCTION public.audit_service_account_changes();
+CREATE TRIGGER trigger_audit_service_account_changes AFTER INSERT OR DELETE OR UPDATE ON authenc.service_accounts FOR EACH ROW EXECUTE FUNCTION authenc.audit_service_account_changes();
 
 
 --
 -- Name: service_account_roles trigger_audit_service_account_role_changes; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_audit_service_account_role_changes AFTER INSERT OR DELETE ON public.service_account_roles FOR EACH ROW EXECUTE FUNCTION public.audit_service_account_role_changes();
+CREATE TRIGGER trigger_audit_service_account_role_changes AFTER INSERT OR DELETE ON authenc.service_account_roles FOR EACH ROW EXECUTE FUNCTION authenc.audit_service_account_role_changes();
 
 
 --
 -- Name: captcha_challenges trigger_captcha_analytics_refresh; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_captcha_analytics_refresh AFTER INSERT OR DELETE OR UPDATE ON public.captcha_challenges FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_refresh_captcha_analytics();
+CREATE TRIGGER trigger_captcha_analytics_refresh AFTER INSERT OR DELETE OR UPDATE ON authenc.captcha_challenges FOR EACH STATEMENT EXECUTE FUNCTION authenc.trigger_refresh_captcha_analytics();
 
 
 --
 -- Name: client_policies trigger_client_policies_updated; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_client_policies_updated BEFORE UPDATE ON public.client_policies FOR EACH ROW EXECUTE FUNCTION public.update_client_policy_timestamp();
+CREATE TRIGGER trigger_client_policies_updated BEFORE UPDATE ON authenc.client_policies FOR EACH ROW EXECUTE FUNCTION authenc.update_client_policy_timestamp();
 
 
 --
 -- Name: client_profiles trigger_client_profiles_updated; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_client_profiles_updated BEFORE UPDATE ON public.client_profiles FOR EACH ROW EXECUTE FUNCTION public.update_client_policy_timestamp();
+CREATE TRIGGER trigger_client_profiles_updated BEFORE UPDATE ON authenc.client_profiles FOR EACH ROW EXECUTE FUNCTION authenc.update_client_policy_timestamp();
 
 
 --
 -- Name: users trigger_password_history; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_password_history BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.add_password_to_history();
+CREATE TRIGGER trigger_password_history BEFORE UPDATE ON authenc.users FOR EACH ROW EXECUTE FUNCTION authenc.add_password_to_history();
 
 
 --
 -- Name: satkers trigger_satkers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_satkers_updated_at BEFORE UPDATE ON public.satkers FOR EACH ROW EXECUTE FUNCTION public.update_satker_updated_at();
+CREATE TRIGGER trigger_satkers_updated_at BEFORE UPDATE ON authenc.satkers FOR EACH ROW EXECUTE FUNCTION authenc.update_satker_updated_at();
 
 
 --
 -- Name: client_scopes trigger_update_client_scopes_timestamp; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_update_client_scopes_timestamp BEFORE UPDATE ON public.client_scopes FOR EACH ROW EXECUTE FUNCTION public.update_client_scopes_timestamp();
+CREATE TRIGGER trigger_update_client_scopes_timestamp BEFORE UPDATE ON authenc.client_scopes FOR EACH ROW EXECUTE FUNCTION authenc.update_client_scopes_timestamp();
 
 
 --
 -- Name: service_accounts trigger_update_service_account_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_update_service_account_updated_at BEFORE UPDATE ON public.service_accounts FOR EACH ROW EXECUTE FUNCTION public.update_service_account_updated_at();
+CREATE TRIGGER trigger_update_service_account_updated_at BEFORE UPDATE ON authenc.service_accounts FOR EACH ROW EXECUTE FUNCTION authenc.update_service_account_updated_at();
 
 
 --
 -- Name: users trigger_users_mfa_stats_refresh; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trigger_users_mfa_stats_refresh AFTER INSERT OR DELETE OR UPDATE OF mfa_enabled, mfa_setup_at, mfa_last_used ON public.users FOR EACH STATEMENT EXECUTE FUNCTION public.trigger_refresh_mfa_statistics();
+CREATE TRIGGER trigger_users_mfa_stats_refresh AFTER INSERT OR DELETE OR UPDATE OF mfa_enabled, mfa_setup_at, mfa_last_used ON authenc.users FOR EACH STATEMENT EXECUTE FUNCTION authenc.trigger_refresh_mfa_statistics();
 
 
 --
 -- Name: access_levels update_access_levels_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_access_levels_updated_at BEFORE UPDATE ON public.access_levels FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_access_levels_updated_at BEFORE UPDATE ON authenc.access_levels FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: admin_level_types update_admin_level_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_admin_level_types_updated_at BEFORE UPDATE ON public.admin_level_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_admin_level_types_updated_at BEFORE UPDATE ON authenc.admin_level_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: authorization_policies update_authorization_policies_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_authorization_policies_updated_at BEFORE UPDATE ON public.authorization_policies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_authorization_policies_updated_at BEFORE UPDATE ON authenc.authorization_policies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: capabilities update_capabilities_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_capabilities_updated_at BEFORE UPDATE ON public.capabilities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_capabilities_updated_at BEFORE UPDATE ON authenc.capabilities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: credential_types update_credential_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_credential_types_updated_at BEFORE UPDATE ON public.credential_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_credential_types_updated_at BEFORE UPDATE ON authenc.credential_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: devices update_devices_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_devices_updated_at BEFORE UPDATE ON public.devices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_devices_updated_at BEFORE UPDATE ON authenc.devices FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: federated_identities update_federated_identities_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_federated_identities_updated_at BEFORE UPDATE ON public.federated_identities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_federated_identities_updated_at BEFORE UPDATE ON authenc.federated_identities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: identity_provider_mappers update_identity_provider_mappers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_identity_provider_mappers_updated_at BEFORE UPDATE ON public.identity_provider_mappers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_identity_provider_mappers_updated_at BEFORE UPDATE ON authenc.identity_provider_mappers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: identity_providers update_identity_providers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_identity_providers_updated_at BEFORE UPDATE ON public.identity_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_identity_providers_updated_at BEFORE UPDATE ON authenc.identity_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: oauth2_clients update_oauth2_clients_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_oauth2_clients_updated_at BEFORE UPDATE ON public.oauth2_clients FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_oauth2_clients_updated_at BEFORE UPDATE ON authenc.oauth2_clients FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: organization_members update_organization_members_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_organization_members_updated_at BEFORE UPDATE ON public.organization_members FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_organization_members_updated_at BEFORE UPDATE ON authenc.organization_members FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: organizations update_organizations_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_organizations_updated_at BEFORE UPDATE ON authenc.organizations FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: permission_tickets update_permission_tickets_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_permission_tickets_updated_at BEFORE UPDATE ON public.permission_tickets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_permission_tickets_updated_at BEFORE UPDATE ON authenc.permission_tickets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: realms update_realms_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_realms_updated_at BEFORE UPDATE ON public.realms FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_realms_updated_at BEFORE UPDATE ON authenc.realms FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: resource_servers update_resource_servers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_resource_servers_updated_at BEFORE UPDATE ON public.resource_servers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_resource_servers_updated_at BEFORE UPDATE ON authenc.resource_servers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: resources update_resources_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON public.resources FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON authenc.resources FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: role_types update_role_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_role_types_updated_at BEFORE UPDATE ON public.role_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_role_types_updated_at BEFORE UPDATE ON authenc.role_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: roles update_roles_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON public.roles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_roles_updated_at BEFORE UPDATE ON authenc.roles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: saml_identity_providers update_saml_identity_providers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_saml_identity_providers_updated_at BEFORE UPDATE ON public.saml_identity_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_saml_identity_providers_updated_at BEFORE UPDATE ON authenc.saml_identity_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: saml_service_providers update_saml_service_providers_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_saml_service_providers_updated_at BEFORE UPDATE ON public.saml_service_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_saml_service_providers_updated_at BEFORE UPDATE ON authenc.saml_service_providers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: satker_types update_satker_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_satker_types_updated_at BEFORE UPDATE ON public.satker_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_satker_types_updated_at BEFORE UPDATE ON authenc.satker_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: scope_types update_scope_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_scope_types_updated_at BEFORE UPDATE ON public.scope_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_scope_types_updated_at BEFORE UPDATE ON authenc.scope_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: scopes update_scopes_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_scopes_updated_at BEFORE UPDATE ON public.scopes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_scopes_updated_at BEFORE UPDATE ON authenc.scopes FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: social_accounts update_social_accounts_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_social_accounts_updated_at BEFORE UPDATE ON public.social_accounts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_social_accounts_updated_at BEFORE UPDATE ON authenc.social_accounts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: theme_types update_theme_types_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_theme_types_updated_at BEFORE UPDATE ON public.theme_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_theme_types_updated_at BEFORE UPDATE ON authenc.theme_types FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: uma_permission_requests update_uma_permission_requests_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_uma_permission_requests_updated_at BEFORE UPDATE ON public.uma_permission_requests FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_uma_permission_requests_updated_at BEFORE UPDATE ON authenc.uma_permission_requests FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: uma_policies update_uma_policies_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_uma_policies_updated_at BEFORE UPDATE ON public.uma_policies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_uma_policies_updated_at BEFORE UPDATE ON authenc.uma_policies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: users update_users_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON authenc.users FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
 -- Name: webauthn_credentials_old update_webauthn_credentials_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_webauthn_credentials_updated_at BEFORE UPDATE ON public.webauthn_credentials_old FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+CREATE TRIGGER update_webauthn_credentials_updated_at BEFORE UPDATE ON authenc.webauthn_credentials_old FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
 
 --
@@ -10874,7 +10876,7 @@ CREATE TRIGGER update_webauthn_credentials_updated_at BEFORE UPDATE ON public.we
 --
 
 ALTER TABLE ONLY authenc.mfa_backup_codes
-    ADD CONSTRAINT mfa_backup_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT mfa_backup_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
@@ -10882,1607 +10884,1607 @@ ALTER TABLE ONLY authenc.mfa_backup_codes
 --
 
 ALTER TABLE ONLY authenc.totp_secrets
-    ADD CONSTRAINT totp_secrets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+    ADD CONSTRAINT totp_secrets_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: access_levels access_levels_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.access_levels
-    ADD CONSTRAINT access_levels_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.access_levels
+    ADD CONSTRAINT access_levels_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: account_linking_requests account_linking_requests_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.account_linking_requests
-    ADD CONSTRAINT account_linking_requests_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.account_linking_requests
+    ADD CONSTRAINT account_linking_requests_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: account_linking_requests account_linking_requests_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.account_linking_requests
-    ADD CONSTRAINT account_linking_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.account_linking_requests
+    ADD CONSTRAINT account_linking_requests_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_audit_log admin_audit_log_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_audit_log
-    ADD CONSTRAINT admin_audit_log_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.admin_audit_log
+    ADD CONSTRAINT admin_audit_log_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: admin_audit_log admin_audit_log_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_audit_log
-    ADD CONSTRAINT admin_audit_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_audit_log
+    ADD CONSTRAINT admin_audit_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_console_preferences admin_console_preferences_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_preferences
-    ADD CONSTRAINT admin_console_preferences_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_console_preferences
+    ADD CONSTRAINT admin_console_preferences_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_console_preferences admin_console_preferences_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_preferences
-    ADD CONSTRAINT admin_console_preferences_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_console_preferences
+    ADD CONSTRAINT admin_console_preferences_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_console_sessions admin_console_sessions_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_sessions
-    ADD CONSTRAINT admin_console_sessions_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_console_sessions
+    ADD CONSTRAINT admin_console_sessions_admin_user_id_fkey FOREIGN KEY (admin_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_console_sessions admin_console_sessions_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_console_sessions
-    ADD CONSTRAINT admin_console_sessions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_console_sessions
+    ADD CONSTRAINT admin_console_sessions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_dashboard_metrics admin_dashboard_metrics_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_dashboard_metrics
-    ADD CONSTRAINT admin_dashboard_metrics_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_dashboard_metrics
+    ADD CONSTRAINT admin_dashboard_metrics_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_level_types admin_level_types_parent_level_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_level_types
-    ADD CONSTRAINT admin_level_types_parent_level_id_fkey FOREIGN KEY (parent_level_id) REFERENCES public.admin_level_types(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.admin_level_types
+    ADD CONSTRAINT admin_level_types_parent_level_id_fkey FOREIGN KEY (parent_level_id) REFERENCES authenc.admin_level_types(id) ON DELETE SET NULL;
 
 
 --
 -- Name: admin_level_types admin_level_types_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_level_types
-    ADD CONSTRAINT admin_level_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_level_types
+    ADD CONSTRAINT admin_level_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_notifications admin_notifications_read_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_notifications
-    ADD CONSTRAINT admin_notifications_read_by_user_id_fkey FOREIGN KEY (read_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.admin_notifications
+    ADD CONSTRAINT admin_notifications_read_by_user_id_fkey FOREIGN KEY (read_by_user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: admin_notifications admin_notifications_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_notifications
-    ADD CONSTRAINT admin_notifications_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_notifications
+    ADD CONSTRAINT admin_notifications_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: admin_notifications admin_notifications_target_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.admin_notifications
-    ADD CONSTRAINT admin_notifications_target_admin_user_id_fkey FOREIGN KEY (target_admin_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.admin_notifications
+    ADD CONSTRAINT admin_notifications_target_admin_user_id_fkey FOREIGN KEY (target_admin_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: audit_integrity_failures audit_integrity_failures_check_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_integrity_failures
-    ADD CONSTRAINT audit_integrity_failures_check_id_fkey FOREIGN KEY (check_id) REFERENCES public.audit_integrity_checks(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.audit_integrity_failures
+    ADD CONSTRAINT audit_integrity_failures_check_id_fkey FOREIGN KEY (check_id) REFERENCES authenc.audit_integrity_checks(id) ON DELETE CASCADE;
 
 
 --
 -- Name: audit_logs audit_logs_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT audit_logs_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.audit_logs
+    ADD CONSTRAINT audit_logs_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE SET NULL;
 
 
 --
 -- Name: audit_logs audit_logs_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT audit_logs_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.user_sessions(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.audit_logs
+    ADD CONSTRAINT audit_logs_session_id_fkey FOREIGN KEY (session_id) REFERENCES authenc.user_sessions(id) ON DELETE SET NULL;
 
 
 --
 -- Name: audit_logs audit_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.audit_logs
-    ADD CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.audit_logs
+    ADD CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: authentication_executions authentication_executions_flow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_executions
-    ADD CONSTRAINT authentication_executions_flow_id_fkey FOREIGN KEY (flow_id) REFERENCES public.authentication_flows(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authentication_executions
+    ADD CONSTRAINT authentication_executions_flow_id_fkey FOREIGN KEY (flow_id) REFERENCES authenc.authentication_flows(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authentication_sessions authentication_sessions_flow_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authentication_sessions
-    ADD CONSTRAINT authentication_sessions_flow_id_fkey FOREIGN KEY (flow_id) REFERENCES public.authentication_flows(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.authentication_sessions
+    ADD CONSTRAINT authentication_sessions_flow_id_fkey FOREIGN KEY (flow_id) REFERENCES authenc.authentication_flows(id) ON DELETE SET NULL;
 
 
 --
 -- Name: authenticator_configs authenticator_configs_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_configs
-    ADD CONSTRAINT authenticator_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authenticator_configs
+    ADD CONSTRAINT authenticator_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authenticator_execution_results authenticator_execution_results_execution_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_execution_results
-    ADD CONSTRAINT authenticator_execution_results_execution_id_fkey FOREIGN KEY (execution_id) REFERENCES public.authenticator_executions(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authenticator_execution_results
+    ADD CONSTRAINT authenticator_execution_results_execution_id_fkey FOREIGN KEY (execution_id) REFERENCES authenc.authenticator_executions(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authenticator_execution_results authenticator_execution_results_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_execution_results
-    ADD CONSTRAINT authenticator_execution_results_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authenticator_execution_results
+    ADD CONSTRAINT authenticator_execution_results_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authenticator_executions authenticator_executions_authenticator_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_executions
-    ADD CONSTRAINT authenticator_executions_authenticator_id_fkey FOREIGN KEY (authenticator_id) REFERENCES public.authenticator_configs(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authenticator_executions
+    ADD CONSTRAINT authenticator_executions_authenticator_id_fkey FOREIGN KEY (authenticator_id) REFERENCES authenc.authenticator_configs(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authenticator_executions authenticator_executions_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authenticator_executions
-    ADD CONSTRAINT authenticator_executions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authenticator_executions
+    ADD CONSTRAINT authenticator_executions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: authorization_policies authorization_policies_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.authorization_policies
-    ADD CONSTRAINT authorization_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.authorization_policies
+    ADD CONSTRAINT authorization_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: capabilities capabilities_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.capabilities
-    ADD CONSTRAINT capabilities_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.capabilities
+    ADD CONSTRAINT capabilities_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: captcha_behavioral_metrics captcha_behavioral_metrics_challenge_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_behavioral_metrics
-    ADD CONSTRAINT captcha_behavioral_metrics_challenge_id_fkey FOREIGN KEY (challenge_id) REFERENCES public.captcha_challenges(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.captcha_behavioral_metrics
+    ADD CONSTRAINT captcha_behavioral_metrics_challenge_id_fkey FOREIGN KEY (challenge_id) REFERENCES authenc.captcha_challenges(id) ON DELETE CASCADE;
 
 
 --
 -- Name: captcha_difficulty_adjustments captcha_difficulty_adjustments_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_difficulty_adjustments
-    ADD CONSTRAINT captcha_difficulty_adjustments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.captcha_difficulty_adjustments
+    ADD CONSTRAINT captcha_difficulty_adjustments_created_by_fkey FOREIGN KEY (created_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: captcha_validation_attempts captcha_validation_attempts_behavioral_metrics_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_validation_attempts
-    ADD CONSTRAINT captcha_validation_attempts_behavioral_metrics_id_fkey FOREIGN KEY (behavioral_metrics_id) REFERENCES public.captcha_behavioral_metrics(id);
+ALTER TABLE ONLY authenc.captcha_validation_attempts
+    ADD CONSTRAINT captcha_validation_attempts_behavioral_metrics_id_fkey FOREIGN KEY (behavioral_metrics_id) REFERENCES authenc.captcha_behavioral_metrics(id);
 
 
 --
 -- Name: captcha_validation_attempts captcha_validation_attempts_challenge_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.captcha_validation_attempts
-    ADD CONSTRAINT captcha_validation_attempts_challenge_id_fkey FOREIGN KEY (challenge_id) REFERENCES public.captcha_challenges(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.captcha_validation_attempts
+    ADD CONSTRAINT captcha_validation_attempts_challenge_id_fkey FOREIGN KEY (challenge_id) REFERENCES authenc.captcha_challenges(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_default_scopes client_default_scopes_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_default_scopes
-    ADD CONSTRAINT client_default_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_default_scopes
+    ADD CONSTRAINT client_default_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_default_scopes client_default_scopes_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_default_scopes
-    ADD CONSTRAINT client_default_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.client_scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_default_scopes
+    ADD CONSTRAINT client_default_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES authenc.client_scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_optional_scopes client_optional_scopes_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_optional_scopes
-    ADD CONSTRAINT client_optional_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_optional_scopes
+    ADD CONSTRAINT client_optional_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_optional_scopes client_optional_scopes_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_optional_scopes
-    ADD CONSTRAINT client_optional_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.client_scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_optional_scopes
+    ADD CONSTRAINT client_optional_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES authenc.client_scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_policies client_policies_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policies
-    ADD CONSTRAINT client_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_policies
+    ADD CONSTRAINT client_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_policy_assignments client_policy_assignments_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policy_assignments
-    ADD CONSTRAINT client_policy_assignments_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_policy_assignments
+    ADD CONSTRAINT client_policy_assignments_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_policy_assignments client_policy_assignments_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policy_assignments
-    ADD CONSTRAINT client_policy_assignments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.client_policies(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_policy_assignments
+    ADD CONSTRAINT client_policy_assignments_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES authenc.client_policies(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_policy_assignments client_policy_assignments_profile_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_policy_assignments
-    ADD CONSTRAINT client_policy_assignments_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.client_profiles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_policy_assignments
+    ADD CONSTRAINT client_policy_assignments_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES authenc.client_profiles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_profiles client_profiles_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_profiles
-    ADD CONSTRAINT client_profiles_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_profiles
+    ADD CONSTRAINT client_profiles_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_registration_audit_log client_registration_audit_log_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_audit_log
-    ADD CONSTRAINT client_registration_audit_log_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.client_registration_audit_log
+    ADD CONSTRAINT client_registration_audit_log_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE SET NULL;
 
 
 --
 -- Name: client_registration_audit_log client_registration_audit_log_initial_access_token_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_audit_log
-    ADD CONSTRAINT client_registration_audit_log_initial_access_token_id_fkey FOREIGN KEY (initial_access_token_id) REFERENCES public.initial_access_tokens(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.client_registration_audit_log
+    ADD CONSTRAINT client_registration_audit_log_initial_access_token_id_fkey FOREIGN KEY (initial_access_token_id) REFERENCES authenc.initial_access_tokens(id) ON DELETE SET NULL;
 
 
 --
 -- Name: client_registration_audit_log client_registration_audit_log_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_audit_log
-    ADD CONSTRAINT client_registration_audit_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.client_registration_audit_log
+    ADD CONSTRAINT client_registration_audit_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE SET NULL;
 
 
 --
 -- Name: client_registration_audit_log client_registration_audit_log_registration_access_token_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_audit_log
-    ADD CONSTRAINT client_registration_audit_log_registration_access_token_id_fkey FOREIGN KEY (registration_access_token_id) REFERENCES public.client_registration_tokens(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.client_registration_audit_log
+    ADD CONSTRAINT client_registration_audit_log_registration_access_token_id_fkey FOREIGN KEY (registration_access_token_id) REFERENCES authenc.client_registration_tokens(id) ON DELETE SET NULL;
 
 
 --
 -- Name: client_registration_policies client_registration_policies_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_policies
-    ADD CONSTRAINT client_registration_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_registration_policies
+    ADD CONSTRAINT client_registration_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_registration_tokens client_registration_tokens_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_tokens
-    ADD CONSTRAINT client_registration_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_registration_tokens
+    ADD CONSTRAINT client_registration_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_registration_tokens client_registration_tokens_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_registration_tokens
-    ADD CONSTRAINT client_registration_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_registration_tokens
+    ADD CONSTRAINT client_registration_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_scope_mappings client_scope_mappings_protocol_mapper_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scope_mappings
-    ADD CONSTRAINT client_scope_mappings_protocol_mapper_id_fkey FOREIGN KEY (protocol_mapper_id) REFERENCES public.protocol_mappers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_scope_mappings
+    ADD CONSTRAINT client_scope_mappings_protocol_mapper_id_fkey FOREIGN KEY (protocol_mapper_id) REFERENCES authenc.protocol_mappers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_scope_mappings client_scope_mappings_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scope_mappings
-    ADD CONSTRAINT client_scope_mappings_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.client_scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_scope_mappings
+    ADD CONSTRAINT client_scope_mappings_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES authenc.client_scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: client_scopes client_scopes_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.client_scopes
-    ADD CONSTRAINT client_scopes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.client_scopes
+    ADD CONSTRAINT client_scopes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: credential_types credential_types_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.credential_types
-    ADD CONSTRAINT credential_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.credential_types
+    ADD CONSTRAINT credential_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: custom_themes custom_themes_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.custom_themes
-    ADD CONSTRAINT custom_themes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.custom_themes
+    ADD CONSTRAINT custom_themes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: device_sessions device_sessions_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_sessions
-    ADD CONSTRAINT device_sessions_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.device_sessions
+    ADD CONSTRAINT device_sessions_device_id_fkey FOREIGN KEY (device_id) REFERENCES authenc.devices(id) ON DELETE CASCADE;
 
 
 --
 -- Name: device_sessions device_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_sessions
-    ADD CONSTRAINT device_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.device_sessions
+    ADD CONSTRAINT device_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: device_sessions device_sessions_user_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_sessions
-    ADD CONSTRAINT device_sessions_user_session_id_fkey FOREIGN KEY (user_session_id) REFERENCES public.user_sessions(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.device_sessions
+    ADD CONSTRAINT device_sessions_user_session_id_fkey FOREIGN KEY (user_session_id) REFERENCES authenc.user_sessions(id) ON DELETE CASCADE;
 
 
 --
 -- Name: device_trust_history device_trust_history_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_trust_history
-    ADD CONSTRAINT device_trust_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.device_trust_history
+    ADD CONSTRAINT device_trust_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: device_trust_history device_trust_history_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.device_trust_history
-    ADD CONSTRAINT device_trust_history_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.device_trust_history
+    ADD CONSTRAINT device_trust_history_device_id_fkey FOREIGN KEY (device_id) REFERENCES authenc.devices(id) ON DELETE CASCADE;
 
 
 --
 -- Name: devices devices_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.devices
-    ADD CONSTRAINT devices_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.devices
+    ADD CONSTRAINT devices_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_listener_executions event_listener_executions_event_log_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listener_executions
-    ADD CONSTRAINT event_listener_executions_event_log_id_fkey FOREIGN KEY (event_log_id) REFERENCES public.event_log(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_listener_executions
+    ADD CONSTRAINT event_listener_executions_event_log_id_fkey FOREIGN KEY (event_log_id) REFERENCES authenc.event_log(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_listener_executions event_listener_executions_listener_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listener_executions
-    ADD CONSTRAINT event_listener_executions_listener_id_fkey FOREIGN KEY (listener_id) REFERENCES public.event_listeners(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_listener_executions
+    ADD CONSTRAINT event_listener_executions_listener_id_fkey FOREIGN KEY (listener_id) REFERENCES authenc.event_listeners(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_listeners event_listeners_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_listeners
-    ADD CONSTRAINT event_listeners_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_listeners
+    ADD CONSTRAINT event_listeners_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_log event_log_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_log
-    ADD CONSTRAINT event_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_log
+    ADD CONSTRAINT event_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_log event_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_log
-    ADD CONSTRAINT event_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.event_log
+    ADD CONSTRAINT event_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: event_webhooks event_webhooks_listener_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_webhooks
-    ADD CONSTRAINT event_webhooks_listener_id_fkey FOREIGN KEY (listener_id) REFERENCES public.event_listeners(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_webhooks
+    ADD CONSTRAINT event_webhooks_listener_id_fkey FOREIGN KEY (listener_id) REFERENCES authenc.event_listeners(id) ON DELETE CASCADE;
 
 
 --
 -- Name: event_webhooks event_webhooks_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.event_webhooks
-    ADD CONSTRAINT event_webhooks_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.event_webhooks
+    ADD CONSTRAINT event_webhooks_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: federated_auth_log federated_auth_log_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_auth_log
-    ADD CONSTRAINT federated_auth_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.federated_auth_log
+    ADD CONSTRAINT federated_auth_log_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: federated_auth_log federated_auth_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_auth_log
-    ADD CONSTRAINT federated_auth_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.federated_auth_log
+    ADD CONSTRAINT federated_auth_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: federated_identities federated_identities_identity_provider_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identities
-    ADD CONSTRAINT federated_identities_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES public.identity_providers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.federated_identities
+    ADD CONSTRAINT federated_identities_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES authenc.identity_providers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: federated_identities federated_identities_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identities
-    ADD CONSTRAINT federated_identities_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.federated_identities
+    ADD CONSTRAINT federated_identities_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: federated_identity_links federated_identity_links_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identity_links
-    ADD CONSTRAINT federated_identity_links_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.federated_identity_links
+    ADD CONSTRAINT federated_identity_links_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: federated_identity_links federated_identity_links_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.federated_identity_links
-    ADD CONSTRAINT federated_identity_links_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.federated_identity_links
+    ADD CONSTRAINT federated_identity_links_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: mfa_admin_actions fk_mfa_admin_actions_admin_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_admin_actions
-    ADD CONSTRAINT fk_mfa_admin_actions_admin_user FOREIGN KEY (admin_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.mfa_admin_actions
+    ADD CONSTRAINT fk_mfa_admin_actions_admin_user FOREIGN KEY (admin_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: mfa_admin_actions fk_mfa_admin_actions_target_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_admin_actions
-    ADD CONSTRAINT fk_mfa_admin_actions_target_user FOREIGN KEY (target_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.mfa_admin_actions
+    ADD CONSTRAINT fk_mfa_admin_actions_target_user FOREIGN KEY (target_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: satkers fk_parent_satker; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satkers
-    ADD CONSTRAINT fk_parent_satker FOREIGN KEY (parent_code) REFERENCES public.satkers(code) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.satkers
+    ADD CONSTRAINT fk_parent_satker FOREIGN KEY (parent_code) REFERENCES authenc.satkers(code) ON DELETE SET NULL;
 
 
 --
 -- Name: password_history fk_password_history_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.password_history
-    ADD CONSTRAINT fk_password_history_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.password_history
+    ADD CONSTRAINT fk_password_history_user FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_admin_roles fk_satker_admin_assigned_by; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_admin_roles
-    ADD CONSTRAINT fk_satker_admin_assigned_by FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.satker_admin_roles
+    ADD CONSTRAINT fk_satker_admin_assigned_by FOREIGN KEY (assigned_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: satker_admin_roles fk_satker_admin_satker; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_admin_roles
-    ADD CONSTRAINT fk_satker_admin_satker FOREIGN KEY (satker_code) REFERENCES public.satkers(code) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.satker_admin_roles
+    ADD CONSTRAINT fk_satker_admin_satker FOREIGN KEY (satker_code) REFERENCES authenc.satkers(code) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_admin_roles fk_satker_admin_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_admin_roles
-    ADD CONSTRAINT fk_satker_admin_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.satker_admin_roles
+    ADD CONSTRAINT fk_satker_admin_user FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_audit_logs fk_satker_audit_satker; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_audit_logs
-    ADD CONSTRAINT fk_satker_audit_satker FOREIGN KEY (satker_code) REFERENCES public.satkers(code) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.satker_audit_logs
+    ADD CONSTRAINT fk_satker_audit_satker FOREIGN KEY (satker_code) REFERENCES authenc.satkers(code) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_audit_logs fk_satker_audit_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_audit_logs
-    ADD CONSTRAINT fk_satker_audit_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.satker_audit_logs
+    ADD CONSTRAINT fk_satker_audit_user FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: satker_permissions fk_satker_perm_granted_by; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_permissions
-    ADD CONSTRAINT fk_satker_perm_granted_by FOREIGN KEY (granted_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.satker_permissions
+    ADD CONSTRAINT fk_satker_perm_granted_by FOREIGN KEY (granted_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: satker_permissions fk_satker_perm_satker; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_permissions
-    ADD CONSTRAINT fk_satker_perm_satker FOREIGN KEY (satker_code) REFERENCES public.satkers(code) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.satker_permissions
+    ADD CONSTRAINT fk_satker_perm_satker FOREIGN KEY (satker_code) REFERENCES authenc.satkers(code) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_permissions fk_satker_perm_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_permissions
-    ADD CONSTRAINT fk_satker_perm_user FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.satker_permissions
+    ADD CONSTRAINT fk_satker_perm_user FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: service_account_audit_log fk_service_account_audit_sa; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_audit_log
-    ADD CONSTRAINT fk_service_account_audit_sa FOREIGN KEY (service_account_id) REFERENCES public.service_accounts(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.service_account_audit_log
+    ADD CONSTRAINT fk_service_account_audit_sa FOREIGN KEY (service_account_id) REFERENCES authenc.service_accounts(id) ON DELETE CASCADE;
 
 
 --
 -- Name: service_accounts fk_service_account_realm; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_accounts
-    ADD CONSTRAINT fk_service_account_realm FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.service_accounts
+    ADD CONSTRAINT fk_service_account_realm FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: service_account_roles fk_service_account_role_role; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_roles
-    ADD CONSTRAINT fk_service_account_role_role FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.service_account_roles
+    ADD CONSTRAINT fk_service_account_role_role FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: service_account_roles fk_service_account_role_sa; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.service_account_roles
-    ADD CONSTRAINT fk_service_account_role_sa FOREIGN KEY (service_account_id) REFERENCES public.service_accounts(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.service_account_roles
+    ADD CONSTRAINT fk_service_account_role_sa FOREIGN KEY (service_account_id) REFERENCES authenc.service_accounts(id) ON DELETE CASCADE;
 
 
 --
 -- Name: group_attributes group_attributes_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_attributes
-    ADD CONSTRAINT group_attributes_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.group_attributes
+    ADD CONSTRAINT group_attributes_group_id_fkey FOREIGN KEY (group_id) REFERENCES authenc.groups(id) ON DELETE CASCADE;
 
 
 --
 -- Name: group_roles group_roles_assigned_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_roles
-    ADD CONSTRAINT group_roles_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.group_roles
+    ADD CONSTRAINT group_roles_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: group_roles group_roles_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_roles
-    ADD CONSTRAINT group_roles_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.group_roles
+    ADD CONSTRAINT group_roles_group_id_fkey FOREIGN KEY (group_id) REFERENCES authenc.groups(id) ON DELETE CASCADE;
 
 
 --
 -- Name: group_roles group_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.group_roles
-    ADD CONSTRAINT group_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.group_roles
+    ADD CONSTRAINT group_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: groups groups_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.groups
-    ADD CONSTRAINT groups_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.groups
+    ADD CONSTRAINT groups_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES authenc.groups(id) ON DELETE CASCADE;
 
 
 --
 -- Name: groups groups_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.groups
-    ADD CONSTRAINT groups_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.groups
+    ADD CONSTRAINT groups_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: identity_broker_configs identity_broker_configs_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_broker_configs
-    ADD CONSTRAINT identity_broker_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.identity_broker_configs
+    ADD CONSTRAINT identity_broker_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: identity_provider_mappers identity_provider_mappers_identity_provider_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_provider_mappers
-    ADD CONSTRAINT identity_provider_mappers_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES public.identity_providers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.identity_provider_mappers
+    ADD CONSTRAINT identity_provider_mappers_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES authenc.identity_providers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: identity_provider_mappers identity_provider_mappers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_provider_mappers
-    ADD CONSTRAINT identity_provider_mappers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.identity_provider_mappers
+    ADD CONSTRAINT identity_provider_mappers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: identity_providers identity_providers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.identity_providers
-    ADD CONSTRAINT identity_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.identity_providers
+    ADD CONSTRAINT identity_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: initial_access_tokens initial_access_tokens_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.initial_access_tokens
-    ADD CONSTRAINT initial_access_tokens_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.initial_access_tokens
+    ADD CONSTRAINT initial_access_tokens_created_by_fkey FOREIGN KEY (created_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: initial_access_tokens initial_access_tokens_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.initial_access_tokens
-    ADD CONSTRAINT initial_access_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.initial_access_tokens
+    ADD CONSTRAINT initial_access_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: mfa_devices mfa_devices_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_devices
-    ADD CONSTRAINT mfa_devices_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.mfa_devices
+    ADD CONSTRAINT mfa_devices_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: mfa_policies mfa_policies_created_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.mfa_policies
-    ADD CONSTRAINT mfa_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.mfa_policies
+    ADD CONSTRAINT mfa_policies_created_by_fkey FOREIGN KEY (created_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: oauth2_access_tokens oauth2_access_tokens_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_access_tokens
-    ADD CONSTRAINT oauth2_access_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_access_tokens
+    ADD CONSTRAINT oauth2_access_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_access_tokens oauth2_access_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_access_tokens
-    ADD CONSTRAINT oauth2_access_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_access_tokens
+    ADD CONSTRAINT oauth2_access_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_authorization_codes oauth2_authorization_codes_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_authorization_codes
-    ADD CONSTRAINT oauth2_authorization_codes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_authorization_codes
+    ADD CONSTRAINT oauth2_authorization_codes_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_authorization_codes oauth2_authorization_codes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_authorization_codes
-    ADD CONSTRAINT oauth2_authorization_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_authorization_codes
+    ADD CONSTRAINT oauth2_authorization_codes_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_clients oauth2_clients_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_clients
-    ADD CONSTRAINT oauth2_clients_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.oauth2_clients
+    ADD CONSTRAINT oauth2_clients_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES authenc.users(id);
 
 
 --
 -- Name: oauth2_clients oauth2_clients_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_clients
-    ADD CONSTRAINT oauth2_clients_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_clients
+    ADD CONSTRAINT oauth2_clients_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_provider_configs oauth2_provider_configs_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_provider_configs
-    ADD CONSTRAINT oauth2_provider_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_provider_configs
+    ADD CONSTRAINT oauth2_provider_configs_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_states oauth2_states_provider_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_states
-    ADD CONSTRAINT oauth2_states_provider_config_id_fkey FOREIGN KEY (provider_config_id) REFERENCES public.oauth2_provider_configs(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_states
+    ADD CONSTRAINT oauth2_states_provider_config_id_fkey FOREIGN KEY (provider_config_id) REFERENCES authenc.oauth2_provider_configs(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_states oauth2_states_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_states
-    ADD CONSTRAINT oauth2_states_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_states
+    ADD CONSTRAINT oauth2_states_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_token_exchanges oauth2_token_exchanges_provider_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_token_exchanges
-    ADD CONSTRAINT oauth2_token_exchanges_provider_config_id_fkey FOREIGN KEY (provider_config_id) REFERENCES public.oauth2_provider_configs(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_token_exchanges
+    ADD CONSTRAINT oauth2_token_exchanges_provider_config_id_fkey FOREIGN KEY (provider_config_id) REFERENCES authenc.oauth2_provider_configs(id) ON DELETE CASCADE;
 
 
 --
 -- Name: oauth2_token_exchanges oauth2_token_exchanges_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.oauth2_token_exchanges
-    ADD CONSTRAINT oauth2_token_exchanges_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.oauth2_token_exchanges
+    ADD CONSTRAINT oauth2_token_exchanges_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: offline_tokens offline_tokens_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.offline_tokens
-    ADD CONSTRAINT offline_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.offline_tokens
+    ADD CONSTRAINT offline_tokens_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: offline_tokens offline_tokens_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.offline_tokens
-    ADD CONSTRAINT offline_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.offline_tokens
+    ADD CONSTRAINT offline_tokens_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: offline_tokens offline_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.offline_tokens
-    ADD CONSTRAINT offline_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.offline_tokens
+    ADD CONSTRAINT offline_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organization_domains organization_domains_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_domains
-    ADD CONSTRAINT organization_domains_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organization_domains
+    ADD CONSTRAINT organization_domains_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES authenc.organizations(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organization_identity_providers organization_identity_providers_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_identity_providers
-    ADD CONSTRAINT organization_identity_providers_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organization_identity_providers
+    ADD CONSTRAINT organization_identity_providers_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES authenc.organizations(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organization_invitations organization_invitations_accepted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
-    ADD CONSTRAINT organization_invitations_accepted_by_fkey FOREIGN KEY (accepted_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.organization_invitations
+    ADD CONSTRAINT organization_invitations_accepted_by_fkey FOREIGN KEY (accepted_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: organization_invitations organization_invitations_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
-    ADD CONSTRAINT organization_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.organization_invitations
+    ADD CONSTRAINT organization_invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: organization_invitations organization_invitations_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_invitations
-    ADD CONSTRAINT organization_invitations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organization_invitations
+    ADD CONSTRAINT organization_invitations_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES authenc.organizations(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organization_members organization_members_invited_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
-    ADD CONSTRAINT organization_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.organization_members
+    ADD CONSTRAINT organization_members_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES authenc.users(id);
 
 
 --
 -- Name: organization_members organization_members_organization_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
-    ADD CONSTRAINT organization_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES public.organizations(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organization_members
+    ADD CONSTRAINT organization_members_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES authenc.organizations(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organization_members organization_members_role_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
-    ADD CONSTRAINT organization_members_role_type_id_fkey FOREIGN KEY (role_type_id) REFERENCES public.role_types(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.organization_members
+    ADD CONSTRAINT organization_members_role_type_id_fkey FOREIGN KEY (role_type_id) REFERENCES authenc.role_types(id) ON DELETE SET NULL;
 
 
 --
 -- Name: organization_members organization_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organization_members
-    ADD CONSTRAINT organization_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organization_members
+    ADD CONSTRAINT organization_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: organizations organizations_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organizations
-    ADD CONSTRAINT organizations_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id);
+ALTER TABLE ONLY authenc.organizations
+    ADD CONSTRAINT organizations_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES authenc.users(id);
 
 
 --
 -- Name: organizations organizations_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.organizations
-    ADD CONSTRAINT organizations_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.organizations
+    ADD CONSTRAINT organizations_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: permission_tickets permission_tickets_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.permission_tickets
-    ADD CONSTRAINT permission_tickets_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.permission_tickets
+    ADD CONSTRAINT permission_tickets_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: permission_tickets permission_tickets_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.permission_tickets
-    ADD CONSTRAINT permission_tickets_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.resources(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.permission_tickets
+    ADD CONSTRAINT permission_tickets_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES authenc.resources(id) ON DELETE CASCADE;
 
 
 --
 -- Name: permission_tickets permission_tickets_resource_server_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.permission_tickets
-    ADD CONSTRAINT permission_tickets_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES public.resource_servers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.permission_tickets
+    ADD CONSTRAINT permission_tickets_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES authenc.resource_servers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: permission_tickets permission_tickets_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.permission_tickets
-    ADD CONSTRAINT permission_tickets_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.permission_tickets
+    ADD CONSTRAINT permission_tickets_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES authenc.scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: protocol_mappers protocol_mappers_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.protocol_mappers
-    ADD CONSTRAINT protocol_mappers_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.protocol_mappers
+    ADD CONSTRAINT protocol_mappers_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: protocol_mappers protocol_mappers_client_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.protocol_mappers
-    ADD CONSTRAINT protocol_mappers_client_scope_id_fkey FOREIGN KEY (client_scope_id) REFERENCES public.client_scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.protocol_mappers
+    ADD CONSTRAINT protocol_mappers_client_scope_id_fkey FOREIGN KEY (client_scope_id) REFERENCES authenc.client_scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: protocol_mappers protocol_mappers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.protocol_mappers
-    ADD CONSTRAINT protocol_mappers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.protocol_mappers
+    ADD CONSTRAINT protocol_mappers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: realm_theme_settings realm_theme_settings_account_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
-    ADD CONSTRAINT realm_theme_settings_account_theme_id_fkey FOREIGN KEY (account_theme_id) REFERENCES public.custom_themes(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.realm_theme_settings
+    ADD CONSTRAINT realm_theme_settings_account_theme_id_fkey FOREIGN KEY (account_theme_id) REFERENCES authenc.custom_themes(id) ON DELETE SET NULL;
 
 
 --
 -- Name: realm_theme_settings realm_theme_settings_admin_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
-    ADD CONSTRAINT realm_theme_settings_admin_theme_id_fkey FOREIGN KEY (admin_theme_id) REFERENCES public.custom_themes(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.realm_theme_settings
+    ADD CONSTRAINT realm_theme_settings_admin_theme_id_fkey FOREIGN KEY (admin_theme_id) REFERENCES authenc.custom_themes(id) ON DELETE SET NULL;
 
 
 --
 -- Name: realm_theme_settings realm_theme_settings_email_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
-    ADD CONSTRAINT realm_theme_settings_email_theme_id_fkey FOREIGN KEY (email_theme_id) REFERENCES public.custom_themes(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.realm_theme_settings
+    ADD CONSTRAINT realm_theme_settings_email_theme_id_fkey FOREIGN KEY (email_theme_id) REFERENCES authenc.custom_themes(id) ON DELETE SET NULL;
 
 
 --
 -- Name: realm_theme_settings realm_theme_settings_login_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
-    ADD CONSTRAINT realm_theme_settings_login_theme_id_fkey FOREIGN KEY (login_theme_id) REFERENCES public.custom_themes(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.realm_theme_settings
+    ADD CONSTRAINT realm_theme_settings_login_theme_id_fkey FOREIGN KEY (login_theme_id) REFERENCES authenc.custom_themes(id) ON DELETE SET NULL;
 
 
 --
 -- Name: realm_theme_settings realm_theme_settings_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.realm_theme_settings
-    ADD CONSTRAINT realm_theme_settings_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.realm_theme_settings
+    ADD CONSTRAINT realm_theme_settings_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: refresh_token_history refresh_token_history_user_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.refresh_token_history
-    ADD CONSTRAINT refresh_token_history_user_session_id_fkey FOREIGN KEY (user_session_id) REFERENCES public.user_sessions(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.refresh_token_history
+    ADD CONSTRAINT refresh_token_history_user_session_id_fkey FOREIGN KEY (user_session_id) REFERENCES authenc.user_sessions(id) ON DELETE CASCADE;
 
 
 --
 -- Name: resource_servers resource_servers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.resource_servers
-    ADD CONSTRAINT resource_servers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.resource_servers
+    ADD CONSTRAINT resource_servers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: resources resources_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.resources
-    ADD CONSTRAINT resources_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.resources
+    ADD CONSTRAINT resources_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: resources resources_resource_server_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.resources
-    ADD CONSTRAINT resources_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES public.resource_servers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.resources
+    ADD CONSTRAINT resources_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES authenc.resource_servers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_capabilities role_capabilities_capability_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_capabilities
-    ADD CONSTRAINT role_capabilities_capability_id_fkey FOREIGN KEY (capability_id) REFERENCES public.capabilities(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_capabilities
+    ADD CONSTRAINT role_capabilities_capability_id_fkey FOREIGN KEY (capability_id) REFERENCES authenc.capabilities(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_capabilities role_capabilities_granted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_capabilities
-    ADD CONSTRAINT role_capabilities_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.role_capabilities
+    ADD CONSTRAINT role_capabilities_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: role_capabilities role_capabilities_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_capabilities
-    ADD CONSTRAINT role_capabilities_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_capabilities
+    ADD CONSTRAINT role_capabilities_role_id_fkey FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_hierarchy role_hierarchy_child_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_hierarchy
-    ADD CONSTRAINT role_hierarchy_child_role_id_fkey FOREIGN KEY (child_role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_hierarchy
+    ADD CONSTRAINT role_hierarchy_child_role_id_fkey FOREIGN KEY (child_role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_hierarchy role_hierarchy_parent_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_hierarchy
-    ADD CONSTRAINT role_hierarchy_parent_role_id_fkey FOREIGN KEY (parent_role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_hierarchy
+    ADD CONSTRAINT role_hierarchy_parent_role_id_fkey FOREIGN KEY (parent_role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_permissions role_permissions_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_permissions
-    ADD CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_permissions
+    ADD CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_policies role_policies_granted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_policies
-    ADD CONSTRAINT role_policies_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.role_policies
+    ADD CONSTRAINT role_policies_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: role_policies role_policies_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_policies
-    ADD CONSTRAINT role_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.authorization_policies(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_policies
+    ADD CONSTRAINT role_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES authenc.authorization_policies(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_policies role_policies_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_policies
-    ADD CONSTRAINT role_policies_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_policies
+    ADD CONSTRAINT role_policies_role_id_fkey FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: role_types role_types_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.role_types
-    ADD CONSTRAINT role_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.role_types
+    ADD CONSTRAINT role_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: roles roles_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.roles
-    ADD CONSTRAINT roles_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.roles
+    ADD CONSTRAINT roles_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: saml_identity_providers saml_identity_providers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_identity_providers
-    ADD CONSTRAINT saml_identity_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.saml_identity_providers
+    ADD CONSTRAINT saml_identity_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: saml_service_providers saml_service_providers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_service_providers
-    ADD CONSTRAINT saml_service_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.saml_service_providers
+    ADD CONSTRAINT saml_service_providers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: saml_sessions saml_sessions_identity_provider_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_sessions
-    ADD CONSTRAINT saml_sessions_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES public.saml_identity_providers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.saml_sessions
+    ADD CONSTRAINT saml_sessions_identity_provider_id_fkey FOREIGN KEY (identity_provider_id) REFERENCES authenc.saml_identity_providers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: saml_sessions saml_sessions_service_provider_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_sessions
-    ADD CONSTRAINT saml_sessions_service_provider_id_fkey FOREIGN KEY (service_provider_id) REFERENCES public.saml_service_providers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.saml_sessions
+    ADD CONSTRAINT saml_sessions_service_provider_id_fkey FOREIGN KEY (service_provider_id) REFERENCES authenc.saml_service_providers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: saml_sessions saml_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.saml_sessions
-    ADD CONSTRAINT saml_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.saml_sessions
+    ADD CONSTRAINT saml_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: satker_types satker_types_parent_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.satker_types
-    ADD CONSTRAINT satker_types_parent_type_id_fkey FOREIGN KEY (parent_type_id) REFERENCES public.satker_types(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.satker_types
+    ADD CONSTRAINT satker_types_parent_type_id_fkey FOREIGN KEY (parent_type_id) REFERENCES authenc.satker_types(id) ON DELETE SET NULL;
 
 
 --
 -- Name: scope_types scope_types_parent_scope_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scope_types
-    ADD CONSTRAINT scope_types_parent_scope_type_id_fkey FOREIGN KEY (parent_scope_type_id) REFERENCES public.scope_types(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.scope_types
+    ADD CONSTRAINT scope_types_parent_scope_type_id_fkey FOREIGN KEY (parent_scope_type_id) REFERENCES authenc.scope_types(id) ON DELETE SET NULL;
 
 
 --
 -- Name: scope_types scope_types_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scope_types
-    ADD CONSTRAINT scope_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.scope_types
+    ADD CONSTRAINT scope_types_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: scopes scopes_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scopes
-    ADD CONSTRAINT scopes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.scopes
+    ADD CONSTRAINT scopes_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: scopes scopes_resource_server_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.scopes
-    ADD CONSTRAINT scopes_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES public.resource_servers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.scopes
+    ADD CONSTRAINT scopes_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES authenc.resource_servers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.sessions
-    ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.sessions
+    ADD CONSTRAINT sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: social_accounts social_accounts_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_accounts
-    ADD CONSTRAINT social_accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.social_accounts
+    ADD CONSTRAINT social_accounts_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: social_login_configs social_login_configs_oauth2_config_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.social_login_configs
-    ADD CONSTRAINT social_login_configs_oauth2_config_id_fkey FOREIGN KEY (oauth2_config_id) REFERENCES public.oauth2_provider_configs(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.social_login_configs
+    ADD CONSTRAINT social_login_configs_oauth2_config_id_fkey FOREIGN KEY (oauth2_config_id) REFERENCES authenc.oauth2_provider_configs(id) ON DELETE CASCADE;
 
 
 --
 -- Name: software_statement_issuers software_statement_issuers_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.software_statement_issuers
-    ADD CONSTRAINT software_statement_issuers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.software_statement_issuers
+    ADD CONSTRAINT software_statement_issuers_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: theme_inheritance theme_inheritance_parent_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_inheritance
-    ADD CONSTRAINT theme_inheritance_parent_theme_id_fkey FOREIGN KEY (parent_theme_id) REFERENCES public.custom_themes(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.theme_inheritance
+    ADD CONSTRAINT theme_inheritance_parent_theme_id_fkey FOREIGN KEY (parent_theme_id) REFERENCES authenc.custom_themes(id) ON DELETE SET NULL;
 
 
 --
 -- Name: theme_inheritance theme_inheritance_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_inheritance
-    ADD CONSTRAINT theme_inheritance_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES public.custom_themes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.theme_inheritance
+    ADD CONSTRAINT theme_inheritance_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES authenc.custom_themes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: theme_resources theme_resources_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_resources
-    ADD CONSTRAINT theme_resources_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES public.custom_themes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.theme_resources
+    ADD CONSTRAINT theme_resources_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES authenc.custom_themes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: theme_templates theme_templates_theme_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.theme_templates
-    ADD CONSTRAINT theme_templates_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES public.custom_themes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.theme_templates
+    ADD CONSTRAINT theme_templates_theme_id_fkey FOREIGN KEY (theme_id) REFERENCES authenc.custom_themes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: token_exchange_audit token_exchange_audit_issued_token_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.token_exchange_audit
-    ADD CONSTRAINT token_exchange_audit_issued_token_id_fkey FOREIGN KEY (issued_token_id) REFERENCES public.oauth2_access_tokens(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.token_exchange_audit
+    ADD CONSTRAINT token_exchange_audit_issued_token_id_fkey FOREIGN KEY (issued_token_id) REFERENCES authenc.oauth2_access_tokens(id) ON DELETE SET NULL;
 
 
 --
 -- Name: token_exchange_audit token_exchange_audit_original_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.token_exchange_audit
-    ADD CONSTRAINT token_exchange_audit_original_client_id_fkey FOREIGN KEY (original_client_id) REFERENCES public.oauth2_clients(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.token_exchange_audit
+    ADD CONSTRAINT token_exchange_audit_original_client_id_fkey FOREIGN KEY (original_client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE SET NULL;
 
 
 --
 -- Name: token_exchange_audit token_exchange_audit_subject_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.token_exchange_audit
-    ADD CONSTRAINT token_exchange_audit_subject_user_id_fkey FOREIGN KEY (subject_user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.token_exchange_audit
+    ADD CONSTRAINT token_exchange_audit_subject_user_id_fkey FOREIGN KEY (subject_user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: token_exchange_audit token_exchange_audit_target_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.token_exchange_audit
-    ADD CONSTRAINT token_exchange_audit_target_client_id_fkey FOREIGN KEY (target_client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.token_exchange_audit
+    ADD CONSTRAINT token_exchange_audit_target_client_id_fkey FOREIGN KEY (target_client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: uma_permission_requests uma_permission_requests_resource_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_permission_requests
-    ADD CONSTRAINT uma_permission_requests_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.resources(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.uma_permission_requests
+    ADD CONSTRAINT uma_permission_requests_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES authenc.resources(id) ON DELETE CASCADE;
 
 
 --
 -- Name: uma_policies uma_policies_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_policies
-    ADD CONSTRAINT uma_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.uma_policies
+    ADD CONSTRAINT uma_policies_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: uma_policies uma_policies_resource_server_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.uma_policies
-    ADD CONSTRAINT uma_policies_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES public.resource_servers(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.uma_policies
+    ADD CONSTRAINT uma_policies_resource_server_id_fkey FOREIGN KEY (resource_server_id) REFERENCES authenc.resource_servers(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_attributes user_attributes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_attributes
-    ADD CONSTRAINT user_attributes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_attributes
+    ADD CONSTRAINT user_attributes_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_consent_scopes user_consent_scopes_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consent_scopes
-    ADD CONSTRAINT user_consent_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_consent_scopes
+    ADD CONSTRAINT user_consent_scopes_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_consent_scopes user_consent_scopes_scope_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consent_scopes
-    ADD CONSTRAINT user_consent_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES public.client_scopes(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_consent_scopes
+    ADD CONSTRAINT user_consent_scopes_scope_id_fkey FOREIGN KEY (scope_id) REFERENCES authenc.client_scopes(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_consent_scopes user_consent_scopes_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consent_scopes
-    ADD CONSTRAINT user_consent_scopes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_consent_scopes
+    ADD CONSTRAINT user_consent_scopes_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_consents user_consents_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_consents
-    ADD CONSTRAINT user_consents_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_consents
+    ADD CONSTRAINT user_consents_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_groups user_groups_group_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_groups
-    ADD CONSTRAINT user_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES public.groups(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_groups
+    ADD CONSTRAINT user_groups_group_id_fkey FOREIGN KEY (group_id) REFERENCES authenc.groups(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_groups user_groups_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_groups
-    ADD CONSTRAINT user_groups_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_groups
+    ADD CONSTRAINT user_groups_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_policies user_policies_granted_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_policies
-    ADD CONSTRAINT user_policies_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.user_policies
+    ADD CONSTRAINT user_policies_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES authenc.users(id) ON DELETE SET NULL;
 
 
 --
 -- Name: user_policies user_policies_policy_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_policies
-    ADD CONSTRAINT user_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES public.authorization_policies(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_policies
+    ADD CONSTRAINT user_policies_policy_id_fkey FOREIGN KEY (policy_id) REFERENCES authenc.authorization_policies(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_policies user_policies_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_policies
-    ADD CONSTRAINT user_policies_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_policies
+    ADD CONSTRAINT user_policies_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_roles user_roles_role_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES public.roles(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_roles
+    ADD CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES authenc.roles(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_roles
-    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_roles
+    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_sessions user_sessions_client_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_client_id_fkey FOREIGN KEY (client_id) REFERENCES public.oauth2_clients(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.user_sessions
+    ADD CONSTRAINT user_sessions_client_id_fkey FOREIGN KEY (client_id) REFERENCES authenc.oauth2_clients(id) ON DELETE SET NULL;
 
 
 --
 -- Name: user_sessions user_sessions_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.devices(id) ON DELETE SET NULL;
+ALTER TABLE ONLY authenc.user_sessions
+    ADD CONSTRAINT user_sessions_device_id_fkey FOREIGN KEY (device_id) REFERENCES authenc.devices(id) ON DELETE SET NULL;
 
 
 --
 -- Name: user_sessions user_sessions_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_sessions
+    ADD CONSTRAINT user_sessions_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE CASCADE;
 
 
 --
 -- Name: user_sessions user_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.user_sessions
-    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.user_sessions
+    ADD CONSTRAINT user_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: users users_realm_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.users
-    ADD CONSTRAINT users_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES public.realms(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY authenc.users
+    ADD CONSTRAINT users_realm_id_fkey FOREIGN KEY (realm_id) REFERENCES authenc.realms(id) ON DELETE RESTRICT;
 
 
 --
 -- Name: webauthn_audit_log webauthn_audit_log_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_audit_log
-    ADD CONSTRAINT webauthn_audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.webauthn_audit_log
+    ADD CONSTRAINT webauthn_audit_log_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: webauthn_challenges webauthn_challenges_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_challenges
-    ADD CONSTRAINT webauthn_challenges_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.webauthn_challenges
+    ADD CONSTRAINT webauthn_challenges_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: webauthn_credentials_old webauthn_credentials_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials_old
-    ADD CONSTRAINT webauthn_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.webauthn_credentials_old
+    ADD CONSTRAINT webauthn_credentials_user_id_fkey FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
 -- Name: webauthn_credentials webauthn_credentials_user_id_fkey1; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.webauthn_credentials
-    ADD CONSTRAINT webauthn_credentials_user_id_fkey1 FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY authenc.webauthn_credentials
+    ADD CONSTRAINT webauthn_credentials_user_id_fkey1 FOREIGN KEY (user_id) REFERENCES authenc.users(id) ON DELETE CASCADE;
 
 
 --
@@ -12495,5 +12497,5 @@ ALTER TABLE ONLY public.webauthn_credentials
 -- populate). The seed step fires triggers that REFRESH ... CONCURRENTLY, which
 -- requires an already-populated matview. Do the initial non-concurrent populate
 -- here (txn-safe; base tables are empty at this point).
-REFRESH MATERIALIZED VIEW public.captcha_analytics;
-REFRESH MATERIALIZED VIEW public.mfa_statistics;
+REFRESH MATERIALIZED VIEW authenc.captcha_analytics;
+REFRESH MATERIALIZED VIEW authenc.mfa_statistics;

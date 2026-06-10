@@ -386,7 +386,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 r#"
                 SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker
                 WHERE pengajuan_id = $1
-                ORDER BY prioritas ASC, nm_satker ASC
+                ORDER BY prioritas ASC, satker_nama ASC
                 "#,
                 &[&pengajuan_id],
             )
@@ -427,9 +427,9 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .query_one(
                 r#"
                 INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
-                    (pengajuan_id, ms_satker_id, nm_satker, created_by, updated_by)
+                    (pengajuan_id, satker_id, satker_nama, created_by, updated_by)
                 VALUES ($1, $2, $3, $4, $4)
-                ON CONFLICT (pengajuan_id, ms_satker_id) DO UPDATE
+                ON CONFLICT (pengajuan_id, satker_id) DO UPDATE
                 SET updated_at = NOW()
                 RETURNING *
                 "#,
@@ -761,7 +761,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .query_one(
                 r#"
                 SELECT
-                    COUNT(DISTINCT ps.ms_satker_id) as total_satker,
+                    COUNT(DISTINCT ps.satker_id) as total_satker,
                     COALESCE(SUM(psb.jumlah), 0) as total_diminta,
                     COALESCE(SUM(psb.jml_setuju), 0) as total_disetujui
                 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps

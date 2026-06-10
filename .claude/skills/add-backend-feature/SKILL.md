@@ -33,18 +33,43 @@ Verify: `cargo check -p <crate> --all-targets` + `cargo fmt --check` + tests gre
 
 ## Refinery migration conventions
 
-Schema lives in `<svc>/migrations/` as **`V###__name.sql`**, embedded & run by
-refinery from `main.rs` (`migrations::run`).
-- **NEVER `ALTER` a migration after it's merged** — append a new `V###__` file.
-- Numbering is sequential & unique per service (duplicate `V###` = refinery error).
+Schema lives in `<svc>/migrations/` as **`V###__name.sql`** (perlengkapan) or
+`NNN_name.sql` (authenc/integrasi), embedded & run on boot / by the migrate runner.
+- **NEVER `ALTER` a migration after it's merged** — append a new file.
+- Numbering is sequential & unique per service (duplicate = refinery error).
 - **Seed migrations must be idempotent** (UPSERT / `ON CONFLICT DO NOTHING`), since
   they may re-run across environments.
-- Cross-service DB ordering matters when a schema is shared (e.g. authenc baseline
-  before perlengkapan) — document it.
-- `integrasi` migrations are manual SQL (see its `migrations/README.md`).
-- NB: full migration fresh-apply is currently NOT clean (akreasi) — squash/repair is
-  deferred to F6 using staging as reference (memory `project-migration-health-f6`).
-  Don't attempt a squash here; just append.
+
+### 🔒 Expand/contract — additive first (WAJIB, F-REL)
+
+Migrations must be **expand/contract** so that **`helm rollback` of the app never
+requires a DB restore** (anti data-loss). The previous (rollback-target) code version
+must keep working on the new schema.
+- **This release = EXPAND only:** `ADD COLUMN` nullable/defaulted, new tables/indexes,
+  `CREATE … IF NOT EXISTS`. No destructive change in the same release as the code that
+  still needs the old shape.
+- **CONTRACT (drop/NOT-NULL/rename) goes in a LATER release**, after no deployed/
+  rollback-able version uses the old shape. Separate by ≥1 release.
+- **Rename = 3 steps across releases:** add new col + dual-write → backfill + read new
+  → drop old. Never a one-shot `ALTER … RENAME`.
+- Operational rationale + DB-restore-last-resort: `infra/AGENTS.md` → Rollback.
+
+### Topology & ordering (shared `dbsimpelv2`, schema-per-service)
+
+- The trio **authenc + integrasi + perlengkapan** share DB `dbsimpelv2`,
+  **schema-per-service**; reads cross-schema (e.g. perlengkapan → `integrasi.*`/
+  `authenc.*`, FK `batch_operation_log.user_id → authenc.users`). secreton & simpelv1
+  are isolated DBs. See `layanan/AGENTS.md` → Database Architecture.
+- **Bring-up order: `integrasi-migrate` → `authenc-migrate` → perlengkapan** (cross-
+  schema FK needs upstream schema first); wired in docker-compose + Helm hook Jobs.
+- Extensions go in `public` (`CREATE EXTENSION … WITH SCHEMA public`); each service sets
+  `search_path=<schema>,public`. Don't let an extension land in a service schema.
+- `integrasi` migrations are embedded into the **`integrasi-migrate`** binary via
+  `include_str!` (rebuild the binary after editing the SQL). authenc uses
+  **`authenc-migrate`**; perlengkapan self-migrates on boot.
+- Naming: `satker_id`/`satker_nama`/`satker_pusat_id`, `nama_barang`/`nama_pegawai`.
+- Fresh-apply baselines exist (F5-B): authenc `001_baseline`+`002_seed`, perlengkapan
+  `V001__baseline`+`V002__seed`. Pre-prod may squash; post-prod append only.
 
 ## Common pitfalls
 

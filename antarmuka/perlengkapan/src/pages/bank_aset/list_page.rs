@@ -26,21 +26,41 @@ pub fn BankAsetListPage() -> impl IntoView {
     let (total, set_total) = signal::<i64>(0);
     let (total_pages, set_total_pages) = signal::<i32>(1);
     let (page, set_page) = signal::<i32>(1);
+    let (jenis, set_jenis) = signal::<String>(String::new());
     let (kategori, set_kategori) = signal::<String>(String::new());
     let (kondisi, set_kondisi) = signal::<String>(String::new());
     let (satker, set_satker) = signal::<String>(String::new());
     let (search, set_search) = signal::<String>(String::new());
     let (sort, set_sort) = signal::<String>(String::new());
 
+    // Filter dropdown values loaded dynamically from real SIMAN data.
+    let (jenis_opts, set_jenis_opts) = signal::<Vec<bank_aset::FilterOption>>(Vec::new());
+    let (kategori_opts, set_kategori_opts) = signal::<Vec<bank_aset::FilterOption>>(Vec::new());
+    let (kondisi_opts, set_kondisi_opts) = signal::<Vec<bank_aset::FilterOption>>(Vec::new());
+    let (satker_opts, set_satker_opts) = signal::<Vec<bank_aset::FilterOption>>(Vec::new());
+
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal::<Option<AppError>>(None);
     let (reload_tick, set_reload_tick) = signal(0_u32);
+
+    // Load filter options once on mount (no reactive deps → runs a single time).
+    Effect::new(move |_| {
+        spawn_local(async move {
+            if let Ok(opts) = bank_aset::fetch_filter_options().await {
+                set_jenis_opts.set(opts.jenis);
+                set_kategori_opts.set(opts.kategori);
+                set_kondisi_opts.set(opts.kondisi);
+                set_satker_opts.set(opts.satker);
+            }
+        });
+    });
 
     Effect::new(move |_| {
         let _ = reload_tick.get();
         let filter = ListFilter {
             page: page.get(),
             per_page: PER_PAGE,
+            jenis: some_if_non_empty(&jenis.get()),
             kategori: some_if_non_empty(&kategori.get()),
             kondisi: some_if_non_empty(&kondisi.get()),
             satker: some_if_non_empty(&satker.get()),
@@ -80,6 +100,15 @@ pub fn BankAsetListPage() -> impl IntoView {
         set_page.set(1);
         set_reload_tick.update(|t| *t += 1);
     };
+    let on_jenis = move |ev: Event| {
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+        if let Some(el) = target {
+            set_jenis.set(el.value());
+            set_page.set(1);
+        }
+    };
     let on_kategori = move |ev: Event| {
         let target = ev
             .target()
@@ -118,12 +147,14 @@ pub fn BankAsetListPage() -> impl IntoView {
     let on_satker = move |ev: Event| {
         let target = ev
             .target()
-            .and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+            .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
         if let Some(el) = target {
             set_satker.set(el.value());
+            set_page.set(1);
         }
     };
     let reset_filters = move |_| {
+        set_jenis.set(String::new());
         set_kategori.set(String::new());
         set_kondisi.set(String::new());
         set_satker.set(String::new());
@@ -174,18 +205,40 @@ pub fn BankAsetListPage() -> impl IntoView {
                 description="Batasi daftar berdasarkan kategori, kondisi, atau kata kunci."
                 icon="fas fa-filter"
             >
-                <form class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_2fr_auto]" on:submit=on_search_submit>
+                <form class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto]" on:submit=on_search_submit>
+                    <select
+                        class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                        on:change=on_jenis
+                        prop:value=move || jenis.get()
+                    >
+                        <option value="">"Semua Jenis BMN"</option>
+                        {move || {
+                            jenis_opts
+                                .get()
+                                .into_iter()
+                                .map(|o| {
+                                    let label = format!("{} ({})", o.value, o.count);
+                                    view! { <option value=o.value.clone()>{label}</option> }
+                                })
+                                .collect_view()
+                        }}
+                    </select>
                     <select
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
                         on:change=on_kategori
                         prop:value=move || kategori.get()
                     >
                         <option value="">"Semua Kategori"</option>
-                        <option value="TANAH">"Tanah"</option>
-                        <option value="GEDUNG_BANGUNAN">"Gedung & Bangunan"</option>
-                        <option value="PERALATAN_MESIN">"Peralatan & Mesin"</option>
-                        <option value="JALAN_JEMBATAN">"Jalan & Jembatan"</option>
-                        <option value="ASET_LAINNYA">"Aset Lainnya"</option>
+                        {move || {
+                            kategori_opts
+                                .get()
+                                .into_iter()
+                                .map(|o| {
+                                    let label = format!("{} ({})", o.value, o.count);
+                                    view! { <option value=o.value.clone()>{label}</option> }
+                                })
+                                .collect_view()
+                        }}
                     </select>
                     <select
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
@@ -193,9 +246,16 @@ pub fn BankAsetListPage() -> impl IntoView {
                         prop:value=move || kondisi.get()
                     >
                         <option value="">"Semua Kondisi"</option>
-                        <option value="BAIK">"Baik"</option>
-                        <option value="RUSAK RINGAN">"Rusak Ringan"</option>
-                        <option value="RUSAK BERAT">"Rusak Berat"</option>
+                        {move || {
+                            kondisi_opts
+                                .get()
+                                .into_iter()
+                                .map(|o| {
+                                    let label = format!("{} ({})", o.value, o.count);
+                                    view! { <option value=o.value.clone()>{label}</option> }
+                                })
+                                .collect_view()
+                        }}
                     </select>
                     <select
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
@@ -234,13 +294,23 @@ pub fn BankAsetListPage() -> impl IntoView {
                         </button>
                     </div>
                 </form>
-                <input
-                    type="text"
-                    placeholder="Filter berdasarkan nama satker (opsional)"
-                    class="focus-ring mt-3 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
-                    on:input=on_satker
+                <select
+                    class="focus-ring mt-3 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
+                    on:change=on_satker
                     prop:value=move || satker.get()
-                />
+                >
+                    <option value="">"Semua Satker"</option>
+                    {move || {
+                        satker_opts
+                            .get()
+                            .into_iter()
+                            .map(|o| {
+                                let label = format!("{} ({})", o.value, o.count);
+                                view! { <option value=o.value.clone()>{label}</option> }
+                            })
+                            .collect_view()
+                    }}
+                </select>
             </SectionCard>
 
             <SectionCard

@@ -44,15 +44,55 @@ Backend SIMPEL terbagi menjadi dua jenis layanan:
 
 ## 🗄️ Database Architecture
 
-Setiap layanan menggunakan database terpisah untuk isolasi:
+> **Topologi (keputusan F5-B 2026-06-10):** **shared database `dbsimpelv2`,
+> schema-per-service** untuk trio yang **saling-kopel** (authenc + integrasi +
+> perlengkapan); `secreton` & `simpelv1` (legacy) **tetap di database sendiri yang
+> terisolasi.** Alasan: perlengkapan membaca `integrasi.*` & `authenc.*`
+> **cross-schema** (JOIN di export/dashboard/mapping + FK nyata
+> `batch_operation_log.user_id → authenc.users`); PostgreSQL **tak bisa** JOIN/FK
+> lintas-database → co-location dalam satu DB WAJIB. Schema terpisah memberi
+> kepemilikan jelas + grant least-privilege per-schema (bukan campur di `public`).
 
-| Database | Service | Description |
-|----------|---------|-------------|
-| `perlengkapan` | `layanan/perlengkapan/*` | Core BMN & equipment management |
-| `authenc` | `layanan/authenc/*` | Authentication, SSO, OIDC & Identity |
-| `secreton` | `layanan/secreton/*` | Secrets, HSM & transit vault |
+| Database | Schema | Service | Isi |
+|----------|--------|---------|-----|
+| `dbsimpelv2` | `authenc` | `layanan/authenc/*` | Identity/authN/authZ (IAM murni) |
+| `dbsimpelv2` | `integrasi` | `layanan/integrasi/*` | **SoT** data master eksternal (MySIMKARI/SIMAN) |
+| `dbsimpelv2` | `perlengkapan` | `layanan/perlengkapan/*` | Core BMN & equipment |
+| `dbsimpelv2` | `dokumen`,`notifikasi`,`cache` | perlengkapan (sub-domain) | Dibuat oleh migrasi perlengkapan |
+| `dbsecretion` | `public` | `layanan/secreton/*` | Secrets, transit, PKI — **terisolasi** |
+| `dbsimpelv1` | — | `monolith/simpelv1` (Laravel legacy) | **terisolasi** |
 
-⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres`, `deadpool-postgres`, dan `refinery` untuk semua interaksi database.
+- **Extension WAJIB di `public`** (`CREATE EXTENSION ... WITH SCHEMA public` untuk
+  `uuid-ossp`, `pg_trgm`) + fungsi trigger bersama (`update_updated_at_column`) →
+  semua schema fallback ke `public`. JANGAN biarkan extension mendarat di schema
+  service (mis. `integrasi`) — memecah resolusi `public.uuid_generate_v4()` service lain.
+- **`search_path` per-koneksi**: tiap service set `-c search_path=<schema>,public`
+  (lihat `database.rs`) → query unqualified resolve ke schema sendiri, fallback `public`.
+- **SSoT — jangan duplikasi data master.** Data satker/pegawai/aset SoT =
+  `integrasi.*`; konsumen **fetch-at-read** (gRPC) atau **baca cross-schema**, DILARANG
+  simpan ulang kecuali (a) FK/business-key lokal atau (b) snapshot point-in-time
+  (bukti historis, beri komentar SoT). Detail per-service di AGENTS.md masing-masing.
+
+### Migrasi (mekanisme + urutan bring-up)
+
+- Tiap service punya **runner migrasi** sendiri (out-of-band, idempotent):
+  `integrasi-migrate` (`integrasi/src/bin/migrate.rs`, embed via `include_str!`) →
+  `authenc-migrate` (`authenc/.../bin/migrate.rs`, refinery, set `CREATE SCHEMA
+  authenc` + search_path) → perlengkapan self-migrate refinery `embed_migrations!` saat boot.
+- **Urutan WAJIB: `integrasi-migrate` → `authenc-migrate` → perlengkapan** (cross-schema
+  FK butuh schema hulu sudah ada). Di-wire via `docker-compose` (`depends_on …
+  service_completed_successfully`) **dan** Helm hook Job (`*-migrate-job.yaml`,
+  `hook-weight` integrasi −6 < authenc −5). Semua connect sbg superuser `simpelv2`.
+- **Migrasi = expand/contract (additive dulu)** agar `helm rollback` aman tanpa restore
+  DB (lihat F-REL / `infra/AGENTS.md`). JANGAN `ALTER`/`DROP` destruktif di rilis yang
+  sama dengan kode yang masih bisa di-rollback. Setelah merge, **jangan edit migrasi
+  lama** — tambah file baru (pra-prod boleh squash→baseline; pasca-prod tidak).
+- **Penamaan kolom (standar F5-B):** satker → `satker_id` / `satker_nama` /
+  `satker_pusat_id` (BUKAN `ms_satker_id`/`nm_satker`); hindari `nama` generik →
+  `nama_barang` / `nama_pegawai`.
+
+⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres`, `deadpool-postgres`, dan `refinery`/
+runner embed untuk semua interaksi database.
 
 ---
 

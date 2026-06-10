@@ -1,9 +1,16 @@
 -- ============================================================================
 -- Migration: Enhance Integration Schema
--- Description: Add missing tables and enhance existing integration schema
+-- Description: sync_status tracking, MySIMKARI enhancements, monitoring views.
 -- Author: SIMPEL Team
--- Created: 2026-02-09
+-- Created: 2026-02-09 (rebuilt 2026-06-09: unified siman_aset model)
 -- Requirements: REQ-I001, REQ-I002, REQ-I008
+--
+-- NOTE (F5-B rebuild): the legacy SPLIT siman_aset_{tanah,gedung_bangunan,
+-- alat_besar,angkutan_bermotor} tables were removed. SIMAN is a SINGLE unified
+-- `siman_aset` table (jenis_aset discriminator) — see 001_init_schema.sql and
+-- src/grpc/service.rs / src/siman/endpoints.rs (writer `.save("siman","aset")`).
+-- All split-table ALTER/index/view statements that previously lived here were
+-- dead (the tables never existed under the unified model) and have been dropped.
 -- ============================================================================
 
 -- Ensure schema exists
@@ -15,7 +22,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- ============================================================================
--- SYNC STATUS TABLE (NEW)
+-- SYNC STATUS TABLE
 -- Tracks synchronization status per module/endpoint
 -- ============================================================================
 
@@ -50,65 +57,20 @@ CREATE TABLE IF NOT EXISTS integrasi.sync_status (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
-    -- Unique constraint per module/endpoint
     CONSTRAINT unique_module_endpoint UNIQUE (module, endpoint)
 );
 
-CREATE INDEX idx_sync_status_module ON integrasi.sync_status(module);
-CREATE INDEX idx_sync_status_last_sync ON integrasi.sync_status(last_sync_completed_at DESC);
-CREATE INDEX idx_sync_status_next_sync ON integrasi.sync_status(next_sync_scheduled_at) WHERE is_enabled = TRUE;
-CREATE INDEX idx_sync_status_failed ON integrasi.sync_status(last_sync_status) WHERE last_sync_status = 'failed';
+CREATE INDEX IF NOT EXISTS idx_sync_status_module ON integrasi.sync_status(module);
+CREATE INDEX IF NOT EXISTS idx_sync_status_last_sync ON integrasi.sync_status(last_sync_completed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_sync_status_next_sync ON integrasi.sync_status(next_sync_scheduled_at) WHERE is_enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_sync_status_failed ON integrasi.sync_status(last_sync_status) WHERE last_sync_status = 'failed';
 
 COMMENT ON TABLE integrasi.sync_status IS 'Tracks synchronization status and schedule for each integration module';
 
 -- ============================================================================
--- ENHANCE EXISTING SIMAN TABLES
--- Add missing fields and improve structure
+-- ENHANCE MYSIMKARI PEGAWAI
 -- ============================================================================
 
--- Add satker_id to SIMAN tables for better filtering
-ALTER TABLE integrasi.siman_aset_tanah
-ADD COLUMN IF NOT EXISTS satker_id VARCHAR(20),
-ADD COLUMN IF NOT EXISTS nup VARCHAR(50),
-ADD COLUMN IF NOT EXISTS kondisi VARCHAR(20),
-ADD COLUMN IF NOT EXISTS tahun_perolehan INTEGER;
-
-ALTER TABLE integrasi.siman_aset_gedung_bangunan
-ADD COLUMN IF NOT EXISTS satker_id VARCHAR(20),
-ADD COLUMN IF NOT EXISTS nup VARCHAR(50);
-
-ALTER TABLE integrasi.siman_aset_alat_besar
-ADD COLUMN IF NOT EXISTS satker_id VARCHAR(20),
-ADD COLUMN IF NOT EXISTS nup VARCHAR(50);
-
-ALTER TABLE integrasi.siman_aset_angkutan_bermotor
-ADD COLUMN IF NOT EXISTS satker_id VARCHAR(20),
-ADD COLUMN IF NOT EXISTS nup VARCHAR(50);
-
--- Add indexes for satker_id filtering
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_satker ON integrasi.siman_aset_tanah(satker_id) WHERE satker_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_satker ON integrasi.siman_aset_gedung_bangunan(satker_id) WHERE satker_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_satker ON integrasi.siman_aset_alat_besar(satker_id) WHERE satker_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_satker ON integrasi.siman_aset_angkutan_bermotor(satker_id) WHERE satker_id IS NOT NULL;
-
--- Add indexes for NUP (Nomor Urut Pendaftaran)
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_nup ON integrasi.siman_aset_tanah(nup) WHERE nup IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_nup ON integrasi.siman_aset_gedung_bangunan(nup) WHERE nup IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_nup ON integrasi.siman_aset_alat_besar(nup) WHERE nup IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_nup ON integrasi.siman_aset_angkutan_bermotor(nup) WHERE nup IS NOT NULL;
-
--- Add indexes for kondisi (condition) filtering
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_kondisi ON integrasi.siman_aset_tanah(kondisi) WHERE kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_kondisi ON integrasi.siman_aset_gedung_bangunan(kondisi) WHERE kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_kondisi ON integrasi.siman_aset_alat_besar(kondisi) WHERE kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_kondisi ON integrasi.siman_aset_angkutan_bermotor(kondisi) WHERE kondisi IS NOT NULL;
-
--- ============================================================================
--- ENHANCE MYSIMKARI TABLES
--- Add missing fields for better integration
--- ============================================================================
-
--- Add status and additional fields to pegawai table
 ALTER TABLE integrasi.mysimkari_pegawai
 ADD COLUMN IF NOT EXISTS status_pegawai VARCHAR(50),
 ADD COLUMN IF NOT EXISTS eselon VARCHAR(20),
@@ -117,57 +79,24 @@ ADD COLUMN IF NOT EXISTS tanggal_lahir DATE,
 ADD COLUMN IF NOT EXISTS email VARCHAR(255),
 ADD COLUMN IF NOT EXISTS no_hp VARCHAR(20);
 
--- Add indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_status ON integrasi.mysimkari_pegawai(status_pegawai) WHERE status_pegawai IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_eselon ON integrasi.mysimkari_pegawai(eselon) WHERE eselon IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_jk ON integrasi.mysimkari_pegawai(jenis_kelamin) WHERE jenis_kelamin IS NOT NULL;
-
--- Add full-text search index for pegawai nama
 CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_nama_trgm ON integrasi.mysimkari_pegawai USING gin(nama gin_trgm_ops);
 
--- ============================================================================
--- ADD MISSING JSONB GIN INDEXES
--- For fast JSON queries on raw_data columns
--- ============================================================================
-
--- SIMAN raw_data indexes
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_raw_gin ON integrasi.siman_aset_tanah USING gin(raw_data);
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_raw_gin ON integrasi.siman_aset_gedung_bangunan USING gin(raw_data);
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_raw_gin ON integrasi.siman_aset_alat_besar USING gin(raw_data);
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_raw_gin ON integrasi.siman_aset_angkutan_bermotor USING gin(raw_data);
-
--- MySIMKARI raw_data indexes
-CREATE INDEX IF NOT EXISTS idx_mysimkari_satker_raw_gin ON integrasi.mysimkari_satker USING gin(raw_data);
-CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_raw_gin ON integrasi.mysimkari_pegawai USING gin(raw_data);
-
--- MonSAKTI raw_data indexes
-CREATE INDEX IF NOT EXISTS idx_adm_ref_bank_raw_gin ON integrasi.adm_ref_bank USING gin(raw_data);
-CREATE INDEX IF NOT EXISTS idx_adm_ref_jns_spp_raw_gin ON integrasi.adm_ref_jns_spp USING gin(raw_data);
+-- NOTE: raw_data JSONB GIN indexes only apply to siman_aset (the only table
+-- that stores raw_data; created in 001). The structured tables (mysimkari_*,
+-- adm_ref_*) store typed columns, not raw_data, so no GIN index here.
 
 -- ============================================================================
--- CREATE COMPOSITE INDEXES FOR COMMON QUERY PATTERNS
+-- COMPOSITE INDEXES
 -- ============================================================================
 
--- SIMAN: Filter by satker + kondisi (for gap analysis)
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_satker_kondisi ON integrasi.siman_aset_tanah(satker_id, kondisi) WHERE satker_id IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_satker_kondisi ON integrasi.siman_aset_gedung_bangunan(satker_id, kondisi) WHERE satker_id IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_satker_kondisi ON integrasi.siman_aset_alat_besar(satker_id, kondisi) WHERE satker_id IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_satker_kondisi ON integrasi.siman_aset_angkutan_bermotor(satker_id, kondisi) WHERE satker_id IS NOT NULL AND kondisi IS NOT NULL;
-
--- SIMAN: Filter by kode_barang + kondisi (for specific asset queries)
-CREATE INDEX IF NOT EXISTS idx_siman_tanah_kode_kondisi ON integrasi.siman_aset_tanah(kode_barang, kondisi) WHERE kode_barang IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_gedung_kode_kondisi ON integrasi.siman_aset_gedung_bangunan(kode_barang, kondisi) WHERE kode_barang IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_alat_besar_kode_kondisi ON integrasi.siman_aset_alat_besar(kode_barang, kondisi) WHERE kode_barang IS NOT NULL AND kondisi IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_siman_angkutan_kode_kondisi ON integrasi.siman_aset_angkutan_bermotor(kode_barang, kondisi) WHERE kode_barang IS NOT NULL AND kondisi IS NOT NULL;
-
--- MySIMKARI: Filter by satker + status
 CREATE INDEX IF NOT EXISTS idx_mysimkari_pegawai_satker_status ON integrasi.mysimkari_pegawai(satker_id, status_pegawai) WHERE satker_id IS NOT NULL AND status_pegawai IS NOT NULL;
-
--- API Call Log: Filter by module + success + date
-CREATE INDEX IF NOT EXISTS idx_api_call_log_module_success_date ON integrasi.api_call_log(module, success, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_api_log_module_success_date ON integrasi.api_log(module, success, created_at DESC);
 
 -- ============================================================================
--- CREATE ENHANCED VIEWS FOR MONITORING
+-- MONITORING VIEWS
 -- ============================================================================
 
 -- View: Sync Status Dashboard
@@ -206,65 +135,22 @@ ORDER BY
 
 COMMENT ON VIEW integrasi.v_sync_status_dashboard IS 'Dashboard view showing sync health status for all integration modules';
 
--- View: SIMAN Asset Summary by Satker
+-- View: SIMAN Asset Summary by Satker (unified siman_aset, grouped by jenis_aset)
 CREATE OR REPLACE VIEW integrasi.v_siman_asset_summary_by_satker AS
 SELECT
-    satker_id,
-    'tanah' as asset_type,
+    kdsatker_keu AS satker_id,
+    jenis_aset AS asset_type,
     COUNT(*) as total_count,
     COUNT(*) FILTER (WHERE kondisi = 'BAIK') as baik_count,
     COUNT(*) FILTER (WHERE kondisi = 'RUSAK RINGAN') as rusak_ringan_count,
     COUNT(*) FILTER (WHERE kondisi = 'RUSAK BERAT') as rusak_berat_count,
     MAX(synced_at) as last_synced_at
-FROM integrasi.siman_aset_tanah
-WHERE satker_id IS NOT NULL
-GROUP BY satker_id
+FROM integrasi.siman_aset
+WHERE kdsatker_keu IS NOT NULL
+GROUP BY kdsatker_keu, jenis_aset
+ORDER BY kdsatker_keu, jenis_aset;
 
-UNION ALL
-
-SELECT
-    satker_id,
-    'gedung_bangunan' as asset_type,
-    COUNT(*) as total_count,
-    COUNT(*) FILTER (WHERE kondisi = 'BAIK') as baik_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK RINGAN') as rusak_ringan_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK BERAT') as rusak_berat_count,
-    MAX(synced_at) as last_synced_at
-FROM integrasi.siman_aset_gedung_bangunan
-WHERE satker_id IS NOT NULL
-GROUP BY satker_id
-
-UNION ALL
-
-SELECT
-    satker_id,
-    'alat_besar' as asset_type,
-    COUNT(*) as total_count,
-    COUNT(*) FILTER (WHERE kondisi = 'BAIK') as baik_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK RINGAN') as rusak_ringan_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK BERAT') as rusak_berat_count,
-    MAX(synced_at) as last_synced_at
-FROM integrasi.siman_aset_alat_besar
-WHERE satker_id IS NOT NULL
-GROUP BY satker_id
-
-UNION ALL
-
-SELECT
-    satker_id,
-    'angkutan_bermotor' as asset_type,
-    COUNT(*) as total_count,
-    COUNT(*) FILTER (WHERE kondisi = 'BAIK') as baik_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK RINGAN') as rusak_ringan_count,
-    COUNT(*) FILTER (WHERE kondisi = 'RUSAK BERAT') as rusak_berat_count,
-    MAX(synced_at) as last_synced_at
-FROM integrasi.siman_aset_angkutan_bermotor
-WHERE satker_id IS NOT NULL
-GROUP BY satker_id
-
-ORDER BY satker_id, asset_type;
-
-COMMENT ON VIEW integrasi.v_siman_asset_summary_by_satker IS 'Summary of SIMAN assets by satker and condition';
+COMMENT ON VIEW integrasi.v_siman_asset_summary_by_satker IS 'Summary of unified SIMAN assets by satker (kdsatker_keu) and jenis_aset/condition';
 
 -- View: MySIMKARI Pegawai Summary by Satker
 CREATE OR REPLACE VIEW integrasi.v_mysimkari_pegawai_summary AS
@@ -285,50 +171,30 @@ ORDER BY satker_id;
 COMMENT ON VIEW integrasi.v_mysimkari_pegawai_summary IS 'Summary of MySIMKARI employees by satker';
 
 -- ============================================================================
--- TRIGGERS FOR AUTO-UPDATE
+-- TRIGGERS
 -- ============================================================================
 
--- Trigger for sync_status updated_at
+DROP TRIGGER IF EXISTS update_sync_status_updated_at ON integrasi.sync_status;
 CREATE TRIGGER update_sync_status_updated_at
     BEFORE UPDATE ON integrasi.sync_status
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
--- INSERT DEFAULT SYNC STATUS RECORDS
+-- DEFAULT SYNC STATUS RECORDS
 -- ============================================================================
 
--- SIMAN sync status
 INSERT INTO integrasi.sync_status (module, endpoint, sync_type, sync_frequency, is_enabled) VALUES
-    ('SIMAN', 'aset_tanah', 'full', 'daily', TRUE),
-    ('SIMAN', 'aset_gedung_bangunan', 'full', 'daily', TRUE),
-    ('SIMAN', 'aset_alat_besar', 'full', 'daily', TRUE),
-    ('SIMAN', 'aset_angkutan_bermotor', 'full', 'daily', TRUE)
+    ('SIMAN', 'aset', 'full', 'daily', TRUE)
 ON CONFLICT (module, endpoint) DO NOTHING;
 
--- MySIMKARI sync status
 INSERT INTO integrasi.sync_status (module, endpoint, sync_type, sync_frequency, is_enabled) VALUES
     ('MySIMKARI', 'satker', 'full', 'daily', TRUE),
     ('MySIMKARI', 'pegawai', 'full', 'daily', TRUE)
 ON CONFLICT (module, endpoint) DO NOTHING;
 
--- MonSAKTI sync status (examples)
 INSERT INTO integrasi.sync_status (module, endpoint, sync_type, sync_frequency, is_enabled) VALUES
     ('MonSAKTI_ADM', 'ref_admin', 'full', 'weekly', TRUE),
     ('MonSAKTI_ADM', 'ref_bank', 'full', 'weekly', TRUE),
     ('MonSAKTI_ADM', 'ref_jns_spp', 'full', 'weekly', TRUE)
 ON CONFLICT (module, endpoint) DO NOTHING;
-
--- ============================================================================
--- COMPLETION MESSAGE
--- ============================================================================
-
-DO $
-BEGIN
-    RAISE NOTICE '✅ Integration schema enhancement completed successfully';
-    RAISE NOTICE '📊 Added: 1 new table (sync_status)';
-    RAISE NOTICE '🔧 Enhanced: SIMAN and MySIMKARI tables with additional fields';
-    RAISE NOTICE '📈 Created: 30+ new indexes (FK, composite, JSONB GIN, full-text)';
-    RAISE NOTICE '👁️ Created: 3 new views for monitoring';
-    RAISE NOTICE '🔍 Schema: integrasi';
-END $;

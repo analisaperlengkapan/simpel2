@@ -354,7 +354,7 @@ fn render_satker_table(satkers: Vec<PengajuanKebutuhanBmnSatker>) -> impl IntoVi
                             let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25");
                             let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
                             let satker_id = satker.id.clone();
-                            let nm = satker.nm_satker.unwrap_or_else(|| satker.ms_satker_id.clone());
+                            let nm = satker.satker_nama.unwrap_or_else(|| satker.satker_id.clone());
                             let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
                             view! {
                                 <tr class=format!("border-b border-white/[0.04] {}", bg)>
