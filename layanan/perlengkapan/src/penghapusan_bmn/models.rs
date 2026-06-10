@@ -161,6 +161,26 @@ impl PenghapusanBmnStatus {
             Completed | Rejected => vec![],
         }
     }
+
+    /// Normalize a `status` filter string from the API into the canonical
+    /// state names stored in the DB (`to_state_name()`).
+    ///
+    /// Accepts a comma-separated list and legacy/UI aliases (handled by
+    /// [`from_state_name`], e.g. `SUBMITTED`→`SUBMIT_WILAYAH`,
+    /// `REVIEWED`→`SUBMIT_PUSAT`, `APPROVED`→`SK_SIGNED`). Whitespace is
+    /// trimmed, matching is case-insensitive, and unknown tokens are dropped
+    /// so a bad value can never silently match every row.
+    ///
+    /// [`from_state_name`]: PenghapusanBmnStatus::from_state_name
+    pub fn normalize_status_filter(raw: &str) -> Vec<String> {
+        raw.split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| {
+                Self::from_state_name(&s.to_uppercase()).map(|st| st.to_state_name().to_string())
+            })
+            .collect()
+    }
 }
 
 /// Penghapusan BMN entity
@@ -561,6 +581,34 @@ mod tests {
 
         let completed = PenghapusanBmnStatus::Completed;
         assert!(completed.allowed_transitions().is_empty());
+    }
+
+    #[test]
+    fn test_normalize_status_filter() {
+        // Legacy/UI aliases map to the canonical names stored in the DB.
+        assert_eq!(
+            PenghapusanBmnStatus::normalize_status_filter("SUBMITTED"),
+            vec!["SUBMIT_WILAYAH"]
+        );
+        assert_eq!(
+            PenghapusanBmnStatus::normalize_status_filter("REVIEWED"),
+            vec!["SUBMIT_PUSAT"]
+        );
+        // Comma-separated list, whitespace, and case are all handled; the
+        // canonical name passes through unchanged.
+        assert_eq!(
+            PenghapusanBmnStatus::normalize_status_filter("konsep_sk_generated, COMPLETED"),
+            vec!["KONSEP_SK_GENERATED", "COMPLETED"]
+        );
+        // Unknown tokens are dropped (never silently match every row); the
+        // valid sibling still comes through.
+        assert_eq!(
+            PenghapusanBmnStatus::normalize_status_filter("DOCUMENT_GENERATED,COMPLETED"),
+            vec!["COMPLETED"]
+        );
+        // All-unknown / empty → empty list → caller skips the filter entirely.
+        assert!(PenghapusanBmnStatus::normalize_status_filter("BOGUS").is_empty());
+        assert!(PenghapusanBmnStatus::normalize_status_filter("  ,  ").is_empty());
     }
 
     #[test]
