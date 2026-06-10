@@ -321,7 +321,17 @@ jobs:
                   icon="⚠️ FINDINGS"; advisory_fail=1
                 fi
                 ;;
-              cancelled) icon="🚫 CANCEL"; block_fail=1 ;;
+              cancelled)
+                # Cancelled biasanya = run di-supersede oleh push baru
+                # (concurrency). Hanya fail-closed bila job BLOCKING (gitleaks)
+                # yang batal — tak bisa pastikan tak ada secret bocor. Job
+                # advisory yang batal = netral (bukan red palsu).
+                if echo " $BLOCKING " | grep -q " $job "; then
+                  icon="🚫 CANCEL"; block_fail=1
+                else
+                  icon="🚫 CANCEL"
+                fi
+                ;;
               *) icon="$result" ;;
             esac
             echo "| $job | $icon | $category |" >> "$GITHUB_STEP_SUMMARY"
