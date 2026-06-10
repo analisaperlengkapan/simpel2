@@ -368,24 +368,44 @@ pub async fn login_handler(
         }
 
         Ok(AuthResult::MfaRequired {
-            user_id: _,
-            mfa_token,
-        }) => (
-            axum::http::StatusCode::OK,
-            axum::Json(LoginResponse {
-                access_token: String::new(),
-                refresh_token: String::new(),
-                token_type: "Bearer".to_string(),
-                expires_in: 0,
-                mfa_token: Some(mfa_token.clone()),
-                temp_token: Some(mfa_token),
-                mfa_required: true,
-                mfa_setup_required: false,
-                require_password_change: false,
-                message: String::new(),
-            }),
-        )
-            .into_response(),
+            user_id,
+            mfa_token: _, // legacy stub (`mfa_<uuid>`); replaced by a real JWT below
+        }) => {
+            // Mint a short-lived, MFA-pending JWT temp token. The verify handler
+            // exchanges it for full tokens; protected endpoints reject it (#MFA fix).
+            // The previous code returned the auth-service stub `mfa_<uuid>`, which
+            // is NOT a JWT, so `/mfa/verify` could never decode it → MFA login was
+            // broken end-to-end.
+            let temp_token =
+                match auth_helpers::generate_mfa_temp_token(&state, *user_id.as_uuid()) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        return ErrorResponse {
+                            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            error: "token_error".to_string(),
+                            message: e.message,
+                        }
+                        .into_response();
+                    }
+                };
+
+            (
+                axum::http::StatusCode::OK,
+                axum::Json(LoginResponse {
+                    access_token: String::new(),
+                    refresh_token: String::new(),
+                    token_type: "Bearer".to_string(),
+                    expires_in: 0,
+                    mfa_token: Some(temp_token.clone()),
+                    temp_token: Some(temp_token),
+                    mfa_required: true,
+                    mfa_setup_required: false,
+                    require_password_change: false,
+                    message: String::new(),
+                }),
+            )
+                .into_response()
+        }
 
         Ok(AuthResult::Failed { reason }) => {
             // Log actual reason server-side only — never expose to client

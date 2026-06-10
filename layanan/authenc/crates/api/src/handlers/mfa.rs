@@ -260,16 +260,17 @@ pub async fn mfa_verify_handler(
     headers: HeaderMap,
     Json(request): Json<MfaVerifyRequest>,
 ) -> Result<Json<MfaVerifyResponse>, MfaApiError> {
-    // Extract user from temp_token (passed in body or Authorization header)
-    let user_id = if let Some(ref temp_token) = request.temp_token {
-        auth_helpers::verify_token_from_body(&state, temp_token)
-            .await
-            .map_err(|e| MfaApiError::unauthorized(e.message))?
-    } else {
-        auth_helpers::extract_user_from_token(&state, &headers)
-            .await
-            .map_err(|e| MfaApiError::unauthorized(e.message))?
+    // Extract the MFA-pending temp token (request body or Authorization header)
+    // and verify it REQUIRES the `mfa_pending` claim — a full access token must
+    // not be replayable to drive the MFA step.
+    let temp_token = match request.temp_token {
+        Some(ref t) => t.clone(),
+        None => auth_helpers::extract_bearer_token(&headers)
+            .map_err(|e| MfaApiError::unauthorized(e.message))?,
     };
+    let user_id = auth_helpers::verify_mfa_pending_token(&state, &temp_token)
+        .await
+        .map_err(|e| MfaApiError::unauthorized(e.message))?;
 
     let mfa_service = state
         .mfa_service
@@ -471,8 +472,11 @@ pub async fn mfa_verify_recovery_handler(
     headers: HeaderMap,
     Json(request): Json<RecoveryVerifyRequest>,
 ) -> Result<Json<MfaVerifyResponse>, MfaApiError> {
-    // Extract user from temp_token in header
-    let user_id = auth_helpers::extract_user_from_token(&state, &headers)
+    // Recovery is a login-completion step: authenticate via the MFA-pending temp
+    // token (Authorization header), not a full access token.
+    let temp_token =
+        auth_helpers::extract_bearer_token(&headers).map_err(|e| MfaApiError::unauthorized(e.message))?;
+    let user_id = auth_helpers::verify_mfa_pending_token(&state, &temp_token)
         .await
         .map_err(|e| MfaApiError::unauthorized(e.message))?;
 
