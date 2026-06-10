@@ -42,7 +42,7 @@ async fn query_mapping_progress(_: ()) -> Option<MappingProgress> {
 }
 
 async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/perlengkapan/mapping/progress")
+    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/mapping/progress")
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;
@@ -60,7 +60,7 @@ async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
 fn download_export(format: &str) {
     if let Some(window) = web_sys::window() {
         let url = format!(
-            "/api/v1/perlengkapan/perlengkapan/mapping/export?format={}",
+            "/api/v1/perlengkapan/mapping/export?format={}",
             format
         );
         let _ = window.open_with_url(&url);

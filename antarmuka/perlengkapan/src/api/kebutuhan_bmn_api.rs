@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 // KEBUTUHAN BMN API FUNCTIONS
 // ============================================================================
 
-const KEBUTUHAN_BMN_BASE: &str = "/api/v1/perlengkapan/perlengkapan/kebutuhan-bmn";
+const KEBUTUHAN_BMN_BASE: &str = "/api/v1/perlengkapan/kebutuhan-bmn";
 
 // --- Dashboard ---
 #[cfg(target_arch = "wasm32")]

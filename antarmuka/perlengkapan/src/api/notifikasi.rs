@@ -1,4 +1,4 @@
-//! Frontend client for `/api/v1/perlengkapan/perlengkapan/notifikasi/*`.
+//! Frontend client for `/api/v1/perlengkapan/notifikasi/*`.
 //!
 //! Mirrors the slim `NotifikasiItem` payload the backend emits — title,
 //! message, category etc. are pre-formatted server-side so the page just
