@@ -110,6 +110,13 @@ jobs:
     name: Auto-merge Dependabot
     if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
     runs-on: arc-simpel
+    # Job-level perms override the workflow default (`contents: read`). Enabling
+    # auto-merge (`gh pr merge --auto`) needs `contents: write`; approving needs
+    # `pull-requests: write`. Without contents:write the merge mutation fails with
+    # "Resource not accessible by integration (mergePullRequest)".
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@v3
