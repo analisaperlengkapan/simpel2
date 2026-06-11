@@ -126,5 +126,3 @@ wasm = ["dep:wasmtime"]
 
 workflow-tests = []
 integration-tests = []
-# Legacy transit engine tests (gated; opt-in)
-transit-legacy-tests = []
