@@ -40,7 +40,7 @@ impl AuthenticationServiceImpl {
     /// A dummy Argon2id hash used to mitigate timing attacks.
     /// This hash matches the standard parameters (m=65536, t=3, p=4) and
     /// is used when a user is not found to ensure the password verification
-    /// takes a consistent amount of time.
+    /// takes a consistent amount of time. (Constant-time mitigation)
     const DUMMY_HASH: &'static str = "$argon2id$v=19$m=65536,t=3,p=4$\
                                       TG0TRGGPnVrMiDnG2RfqeQ$\
                                       wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M";
