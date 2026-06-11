@@ -126,7 +126,7 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "INTERNAL_ERROR",
-                    msg.clone(),
+                    "An internal server error occurred".to_string(),
                     None,
                 )
             }
@@ -139,19 +139,22 @@ impl IntoResponse for AppError {
                     None,
                 )
             }
-            AppError::Uuid(e) => (
-                StatusCode::BAD_REQUEST,
-                "UUID_ERROR",
-                format!("Invalid UUID: {}", e),
-                None,
-            ),
+            AppError::Uuid(e) => {
+                tracing::error!("UUID error: {:?}", e);
+                (
+                    StatusCode::BAD_REQUEST,
+                    "UUID_ERROR",
+                    "Invalid UUID format".to_string(),
+                    None,
+                )
+            }
             AppError::Parse(msg) => (StatusCode::BAD_REQUEST, "PARSE_ERROR", msg.clone(), None),
             AppError::Io(e) => {
                 tracing::error!("IO error: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "IO_ERROR",
-                    format!("IO operation failed: {}", e),
+                    "IO operation failed".to_string(),
                     None,
                 )
             }
@@ -160,7 +163,7 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "EXCEL_ERROR",
-                    msg.clone(),
+                    "Excel operation failed".to_string(),
                     None,
                 )
             }
@@ -228,4 +231,45 @@ pub fn conflict(message: &str) -> AppError {
 // Helper function to create bad request errors
 pub fn bad_request(message: &str) -> AppError {
     AppError::BadRequest(message.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+
+    #[tokio::test]
+    async fn test_internal_error_is_generic() {
+        let err = AppError::Internal("Sensitive database details".to_string());
+        let response = err.into_response();
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json.message, "An internal server error occurred");
+        assert!(json.error_code == "INTERNAL_ERROR");
+    }
+
+    #[tokio::test]
+    async fn test_uuid_error_is_generic() {
+        let uuid_err = uuid::Uuid::parse_str("invalid").unwrap_err();
+        let err = AppError::Uuid(uuid_err);
+        let response = err.into_response();
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json.message, "Invalid UUID format");
+        assert!(json.error_code == "UUID_ERROR");
+    }
+
+    #[tokio::test]
+    async fn test_io_error_is_generic() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = AppError::Io(io_err);
+        let response = err.into_response();
+        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(json.message, "IO operation failed");
+        assert!(json.error_code == "IO_ERROR");
+    }
 }

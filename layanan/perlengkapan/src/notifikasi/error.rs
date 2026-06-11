@@ -67,22 +67,22 @@ impl From<serde_json::Error> for AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let status = match self {
+        let (status, message) = match &self {
             AppError::Db(_)
             | AppError::Io(_)
             | AppError::Internal(_)
             | AppError::Redis(_)
-            | AppError::Config(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::NotFound => StatusCode::NOT_FOUND,
-            AppError::Forbidden => StatusCode::FORBIDDEN,
-            AppError::Validation(_) | AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::RateLimit => StatusCode::TOO_MANY_REQUESTS,
-            AppError::Email(_) | AppError::WhatsApp(_) | AppError::Push(_) => {
-                StatusCode::BAD_GATEWAY
+            | AppError::Config(_) => (StatusCode::INTERNAL_SERVER_ERROR, "An internal error occurred".to_string()),
+            AppError::NotFound => (StatusCode::NOT_FOUND, "Resource not found".to_string()),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".to_string()),
+            AppError::Validation(msg) | AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.to_string()),
+            AppError::RateLimit => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded".to_string()),
+            AppError::Email(msg) | AppError::WhatsApp(msg) | AppError::Push(msg) => {
+                (StatusCode::BAD_GATEWAY, msg.to_string())
             }
-            AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
         };
         error!(error = ?self, "AppError");
-        (status, format!("{{\"error\":\"{}\"}}", self)).into_response()
+        (status, axum::Json(serde_json::json!({ "error": message }))).into_response()
     }
 }

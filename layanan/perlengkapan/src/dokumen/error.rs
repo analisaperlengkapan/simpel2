@@ -33,18 +33,18 @@ pub enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let status = match &self {
+        let (status, message) = match &self {
             AppError::Db(_) | AppError::Pool(_) | AppError::Io(_) | AppError::Internal => {
-                StatusCode::INTERNAL_SERVER_ERROR
+                (StatusCode::INTERNAL_SERVER_ERROR, "An internal error occurred".to_string())
             }
-            AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::Forbidden => StatusCode::FORBIDDEN,
-            AppError::Validation(_) | AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::Virus(_) => StatusCode::UNPROCESSABLE_ENTITY,
-            AppError::Ai(_) => StatusCode::BAD_GATEWAY,
-            AppError::Unauthorized => StatusCode::UNAUTHORIZED,
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".to_string()),
+            AppError::Validation(msg) | AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::Virus(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
+            AppError::Ai(msg) => (StatusCode::BAD_GATEWAY, msg.clone()),
+            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
         };
         error!(error = ?self, "AppError");
-        (status, format!("{{\"error\":\"{}\"}}", self)).into_response()
+        (status, axum::Json(serde_json::json!({ "error": message }))).into_response()
     }
 }
