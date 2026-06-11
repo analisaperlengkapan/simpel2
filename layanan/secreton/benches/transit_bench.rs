@@ -1,5 +1,6 @@
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use secreton_crypto::transit::keys::{KeyOptions, KeyType, TransitKey};
+use std::hint::black_box;
 
 /// Benchmark transit engine encryption operations
 fn bench_transit_encrypt(c: &mut Criterion) {

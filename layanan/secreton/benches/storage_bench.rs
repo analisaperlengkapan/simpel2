@@ -1,8 +1,9 @@
-use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use secreton_storage::{
     KvBackendAdapter, MemoryBackend, QueryParams, SecretEntry, SecurityLevel, StorageBackend,
     backends::{FileBackend, FileConfig},
 };
+use std::hint::black_box;
 use std::sync::Arc;
 use tokio::runtime::Runtime;
 use uuid::Uuid;
