@@ -30,6 +30,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 http = { workspace = true }
+http-body-util = { workspace = true }
 webauthn-rs = { workspace = true }
 rand = { workspace = true }
 bcrypt = { workspace = true }

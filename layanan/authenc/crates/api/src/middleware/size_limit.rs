@@ -4,11 +4,13 @@
 //! Enforces maximum request body size to prevent DoS attacks and resource exhaustion.
 
 use axum::{
+    body::Body,
     extract::Request,
     http::StatusCode,
     middleware::Next,
     response::{IntoResponse, Response},
 };
+use http_body_util::Limited;
 
 /// Maximum request body size (1MB)
 pub const MAX_REQUEST_BODY_SIZE: usize = 1_048_576;
@@ -16,34 +18,39 @@ pub const MAX_REQUEST_BODY_SIZE: usize = 1_048_576;
 /// Middleware to enforce request body size limits
 /// This middleware checks the Content-Length header and rejects requests
 /// that exceed the maximum allowed size before reading the body.
+/// It also wraps the request body with a size limit to handle chunked encoding.
 pub async fn request_size_limit_middleware(
-    request: Request,
+    mut request: Request,
     next: Next,
 ) -> Result<Response, Response> {
-    // Check Content-Length header if present
+    // 1. Pre-emptive check: Check Content-Length header if present
     if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
         && let Ok(length_str) = content_length.to_str()
         && let Ok(length) = length_str.parse::<usize>()
-        && length > MAX_REQUEST_BODY_SIZE
     {
-        tracing::warn!(
-            "Request body too large: {} bytes (max: {} bytes)",
-            length,
-            MAX_REQUEST_BODY_SIZE
-        );
-        return Err((
-            StatusCode::PAYLOAD_TOO_LARGE,
-            format!(
-                "Request body too large. Maximum size is {} bytes (1MB)",
+        if length > MAX_REQUEST_BODY_SIZE {
+            tracing::warn!(
+                "Request body too large (Content-Length): {} bytes (max: {} bytes)",
+                length,
                 MAX_REQUEST_BODY_SIZE
-            ),
-        )
-            .into_response());
+            );
+            return Err((
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!(
+                    "Request body too large. Maximum size is {} bytes (1MB)",
+                    MAX_REQUEST_BODY_SIZE
+                ),
+            )
+                .into_response());
+        }
     }
 
-    // For chunked encoding or missing Content-Length, we need to check during body reading
-    // Note: Full body limiting would require http_body_util::Limited
-    // For now, we rely on the Content-Length header check above
+    // 2. Stream-time check: Wrap body with a limit to handle missing Content-Length/chunked encoding
+    // This is the primary defense against bodies that lie about their size or use chunked encoding.
+    let (parts, body) = request.into_parts();
+    let limited_body = Body::new(Limited::new(body, MAX_REQUEST_BODY_SIZE));
+    request = Request::from_parts(parts, limited_body);
+
     Ok(next.run(request).await)
 }
 
@@ -113,7 +120,7 @@ pub mod layer {
             self.inner.poll_ready(cx)
         }
 
-        fn call(&mut self, request: Request) -> Self::Future {
+        fn call(&mut self, mut request: Request) -> Self::Future {
             let max_size = self.max_size;
             let mut inner = self.inner.clone();
 
@@ -122,21 +129,26 @@ pub mod layer {
                 if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
                     && let Ok(length_str) = content_length.to_str()
                     && let Ok(length) = length_str.parse::<usize>()
-                    && length > max_size
                 {
-                    tracing::warn!(
-                        "Request body too large: {} bytes (max: {} bytes)",
-                        length,
-                        max_size
-                    );
-                    return Ok((
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        format!("Request body too large. Maximum size is {} bytes", max_size),
-                    )
-                        .into_response());
+                    if length > max_size {
+                        tracing::warn!(
+                            "Request body too large: {} bytes (max: {} bytes)",
+                            length,
+                            max_size
+                        );
+                        return Ok((
+                            StatusCode::PAYLOAD_TOO_LARGE,
+                            format!("Request body too large. Maximum size is {} bytes", max_size),
+                        )
+                            .into_response());
+                    }
                 }
 
-                // Pass through - Content-Length check above is sufficient
+                // Wrap body with a limit
+                let (parts, body) = request.into_parts();
+                let limited_body = Body::new(Limited::new(body, max_size));
+                request = Request::from_parts(parts, limited_body);
+
                 inner.call(request).await
             })
         }
@@ -156,7 +168,8 @@ mod tests {
     };
     use tower::ServiceExt;
 
-    async fn test_handler() -> impl IntoResponse {
+    async fn test_handler(body: String) -> impl IntoResponse {
+        let _ = body;
         "OK"
     }
 
@@ -189,6 +202,24 @@ mod tests {
             .method("POST")
             .uri("/test")
             .header("content-length", size.to_string())
+            .body(Body::from("x".repeat(size)))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    }
+
+    #[tokio::test]
+    async fn test_request_missing_content_length_exceeds_limit() {
+        let app = Router::new()
+            .route("/test", post(test_handler))
+            .layer(middleware::from_fn(request_size_limit_middleware));
+
+        let size = MAX_REQUEST_BODY_SIZE + 1;
+        let request = Request::builder()
+            .method("POST")
+            .uri("/test")
+            // No content-length header
             .body(Body::from("x".repeat(size)))
             .unwrap();
 
