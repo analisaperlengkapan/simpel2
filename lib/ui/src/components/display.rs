@@ -8,11 +8,9 @@ use leptos::prelude::*;
 // ============================================================================
 
 /// Type alias untuk render function yang kompleks
-#[allow(clippy::type_complexity)]
 pub type RowRenderer<T> = Box<dyn Fn(&T) -> Vec<String>>;
 
 #[component]
-#[allow(clippy::type_complexity)]
 pub fn Table<T>(
     #[prop(into)] columns: Vec<TableColumn>,
     #[prop(into)] data: Vec<T>,
@@ -547,7 +545,7 @@ pub fn QrCodeDisplay(
 pub fn SortableTable<T>(
     #[prop(into)] columns: Vec<TableColumn>,
     #[prop(into)] data: Vec<T>,
-    #[prop(optional)] render_row: Option<Box<dyn Fn(&T) -> Vec<String>>>,
+    #[prop(optional)] render_row: Option<RowRenderer<T>>,
     #[prop(default = false)] striped: bool,
     #[prop(default = false)] hoverable: bool,
     #[prop(optional, into)] class: Option<String>,

@@ -168,12 +168,11 @@ impl SimanTransformer {
         field_names: &[&str],
     ) -> Option<String> {
         for field_name in field_names {
-            if let Some(value) = obj.get(*field_name) {
-                if let Some(s) = value.as_str() {
-                    if !s.is_empty() {
-                        return Some(s.to_string());
-                    }
-                }
+            if let Some(value) = obj.get(*field_name)
+                && let Some(s) = value.as_str()
+                && !s.is_empty()
+            {
+                return Some(s.to_string());
             }
         }
         None
@@ -188,10 +187,10 @@ impl SimanTransformer {
                     return Some(n as i32);
                 }
                 // Try as string
-                if let Some(s) = value.as_str() {
-                    if let Ok(n) = s.parse::<i32>() {
-                        return Some(n);
-                    }
+                if let Some(s) = value.as_str()
+                    && let Ok(n) = s.parse::<i32>()
+                {
+                    return Some(n);
                 }
             }
         }
@@ -207,10 +206,10 @@ impl SimanTransformer {
                     return Some(n);
                 }
                 // Try as string
-                if let Some(s) = value.as_str() {
-                    if let Ok(n) = s.parse::<f64>() {
-                        return Some(n);
-                    }
+                if let Some(s) = value.as_str()
+                    && let Ok(n) = s.parse::<f64>()
+                {
+                    return Some(n);
                 }
             }
         }
@@ -253,13 +252,13 @@ impl SimanTransformer {
         }
 
         // Validate nilai_perolehan
-        if let Some(nilai) = asset.nilai_perolehan {
-            if nilai < 0.0 {
-                asset.add_validation_error(format!(
-                    "Invalid nilai_perolehan: {}. Must be non-negative",
-                    nilai
-                ));
-            }
+        if let Some(nilai) = asset.nilai_perolehan
+            && nilai < 0.0
+        {
+            asset.add_validation_error(format!(
+                "Invalid nilai_perolehan: {}. Must be non-negative",
+                nilai
+            ));
         }
 
         debug!("Validated asset: {} errors", asset.validation_errors.len());

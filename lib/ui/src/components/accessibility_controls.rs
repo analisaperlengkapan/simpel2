@@ -11,12 +11,27 @@ use wasm_bindgen::JsCast;
 // ============================================================================
 
 /// Font size options
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 pub enum FontSize {
     Small,
+    #[default]
     Medium,
     Large,
     ExtraLarge,
+}
+
+impl std::str::FromStr for FontSize {
+    type Err = std::convert::Infallible;
+
+    /// Parse a font-size label; unknown values fall back to `Medium`.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "small" => Self::Small,
+            "large" => Self::Large,
+            "extra-large" => Self::ExtraLarge,
+            _ => Self::Medium,
+        })
+    }
 }
 
 impl FontSize {
@@ -26,16 +41,6 @@ impl FontSize {
             Self::Medium => "medium",
             Self::Large => "large",
             Self::ExtraLarge => "extra-large",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(s: &str) -> Self {
-        match s {
-            "small" => Self::Small,
-            "large" => Self::Large,
-            "extra-large" => Self::ExtraLarge,
-            _ => Self::Medium,
         }
     }
 
@@ -58,7 +63,7 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
         UseStorageOptions::default().initial_value("medium".to_string()),
     );
 
-    let current_size = move || FontSize::from_str(&font_size.get());
+    let current_size = move || font_size.get().parse::<FontSize>().unwrap_or_default();
 
     // Apply font size to document root
     Effect::new(move |_| {

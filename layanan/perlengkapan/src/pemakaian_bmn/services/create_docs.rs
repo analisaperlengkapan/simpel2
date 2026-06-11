@@ -194,10 +194,7 @@ impl PemakaianBmnService {
             "/api/v1/perlengkapan/pemakaian-bmn/{}/konsep-surat.docx",
             id
         );
-        let pdf_url = format!(
-            "/api/v1/perlengkapan/pemakaian-bmn/{}/konsep-surat.pdf",
-            id
-        );
+        let pdf_url = format!("/api/v1/perlengkapan/pemakaian-bmn/{}/konsep-surat.pdf", id);
 
         self.repository
             .update_konsep_surat(id, &docx_url, &docx_path, &pdf_url, &pdf_path)

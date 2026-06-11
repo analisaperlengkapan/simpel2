@@ -290,16 +290,14 @@ pub fn get_app_name() -> String {
 
     // Try global config object on window (CSR injection)
     #[cfg(target_arch = "wasm32")]
-    if let Some(window) = window() {
-        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
-            if !value.is_undefined() && !value.is_null() {
-                if let Ok(name) = js_sys::Reflect::get(&value, &JsValue::from_str("appName")) {
-                    if let Some(s) = name.as_string() {
-                        return s;
-                    }
-                }
-            }
-        }
+    if let Some(window) = window()
+        && let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG"))
+        && !value.is_undefined()
+        && !value.is_null()
+        && let Ok(name) = js_sys::Reflect::get(&value, &JsValue::from_str("appName"))
+        && let Some(s) = name.as_string()
+    {
+        return s;
     }
 
     "Microfrontend".to_string()
@@ -314,17 +312,14 @@ pub fn get_app_description() -> String {
 
     // Try global config object on window
     #[cfg(target_arch = "wasm32")]
-    if let Some(window) = window() {
-        if let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG")) {
-            if !value.is_undefined() && !value.is_null() {
-                if let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription"))
-                {
-                    if let Some(s) = desc.as_string() {
-                        return s;
-                    }
-                }
-            }
-        }
+    if let Some(window) = window()
+        && let Ok(value) = js_sys::Reflect::get(&window, &JsValue::from_str("__SIMPEL_CONFIG"))
+        && !value.is_undefined()
+        && !value.is_null()
+        && let Ok(desc) = js_sys::Reflect::get(&value, &JsValue::from_str("appDescription"))
+        && let Some(s) = desc.as_string()
+    {
+        return s;
     }
 
     "Sistem Informasi Manajemen Perkara Elektronik".to_string()

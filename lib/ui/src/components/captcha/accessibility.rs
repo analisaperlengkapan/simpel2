@@ -42,33 +42,30 @@ pub fn AudioChallenge(
         set_audio_playing.set(true);
 
         spawn_local(async move {
-            if let Some(window) = web_sys::window() {
-                if let Ok(speech_synthesis) =
+            if let Some(window) = web_sys::window()
+                && let Ok(speech_synthesis) =
                     js_sys::Reflect::get(&window, &"speechSynthesis".into())
-                {
-                    if !speech_synthesis.is_undefined() {
-                        // Create speech utterance
-                        let utterance =
-                            web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get())
-                                .unwrap();
-                        utterance.set_rate(playback_speed.get() as f32);
-                        utterance.set_volume(0.8);
+                && !speech_synthesis.is_undefined()
+            {
+                // Create speech utterance
+                let utterance =
+                    web_sys::SpeechSynthesisUtterance::new_with_text(&audio_text.get()).unwrap();
+                utterance.set_rate(playback_speed.get() as f32);
+                utterance.set_volume(0.8);
 
-                        // Set up event handlers
-                        let set_audio_playing_clone = set_audio_playing;
-                        let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                            set_audio_playing_clone.set(false);
-                        })
-                            as Box<dyn Fn()>);
+                // Set up event handlers
+                let set_audio_playing_clone = set_audio_playing;
+                let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                    set_audio_playing_clone.set(false);
+                })
+                    as Box<dyn Fn()>);
 
-                        utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
-                        onend.forget(); // Keep closure alive
+                utterance.set_onend(Some(onend.as_ref().unchecked_ref()));
+                onend.forget(); // Keep closure alive
 
-                        // Speak the text
-                        let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
-                        synthesis.speak(&utterance);
-                    }
-                }
+                // Speak the text
+                let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
+                synthesis.speak(&utterance);
             }
 
             // Fallback timeout
@@ -79,13 +76,12 @@ pub fn AudioChallenge(
 
     // Stop audio playback
     let stop_audio = move |_| {
-        if let Some(window) = web_sys::window() {
-            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
-                if !speech_synthesis.is_undefined() {
-                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
-                    synthesis.cancel();
-                }
-            }
+        if let Some(window) = web_sys::window()
+            && let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into())
+            && !speech_synthesis.is_undefined()
+        {
+            let synthesis: web_sys::SpeechSynthesis = speech_synthesis.into();
+            synthesis.cancel();
         }
         set_audio_playing.set(false);
     };
@@ -212,13 +208,11 @@ pub fn KeyboardNavigation(
                 // Activate focused element
                 if let Some(focused_id) = current_focus.get() {
                     // Trigger click event on focused element
-                    if let Some(window) = web_sys::window() {
-                        if let Some(document) = window.document() {
-                            if let Some(element) = document.get_element_by_id(&focused_id) {
-                                let _ =
-                                    element.dispatch_event(&web_sys::Event::new("click").unwrap());
-                            }
-                        }
+                    if let Some(window) = web_sys::window()
+                        && let Some(document) = window.document()
+                        && let Some(element) = document.get_element_by_id(&focused_id)
+                    {
+                        let _ = element.dispatch_event(&web_sys::Event::new("click").unwrap());
                     }
                 }
                 ev.prevent_default();
@@ -297,112 +291,95 @@ pub fn AlternativeInputs(
                     js_sys::Reflect::get(&window, &"webkitSpeechRecognition".into())
                         .or_else(|_| js_sys::Reflect::get(&window, &"SpeechRecognition".into()));
 
-                if let Ok(recognition_constructor) = speech_recognition {
-                    if !recognition_constructor.is_undefined() {
-                        // Create speech recognition instance
-                        if let Ok(recognition) = js_sys::Reflect::construct(
-                            recognition_constructor.unchecked_ref::<js_sys::Function>(),
-                            &js_sys::Array::new(),
-                        ) {
-                            // Store reference for cleanup
-                            if let Ok(obj) = recognition.clone().dyn_into::<js_sys::Object>() {
-                                recognition_ref.set_value(Some(SendWrapper::new(obj)));
-                            }
-
-                            // Configure recognition
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"continuous".into(),
-                                &false.into(),
-                            );
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"interimResults".into(),
-                                &false.into(),
-                            );
-                            let _ =
-                                js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
-
-                            // Set up result handler
-                            let on_answer_clone = on_answer;
-                            let set_voice_input_active_clone = set_voice_input_active;
-                            let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
-                                move |event: web_sys::Event| {
-                                    // Extract speech result
-                                    if let Ok(results) =
-                                        js_sys::Reflect::get(&event, &"results".into())
-                                    {
-                                        if let Ok(result) =
-                                            js_sys::Reflect::get(&results, &0.into())
-                                        {
-                                            if let Ok(alternative) =
-                                                js_sys::Reflect::get(&result, &0.into())
-                                            {
-                                                if let Ok(transcript) = js_sys::Reflect::get(
-                                                    &alternative,
-                                                    &"transcript".into(),
-                                                ) {
-                                                    if let Some(text) = transcript.as_string() {
-                                                        on_answer_clone
-                                                            .run(text.trim().to_string());
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                    set_voice_input_active_clone.set(false);
-                                },
-                            )
-                                as Box<dyn Fn(web_sys::Event)>);
-
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"onresult".into(),
-                                onresult.as_ref().unchecked_ref(),
-                            );
-                            onresult.forget();
-
-                            // Set up error handler
-                            let set_voice_input_active_clone_err = set_voice_input_active;
-                            let onerror = wasm_bindgen::closure::Closure::wrap(Box::new(
-                                move |_e: web_sys::Event| {
-                                    set_voice_input_active_clone_err.set(false);
-                                },
-                            )
-                                as Box<dyn Fn(web_sys::Event)>);
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"onerror".into(),
-                                onerror.as_ref().unchecked_ref(),
-                            );
-                            onerror.forget();
-
-                            // Set up end handler
-                            let set_voice_input_active_clone_end = set_voice_input_active;
-                            let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
-                                set_voice_input_active_clone_end.set(false);
-                            })
-                                as Box<dyn Fn()>);
-                            let _ = js_sys::Reflect::set(
-                                &recognition,
-                                &"onend".into(),
-                                onend.as_ref().unchecked_ref(),
-                            );
-                            onend.forget();
-
-                            // Start recognition
-                            if let Ok(start_fn) =
-                                js_sys::Reflect::get(&recognition, &"start".into())
-                            {
-                                let _ = js_sys::Reflect::apply(
-                                    start_fn.unchecked_ref::<js_sys::Function>(),
-                                    &recognition,
-                                    &js_sys::Array::new(),
-                                );
-                            }
-
-                            return;
+                if let Ok(recognition_constructor) = speech_recognition
+                    && !recognition_constructor.is_undefined()
+                {
+                    // Create speech recognition instance
+                    if let Ok(recognition) = js_sys::Reflect::construct(
+                        recognition_constructor.unchecked_ref::<js_sys::Function>(),
+                        &js_sys::Array::new(),
+                    ) {
+                        // Store reference for cleanup
+                        if let Ok(obj) = recognition.clone().dyn_into::<js_sys::Object>() {
+                            recognition_ref.set_value(Some(SendWrapper::new(obj)));
                         }
+
+                        // Configure recognition
+                        let _ =
+                            js_sys::Reflect::set(&recognition, &"continuous".into(), &false.into());
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"interimResults".into(),
+                            &false.into(),
+                        );
+                        let _ = js_sys::Reflect::set(&recognition, &"lang".into(), &"en-US".into());
+
+                        // Set up result handler
+                        let on_answer_clone = on_answer;
+                        let set_voice_input_active_clone = set_voice_input_active;
+                        let onresult = wasm_bindgen::closure::Closure::wrap(Box::new(
+                            move |event: web_sys::Event| {
+                                // Extract speech result
+                                if let Ok(results) = js_sys::Reflect::get(&event, &"results".into())
+                                    && let Ok(result) = js_sys::Reflect::get(&results, &0.into())
+                                    && let Ok(alternative) =
+                                        js_sys::Reflect::get(&result, &0.into())
+                                    && let Ok(transcript) =
+                                        js_sys::Reflect::get(&alternative, &"transcript".into())
+                                    && let Some(text) = transcript.as_string()
+                                {
+                                    on_answer_clone.run(text.trim().to_string());
+                                }
+                                set_voice_input_active_clone.set(false);
+                            },
+                        )
+                            as Box<dyn Fn(web_sys::Event)>);
+
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"onresult".into(),
+                            onresult.as_ref().unchecked_ref(),
+                        );
+                        onresult.forget();
+
+                        // Set up error handler
+                        let set_voice_input_active_clone_err = set_voice_input_active;
+                        let onerror = wasm_bindgen::closure::Closure::wrap(Box::new(
+                            move |_e: web_sys::Event| {
+                                set_voice_input_active_clone_err.set(false);
+                            },
+                        )
+                            as Box<dyn Fn(web_sys::Event)>);
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"onerror".into(),
+                            onerror.as_ref().unchecked_ref(),
+                        );
+                        onerror.forget();
+
+                        // Set up end handler
+                        let set_voice_input_active_clone_end = set_voice_input_active;
+                        let onend = wasm_bindgen::closure::Closure::wrap(Box::new(move || {
+                            set_voice_input_active_clone_end.set(false);
+                        })
+                            as Box<dyn Fn()>);
+                        let _ = js_sys::Reflect::set(
+                            &recognition,
+                            &"onend".into(),
+                            onend.as_ref().unchecked_ref(),
+                        );
+                        onend.forget();
+
+                        // Start recognition
+                        if let Ok(start_fn) = js_sys::Reflect::get(&recognition, &"start".into()) {
+                            let _ = js_sys::Reflect::apply(
+                                start_fn.unchecked_ref::<js_sys::Function>(),
+                                &recognition,
+                                &js_sys::Array::new(),
+                            );
+                        }
+
+                        return;
                     }
                 }
             }
@@ -544,37 +521,34 @@ pub async fn play_audio_content(content: String) -> Result<(), ()> {
             }
         } else {
             // Use Text-to-Speech
-            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into()) {
-                if !speech_synthesis.is_undefined() {
-                    // Safe cast using dyn_into if possible, or unchecked_into if we trust window property
-                    // Using unchecked_into for now as it's standard for this property,
-                    // but verifying it's not undefined is good practice.
-                    let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
+            if let Ok(speech_synthesis) = js_sys::Reflect::get(&window, &"speechSynthesis".into())
+                && !speech_synthesis.is_undefined()
+            {
+                // Safe cast using dyn_into if possible, or unchecked_into if we trust window property
+                // Using unchecked_into for now as it's standard for this property,
+                // but verifying it's not undefined is good practice.
+                let synthesis: web_sys::SpeechSynthesis = speech_synthesis.unchecked_into();
 
-                    if let Ok(utterance) =
-                        web_sys::SpeechSynthesisUtterance::new_with_text(&content)
-                    {
-                        let promise = js_sys::Promise::new(&mut |resolve, _reject| {
-                            // Success handler
-                            let resolve_success = resolve.clone();
-                            let on_end = wasm_bindgen::closure::Closure::once_into_js(move || {
-                                let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
-                            });
-                            utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
-
-                            // Error handler
-                            let resolve_error = resolve.clone();
-                            let on_error =
-                                wasm_bindgen::closure::Closure::once_into_js(move || {
-                                    let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
-                                });
-                            utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
-
-                            synthesis.speak(&utterance);
+                if let Ok(utterance) = web_sys::SpeechSynthesisUtterance::new_with_text(&content) {
+                    let promise = js_sys::Promise::new(&mut |resolve, _reject| {
+                        // Success handler
+                        let resolve_success = resolve.clone();
+                        let on_end = wasm_bindgen::closure::Closure::once_into_js(move || {
+                            let _ = resolve_success.call0(&wasm_bindgen::JsValue::NULL);
                         });
-                        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
-                        return Ok(());
-                    }
+                        utterance.set_onend(Some(on_end.as_ref().unchecked_ref()));
+
+                        // Error handler
+                        let resolve_error = resolve.clone();
+                        let on_error = wasm_bindgen::closure::Closure::once_into_js(move || {
+                            let _ = resolve_error.call0(&wasm_bindgen::JsValue::NULL);
+                        });
+                        utterance.set_onerror(Some(on_error.as_ref().unchecked_ref()));
+
+                        synthesis.speak(&utterance);
+                    });
+                    let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+                    return Ok(());
                 }
             }
         }

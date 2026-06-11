@@ -1,4 +1,3 @@
-#![allow(clippy::collapsible_if)]
 //! Validation helpers for Perlengkapan domain
 
 use thiserror::Error;
@@ -43,22 +42,22 @@ pub fn validate_length(
 ) -> Result<(), ValidationError> {
     let len = value.len();
 
-    if let Some(min_len) = min {
-        if len < min_len {
-            return Err(ValidationError::MinLength {
-                field: field.to_string(),
-                min: min_len,
-            });
-        }
+    if let Some(min_len) = min
+        && len < min_len
+    {
+        return Err(ValidationError::MinLength {
+            field: field.to_string(),
+            min: min_len,
+        });
     }
 
-    if let Some(max_len) = max {
-        if len > max_len {
-            return Err(ValidationError::MaxLength {
-                field: field.to_string(),
-                max: max_len,
-            });
-        }
+    if let Some(max_len) = max
+        && len > max_len
+    {
+        return Err(ValidationError::MaxLength {
+            field: field.to_string(),
+            max: max_len,
+        });
     }
 
     Ok(())

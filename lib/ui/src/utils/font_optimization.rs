@@ -8,21 +8,20 @@
 pub fn preload_font(href: &str, font_type: FontType) {
     use wasm_bindgen::JsCast;
 
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            if let Ok(link) = document.create_element("link") {
-                let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
-                link.set_rel("preload");
-                link.set_as("font");
-                link.set_href(href);
-                link.set_attribute("type", font_type.mime_type()).ok();
-                link.set_attribute("crossorigin", "anonymous").ok();
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+        && let Ok(link) = document.create_element("link")
+    {
+        let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
+        link.set_rel("preload");
+        link.set_as("font");
+        link.set_href(href);
+        link.set_attribute("type", font_type.mime_type()).ok();
+        link.set_attribute("crossorigin", "anonymous").ok();
 
-                let _ = document
-                    .head()
-                    .and_then(|head| head.append_child(&link).ok());
-            }
-        }
+        let _ = document
+            .head()
+            .and_then(|head| head.append_child(&link).ok());
     }
 }
 
@@ -58,12 +57,13 @@ impl FontType {
 pub fn setup_font_display_swap() {
     use wasm_bindgen::JsCast;
 
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            // Add CSS to enable font-display: swap
-            if let Ok(style) = document.create_element("style") {
-                let style = style.dyn_into::<web_sys::HtmlStyleElement>().unwrap();
-                style.set_inner_html(
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+    {
+        // Add CSS to enable font-display: swap
+        if let Ok(style) = document.create_element("style") {
+            let style = style.dyn_into::<web_sys::HtmlStyleElement>().unwrap();
+            style.set_inner_html(
                     r#"
                     @font-face {
                         font-family: 'Inter';
@@ -96,10 +96,9 @@ pub fn setup_font_display_swap() {
                     "#,
                 );
 
-                let _ = document
-                    .head()
-                    .and_then(|head| head.append_child(&style).ok());
-            }
+            let _ = document
+                .head()
+                .and_then(|head| head.append_child(&style).ok());
         }
     }
 }
@@ -115,16 +114,15 @@ pub async fn wait_for_fonts_loaded() {
     use wasm_bindgen::JsCast;
     use wasm_bindgen_futures::JsFuture;
 
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            // Use document.fonts.ready promise
-            if let Ok(fonts) = js_sys::Reflect::get(&document, &"fonts".into()) {
-                if let Ok(ready) = js_sys::Reflect::get(&fonts, &"ready".into()) {
-                    if let Ok(promise) = ready.dyn_into::<js_sys::Promise>() {
-                        let _ = JsFuture::from(promise).await;
-                    }
-                }
-            }
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+    {
+        // Use document.fonts.ready promise
+        if let Ok(fonts) = js_sys::Reflect::get(&document, &"fonts".into())
+            && let Ok(ready) = js_sys::Reflect::get(&fonts, &"ready".into())
+            && let Ok(promise) = ready.dyn_into::<js_sys::Promise>()
+        {
+            let _ = JsFuture::from(promise).await;
         }
     }
 }

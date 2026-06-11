@@ -238,26 +238,26 @@ pub async fn get_row_count(
                 data.get("results").and_then(|v| v.as_array())
             };
 
-            if let Some(array) = array {
-                if let Some(first) = array.first() {
-                    // Try to extract from various possible field names (handle string/number and case sensitivity)
-                    for key in &[
-                        "row_count",
-                        "total",
-                        "ROW_COUNT",
-                        "TOTAL",
-                        "RCOUNT",
-                        "rcount",
-                    ] {
-                        if let Some(val) = first.get(*key) {
-                            if let Some(count) = val.as_i64() {
-                                return Ok(count);
-                            }
-                            if let Some(s) = val.as_str() {
-                                if let Ok(count) = s.parse::<i64>() {
-                                    return Ok(count);
-                                }
-                            }
+            if let Some(array) = array
+                && let Some(first) = array.first()
+            {
+                // Try to extract from various possible field names (handle string/number and case sensitivity)
+                for key in &[
+                    "row_count",
+                    "total",
+                    "ROW_COUNT",
+                    "TOTAL",
+                    "RCOUNT",
+                    "rcount",
+                ] {
+                    if let Some(val) = first.get(*key) {
+                        if let Some(count) = val.as_i64() {
+                            return Ok(count);
+                        }
+                        if let Some(s) = val.as_str()
+                            && let Ok(count) = s.parse::<i64>()
+                        {
+                            return Ok(count);
                         }
                     }
                 }

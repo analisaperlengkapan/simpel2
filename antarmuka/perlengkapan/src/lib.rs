@@ -9,11 +9,13 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
-#![allow(clippy::derivable_impls)]
-#![allow(clippy::redundant_closure)]
-#![allow(clippy::manual_ok_err)]
-#![allow(clippy::unnecessary_cast)]
+// Kept deliberately: both lints' suggested rewrites shorten the drop scope of
+// temporaries borrowed inside Leptos reactive closures, which fails the borrow
+// checker here (E0597) — collapsing nested `if`s into edition-2024 let-chains,
+// and replacing `move || f(x)` capturing closures with bare `f`. `cargo clippy
+// --fix` produces non-compiling code for both, so they stay crate-wide.
 #![allow(clippy::collapsible_if)]
+#![allow(clippy::redundant_closure)]
 mod api;
 mod components;
 mod features;

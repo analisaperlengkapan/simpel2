@@ -35,9 +35,6 @@ pub fn AdminTemplatesPage() -> impl IntoView {
 
     // Fetch the template list on mount.
     {
-        let set_templates = set_templates;
-        let set_error = set_error;
-        let set_loading_list = set_loading_list;
         Effect::new(move |_| {
             set_loading_list.set(true);
             spawn_local(async move {

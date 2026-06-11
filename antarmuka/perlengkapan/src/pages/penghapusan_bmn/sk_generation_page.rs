@@ -402,10 +402,11 @@ pub fn SkGenerationPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_requests_for_sk() -> Result<Vec<PenghapusanRequest>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=REVIEWED")
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+    let response =
+        gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn?status=REVIEWED")
+            .send()
+            .await
+            .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
         return Err(crate::api::AppError::Unknown(format!(
@@ -425,7 +426,10 @@ async fn fetch_requests_for_sk() -> Result<Vec<PenghapusanRequest>, crate::api::
 async fn generate_sk_document(
     request_id: Uuid,
 ) -> Result<GenerateSKResponse, crate::api::AppError> {
-    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/generate-sk", request_id);
+    let url = format!(
+        "/api/v1/perlengkapan/penghapusan-bmn/{}/generate-sk",
+        request_id
+    );
     let response = gloo_net::http::Request::post(&url)
         .send()
         .await
@@ -457,7 +461,10 @@ async fn upload_signed_sk_document(
         .append_with_blob("file", &file)
         .map_err(|_| "Failed to append file")?;
 
-    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/upload-signed-sk", request_id);
+    let url = format!(
+        "/api/v1/perlengkapan/penghapusan-bmn/{}/upload-signed-sk",
+        request_id
+    );
 
     let response = gloo_net::http::Request::post(&url)
         .body(form_data)

@@ -159,15 +159,15 @@ pub fn preload_route(route: &str) {
         if !cache.contains(route) {
             cache.insert(route.to_string());
             // Trigger preload via link prefetch
-            if let Some(document) = web_sys::window().and_then(|w| w.document()) {
-                if let Ok(link) = document.create_element("link") {
-                    let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
-                    link.set_rel("prefetch");
-                    link.set_href(&format!("/{}", route));
-                    let _ = document
-                        .head()
-                        .and_then(|head| head.append_child(&link).ok());
-                }
+            if let Some(document) = web_sys::window().and_then(|w| w.document())
+                && let Ok(link) = document.create_element("link")
+            {
+                let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
+                link.set_rel("prefetch");
+                link.set_href(&format!("/{}", route));
+                let _ = document
+                    .head()
+                    .and_then(|head| head.append_child(&link).ok());
             }
         }
     });
@@ -196,26 +196,25 @@ pub fn get_bundle_size() -> BundleSize {
     for i in 0..entries.length() {
         let entry = entries.get(i);
         // Try to get the name property from the entry
-        if let Ok(name) = js_sys::Reflect::get(&entry, &"name".into()) {
-            if let Some(name_str) = name.as_string() {
-                // Try to get transfer size or encoded body size
-                let size = if let Ok(transfer_size) =
-                    js_sys::Reflect::get(&entry, &"transferSize".into())
-                {
-                    transfer_size.as_f64().unwrap_or(0.0) as usize
-                } else if let Ok(encoded_size) =
-                    js_sys::Reflect::get(&entry, &"encodedBodySize".into())
-                {
-                    encoded_size.as_f64().unwrap_or(0.0) as usize
-                } else {
-                    0
-                };
+        if let Ok(name) = js_sys::Reflect::get(&entry, &"name".into())
+            && let Some(name_str) = name.as_string()
+        {
+            // Try to get transfer size or encoded body size
+            let size = if let Ok(transfer_size) =
+                js_sys::Reflect::get(&entry, &"transferSize".into())
+            {
+                transfer_size.as_f64().unwrap_or(0.0) as usize
+            } else if let Ok(encoded_size) = js_sys::Reflect::get(&entry, &"encodedBodySize".into())
+            {
+                encoded_size.as_f64().unwrap_or(0.0) as usize
+            } else {
+                0
+            };
 
-                if name_str.ends_with(".wasm") {
-                    wasm_size += size;
-                } else if name_str.ends_with(".js") {
-                    js_size += size;
-                }
+            if name_str.ends_with(".wasm") {
+                wasm_size += size;
+            } else if name_str.ends_with(".js") {
+                js_size += size;
             }
         }
     }
@@ -404,12 +403,12 @@ where
             let entries = performance.get_entries_by_name(&measure_name);
             let entry = entries.get(0);
             // Try to get duration from the entry
-            if let Ok(duration) = js_sys::Reflect::get(&entry, &"duration".into()) {
-                if let Some(duration_val) = duration.as_f64() {
-                    web_sys::console::log_1(
-                        &format!("⏱️ {} rendered in {:.2}ms", _name, duration_val).into(),
-                    );
-                }
+            if let Ok(duration) = js_sys::Reflect::get(&entry, &"duration".into())
+                && let Some(duration_val) = duration.as_f64()
+            {
+                web_sys::console::log_1(
+                    &format!("⏱️ {} rendered in {:.2}ms", _name, duration_val).into(),
+                );
             }
         }
 

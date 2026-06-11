@@ -688,9 +688,10 @@ fn ActionModal(
 
 async fn fetch_submissions_for_review() -> Result<Vec<SatkerSubmission>, AppError> {
     // status_kode = 2002 (SUBMIT_SATKER — menunggu Validator Wilayah)
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2002")
-        .send()
-        .await?;
+    let response =
+        gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2002")
+            .send()
+            .await?;
 
     if !response.ok() {
         let status = response.status();

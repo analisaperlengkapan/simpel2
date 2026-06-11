@@ -138,19 +138,18 @@ pub fn Captcha(
                                             resp.json().unwrap(),
                                         )
                                         .await
-                                        {
-                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
+                                            && let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
-                                            ) {
-                                                if parsed_resp.success {
-                                                    success = true;
-                                                } else {
-                                                    error_msg = parsed_resp.message.clone();
-                                                }
-                                                val_resp = Some(parsed_resp);
+                                            )
+                                        {
+                                            if parsed_resp.success {
+                                                success = true;
+                                            } else {
+                                                error_msg = parsed_resp.message.clone();
                                             }
+                                            val_resp = Some(parsed_resp);
                                         }
                                     } else {
                                         error_msg = format!("API error: {}", resp.status());
@@ -573,10 +572,10 @@ pub fn ChallengeDisplay(
         spawn_local(async move {
             let mut audio_played = false;
 
-            if let Some(data) = challenge_data {
-                if play_audio_content(data.challenge_data).await.is_ok() {
-                    audio_played = true;
-                }
+            if let Some(data) = challenge_data
+                && play_audio_content(data.challenge_data).await.is_ok()
+            {
+                audio_played = true;
             }
 
             if !audio_played {
@@ -837,19 +836,18 @@ pub fn ChallengeInput(
                                             resp.json().unwrap(),
                                         )
                                         .await
-                                        {
-                                            if let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
+                                            && let Ok(parsed_resp) = serde_wasm_bindgen::from_value::<
                                                 ValidationResponse,
                                             >(
                                                 json
-                                            ) {
-                                                if parsed_resp.success {
-                                                    success = true;
-                                                } else {
-                                                    error_msg = parsed_resp.message.clone();
-                                                }
-                                                val_resp = Some(parsed_resp);
+                                            )
+                                        {
+                                            if parsed_resp.success {
+                                                success = true;
+                                            } else {
+                                                error_msg = parsed_resp.message.clone();
                                             }
+                                            val_resp = Some(parsed_resp);
                                         }
                                     } else {
                                         error_msg = format!("API error: {}", resp.status());
@@ -892,11 +890,9 @@ pub fn ChallengeInput(
 
                 // Only notify parent on critical failure (exhausted retries)
                 // ValidationStatusIndicator handles normal failures
-                if should_notify_parent {
-                    if let Some(failure_callback) = on_failure {
-                        failure_callback
-                            .run("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
-                    }
+                if should_notify_parent && let Some(failure_callback) = on_failure {
+                    failure_callback
+                        .run("Terlalu banyak percobaan gagal. Silakan muat ulang.".to_string());
                 }
             }
 

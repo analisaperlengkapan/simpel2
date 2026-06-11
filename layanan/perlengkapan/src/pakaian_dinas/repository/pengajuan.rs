@@ -64,10 +64,7 @@ impl PakaianDinasRepository {
 
         let rows = if let Some(tahun) = tahun {
             client
-                .query(
-                    &data_sql,
-                    &[&tahun, &(per_page as i64), &(offset as i64)],
-                )
+                .query(&data_sql, &[&tahun, &(per_page as i64), &(offset as i64)])
                 .await
         } else {
             client
