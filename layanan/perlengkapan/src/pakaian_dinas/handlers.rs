@@ -793,7 +793,8 @@ pub async fn cetak_laporan(
     match (query.jenis_laporan.as_str(), query.jenis_file.as_str()) {
         ("rekap", "excel") => {
             let buffer =
-                super::export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter).await?;
+                super::xlsx_export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter)
+                    .await?;
             let headers = [
                 (
                     header::CONTENT_TYPE,
@@ -808,7 +809,8 @@ pub async fn cetak_laporan(
         }
         ("daftar", "excel") => {
             let buffer =
-                super::export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter).await?;
+                super::xlsx_export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter)
+                    .await?;
             let headers = [
                 (
                     header::CONTENT_TYPE,
