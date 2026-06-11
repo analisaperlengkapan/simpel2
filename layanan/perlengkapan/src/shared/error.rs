@@ -126,7 +126,7 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "INTERNAL_ERROR",
-                    msg.clone(),
+                    "An internal error occurred".to_string(),
                     None,
                 )
             }
@@ -139,19 +139,30 @@ impl IntoResponse for AppError {
                     None,
                 )
             }
-            AppError::Uuid(e) => (
-                StatusCode::BAD_REQUEST,
-                "UUID_ERROR",
-                format!("Invalid UUID: {}", e),
-                None,
-            ),
-            AppError::Parse(msg) => (StatusCode::BAD_REQUEST, "PARSE_ERROR", msg.clone(), None),
+            AppError::Uuid(e) => {
+                tracing::error!("UUID error: {:?}", e);
+                (
+                    StatusCode::BAD_REQUEST,
+                    "UUID_ERROR",
+                    "Invalid identifier format".to_string(),
+                    None,
+                )
+            }
+            AppError::Parse(msg) => {
+                tracing::error!("Parse error: {}", msg);
+                (
+                    StatusCode::BAD_REQUEST,
+                    "PARSE_ERROR",
+                    "Request could not be parsed".to_string(),
+                    None,
+                )
+            }
             AppError::Io(e) => {
                 tracing::error!("IO error: {:?}", e);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "IO_ERROR",
-                    format!("IO operation failed: {}", e),
+                    "An internal error occurred during processing".to_string(),
                     None,
                 )
             }
@@ -160,7 +171,7 @@ impl IntoResponse for AppError {
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "EXCEL_ERROR",
-                    msg.clone(),
+                    "Export operation failed".to_string(),
                     None,
                 )
             }
@@ -228,4 +239,50 @@ pub fn conflict(message: &str) -> AppError {
 // Helper function to create bad request errors
 pub fn bad_request(message: &str) -> AppError {
     AppError::BadRequest(message.to_string())
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use axum::response::IntoResponse;
+    use http::StatusCode;
+
+    #[tokio::test]
+    async fn test_error_sanitization() {
+        // Test Internal Error
+        let err = AppError::Internal("sensitive internal database query".to_string());
+        let response = err.into_response();
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error_resp: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(error_resp.message, "An internal error occurred");
+        assert_eq!(error_resp.error_code, "INTERNAL_ERROR");
+
+        // Test IO Error
+        let io_err =
+            std::io::Error::new(std::io::ErrorKind::NotFound, "file /etc/shadow not found");
+        let err = AppError::Io(io_err);
+        let response = err.into_response();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error_resp: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(
+            error_resp.message,
+            "An internal error occurred during processing"
+        );
+
+        // Test UUID Error
+        let uuid_err = uuid::Uuid::parse_str("invalid").unwrap_err();
+        let err = AppError::Uuid(uuid_err);
+        let response = err.into_response();
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let error_resp: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(error_resp.message, "Invalid identifier format");
+    }
 }

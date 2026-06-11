@@ -174,19 +174,53 @@ pub async fn security_monitoring_middleware(
         }
     }
 
-    // Add security headers to response
-    if let Some(headers) = response.headers_mut().get_mut("X-Security-Monitoring") {
-        *headers = format!("monitored; duration={}ms", duration.as_millis())
+    // Add security headers to response (Defense in Depth)
+    let headers = response.headers_mut();
+
+    // X-Security-Monitoring
+    headers.insert(
+        "X-Security-Monitoring",
+        format!("monitored; duration={}ms", duration.as_millis())
             .parse()
-            .unwrap();
-    } else {
-        response.headers_mut().insert(
-            "X-Security-Monitoring",
-            format!("monitored; duration={}ms", duration.as_millis())
-                .parse()
-                .unwrap(),
-        );
-    }
+            .unwrap(),
+    );
+
+    // X-Content-Type-Options: nosniff
+    headers.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
+
+    // X-Frame-Options: DENY
+    headers.insert(
+        axum::http::header::X_FRAME_OPTIONS,
+        axum::http::HeaderValue::from_static("DENY"),
+    );
+
+    // X-XSS-Protection: 1; mode=block
+    headers.insert(
+        "X-XSS-Protection",
+        axum::http::HeaderValue::from_static("1; mode=block"),
+    );
+
+    // Referrer-Policy: strict-origin-when-cross-origin
+    headers.insert(
+        axum::http::header::REFERRER_POLICY,
+        axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+
+    // Strict-Transport-Security: max-age=31536000; includeSubDomains
+    headers.insert(
+        axum::http::header::STRICT_TRANSPORT_SECURITY,
+        axum::http::HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+    );
+
+    // Content-Security-Policy (API-specific: restrictive by default)
+    let csp = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+    headers.insert(
+        axum::http::header::CONTENT_SECURITY_POLICY,
+        axum::http::HeaderValue::from_static(csp),
+    );
 
     response
 }
@@ -289,6 +323,47 @@ mod tests {
 
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         assert!(response.headers().contains_key("x-security-monitoring"));
+
+        // Verify standard security headers
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::X_CONTENT_TYPE_OPTIONS)
+                .unwrap(),
+            "nosniff"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::X_FRAME_OPTIONS)
+                .unwrap(),
+            "DENY"
+        );
+        assert_eq!(
+            response.headers().get("X-XSS-Protection").unwrap(),
+            "1; mode=block"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::REFERRER_POLICY)
+                .unwrap(),
+            "strict-origin-when-cross-origin"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::STRICT_TRANSPORT_SECURITY)
+                .unwrap(),
+            "max-age=31536000; includeSubDomains"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(axum::http::header::CONTENT_SECURITY_POLICY)
+                .unwrap(),
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        );
     }
 
     #[tokio::test]
