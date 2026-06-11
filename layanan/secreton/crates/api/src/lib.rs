@@ -28,7 +28,6 @@ pub mod transit;
 // Re-export gRPC from separate crate
 pub use secreton_grpc as grpc;
 
-pub use auth::JwtService;
 use axum::extract::State;
 pub use error::{ApiError, ApiResult};
 pub use handlers::{AppState, ListQuery};
