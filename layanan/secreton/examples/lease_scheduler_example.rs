@@ -6,7 +6,7 @@
 //! Run with: cargo run --example lease_scheduler_example
 
 use deadpool_postgres::{Config, Runtime};
-use secreton_core::services::lease::{LeaseManager, LeaseSchedulerConfig};
+use secreton_core::services::lease::{CreateLeaseRequest, LeaseManager, LeaseSchedulerConfig};
 use secreton_core::services::metrics::MetricsRegistry;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -52,55 +52,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Lease 1: Expires in 15 seconds
     let lease1 = manager
-        .create_lease(
-            "user1",
-            "/secret/data/test1",
-            "kv",
-            "default",
-            15, // 15 seconds TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        )
+        .create_lease(CreateLeaseRequest {
+            user: "user1",
+            resource: "/secret/data/test1",
+            resource_type: "kv",
+            namespace: "default",
+            ttl_secs: 15, // 15 seconds TTL
+            max_ttl: 86400,
+            renewable: true,
+            parent_id: None,
+            max_renewals: None,
+            revoke_callback: None,
+            metadata: HashMap::new(),
+        })
         .await?;
     info!("Created lease 1: {} (expires in 15 seconds)", lease1.id);
 
     // Lease 2: Expires in 25 seconds
     let lease2 = manager
-        .create_lease(
-            "user2",
-            "/secret/data/test2",
-            "kv",
-            "default",
-            25, // 25 seconds TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        )
+        .create_lease(CreateLeaseRequest {
+            user: "user2",
+            resource: "/secret/data/test2",
+            resource_type: "kv",
+            namespace: "default",
+            ttl_secs: 25, // 25 seconds TTL
+            max_ttl: 86400,
+            renewable: true,
+            parent_id: None,
+            max_renewals: None,
+            revoke_callback: None,
+            metadata: HashMap::new(),
+        })
         .await?;
     info!("Created lease 2: {} (expires in 25 seconds)", lease2.id);
 
     // Lease 3: Expires in 60 seconds (won't expire during demo)
     let lease3 = manager
-        .create_lease(
-            "user3",
-            "/secret/data/test3",
-            "kv",
-            "default",
-            60, // 60 seconds TTL
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        )
+        .create_lease(CreateLeaseRequest {
+            user: "user3",
+            resource: "/secret/data/test3",
+            resource_type: "kv",
+            namespace: "default",
+            ttl_secs: 60, // 60 seconds TTL
+            max_ttl: 86400,
+            renewable: true,
+            parent_id: None,
+            max_renewals: None,
+            revoke_callback: None,
+            metadata: HashMap::new(),
+        })
         .await?;
     info!("Created lease 3: {} (expires in 60 seconds)", lease3.id);
 
