@@ -39,7 +39,7 @@ pub struct CodeStore {
 /// Stored authorization code entry
 #[derive(Clone)]
 #[allow(dead_code)]
-struct CodeEntry {
+pub(crate) struct CodeEntry {
     client_id: String,
     user_id: String,
     redirect_uri: String,
@@ -50,7 +50,7 @@ struct CodeEntry {
 
 impl CodeStore {
     /// Insert a new authorization code
-    pub async fn insert(&self, code: String, entry: CodeEntry) -> authenc_types::Result<()> {
+    pub(crate) async fn insert(&self, code: String, entry: CodeEntry) -> authenc_types::Result<()> {
         self.codes.write().await.insert(code, entry);
         Ok(())
     }
