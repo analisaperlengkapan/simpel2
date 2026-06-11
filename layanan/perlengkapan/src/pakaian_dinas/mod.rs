@@ -9,12 +9,12 @@
 //! - Employee size tracking integrated with MySIMKARI
 //! - Report generation for uniform distribution
 
-pub mod export;
 pub mod handlers;
 pub mod models;
 pub mod pdf_export;
 pub mod repository;
 pub mod services;
+pub mod xlsx_export;
 
 pub use handlers::*;
 pub use repository::*;

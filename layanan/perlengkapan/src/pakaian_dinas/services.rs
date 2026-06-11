@@ -592,6 +592,82 @@ impl PakaianDinasService {
             .await
     }
 
+    // ── Rich report view-models (shared by Excel & PDF exporters) ──
+
+    /// Build the document header (judul/periode/filters) for a pengajuan's
+    /// reports from its record and the applied filter.
+    async fn build_report_header(
+        &self,
+        pengajuan_id: Uuid,
+        filter: &LaporanFilter,
+    ) -> AppResult<ReportHeader> {
+        let pengajuan = self.get_pengajuan_by_id(pengajuan_id).await?;
+        let mut filters: Vec<(String, String)> = Vec::new();
+        if let Some(jk) = &filter.jenis_kelamin {
+            let label = match jk.as_str() {
+                "L" => "Laki-laki",
+                "P" => "Perempuan",
+                other => other,
+            };
+            filters.push(("Jenis Kelamin".to_string(), label.to_string()));
+        }
+        if let Some(jenis) = &filter.jenis {
+            let label = match jenis.as_str() {
+                "0" => "Jaksa",
+                "1" => "Tata Usaha",
+                other => other,
+            };
+            filters.push(("Status".to_string(), label.to_string()));
+        }
+        if let Some(eselon) = &filter.eselon {
+            filters.push(("Eselon".to_string(), eselon.clone()));
+        }
+        Ok(ReportHeader {
+            judul: pengajuan.nama,
+            periode_mulai: pengajuan.tgl_mulai,
+            periode_selesai: pengajuan.tgl_selesai,
+            filters,
+        })
+    }
+
+    /// Assemble the per-satker, dynamic-column daftar report.
+    pub async fn build_daftar_report(
+        &self,
+        pengajuan_id: Uuid,
+        filter: &LaporanFilter,
+    ) -> AppResult<DaftarReport> {
+        let header = self.build_report_header(pengajuan_id, filter).await?;
+        let columns = self
+            .repository
+            .get_laporan_daftar_columns(pengajuan_id)
+            .await?;
+        let rows = self
+            .repository
+            .get_laporan_daftar_long(pengajuan_id, filter)
+            .await?;
+        Ok(build_daftar_report(header, columns, rows))
+    }
+
+    /// Assemble the per-(pakaian × gender) rekap report with satker rows.
+    pub async fn build_rekap_report(
+        &self,
+        pengajuan_id: Uuid,
+        filter: &LaporanFilter,
+    ) -> AppResult<RekapReport> {
+        let header = self.build_report_header(pengajuan_id, filter).await?;
+        // Master ukuran ordering per group (by `urutan`).
+        let mut ukuran_order: std::collections::HashMap<String, Vec<String>> =
+            std::collections::HashMap::new();
+        for u in self.repository.get_all_ukuran(None).await? {
+            ukuran_order.entry(u.group).or_default().push(u.ukuran);
+        }
+        let rows = self
+            .repository
+            .get_laporan_rekap_long(pengajuan_id, filter)
+            .await?;
+        Ok(build_rekap_report(header, &ukuran_order, rows))
+    }
+
     // ============ Workflow Integration ============
 
     /// Submit pengajuan for approval (DRAFT -> SUBMITTED)
