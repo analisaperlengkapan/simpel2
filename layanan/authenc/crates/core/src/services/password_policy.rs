@@ -301,7 +301,7 @@ impl PasswordPolicyService {
     /// Check if password matches any in history
     async fn check_password_history(
         &self,
-        new_password: &str,
+        _new_password: &str,
         password_history: &[String],
     ) -> Result<bool, Box<dyn std::error::Error>> {
         // This would use the password hasher to verify against each hash

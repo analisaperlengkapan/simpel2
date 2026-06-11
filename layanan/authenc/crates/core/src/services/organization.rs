@@ -72,6 +72,8 @@ impl FromStr for OrganizationRole {
 }
 
 /// Organization invitation
+// `role: OrganizationRole` kept pending migration to DynamicRoleStore.
+#[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationInvitation {
     /// Unique identifier for the invitation
@@ -128,6 +130,8 @@ impl OrganizationService {
     }
 
     /// Create a new organization
+    // Uses OrganizationRole::Owner; kept pending migration to DynamicRoleStore.
+    #[allow(deprecated)]
     pub async fn create_organization(
         &self,
         name: &str,

@@ -5,7 +5,6 @@
 //! schedule (default: every 30 days) to minimize the impact of key compromise.
 
 use authenc_crypto::jwt_key_manager::SecretonClient;
-use authenc_storage::Database;
 use authenc_types::domain::user::SecurityContext;
 use authenc_types::{AuthencError, Result};
 use chrono::{DateTime, Duration, Utc};
@@ -288,7 +287,7 @@ impl KeyRotationService {
     }
 
     /// Perform key rotation via Secreton API
-    async fn perform_secreton_rotation(&self, key_id: &str, key_type: &KeyType) -> Result<u32> {
+    async fn perform_secreton_rotation(&self, _key_id: &str, key_type: &KeyType) -> Result<u32> {
         // Create security context for the rotation request
         let context = SecurityContext {
             session_id: Some("system-rotation".to_string()),
@@ -324,6 +323,7 @@ impl KeyRotationService {
     }
 
     /// Extract version number from key ID (assumes format: key_name_v{version})
+    #[allow(dead_code)] // planned: used by version-aware key selection
     fn extract_version_from_key_id(&self, key_id: &str) -> u32 {
         key_id
             .rsplit('_')

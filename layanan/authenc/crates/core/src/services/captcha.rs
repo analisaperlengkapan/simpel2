@@ -3,11 +3,10 @@ use authenc_types::{
     AuthencError, Result,
     domain::captcha::{Challenge, ChallengeType},
 };
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use rand::{Rng, thread_rng};
 use serde_json::json;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::net::IpAddr;
 use uuid::Uuid;
 

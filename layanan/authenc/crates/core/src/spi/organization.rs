@@ -54,6 +54,8 @@ pub struct OrganizationModel {
 }
 
 /// Organization member representation
+// `role: OrganizationRole` kept pending migration to DynamicRoleStore.
+#[allow(deprecated)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrganizationMemberModel {
     /// User ID
@@ -122,6 +124,8 @@ impl OrganizationRole {
 }
 
 /// Organization provider trait
+// OrganizationRole in these signatures is kept pending migration to DynamicRoleStore.
+#[allow(deprecated)]
 #[async_trait]
 pub trait OrganizationProvider: Provider + Send + Sync {
     /// Create a new organization
@@ -217,6 +221,7 @@ impl DefaultOrganizationProvider {
 }
 
 #[async_trait]
+#[allow(deprecated)] // OrganizationRole kept pending migration to DynamicRoleStore
 impl OrganizationProvider for DefaultOrganizationProvider {
     async fn create_organization(
         &self,

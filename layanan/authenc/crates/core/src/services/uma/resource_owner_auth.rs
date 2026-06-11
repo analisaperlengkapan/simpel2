@@ -250,7 +250,7 @@ impl ResourceOwnerAuthService {
     }
 
     /// Revoke delegation policy
-    pub async fn revoke_delegation_policy(&self, owner_id: &str, policy_id: &Uuid) -> Result<()> {
+    pub async fn revoke_delegation_policy(&self, _owner_id: &str, _policy_id: &Uuid) -> Result<()> {
         // In production:
         // 1. Load policy from database
         // 2. Verify owner_id matches
@@ -263,8 +263,8 @@ impl ResourceOwnerAuthService {
     /// Get delegation policies for owner
     pub async fn get_delegation_policies(
         &self,
-        owner_id: &str,
-        realm_id: &str,
+        _owner_id: &str,
+        _realm_id: &str,
     ) -> Result<Vec<DelegationPolicy>> {
         // In production, load from database
         // For now, return empty vec

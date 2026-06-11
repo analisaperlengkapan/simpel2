@@ -1341,7 +1341,6 @@ mod log_level_serde {
 // middleware and features in the Authenc system. It allows for easy configuration
 // and management of security settings across the application.
 
-use crate::config::middleware_config::*;
 
 /// Comprehensive security configuration for the Authenc system
 #[derive(Clone, Debug)]

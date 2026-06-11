@@ -7,6 +7,8 @@ use authenc_types::AuthencError;
 use authenc_types::domain::scope::{CreateScopeRequest, Scope, UpdateScopeRequest};
 
 /// Scope store for managing scopes in the database
+// Stub store: `database` retained for the planned scope persistence.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ScopeStore {
     /// Database instance

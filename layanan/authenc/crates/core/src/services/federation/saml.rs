@@ -20,7 +20,8 @@ pub struct SamlIdentityProvider {
     config: IdentityProviderConfig,
     /// IdP entity ID
     entity_id: String,
-    /// SSO service URL
+    /// SSO service URL (planned: used when SAML AuthnRequest redirect is wired)
+    #[allow(dead_code)]
     sso_url: String,
     /// Logout service URL
     logout_url: String,

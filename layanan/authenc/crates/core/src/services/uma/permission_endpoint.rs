@@ -8,11 +8,10 @@ use super::policy_engine::{
     SubjectContext,
 };
 use super::rpt::{Permission as RptPermission, Rpt, RptService};
-use super::{UmaAuthorizationRequest, UmaAuthorizationResponse, UmaError, UmaPermissionRequest};
+use super::{UmaAuthorizationRequest, UmaAuthorizationResponse, UmaPermissionRequest};
 use crate::services::permission_ticket_store::PermissionTicketStoreTrait;
 use crate::services::resource_store::ResourceStoreTrait;
 use crate::services::uma_policy_store::UmaPolicyStore;
-use authenc_storage::Database;
 use authenc_types::domain::permission_ticket::{CreatePermissionTicketRequest, PermissionTicket};
 use authenc_types::domain::resource::Resource;
 use authenc_types::{AuthencError, Result};
@@ -116,12 +115,12 @@ impl PermissionEndpoint {
         // Create permission ticket
         let ticket_id = Uuid::new_v4();
         let ticket_string = ticket_id.to_string();
-        let expires_at = Utc::now().timestamp() + self.ticket_lifetime;
+        let _expires_at = Utc::now().timestamp() + self.ticket_lifetime;
 
         // Store ticket with requested permissions
         // Create permission tickets for each resource+scope combination
         for req in &requests {
-            for scope in &req.resource_scopes {
+            for _scope in &req.resource_scopes {
                 // Store ticket in database
                 self.ticket_store
                     .create_ticket(
@@ -358,7 +357,7 @@ impl PermissionEndpoint {
     fn build_evaluation_context(
         &self,
         subject_id: &str,
-        client_id: &str,
+        _client_id: &str,
         resources: &[Resource],
         subject_attributes: HashMap<String, serde_json::Value>,
         environment: EnvironmentContext,

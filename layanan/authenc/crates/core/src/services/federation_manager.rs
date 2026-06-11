@@ -411,6 +411,7 @@ impl FederationManager {
     }
 
     /// Get identity link by ID
+    #[allow(dead_code)] // planned: used by identity-link lookup flows
     async fn get_identity_link(&self, link_id: &Uuid) -> Result<Option<FederatedIdentityLink>> {
         let client = self.db.get_connection().await?;
 
@@ -560,6 +561,7 @@ impl FederationManager {
     }
 
     /// Provision user from LDAP data
+    #[allow(dead_code)] // planned: used by LDAP federation provisioning
     async fn provision_user_from_ldap(&self, ldap_user: &User, realm_id: Uuid) -> Result<User> {
         let client = self.db.get_connection().await?;
 
@@ -673,6 +675,7 @@ impl FederationManager {
     }
 
     /// Load user by ID
+    #[allow(dead_code)] // planned: used by federation user-resolution path
     async fn load_user_by_id(&self, _user_id: Uuid) -> Result<User> {
         // TODO: Implement proper User loading from row mapping
         Err(AuthencError::not_implemented(

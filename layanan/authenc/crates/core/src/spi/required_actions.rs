@@ -516,7 +516,7 @@ impl RequiredActionProvider for ConfigureTotpRequiredActionProvider {
         response_data: HashMap<String, String>,
     ) -> Result<RequiredActionResult> {
         // Process TOTP setup form submission
-        let totp_code = response_data
+        let _totp_code = response_data
             .get("totp_code")
             .ok_or_else(|| Error::validation("TOTP code is required"))?;
 

@@ -72,7 +72,8 @@ pub struct EventDrivenCacheInvalidator {
     user_consumer: Arc<StreamConsumer>,
     /// Kafka consumer for admin events
     admin_consumer: Arc<StreamConsumer>,
-    /// Configuration
+    /// Configuration (planned: read by the consumer loop once fully wired)
+    #[allow(dead_code)]
     config: EventConsumerConfig,
     /// Whether the consumer is running
     running: Arc<RwLock<bool>>,

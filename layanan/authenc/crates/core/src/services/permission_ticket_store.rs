@@ -8,6 +8,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 /// Permission ticket store for managing permission tickets in the database
+// Stub UMA store: `database` retained for the planned ticket persistence.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PermissionTicketStore {
     /// Database instance

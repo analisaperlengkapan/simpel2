@@ -105,6 +105,8 @@ impl EventListenerProvider for LoggingEventListener {
 }
 
 /// Email event listener that sends email notifications for important events
+// Stub: SMTP fields retained for the planned real email delivery wiring.
+#[allow(dead_code)]
 pub struct EmailEventListener {
     // In a real implementation, this would hold SMTP configuration
     smtp_server: String,
