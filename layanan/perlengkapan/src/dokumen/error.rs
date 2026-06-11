@@ -34,14 +34,22 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message) = match &self {
-            AppError::Db(_) | AppError::Pool(_) | AppError::Io(_) | AppError::Internal => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "An internal error occurred".to_string())
-            }
+            AppError::Db(_) | AppError::Pool(_) | AppError::Io(_) | AppError::Internal => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "An internal error occurred".to_string(),
+            ),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::Forbidden => (StatusCode::FORBIDDEN, "Forbidden".to_string()),
-            AppError::Validation(msg) | AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
+            AppError::Validation(msg) | AppError::BadRequest(msg) => {
+                (StatusCode::BAD_REQUEST, msg.clone())
+            }
+            // Virus scan result is about the user's own upload → safe to surface.
             AppError::Virus(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
-            AppError::Ai(msg) => (StatusCode::BAD_GATEWAY, msg.clone()),
+            // Upstream AI service errors may carry internal endpoint details — keep generic.
+            AppError::Ai(_) => (
+                StatusCode::BAD_GATEWAY,
+                "AI service temporarily unavailable".to_string(),
+            ),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
         };
         error!(error = ?self, "AppError");

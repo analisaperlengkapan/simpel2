@@ -242,7 +242,9 @@ mod tests {
     async fn test_internal_error_is_generic() {
         let err = AppError::Internal("Sensitive database details".to_string());
         let response = err.into_response();
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(json.message, "An internal server error occurred");
@@ -254,7 +256,9 @@ mod tests {
         let uuid_err = uuid::Uuid::parse_str("invalid").unwrap_err();
         let err = AppError::Uuid(uuid_err);
         let response = err.into_response();
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(json.message, "Invalid UUID format");
@@ -266,7 +270,9 @@ mod tests {
         let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
         let err = AppError::Io(io_err);
         let response = err.into_response();
-        let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+        let body = axum::body::to_bytes(response.into_body(), 1024)
+            .await
+            .unwrap();
         let json: ErrorResponse = serde_json::from_slice(&body).unwrap();
 
         assert_eq!(json.message, "IO operation failed");
