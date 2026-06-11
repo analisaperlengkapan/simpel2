@@ -284,16 +284,30 @@ pub async fn cleanup_expired_sessions(db: &Database) -> Result<i64> {
     Ok(count as i64)
 }
 
+/// Parameters for [`create_offline_token`].
+pub struct NewOfflineToken<'a> {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub client_id: Uuid,
+    pub token: &'a str,
+    pub scope: Option<&'a str>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub data: Option<serde_json::Value>,
+}
+
 pub async fn create_offline_token(
     db: &Database,
-    user_id: Uuid,
-    realm_id: Uuid,
-    client_id: Uuid,
-    token: &str,
-    scope: Option<&str>,
-    expires_at: Option<chrono::DateTime<chrono::Utc>>,
-    data: Option<serde_json::Value>,
+    params: NewOfflineToken<'_>,
 ) -> Result<serde_json::Value> {
+    let NewOfflineToken {
+        user_id,
+        realm_id,
+        client_id,
+        token,
+        scope,
+        expires_at,
+        data,
+    } = params;
     let token_hash = hash_token(token);
 
     let query = r#"
@@ -391,63 +405,6 @@ pub async fn revoke_offline_token(db: &Database, token_id: Uuid) -> Result<()> {
 
     db.execute(query, &[&token_id]).await?;
     Ok(())
-}
-
-pub async fn create_device_session(
-    db: &Database,
-    device_id: Uuid,
-    user_id: Uuid,
-    user_session_id: Option<Uuid>,
-    session_identifier: &str,
-    ip_address: Option<&str>,
-    location: Option<serde_json::Value>,
-    risk_score: f64,
-) -> Result<serde_json::Value> {
-    let ip_addr: Option<std::net::IpAddr> = ip_address.and_then(|ip| ip.parse().ok());
-
-    let query = r#"
-        INSERT INTO device_sessions (
-            device_id, user_id, user_session_id,
-            session_identifier, ip_address, location, risk_score
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, device_id, user_id, user_session_id,
-                  session_identifier, started_at, last_activity,
-                  ip_address, location, risk_score, risk_factors,
-                  is_active, created_at, updated_at
-    "#;
-
-    let row: tokio_postgres::Row = db
-        .query_one(
-            query,
-            &[
-                &device_id,
-                &user_id,
-                &user_session_id,
-                &session_identifier,
-                &ip_addr,
-                &location,
-                &risk_score,
-            ],
-        )
-        .await?;
-
-    Ok(serde_json::json!({
-        "id": row.get::<_, Uuid>("id"),
-        "device_id": row.get::<_, Uuid>("device_id"),
-        "user_id": row.get::<_, Uuid>("user_id"),
-        "user_session_id": row.get::<_, Option<Uuid>>("user_session_id"),
-        "session_identifier": row.get::<_, String>("session_identifier"),
-        "started_at": row.get::<_, chrono::DateTime<chrono::Utc>>("started_at"),
-        "last_activity": row.get::<_, chrono::DateTime<chrono::Utc>>("last_activity"),
-        "ip_address": row.get::<_, Option<std::net::IpAddr>>("ip_address").map(|ip| ip.to_string()),
-        "location": row.get::<_, Option<serde_json::Value>>("location"),
-        "risk_score": row.get::<_, f64>("risk_score"),
-        "risk_factors": row.get::<_, Option<serde_json::Value>>("risk_factors"),
-        "is_active": row.get::<_, bool>("is_active"),
-        "created_at": row.get::<_, chrono::DateTime<chrono::Utc>>("created_at"),
-        "updated_at": row.get::<_, chrono::DateTime<chrono::Utc>>("updated_at")
-    }))
 }
 
 pub async fn update_device_session_activity(

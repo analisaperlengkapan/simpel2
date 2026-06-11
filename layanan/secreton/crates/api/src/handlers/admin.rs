@@ -193,15 +193,15 @@ mod tests {
         // Create a test user via auth service
         let user = services
             .auth
-            .create_user(
-                "realuser",
-                "real@example.com",
-                "password123",
-                Some("Real User"),
-                vec!["user".to_string()],
-                None,
-                true,
-            )
+            .create_user(crate::services::auth::NewUser {
+                username: "realuser",
+                email: "real@example.com",
+                password: "password123",
+                full_name: Some("Real User"),
+                roles: vec!["user".to_string()],
+                metadata: None,
+                is_active: true,
+            })
             .await
             .expect("Failed to create user");
 
@@ -236,15 +236,15 @@ mod tests {
         // Create user with multiple roles (admin has "*", user has basic)
         let user = services
             .auth
-            .create_user(
-                "poweruser",
-                "power@example.com",
-                "password123",
-                None,
-                vec!["admin".to_string(), "user".to_string()],
-                None,
-                true,
-            )
+            .create_user(crate::services::auth::NewUser {
+                username: "poweruser",
+                email: "power@example.com",
+                password: "password123",
+                full_name: None,
+                roles: vec!["admin".to_string(), "user".to_string()],
+                metadata: None,
+                is_active: true,
+            })
             .await
             .expect("Failed to create user");
 
@@ -327,15 +327,15 @@ mod tests {
         // Create a user to update
         let user = services
             .auth
-            .create_user(
-                "update_target",
-                "original@example.com",
-                "password123",
-                Some("Original Name"),
-                vec!["user".to_string()],
-                None,
-                true,
-            )
+            .create_user(crate::services::auth::NewUser {
+                username: "update_target",
+                email: "original@example.com",
+                password: "password123",
+                full_name: Some("Original Name"),
+                roles: vec!["user".to_string()],
+                metadata: None,
+                is_active: true,
+            })
             .await
             .expect("Failed to create user");
 
@@ -760,15 +760,15 @@ pub async fn create_user(
     // Use AuthService to create user
     let user = state
         .auth
-        .create_user(
-            &request.username,
-            &request.email,
-            &request.password,
-            request.full_name.as_deref(),
-            request.roles,
-            request.metadata,
-            request.enabled.unwrap_or(true),
-        )
+        .create_user(crate::services::auth::NewUser {
+            username: &request.username,
+            email: &request.email,
+            password: &request.password,
+            full_name: request.full_name.as_deref(),
+            roles: request.roles,
+            metadata: request.metadata,
+            is_active: request.enabled.unwrap_or(true),
+        })
         .await?;
 
     // Collect and sort roles

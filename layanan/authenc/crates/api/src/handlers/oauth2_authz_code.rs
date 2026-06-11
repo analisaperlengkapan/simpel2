@@ -50,24 +50,7 @@ struct CodeEntry {
 
 impl CodeStore {
     /// Insert a new authorization code
-    pub async fn insert(
-        &self,
-        code: String,
-        client_id: String,
-        user_id: String,
-        redirect_uri: String,
-        scopes: Vec<String>,
-        code_challenge: Option<String>,
-        code_challenge_method: Option<String>,
-    ) -> authenc_types::Result<()> {
-        let entry = CodeEntry {
-            client_id,
-            user_id,
-            redirect_uri,
-            scopes,
-            code_challenge,
-            code_challenge_method,
-        };
+    pub async fn insert(&self, code: String, entry: CodeEntry) -> authenc_types::Result<()> {
         self.codes.write().await.insert(code, entry);
         Ok(())
     }
@@ -196,12 +179,14 @@ pub async fn authorize(
         .code_store
         .insert(
             auth_code.clone(),
-            params.client_id.clone(),
-            user_id.to_string(),
-            params.redirect_uri.clone(),
-            scopes,
-            params.code_challenge.clone(),
-            params.code_challenge_method.clone(),
+            CodeEntry {
+                client_id: params.client_id.clone(),
+                user_id: user_id.to_string(),
+                redirect_uri: params.redirect_uri.clone(),
+                scopes,
+                code_challenge: params.code_challenge.clone(),
+                code_challenge_method: params.code_challenge_method.clone(),
+            },
         )
         .await?;
 

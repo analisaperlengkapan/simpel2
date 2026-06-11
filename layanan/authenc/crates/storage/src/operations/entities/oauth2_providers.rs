@@ -160,16 +160,27 @@ pub async fn get_realm_provider_configs(
     Ok(configs)
 }
 
-pub async fn create_oauth2_state(
-    db: &Database,
-    state_token: &str,
-    provider_config_id: Uuid,
-    realm_id: Uuid,
-    redirect_uri: &str,
-    code_verifier: Option<&str>,
-    code_challenge: Option<&str>,
-    expires_in_seconds: i64,
-) -> Result<Uuid> {
+/// Parameters for [`create_oauth2_state`].
+pub struct NewOAuth2State<'a> {
+    pub state_token: &'a str,
+    pub provider_config_id: Uuid,
+    pub realm_id: Uuid,
+    pub redirect_uri: &'a str,
+    pub code_verifier: Option<&'a str>,
+    pub code_challenge: Option<&'a str>,
+    pub expires_in_seconds: i64,
+}
+
+pub async fn create_oauth2_state(db: &Database, params: NewOAuth2State<'_>) -> Result<Uuid> {
+    let NewOAuth2State {
+        state_token,
+        provider_config_id,
+        realm_id,
+        redirect_uri,
+        code_verifier,
+        code_challenge,
+        expires_in_seconds,
+    } = params;
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in_seconds);
 
     let query = r#"

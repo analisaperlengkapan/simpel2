@@ -8,9 +8,9 @@ pub use client_registration_ops as client_registration;
 pub use protocol_mappers_ops as protocol_mappers;
 
 // All database operations (organized by entity)
-pub mod legacy;
+pub mod entities;
 
-pub use legacy::{
+pub use entities::{
     admin_console,
     audit,
     auth_flows,

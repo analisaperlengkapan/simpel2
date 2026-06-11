@@ -169,6 +169,17 @@ pub struct AuthService {
     config: Arc<RwLock<AuthConfig>>,
 }
 
+/// Parameters for [`AuthService::create_user`].
+pub struct NewUser<'a> {
+    pub username: &'a str,
+    pub email: &'a str,
+    pub password: &'a str,
+    pub full_name: Option<&'a str>,
+    pub roles: Vec<String>,
+    pub metadata: Option<HashMap<String, String>>,
+    pub is_active: bool,
+}
+
 impl AuthService {
     /// Create new authentication service
     pub async fn new(
@@ -301,15 +312,15 @@ impl AuthService {
                 let password = Uuid::new_v4().to_string(); // Random password
                 let roles = vec!["user".to_string()]; // Default role
 
-                self.create_user(
+                self.create_user(NewUser {
                     username,
                     email,
-                    &password,
-                    full_name.as_deref(),
+                    password: &password,
+                    full_name: full_name.as_deref(),
                     roles,
-                    Some(provider_metadata),
-                    true, // is_active
-                )
+                    metadata: Some(provider_metadata),
+                    is_active: true,
+                })
                 .await?
             }
             Err(e) => return Err(e),
@@ -551,16 +562,16 @@ impl AuthService {
     }
 
     /// Create user
-    pub async fn create_user(
-        &self,
-        username: &str,
-        email: &str,
-        password: &str,
-        full_name: Option<&str>,
-        roles: Vec<String>,
-        metadata: Option<HashMap<String, String>>,
-        is_active: bool,
-    ) -> Result<User, AuthError> {
+    pub async fn create_user(&self, req: NewUser<'_>) -> Result<User, AuthError> {
+        let NewUser {
+            username,
+            email,
+            password,
+            full_name,
+            roles,
+            metadata,
+            is_active,
+        } = req;
         // Check if user already exists
         if self.user_exists(username).await? {
             return Err(AuthError::UserAlreadyExists);

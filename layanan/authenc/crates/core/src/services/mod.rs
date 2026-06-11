@@ -37,7 +37,6 @@ pub mod uma;
 pub mod uma_policy_store;
 
 // Audit services
-pub mod audit_events;
 pub mod audit_integrity;
 pub mod audit_log_sink;
 pub mod audit_signature;
@@ -144,7 +143,6 @@ pub use uma::{
 pub use uma_policy_store::{UmaDelegationPolicyStore, UmaPolicyStore};
 
 // Audit service exports
-pub use audit_events::*;
 pub use audit_integrity::*;
 pub use audit_log_sink::*;
 pub use audit_signature::*;

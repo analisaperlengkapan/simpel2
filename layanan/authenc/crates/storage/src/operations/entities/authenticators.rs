@@ -155,45 +155,6 @@ pub async fn get_flow_executions(db: &Database, flow_id: Uuid) -> Result<Vec<Jso
         .collect())
 }
 
-pub async fn record_execution_result(
-    db: &Database,
-    execution_id: Uuid,
-    session_id: Option<Uuid>,
-    user_id: Option<Uuid>,
-    status: String,
-    error_message: Option<String>,
-    duration_ms: i32,
-    attempt_count: i32,
-) -> Result<Uuid> {
-    let query = r#"
-        INSERT INTO authenticator_execution_results (id, execution_id, session_id, user_id, status, error_message, duration_ms, attempt_count, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id
-    "#;
-
-    let result_id = Uuid::new_v4();
-    let now = Utc::now();
-
-    let rows = db
-        .query(
-            query,
-            &[
-                &result_id,
-                &execution_id,
-                &session_id,
-                &user_id,
-                &status,
-                &error_message,
-                &duration_ms,
-                &attempt_count,
-                &now,
-            ],
-        )
-        .await?;
-
-    Ok(rows[0].get::<_, Uuid>(0))
-}
-
 pub async fn update_authenticator_config(
     db: &Database,
     authenticator_id: Uuid,

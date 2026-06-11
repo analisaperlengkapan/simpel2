@@ -492,19 +492,16 @@ impl RedisSecretsEngine {
 
         let resource_path = format!("redis/creds/{}", role_name);
         let lease = lease_manager
-            .create_lease(
+            .create_lease(crate::services::lease::CreateLeaseRequest {
                 user,
-                &resource_path,
-                "redis",
-                "default", // namespace
+                resource: &resource_path,
+                resource_type: "redis",
+                namespace: "default",
                 ttl_secs,
                 max_ttl,
-                true,                             // renewable
-                None,                             // no parent
-                None,                             // no max_renewals
-                None,                             // no revoke_callback
-                std::collections::HashMap::new(), // empty metadata
-            )
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .map_err(|e| {
                 RedisError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))

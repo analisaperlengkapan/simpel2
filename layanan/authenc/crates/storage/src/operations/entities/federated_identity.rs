@@ -5,18 +5,34 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
+/// Parameters for [`link_federated_identity`].
+pub struct FederatedIdentityLink<'a> {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub identity_provider_alias: &'a str,
+    pub federated_user_id: &'a str,
+    pub federated_username: Option<&'a str>,
+    pub token: Option<&'a str>,
+    pub token_expires_at: Option<DateTime<Utc>>,
+    pub refresh_token: Option<&'a str>,
+    pub federated_attributes: Option<&'a JsonValue>,
+}
+
 pub async fn link_federated_identity(
     db: &Database,
-    user_id: Uuid,
-    realm_id: Uuid,
-    identity_provider_alias: &str,
-    federated_user_id: &str,
-    federated_username: Option<&str>,
-    token: Option<&str>,
-    token_expires_at: Option<DateTime<Utc>>,
-    refresh_token: Option<&str>,
-    federated_attributes: Option<&JsonValue>,
+    params: FederatedIdentityLink<'_>,
 ) -> Result<Uuid> {
+    let FederatedIdentityLink {
+        user_id,
+        realm_id,
+        identity_provider_alias,
+        federated_user_id,
+        federated_username,
+        token,
+        token_expires_at,
+        refresh_token,
+        federated_attributes,
+    } = params;
     let query = r#"
         INSERT INTO federated_identity_links (
             user_id, realm_id, identity_provider_alias, federated_user_id,
@@ -436,18 +452,34 @@ pub async fn log_federated_authentication(
     Ok(rows[0].get(0))
 }
 
+/// Parameters for [`create_account_linking_request`].
+pub struct NewAccountLinkingRequest<'a> {
+    pub user_id: Uuid,
+    pub realm_id: Uuid,
+    pub identity_provider_alias: &'a str,
+    pub federated_user_id: &'a str,
+    pub federated_username: Option<&'a str>,
+    pub federated_email: Option<&'a str>,
+    pub federated_attributes: Option<&'a JsonValue>,
+    pub confirmation_token: &'a str,
+    pub expires_in_seconds: i64,
+}
+
 pub async fn create_account_linking_request(
     db: &Database,
-    user_id: Uuid,
-    realm_id: Uuid,
-    identity_provider_alias: &str,
-    federated_user_id: &str,
-    federated_username: Option<&str>,
-    federated_email: Option<&str>,
-    federated_attributes: Option<&JsonValue>,
-    confirmation_token: &str,
-    expires_in_seconds: i64,
+    params: NewAccountLinkingRequest<'_>,
 ) -> Result<Uuid> {
+    let NewAccountLinkingRequest {
+        user_id,
+        realm_id,
+        identity_provider_alias,
+        federated_user_id,
+        federated_username,
+        federated_email,
+        federated_attributes,
+        confirmation_token,
+        expires_in_seconds,
+    } = params;
     let expires_at = Utc::now() + Duration::seconds(expires_in_seconds);
 
     let query = r#"

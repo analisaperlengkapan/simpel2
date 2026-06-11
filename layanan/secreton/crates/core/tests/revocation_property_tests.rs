@@ -4,7 +4,7 @@
 
 use deadpool_postgres::{Config, Runtime};
 use proptest::prelude::*;
-use secreton_core::services::lease::LeaseManager;
+use secreton_core::services::lease::{CreateLeaseRequest, LeaseManager};
 use secreton_core::services::revocation::{
     RevocationManager, RevocationRequest, RevocationService,
 };
@@ -47,19 +47,16 @@ async fn create_test_lease(
     namespace: &str,
 ) -> String {
     let lease = lease_manager
-        .create_lease(
+        .create_lease(CreateLeaseRequest {
             user,
-            path,
-            "kv",
+            resource: path,
+            resource_type: "kv",
             namespace,
-            3600,
-            86400,
-            true,
-            None,
-            None,
-            None,
-            HashMap::new(),
-        )
+            ttl_secs: 3600,
+            max_ttl: 86400,
+            renewable: true,
+            ..Default::default()
+        })
         .await
         .unwrap();
 
@@ -442,19 +439,16 @@ mod revocation_edge_cases {
         // Create a secret with a very short TTL
         let path = "/secret/orphan_test";
         let _lease = lease_manager
-            .create_lease(
-                "user1",
-                path,
-                "kv",
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: path,
+                resource_type: "kv",
                 namespace,
-                1, // 1 second TTL
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+                ttl_secs: 1, // 1 second TTL
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 

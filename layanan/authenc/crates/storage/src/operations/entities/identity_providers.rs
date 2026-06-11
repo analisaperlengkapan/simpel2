@@ -20,17 +20,32 @@ pub struct IdentityProviderData {
     pub updated_at: DateTime<Utc>,
 }
 
+/// Parameters for [`create_identity_provider`].
+pub struct NewIdentityProvider<'a> {
+    pub name: &'a str,
+    pub display_name: &'a str,
+    pub provider_type: &'a str,
+    pub enabled: bool,
+    pub realm_id: Uuid,
+    pub config: Value,
+    pub truststore_path: Option<&'a str>,
+    pub keystore_path: Option<&'a str>,
+}
+
 pub async fn create_identity_provider(
     db: &Database,
-    name: &str,
-    display_name: &str,
-    provider_type: &str,
-    enabled: bool,
-    realm_id: Uuid,
-    config: Value,
-    truststore_path: Option<&str>,
-    keystore_path: Option<&str>,
+    params: NewIdentityProvider<'_>,
 ) -> Result<IdentityProviderData> {
+    let NewIdentityProvider {
+        name,
+        display_name,
+        provider_type,
+        enabled,
+        realm_id,
+        config,
+        truststore_path,
+        keystore_path,
+    } = params;
     let config_json =
         serde_json::to_string(&config).map_err(|e| AuthencError::ValidationError(e.to_string()))?;
 
@@ -153,17 +168,32 @@ pub async fn get_identity_providers_by_realm(
     Ok(providers)
 }
 
+/// Parameters for [`update_identity_provider`]. `None` fields are left unchanged.
+#[derive(Default)]
+pub struct IdentityProviderUpdate<'a> {
+    pub name: Option<&'a str>,
+    pub display_name: Option<&'a str>,
+    pub provider_type: Option<&'a str>,
+    pub enabled: Option<bool>,
+    pub config: Option<Value>,
+    pub truststore_path: Option<&'a str>,
+    pub keystore_path: Option<&'a str>,
+}
+
 pub async fn update_identity_provider(
     db: &Database,
     provider_id: Uuid,
-    name: Option<&str>,
-    display_name: Option<&str>,
-    provider_type: Option<&str>,
-    enabled: Option<bool>,
-    config: Option<Value>,
-    truststore_path: Option<&str>,
-    keystore_path: Option<&str>,
+    updates: IdentityProviderUpdate<'_>,
 ) -> Result<IdentityProviderData> {
+    let IdentityProviderUpdate {
+        name,
+        display_name,
+        provider_type,
+        enabled,
+        config,
+        truststore_path,
+        keystore_path,
+    } = updates;
     let config_json = config
         .as_ref()
         .map(|c| serde_json::to_string(c).map_err(|e| AuthencError::ValidationError(e.to_string())))

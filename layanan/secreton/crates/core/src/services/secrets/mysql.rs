@@ -490,19 +490,16 @@ impl MySqlSecretsEngine {
 
         let resource_path = format!("mysql/creds/{}", role_name);
         let lease = lease_manager
-            .create_lease(
+            .create_lease(crate::services::lease::CreateLeaseRequest {
                 user,
-                &resource_path,
-                "mysql",
-                "default", // namespace
+                resource: &resource_path,
+                resource_type: "mysql",
+                namespace: "default", // namespace
                 ttl_secs,
                 max_ttl,
-                true,                             // renewable
-                None,                             // no parent
-                None,                             // no max_renewals
-                None,                             // no revoke_callback
-                std::collections::HashMap::new(), // empty metadata
-            )
+                renewable: true, // renewable
+                ..Default::default()
+            })
             .await
             .map_err(|e| {
                 MySqlError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))

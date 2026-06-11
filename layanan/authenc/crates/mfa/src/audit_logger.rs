@@ -246,38 +246,6 @@ impl MfaAuditLogger {
         self.log_mfa_event(context).await
     }
 
-    /// Log MFA verification event
-    pub async fn log_verification_event(
-        &self,
-        user_id: Uuid,
-        success: bool,
-        ip_address: Option<String>,
-        user_agent: Option<String>,
-        session_id: Option<String>,
-        error_message: Option<String>,
-        security_metadata: Option<HashMap<String, String>>,
-    ) -> Result<()> {
-        let operation = if success {
-            MfaOperation::VerificationSucceeded
-        } else {
-            MfaOperation::VerificationFailed
-        };
-
-        let context = MfaAuditContext {
-            user_id,
-            session_id,
-            ip_address,
-            user_agent,
-            operation,
-            success,
-            error_message,
-            security_metadata: security_metadata.unwrap_or_default(),
-            correlation_id: CorrelationId::new().to_string(),
-        };
-
-        self.log_mfa_event(context).await
-    }
-
     /// Log suspicious MFA activity
     pub async fn log_suspicious_activity(
         &self,

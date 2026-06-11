@@ -495,19 +495,16 @@ impl MongoDbSecretsEngine {
 
         let resource_path = format!("mongodb/creds/{}", role_name);
         let lease = lease_manager
-            .create_lease(
+            .create_lease(crate::services::lease::CreateLeaseRequest {
                 user,
-                &resource_path,
-                "mongodb",
-                "default", // namespace
+                resource: &resource_path,
+                resource_type: "mongodb",
+                namespace: "default", // namespace
                 ttl_secs,
                 max_ttl,
-                true,                             // renewable
-                None,                             // no parent
-                None,                             // no max_renewals
-                None,                             // no revoke_callback
-                std::collections::HashMap::new(), // empty metadata
-            )
+                renewable: true, // renewable
+                ..Default::default()
+            })
             .await
             .map_err(|e| {
                 MongoDbError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))

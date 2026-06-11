@@ -49,7 +49,7 @@ pub use proto::authenc::v1::{
     *,
 };
 pub use server::{GrpcServerBuilder, GrpcServerConfig};
-pub use service::{AuthencGrpcService, MfaServiceFacade, MfaSetupResponse};
+pub use service::{AuthencGrpcDeps, AuthencGrpcService, MfaServiceFacade, MfaSetupResponse};
 pub use tls::TlsConfig;
 
 #[cfg(test)]

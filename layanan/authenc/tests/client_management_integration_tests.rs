@@ -14,7 +14,7 @@ use authenc_storage::operations::client_registration::{
     create_client_with_metadata, create_initial_access_token, create_registration_policy,
     get_client_by_client_id, get_initial_access_token_by_hash,
 };
-use authenc_storage::operations::legacy::oauth2::{
+use authenc_storage::operations::entities::oauth2::{
     create_client as db_create_client, get_all_clients, get_client_by_id as db_get_client_by_id,
 };
 use authenc_storage::operations::protocol_mappers::{
