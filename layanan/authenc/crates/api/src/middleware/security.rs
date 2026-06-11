@@ -339,7 +339,10 @@ mod tests {
                 .unwrap(),
             "DENY"
         );
-        assert_eq!(response.headers().get("X-XSS-Protection").unwrap(), "1; mode=block");
+        assert_eq!(
+            response.headers().get("X-XSS-Protection").unwrap(),
+            "1; mode=block"
+        );
         assert_eq!(
             response
                 .headers()
