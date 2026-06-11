@@ -477,7 +477,6 @@ impl AuditService {
 
 #[cfg(test)]
 mod tests {
-    
 
     // Tests would go here
     // For now, we'll skip tests as they require database setup

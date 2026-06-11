@@ -4,8 +4,7 @@
 //! Evaluates client policies during authorization and token requests.
 
 use crate::services::client_policy::{
-    ClientPolicy, ClientPolicyContext, ClientPolicyManager, ClientProfile,
-    store::ClientPolicyStore,
+    ClientPolicy, ClientPolicyContext, ClientPolicyManager, ClientProfile, store::ClientPolicyStore,
 };
 use authenc_types::Result;
 use authenc_types::domain::client_policy::ClientPolicyModel;

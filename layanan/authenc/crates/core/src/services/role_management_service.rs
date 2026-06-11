@@ -421,7 +421,6 @@ impl RoleManagementServiceImpl {
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn test_evaluate_conditions_empty() {
