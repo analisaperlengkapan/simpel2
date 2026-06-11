@@ -961,10 +961,13 @@ pub async fn update_profile_handler(
         .user_service
         .update_user(user_id, update_req)
         .await
-        .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
-            error: "update_failed".to_string(),
-            message: e.to_string(),
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to update user profile");
+            ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                error: "update_failed".to_string(),
+                message: "Gagal memperbarui profil. Silakan periksa input Anda.".to_string(),
+            }
         })?;
 
     let realm_id = user
