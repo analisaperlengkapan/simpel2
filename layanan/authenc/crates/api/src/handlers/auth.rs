@@ -8,6 +8,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
+use garde::Validate;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -15,18 +16,22 @@ use crate::handlers::auth_helpers;
 use crate::state::ApiState;
 
 /// Login request payload
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
     /// Username or email
+    #[garde(length(min = 1, max = 255))]
     pub username: String,
     /// Password
+    #[garde(length(min = 1, max = 128))]
     pub password: String,
     /// Optional realm ID (defaults to master realm)
+    #[garde(skip)]
     pub realm_id: Option<Uuid>,
     /// Single-use CAPTCHA token (the solved challenge id returned by
     /// `POST /api/captcha/verify`). Required once the username crosses the
     /// brute-force CAPTCHA threshold (#49); ignored otherwise.
     #[serde(default)]
+    #[garde(skip)]
     pub captcha_token: Option<String>,
 }
 
@@ -287,6 +292,16 @@ pub async fn login_handler(
         AuthFailureReason, AuthResult, Credentials, RealmId, domain::Realm,
         traits::AuthenticationService,
     };
+
+    // Validate request
+    if let Err(e) = request.validate() {
+        return ErrorResponse {
+            status_code: StatusCode::BAD_REQUEST,
+            error: "validation_error".to_string(),
+            message: format!("Invalid input: {}", e),
+        }
+        .into_response();
+    }
 
     // CAPTCHA gate (#49): once brute-force protection flags this username
     // (>= captcha_threshold failures within the window), a solved CAPTCHA is
@@ -1172,5 +1187,53 @@ mod tests {
         let json = serde_json::to_string(&response).unwrap();
         assert!(json.contains("access_token"));
         assert!(json.contains("Bearer"));
+    }
+
+    #[test]
+    fn test_login_request_validation() {
+        // Valid request
+        let request = LoginRequest {
+            username: "user".to_string(),
+            password: "password".to_string(),
+            realm_id: None,
+            captcha_token: None,
+        };
+        assert!(request.validate().is_ok());
+
+        // Empty username
+        let request = LoginRequest {
+            username: "".to_string(),
+            password: "password".to_string(),
+            realm_id: None,
+            captcha_token: None,
+        };
+        assert!(request.validate().is_err());
+
+        // Empty password
+        let request = LoginRequest {
+            username: "user".to_string(),
+            password: "".to_string(),
+            realm_id: None,
+            captcha_token: None,
+        };
+        assert!(request.validate().is_err());
+
+        // Over-length username
+        let request = LoginRequest {
+            username: "a".repeat(256),
+            password: "password".to_string(),
+            realm_id: None,
+            captcha_token: None,
+        };
+        assert!(request.validate().is_err());
+
+        // Over-length password
+        let request = LoginRequest {
+            username: "user".to_string(),
+            password: "a".repeat(129),
+            realm_id: None,
+            captcha_token: None,
+        };
+        assert!(request.validate().is_err());
     }
 }
