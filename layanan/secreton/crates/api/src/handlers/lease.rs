@@ -21,7 +21,7 @@ use std::collections::HashMap;
 
 use crate::{ApiError, ApiResponse, ApiResult, PaginatedResponse, handlers::AppState};
 
-use secreton_core::audit::AuditStatus;
+use secreton_core::audit::{AuditNamespaceEntry, AuditStatus};
 use secreton_core::services::lease::{EnhancedLease, LeaseError};
 
 /// Create lease management routes
@@ -225,17 +225,17 @@ pub async fn renew_lease(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.renew".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            request.lease_id,
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.renew".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: request.lease_id,
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);
@@ -328,17 +328,17 @@ pub async fn revoke_lease(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.revoke".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            request.lease_id.clone(),
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.revoke".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: request.lease_id.clone(),
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);
@@ -438,17 +438,17 @@ pub async fn revoke_lease_prefix(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.revoke_prefix".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            format!("prefix:{}", request.prefix),
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.revoke_prefix".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: format!("prefix:{}", request.prefix),
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);
@@ -589,17 +589,17 @@ pub async fn lookup_lease(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.lookup".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            lease.id.clone(),
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.lookup".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: lease.id.clone(),
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);
@@ -720,17 +720,17 @@ pub async fn list_leases(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.list".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            "list".to_string(),
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.list".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: "list".to_string(),
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);
@@ -801,17 +801,17 @@ pub async fn get_lease_stats(
 
     if let Err(e) = state
         .audit
-        .log_with_namespace(
-            "lease.stats".to_string(),
-            Some(auth.user.clone()),
-            "lease".to_string(),
-            "stats".to_string(),
-            auth.namespace.clone(),
-            AuditStatus::Success,
-            auth.ip.clone(),
-            auth.user_agent.clone(),
+        .log_with_namespace(AuditNamespaceEntry {
+            action: "lease.stats".to_string(),
+            actor: Some(auth.user.clone()),
+            resource_type: "lease".to_string(),
+            resource_id: "stats".to_string(),
+            namespace: auth.namespace.clone(),
+            status: AuditStatus::Success,
+            ip: auth.ip.clone(),
+            user_agent: auth.user_agent.clone(),
             metadata,
-        )
+        })
         .await
     {
         tracing::error!("Failed to log audit event: {}", e);

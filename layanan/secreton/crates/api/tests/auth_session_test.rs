@@ -11,15 +11,15 @@ async fn test_auth_service_sessions() {
     // Create user
     let user = services
         .auth
-        .create_user(
-            "sessionuser",
-            "session@example.com",
-            "password",
-            None,
-            vec!["user".to_string()],
-            None,
-            true,
-        )
+        .create_user(secreton_api::services::auth::NewUser {
+            username: "sessionuser",
+            email: "session@example.com",
+            password: "password",
+            full_name: None,
+            roles: vec!["user".to_string()],
+            metadata: None,
+            is_active: true,
+        })
         .await
         .expect("create user");
 

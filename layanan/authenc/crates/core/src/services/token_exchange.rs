@@ -121,6 +121,17 @@ pub struct ActorTokenInfo {
     pub claims: HashMap<String, serde_json::Value>,
 }
 
+/// Inputs for minting an exchanged token (see `generate_exchanged_token`).
+struct ExchangedTokenParams<'a> {
+    subject_info: &'a SubjectTokenInfo,
+    actor_info: Option<&'a ActorTokenInfo>,
+    requested_token_type: &'a str,
+    scopes: &'a [String],
+    audience: Option<&'a str>,
+    resource: Option<&'a str>,
+    client_id: &'a str,
+}
+
 /// Token Exchange Service Configuration
 #[derive(Debug, Clone)]
 pub struct TokenExchangeConfig {
@@ -257,15 +268,15 @@ impl TokenExchangeService {
 
         // Generate new token
         let new_token = self
-            .generate_exchanged_token(
-                &subject_info,
-                actor_info.as_ref(),
-                &requested_token_type,
-                &granted_scopes,
-                request.audience.as_deref(),
-                request.resource.as_deref(),
-                &client_id,
-            )
+            .generate_exchanged_token(ExchangedTokenParams {
+                subject_info: &subject_info,
+                actor_info: actor_info.as_ref(),
+                requested_token_type: &requested_token_type,
+                scopes: &granted_scopes,
+                audience: request.audience.as_deref(),
+                resource: request.resource.as_deref(),
+                client_id: &client_id,
+            })
             .await?;
 
         // Audit log the token exchange
@@ -621,14 +632,17 @@ impl TokenExchangeService {
     /// Generate exchanged token
     async fn generate_exchanged_token(
         &self,
-        subject_info: &SubjectTokenInfo,
-        actor_info: Option<&ActorTokenInfo>,
-        requested_token_type: &str,
-        scopes: &[String],
-        audience: Option<&str>,
-        resource: Option<&str>,
-        client_id: &str,
+        params: ExchangedTokenParams<'_>,
     ) -> Result<TokenExchangeResponse> {
+        let ExchangedTokenParams {
+            subject_info,
+            actor_info,
+            requested_token_type,
+            scopes,
+            audience,
+            resource,
+            client_id,
+        } = params;
         use crate::services::token_exchange_helpers::{AccessTokenClaims, generate_access_token};
 
         let now = Utc::now().timestamp();

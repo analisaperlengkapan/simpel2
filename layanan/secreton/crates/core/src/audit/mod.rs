@@ -382,6 +382,19 @@ pub struct AuditLogger {
     backends: Vec<Arc<dyn AuditBackend>>,
 }
 
+/// Parameters for [`AuditLogger::log_with_namespace`].
+pub struct AuditNamespaceEntry {
+    pub action: String,
+    pub actor: Option<String>,
+    pub resource_type: String,
+    pub resource_id: String,
+    pub namespace: String,
+    pub status: AuditStatus,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
+    pub metadata: HashMap<String, String>,
+}
+
 impl AuditLogger {
     /// Create a new audit logger with the given backends
     pub fn new(backends: Vec<Arc<dyn AuditBackend>>) -> Self {
@@ -421,18 +434,18 @@ impl AuditLogger {
     /// Log a namespace-scoped audit event
     ///
     /// Convenience method for logging events with namespace information
-    pub async fn log_with_namespace(
-        &self,
-        action: String,
-        actor: Option<String>,
-        resource_type: String,
-        resource_id: String,
-        namespace: String,
-        status: AuditStatus,
-        ip: Option<String>,
-        user_agent: Option<String>,
-        metadata: HashMap<String, String>,
-    ) -> Result<(), AuditError> {
+    pub async fn log_with_namespace(&self, entry: AuditNamespaceEntry) -> Result<(), AuditError> {
+        let AuditNamespaceEntry {
+            action,
+            actor,
+            resource_type,
+            resource_id,
+            namespace,
+            status,
+            ip,
+            user_agent,
+            metadata,
+        } = entry;
         let entry = AuditLog {
             id: Uuid::new_v4(),
             timestamp: Utc::now(),

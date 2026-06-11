@@ -500,18 +500,9 @@ impl SessionStore {
     /// * `Result<Uuid, AuthencError>` with the offline token ID
     pub async fn create_offline_token(
         &self,
-        user_id: Uuid,
-        realm_id: Uuid,
-        client_id: Uuid,
-        token: &str,
-        scope: Option<&str>,
-        expires_at: Option<chrono::DateTime<chrono::Utc>>,
-        data: Option<serde_json::Value>,
+        params: db_ops::sessions::NewOfflineToken<'_>,
     ) -> Result<Uuid> {
-        let result = db_ops::sessions::create_offline_token(
-            &self.db, user_id, realm_id, client_id, token, scope, expires_at, data,
-        )
-        .await?;
+        let result = db_ops::sessions::create_offline_token(&self.db, params).await?;
 
         let token_id = result["id"]
             .as_str()

@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde_json;
 use std::sync::Arc;
 
-use crate::services::events::EventStoreProvider;
+use crate::services::events::{AdminEventQueryFilter, EventQueryFilter, EventStoreProvider};
 use authenc_storage::Database;
 use authenc_types::domain::events::{AdminEvent, Event, EventType};
 use authenc_types::{AuthencError as Error, Result};
@@ -173,17 +173,17 @@ impl EventStoreProvider for PgEventStoreProvider {
         Ok(())
     }
 
-    async fn query_events(
-        &self,
-        realm_id: Option<&str>,
-        event_type: Option<&str>,
-        user_id: Option<&str>,
-        client_id: Option<&str>,
-        date_from: Option<DateTime<Utc>>,
-        date_to: Option<DateTime<Utc>>,
-        first_result: usize,
-        max_results: usize,
-    ) -> Result<Vec<Event>> {
+    async fn query_events(&self, filter: EventQueryFilter<'_>) -> Result<Vec<Event>> {
+        let EventQueryFilter {
+            realm_id,
+            event_type,
+            user_id,
+            client_id,
+            date_from,
+            date_to,
+            first_result,
+            max_results,
+        } = filter;
         let query = r#"
             SELECT id, time, event_type, realm_id, realm_name, client_id,
                    user_id, session_id, ip_address, error, details
@@ -312,15 +312,18 @@ impl EventStoreProvider for PgEventStoreProvider {
 
     async fn query_admin_events(
         &self,
-        realm_id: Option<&str>,
-        operation_type: Option<&str>,
-        resource_type: Option<&str>,
-        auth_user: Option<&str>,
-        date_from: Option<DateTime<Utc>>,
-        date_to: Option<DateTime<Utc>>,
-        first_result: usize,
-        max_results: usize,
+        filter: AdminEventQueryFilter<'_>,
     ) -> Result<Vec<AdminEvent>> {
+        let AdminEventQueryFilter {
+            realm_id,
+            operation_type,
+            resource_type,
+            auth_user,
+            date_from,
+            date_to,
+            first_result,
+            max_results,
+        } = filter;
         let query = r#"
             SELECT id, time, realm_id, operation_type, resource_type, resource_path,
                    representation, error, auth_details

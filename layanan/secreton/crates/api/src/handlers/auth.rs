@@ -88,15 +88,15 @@ mod tests {
         // Create test user 'alice'
         let _ = services
             .auth
-            .create_user(
-                "alice",
-                "alice@example.com",
-                "password123",
-                None,
-                vec!["user".to_string()],
-                None,
-                true,
-            )
+            .create_user(crate::services::auth::NewUser {
+                username: "alice",
+                email: "alice@example.com",
+                password: "password123",
+                full_name: None,
+                roles: vec!["user".to_string()],
+                metadata: None,
+                is_active: true,
+            })
             .await;
 
         let app = create_routes()
@@ -118,15 +118,15 @@ mod tests {
         // Create test user
         services
             .auth
-            .create_user(
-                "alice",
-                "alice@example.com",
-                "password123",
-                None,
-                vec!["user".to_string()],
-                None,
-                true,
-            )
+            .create_user(crate::services::auth::NewUser {
+                username: "alice",
+                email: "alice@example.com",
+                password: "password123",
+                full_name: None,
+                roles: vec!["user".to_string()],
+                metadata: None,
+                is_active: true,
+            })
             .await
             .expect("Failed to create user");
 

@@ -210,13 +210,15 @@ async fn test_offline_tokens() {
     // Test create offline token
     let result = db_ops::sessions::create_offline_token(
         &db,
-        user_id,
-        realm_id,
-        client_id,
-        "offline_token_789",
-        Some("openid email profile"),
-        None, // Never expires
-        Some(serde_json::json!({"device": "mobile"})),
+        db_ops::sessions::NewOfflineToken {
+            user_id,
+            realm_id,
+            client_id,
+            token: "offline_token_789",
+            scope: Some("openid email profile"),
+            expires_at: None, // Never expires
+            data: Some(serde_json::json!({"device": "mobile"})),
+        },
     )
     .await;
 

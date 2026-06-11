@@ -856,51 +856,6 @@ async fn evaluate_wasm_policy(
     true
 }
 
-/// Integrated policy check with Sentinel and RBAC
-#[instrument(skip(sentinel_policies, context, rbac_policies, policyset_json), fields(
-    user = %user,
-    path = %path,
-    action = %action,
-    sentinel_policy_count = sentinel_policies.len(),
-    rbac_role_count = rbac_roles.len(),
-    operation = "check_policy_integrated"
-))]
-pub async fn check_policy_with_sentinel(
-    sentinel_policies: &[SentinelPolicy],
-    user: &str,
-    path: &str,
-    action: &str,
-    context: Option<&serde_json::Value>,
-    rbac_roles: &[String],
-    rbac_policies: &[crate::models::policy::Policy],
-    policyset_json: Option<&str>,
-) -> bool {
-    // First, evaluate Sentinel policies (if any)
-    if !sentinel_policies.is_empty()
-        && !evaluate_with_sentinel(sentinel_policies, user, path, action, context).await
-    {
-        debug!("Access denied by Sentinel policy");
-        return false;
-    }
-
-    // Then, evaluate RBAC/ACL policies
-    let rbac_allowed = crate::services::rbac::check_policy(
-        rbac_roles,
-        rbac_policies,
-        path,
-        action,
-        policyset_json,
-    );
-
-    if !rbac_allowed {
-        debug!("Access denied by RBAC policy");
-        return false;
-    }
-
-    debug!("Access allowed by policy evaluation");
-    true
-}
-
 // Contoh: policy as code (JSON)
 // {
 //   "rules": [

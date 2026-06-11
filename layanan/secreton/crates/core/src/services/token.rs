@@ -219,6 +219,19 @@ pub struct TokenService {
     token_by_value: Arc<RwLock<HashMap<String, String>>>, // token value -> token id
 }
 
+/// Parameters for [`TokenService::create_token`].
+#[derive(Debug, Clone)]
+pub struct CreateTokenRequest {
+    pub token_type: TokenType,
+    pub policies: Vec<String>,
+    pub ttl: u32,
+    pub max_ttl: u32,
+    pub display_name: String,
+    pub parent_id: Option<String>,
+    pub metadata: HashMap<String, String>,
+    pub num_uses: u32,
+}
+
 impl TokenService {
     /// Create new token service
     pub fn new() -> Self {
@@ -229,24 +242,24 @@ impl TokenService {
     }
 
     /// Create token
-    #[instrument(skip(self, policies, metadata), fields(
-        token_type = ?token_type,
-        policy_count = policies.len(),
-        ttl = %ttl,
-        display_name = %display_name,
+    #[instrument(skip(self, req), fields(
+        token_type = ?req.token_type,
+        policy_count = req.policies.len(),
+        ttl = %req.ttl,
+        display_name = %req.display_name,
         operation = "create_token"
     ))]
-    pub async fn create_token(
-        &self,
-        token_type: TokenType,
-        policies: Vec<String>,
-        ttl: u32,
-        max_ttl: u32,
-        display_name: String,
-        parent_id: Option<String>,
-        metadata: HashMap<String, String>,
-        num_uses: u32,
-    ) -> Result<Token, TokenError> {
+    pub async fn create_token(&self, req: CreateTokenRequest) -> Result<Token, TokenError> {
+        let CreateTokenRequest {
+            token_type,
+            policies,
+            ttl,
+            max_ttl,
+            display_name,
+            parent_id,
+            metadata,
+            num_uses,
+        } = req;
         let mut token = Token::new(token_type, policies, ttl, max_ttl, display_name);
         token.parent_id = parent_id;
         token.metadata = metadata;
@@ -424,16 +437,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Service,
-                vec!["default".to_string()],
-                3600,
-                86400,
-                "test-token".to_string(),
-                None,
-                HashMap::new(),
-                0,
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Service,
+                policies: vec!["default".to_string()],
+                ttl: 3600,
+                max_ttl: 86400,
+                display_name: "test-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 0,
+            })
             .await
             .unwrap();
 
@@ -447,16 +460,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Service,
-                vec!["default".to_string()],
-                3600,
-                86400,
-                "test-token".to_string(),
-                None,
-                HashMap::new(),
-                0,
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Service,
+                policies: vec!["default".to_string()],
+                ttl: 3600,
+                max_ttl: 86400,
+                display_name: "test-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 0,
+            })
             .await
             .unwrap();
 
@@ -469,16 +482,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Service,
-                vec!["default".to_string()],
-                1800,
-                86400,
-                "test-token".to_string(),
-                None,
-                HashMap::new(),
-                0,
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Service,
+                policies: vec!["default".to_string()],
+                ttl: 1800,
+                max_ttl: 86400,
+                display_name: "test-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 0,
+            })
             .await
             .unwrap();
 
@@ -492,16 +505,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Service,
-                vec!["default".to_string()],
-                3600,
-                86400,
-                "test-token".to_string(),
-                None,
-                HashMap::new(),
-                0,
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Service,
+                policies: vec!["default".to_string()],
+                ttl: 3600,
+                max_ttl: 86400,
+                display_name: "test-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 0,
+            })
             .await
             .unwrap();
 
@@ -516,16 +529,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Batch,
-                vec!["default".to_string()],
-                3600,
-                86400,
-                "batch-token".to_string(),
-                None,
-                HashMap::new(),
-                0,
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Batch,
+                policies: vec!["default".to_string()],
+                ttl: 3600,
+                max_ttl: 86400,
+                display_name: "batch-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 0,
+            })
             .await
             .unwrap();
 
@@ -538,16 +551,16 @@ mod tests {
         let service = TokenService::new();
 
         let token = service
-            .create_token(
-                TokenType::Service,
-                vec!["default".to_string()],
-                3600,
-                86400,
-                "limited-token".to_string(),
-                None,
-                HashMap::new(),
-                3, // 3 uses
-            )
+            .create_token(CreateTokenRequest {
+                token_type: TokenType::Service,
+                policies: vec!["default".to_string()],
+                ttl: 3600,
+                max_ttl: 86400,
+                display_name: "limited-token".to_string(),
+                parent_id: None,
+                metadata: HashMap::new(),
+                num_uses: 3, // 3 uses
+            })
             .await
             .unwrap();
 

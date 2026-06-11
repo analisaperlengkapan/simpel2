@@ -6,16 +6,30 @@ use chrono::{DateTime, Utc};
 use tracing::{error, info, warn};
 use uuid::Uuid;
 
+/// Parameters for [`create_service_account`].
+pub struct NewServiceAccount<'a> {
+    pub realm_id: Uuid,
+    pub name: &'a str,
+    pub description: Option<&'a str>,
+    pub client_id: &'a str,
+    pub client_secret_hash: &'a str,
+    pub enabled: bool,
+    pub roles: Vec<Uuid>,
+}
+
 pub async fn create_service_account(
     db: &Database,
-    realm_id: Uuid,
-    name: &str,
-    description: Option<&str>,
-    client_id: &str,
-    client_secret_hash: &str,
-    enabled: bool,
-    roles: Vec<Uuid>,
+    params: NewServiceAccount<'_>,
 ) -> Result<ServiceAccount> {
+    let NewServiceAccount {
+        realm_id,
+        name,
+        description,
+        client_id,
+        client_secret_hash,
+        enabled,
+        roles,
+    } = params;
     let service_account_id = Uuid::new_v4();
     let now = Utc::now();
 

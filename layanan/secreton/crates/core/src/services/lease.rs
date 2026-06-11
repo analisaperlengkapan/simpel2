@@ -164,6 +164,22 @@ pub struct LeaseManager {
     metrics_registry: Option<Arc<crate::services::metrics::MetricsRegistry>>,
 }
 
+/// Parameters for [`LeaseManager::create_lease`].
+#[derive(Default)]
+pub struct CreateLeaseRequest<'a> {
+    pub user: &'a str,
+    pub resource: &'a str,
+    pub resource_type: &'a str,
+    pub namespace: &'a str,
+    pub ttl_secs: i64,
+    pub max_ttl: i64,
+    pub renewable: bool,
+    pub parent_id: Option<String>,
+    pub max_renewals: Option<u32>,
+    pub revoke_callback: Option<String>,
+    pub metadata: HashMap<String, String>,
+}
+
 impl LeaseManager {
     /// Create new lease manager with database connection pool
     pub fn new(pool: Pool) -> Self {
@@ -292,28 +308,31 @@ impl LeaseManager {
     }
 
     /// Create lease with validation and storage persistence
-    #[instrument(skip(self, metadata), fields(
-        user = %user,
-        resource = %resource,
-        resource_type = %resource_type,
-        namespace = %namespace,
-        ttl_secs = %ttl_secs,
+    #[instrument(skip(self, req), fields(
+        user = %req.user,
+        resource = %req.resource,
+        resource_type = %req.resource_type,
+        namespace = %req.namespace,
+        ttl_secs = %req.ttl_secs,
         operation = "create_lease"
     ))]
     pub async fn create_lease(
         &self,
-        user: &str,
-        resource: &str,
-        resource_type: &str,
-        namespace: &str,
-        ttl_secs: i64,
-        max_ttl: i64,
-        renewable: bool,
-        parent_id: Option<String>,
-        max_renewals: Option<u32>,
-        revoke_callback: Option<String>,
-        metadata: HashMap<String, String>,
+        req: CreateLeaseRequest<'_>,
     ) -> Result<EnhancedLease, LeaseError> {
+        let CreateLeaseRequest {
+            user,
+            resource,
+            resource_type,
+            namespace,
+            ttl_secs,
+            max_ttl,
+            renewable,
+            parent_id,
+            max_renewals,
+            revoke_callback,
+            metadata,
+        } = req;
         // Validation
         if ttl_secs <= 0 || ttl_secs > max_ttl {
             return Err(LeaseError::InvalidTtl(format!(
@@ -1281,19 +1300,16 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                3600,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1309,19 +1325,16 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                1800,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 1800,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1337,19 +1350,16 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                3600,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1367,36 +1377,31 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         let parent = manager
-            .create_lease(
-                "user1",
-                "/parent",
-                "kv",
-                "default",
-                3600,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/parent",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         let _child = manager
-            .create_lease(
-                "user1",
-                "/child",
-                "kv",
-                "default",
-                3600,
-                86400,
-                true,
-                Some(parent.id.clone()),
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/child",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                parent_id: Some(parent.id.clone()),
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1413,36 +1418,30 @@ mod tests {
 
         // Create multiple leases
         manager
-            .create_lease(
-                "user1",
-                "/secret/data/test1",
-                "kv",
-                "default",
-                3600,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test1",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
         manager
-            .create_lease(
-                "user2",
-                "/secret/data/test2",
-                "database",
-                "default",
-                3600,
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user2",
+                resource: "/secret/data/test2",
+                resource_type: "database",
+                namespace: "default",
+                ttl_secs: 3600,
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1475,19 +1474,18 @@ mod tests {
         let manager = LeaseManager::new(pool);
 
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                1800,
-                86400,
-                true,
-                None,
-                Some(2), // Max 2 renewals
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 1800,
+                max_ttl: 86400,
+                renewable: true,
+                parent_id: None,
+                max_renewals: Some(2), // Max 2 renewals
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1511,19 +1509,16 @@ mod tests {
 
         // Create a lease that expires immediately
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                1, // 1 second TTL
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 1, // 1 second TTL
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1555,19 +1550,16 @@ mod tests {
 
         // Create a lease that expires in 3 seconds
         let lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                3, // 3 second TTL
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 3, // 3 second TTL
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 
@@ -1600,19 +1592,16 @@ mod tests {
 
         // Create a lease that expires in 4 minutes (within notification threshold)
         let _lease = manager
-            .create_lease(
-                "user1",
-                "/secret/data/test",
-                "kv",
-                "default",
-                240, // 4 minutes TTL
-                86400,
-                true,
-                None,
-                None,
-                None,
-                HashMap::new(),
-            )
+            .create_lease(CreateLeaseRequest {
+                user: "user1",
+                resource: "/secret/data/test",
+                resource_type: "kv",
+                namespace: "default",
+                ttl_secs: 240, // 4 minutes TTL
+                max_ttl: 86400,
+                renewable: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
 

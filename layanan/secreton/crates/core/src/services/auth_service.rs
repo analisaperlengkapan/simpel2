@@ -256,6 +256,18 @@ pub struct AuthService {
     config: AuthConfig,
 }
 
+/// Parameters for [`AuthService::create_user`].
+pub struct CreateUserRequest<'a> {
+    pub username: &'a str,
+    pub email: &'a str,
+    pub password: &'a str,
+    pub full_name: Option<&'a str>,
+    pub roles: Vec<String>,
+    pub policies: Vec<String>,
+    pub metadata: Option<HashMap<String, String>>,
+    pub is_active: bool,
+}
+
 impl AuthService {
     /// Create new authentication service
     pub async fn new(
@@ -441,17 +453,17 @@ impl AuthService {
     }
 
     /// Create user
-    pub async fn create_user(
-        &self,
-        username: &str,
-        email: &str,
-        password: &str,
-        full_name: Option<&str>,
-        roles: Vec<String>,
-        policies: Vec<String>,
-        metadata: Option<HashMap<String, String>>,
-        is_active: bool,
-    ) -> Result<User, AuthError> {
+    pub async fn create_user(&self, req: CreateUserRequest<'_>) -> Result<User, AuthError> {
+        let CreateUserRequest {
+            username,
+            email,
+            password,
+            full_name,
+            roles,
+            policies,
+            metadata,
+            is_active,
+        } = req;
         // Check if user already exists
         if self.user_exists(username).await? {
             return Err(AuthError::UserAlreadyExists);

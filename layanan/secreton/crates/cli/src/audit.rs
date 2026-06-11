@@ -94,24 +94,42 @@ pub async fn execute_audit_command(cmd: AuditCommand, config: &CliConfig) -> Res
             format,
         } => {
             list_audit_logs(
-                config, user, operation, path, start_time, end_time, limit, &format,
+                config,
+                AuditLogFilter {
+                    user,
+                    operation,
+                    path,
+                    start_time,
+                    end_time,
+                    limit,
+                },
+                &format,
             )
             .await
         }
     }
 }
 
-/// List audit logs with filtering
-async fn list_audit_logs(
-    config: &CliConfig,
+/// Filter parameters for [`list_audit_logs`].
+struct AuditLogFilter {
     user: Option<String>,
     operation: Option<String>,
     path: Option<String>,
     start_time: Option<String>,
     end_time: Option<String>,
     limit: usize,
-    format: &str,
-) -> Result<()> {
+}
+
+/// List audit logs with filtering
+async fn list_audit_logs(config: &CliConfig, filter: AuditLogFilter, format: &str) -> Result<()> {
+    let AuditLogFilter {
+        user,
+        operation,
+        path,
+        start_time,
+        end_time,
+        limit,
+    } = filter;
     // Load token for authentication
     let token_store = TokenStore::new()?;
     let stored_token = token_store

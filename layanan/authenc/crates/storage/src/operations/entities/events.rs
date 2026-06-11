@@ -284,42 +284,6 @@ pub async fn query_event_log(db: &Database, query_params: EventLogQuery) -> Resu
         .collect())
 }
 
-pub async fn record_listener_execution(
-    db: &Database,
-    event_log_id: Uuid,
-    listener_id: Uuid,
-    success: bool,
-    error_message: Option<&str>,
-    duration_ms: i32,
-    retry_count: i32,
-    next_retry_at: Option<DateTime<Utc>>,
-) -> Result<Uuid> {
-    let query = r#"
-        INSERT INTO event_listener_executions (
-            event_log_id, listener_id, success, error_message,
-            duration_ms, retry_count, next_retry_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id
-    "#;
-
-    let rows = db
-        .query(
-            query,
-            &[
-                &event_log_id,
-                &listener_id,
-                &success,
-                &error_message,
-                &duration_ms,
-                &retry_count,
-                &next_retry_at,
-            ],
-        )
-        .await?;
-
-    Ok(rows[0].get(0))
-}
-
 /// Parameters for registering an event webhook.
 pub struct NewWebhook<'a> {
     pub listener_id: Uuid,

@@ -1,54 +1,6 @@
 /// Theme customization database operations
 use super::*;
 
-pub async fn create_theme(
-    db: &Database,
-    realm_id: Uuid,
-    name: &str,
-    theme_type: &str,
-    parent_theme: Option<&str>,
-    css_content: Option<&str>,
-    css_variables: Option<serde_json::Value>,
-    description: Option<&str>,
-) -> Result<serde_json::Value> {
-    let query = r#"
-        INSERT INTO custom_themes (
-            realm_id, name, theme_type, parent_theme,
-            css_content, css_variables, description
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, realm_id, name, theme_type, parent_theme,
-                  is_active, is_default, created_at, updated_at
-    "#;
-
-    let row: tokio_postgres::Row = db
-        .query_one(
-            query,
-            &[
-                &realm_id,
-                &name,
-                &theme_type,
-                &parent_theme,
-                &css_content,
-                &css_variables,
-                &description,
-            ],
-        )
-        .await?;
-
-    Ok(serde_json::json!({
-        "id": row.get::<_, Uuid>("id"),
-        "realm_id": row.get::<_, Uuid>("realm_id"),
-        "name": row.get::<_, String>("name"),
-        "theme_type": row.get::<_, String>("theme_type"),
-        "parent_theme": row.get::<_, Option<String>>("parent_theme"),
-        "is_active": row.get::<_, bool>("is_active"),
-        "is_default": row.get::<_, bool>("is_default"),
-        "created_at": row.get::<_, chrono::DateTime<chrono::Utc>>("created_at"),
-        "updated_at": row.get::<_, chrono::DateTime<chrono::Utc>>("updated_at")
-    }))
-}
-
 pub async fn get_theme(db: &Database, theme_id: Uuid) -> Result<Option<serde_json::Value>> {
     let query = r#"
         SELECT id, realm_id, name, theme_type, parent_theme,

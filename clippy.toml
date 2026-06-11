@@ -1,7 +1,0 @@
-# Workspace-wide clippy configuration.
-#
-# too-many-arguments: the default threshold (7) is tight for this codebase's
-# request handlers, DB writers, and document builders where positional params
-# map 1:1 to columns/fields. We raise it modestly to 10; functions wider than
-# that are refactored into parameter structs rather than allowed (see #29).
-too-many-arguments-threshold = 10

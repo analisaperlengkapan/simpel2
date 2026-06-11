@@ -160,6 +160,16 @@ pub struct Kvv2Engine {
     secrets: Arc<RwLock<HashMap<String, Secret>>>,
 }
 
+/// Parameters for [`Kvv2Engine::write_with_lease`].
+pub struct WriteWithLease<'a> {
+    pub path: &'a str,
+    pub data: HashMap<String, Value>,
+    pub cas: Option<u64>,
+    pub ttl: Option<i64>,
+    pub user: &'a str,
+    pub namespace: &'a str,
+}
+
 impl Kvv2Engine {
     /// Create new KV v2 engine
     pub fn new() -> Self {
@@ -368,14 +378,17 @@ impl Kvv2Engine {
     /// The secret will be automatically revoked when the lease expires.
     pub async fn write_with_lease(
         &self,
-        path: &str,
-        data: HashMap<String, Value>,
-        cas: Option<u64>,
-        ttl: Option<i64>,
-        user: &str,
-        namespace: &str,
+        params: WriteWithLease<'_>,
         lease_manager: &crate::services::lease::LeaseManager,
     ) -> Result<(SecretVersion, Option<crate::services::lease::EnhancedLease>), Kvv2Error> {
+        let WriteWithLease {
+            path,
+            data,
+            cas,
+            ttl,
+            user,
+            namespace,
+        } = params;
         // Write the secret first
         let version = self.write(path, data, cas).await?;
 
@@ -389,19 +402,18 @@ impl Kvv2Engine {
                 metadata.insert("version".to_string(), version.version.to_string());
 
                 let lease = lease_manager
-                    .create_lease(
+                    .create_lease(crate::services::lease::CreateLeaseRequest {
                         user,
-                        path,
-                        "kv",
+                        resource: path,
+                        resource_type: "kv",
                         namespace,
                         ttl_secs,
                         max_ttl,
-                        true,                                // renewable
-                        None,                                // no parent
-                        None,                                // no max_renewals
-                        Some(format!("kv_revoke:{}", path)), // revoke callback
+                        renewable: true,
+                        revoke_callback: Some(format!("kv_revoke:{}", path)),
                         metadata,
-                    )
+                        ..Default::default()
+                    })
                     .await
                     .map_err(|e| {
                         Kvv2Error::SecretNotFound(format!("Failed to create lease: {}", e))
@@ -594,12 +606,14 @@ async fn test_write_with_lease() {
     // Write secret with TTL
     let (version, lease) = kv
         .write_with_lease(
-            "secret/myapp",
-            data,
-            None,
-            Some(3600), // 1 hour TTL
-            "user1",
-            "default",
+            WriteWithLease {
+                path: "secret/myapp",
+                data,
+                cas: None,
+                ttl: Some(3600), // 1 hour TTL
+                user: "user1",
+                namespace: "default",
+            },
             &lease_manager,
         )
         .await
@@ -641,12 +655,14 @@ async fn test_read_with_lease() {
     // Write secret with TTL
     let (version, _) = kv
         .write_with_lease(
-            "secret/myapp",
-            data,
-            None,
-            Some(3600),
-            "user1",
-            "default",
+            WriteWithLease {
+                path: "secret/myapp",
+                data,
+                cas: None,
+                ttl: Some(3600),
+                user: "user1",
+                namespace: "default",
+            },
             &lease_manager,
         )
         .await

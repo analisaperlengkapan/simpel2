@@ -1,5 +1,5 @@
 use secreton_core::config::api::AuthConfig;
-use secreton_core::services::auth_service::{AuthError, AuthService};
+use secreton_core::services::auth_service::{AuthError, AuthService, CreateUserRequest};
 use secreton_core::storage::InMemoryStorage;
 use secreton_crypto::CryptoEngine;
 use secreton_storage::memory::MemoryBackend;
@@ -24,16 +24,16 @@ async fn test_last_login_update() {
 
     // Create user
     let user = auth_service
-        .create_user(
+        .create_user(CreateUserRequest {
             username,
-            "test@example.com",
+            email: "test@example.com",
             password,
-            Some("Test User"),
-            vec!["user".to_string()],
-            vec![],
-            None,
-            true,
-        )
+            full_name: Some("Test User"),
+            roles: vec!["user".to_string()],
+            policies: vec![],
+            metadata: None,
+            is_active: true,
+        })
         .await
         .expect("Failed to create user");
 
@@ -60,16 +60,16 @@ async fn test_refresh_token() {
 
     // 1. Create a user
     let user = auth_service
-        .create_user(
-            "testuser",
-            "test@example.com",
-            "password123",
-            Some("Test User"),
-            vec!["user".to_string()],
-            vec![],
-            None,
-            true,
-        )
+        .create_user(CreateUserRequest {
+            username: "testuser",
+            email: "test@example.com",
+            password: "password123",
+            full_name: Some("Test User"),
+            roles: vec!["user".to_string()],
+            policies: vec![],
+            metadata: None,
+            is_active: true,
+        })
         .await
         .unwrap();
 
@@ -113,16 +113,16 @@ async fn test_refresh_token_with_access_token() {
     let auth_service = setup_auth_service().await;
 
     auth_service
-        .create_user(
-            "testuser2",
-            "test2@example.com",
-            "password123",
-            None,
-            vec!["user".to_string()],
-            vec![],
-            None,
-            true,
-        )
+        .create_user(CreateUserRequest {
+            username: "testuser2",
+            email: "test2@example.com",
+            password: "password123",
+            full_name: None,
+            roles: vec!["user".to_string()],
+            policies: vec![],
+            metadata: None,
+            is_active: true,
+        })
         .await
         .unwrap();
     let auth_token = auth_service

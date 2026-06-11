@@ -15,6 +15,32 @@ pub trait EventListenerProvider: Send + Sync {
     async fn on_admin_event(&self, event: &AdminEvent, include_representation: bool) -> Result<()>;
 }
 
+/// Filter criteria for querying user events.
+#[derive(Debug, Clone, Default)]
+pub struct EventQueryFilter<'a> {
+    pub realm_id: Option<&'a str>,
+    pub event_type: Option<&'a str>,
+    pub user_id: Option<&'a str>,
+    pub client_id: Option<&'a str>,
+    pub date_from: Option<chrono::DateTime<chrono::Utc>>,
+    pub date_to: Option<chrono::DateTime<chrono::Utc>>,
+    pub first_result: usize,
+    pub max_results: usize,
+}
+
+/// Filter criteria for querying admin events.
+#[derive(Debug, Clone, Default)]
+pub struct AdminEventQueryFilter<'a> {
+    pub realm_id: Option<&'a str>,
+    pub operation_type: Option<&'a str>,
+    pub resource_type: Option<&'a str>,
+    pub auth_user: Option<&'a str>,
+    pub date_from: Option<chrono::DateTime<chrono::Utc>>,
+    pub date_to: Option<chrono::DateTime<chrono::Utc>>,
+    pub first_result: usize,
+    pub max_results: usize,
+}
+
 /// Event store provider trait - SPI for event persistence
 #[async_trait]
 pub trait EventStoreProvider: Send + Sync {
@@ -25,29 +51,12 @@ pub trait EventStoreProvider: Send + Sync {
     async fn store_admin_event(&self, event: &AdminEvent) -> Result<()>;
 
     /// Query events with filtering
-    async fn query_events(
-        &self,
-        realm_id: Option<&str>,
-        event_type: Option<&str>,
-        user_id: Option<&str>,
-        client_id: Option<&str>,
-        date_from: Option<chrono::DateTime<chrono::Utc>>,
-        date_to: Option<chrono::DateTime<chrono::Utc>>,
-        first_result: usize,
-        max_results: usize,
-    ) -> Result<Vec<Event>>;
+    async fn query_events(&self, filter: EventQueryFilter<'_>) -> Result<Vec<Event>>;
 
     /// Query admin events with filtering
     async fn query_admin_events(
         &self,
-        realm_id: Option<&str>,
-        operation_type: Option<&str>,
-        resource_type: Option<&str>,
-        auth_user: Option<&str>,
-        date_from: Option<chrono::DateTime<chrono::Utc>>,
-        date_to: Option<chrono::DateTime<chrono::Utc>>,
-        first_result: usize,
-        max_results: usize,
+        filter: AdminEventQueryFilter<'_>,
     ) -> Result<Vec<AdminEvent>>;
 
     /// Clear old events based on retention policy
@@ -247,30 +256,9 @@ impl EventManager {
     }
 
     /// Query events
-    pub async fn query_events(
-        &self,
-        realm_id: Option<&str>,
-        event_type: Option<&str>,
-        user_id: Option<&str>,
-        client_id: Option<&str>,
-        date_from: Option<chrono::DateTime<chrono::Utc>>,
-        date_to: Option<chrono::DateTime<chrono::Utc>>,
-        first_result: usize,
-        max_results: usize,
-    ) -> Result<Vec<Event>> {
+    pub async fn query_events(&self, filter: EventQueryFilter<'_>) -> Result<Vec<Event>> {
         if let Some(store) = &self.store_provider {
-            store
-                .query_events(
-                    realm_id,
-                    event_type,
-                    user_id,
-                    client_id,
-                    date_from,
-                    date_to,
-                    first_result,
-                    max_results,
-                )
-                .await
+            store.query_events(filter).await
         } else {
             Ok(Vec::new())
         }
@@ -279,28 +267,10 @@ impl EventManager {
     /// Query admin events
     pub async fn query_admin_events(
         &self,
-        realm_id: Option<&str>,
-        operation_type: Option<&str>,
-        resource_type: Option<&str>,
-        auth_user: Option<&str>,
-        date_from: Option<chrono::DateTime<chrono::Utc>>,
-        date_to: Option<chrono::DateTime<chrono::Utc>>,
-        first_result: usize,
-        max_results: usize,
+        filter: AdminEventQueryFilter<'_>,
     ) -> Result<Vec<AdminEvent>> {
         if let Some(store) = &self.store_provider {
-            store
-                .query_admin_events(
-                    realm_id,
-                    operation_type,
-                    resource_type,
-                    auth_user,
-                    date_from,
-                    date_to,
-                    first_result,
-                    max_results,
-                )
-                .await
+            store.query_admin_events(filter).await
         } else {
             Ok(Vec::new())
         }

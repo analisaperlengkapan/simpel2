@@ -71,18 +71,35 @@ pub async fn log_admin_operation(
     Ok(rows[0].get(0))
 }
 
+/// Filter parameters for [`query_admin_audit_log`].
+#[derive(Debug, Clone)]
+pub struct AdminAuditLogQuery {
+    pub realm_id: Uuid,
+    pub admin_user_id: Option<Uuid>,
+    pub operation_type: Option<String>,
+    pub resource_type: Option<String>,
+    pub status: Option<String>,
+    pub from_date: Option<DateTime<Utc>>,
+    pub to_date: Option<DateTime<Utc>>,
+    pub offset: i64,
+    pub limit: i64,
+}
+
 pub async fn query_admin_audit_log(
     db: &Database,
-    realm_id: Uuid,
-    admin_user_id: Option<Uuid>,
-    operation_type: Option<String>,
-    resource_type: Option<String>,
-    status: Option<String>,
-    from_date: Option<DateTime<Utc>>,
-    to_date: Option<DateTime<Utc>>,
-    offset: i64,
-    limit: i64,
+    query: AdminAuditLogQuery,
 ) -> Result<Vec<JsonValue>> {
+    let AdminAuditLogQuery {
+        realm_id,
+        admin_user_id,
+        operation_type,
+        resource_type,
+        status,
+        from_date,
+        to_date,
+        offset,
+        limit,
+    } = query;
     let mut where_clauses = vec![String::from("realm_id = $1")];
     let mut param_index = 2;
 
@@ -182,52 +199,6 @@ pub async fn query_admin_audit_log(
         .collect())
 }
 
-pub async fn record_dashboard_metric(
-    db: &Database,
-    realm_id: Uuid,
-    metric_type: &str,
-    metric_name: &str,
-    metric_value: f64,
-    metric_unit: Option<&str>,
-    aggregation_period: &str,
-    period_start: DateTime<Utc>,
-    period_end: DateTime<Utc>,
-    metadata: Option<&JsonValue>,
-) -> Result<Uuid> {
-    let query = r#"
-        INSERT INTO admin_dashboard_metrics (
-            realm_id, metric_type, metric_name, metric_value, metric_unit,
-            aggregation_period, period_start, period_end, metadata
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ON CONFLICT (realm_id, metric_type, metric_name, period_start)
-        DO UPDATE SET
-            metric_value = EXCLUDED.metric_value,
-            metric_unit = EXCLUDED.metric_unit,
-            period_end = EXCLUDED.period_end,
-            metadata = EXCLUDED.metadata
-        RETURNING id
-    "#;
-
-    let rows = db
-        .query(
-            query,
-            &[
-                &realm_id,
-                &metric_type,
-                &metric_name,
-                &metric_value,
-                &metric_unit,
-                &aggregation_period,
-                &period_start,
-                &period_end,
-                &metadata,
-            ],
-        )
-        .await?;
-
-    Ok(rows[0].get(0))
-}
-
 pub async fn get_dashboard_metrics(
     db: &Database,
     realm_id: Uuid,
@@ -295,50 +266,6 @@ pub async fn get_dashboard_metrics(
             })
         })
         .collect())
-}
-
-pub async fn create_admin_session(
-    db: &Database,
-    realm_id: Uuid,
-    admin_user_id: Uuid,
-    username: &str,
-    session_token: &str,
-    ip_address: Option<&str>,
-    user_agent: Option<&str>,
-    login_method: &str,
-    mfa_verified: bool,
-    expires_in_seconds: i64,
-) -> Result<Uuid> {
-    let expires_at = Utc::now() + Duration::seconds(expires_in_seconds);
-
-    let query = r#"
-        INSERT INTO admin_console_sessions (
-            realm_id, admin_user_id, username, session_token,
-            ip_address, user_agent, login_method, mfa_verified, expires_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        RETURNING id
-    "#;
-
-    let ip_parsed = ip_address.and_then(|ip| ip.parse::<std::net::IpAddr>().ok());
-
-    let rows = db
-        .query(
-            query,
-            &[
-                &realm_id,
-                &admin_user_id,
-                &username,
-                &session_token,
-                &ip_parsed,
-                &user_agent,
-                &login_method,
-                &mfa_verified,
-                &expires_at,
-            ],
-        )
-        .await?;
-
-    Ok(rows[0].get(0))
 }
 
 pub async fn validate_admin_session(

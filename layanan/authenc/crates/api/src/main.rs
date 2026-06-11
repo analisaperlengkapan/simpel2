@@ -388,17 +388,17 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let federation_service = Arc::new(authenc_federation::service::FederationService::new());
         let audit_service = Arc::new(authenc_core::services::AuditService::new(db.clone()));
 
-        let grpc_service = authenc_grpc::AuthencGrpcService::new(
-            grpc_auth_service,
-            grpc_user_service,
-            grpc_oauth2_service,
-            grpc_realm_service,
+        let grpc_service = authenc_grpc::AuthencGrpcService::new(authenc_grpc::AuthencGrpcDeps {
+            auth_service: grpc_auth_service,
+            user_service: grpc_user_service,
+            oauth2_service: grpc_oauth2_service,
+            realm_service: grpc_realm_service,
             role_service,
-            grpc_jwt_service,
+            jwt_service: grpc_jwt_service,
             federation_service,
             audit_service,
-            revocation_store.clone(),
-        );
+            revocation_store: revocation_store.clone(),
+        });
 
         // mTLS material (Secreton-provisioned). When a CA cert is supplied the
         // server requires clients to present a cert signed by it — mutual auth,

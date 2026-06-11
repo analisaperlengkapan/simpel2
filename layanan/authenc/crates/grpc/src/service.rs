@@ -105,31 +105,43 @@ pub struct MfaSetupResponse {
     pub backup_codes: Vec<String>,
 }
 
+/// Service dependencies injected when constructing [`AuthencGrpcService`].
+///
+/// * `auth_service` - Authentication service implementation
+/// * `user_service` - User management service implementation
+/// * `oauth2_service` - OAuth2 service implementation
+/// * `realm_service` - Realm management service implementation
+/// * `role_service` - Role management service implementation
+/// * `jwt_service` - JWT service for token generation
+/// * `federation_service` - Federation service for SSO and external IdP integration
+/// * `audit_service` - Audit service for audit logs and compliance reporting
+/// * `revocation_store` - Token revocation list checked during validate_token
+pub struct AuthencGrpcDeps {
+    pub auth_service: Arc<AuthenticationServiceImpl>,
+    pub user_service: Arc<UserManagementServiceImpl>,
+    pub oauth2_service: Arc<OAuth2ServiceImpl>,
+    pub realm_service: Arc<RealmManagementServiceImpl>,
+    pub role_service: Arc<RoleManagementServiceImpl>,
+    pub jwt_service: Arc<JwtService>,
+    pub federation_service: Arc<FederationService>,
+    pub audit_service: Arc<AuditService>,
+    pub revocation_store: Arc<PostgresRevocationStore>,
+}
+
 impl AuthencGrpcService {
-    /// Create new gRPC service instance
-    ///
-    /// # Arguments
-    ///
-    /// * `auth_service` - Authentication service implementation
-    /// * `user_service` - User management service implementation
-    /// * `oauth2_service` - OAuth2 service implementation
-    /// * `realm_service` - Realm management service implementation
-    /// * `role_service` - Role management service implementation
-    /// * `jwt_service` - JWT service for token generation
-    /// * `federation_service` - Federation service for SSO and external IdP integration
-    /// * `audit_service` - Audit service for audit logs and compliance reporting
-    /// * `revocation_store` - Token revocation list checked during validate_token
-    pub fn new(
-        auth_service: Arc<AuthenticationServiceImpl>,
-        user_service: Arc<UserManagementServiceImpl>,
-        oauth2_service: Arc<OAuth2ServiceImpl>,
-        realm_service: Arc<RealmManagementServiceImpl>,
-        role_service: Arc<RoleManagementServiceImpl>,
-        jwt_service: Arc<JwtService>,
-        federation_service: Arc<FederationService>,
-        audit_service: Arc<AuditService>,
-        revocation_store: Arc<PostgresRevocationStore>,
-    ) -> Self {
+    /// Create new gRPC service instance from its dependencies.
+    pub fn new(deps: AuthencGrpcDeps) -> Self {
+        let AuthencGrpcDeps {
+            auth_service,
+            user_service,
+            oauth2_service,
+            realm_service,
+            role_service,
+            jwt_service,
+            federation_service,
+            audit_service,
+            revocation_store,
+        } = deps;
         Self {
             auth_service,
             user_service,

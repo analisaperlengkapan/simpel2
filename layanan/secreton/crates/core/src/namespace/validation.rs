@@ -21,6 +21,17 @@ pub struct NamespaceValidator {
     audit_logger: Option<Arc<AuditLogger>>,
 }
 
+/// Inputs for an audit log entry written by `NamespaceValidator::log_audit`.
+struct AuditContext<'a> {
+    claims: &'a JwtClaims,
+    operation: &'a str,
+    path: &'a str,
+    namespace_id: &'a str,
+    status: AuditStatus,
+    client_ip: Option<String>,
+    error_message: Option<String>,
+}
+
 impl NamespaceValidator {
     /// Create a new namespace validator
     pub fn new(
@@ -80,15 +91,15 @@ impl NamespaceValidator {
         if let Some(namespace) = namespace_path.get_namespace(&self.hierarchy)
             && namespace.is_quota_exceeded()
         {
-            self.log_audit(
+            self.log_audit(AuditContext {
                 claims,
-                "write",
+                operation: "write",
                 path,
-                &namespace_path.namespace_id,
-                AuditStatus::Denied,
+                namespace_id: &namespace_path.namespace_id,
+                status: AuditStatus::Denied,
                 client_ip,
-                Some("Namespace quota exceeded".to_string()),
-            )
+                error_message: Some("Namespace quota exceeded".to_string()),
+            })
             .await;
 
             return Err(CoreError::quota_exceeded(format!(
@@ -182,18 +193,18 @@ impl NamespaceValidator {
 
         if !has_access {
             // Log denied access
-            self.log_audit(
+            self.log_audit(AuditContext {
                 claims,
                 operation,
                 path,
-                &namespace_path.namespace_id,
-                AuditStatus::Denied,
+                namespace_id: &namespace_path.namespace_id,
+                status: AuditStatus::Denied,
                 client_ip,
-                Some(format!(
+                error_message: Some(format!(
                     "User does not have access to namespace {}",
                     namespace_path.namespace_id
                 )),
-            )
+            })
             .await;
 
             return Err(CoreError::authorization(format!(
@@ -203,31 +214,31 @@ impl NamespaceValidator {
         }
 
         // Log successful validation
-        self.log_audit(
+        self.log_audit(AuditContext {
             claims,
             operation,
             path,
-            &namespace_path.namespace_id,
-            AuditStatus::Success,
+            namespace_id: &namespace_path.namespace_id,
+            status: AuditStatus::Success,
             client_ip,
-            None,
-        )
+            error_message: None,
+        })
         .await;
 
         Ok(namespace_path)
     }
 
     /// Log audit event
-    async fn log_audit(
-        &self,
-        claims: &JwtClaims,
-        operation: &str,
-        path: &str,
-        namespace_id: &str,
-        status: AuditStatus,
-        client_ip: Option<String>,
-        error_message: Option<String>,
-    ) {
+    async fn log_audit(&self, ctx: AuditContext<'_>) {
+        let AuditContext {
+            claims,
+            operation,
+            path,
+            namespace_id,
+            status,
+            client_ip,
+            error_message,
+        } = ctx;
         if let Some(audit_logger) = &self.audit_logger {
             let mut metadata = HashMap::new();
             metadata.insert("path".to_string(), path.to_string());

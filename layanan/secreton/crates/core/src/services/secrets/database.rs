@@ -1089,19 +1089,16 @@ impl DatabaseSecretsEngine {
 
         let resource_path = format!("database/creds/{}", role_name);
         let lease = lease_manager
-            .create_lease(
+            .create_lease(crate::services::lease::CreateLeaseRequest {
                 user,
-                &resource_path,
-                "database",
-                "default", // namespace
+                resource: &resource_path,
+                resource_type: "database",
+                namespace: "default", // namespace
                 ttl_secs,
                 max_ttl,
-                true,                             // renewable
-                None,                             // no parent
-                None,                             // no max_renewals
-                None,                             // no revoke_callback
-                std::collections::HashMap::new(), // empty metadata
-            )
+                renewable: true, // renewable
+                ..Default::default()
+            })
             .await
             .map_err(|e| {
                 DatabaseError::CredentialGenerationFailed(format!("Failed to create lease: {}", e))
