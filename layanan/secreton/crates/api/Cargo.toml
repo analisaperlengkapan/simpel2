@@ -91,6 +91,8 @@ consul = ["secreton-storage/consul"]
 raft-consensus = ["secreton-storage/raft-consensus"]
 # Enable inline test modules (currently have compilation issues)
 enable-inline-tests = []
+# Gated integration tests that need the external stack (postgres/grpc)
+api-integration-tests = []
 
 [dev-dependencies]
 axum-test.workspace = true

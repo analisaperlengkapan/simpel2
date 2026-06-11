@@ -152,23 +152,7 @@ pub mod api_audit;
 mod backends;
 
 // DEPRECATED: Middleware module moved to secreton-api crate
-// Requires 'legacy-axum-middleware' feature to compile (disabled by default)
-#[cfg(feature = "axum-middleware")]
-#[deprecated(
-    since = "1.1.0",
-    note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
-)]
-mod middleware;
-
 pub use backends::*;
-
-// Re-export middleware types with deprecation warning (only if feature enabled)
-#[cfg(feature = "axum-middleware")]
-#[deprecated(
-    since = "1.1.0",
-    note = "Audit middleware moved to `secreton-api` crate. Use `secreton_api::middleware::audit_middleware` instead."
-)]
-pub use middleware::*;
 
 /// Audit log entry
 #[derive(Debug, Clone, Serialize, Deserialize)]

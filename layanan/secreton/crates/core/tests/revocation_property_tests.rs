@@ -8,7 +8,6 @@ use secreton_core::services::lease::{CreateLeaseRequest, LeaseManager};
 use secreton_core::services::revocation::{
     RevocationManager, RevocationRequest, RevocationService,
 };
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::NoTls;
 

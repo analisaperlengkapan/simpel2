@@ -4873,30 +4873,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "headers"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3314d5adb5d94bcdf56771f2e50dbbc80bb4bdf88967526706205ac9eff24eb"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "headers-core",
- "http 1.4.1",
- "httpdate",
- "mime",
- "sha1 0.10.6",
-]
-
-[[package]]
-name = "headers-core"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
-dependencies = [
- "http 1.4.1",
-]
-
-[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9994,7 +9970,6 @@ dependencies = [
  "aws-sdk-iam",
  "aws-sdk-sts",
  "aws-types",
- "axum",
  "base64 0.22.1",
  "bincode 2.0.1",
  "chrono",
@@ -10007,8 +9982,6 @@ dependencies = [
  "glob",
  "hex",
  "hmac 0.12.1",
- "http-body 1.0.1",
- "http-body-util",
  "ipnetwork",
  "jsonwebtoken",
  "lib-backend",
@@ -10048,7 +10021,6 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "warp",
  "wasmtime",
  "wiremock",
  "x509-parser 0.18.1",
@@ -12357,33 +12329,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
-]
-
-[[package]]
-name = "warp"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0a808122a8a77eecdabaefd88ddb1913c4be5ea1465399f63ba64c7aa705fea"
-dependencies = [
- "bytes",
- "futures-util",
- "headers",
- "http 1.4.1",
- "http-body 1.0.1",
- "http-body-util",
- "log",
- "mime",
- "mime_guess",
- "percent-encoding",
- "pin-project",
- "scoped-tls",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tokio",
- "tokio-util",
- "tower-service",
- "tracing",
 ]
 
 [[package]]
