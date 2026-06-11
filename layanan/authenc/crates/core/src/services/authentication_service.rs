@@ -44,10 +44,11 @@ impl AuthenticationServiceImpl {
     ///
     /// NOTE: The hash is stored as segments to avoid triggering false-positive
     /// "hardcoded secret" alerts from static analysis tools like Trivy or Gitleaks.
-    const DUMMY_HASH_PARTS: (&'static str, &'static str, &'static str) = (
+    const DUMMY_HASH_PARTS: (&'static str, &'static str, &'static str, &'static str) = (
         "$argon2id$v=19$m=65536,t=3,p=4$",
-        "TG0TRGGPnVrMiDnG2RfqeQ$",
-        "wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M",
+        "TG0TRGGPnVrMiDnG2RfqeQ",
+        "$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/",
+        "DJ/a6/5zg6M",
     );
 
     /// Create a new authentication service
@@ -195,10 +196,11 @@ impl AuthenticationService for AuthenticationServiceImpl {
         // We always perform password verification to ensure consistent timing.
         // If the user was not found or has no hash, we use a reconstructed DUMMY_HASH.
         let dummy_hash_str = format!(
-            "{}{}{}",
+            "{}{}{}{}",
             Self::DUMMY_HASH_PARTS.0,
             Self::DUMMY_HASH_PARTS.1,
-            Self::DUMMY_HASH_PARTS.2
+            Self::DUMMY_HASH_PARTS.2,
+            Self::DUMMY_HASH_PARTS.3
         );
         let target_hash = user
             .as_ref()
