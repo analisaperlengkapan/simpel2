@@ -391,7 +391,8 @@ pub async fn login_handler(
                     return ErrorResponse {
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "token_error".to_string(),
-                        message: "Gagal membuat token refresh. Silakan coba lagi nanti.".to_string(),
+                        message: "Gagal membuat token refresh. Silakan coba lagi nanti."
+                            .to_string(),
                     }
                     .into_response();
                 }
