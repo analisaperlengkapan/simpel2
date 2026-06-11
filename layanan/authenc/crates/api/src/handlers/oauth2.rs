@@ -574,7 +574,6 @@ pub async fn token_handler(
             // Map domain OAuth2 errors to RFC 6749 §5.2 compliant responses.
             // AuthencError::OAuth2Error(inner) carries "{error_code}: {description}"
             // (see From<OAuth2Error> for AuthencError in error.rs).
-            let error_string = e.to_string();
             let (status_code, error_code, message) = match &e {
                 authenc_types::error::AuthencError::OAuth2Error(msg) => {
                     let inner = msg.as_str();
@@ -589,12 +588,13 @@ pub async fn token_handler(
                         (
                             axum::http::StatusCode::BAD_REQUEST,
                             inner.to_string(),
-                            error_string,
+                            // Return generic message for unknown OAuth2 errors
+                            "An error occurred while processing the token request".to_string(),
                         )
                     }
                 }
                 _ => {
-                    tracing::warn!("OAuth2 token error (non-OAuth2): {}", error_string);
+                    tracing::error!(error = %e, "OAuth2 token error (non-OAuth2)");
                     (
                         axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         "server_error".to_string(),
@@ -751,7 +751,7 @@ pub async fn userinfo_handler(
             }))
         }
         Err(e) => {
-            tracing::error!("UserInfo: failed to fetch user {}: {}", user_uuid, e);
+            tracing::error!(error = %e, user_id = %user_uuid, "UserInfo: failed to fetch user");
             Err(ErrorResponse {
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "internal_error".to_string(),

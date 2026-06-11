@@ -135,10 +135,13 @@ pub async fn captcha_challenge_handler(
         .captcha_service
         .generate_challenge(challenge_type, difficulty, ip_address, req.session_id)
         .await
-        .map_err(|e| ErrorResponse {
-            status_code: StatusCode::INTERNAL_SERVER_ERROR,
-            error: "captcha_generation_failed".to_string(),
-            message: e.to_string(),
+        .map_err(|e| {
+            tracing::error!(error = %e, "CAPTCHA challenge generation failed");
+            ErrorResponse {
+                status_code: StatusCode::INTERNAL_SERVER_ERROR,
+                error: "captcha_generation_failed".to_string(),
+                message: "Gagal membuat tantangan CAPTCHA. Silakan coba lagi nanti.".to_string(),
+            }
         })?;
 
     Ok(Json(ChallengeResponse {
@@ -200,10 +203,11 @@ pub async fn captcha_verify_handler(
         })),
         Err(e) => {
             // CaptchaService verification failed with validation error (expired, already solved, etc)
+            tracing::warn!(error = %e, "CAPTCHA verification failed");
             Ok(Json(VerifyResponse {
                 success: false,
                 token: None,
-                message: e.to_string(),
+                message: "Verifikasi CAPTCHA gagal. Silakan coba lagi.".to_string(),
                 risk_score: Some(0.5),
             }))
         }
@@ -235,9 +239,10 @@ pub async fn captcha_debug_answer_handler(
     let client = match state.database.get_connection().await {
         Ok(c) => c,
         Err(e) => {
+            tracing::error!(error = %e, "Debug captcha: failed to get database connection");
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Internal server error" })),
             )
                 .into_response();
         }
@@ -252,9 +257,10 @@ pub async fn captcha_debug_answer_handler(
     {
         Ok(r) => r,
         Err(e) => {
+            tracing::error!(error = %e, "Debug captcha: query failed");
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": e.to_string() })),
+                Json(serde_json::json!({ "error": "Internal server error" })),
             )
                 .into_response();
         }

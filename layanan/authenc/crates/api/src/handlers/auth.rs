@@ -374,10 +374,11 @@ pub async fn login_handler(
             ) {
                 Ok(t) => t,
                 Err(e) => {
+                    tracing::error!(error = %e, "Failed to generate access token");
                     return ErrorResponse {
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "token_error".to_string(),
-                        message: e.to_string(),
+                        message: "Gagal membuat token akses. Silakan coba lagi nanti.".to_string(),
                     }
                     .into_response();
                 }
@@ -386,10 +387,12 @@ pub async fn login_handler(
             let refresh_token = match state.jwt_service.generate_refresh_token(&uid, &sid) {
                 Ok(t) => t,
                 Err(e) => {
+                    tracing::error!(error = %e, "Failed to generate refresh token");
                     return ErrorResponse {
                         status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                         error: "token_error".to_string(),
-                        message: e.to_string(),
+                        message: "Gagal membuat token refresh. Silakan coba lagi nanti."
+                            .to_string(),
                     }
                     .into_response();
                 }
@@ -739,10 +742,11 @@ pub async fn refresh_token_handler(
     ) {
         Ok(t) => t,
         Err(e) => {
+            tracing::error!(error = %e, "Failed to generate access token during refresh");
             return ErrorResponse {
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_error".to_string(),
-                message: e.to_string(),
+                message: "Gagal memperbarui token akses. Silakan coba lagi nanti.".to_string(),
             }
             .into_response();
         }
@@ -752,10 +756,11 @@ pub async fn refresh_token_handler(
     let refresh_token = match state.jwt_service.generate_refresh_token(&uid, &sid) {
         Ok(t) => t,
         Err(e) => {
+            tracing::error!(error = %e, "Failed to generate refresh token during refresh");
             return ErrorResponse {
                 status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 error: "token_error".to_string(),
-                message: e.to_string(),
+                message: "Gagal memperbarui token refresh. Silakan coba lagi nanti.".to_string(),
             }
             .into_response();
         }
@@ -856,12 +861,16 @@ pub async fn get_current_user_handler(
             )
                 .into_response()
         }
-        Err(e) => ErrorResponse {
-            status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            error: "internal_error".to_string(),
-            message: e.to_string(),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to fetch user profile");
+            ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "internal_error".to_string(),
+                message: "Terjadi kesalahan saat mengambil data profil. Silakan coba lagi nanti."
+                    .to_string(),
+            }
+            .into_response()
         }
-        .into_response(),
     }
 }
 
@@ -953,10 +962,13 @@ pub async fn update_profile_handler(
         .user_service
         .update_user(user_id, update_req)
         .await
-        .map_err(|e| ErrorResponse {
-            status_code: axum::http::StatusCode::BAD_REQUEST,
-            error: "update_failed".to_string(),
-            message: e.to_string(),
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to update user profile");
+            ErrorResponse {
+                status_code: axum::http::StatusCode::BAD_REQUEST,
+                error: "update_failed".to_string(),
+                message: "Gagal memperbarui profil. Silakan periksa input Anda.".to_string(),
+            }
         })?;
 
     let realm_id = user
