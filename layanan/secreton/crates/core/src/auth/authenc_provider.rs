@@ -187,6 +187,9 @@ impl TokenCache {
 pub type ValidationCache = TokenCache;
 
 /// Post-quantum signature validator
+// Planned: `supported_algorithms` is populated for PQ negotiation that is not
+// yet wired into the validation path.
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct PostQuantumValidator {
     /// Supported algorithms
@@ -292,7 +295,9 @@ pub struct AuthencAuthProvider {
     validation_cache: ValidationCache,
     /// Post-quantum signature validator
     pq_validator: PostQuantumValidator,
-    /// Request timeout
+    /// Request timeout (planned: per-request override; timeouts currently
+    /// enforced by the HTTP client + circuit breaker)
+    #[allow(dead_code)]
     request_timeout: Duration,
     /// Circuit breaker for resilience
     circuit_breaker: CircuitBreaker,
@@ -596,6 +601,8 @@ impl AuthProvider for AuthencAuthProvider {
 
         let request = self.client.post(&url).json(&payload);
 
+        // `reason` mirrors the wire format; retained for diagnostics/logging.
+        #[allow(dead_code)]
         #[derive(Deserialize)]
         struct AppAccessResponse {
             allowed: bool,
@@ -665,6 +672,9 @@ impl AuthProvider for AuthencAuthProvider {
 
         let request = self.client.post(&url).json(&signature_data);
 
+        // `algorithm`/`error_message` mirror the wire format; retained for
+        // diagnostics/logging.
+        #[allow(dead_code)]
         #[derive(Deserialize)]
         struct SignatureValidationResponse {
             valid: bool,

@@ -700,17 +700,6 @@ pub async fn audit_logging(request: Request, next: Next) -> Response {
     response
 }
 
-/// Seal status check middleware
-/// Blocks all secret operations when engine is sealed
-/// CRITICAL SECURITY: This middleware enforces that all API operations
-/// (except whitelisted system endpoints) are blocked when the engine is sealed.
-/// This follows HashiCorp Engine security best practices.
-
-/// Checks if a given request path is whitelisted from the seal check.
-///
-/// Whitelisted endpoints are those required for basic engine operations,
-/// such as health checks, initialization, and unsealing.
-
 /// Metrics middleware
 /// Tracks request counts and active connections
 pub async fn metrics_middleware(
@@ -1337,7 +1326,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_derive_namespace() {
         use secreton_core::namespace::{AdminLevel, JwtClaims};
         use std::collections::HashMap;
@@ -1640,9 +1628,12 @@ mod certificate_tests {
 
     #[test]
     fn test_wrap_ttl_validation() {
-        assert!(0 == 0 || 0 > 86400); // Invalid
-        assert!(300 > 0 && 300 <= 86400); // Valid
-        assert!(86401 > 86400); // Invalid
+        // Mirrors the inline validation in response_wrapping_middleware:
+        // wrap_ttl is rejected when it is zero or exceeds 24h (86400s).
+        let is_valid = |ttl: u64| ttl > 0 && ttl <= 86400;
+        assert!(!is_valid(0)); // Invalid
+        assert!(is_valid(300)); // Valid
+        assert!(!is_valid(86401)); // Invalid
     }
 }
 

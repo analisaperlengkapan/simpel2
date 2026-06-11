@@ -8,20 +8,6 @@ use std::time::Duration;
 use tokio::time::sleep;
 use uuid::Uuid;
 
-/// Helper to create a test cluster configuration
-fn create_test_config(node_id: u64, peers: HashMap<u64, String>) -> RaftClusterConfig {
-    RaftClusterConfig {
-        node_id,
-        bind_address: format!("127.0.0.1:{}", 8200 + node_id),
-        peers,
-        election_timeout_ms: 500,
-        heartbeat_interval_ms: 150,
-        max_payload_entries: 100,
-        enable_tick: true,
-        bootstrap: true,
-    }
-}
-
 /// Helper to create a test engine entry
 fn create_test_entry(path: &str, data: Vec<u8>) -> SecretEntry {
     SecretEntry {

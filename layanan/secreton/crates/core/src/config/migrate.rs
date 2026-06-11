@@ -257,7 +257,6 @@ mod tests {
 
     #[test]
     fn test_migration_utility_exists() {
-        // Basic test to ensure module compiles
-        assert!(true);
+        // Compile-time smoke test: this module builds and is reachable.
     }
 }

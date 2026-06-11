@@ -35,6 +35,7 @@ impl ProviderType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)] // String error, not FromStr
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s {
             "aws-kms" => Ok(ProviderType::AwsKms),

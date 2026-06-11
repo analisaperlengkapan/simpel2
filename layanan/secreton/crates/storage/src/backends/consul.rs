@@ -96,6 +96,7 @@ impl Default for ConsulConfig {
 
 /// Consul KV response structure
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // mirrors the Consul API JSON shape; only `value` is read today
 struct ConsulKvEntry {
     #[serde(rename = "Key")]
     key: String,

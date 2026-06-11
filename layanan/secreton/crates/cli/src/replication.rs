@@ -242,7 +242,7 @@ async fn show_replication_status(
             "yaml" => {
                 println!("{}", serde_yaml::to_string(&status)?);
             }
-            "table" | _ => {
+            _ => {
                 print_replication_status_table(&status);
             }
         }
@@ -442,7 +442,7 @@ async fn show_replication_lag(
             "yaml" => {
                 println!("{}", serde_yaml::to_string(&lag)?);
             }
-            "table" | _ => {
+            _ => {
                 print_lag_table(&lag);
             }
         }

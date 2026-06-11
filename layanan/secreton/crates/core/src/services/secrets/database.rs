@@ -202,6 +202,7 @@ pub struct DeleteConnectionResult {
 }
 
 /// Database connection pool wrapper
+#[allow(dead_code)] // MySQL is a placeholder for a planned backend
 enum DbPool {
     PostgreSQL(Arc<RwLock<Option<PgClient>>>),
     MySQL, // Placeholder for future MySQL implementation

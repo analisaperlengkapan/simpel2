@@ -310,9 +310,11 @@ mod tests {
     #[test]
     fn test_config_validation() {
         // Primary with secondaries - valid
-        let mut config = ReplicationConfig::default();
-        config.primary_endpoint = None;
-        config.secondary_endpoints = vec!["https://secondary:50051".to_string()];
+        let mut config = ReplicationConfig {
+            primary_endpoint: None,
+            secondary_endpoints: vec!["https://secondary:50051".to_string()],
+            ..Default::default()
+        };
         assert!(config.validate().is_ok());
 
         // Secondary with primary - valid
@@ -333,8 +335,10 @@ mod tests {
 
     #[test]
     fn test_namespace_filtering() {
-        let mut config = ReplicationConfig::default();
-        config.enable_namespace_filter = false;
+        let mut config = ReplicationConfig {
+            enable_namespace_filter: false,
+            ..Default::default()
+        };
         assert!(config.should_replicate_namespace("any-namespace"));
 
         config.enable_namespace_filter = true;

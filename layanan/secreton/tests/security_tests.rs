@@ -116,8 +116,10 @@ async fn test_secure_storage_error_handling() -> Result<()> {
     );
 
     // Test decrypting valid base64 but invalid encrypted data
-    let fake_encrypted =
-        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b"not-encrypted-data");
+    let fake_encrypted = base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        b"not-encrypted-data",
+    );
     let decrypt_fake_result = shared_storage.decrypt(&fake_encrypted).await;
     assert!(
         decrypt_fake_result.is_err(),

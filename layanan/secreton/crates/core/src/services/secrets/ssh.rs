@@ -230,6 +230,7 @@ pub struct SshHostCertificateRequest {
 
 /// SSH Secrets Engine
 pub struct SshEngine {
+    #[allow(dead_code)] // planned: connection pool for real SSH CA backend ops
     pool: Option<Pool>,
     roles: Arc<RwLock<HashMap<String, SshRole>>>,
     cas: Arc<RwLock<HashMap<String, SshCa>>>,

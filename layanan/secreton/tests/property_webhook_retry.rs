@@ -339,9 +339,9 @@ mod tests {
             // Find the first index where max_delay is reached
             if let Some(max_index) = delays.iter().position(|&d| d == max_delay) {
                 // All subsequent delays should also be max_delay
-                for i in max_index..delays.len() {
+                for d in delays.iter().skip(max_index) {
                     prop_assert_eq!(
-                        delays[i],
+                        *d,
                         max_delay,
                         "Once max_delay is reached, all subsequent delays should be max_delay"
                     );

@@ -83,6 +83,7 @@ impl TotpAlgorithm {
         }
     }
 
+    #[allow(clippy::should_implement_trait)] // domain-specific error type, not FromStr
     pub fn from_str(s: &str) -> Result<Self, TotpError> {
         match s.to_uppercase().as_str() {
             "SHA1" => Ok(TotpAlgorithm::SHA1),

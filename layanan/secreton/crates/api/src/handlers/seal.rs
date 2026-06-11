@@ -263,7 +263,7 @@ pub async fn seal_engine(
         failed_log
             .metadata
             .insert("error".to_string(), e.to_string());
-        state.audit.log(failed_log).await;
+        let _ = state.audit.log(failed_log).await;
 
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -279,7 +279,7 @@ pub async fn seal_engine(
     success_log
         .metadata
         .insert("completed_at".to_string(), chrono::Utc::now().to_rfc3339());
-    state.audit.log(success_log).await;
+    let _ = state.audit.log(success_log).await;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -333,7 +333,7 @@ pub async fn unseal_engine(
             namespace: None,
             metadata,
         };
-        state.audit.log(audit_log).await;
+        let _ = state.audit.log(audit_log).await;
 
         return Err((StatusCode::TOO_MANY_REQUESTS, e));
     }
@@ -381,7 +381,7 @@ pub async fn unseal_engine(
             failed_log
                 .metadata
                 .insert("error".to_string(), e.to_string());
-            state.audit.log(failed_log).await;
+            let _ = state.audit.log(failed_log).await;
 
             let (status_code, message) = match e {
                 SealError::InvalidUnsealKey => {
@@ -428,7 +428,7 @@ pub async fn unseal_engine(
         progress_log
             .metadata
             .insert("threshold".to_string(), response.t.to_string());
-        state.audit.log(progress_log).await;
+        let _ = state.audit.log(progress_log).await;
     } else {
         info!("✅ Engine unsealed successfully!");
 
@@ -444,7 +444,7 @@ pub async fn unseal_engine(
         success_log
             .metadata
             .insert("completed_at".to_string(), chrono::Utc::now().to_rfc3339());
-        state.audit.log(success_log).await;
+        let _ = state.audit.log(success_log).await;
     }
 
     Ok(Json(crate::ApiResponse::success(response)))
@@ -577,7 +577,7 @@ pub async fn initialize_engine(
         namespace: None,
         metadata: init_metadata,
     };
-    state.audit.log(init_audit).await;
+    let _ = state.audit.log(init_audit).await;
 
     let response = InitializeResponse {
         keys: encoded_shares,
@@ -654,7 +654,7 @@ pub async fn rekey_init(
         namespace: None,
         metadata: rekey_init_metadata,
     };
-    state.audit.log(rekey_init_audit).await;
+    let _ = state.audit.log(rekey_init_audit).await;
 
     info!("Rekey operation initiated with nonce: {}", nonce);
 
@@ -714,7 +714,7 @@ pub async fn rekey_update(
         namespace: None,
         metadata: rekey_progress_metadata,
     };
-    state.audit.log(rekey_progress_audit).await;
+    let _ = state.audit.log(rekey_progress_audit).await;
 
     info!("Rekey progress updated for nonce: {}", request.nonce);
 

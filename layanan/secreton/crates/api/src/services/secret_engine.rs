@@ -685,7 +685,7 @@ impl SecretService {
         }
 
         // Sort by version descending
-        key_infos.sort_by(|a, b| b.version.cmp(&a.version));
+        key_infos.sort_by_key(|k| std::cmp::Reverse(k.version));
 
         Ok(key_infos)
     }

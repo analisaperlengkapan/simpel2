@@ -13,6 +13,7 @@ use tracing::{info, warn};
 /// Session cache for TLS session resumption
 #[derive(Debug)]
 pub struct SessionCache {
+    #[allow(clippy::type_complexity)]
     sessions: Mutex<HashMap<Vec<u8>, (Vec<u8>, Instant)>>,
     max_entries: usize,
     ttl: Duration,
@@ -185,10 +186,11 @@ impl TlsMetrics {
         }
 
         // Update average handshake time
-        if self.total_handshakes > 0 {
-            self.average_handshake_time_ms =
-                (self.average_handshake_time_ms * (self.total_handshakes - 1) + duration_ms)
-                    / self.total_handshakes;
+        if let Some(avg) = (self.average_handshake_time_ms * (self.total_handshakes - 1)
+            + duration_ms)
+            .checked_div(self.total_handshakes)
+        {
+            self.average_handshake_time_ms = avg;
         }
     }
 

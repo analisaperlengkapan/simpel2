@@ -169,6 +169,8 @@ struct TokenMapping {
     last_accessed: DateTime<Utc>,
 }
 
+// `transformation_name`/`created_at` retained for planned key metadata/auditing.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TransformationKey {
     transformation_name: String,
@@ -178,6 +180,7 @@ struct TransformationKey {
 
 /// Transform secrets engine
 pub struct TransformEngine {
+    #[allow(dead_code)] // planned: connection pool for persistent transform store
     pool: Option<Pool>,
     transformations: Arc<RwLock<HashMap<String, Transformation>>>,
     roles: Arc<RwLock<HashMap<String, TransformRole>>>,

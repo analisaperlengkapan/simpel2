@@ -13,7 +13,7 @@ fn test_shamir_math() {
 
     // Create a simple polynomial manually for testing
     // f(x) = 42 + 10*x + 5*x^2
-    let points = vec![
+    let points = [
         (BigUint::from(1u32), BigUint::from(57u32)), // f(1) = 42 + 10 + 5 = 57
         (BigUint::from(2u32), BigUint::from(82u32)), // f(2) = 42 + 20 + 20 = 82
         (BigUint::from(3u32), BigUint::from(117u32)), // f(3) = 42 + 30 + 45 = 117

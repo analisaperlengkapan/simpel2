@@ -163,8 +163,8 @@ impl EngineMetrics {
         let operation_count = self.operation_count.load(Ordering::Relaxed);
         let total_latency_ns = self.total_latency_ns.load(Ordering::Relaxed);
 
-        let avg_latency_ms = if operation_count > 0 {
-            (total_latency_ns / operation_count) as f64 / 1_000_000.0
+        let avg_latency_ms = if let Some(avg_ns) = total_latency_ns.checked_div(operation_count) {
+            avg_ns as f64 / 1_000_000.0
         } else {
             0.0
         };

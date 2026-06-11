@@ -57,6 +57,7 @@ pub enum AwsCredentialType {
 }
 
 impl AwsCredentialType {
+    #[allow(clippy::should_implement_trait)] // domain-specific error type, not FromStr
     pub fn from_str(s: &str) -> Result<Self, AwsError> {
         match s.to_lowercase().as_str() {
             "iam_user" => Ok(Self::IamUser),
@@ -233,6 +234,8 @@ pub struct AwsCredentialsRequest {
 }
 
 /// Tracked IAM user for cleanup
+// `lease_id` is recorded for planned lease-driven IAM-user cleanup.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TrackedIamUser {
     user_name: String,

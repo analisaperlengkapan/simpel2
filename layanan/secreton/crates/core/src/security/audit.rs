@@ -692,6 +692,8 @@ impl AdvancedAuditSystem {
     }
 
     /// Create and sign an audit entry for digital signature verification and audit integrity
+    // Planned: wire into the audit write path for tamper-evident audit chains.
+    #[allow(dead_code)]
     async fn create_signed_entry(
         &self,
         event: AuditEvent,

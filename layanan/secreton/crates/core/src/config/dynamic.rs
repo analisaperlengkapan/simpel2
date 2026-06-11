@@ -613,7 +613,7 @@ impl PerformanceProfiler {
 
             if total_diff > 0.0 {
                 let usage = ((total_diff - idle_diff) / total_diff) * 100.0;
-                return usage.max(0.0).min(100.0);
+                return usage.clamp(0.0, 100.0);
             }
         }
 
@@ -657,7 +657,7 @@ impl PerformanceProfiler {
         {
             let used = total.saturating_sub(available);
             let usage = (used as f64 / total as f64) * 100.0;
-            return usage.max(0.0).min(100.0);
+            return usage.clamp(0.0, 100.0);
         }
 
         0.0

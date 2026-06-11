@@ -286,6 +286,8 @@ impl RevocationManager {
     }
 
     /// Load dependency graph from database
+    // Planned: call on init to enable cascading revocation from persisted deps.
+    #[allow(dead_code)]
     async fn load_dependencies(&self) -> std::result::Result<(), RevocationError> {
         let client = self.pool.get().await.map_err(|e| {
             RevocationError::StorageError(format!("Failed to get DB connection: {}", e))

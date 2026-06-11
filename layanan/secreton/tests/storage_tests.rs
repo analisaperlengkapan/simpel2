@@ -6,17 +6,6 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::time::{Duration, sleep};
 
-// Helper function to create a test SecretEntry
-fn create_test_entry(path: &str, data: &[u8]) -> SecretEntry {
-    SecretEntry::new(
-        path.to_string(),
-        data.to_vec(),
-        json!({}),
-        SecurityLevel::Internal,
-        "test_owner".to_string(),
-    )
-}
-
 #[tokio::test]
 async fn test_memory_storage_basic_operations() -> Result<()> {
     let storage = InMemoryStorage::new();

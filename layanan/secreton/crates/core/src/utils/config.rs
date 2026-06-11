@@ -39,6 +39,7 @@ impl Config {
         Ok(config)
     }
 
+    #[allow(clippy::should_implement_trait)] // inherent constructor named default()
     pub fn default() -> Self {
         Self {
             database_url: "sqlite:engine.db".to_string(),

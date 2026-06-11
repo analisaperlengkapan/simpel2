@@ -14,7 +14,6 @@ use crate::services::auth_service::AuthService;
 use crate::services::identity::IdentityService;
 use crate::services::lease::LeaseManager;
 use crate::services::namespace_persistence;
-use crate::services::policy::PolicySet;
 use crate::services::policy_service::PolicyService;
 use crate::services::rotation::AutoRotationEngine;
 use crate::services::seal::{SealConfig, SealService};
@@ -37,7 +36,6 @@ use crate::services::wrapping::WrappingService;
 use secreton_crypto::CryptoEngine;
 use secreton_hsm::HsmBackend;
 use secreton_storage::StorageBackend;
-use std::sync::RwLock;
 
 /// Service container holding all application services
 pub struct ServiceContainer {
@@ -335,6 +333,7 @@ impl ServiceContainer {
     }
 
     /// Initialize secrets engines and policy services
+    #[allow(clippy::type_complexity)] // returns the full set of initialized engines
     fn initialize_secrets_engines(
         pool: deadpool_postgres::Pool,
         storage: Arc<dyn StorageBackend + Send + Sync>,
@@ -515,8 +514,10 @@ impl ServiceContainer {
                         .and_then(|v| v.parse::<u64>().ok())
                         .unwrap_or(1);
 
-                    let mut raft_config = RaftClusterConfig::default();
-                    raft_config.node_id = node_id;
+                    let mut raft_config = RaftClusterConfig {
+                        node_id,
+                        ..Default::default()
+                    };
 
                     // Optional peer list from environment: "2=http://node2:7000,3=http://node3:7000"
                     if let Ok(peers_str) = std::env::var("SECRETON_RAFT_PEERS") {
@@ -660,8 +661,10 @@ impl ServiceContainer {
         cfg.user = Some(config.database.username.clone());
         cfg.password = Some(config.database.password.clone());
 
-        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
-        pool_cfg.max_size = config.database.max_connections as usize;
+        let mut pool_cfg = deadpool_postgres::PoolConfig {
+            max_size: config.database.max_connections as usize,
+            ..Default::default()
+        };
         pool_cfg.timeouts.wait = Some(std::time::Duration::from_secs(
             config.database.connection_timeout,
         ));

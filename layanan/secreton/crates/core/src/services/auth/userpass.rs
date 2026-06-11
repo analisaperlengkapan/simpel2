@@ -479,8 +479,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_account_lockout() {
-        let mut config = UserPassConfig::default();
-        config.max_failed_attempts = 3;
+        let config = UserPassConfig {
+            max_failed_attempts: 3,
+            ..Default::default()
+        };
         let auth = UserPassAuth::new(config);
 
         auth.create_user(

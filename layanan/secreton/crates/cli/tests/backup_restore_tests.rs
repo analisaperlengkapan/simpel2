@@ -268,10 +268,7 @@ mod restore_tests {
         let force = false;
 
         // Without force, should skip existing secret
-        if secret_exists && !force {
-            // Skip
-            assert!(true);
-        } else {
+        if !secret_exists || force {
             panic!("Should skip without force flag");
         }
 
@@ -279,9 +276,6 @@ mod restore_tests {
         let force = true;
         if secret_exists && !force {
             panic!("Should not skip with force flag");
-        } else {
-            // Overwrite
-            assert!(true);
         }
 
         Ok(())

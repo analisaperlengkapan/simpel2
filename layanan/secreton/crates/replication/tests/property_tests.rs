@@ -387,9 +387,9 @@ mod wal_streaming_tests {
             }
 
             // Verify no gaps in sequence numbers
-            for i in 0..received_sequences.len() {
+            for (i, seq) in received_sequences.iter().enumerate() {
                 assert_eq!(
-                    received_sequences[i], i as u64,
+                    *seq, i as u64,
                     "Sequence numbers must be contiguous"
                 );
             }
@@ -484,8 +484,8 @@ mod wal_streaming_tests {
 
             // Simulate first batch (before interruption)
             let mut received_sequences = Vec::new();
-            for i in 0..interruption_point {
-                let serialized = serde_json::to_vec(&all_operations[i])
+            for op in &all_operations[..interruption_point] {
+                let serialized = serde_json::to_vec(op)
                     .expect("Serialization should succeed");
                 let deserialized: ReplicationOperation = serde_json::from_slice(&serialized)
                     .expect("Deserialization should succeed");
@@ -500,8 +500,8 @@ mod wal_streaming_tests {
             let resume_from = last_sequence + 1;
 
             // Stream remaining operations
-            for i in resume_from as usize..total_operations {
-                let serialized = serde_json::to_vec(&all_operations[i])
+            for op in &all_operations[resume_from as usize..total_operations] {
+                let serialized = serde_json::to_vec(op)
                     .expect("Serialization should succeed");
                 let deserialized: ReplicationOperation = serde_json::from_slice(&serialized)
                     .expect("Deserialization should succeed");

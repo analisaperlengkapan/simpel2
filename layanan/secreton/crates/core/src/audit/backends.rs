@@ -147,7 +147,6 @@ impl AuditBackend for PostgreSqlBackend {
         if let Some(offset) = query.offset {
             sql.push_str(&format!(" OFFSET ${}", param_idx));
             params.push(Box::new(offset as i64));
-            param_idx += 1;
         }
 
         let params_slice: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params

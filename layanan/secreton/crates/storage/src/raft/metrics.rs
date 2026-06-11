@@ -118,6 +118,7 @@ impl RaftMetrics {
     }
 
     /// Format metrics as human-readable string
+    #[allow(clippy::inherent_to_string)] // simple helper; not worth a Display impl
     pub fn to_string(&self) -> String {
         format!(
             "RaftMetrics {{ node={}, term={}, leader={:?}, is_leader={}, log={}/{}, health={:?} }}",

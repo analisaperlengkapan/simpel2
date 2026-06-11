@@ -8,7 +8,6 @@ use anyhow::Result;
 async fn test_snapshot_placeholder() -> Result<()> {
     // Placeholder test for snapshot functionality
     // TODO: Implement when raft module is available
-    assert!(true, "Snapshot module placeholder");
     Ok(())
 }
 

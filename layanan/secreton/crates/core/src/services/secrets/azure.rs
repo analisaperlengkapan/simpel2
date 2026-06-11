@@ -64,6 +64,7 @@ pub enum AzureCredentialType {
 }
 
 impl AzureCredentialType {
+    #[allow(clippy::should_implement_trait)] // domain-specific error type, not FromStr
     pub fn from_str(s: &str) -> Result<Self, AzureError> {
         match s.to_lowercase().as_str() {
             "service_principal" => Ok(Self::ServicePrincipal),
@@ -262,6 +263,8 @@ pub struct AzureCredentials {
 }
 
 /// Tracked service principal for cleanup
+// `object_id` is recorded for planned service-principal cleanup.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TrackedServicePrincipal {
     client_id: String,

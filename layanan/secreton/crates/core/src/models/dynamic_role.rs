@@ -25,7 +25,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use uuid::Uuid;
 
 /// Bootstrap capability codes - these are the ONLY capabilities referenced directly in code
@@ -506,7 +506,6 @@ pub trait DynamicRoleStore: Send + Sync {
 
 /// Helper module for migrating from hardcoded enums to dynamic types
 pub mod migration {
-    use super::*;
 
     /// Map old UserRole enum value to new role type code
     pub fn map_user_role(old_value: &str) -> &str {

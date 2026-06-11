@@ -438,8 +438,8 @@ impl RaftCluster {
                     // 5 seconds max
                     tokio::time::sleep(Duration::from_millis(100)).await;
                     let metrics = self.raft.metrics().borrow().clone();
-                    if metrics.current_leader.is_some() {
-                        tracing::info!("Leader elected: node {}", metrics.current_leader.unwrap());
+                    if let Some(leader) = metrics.current_leader {
+                        tracing::info!("Leader elected: node {}", leader);
                         return Ok(());
                     }
                 }
@@ -1154,10 +1154,10 @@ impl RaftCluster {
         while start.elapsed() < timeout {
             let metrics = self.raft.metrics().borrow().clone();
 
-            if metrics.current_leader.is_some() {
+            if let Some(leader) = metrics.current_leader {
                 tracing::info!(
                     "Leader elected: node {} in term {}",
-                    metrics.current_leader.unwrap(),
+                    leader,
                     metrics.current_term
                 );
                 return true;
