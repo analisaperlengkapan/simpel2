@@ -51,6 +51,17 @@ services:
   # authenc-migrate binary baked into the same image, then exits. authenc waits
   # for it to complete so replicas never race on migrations. Mirrors the Helm
   # pre-upgrade hook Job used in k8s.
+  #
+  # MUST run AFTER integrasi-migrate (not concurrently): both migrate the SAME
+  # database (dbsimpelv2) and both issue `CREATE EXTENSION IF NOT EXISTS
+  # "uuid-ossp"/"pg_trgm" WITH SCHEMA public`. `CREATE EXTENSION IF NOT EXISTS`
+  # is NOT atomic against a concurrent creator — run in parallel, one transaction
+  # blocks on the other's pg_extension insert and then either dies with
+  # `duplicate key … pg_extension_name_index` (batch_execute → exit 1) or hangs.
+  # Serializing them (integrasi → authenc) removes the race entirely. This
+  # mirrors the Helm hook ordering (integrasi-migrate hook-weight -6 runs before
+  # authenc-migrate -5); compose has no hook weights, so we express the same
+  # order via depends_on. Bring-up order: integrasi → authenc → perlengkapan.
   authenc-migrate:
     image: simpel2-authenc:local
     container_name: authenc-migrate
@@ -62,6 +73,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      integrasi-migrate:
+        condition: service_completed_successfully
     networks:
       - simpel-network
 
