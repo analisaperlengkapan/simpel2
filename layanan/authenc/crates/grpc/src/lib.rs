@@ -8,9 +8,10 @@
 //! - User management
 //! - mTLS enforcement
 
-#![allow(ambiguous_glob_reexports)]
-
-// Re-export types from authenc-types
+// Re-export types from authenc-types.
+// Some names overlap the generated proto re-exports below (e.g. User); callers
+// disambiguate via explicit paths, so the glob ambiguity is benign.
+#[allow(ambiguous_glob_reexports)]
 pub use authenc_types::*;
 
 pub mod batch_operations;

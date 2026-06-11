@@ -8,8 +8,6 @@
 //!
 //! **TODO**: Enable after Phase 3 (models migration)
 
-#![allow(dead_code, unused_imports)]
-
 use crate::database::Database;
 use authenc_types::AuthencError;
 use authenc_types::domain::Satker;
