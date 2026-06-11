@@ -27,21 +27,22 @@ pub async fn request_size_limit_middleware(
     if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
         && let Ok(length_str) = content_length.to_str()
         && let Ok(length) = length_str.parse::<usize>()
-        && length > MAX_REQUEST_BODY_SIZE
     {
-        tracing::warn!(
-            "Request body too large (Content-Length): {} bytes (max: {} bytes)",
-            length,
-            MAX_REQUEST_BODY_SIZE
-        );
-        return Err((
-            StatusCode::PAYLOAD_TOO_LARGE,
-            format!(
-                "Request body too large. Maximum size is {} bytes (1MB)",
+        if length > MAX_REQUEST_BODY_SIZE {
+            tracing::warn!(
+                "Request body too large (Content-Length): {} bytes (max: {} bytes)",
+                length,
                 MAX_REQUEST_BODY_SIZE
-            ),
-        )
-            .into_response());
+            );
+            return Err((
+                StatusCode::PAYLOAD_TOO_LARGE,
+                format!(
+                    "Request body too large. Maximum size is {} bytes (1MB)",
+                    MAX_REQUEST_BODY_SIZE
+                ),
+            )
+                .into_response());
+        }
     }
 
     // 2. Stream-time check: Wrap body with a limit to handle missing Content-Length/chunked encoding
@@ -128,18 +129,19 @@ pub mod layer {
                 if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
                     && let Ok(length_str) = content_length.to_str()
                     && let Ok(length) = length_str.parse::<usize>()
-                    && length > max_size
                 {
-                    tracing::warn!(
-                        "Request body too large: {} bytes (max: {} bytes)",
-                        length,
-                        max_size
-                    );
-                    return Ok((
-                        StatusCode::PAYLOAD_TOO_LARGE,
-                        format!("Request body too large. Maximum size is {} bytes", max_size),
-                    )
-                        .into_response());
+                    if length > max_size {
+                        tracing::warn!(
+                            "Request body too large: {} bytes (max: {} bytes)",
+                            length,
+                            max_size
+                        );
+                        return Ok((
+                            StatusCode::PAYLOAD_TOO_LARGE,
+                            format!("Request body too large. Maximum size is {} bytes", max_size),
+                        )
+                            .into_response());
+                    }
                 }
 
                 // Wrap body with a limit
