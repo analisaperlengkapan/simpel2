@@ -32,7 +32,6 @@ spec:
   {{- else if hasKey $pdb "maxUnavailable" }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
   {{- end }}
-  unhealthyPodEvictionPolicy: AlwaysAllow
   selector:
     matchLabels:
       {{- toYaml $w.selector | nindent 6 }}

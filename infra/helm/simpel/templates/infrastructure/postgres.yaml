@@ -48,7 +48,7 @@ spec:
     - { name: postgres, port: 5432, targetPort: 5432 }
   selector:
     app: postgres
-    app.kubernetes.io/name: postgres
+    role: replica
 {{- end }}
 ---
 apiVersion: apps/v1
