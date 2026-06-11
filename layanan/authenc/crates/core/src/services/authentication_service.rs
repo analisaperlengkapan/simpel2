@@ -37,6 +37,14 @@ pub struct AuthenticationServiceImpl {
 }
 
 impl AuthenticationServiceImpl {
+    /// A dummy Argon2id hash used to mitigate timing attacks.
+    /// This hash matches the standard parameters (m=65536, t=3, p=4) and
+    /// is used when a user is not found to ensure the password verification
+    /// takes a consistent amount of time.
+    const DUMMY_HASH: &'static str = "$argon2id$v=19$m=65536,t=3,p=4$\
+                                      TG0TRGGPnVrMiDnG2RfqeQ$\
+                                      wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M";
+
     /// Create a new authentication service
     ///
     /// # Arguments
@@ -135,28 +143,38 @@ impl AuthenticationService for AuthenticationServiceImpl {
             });
         }
 
-        // Step 2: Get user from store
-        let user = match self
+        // Step 2: Get user from store.
+        // To mitigate timing attacks, we do NOT return early if the user is not found.
+        // Instead, we track the failure reason and use a dummy hash for verification.
+        let mut pre_auth_error = None;
+        let user_result = self
             .user_store
             .get_user_by_username(&credentials.username, realm_id)
-            .await
-        {
-            Ok(user) => user,
+            .await;
+
+        let user = match user_result {
+            Ok(user) => {
+                if !user.enabled {
+                    warn!(
+                        user_id = %user.id,
+                        username = %credentials.username,
+                        "User account is disabled"
+                    );
+                    pre_auth_error = Some(AuthFailureReason::UserDisabled);
+                }
+                Some(user)
+            }
             Err(AuthencError::UserNotFound(_)) => {
-                // User not found - record failure and return invalid credentials
-                self.brute_force_protector
-                    .record_failure(&credentials.username)
-                    .await?;
                 warn!(
                     username = %credentials.username,
                     "User not found"
                 );
-                return Ok(AuthResult::Failed {
-                    reason: AuthFailureReason::InvalidCredentials,
-                });
+                pre_auth_error = Some(AuthFailureReason::InvalidCredentials);
+                None
             }
             Err(e) => {
-                // Other error - return internal error
+                // Database or other system errors still return immediately as they
+                // are not part of the normal credential validation timing profile.
                 warn!(
                     username = %credentials.username,
                     error = %e,
@@ -168,27 +186,38 @@ impl AuthenticationService for AuthenticationServiceImpl {
             }
         };
 
-        // Step 3: Check if user is enabled
-        if !user.enabled {
-            warn!(
-                user_id = %user.id,
-                username = %credentials.username,
-                "User account is disabled"
-            );
-            return Ok(AuthResult::Failed {
-                reason: AuthFailureReason::UserDisabled,
-            });
+        // Step 3: Verify password.
+        // We always perform password verification to ensure consistent timing.
+        // If the user was not found or has no hash, we use DUMMY_HASH.
+        let target_hash = user
+            .as_ref()
+            .and_then(|u| u.password_hash.as_deref())
+            .unwrap_or(Self::DUMMY_HASH);
+
+        let password_verify_result = self
+            .password_hasher
+            .verify(&credentials.password, target_hash);
+
+        // Step 4: Finalize authentication result.
+        // Authentication only succeeds if the user was found/enabled AND the password was valid.
+
+        // If we already encountered an error before password verification (UserNotFound or UserDisabled),
+        // we must return that error, even if the password verification also failed (e.g. dummy hash parsing).
+        if let Some(reason) = pre_auth_error {
+            self.brute_force_protector
+                .record_failure(&credentials.username)
+                .await?;
+            return Ok(AuthResult::Failed { reason });
         }
 
-        // Step 4: Verify password
-        let password_valid = match self.password_hasher.verify(
-            &credentials.password,
-            user.password_hash.as_deref().unwrap_or(""),
-        ) {
+        // Now handle the actual password verification result
+        let password_valid = match password_verify_result {
             Ok(valid) => valid,
             Err(e) => {
+                // If we reach here, it means pre_auth_error was None (user exists and enabled),
+                // but the password verification itself failed (e.g. corrupted hash in DB).
                 warn!(
-                    user_id = %user.id,
+                    username = %credentials.username,
                     error = %e,
                     "Error verifying password"
                 );
@@ -204,7 +233,6 @@ impl AuthenticationService for AuthenticationServiceImpl {
                 .record_failure(&credentials.username)
                 .await?;
             warn!(
-                user_id = %user.id,
                 username = %credentials.username,
                 "Invalid password"
             );
@@ -212,6 +240,8 @@ impl AuthenticationService for AuthenticationServiceImpl {
                 reason: AuthFailureReason::InvalidCredentials,
             });
         }
+
+        let user = user.expect("User must be present if pre_auth_error is None");
 
         // Step 5: Password is valid - record success (reset failure count)
         self.brute_force_protector
