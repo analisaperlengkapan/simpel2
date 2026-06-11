@@ -11,7 +11,7 @@ description: |
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
-kubeVersion: ">=1.27.0-0"
+kubeVersion: ">=1.20.0-0"
 
 maintainers:
   - name: SIMPEL DevOps Team
