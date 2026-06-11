@@ -406,10 +406,11 @@ fn GapAnalysisTable(data: Vec<GapAnalysisItem>) -> impl IntoView {
 // ============================================================================
 
 async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2003")
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+    let response =
+        gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/satker?status_kode=2003")
+            .send()
+            .await
+            .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
         return Err(crate::api::AppError::Unknown(format!(
@@ -427,7 +428,10 @@ async fn fetch_submissions_for_analysis() -> Result<Vec<SatkerSubmission>, crate
 }
 
 async fn fetch_analysis_data(satker_id: Uuid) -> Result<AnalysisData, crate::api::AppError> {
-    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/analisis", satker_id);
+    let url = format!(
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/analisis",
+        satker_id
+    );
     let response = gloo_net::http::Request::get(&url)
         .send()
         .await

@@ -180,7 +180,6 @@ fn DelegationTable(
             let valid_until = format_datetime(&d.valid_until);
             let reason = d.reason.clone().unwrap_or_else(|| "—".to_string());
 
-            let on_revoked = on_revoked;
             let revoke_action = move |_| {
                 let id = id_for_revoke.clone();
                 spawn_local(async move {

@@ -25,11 +25,6 @@
 // query/recursion depth (128) overflows under release optimization. Match the
 // 256 already used by the portal/perlengkapan binaries.
 #![recursion_limit = "256"]
-#![allow(clippy::collapsible_if)]
-#![allow(clippy::useless_vec)]
-#![allow(clippy::manual_range_contains)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::too_many_arguments)]
 
 // ============================================================================
 // MODULE DECLARATIONS

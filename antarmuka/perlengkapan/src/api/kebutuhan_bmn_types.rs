@@ -11,7 +11,9 @@ use serde::{Deserialize, Serialize};
 /// Workflow status codes for BMN needs requests
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
+#[derive(Default)]
 pub enum KebutuhanBmnStatus {
+    #[default]
     Draft = 2000,
     InputBarang = 2001,
     SubmitSatker = 2002,
@@ -74,23 +76,13 @@ impl KebutuhanBmnStatus {
     }
 }
 
-impl Default for KebutuhanBmnStatus {
-    fn default() -> Self {
-        Self::Draft
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum PilihanSatker {
+    #[default]
     Semua,
     Sebagian,
-}
-
-impl Default for PilihanSatker {
-    fn default() -> Self {
-        Self::Semua
-    }
 }
 
 /// Main entity for BMN needs analysis request

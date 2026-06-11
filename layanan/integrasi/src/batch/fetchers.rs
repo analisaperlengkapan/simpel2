@@ -541,10 +541,9 @@ pub async fn fetch_mysimkari(
                                     // Collect NIP
                                     if let Some(nip) =
                                         pegawai_obj.get("nip").and_then(|v| v.as_str())
+                                        && !nip.is_empty()
                                     {
-                                        if !nip.is_empty() {
-                                            all_fresh_nips.insert(nip.to_string());
-                                        }
+                                        all_fresh_nips.insert(nip.to_string());
                                     }
                                 }
                             }
@@ -581,32 +580,32 @@ pub async fn fetch_mysimkari(
     );
 
     // Mark employees NOT in fresh pull as nonaktif
-    if !all_fresh_nips.is_empty() {
-        if let Some(db) = client.get_db_client() {
-            // Use parameterized IN clause for safety
-            // Build a single UPDATE with array comparison for efficiency
-            let nip_array: Vec<&str> = all_fresh_nips.iter().map(|s| s.as_str()).collect();
-            let result = db
+    if !all_fresh_nips.is_empty()
+        && let Some(db) = client.get_db_client()
+    {
+        // Use parameterized IN clause for safety
+        // Build a single UPDATE with array comparison for efficiency
+        let nip_array: Vec<&str> = all_fresh_nips.iter().map(|s| s.as_str()).collect();
+        let result = db
                 .execute(
                     "UPDATE mysimkari_pegawai SET status_pegawai = 'nonaktif', updated_at = CURRENT_TIMESTAMP WHERE status_pegawai = 'aktif' AND nip != ALL($1::text[])",
                     &[&nip_array],
                 )
                 .await;
 
-            match result {
-                Ok(count) => {
-                    if count > 0 {
-                        info!(
-                            "📋 MySIMKARI: {} pegawai ditandai nonaktif (tidak ada di data tarikan baru)",
-                            count
-                        );
-                    } else {
-                        info!("✅ MySIMKARI: Semua pegawai eksisting masih aktif");
-                    }
+        match result {
+            Ok(count) => {
+                if count > 0 {
+                    info!(
+                        "📋 MySIMKARI: {} pegawai ditandai nonaktif (tidak ada di data tarikan baru)",
+                        count
+                    );
+                } else {
+                    info!("✅ MySIMKARI: Semua pegawai eksisting masih aktif");
                 }
-                Err(e) => {
-                    error!("❌ MySIMKARI: Gagal update status nonaktif: {}", e);
-                }
+            }
+            Err(e) => {
+                error!("❌ MySIMKARI: Gagal update status nonaktif: {}", e);
             }
         }
     }

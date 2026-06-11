@@ -1,5 +1,3 @@
-#![allow(clippy::collapsible_if)]
-
 // Core modules
 pub mod audit;
 pub mod client;

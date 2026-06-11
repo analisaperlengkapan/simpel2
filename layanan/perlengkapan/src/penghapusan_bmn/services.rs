@@ -454,14 +454,8 @@ impl PenghapusanBmnService {
             crate::shared::error::AppError::Internal(format!("write {}: {}", pdf_path, e))
         })?;
 
-        let docx_url = format!(
-            "/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.docx",
-            id
-        );
-        let pdf_url = format!(
-            "/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.pdf",
-            id
-        );
+        let docx_url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.docx", id);
+        let pdf_url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/konsep-sk.pdf", id);
 
         self.repository
             .update_konsep_sk(id, &docx_url, &docx_path, &pdf_url, &pdf_path)

@@ -39,13 +39,13 @@ impl WindowListener {
 
 impl Drop for WindowListener {
     fn drop(&mut self) {
-        if let Some(closure) = &self.closure {
-            if let Some(window) = web_sys::window() {
-                let _ = window.remove_event_listener_with_callback(
-                    self.event_name,
-                    closure.as_ref().unchecked_ref(),
-                );
-            }
+        if let Some(closure) = &self.closure
+            && let Some(window) = web_sys::window()
+        {
+            let _ = window.remove_event_listener_with_callback(
+                self.event_name,
+                closure.as_ref().unchecked_ref(),
+            );
         }
     }
 }

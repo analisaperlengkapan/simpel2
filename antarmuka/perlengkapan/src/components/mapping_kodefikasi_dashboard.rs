@@ -59,10 +59,7 @@ async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
 
 fn download_export(format: &str) {
     if let Some(window) = web_sys::window() {
-        let url = format!(
-            "/api/v1/perlengkapan/mapping/export?format={}",
-            format
-        );
+        let url = format!("/api/v1/perlengkapan/mapping/export?format={}", format);
         let _ = window.open_with_url(&url);
     }
 }

@@ -488,9 +488,11 @@ fn PeriodField(#[prop(into)] label: String, #[prop(into)] value: String) -> impl
 // ============================================================================
 
 async fn fetch_active_pengajuan() -> Result<PengajuanSummary, AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/kebutuhan-bmn/pengajuan?status_kode=2001")
-        .send()
-        .await?;
+    let response = gloo_net::http::Request::get(
+        "/api/v1/perlengkapan/kebutuhan-bmn/pengajuan?status_kode=2001",
+    )
+    .send()
+    .await?;
 
     if !response.ok() {
         let status = response.status();
@@ -506,7 +508,10 @@ async fn fetch_active_pengajuan() -> Result<PengajuanSummary, AppError> {
 }
 
 async fn fetch_satker_detail(pengajuan_id: Uuid) -> Result<SatkerDetail, AppError> {
-    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/pengajuan/{}/satker", pengajuan_id);
+    let url = format!(
+        "/api/v1/perlengkapan/kebutuhan-bmn/pengajuan/{}/satker",
+        pengajuan_id
+    );
     let response = gloo_net::http::Request::get(&url).send().await?;
 
     if !response.ok() {
@@ -540,7 +545,10 @@ async fn create_barang_item(
     satker_id: Uuid,
     request: CreateBarangRequest,
 ) -> Result<BarangItem, AppError> {
-    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/barang", satker_id);
+    let url = format!(
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/barang",
+        satker_id
+    );
     let response = gloo_net::http::Request::post(&url)
         .json(&request)?
         .send()
@@ -562,7 +570,10 @@ async fn submit_satker_to_wilayah(
     satker_id: Uuid,
     request: SubmitKebutuhanSatkerRequest,
 ) -> Result<SatkerDetail, AppError> {
-    let url = format!("/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/submit-wilayah", satker_id);
+    let url = format!(
+        "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/submit-wilayah",
+        satker_id
+    );
     let response = gloo_net::http::Request::post(&url)
         .json(&request)?
         .send()

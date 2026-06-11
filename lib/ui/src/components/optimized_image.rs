@@ -226,19 +226,18 @@ pub enum AvatarSize {
 pub fn preload_image(src: &str) {
     use wasm_bindgen::JsCast;
 
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            if let Ok(link) = document.create_element("link") {
-                let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
-                link.set_rel("preload");
-                link.set_as("image");
-                link.set_href(src);
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+        && let Ok(link) = document.create_element("link")
+    {
+        let link = link.dyn_into::<web_sys::HtmlLinkElement>().unwrap();
+        link.set_rel("preload");
+        link.set_as("image");
+        link.set_href(src);
 
-                let _ = document
-                    .head()
-                    .and_then(|head| head.append_child(&link).ok());
-            }
-        }
+        let _ = document
+            .head()
+            .and_then(|head| head.append_child(&link).ok());
     }
 }
 
@@ -252,16 +251,13 @@ pub fn preload_image(_src: &str) {
 pub fn is_webp_supported() -> bool {
     use wasm_bindgen::JsCast;
 
-    if let Some(window) = web_sys::window() {
-        if let Some(document) = window.document() {
-            if let Ok(canvas) = document.create_element("canvas") {
-                if let Ok(canvas) = canvas.dyn_into::<web_sys::HtmlCanvasElement>() {
-                    if let Ok(data_url) = canvas.to_data_url_with_type("image/webp") {
-                        return data_url.starts_with("data:image/webp");
-                    }
-                }
-            }
-        }
+    if let Some(window) = web_sys::window()
+        && let Some(document) = window.document()
+        && let Ok(canvas) = document.create_element("canvas")
+        && let Ok(canvas) = canvas.dyn_into::<web_sys::HtmlCanvasElement>()
+        && let Ok(data_url) = canvas.to_data_url_with_type("image/webp")
+    {
+        return data_url.starts_with("data:image/webp");
     }
 
     false

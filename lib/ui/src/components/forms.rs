@@ -810,25 +810,24 @@ pub fn FileUpload(
     let (files, set_files) = signal::<Vec<String>>(Vec::new());
 
     let handle_change = move |ev: web_sys::Event| {
-        if let Some(target) = ev.target() {
-            if let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>() {
-                if let Some(file_list) = input.files() {
-                    let mut files_vec = Vec::new();
-                    let mut file_names = Vec::new();
+        if let Some(target) = ev.target()
+            && let Ok(input) = target.dyn_into::<web_sys::HtmlInputElement>()
+            && let Some(file_list) = input.files()
+        {
+            let mut files_vec = Vec::new();
+            let mut file_names = Vec::new();
 
-                    for i in 0..file_list.length() {
-                        if let Some(file) = file_list.get(i) {
-                            file_names.push(file.name());
-                            files_vec.push(file);
-                        }
-                    }
-
-                    set_files.set(file_names);
-
-                    if let Some(ref callback) = on_change {
-                        callback(files_vec);
-                    }
+            for i in 0..file_list.length() {
+                if let Some(file) = file_list.get(i) {
+                    file_names.push(file.name());
+                    files_vec.push(file);
                 }
+            }
+
+            set_files.set(file_names);
+
+            if let Some(ref callback) = on_change {
+                callback(files_vec);
             }
         }
     };

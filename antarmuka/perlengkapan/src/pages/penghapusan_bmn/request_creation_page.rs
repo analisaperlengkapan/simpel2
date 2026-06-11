@@ -341,10 +341,11 @@ pub fn RequestCreationPage() -> impl IntoView {
 // ============================================================================
 
 async fn fetch_available_bmn() -> Result<Vec<BmnItem>, crate::api::AppError> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn/bmn/available")
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
+    let response =
+        gloo_net::http::Request::get("/api/v1/perlengkapan/penghapusan-bmn/bmn/available")
+            .send()
+            .await
+            .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
 
     if !response.ok() {
         return Err(crate::api::AppError::Unknown(format!(
@@ -423,7 +424,10 @@ async fn upload_document(
         .append_with_blob("file", &file)
         .map_err(|_| "Failed to append file")?;
 
-    let url = format!("/api/v1/perlengkapan/penghapusan-bmn/{}/attachments", request_id);
+    let url = format!(
+        "/api/v1/perlengkapan/penghapusan-bmn/{}/attachments",
+        request_id
+    );
 
     let response = gloo_net::http::Request::post(&url)
         .body(form_data)

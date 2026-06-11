@@ -279,8 +279,8 @@ pub fn FocusTrap(
                     return;
                 }
 
-                if ev.key() == "Tab" {
-                    if let Some(container) = container_ref.get() {
+                if ev.key() == "Tab"
+                    && let Some(container) = container_ref.get() {
                         // Get all focusable elements
                         if let Ok(elements) = container.query_selector_all(FOCUSABLE_ELEMENTS_SELECTOR) {
                             let length = elements.length();
@@ -317,7 +317,6 @@ pub fn FocusTrap(
                             }
                         }
                     }
-                }
             }
         >
             {children()}

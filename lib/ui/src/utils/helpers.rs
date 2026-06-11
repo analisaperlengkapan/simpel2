@@ -28,8 +28,7 @@ pub fn scroll_to_element(element_id: &str) {
 /// Scroll to top of page
 pub fn scroll_to_top() {
     if let Some(window) = get_window() {
-        #[allow(clippy::let_unit_value)]
-        let _ = window.scroll_to_with_x_and_y(0.0, 0.0);
+        window.scroll_to_with_x_and_y(0.0, 0.0);
     }
 }
 

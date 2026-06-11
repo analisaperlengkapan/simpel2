@@ -1,4 +1,3 @@
-#![allow(clippy::collapsible_if)]
 //! Search Engine for Perlengkapan
 //!
 //! Provides full-text search with filters, pagination, and relevance ranking

@@ -429,7 +429,10 @@ async fn fetch_permits() -> Result<Vec<Permit>, crate::api::AppError> {
 async fn generate_permit_document(
     permit_id: Uuid,
 ) -> Result<GenerateDocumentResponse, crate::api::AppError> {
-    let url = format!("/api/v1/perlengkapan/pemakaian-bmn/{}/generate-konsep-surat", permit_id);
+    let url = format!(
+        "/api/v1/perlengkapan/pemakaian-bmn/{}/generate-konsep-surat",
+        permit_id
+    );
     let response = gloo_net::http::Request::post(&url)
         .send()
         .await
@@ -461,7 +464,10 @@ async fn upload_signed_document(
         .append_with_blob("file", &file)
         .map_err(|_| "Failed to append file")?;
 
-    let url = format!("/api/v1/perlengkapan/pemakaian-bmn/{}/upload-signed-pdf", permit_id);
+    let url = format!(
+        "/api/v1/perlengkapan/pemakaian-bmn/{}/upload-signed-pdf",
+        permit_id
+    );
 
     let response = gloo_net::http::Request::post(&url)
         .body(form_data)
