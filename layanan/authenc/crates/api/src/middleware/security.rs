@@ -174,53 +174,50 @@ pub async fn security_monitoring_middleware(
         }
     }
 
-    // Add security headers to response (Defense in Depth)
+    // Add security headers to response (defense-in-depth for a JSON API).
+    use axum::http::{HeaderName, HeaderValue, header};
     let headers = response.headers_mut();
 
-    // X-Security-Monitoring
+    // Dynamic: surface how long monitoring took. The value is ASCII-only, so
+    // parsing into a HeaderValue cannot fail.
     headers.insert(
         "X-Security-Monitoring",
         format!("monitored; duration={}ms", duration.as_millis())
             .parse()
-            .unwrap(),
+            .expect("monitoring header value is always valid ASCII"),
     );
 
-    // X-Content-Type-Options: nosniff
-    headers.insert(
-        axum::http::header::X_CONTENT_TYPE_OPTIONS,
-        axum::http::HeaderValue::from_static("nosniff"),
-    );
-
-    // X-Frame-Options: DENY
-    headers.insert(
-        axum::http::header::X_FRAME_OPTIONS,
-        axum::http::HeaderValue::from_static("DENY"),
-    );
-
-    // X-XSS-Protection: 1; mode=block
-    headers.insert(
-        "X-XSS-Protection",
-        axum::http::HeaderValue::from_static("1; mode=block"),
-    );
-
-    // Referrer-Policy: strict-origin-when-cross-origin
-    headers.insert(
-        axum::http::header::REFERRER_POLICY,
-        axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
-    );
-
-    // Strict-Transport-Security: max-age=31536000; includeSubDomains
-    headers.insert(
-        axum::http::header::STRICT_TRANSPORT_SECURITY,
-        axum::http::HeaderValue::from_static("max-age=31536000; includeSubDomains"),
-    );
-
-    // Content-Security-Policy (API-specific: restrictive by default)
-    let csp = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
-    headers.insert(
-        axum::http::header::CONTENT_SECURITY_POLICY,
-        axum::http::HeaderValue::from_static(csp),
-    );
+    // Static hardening headers. Note X-XSS-Protection is deliberately "0":
+    // the legacy XSS auditor is deprecated and can itself introduce
+    // vulnerabilities; the Content-Security-Policy below supersedes it.
+    let security_headers: [(HeaderName, HeaderValue); 6] = [
+        (
+            header::X_CONTENT_TYPE_OPTIONS,
+            HeaderValue::from_static("nosniff"),
+        ),
+        (header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY")),
+        (
+            HeaderName::from_static("x-xss-protection"),
+            HeaderValue::from_static("0"),
+        ),
+        (
+            header::REFERRER_POLICY,
+            HeaderValue::from_static("strict-origin-when-cross-origin"),
+        ),
+        (
+            header::STRICT_TRANSPORT_SECURITY,
+            HeaderValue::from_static("max-age=31536000; includeSubDomains"),
+        ),
+        (
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+            ),
+        ),
+    ];
+    for (name, value) in security_headers {
+        headers.insert(name, value);
+    }
 
     response
 }
@@ -339,10 +336,7 @@ mod tests {
                 .unwrap(),
             "DENY"
         );
-        assert_eq!(
-            response.headers().get("X-XSS-Protection").unwrap(),
-            "1; mode=block"
-        );
+        assert_eq!(response.headers().get("X-XSS-Protection").unwrap(), "0");
         assert_eq!(
             response
                 .headers()
