@@ -110,7 +110,6 @@ impl MockMfaSystem {
             .ok_or_else(|| anyhow!("User not found"))?;
         Ok(user_state.backup_codes.len())
     }
-
 }
 
 #[test]
