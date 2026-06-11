@@ -254,7 +254,7 @@ pub async fn seal_engine(
     };
 
     // Seal the engine
-    state.seal.seal().await.map_err(|e| {
+    if let Err(e) = state.seal.seal().await {
         error!("Failed to seal engine: {:?}", e);
 
         // Log failed seal attempt
@@ -263,13 +263,13 @@ pub async fn seal_engine(
         failed_log
             .metadata
             .insert("error".to_string(), e.to_string());
-        let _ = state.audit.log(failed_log);
+        state.audit.log(failed_log).await;
 
-        (
+        return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Failed to seal engine: {}", e),
-        )
-    })?;
+        ));
+    }
 
     info!("✅ Engine sealed successfully by user: {}", user_id);
 
@@ -279,7 +279,7 @@ pub async fn seal_engine(
     success_log
         .metadata
         .insert("completed_at".to_string(), chrono::Utc::now().to_rfc3339());
-    let _ = state.audit.log(success_log);
+    state.audit.log(success_log).await;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -313,7 +313,7 @@ pub async fn unseal_engine(
         UnsealRateLimiter::new(10, 60) // 10 attempts per 60 seconds
     });
 
-    RATE_LIMITER.check_attempt(&client_ip).map_err(|e| {
+    if let Err(e) = RATE_LIMITER.check_attempt(&client_ip) {
         warn!("Rate limit exceeded for IP {}: {}", client_ip, e);
 
         // Audit log rate limit hit
@@ -333,10 +333,10 @@ pub async fn unseal_engine(
             namespace: None,
             metadata,
         };
-        let _ = state.audit.log(audit_log);
+        state.audit.log(audit_log).await;
 
-        (StatusCode::TOO_MANY_REQUESTS, e)
-    })?;
+        return Err((StatusCode::TOO_MANY_REQUESTS, e));
+    }
 
     // Audit log unseal attempt
     let mut metadata = HashMap::new();
@@ -381,7 +381,7 @@ pub async fn unseal_engine(
             failed_log
                 .metadata
                 .insert("error".to_string(), e.to_string());
-            let _ = state.audit.log(failed_log);
+            state.audit.log(failed_log).await;
 
             let (status_code, message) = match e {
                 SealError::InvalidUnsealKey => {
@@ -428,7 +428,7 @@ pub async fn unseal_engine(
         progress_log
             .metadata
             .insert("threshold".to_string(), response.t.to_string());
-        let _ = state.audit.log(progress_log);
+        state.audit.log(progress_log).await;
     } else {
         info!("✅ Engine unsealed successfully!");
 
@@ -444,7 +444,7 @@ pub async fn unseal_engine(
         success_log
             .metadata
             .insert("completed_at".to_string(), chrono::Utc::now().to_rfc3339());
-        let _ = state.audit.log(success_log);
+        state.audit.log(success_log).await;
     }
 
     Ok(Json(crate::ApiResponse::success(response)))
@@ -577,7 +577,7 @@ pub async fn initialize_engine(
         namespace: None,
         metadata: init_metadata,
     };
-    let _ = state.audit.log(init_audit);
+    state.audit.log(init_audit).await;
 
     let response = InitializeResponse {
         keys: encoded_shares,
@@ -654,7 +654,7 @@ pub async fn rekey_init(
         namespace: None,
         metadata: rekey_init_metadata,
     };
-    let _ = state.audit.log(rekey_init_audit);
+    state.audit.log(rekey_init_audit).await;
 
     info!("Rekey operation initiated with nonce: {}", nonce);
 
@@ -714,7 +714,7 @@ pub async fn rekey_update(
         namespace: None,
         metadata: rekey_progress_metadata,
     };
-    let _ = state.audit.log(rekey_progress_audit);
+    state.audit.log(rekey_progress_audit).await;
 
     info!("Rekey progress updated for nonce: {}", request.nonce);
 
