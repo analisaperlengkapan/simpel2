@@ -1,0 +1,9 @@
+# leptosfmt — formats the Leptos `view!` / `template!` macro bodies that
+# rustfmt deliberately leaves untouched (rustfmt does not descend into macro
+# token trees). Settings aligned with the project's rustfmt defaults so the two
+# formatters agree on indentation/width.
+max_width = 100
+tab_spaces = 4
+# Quote attribute values consistently and keep the closing-tag heuristics at
+# their sensible defaults.
+attr_value_brace_style = "WhenRequired"

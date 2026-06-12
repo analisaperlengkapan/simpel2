@@ -132,6 +132,44 @@ pub fn main() {
 
 ---
 
+## 🎨 Formatting & Linting (FE crates)
+
+Dua hal yang **WAJIB** dipahami sebelum menyentuh crate FE
+(`perlengkapan-microfrontend`, `portal-microfrontend`):
+
+### 1. `view!` diformat oleh **leptosfmt**, bukan rustfmt
+
+`cargo fmt` (rustfmt) **tidak** masuk ke dalam token-tree makro, jadi isi
+`view! { … }` tak tersentuh. **leptosfmt** (pinned `0.1.33`, prebuilt binary)
+menutup celah itu dan dijalankan oleh **autofix bot** (best-effort), bukan gate.
+Config: [`.leptosfmt.toml`](../.leptosfmt.toml) (selaras rustfmt: `tab_spaces=4`,
+`max_width=100`). Urutan yang benar bila format manual: **leptosfmt dulu, lalu
+`cargo fmt`** (rustfmt merapikan whitespace kode di sekitarnya setelahnya).
+
+> ⚠️ **JANGAN taruh komentar non-doc `//` di dalam / tepat setelah blok kode
+> `{ … }` di dalam `view!`** (mis. `})} // catatan`, atau `// catatan` tepat
+> setelah `</div>` yang mengikuti blok `{…}`). leptosfmt memakai fork prettyplease
+> yang **tak mendukung** komentar di code-block → outputnya **oscillating /
+> non-idempoten** (terbukti di ~17 file). Komentar `//` di **markup** view! aman;
+> yang **di code-block** tidak. Letakkan komentar di luar `view!`, atau di posisi
+> markup, bukan di dalam `{…}`. (Karena itu leptosfmt sengaja **tidak** dijadikan
+> gate `--check` blocking.)
+
+### 2. FE crates di-**exclude** dari `cargo fix` / `clippy --fix`
+
+Crate FE bersifat **dual-cfg**: kode browser `#[cfg(target_arch = "wasm32")]` +
+~189 stub host `#[cfg(not(target_arch = "wasm32"))]`. `cargo fix`/`clippy --fix`
+hanya mengevaluasi **satu** konfigurasi cfg dan membuang yang ter-gate ke cfg lain
+sebagai "dead" → merusak (pernah membobol PR #526). Maka autofix bot **meng-exclude**
+kedua crate FE dari kedua fixer itu (`--exclude perlengkapan-microfrontend
+--exclude portal-microfrontend`; lihat `.github/workflows/autofix.yml`). **Lint FE
+diperbaiki MANUAL secara cfg-aware** — cfg-gate import wasm-only; pakai
+`#[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]` pada binding
+wasm-only; **JANGAN** `_`-prefix nama yang di-bind closure/PropsBuilder Leptos.
+Gate clippy di `ci.yml` tetap menjaring lint FE (di target wasm32, `--all-features`).
+
+---
+
 ## ⚡ Performance Optimization Patterns
 
 ### WASM Optimization (Trunk & Cargo)

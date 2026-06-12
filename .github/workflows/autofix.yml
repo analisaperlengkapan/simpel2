@@ -105,6 +105,19 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-rust
 
+      # leptosfmt formats the Leptos `view!` macro bodies that rustfmt skips
+      # (rustfmt never descends into macro token trees). Prebuilt binary, pinned.
+      - name: Install leptosfmt
+        shell: bash
+        run: |
+          if ! command -v leptosfmt &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL "https://github.com/bram209/leptosfmt/releases/download/0.1.33/leptosfmt-0.1.33-x86_64-unknown-linux-musl.tar.gz" \
+              | tar xz -C "$HOME/.local/bin"
+            chmod +x "$HOME/.local/bin/leptosfmt"
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
+
       - name: Apply cargo fmt + fix + clippy --fix
         shell: bash
         run: |
@@ -134,7 +147,16 @@ jobs:
             --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --fix --allow-dirty --allow-staged -- -W clippy::all || clippy_exit=$?
           if [ $clippy_exit -ne 0 ]; then echo "::warning::cargo clippy --fix exit code: $clippy_exit"; fi
-          # Final fmt pass untuk reformat hasil fix/clippy.
+          # leptosfmt: format `view!` macro bodies (rustfmt skips macros). Run
+          # BEFORE the final cargo fmt so rustfmt cleans up any surrounding-code
+          # whitespace afterwards. Best-effort (NOT a gate): leptosfmt 0.1.33 is
+          # non-idempotent on `//` comments placed next to tags inside `view!`
+          # (~17 files oscillate), so it is intentionally not wired as a blocking
+          # `--check` in ci.yml — it just formats the markup opportunistically.
+          leptosfmt_exit=0
+          leptosfmt antarmuka lib/ui || leptosfmt_exit=$?
+          if [ $leptosfmt_exit -ne 0 ]; then echo "::warning::leptosfmt exit code: $leptosfmt_exit"; fi
+          # Final fmt pass untuk reformat hasil fix/clippy + leptosfmt.
           final_fmt_exit=0
           cargo fmt --all || final_fmt_exit=$?
           if [ $final_fmt_exit -ne 0 ]; then echo "::warning::final cargo fmt exit code: $final_fmt_exit"; fi
@@ -519,6 +541,16 @@ jobs:
           cargo clippy --workspace --all-targets \
             --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --fix --allow-dirty --allow-staged -- -W clippy::all
+          # leptosfmt: format `view!` macro bodies (best-effort; see note in the
+          # non-fork rust job). Run before the final cargo fmt.
+          if ! command -v leptosfmt &>/dev/null; then
+            mkdir -p "$HOME/.local/bin"
+            curl -fsSL "https://github.com/bram209/leptosfmt/releases/download/0.1.33/leptosfmt-0.1.33-x86_64-unknown-linux-musl.tar.gz" \
+              | tar xz -C "$HOME/.local/bin"
+            chmod +x "$HOME/.local/bin/leptosfmt"
+            export PATH="$HOME/.local/bin:$PATH"
+          fi
+          leptosfmt antarmuka lib/ui
           cargo fmt --all
           python3 ./infra/scripts/check-cargo-versioning.py fix
           # TOML

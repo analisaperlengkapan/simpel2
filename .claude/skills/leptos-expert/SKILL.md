@@ -41,6 +41,10 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
 - **Build/verify:** `cargo check -p <app> --target wasm32-unknown-unknown` (fast),
   `trunk build` at milestones. Release recursion can blow the default limit — crates
   set `#![recursion_limit = "256"]`.
+- **Formatting:** `view!` bodies are formatted by **leptosfmt** (autofix, best-effort),
+  not rustfmt (rustfmt skips macros). Fix FE lints **by hand, cfg-aware** — the autofix
+  bot excludes FE crates from `cargo fix`/`clippy --fix` (they'd mangle the dual-cfg
+  code). Details + the rules: `antarmuka/AGENTS.md` → "Formatting & Linting (FE crates)".
 
 ## Common pitfalls (debug reactivity)
 
@@ -52,6 +56,12 @@ auth flow, perf) — read it first; this Skill adds the reactive depth + pitfall
 - **`<For>` re-rendering everything** → missing/unstable `key`.
 - **WASM-only API on server path** → gate with `#[cfg(target_arch = "wasm32")]`;
   use `gloo_net` for fetch.
+- **leptosfmt oscillates / CI churn on a view!** → a non-doc `//` comment inside or
+  right after a `{ … }` code block in `view!` (e.g. `})} // note`). leptosfmt's
+  prettyplease fork can't format those; move the comment to markup or outside `view!`.
+- **`cargo fix`/clippy `--fix` broke a wasm-only item** (E0423/E0433/E0425) → it ran on
+  the host cfg and stripped wasm-gated code. Don't `--fix` FE crates; cfg-gate the
+  import or `#[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]` the binding.
 
 ## Sub-procedure: add a feature route
 
