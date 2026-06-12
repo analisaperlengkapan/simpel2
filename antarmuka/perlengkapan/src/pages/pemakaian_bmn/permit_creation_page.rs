@@ -90,7 +90,7 @@ pub fn PermitCreationPage() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal::<Option<String>>(None);
     let (success_message, set_success_message) = signal::<Option<String>>(None);
-    let (created_permit, set_created_permit) = signal::<Option<Permit>>(None);
+    let (_created_permit, set_created_permit) = signal::<Option<Permit>>(None);
 
     // Load pegawai list on mount
     Effect::new(move || {

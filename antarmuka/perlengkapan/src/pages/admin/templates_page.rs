@@ -8,7 +8,7 @@
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsValue;
 use web_sys::{Blob, BlobPropertyBag, Url};
 
 use crate::api::dokumen::{DocumentTemplate, PreviewBody, list_templates, preview_template};

@@ -398,7 +398,7 @@ fn status_badge(status: String, is_open: bool) -> impl IntoView {
 fn render_pengajuan_cards(
     data: Vec<PengajuanPakaianDinas>,
     total: i64,
-    total_pages: i32,
+    _total_pages: i32,
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,

@@ -6,7 +6,7 @@
 //! - `pages::notifikasi::NotifikasiInboxPage` for the inbox.
 //! - `app_chrome` for the toolbar unread-count badge (poll every 30s).
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::api::client::{api_get, api_patch_empty, api_post_empty};
 use crate::api::error::{AppError, AppResult};

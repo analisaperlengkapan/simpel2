@@ -19,7 +19,7 @@ mod stat_card;
 pub use data_table::{DataTable, DataTableColumn};
 pub use empty_state::EmptyState;
 pub use error_state::ErrorState;
-pub use form_layout::{FormField, FormLayout};
+pub use form_layout::FormField;
 pub use loading_state::LoadingState;
 pub use page_layout::{PageBreadcrumb, PageLayout};
 pub use section_card::SectionCard;

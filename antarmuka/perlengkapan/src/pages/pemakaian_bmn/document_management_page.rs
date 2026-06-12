@@ -88,7 +88,7 @@ pub fn DocumentManagementPage() -> impl IntoView {
             set_error.set(None);
 
             match generate_permit_document(permit_id).await {
-                Ok(response) => {
+                Ok(_response) => {
                     set_success_message.set(Some(
                         "Dokumen konsep izin berhasil dibuat (REQ-P006, REQ-P007)".to_string(),
                     ));

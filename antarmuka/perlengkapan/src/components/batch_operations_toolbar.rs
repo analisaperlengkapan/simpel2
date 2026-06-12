@@ -28,7 +28,7 @@ pub fn BatchOperationsToolbar(
 ) -> impl IntoView {
     let (show_approve_dialog, set_show_approve_dialog) = signal(false);
     let (show_reject_dialog, set_show_reject_dialog) = signal(false);
-    let (show_status_dialog, set_show_status_dialog) = signal(false);
+    let (_show_status_dialog, set_show_status_dialog) = signal(false);
     let (reject_reason, set_reject_reason) = signal(String::new());
     let (is_processing, set_is_processing) = signal(false);
     let (error_message, set_error_message) = signal::<Option<String>>(None);

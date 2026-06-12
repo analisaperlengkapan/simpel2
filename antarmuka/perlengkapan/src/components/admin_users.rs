@@ -12,7 +12,6 @@ use phosphor_leptos::{
     CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USER_CHECK, USER_PLUS, USERS, X,
 };
 
-use crate::api;
 use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
 
 /// leptos-fetch query keyed by `(search, role)`. Calls the real
@@ -67,7 +66,7 @@ pub fn AdminUsersPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (selected_role_filter, set_role_filter) = signal::<Option<String>>(None);
     let (show_assign_modal, set_show_assign_modal) = signal(false);
-    let (selected_user_nip, set_selected_user_nip) = signal::<Option<String>>(None);
+    let (_selected_user_nip, set_selected_user_nip) = signal::<Option<String>>(None);
 
     // Debounce `search_input` → `search_query` with a 300ms trailing edge.
     // Stale tasks bail out via the equality check.
@@ -180,7 +179,6 @@ pub fn AdminUsersPage() -> impl IntoView {
                             }>
                                 {move || users_resource.get().map(|users| {
                                     users.into_iter().map(|user| {
-                                        let nip = user.nip.clone();
                                         let nip_for_edit = user.nip.clone();
                                         let nip_display = user.nip.clone();
                                         let nama = user.nama.clone();
