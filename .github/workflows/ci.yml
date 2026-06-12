@@ -1051,13 +1051,34 @@ jobs:
       # prevents sudo apt). The Playwright container joins the compose network and
       # reaches services by NAME (perlengkapan:8080, authenc:8088), avoiding dind
       # host-port/localhost issues. Throwaway secrets — ephemeral test DB.
-      - name: Bring up e2e stack
+      # Build is separated from `up` so the startup phase can be time-bounded.
+      # `docker compose up -d` blocks indefinitely on a dependency's
+      # `condition: service_completed_successfully` (the migrate containers) —
+      # there is no built-in timeout. A HANG (e.g. a migrate that never exits)
+      # therefore never triggers the `if: failure()` log step below, so a stuck
+      # bring-up silently burned a full 6h runner slot with ZERO diagnostics.
+      # Building first, then wrapping only the (fast) start + migrate phase in
+      # `timeout`, converts a hang into a prompt, self-diagnosing failure
+      # (`ps -a` + `logs` dumped inline so the culprit container is visible).
+      - name: Build e2e images
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build \
-            postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+            authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan
+      - name: Bring up e2e stack (bounded)
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
+              postgres redis authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan; then
+            echo "::error::e2e stack bring-up failed or timed out after 600s (a migrate container likely never reached 'completed' — see ps/logs below)"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
+            exit 1
+          fi
       - name: Wait for stack (authenc + perlengkapan FE, on compose network)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
