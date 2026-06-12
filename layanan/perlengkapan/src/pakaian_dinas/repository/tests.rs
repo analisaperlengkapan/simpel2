@@ -1,5 +1,3 @@
-#[allow(unused_imports)]
-use super::*;
 use crate::pakaian_dinas::models::*;
 
 // Note: Most tests require a database connection

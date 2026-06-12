@@ -1,4 +1,3 @@
-use super::config::AppConfig;
 use super::email::EmailService;
 use super::error::AppError;
 use super::push::PushService;
@@ -33,7 +32,6 @@ pub struct NotificationJob {
 /// - Delivery status tracking
 /// - Prometheus metrics for monitoring
 pub struct QueueProcessor {
-    config: Arc<AppConfig>,
     pool: Pool,
     email_service: Arc<EmailService>,
     sms_service: Arc<SmsService>,
@@ -43,14 +41,12 @@ pub struct QueueProcessor {
 impl QueueProcessor {
     /// Create a new QueueProcessor instance
     pub fn new(
-        config: Arc<AppConfig>,
         pool: Pool,
         email_service: Arc<EmailService>,
         sms_service: Arc<SmsService>,
         push_service: Arc<PushService>,
     ) -> Self {
         Self {
-            config,
             pool,
             email_service,
             sms_service,

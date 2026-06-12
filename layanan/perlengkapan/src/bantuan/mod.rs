@@ -4,8 +4,6 @@
 //! [`crate::contracts::AuditSink`] traits wired into
 //! [`AppState`](crate::state::AppState).
 
-#![allow(dead_code)]
-
 pub mod analytics;
 pub mod audit;
 pub mod captcha;

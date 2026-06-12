@@ -136,12 +136,7 @@ impl PemakaianBmnScheduler {
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use super::*;
-
     #[tokio::test]
-    async fn test_scheduler_creation() {
-        // Placeholder: real coverage (mock service + scheduler) lands with the
-        // comprehensive suite (#33); for now this only exercises linkage.
-    }
+    #[ignore = "placeholder; real coverage (mock service + scheduler) lands in F5-C (#33)"]
+    async fn test_scheduler_creation() {}
 }
