@@ -1062,7 +1062,8 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                             }
                         })
                 }}
-            </Suspense> // Return to Operator — ApprovalDialog reusable (Fase 2.5)
+            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
+            </Suspense>
             {move || {
                 show_return_modal
                     .get()

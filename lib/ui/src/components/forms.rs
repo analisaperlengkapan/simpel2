@@ -275,8 +275,8 @@ pub fn OtpInput(
                             </div>
                         }
                     })}
-            </div> // Character counter
-            <div class="flex justify-between items-center text-xs">
+            // Character counter
+            </div> <div class="flex justify-between items-center text-xs">
                 <div class=format!(
                     "{}",
                     if value.get().len() == 6 { "text-emerald-600" } else { "text-gray-500" },
@@ -1001,7 +1001,8 @@ pub fn FileUpload(
                         }}
                     </p>
                 </label>
-            </div> // File list preview
+            // File list preview
+            </div>
             {show_preview
                 .then(|| {
                     view! {

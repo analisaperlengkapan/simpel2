@@ -946,7 +946,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                 {format!("{:.1}%", a.summary.kelayakan_persen)}
                                                             </div>
                                                         </div>
-                                                    </div> // Integrasi sync status
+                                                    // Integrasi sync status
+                                                    </div>
                                                     {sync_data
                                                         .map(|sync| {
                                                             let mysimkari = sync.mysimkari;
@@ -1166,7 +1167,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                             </span>
                                                             "Data aset existing diambil dari SIMAN. Gap dihitung berdasarkan jumlah diminta dikurangi aset sejenis."
                                                         </div>
-                                                    </SectionCard> // Pegawai data (MySIMKARI)
+                                                    // Pegawai data (MySIMKARI)
+                                                    </SectionCard>
                                                     {a
                                                         .data_pegawai
                                                         .clone()
