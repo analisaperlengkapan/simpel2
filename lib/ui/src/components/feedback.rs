@@ -29,7 +29,7 @@ pub fn Toast(
                 ToastType::Warning => "border-yellow-500",
                 ToastType::Info => "border-blue-500",
             },
-            if show { "translate-x-0 opacity-100" } else { "translate-x-full opacity-0" }
+            if show { "translate-x-0 opacity-100" } else { "translate-x-full opacity-0" },
         )>
             <div class="flex items-start">
                 <div class="flex-shrink-0">
@@ -40,15 +40,11 @@ pub fn Toast(
                             ToastType::Error => "text-red-500",
                             ToastType::Warning => "text-yellow-500",
                             ToastType::Info => "text-blue-500",
-                        }
-                    )>
-                        {toast_type.icon()}
-                    </span>
+                        },
+                    )>{toast_type.icon()}</span>
                 </div>
                 <div class="ml-3 flex-1">
-                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {message}
-                    </p>
+                    <p class="text-sm font-medium text-gray-900 dark:text-gray-100">{message}</p>
                 </div>
                 <div class="ml-4 flex-shrink-0 flex">
                     <button
@@ -57,8 +53,17 @@ pub fn Toast(
                         on:click=handle_close
                     >
                         <span class="sr-only">"Close"</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        <svg
+                            class="h-5 w-5"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clip-rule="evenodd"
+                            />
                         </svg>
                     </button>
                 </div>
@@ -106,7 +111,7 @@ pub fn Modal(
     view! {
         <div class=format!(
             "fixed inset-0 z-modal overflow-y-auto transition-all duration-300 {}",
-            if show { "opacity-100 pointer-events-auto" } else { "opacity-0 pointer-events-none" }
+            if show { "opacity-100 pointer-events-auto" } else { "opacity-0 pointer-events-none" },
         )>
             // Backdrop
             <div
@@ -118,31 +123,43 @@ pub fn Modal(
             <div class="flex min-h-full items-center justify-center p-4">
                 <div class=format!(
                     "relative bg-white dark:bg-gray-800 rounded-lg shadow-xl transform transition-all w-full {}",
-                    width
+                    width,
                 )>
                     // Header
                     <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
                             {title}
                         </h3>
-                        {show_close.then(|| view! {
-                            <button
-                                type="button"
-                                class="text-gray-400 hover:text-gray-500 focus:outline-none"
-                                on:click=handle_close
-                            >
-                                <span class="sr-only">"Close"</span>
-                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                </svg>
-                            </button>
-                        })}
+                        {show_close
+                            .then(|| {
+                                view! {
+                                    <button
+                                        type="button"
+                                        class="text-gray-400 hover:text-gray-500 focus:outline-none"
+                                        on:click=handle_close
+                                    >
+                                        <span class="sr-only">"Close"</span>
+                                        <svg
+                                            class="h-6 w-6"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M6 18L18 6M6 6l12 12"
+                                            />
+                                        </svg>
+                                    </button>
+                                }
+                            })}
                     </div>
 
                     // Body
-                    <div class="p-6">
-                        {children()}
-                    </div>
+                    <div class="p-6">{children()}</div>
                 </div>
             </div>
         </div>
@@ -197,27 +214,37 @@ pub fn Alert(
             bg_class,
             text_class,
             border_class,
-            if show { "block" } else { "hidden" }
+            if show { "block" } else { "hidden" },
         )>
             <div class="flex">
                 <div class="flex-1">
-                    {title.map(|t| view! {
-                        <h3 class="text-sm font-medium mb-1">{t}</h3>
-                    })}
+                    {title.map(|t| view! { <h3 class="text-sm font-medium mb-1">{t}</h3> })}
                     <p class="text-sm">{message}</p>
                 </div>
-                {dismissible.then(|| view! {
-                    <button
-                        type="button"
-                        class="ml-3 inline-flex flex-shrink-0 focus:outline-none"
-                        on:click=handle_dismiss
-                    >
-                        <span class="sr-only">"Dismiss"</span>
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                        </svg>
-                    </button>
-                })}
+                {dismissible
+                    .then(|| {
+                        view! {
+                            <button
+                                type="button"
+                                class="ml-3 inline-flex flex-shrink-0 focus:outline-none"
+                                on:click=handle_dismiss
+                            >
+                                <span class="sr-only">"Dismiss"</span>
+                                <svg
+                                    class="h-5 w-5"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                            </button>
+                        }
+                    })}
             </div>
         </div>
     }
@@ -242,13 +269,30 @@ pub fn Loading(
 
     view! {
         <div class=format!("flex flex-col items-center justify-center {}", class)>
-            <svg class=format!("animate-spin {} text-emerald-600", size_class) xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+                class=format!("animate-spin {} text-emerald-600", size_class)
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+            >
+                <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                ></circle>
+                <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
             </svg>
-            {text.map(|t| view! {
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{t}</p>
-            })}
+            {text
+                .map(|t| {
+                    view! { <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{t}</p> }
+                })}
         </div>
     }
 }
@@ -268,15 +312,20 @@ pub fn ProgressBar(
     let percentage = ((value as f32 / max as f32) * 100.0).min(100.0);
 
     view! {
-        <div class=format!("w-full {}", class)>
-            {show_label.then(|| view! {
-                <div class="flex justify-between mb-1">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {format!("{}%", percentage as u32)}
-                    </span>
-                </div>
-            })}
-            <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
+        <div class=format!(
+            "w-full {}",
+            class,
+        )>
+            {show_label
+                .then(|| {
+                    view! {
+                        <div class="flex justify-between mb-1">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {format!("{}%", percentage as u32)}
+                            </span>
+                        </div>
+                    }
+                })} <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700">
                 <div
                     class="bg-emerald-600 h-2.5 rounded-full transition-all duration-300"
                     style=format!("width: {}%", percentage)
@@ -385,7 +434,7 @@ pub fn Notification(
                     ToastType::Warning => "border-yellow-500",
                     ToastType::Info => "border-blue-500",
                 },
-                if show { "translate-x-0 opacity-100" } else { "translate-x-full opacity-0" }
+                if show { "translate-x-0 opacity-100" } else { "translate-x-full opacity-0" },
             )
             role="alert"
             aria-live="polite"
@@ -399,20 +448,18 @@ pub fn Notification(
                             ToastType::Error => "text-red-500",
                             ToastType::Warning => "text-yellow-500",
                             ToastType::Info => "text-blue-500",
-                        }
-                    )>
-                        {notification_type.icon()}
-                    </span>
+                        },
+                    )>{notification_type.icon()}</span>
                 </div>
                 <div class="ml-3 flex-1">
-                    {title.map(|t| view! {
-                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                            {t}
-                        </h3>
-                    })}
-                    <p class="text-sm text-gray-700 dark:text-gray-300">
-                        {message}
-                    </p>
+                    {title
+                        .map(|t| {
+                            view! {
+                                <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                                    {t}
+                                </h3>
+                            }
+                        })} <p class="text-sm text-gray-700 dark:text-gray-300">{message}</p>
                 </div>
                 <div class="ml-4 flex-shrink-0 flex">
                     <button
@@ -421,8 +468,17 @@ pub fn Notification(
                         on:click=handle_close
                         aria-label="Close notification"
                     >
-                        <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        <svg
+                            class="h-5 w-5"
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clip-rule="evenodd"
+                            />
                         </svg>
                     </button>
                 </div>
@@ -459,8 +515,19 @@ pub fn Spinner(
             role="status"
             aria-label="Loading"
         >
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+            ></circle>
+            <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
         </svg>
     }
 }

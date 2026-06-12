@@ -60,34 +60,49 @@ pub fn AdminMasterDataPage() -> impl IntoView {
             breadcrumbs=breadcrumbs
         >
             {move || match selected.get() {
-                None => view! {
-                    <SectionCard title="Sumber Data" icon="fas fa-layer-group">
-                        {move || {
-                            if sources_loading.get() {
-                                view! { <LoadingState message="Memuat daftar sumber data..." /> }.into_any()
-                            } else if let Some(e) = sources_error.get() {
-                                let retry: Box<dyn Fn()> = Box::new(move || { set_reload_tick.update(|t| *t += 1); });
-                                view! { <ErrorState error=e on_retry=retry /> }.into_any()
-                            } else if sources.with(Vec::is_empty) {
-                                view! {
-                                    <EmptyState
-                                        title="Belum ada sumber master data"
-                                        description="Backend belum mendaftarkan sumber master data apapun."
-                                        icon="fas fa-inbox"
-                                    />
-                                }.into_any()
-                            } else {
-                                view! { <SourceGrid sources=sources set_selected=set_selected /> }.into_any()
-                            }
-                        }}
-                    </SectionCard>
-                }.into_any(),
-                Some(source) => view! {
-                    <SourceDetail
-                        source=source
-                        on_back=Callback::new(move |_| set_selected.set(None))
-                    />
-                }.into_any(),
+                None => {
+                    view! {
+                        <SectionCard title="Sumber Data" icon="fas fa-layer-group">
+                            {move || {
+                                if sources_loading.get() {
+                                    view! {
+                                        <LoadingState message="Memuat daftar sumber data..." />
+                                    }
+                                        .into_any()
+                                } else if let Some(e) = sources_error.get() {
+                                    let retry: Box<dyn Fn()> = Box::new(move || {
+                                        set_reload_tick.update(|t| *t += 1);
+                                    });
+                                    view! { <ErrorState error=e on_retry=retry /> }.into_any()
+                                } else if sources.with(Vec::is_empty) {
+                                    view! {
+                                        <EmptyState
+                                            title="Belum ada sumber master data"
+                                            description="Backend belum mendaftarkan sumber master data apapun."
+                                            icon="fas fa-inbox"
+                                        />
+                                    }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <SourceGrid sources=sources set_selected=set_selected />
+                                    }
+                                        .into_any()
+                                }
+                            }}
+                        </SectionCard>
+                    }
+                        .into_any()
+                }
+                Some(source) => {
+                    view! {
+                        <SourceDetail
+                            source=source
+                            on_back=Callback::new(move |_| set_selected.set(None))
+                        />
+                    }
+                        .into_any()
+                }
             }}
         </PageLayout>
     }
@@ -100,46 +115,61 @@ fn SourceGrid(
 ) -> impl IntoView {
     view! {
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {move || sources.get().into_iter().map(|source| {
-                let source_for_click = source.clone();
-                let icon_class = source.icon.clone().unwrap_or_else(|| "fas fa-table".to_string());
-                let updated = source.updated_at.clone().unwrap_or_else(|| "—".to_string());
-                view! {
-                    <button
-                        type="button"
-                        class="focus-ring group flex flex-col items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-left transition hover:border-gold-500/40 hover:bg-white/[0.04]"
-                        on:click=move |_| set_selected.set(Some(source_for_click.clone()))
-                    >
-                        <div class="flex w-full items-start justify-between gap-3">
-                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                                <AppIcon icon=icon_from_fa_class(&icon_class) size=18 />
-                            </span>
-                            <span class="rounded-lg border border-info-500/30 bg-info-500/10 px-2 py-0.5 text-[0.7rem] font-semibold text-info-300">
-                                {format!("{} record", source.record_count)}
-                            </span>
-                        </div>
-                        <div>
-                            <h3 class="text-base font-semibold text-white transition group-hover:text-gold-300">
-                                {source.label.clone()}
-                            </h3>
-                            <p class="mt-1 text-sm leading-relaxed text-slate-400">
-                                {source.description.clone()}
-                            </p>
-                        </div>
-                        <div class="mt-auto flex w-full items-center justify-between gap-2 text-[0.7rem] text-slate-500">
-                            <span>
-                                <span class="mr-1 text-[0.65rem]"><AppIcon icon=CLOCK /></span>
-                                "Diperbarui: "
-                                {updated}
-                            </span>
-                            <span class="font-semibold text-gold-400">
-                                "Kelola"
-                                <span class="ml-1 text-[0.65rem]"><AppIcon icon=ARROW_RIGHT /></span>
-                            </span>
-                        </div>
-                    </button>
-                }
-            }).collect::<Vec<_>>()}
+            {move || {
+                sources
+                    .get()
+                    .into_iter()
+                    .map(|source| {
+                        let source_for_click = source.clone();
+                        let icon_class = source
+                            .icon
+                            .clone()
+                            .unwrap_or_else(|| "fas fa-table".to_string());
+                        let updated = source
+                            .updated_at
+                            .clone()
+                            .unwrap_or_else(|| "—".to_string());
+                        view! {
+                            <button
+                                type="button"
+                                class="focus-ring group flex flex-col items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 text-left transition hover:border-gold-500/40 hover:bg-white/[0.04]"
+                                on:click=move |_| set_selected.set(Some(source_for_click.clone()))
+                            >
+                                <div class="flex w-full items-start justify-between gap-3">
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
+                                        <AppIcon icon=icon_from_fa_class(&icon_class) size=18 />
+                                    </span>
+                                    <span class="rounded-lg border border-info-500/30 bg-info-500/10 px-2 py-0.5 text-[0.7rem] font-semibold text-info-300">
+                                        {format!("{} record", source.record_count)}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h3 class="text-base font-semibold text-white transition group-hover:text-gold-300">
+                                        {source.label.clone()}
+                                    </h3>
+                                    <p class="mt-1 text-sm leading-relaxed text-slate-400">
+                                        {source.description.clone()}
+                                    </p>
+                                </div>
+                                <div class="mt-auto flex w-full items-center justify-between gap-2 text-[0.7rem] text-slate-500">
+                                    <span>
+                                        <span class="mr-1 text-[0.65rem]">
+                                            <AppIcon icon=CLOCK />
+                                        </span>
+                                        "Diperbarui: "
+                                        {updated}
+                                    </span>
+                                    <span class="font-semibold text-gold-400">
+                                        "Kelola" <span class="ml-1 text-[0.65rem]">
+                                            <AppIcon icon=ARROW_RIGHT />
+                                        </span>
+                                    </span>
+                                </div>
+                            </button>
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            }}
         </div>
     }
 }
@@ -228,24 +258,31 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
             title=label_for_header
             icon=source.icon.clone().unwrap_or_else(|| "fas fa-table".to_string())
             description=source.description.clone()
-            actions=Box::new(move || view! {
-                <button
-                    type="button"
-                    class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
-                    on:click=move |_| on_back.run(())
-                >
-                    <span class="mr-1.5"><AppIcon icon=ARROW_LEFT /></span>
-                    "Kembali"
-                </button>
-                <button
-                    type="button"
-                    class="focus-ring rounded-lg bg-gold-gradient px-3 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
-                    on:click=move |_| set_show_create.set(true)
-                >
-                    <span class="mr-1.5"><AppIcon icon=PLUS /></span>
-                    "Tambah"
-                </button>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <button
+                        type="button"
+                        class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm font-medium text-slate-200 transition hover:bg-white/[0.08]"
+                        on:click=move |_| on_back.run(())
+                    >
+                        <span class="mr-1.5">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
+                        "Kembali"
+                    </button>
+                    <button
+                        type="button"
+                        class="focus-ring rounded-lg bg-gold-gradient px-3 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
+                        on:click=move |_| set_show_create.set(true)
+                    >
+                        <span class="mr-1.5">
+                            <AppIcon icon=PLUS />
+                        </span>
+                        "Tambah"
+                    </button>
+                }
+                    .into_any()
+            })
         >
             <form class="mb-4 flex gap-2" on:submit=on_search_submit>
                 <input
@@ -263,20 +300,26 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                 </button>
             </form>
 
-            {move || action_msg.get().map(|(ok, msg)| {
-                let class = if ok {
-                    "rounded-xl border border-success-500/30 bg-success-500/10 p-3 text-xs text-success-400"
-                } else {
-                    "rounded-xl border border-danger-500/30 bg-danger-500/10 p-3 text-xs text-danger-400"
-                };
-                view! { <div class=class>{msg}</div> }
-            })}
+            {move || {
+                action_msg
+                    .get()
+                    .map(|(ok, msg)| {
+                        let class = if ok {
+                            "rounded-xl border border-success-500/30 bg-success-500/10 p-3 text-xs text-success-400"
+                        } else {
+                            "rounded-xl border border-danger-500/30 bg-danger-500/10 p-3 text-xs text-danger-400"
+                        };
+                        view! { <div class=class>{msg}</div> }
+                    })
+            }}
 
             {move || {
                 if loading.get() {
                     view! { <LoadingState message="Memuat record..." /> }.into_any()
                 } else if let Some(e) = error.get() {
-                    let retry: Box<dyn Fn()> = Box::new(move || { set_reload_tick.update(|t| *t += 1); });
+                    let retry: Box<dyn Fn()> = Box::new(move || {
+                        set_reload_tick.update(|t| *t += 1);
+                    });
                     view! { <ErrorState error=e on_retry=retry /> }.into_any()
                 } else if records.with(Vec::is_empty) {
                     view! {
@@ -285,7 +328,8 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                             description="Sumber master data ini belum memiliki record apapun."
                             icon="fas fa-inbox"
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <RecordTable
@@ -299,57 +343,72 @@ fn SourceDetail(source: MasterSource, #[prop(into)] on_back: Callback<()>) -> im
                             total_pages=Signal::derive(total_pages)
                             on_change=Box::new(refresh)
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
 
             {
                 let source_key_for_create = source_key_for_editor.clone();
-                move || show_create.get().then(|| {
-                    let source_key = source_key_for_create.clone();
-                    view! {
-                        <RecordEditorModal
-                            source_key=source_key
-                            record=None
-                            on_close=Callback::new(move |_| set_show_create.set(false))
-                            on_saved=Callback::new(move |_| {
-                                set_show_create.set(false);
-                                set_action_msg.set(Some((true, "Record berhasil disimpan.".to_string())));
-                                set_reload_tick.update(|t| *t += 1);
-                            })
-                        />
-                    }
-                })
+                move || {
+                    show_create
+                        .get()
+                        .then(|| {
+                            let source_key = source_key_for_create.clone();
+                            view! {
+                                <RecordEditorModal
+                                    source_key=source_key
+                                    record=None
+                                    on_close=Callback::new(move |_| set_show_create.set(false))
+                                    on_saved=Callback::new(move |_| {
+                                        set_show_create.set(false);
+                                        set_action_msg
+                                            .set(Some((true, "Record berhasil disimpan.".to_string())));
+                                        set_reload_tick.update(|t| *t += 1);
+                                    })
+                                />
+                            }
+                        })
+                }
             }
 
-            {move || editing.get().map(|rec| {
-                let source_key = source_key_for_editor.clone();
-                view! {
-                    <RecordEditorModal
-                        source_key=source_key
-                        record=Some(rec)
-                        on_close=Callback::new(move |_| set_editing.set(None))
-                        on_saved=Callback::new(move |_| {
-                            set_editing.set(None);
-                            set_action_msg.set(Some((true, "Record berhasil disimpan.".to_string())));
-                            set_reload_tick.update(|t| *t += 1);
-                        })
-                    />
-                }
-            })}
+            {move || {
+                editing
+                    .get()
+                    .map(|rec| {
+                        let source_key = source_key_for_editor.clone();
+                        view! {
+                            <RecordEditorModal
+                                source_key=source_key
+                                record=Some(rec)
+                                on_close=Callback::new(move |_| set_editing.set(None))
+                                on_saved=Callback::new(move |_| {
+                                    set_editing.set(None);
+                                    set_action_msg
+                                        .set(Some((true, "Record berhasil disimpan.".to_string())));
+                                    set_reload_tick.update(|t| *t += 1);
+                                })
+                            />
+                        }
+                    })
+            }}
 
-            {move || deleting.get().map(|rec| {
-                let rec_confirm = rec.clone();
-                let rec_for_label = rec.clone();
-                let cd = Arc::clone(&confirm_delete);
-                view! {
-                    <ConfirmDeleteModal
-                        record=rec_for_label
-                        on_close=Callback::new(move |_| set_deleting.set(None))
-                        on_confirm=Callback::new(move |_| cd(rec_confirm.clone()))
-                    />
-                }
-            })}
+            {move || {
+                deleting
+                    .get()
+                    .map(|rec| {
+                        let rec_confirm = rec.clone();
+                        let rec_for_label = rec.clone();
+                        let cd = Arc::clone(&confirm_delete);
+                        view! {
+                            <ConfirmDeleteModal
+                                record=rec_for_label
+                                on_close=Callback::new(move |_| set_deleting.set(None))
+                                on_confirm=Callback::new(move |_| cd(rec_confirm.clone()))
+                            />
+                        }
+                    })
+            }}
         </SectionCard>
     }
 }
@@ -365,63 +424,87 @@ fn RecordTable(
             <table class="min-w-full border-collapse">
                 <thead>
                     <tr class="bg-white/[0.02]">
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Kode"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Nama"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Deskripsi"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-center text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Aktif"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-right text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Aksi"</th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Kode"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Nama"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Deskripsi"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-center text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Aktif"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-right text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Aksi"
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {move || rows.get().into_iter().map(|rec| {
-                        let rec_edit = rec.clone();
-                        let rec_del = rec.clone();
-                        let code = rec.code.clone().unwrap_or_else(|| "—".to_string());
-                        let desc = rec.description.clone().unwrap_or_default();
-                        let active = rec.active;
-                        view! {
-                            <tr class="border-b border-white/[0.04] text-xs">
-                                <td class="px-3 py-2 font-mono text-slate-300">{code}</td>
-                                <td class="px-3 py-2 font-semibold text-white">{rec.name.clone()}</td>
-                                <td class="px-3 py-2 text-slate-400">{desc}</td>
-                                <td class="px-3 py-2 text-center">
-                                    {if active {
-                                        view! {
-                                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-success-500/30 bg-success-500/15 text-success-400">
-                                                <span class="text-[0.65rem]"><AppIcon icon=CHECK /></span>
-                                            </span>
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] text-slate-500">
-                                                <span class="text-[0.65rem]"><AppIcon icon=MINUS /></span>
-                                            </span>
-                                        }.into_any()
-                                    }}
-                                </td>
-                                <td class="px-3 py-2 text-right">
-                                    <div class="inline-flex gap-1">
-                                        <button
-                                            type="button"
-                                            class="focus-ring rounded-md border border-info-500/30 bg-info-500/10 px-2 py-1 text-[0.7rem] font-semibold text-info-300 transition hover:bg-info-500/20"
-                                            title="Edit"
-                                            on:click=move |_| set_editing.set(Some(rec_edit.clone()))
-                                        >
-                                            <AppIcon icon=PENCIL />
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="focus-ring rounded-md border border-danger-500/30 bg-danger-500/10 px-2 py-1 text-[0.7rem] font-semibold text-danger-400 transition hover:bg-danger-500/20"
-                                            title="Hapus"
-                                            on:click=move |_| set_deleting.set(Some(rec_del.clone()))
-                                        >
-                                            <AppIcon icon=TRASH />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    }).collect::<Vec<_>>()}
+                    {move || {
+                        rows
+                            .get()
+                            .into_iter()
+                            .map(|rec| {
+                                let rec_edit = rec.clone();
+                                let rec_del = rec.clone();
+                                let code = rec.code.clone().unwrap_or_else(|| "—".to_string());
+                                let desc = rec.description.clone().unwrap_or_default();
+                                let active = rec.active;
+                                view! {
+                                    <tr class="border-b border-white/[0.04] text-xs">
+                                        <td class="px-3 py-2 font-mono text-slate-300">{code}</td>
+                                        <td class="px-3 py-2 font-semibold text-white">
+                                            {rec.name.clone()}
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-400">{desc}</td>
+                                        <td class="px-3 py-2 text-center">
+                                            {if active {
+                                                view! {
+                                                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-success-500/30 bg-success-500/15 text-success-400">
+                                                        <span class="text-[0.65rem]">
+                                                            <AppIcon icon=CHECK />
+                                                        </span>
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] text-slate-500">
+                                                        <span class="text-[0.65rem]">
+                                                            <AppIcon icon=MINUS />
+                                                        </span>
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            }}
+                                        </td>
+                                        <td class="px-3 py-2 text-right">
+                                            <div class="inline-flex gap-1">
+                                                <button
+                                                    type="button"
+                                                    class="focus-ring rounded-md border border-info-500/30 bg-info-500/10 px-2 py-1 text-[0.7rem] font-semibold text-info-300 transition hover:bg-info-500/20"
+                                                    title="Edit"
+                                                    on:click=move |_| set_editing.set(Some(rec_edit.clone()))
+                                                >
+                                                    <AppIcon icon=PENCIL />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    class="focus-ring rounded-md border border-danger-500/30 bg-danger-500/10 px-2 py-1 text-[0.7rem] font-semibold text-danger-400 transition hover:bg-danger-500/20"
+                                                    title="Hapus"
+                                                    on:click=move |_| set_deleting.set(Some(rec_del.clone()))
+                                                >
+                                                    <AppIcon icon=TRASH />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    }}
                 </tbody>
             </table>
         </div>
@@ -460,8 +543,7 @@ fn PaginationRow(
     view! {
         <div class="mt-3 flex items-center justify-between text-xs text-slate-400">
             <div>
-                "Halaman " <strong class="text-white">{move || page.get()}</strong>
-                " dari "
+                "Halaman " <strong class="text-white">{move || page.get()}</strong> " dari "
                 <strong class="text-white">{move || total_pages.get()}</strong>
             </div>
             <div class="flex gap-2">
@@ -471,17 +553,23 @@ fn PaginationRow(
                     prop:disabled=move || page.get() <= 1
                     on:click=prev_handler
                 >
-                    <span class="mr-1"><AppIcon icon=CARET_LEFT /></span>
+                    <span class="mr-1">
+                        <AppIcon icon=CARET_LEFT />
+                    </span>
                     "Sebelumnya"
                 </button>
                 <button
                     type="button"
                     class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || page.get() >= total_pages.get()
-                    on:click=next_handler
+                    prop:disabled=move || page.get()
                 >
+                    = total_pages.get()
+                    on:click=next_handler
+                    >
                     "Berikutnya"
-                    <span class="ml-1"><AppIcon icon=CARET_RIGHT /></span>
+                    <span class="ml-1">
+                        <AppIcon icon=CARET_RIGHT />
+                    </span>
                 </button>
             </div>
         </div>
@@ -578,16 +666,25 @@ fn RecordEditorModal(
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-6">
-                    {move || error.get().map(|msg| view! {
-                        <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                            <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
-                            <div class="text-xs text-danger-100">{msg}</div>
-                        </div>
-                    })}
-
+                    {move || {
+                        error
+                            .get()
+                            .map(|msg| {
+                                view! {
+                                    <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
+                                        <span class="mt-0.5 text-danger-400">
+                                            <AppIcon icon=WARNING />
+                                        </span>
+                                        <div class="text-xs text-danger-100">{msg}</div>
+                                    </div>
+                                }
+                            })
+                    }}
                     <div class="flex flex-col gap-4">
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"Kode"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "Kode"
+                            </label>
                             <input
                                 type="text"
                                 prop:value=move || code.get()
@@ -598,8 +695,7 @@ fn RecordEditorModal(
                         </div>
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
-                                "Nama "
-                                <span class="text-danger-400">"*"</span>
+                                "Nama " <span class="text-danger-400">"*"</span>
                             </label>
                             <input
                                 type="text"
@@ -611,7 +707,9 @@ fn RecordEditorModal(
                             />
                         </div>
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"Deskripsi"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "Deskripsi"
+                            </label>
                             <textarea
                                 rows="3"
                                 prop:value=move || description.get()
@@ -679,12 +777,13 @@ fn ConfirmDeleteModal(
             <div class="w-full max-w-md rounded-2xl border border-white/[0.08] bg-surface-panel p-6 shadow-panel">
                 <div class="mb-5 flex flex-col items-center text-center">
                     <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-full border-2 border-danger-500/30 bg-danger-500/10 text-danger-400">
-                        <span class="text-xl"><AppIcon icon=WARNING /></span>
+                        <span class="text-xl">
+                            <AppIcon icon=WARNING />
+                        </span>
                     </div>
                     <h2 class="text-lg font-bold text-white">"Hapus Record?"</h2>
                     <p class="mt-2 text-sm text-slate-400">
-                        "Anda yakin ingin menghapus "
-                        <strong class="text-white">{name}</strong>
+                        "Anda yakin ingin menghapus " <strong class="text-white">{name}</strong>
                         "? Tindakan ini tidak dapat dibatalkan."
                     </p>
                 </div>

@@ -25,11 +25,12 @@ pub fn LoginPage() -> impl IntoView {
 
                 <div style="margin-bottom: 1.15rem; text-align: center;">
                     <h1 style="font-size: clamp(1.65rem, 3.6vw, 2.35rem); line-height: 1.16; font-weight: 800; color: #f8fafc; margin: 0;">
-                        "Sistem Informasi"
-                        <br />
+                        "Sistem Informasi" <br />
                         <span style="color: #d4a843;">"Manajemen Perlengkapan"</span>
                     </h1>
-                    <p style="margin: 0.58rem 0 0 0; font-size: 1rem; font-weight: 600; letter-spacing: 0.02em; color: #cbd5e1;">"Kejaksaan Republik Indonesia"</p>
+                    <p style="margin: 0.58rem 0 0 0; font-size: 1rem; font-weight: 600; letter-spacing: 0.02em; color: #cbd5e1;">
+                        "Kejaksaan Republik Indonesia"
+                    </p>
                 </div>
 
                 <div style="height: 1px; width: 100%; background: linear-gradient(90deg, transparent 0%, rgba(51,65,85,0.72) 12%, rgba(71,85,105,0.74) 50%, rgba(51,65,85,0.72) 88%, transparent 100%);"></div>
@@ -53,7 +54,9 @@ pub fn LoginPage() -> impl IntoView {
                             let _ = target.style().set_property("filter", "brightness(1)");
                         }
                     >
-                        <span style="font-size: 0.95rem;"><AppIcon icon=SIGN_IN /></span>
+                        <span style="font-size: 0.95rem;">
+                            <AppIcon icon=SIGN_IN />
+                        </span>
                         "Masuk via Portal"
                     </a>
                 </div>

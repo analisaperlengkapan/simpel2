@@ -68,26 +68,36 @@ pub fn PanduanPengguna() -> impl IntoView {
             description="Dokumentasi penggunaan SIMPEL — Sistem Informasi Manajemen Perlengkapan"
         >
             <div class="flex flex-col gap-4">
-                {guides.into_iter().map(|(title, icon, desc, steps)| {
-                    view! {
-                        <SectionCard title=title.to_string()>
-                            <div class="flex items-start gap-3 mb-3">
-                                <span class="text-gold-400 inline-flex">
-                                    <AppIcon icon=icon_from_fa_class(icon) size=14 />
-                                </span>
-                                <p class="text-sm leading-relaxed text-slate-400">{desc}</p>
-                            </div>
-                            <ul class="flex flex-col gap-1.5">
-                                {steps.into_iter().map(|step| view! {
-                                    <li class="flex items-start gap-2 text-sm text-slate-200">
-                                        <span class="text-success-400 text-2xs mt-1 shrink-0"><AppIcon icon=CHECK /></span>
-                                        <span>{step}</span>
-                                    </li>
-                                }).collect_view()}
-                            </ul>
-                        </SectionCard>
-                    }
-                }).collect_view()}
+                {guides
+                    .into_iter()
+                    .map(|(title, icon, desc, steps)| {
+                        view! {
+                            <SectionCard title=title.to_string()>
+                                <div class="flex items-start gap-3 mb-3">
+                                    <span class="text-gold-400 inline-flex">
+                                        <AppIcon icon=icon_from_fa_class(icon) size=14 />
+                                    </span>
+                                    <p class="text-sm leading-relaxed text-slate-400">{desc}</p>
+                                </div>
+                                <ul class="flex flex-col gap-1.5">
+                                    {steps
+                                        .into_iter()
+                                        .map(|step| {
+                                            view! {
+                                                <li class="flex items-start gap-2 text-sm text-slate-200">
+                                                    <span class="text-success-400 text-2xs mt-1 shrink-0">
+                                                        <AppIcon icon=CHECK />
+                                                    </span>
+                                                    <span>{step}</span>
+                                                </li>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </ul>
+                            </SectionCard>
+                        }
+                    })
+                    .collect_view()}
             </div>
         </PageLayout>
     }

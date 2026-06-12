@@ -204,15 +204,20 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
             description="Kelola permohonan dan siklus hidup izin pemakaian BMN."
             icon="fas fa-handshake"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::PENGELOLAAN_PEMAKAIAN_BUAT
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=PLUS /></span>
-                    "Ajukan Izin Baru"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::PENGELOLAAN_PEMAKAIAN_BUAT
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=PLUS />
+                        </span>
+                        "Ajukan Izin Baru"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             <SectionCard
                 title="Filter Lifecycle"
@@ -220,27 +225,36 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                 icon="fas fa-filter"
             >
                 <div class="flex flex-wrap gap-2">
-                    {LifecycleFilter::all().iter().copied().map(|f| {
-                        let is_active = move || lifecycle.get() == f;
-                        view! {
-                            <button
-                                type="button"
-                                on:click=move |_| on_lifecycle(f)
-                                class=move || {
-                                    let base = "focus-ring inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition";
-                                    if is_active() {
-                                        format!("{base} bg-gold-gradient text-navy-950 shadow-sm")
-                                    } else {
-                                        format!("{base} border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]")
+                    {LifecycleFilter::all()
+                        .iter()
+                        .copied()
+                        .map(|f| {
+                            let is_active = move || lifecycle.get() == f;
+                            view! {
+                                <button
+                                    type="button"
+                                    on:click=move |_| on_lifecycle(f)
+                                    class=move || {
+                                        let base = "focus-ring inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition";
+                                        if is_active() {
+                                            format!("{base} bg-gold-gradient text-navy-950 shadow-sm")
+                                        } else {
+                                            format!(
+                                                "{base} border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]",
+                                            )
+                                        }
                                     }
-                                }
-                            >
-                                {f.label()}
-                            </button>
-                        }
-                    }).collect_view()}
+                                >
+                                    {f.label()}
+                                </button>
+                            }
+                        })
+                        .collect_view()}
                 </div>
-                <form class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]" on:submit=on_search_submit>
+                <form
+                    class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]"
+                    on:submit=on_search_submit
+                >
                     <input
                         type="text"
                         placeholder="Cari nomor izin, pemohon, NUP, BMN..."
@@ -264,7 +278,9 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                         >
-                            <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
+                            <span class="text-xs">
+                                <AppIcon icon=MAGNIFYING_GLASS />
+                            </span>
                             "Cari"
                         </button>
                         <button
@@ -272,7 +288,9 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                             on:click=reset_filters
                             class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
                         >
-                            <span class="text-xs"><AppIcon icon=ARROW_COUNTER_CLOCKWISE /></span>
+                            <span class="text-xs">
+                                <AppIcon icon=ARROW_COUNTER_CLOCKWISE />
+                            </span>
                             "Reset"
                         </button>
                     </div>
@@ -285,7 +303,10 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                 icon="fas fa-list"
             >
                 <p class="mb-3 text-xs text-slate-400">
-                    "Total: " <span class="font-semibold text-slate-200">{move || total.get().to_string()}</span> " izin"
+                    "Total: "
+                    <span class="font-semibold text-slate-200">
+                        {move || total.get().to_string()}
+                    </span> " izin"
                 </p>
                 {move || {
                     if loading.get() && items.get().is_empty() {
@@ -294,9 +315,12 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                         view! {
                             <ErrorState
                                 error=err
-                                on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                                on_retry=Box::new(move || {
+                                    set_reload_tick.update(|t| *t += 1);
+                                })
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else if items.get().is_empty() {
                         view! {
                             <EmptyState
@@ -304,7 +328,8 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                                 description="Ubah filter lifecycle atau kata kunci untuk menemukan izin."
                                 icon="fas fa-clipboard"
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         render_table(items.get()).into_any()
                     }
@@ -312,8 +337,13 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
 
                 <div class="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 text-xs text-slate-400">
                     <span>
-                        "Halaman " <span class="font-semibold text-slate-200">{move || page.get().to_string()}</span>
-                        " dari " <span class="font-semibold text-slate-200">{move || total_pages.get().max(1).to_string()}</span>
+                        "Halaman "
+                        <span class="font-semibold text-slate-200">
+                            {move || page.get().to_string()}
+                        </span> " dari "
+                        <span class="font-semibold text-slate-200">
+                            {move || total_pages.get().max(1).to_string()}
+                        </span>
                     </span>
                     <div class="flex gap-2">
                         <button
@@ -322,17 +352,20 @@ pub fn PemakaianBmnListPage() -> impl IntoView {
                             disabled=move || page.get() <= 1
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
-                            <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=CARET_LEFT />
+                            </span>
                             "Sebelumnya"
                         </button>
-                        <button
-                            type="button"
-                            on:click=next_page
-                            disabled=move || page.get() >= total_pages.get()
-                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        >
+                        <button type="button" on:click=next_page disabled=move || page.get()>
+                            = total_pages.get()
+                            class=
+                            "focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
+                            >
                             "Berikutnya"
-                            <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=CARET_RIGHT />
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -371,20 +404,26 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
                     <td class="py-3 pr-3">
                         <span class=format!(
                             "inline-flex rounded-full px-2.5 py-0.5 text-[0.65rem] font-semibold ring-1 {}",
-                            status_tone
-                        )>
-                            {status_label}
-                        </span>
-                        {countdown.map(|(text, tone)| view! {
-                            <p class=format!("mt-1 text-[0.65rem] font-medium {}", tone)>{text}</p>
-                        })}
+                            status_tone,
+                        )>{status_label}</span>
+                        {countdown
+                            .map(|(text, tone)| {
+                                view! {
+                                    <p class=format!(
+                                        "mt-1 text-[0.65rem] font-medium {}",
+                                        tone,
+                                    )>{text}</p>
+                                }
+                            })}
                     </td>
                     <td class="py-3 text-right">
                         <A
                             href=id_href
                             attr:class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-slate-100 transition hover:bg-white/[0.08]"
                         >
-                            <span class="text-[0.6rem]"><AppIcon icon=EYE /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=EYE />
+                            </span>
                             "Detail"
                         </A>
                     </td>

@@ -65,9 +65,7 @@ pub fn RouteSuspense(
 
     view! {
         <ErrorBoundary fallback=fallback>
-            <Suspense fallback=suspense_fallback>
-                {children()}
-            </Suspense>
+            <Suspense fallback=suspense_fallback>{children()}</Suspense>
         </ErrorBoundary>
     }
 }

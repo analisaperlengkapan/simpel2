@@ -126,23 +126,31 @@ pub fn PenghapusanForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 // -- Identifikasi BMN --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">"Identifikasi BMN"</h3>
+                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">
+                    "Identifikasi BMN"
+                </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="satker_id">"Satuan Kerja (Satker ID)"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="satker_id">
+                            "Satuan Kerja (Satker ID)"
+                        </label>
                         <input
                             id="satker_id"
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="ID Satuan Kerja"
                             prop:value=move || form.get().satker_id.clone()
-                            on:input=move |ev| form.update(|f| f.satker_id = event_target_value(&ev))
+                            on:input=move |ev| {
+                                form.update(|f| f.satker_id = event_target_value(&ev))
+                            }
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">"Asset ID (UUID)"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">
+                            "Asset ID (UUID)"
+                        </label>
                         <input
                             id="asset_id"
                             type="text"
@@ -157,31 +165,47 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="kode_barang">"Kode Barang"</label>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1"
+                            for="kode_barang"
+                        >
+                            "Kode Barang"
+                        </label>
                         <input
                             id="kode_barang"
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Kode barang BMN"
                             prop:value=move || form.get().kode_barang.clone()
-                            on:input=move |ev| form.update(|f| f.kode_barang = event_target_value(&ev))
+                            on:input=move |ev| {
+                                form.update(|f| f.kode_barang = event_target_value(&ev))
+                            }
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="nama_barang">"Nama Barang"</label>
+                        <label
+                            class="block text-sm font-medium text-gray-700 mb-1"
+                            for="nama_barang"
+                        >
+                            "Nama Barang"
+                        </label>
                         <input
                             id="nama_barang"
                             type="text"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             placeholder="Nama barang BMN"
                             prop:value=move || form.get().nama_barang.clone()
-                            on:input=move |ev| form.update(|f| f.nama_barang = event_target_value(&ev))
+                            on:input=move |ev| {
+                                form.update(|f| f.nama_barang = event_target_value(&ev))
+                            }
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="nup">"NUP"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="nup">
+                            "NUP"
+                        </label>
                         <input
                             id="nup"
                             type="text"
@@ -197,7 +221,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 // -- Item BMN tambahan (Fase 2.8, multi-item) --
                 <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-gray-700">"Item BMN Tambahan (opsional)"</h4>
+                        <h4 class="text-sm font-semibold text-gray-700">
+                            "Item BMN Tambahan (opsional)"
+                        </h4>
                         <button
                             type="button"
                             class="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
@@ -212,57 +238,112 @@ pub fn PenghapusanForm() -> impl IntoView {
                     {move || {
                         let rows = extras.get();
                         if rows.is_empty() {
-                            view! { <p class="text-xs text-gray-400 italic">"Belum ada item tambahan."</p> }.into_any()
+                            view! {
+                                <p class="text-xs text-gray-400 italic">
+                                    "Belum ada item tambahan."
+                                </p>
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <div class="space-y-2">
-                                    {rows.into_iter().enumerate().map(|(i, item)| view! {
-                                        <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-                                            <input
-                                                type="text" placeholder="Kode Barang"
-                                                class="md:col-span-3 px-3 py-1.5 border rounded text-sm"
-                                                prop:value=item.kode_barang.clone()
-                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.kode_barang = event_target_value(&ev); } })
-                                            />
-                                            <input
-                                                type="text" placeholder="Nama Barang"
-                                                class="md:col-span-4 px-3 py-1.5 border rounded text-sm"
-                                                prop:value=item.nama_barang.clone()
-                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nama_barang = event_target_value(&ev); } })
-                                            />
-                                            <input
-                                                type="text" placeholder="NUP"
-                                                class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                                prop:value=item.nup.clone()
-                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nup = event_target_value(&ev); } })
-                                            />
-                                            <input
-                                                type="number" placeholder="Nilai"
-                                                class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
-                                                prop:value=item.nilai_perolehan.clone()
-                                                on:input=move |ev| extras.update(|v| { if let Some(r) = v.get_mut(i) { r.nilai_perolehan = event_target_value(&ev); } })
-                                            />
-                                            <button
-                                                type="button"
-                                                class="md:col-span-1 rounded bg-red-100 px-2 py-1.5 text-xs text-red-700 hover:bg-red-200"
-                                                on:click=move |_| extras.update(|v| { if i < v.len() { v.remove(i); } })
-                                            >
-                                                "Hapus"
-                                            </button>
-                                        </div>
-                                    }).collect_view()}
+                                    {rows
+                                        .into_iter()
+                                        .enumerate()
+                                        .map(|(i, item)| {
+                                            view! {
+                                                <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Kode Barang"
+                                                        class="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                                                        prop:value=item.kode_barang.clone()
+                                                        on:input=move |ev| {
+                                                            extras
+                                                                .update(|v| {
+                                                                    if let Some(r) = v.get_mut(i) {
+                                                                        r.kode_barang = event_target_value(&ev);
+                                                                    }
+                                                                })
+                                                        }
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Nama Barang"
+                                                        class="md:col-span-4 px-3 py-1.5 border rounded text-sm"
+                                                        prop:value=item.nama_barang.clone()
+                                                        on:input=move |ev| {
+                                                            extras
+                                                                .update(|v| {
+                                                                    if let Some(r) = v.get_mut(i) {
+                                                                        r.nama_barang = event_target_value(&ev);
+                                                                    }
+                                                                })
+                                                        }
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="NUP"
+                                                        class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                        prop:value=item.nup.clone()
+                                                        on:input=move |ev| {
+                                                            extras
+                                                                .update(|v| {
+                                                                    if let Some(r) = v.get_mut(i) {
+                                                                        r.nup = event_target_value(&ev);
+                                                                    }
+                                                                })
+                                                        }
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Nilai"
+                                                        class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                        prop:value=item.nilai_perolehan.clone()
+                                                        on:input=move |ev| {
+                                                            extras
+                                                                .update(|v| {
+                                                                    if let Some(r) = v.get_mut(i) {
+                                                                        r.nilai_perolehan = event_target_value(&ev);
+                                                                    }
+                                                                })
+                                                        }
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        class="md:col-span-1 rounded bg-red-100 px-2 py-1.5 text-xs text-red-700 hover:bg-red-200"
+                                                        on:click=move |_| {
+                                                            extras
+                                                                .update(|v| {
+                                                                    if i < v.len() {
+                                                                        v.remove(i);
+                                                                    }
+                                                                })
+                                                        }
+                                                    >
+                                                        "Hapus"
+                                                    </button>
+                                                </div>
+                                            }
+                                        })
+                                        .collect_view()}
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
 
                 // -- Detail Penghapusan --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">"Detail Penghapusan"</h3>
+                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">
+                    "Detail Penghapusan"
+                </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">"Tanggal Penghapusan"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">
+                            "Tanggal Penghapusan"
+                        </label>
                         <input
                             id="tanggal"
                             type="date"
@@ -273,7 +354,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="metode">"Metode Penghapusan"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="metode">
+                            "Metode Penghapusan"
+                        </label>
                         <select
                             id="metode"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -291,7 +374,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="alasan">"Alasan Penghapusan"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="alasan">
+                        "Alasan Penghapusan"
+                    </label>
                     <textarea
                         id="alasan"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -304,7 +389,12 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="nilai_perolehan">"Nilai Perolehan (Rp)"</label>
+                    <label
+                        class="block text-sm font-medium text-gray-700 mb-1"
+                        for="nilai_perolehan"
+                    >
+                        "Nilai Perolehan (Rp)"
+                    </label>
                     <input
                         id="nilai_perolehan"
                         type="number"
@@ -320,31 +410,43 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 // -- Lampiran & Catatan --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">"Lampiran & Catatan"</h3>
+                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">
+                    "Lampiran & Catatan"
+                </h3>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="lampiran">"Lampiran Persyaratan (URL)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="lampiran">
+                        "Lampiran Persyaratan (URL)"
+                    </label>
                     <input
                         id="lampiran"
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         placeholder="URL dokumen persyaratan penghapusan"
                         prop:value=move || form.get().lampiran_persyaratan.clone()
-                        on:input=move |ev| form.update(|f| f.lampiran_persyaratan = event_target_value(&ev))
+                        on:input=move |ev| {
+                            form.update(|f| f.lampiran_persyaratan = event_target_value(&ev))
+                        }
                         required
                     />
-                    <p class="text-xs text-gray-500 mt-1">"Upload dokumen persyaratan terlebih dahulu, kemudian tempel URL-nya di sini."</p>
+                    <p class="text-xs text-gray-500 mt-1">
+                        "Upload dokumen persyaratan terlebih dahulu, kemudian tempel URL-nya di sini."
+                    </p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="catatan">"Catatan Operator"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for="catatan">
+                        "Catatan Operator"
+                    </label>
                     <textarea
                         id="catatan"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         rows="2"
                         placeholder="Catatan tambahan (opsional)"
                         prop:value=move || form.get().catatan_operator.clone()
-                        on:input=move |ev| form.update(|f| f.catatan_operator = event_target_value(&ev))
+                        on:input=move |ev| {
+                            form.update(|f| f.catatan_operator = event_target_value(&ev))
+                        }
                     ></textarea>
                 </div>
 
@@ -360,8 +462,13 @@ pub fn PenghapusanForm() -> impl IntoView {
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         prop:disabled=move || form.submitting.get()
                     >
-                        <Show when=move || form.submitting.get() fallback=|| view! { <AppIcon icon=FLOPPY_DISK /> }>
-                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
+                        <Show
+                            when=move || form.submitting.get()
+                            fallback=|| view! { <AppIcon icon=FLOPPY_DISK /> }
+                        >
+                            <span class="fa-spin">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                         "Simpan Draft"
                     </button>

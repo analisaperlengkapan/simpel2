@@ -105,8 +105,16 @@ pub fn MfaVerificationPage() -> impl IntoView {
                     <Show when=move || is_locked.get()>
                         <div class="text-center p-4">
                             <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
-                                <svg class="w-8 h-8 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                                <svg
+                                    class="w-8 h-8 text-red-600"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                        clip-rule="evenodd"
+                                    />
                                 </svg>
                             </div>
                             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">
@@ -158,20 +166,38 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     on_change=set_otp_code
                                     disabled=is_loading.get()
                                     loading=is_loading.get()
-                                    hint="Enter the 6-digit code from your authenticator app".to_string()
-                                    error=if error_message.get().is_empty() { String::new() } else { error_message.get() }
+                                    hint="Enter the 6-digit code from your authenticator app"
+                                        .to_string()
+                                    error=if error_message.get().is_empty() {
+                                        String::new()
+                                    } else {
+                                        error_message.get()
+                                    }
                                 />
                             </div>
 
                             // Attempts remaining
-                            <Show when=move || { let attempts = attempts_remaining.get(); attempts < 3 && attempts > 0 }>
+                            <Show when=move || {
+                                let attempts = attempts_remaining.get();
+                                attempts < 3 && attempts > 0
+                            }>
                                 <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                                     <div class="flex items-center">
-                                        <svg class="w-5 h-5 text-yellow-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        <svg
+                                            class="w-5 h-5 text-yellow-600 mr-2"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                clip-rule="evenodd"
+                                            />
                                         </svg>
                                         <span class="text-sm text-yellow-800 dark:text-yellow-300">
-                                            {move || format!("{} attempts remaining", attempts_remaining.get())}
+                                            {move || {
+                                                format!("{} attempts remaining", attempts_remaining.get())
+                                            }}
                                         </span>
                                     </div>
                                 </div>
@@ -191,66 +217,50 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     move |_| {
                                         let code = otp_code.get();
                                         if code.len() != 6 {
-                                            set_error_message.set("Please enter a 6-digit code".to_string());
+                                            set_error_message
+                                                .set("Please enter a 6-digit code".to_string());
                                             return;
                                         }
-
-                                        // Check if temp_token is available
                                         let temp_token = match temp_token_value.get() {
                                             Some(token) => token,
                                             None => {
-                                                set_error_message.set("No authentication token found. Please log in again.".to_string());
+                                                set_error_message
+                                                    .set(
+                                                        "No authentication token found. Please log in again."
+                                                            .to_string(),
+                                                    );
                                                 return;
                                             }
                                         };
-
                                         set_is_loading.set(true);
                                         set_error_message.set(String::new());
-
                                         let nav = navigate.clone();
                                         let is_mounted = is_mounted.clone();
                                         let set_user_session = set_user_session;
                                         spawn_local(async move {
                                             match verify_mfa_code(&temp_token, &code).await {
                                                 Ok(response) => {
-                                                    // Store access token and upgrade session
                                                     #[cfg(target_arch = "wasm32")]
                                                     {
                                                         use crate::features::auth::AuthService;
-
-                                                        // Save the access token
                                                         AuthService::save_token(&response.data.access_token);
-
-                                                        // Decode JWT and create session
-                                                        match AuthService::decode_jwt_claims(&response.data.access_token) {
+                                                        match AuthService::decode_jwt_claims(
+                                                            &response.data.access_token,
+                                                        ) {
                                                             Ok(mut session) => {
-                                                                // Mark MFA as enabled in session
                                                                 session.mfa_enabled = true;
                                                                 session.mfa_setup_required = false;
                                                                 session.access_token = Some(response.data.access_token);
-
-                                                                // Save session
                                                                 AuthService::save_session(&session);
                                                                 crate::utils::app_state::app_state_login(session.clone());
-
-                                                                // Update the reactive user_session signal so route
-                                                                // guards see the authenticated session immediately.
                                                                 if let Some(setter) = set_user_session {
                                                                     setter.set(Some(session.clone()));
                                                                 }
-
-                                                                // Clear temp token
                                                                 AuthService::clear_temp_token();
-
-                                                                // Navigate directly to password-change page when
-                                                                // required, avoiding a double redirect via the
-                                                                // dashboard route guard.
                                                                 if is_mounted.load(Ordering::SeqCst) {
                                                                     if session.require_password_change {
                                                                         nav("/password", Default::default());
-                                                                    } else if let Some(target) =
-                                                                        AuthService::take_post_login_redirect()
-                                                                    {
+                                                                    } else if let Some(target) = AuthService::take_post_login_redirect() {
                                                                         if let Some(window) = web_sys::window() {
                                                                             let _ = window.location().set_href(&target);
                                                                         }
@@ -260,32 +270,32 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                                                 }
                                                             }
                                                             Err(e) => {
-                                                                set_error_message.set(format!("Failed to decode token: {}", e));
+                                                                set_error_message
+                                                                    .set(format!("Failed to decode token: {}", e));
                                                                 set_is_loading.set(false);
                                                             }
                                                         }
                                                     }
-
                                                     #[cfg(not(target_arch = "wasm32"))]
                                                     {
                                                         let _ = (response, nav, is_mounted, set_user_session);
-                                                        set_error_message.set("Session management not available in non-WASM environment".to_string());
+                                                        set_error_message
+                                                            .set(
+                                                                "Session management not available in non-WASM environment"
+                                                                    .to_string(),
+                                                            );
                                                         set_is_loading.set(false);
                                                     }
                                                 }
                                                 Err(e) => {
-                                                    set_error_message.set(format!("Verification failed: {}", e));
+                                                    set_error_message
+                                                        .set(format!("Verification failed: {}", e));
                                                     set_is_loading.set(false);
-
-                                                    // Decrease attempts
                                                     let remaining = attempts_remaining.get() - 1;
                                                     set_attempts_remaining.set(remaining);
-
                                                     if remaining == 0 {
                                                         set_is_locked.set(true);
                                                     }
-
-                                                    // Clear the code for retry
                                                     set_otp_code.set(String::new());
                                                 }
                                             }
@@ -293,16 +303,35 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                     }
                                 }
                             >
-                                {move || if is_loading.get() {
-                                    view! {
-                                        <svg class="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        "Verifying..."
-                                    }.into_any()
-                                } else {
-                                    view! { "Verify & Continue" }.into_any()
+                                {move || {
+                                    if is_loading.get() {
+                                        view! {
+                                            <svg
+                                                class="animate-spin -ml-1 mr-2 h-5 w-5"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    class="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    stroke-width="4"
+                                                ></circle>
+                                                <path
+                                                    class="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
+                                            </svg>
+                                            "Verifying..."
+                                        }
+                                            .into_any()
+                                    } else {
+                                        view! { "Verify & Continue" }.into_any()
+                                    }
                                 }}
                             </button>
 
@@ -313,7 +342,9 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                         <div class="w-full border-t border-gray-300 dark:border-gray-600"></div>
                                     </div>
                                     <div class="relative flex justify-center text-sm">
-                                        <span class="px-2 bg-white dark:bg-gray-800 text-gray-500">"Having trouble?"</span>
+                                        <span class="px-2 bg-white dark:bg-gray-800 text-gray-500">
+                                            "Having trouble?"
+                                        </span>
                                     </div>
                                 </div>
 
@@ -328,8 +359,18 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                             }
                                         }
                                     >
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"/>
+                                        <svg
+                                            class="w-4 h-4 mr-2"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1721 9z"
+                                            />
                                         </svg>
                                         "Use backup code"
                                     </button>
@@ -343,8 +384,18 @@ pub fn MfaVerificationPage() -> impl IntoView {
                                             }
                                         }
                                     >
-                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                                        <svg
+                                            class="w-4 h-4 mr-2"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                                            />
                                         </svg>
                                         "Back to login"
                                     </button>

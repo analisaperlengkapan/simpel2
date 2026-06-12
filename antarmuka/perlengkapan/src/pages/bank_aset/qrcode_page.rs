@@ -176,15 +176,20 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
             description="Pilih aset, tentukan ukuran label, lalu cetak batch untuk penandaan fisik BMN."
             icon="fas fa-qrcode"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::BANK_ASET_DAFTAR
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
-                    "Kembali"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::BANK_ASET_DAFTAR
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
+                        "Kembali"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             <SectionCard
                 title="Konfigurasi"
@@ -224,7 +229,9 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         type="submit"
                         class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     >
-                        <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
+                        <span class="text-xs">
+                            <AppIcon icon=MAGNIFYING_GLASS />
+                        </span>
                         "Cari"
                     </button>
                 </form>
@@ -234,36 +241,45 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                 title="Pilih Aset"
                 description="Centang aset yang ingin dicetak. Gunakan tombol bulk untuk mempercepat."
                 icon="fas fa-list-check"
-                actions=Box::new(move || view! {
-                    <span class="text-xs font-semibold text-slate-300">
-                        {move || format!("{} terpilih", selected.get().len())}
-                    </span>
-                    <button
-                        type="button"
-                        on:click=select_all
-                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
-                    >
-                        <span class="text-[0.6rem]"><AppIcon icon=CHECKS /></span>
-                        "Pilih semua"
-                    </button>
-                    <button
-                        type="button"
-                        on:click=clear_all
-                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
-                    >
-                        <span class="text-[0.6rem]"><AppIcon icon=ERASER /></span>
-                        "Bersihkan"
-                    </button>
-                    <button
-                        type="button"
-                        on:click=open_preview
-                        disabled=move || selected.get().is_empty()
-                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
-                    >
-                        <span class="text-[0.6rem]"><AppIcon icon=PRINTER /></span>
-                        "Pratinjau & Cetak"
-                    </button>
-                }.into_any())
+                actions=Box::new(move || {
+                    view! {
+                        <span class="text-xs font-semibold text-slate-300">
+                            {move || format!("{} terpilih", selected.get().len())}
+                        </span>
+                        <button
+                            type="button"
+                            on:click=select_all
+                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                        >
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=CHECKS />
+                            </span>
+                            "Pilih semua"
+                        </button>
+                        <button
+                            type="button"
+                            on:click=clear_all
+                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
+                        >
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=ERASER />
+                            </span>
+                            "Bersihkan"
+                        </button>
+                        <button
+                            type="button"
+                            on:click=open_preview
+                            disabled=move || selected.get().is_empty()
+                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                        >
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=PRINTER />
+                            </span>
+                            "Pratinjau & Cetak"
+                        </button>
+                    }
+                        .into_any()
+                })
             >
                 {move || {
                     if loading.get() && items.get().is_empty() {
@@ -272,9 +288,12 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                         view! {
                             <ErrorState
                                 error=err
-                                on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                                on_retry=Box::new(move || {
+                                    set_reload_tick.update(|t| *t += 1);
+                                })
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else if items.get().is_empty() {
                         view! {
                             <EmptyState
@@ -282,7 +301,8 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                 description="Ubah kata kunci atau kategori untuk menemukan aset."
                                 icon="fas fa-box-open"
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         render_selection_list(items.get(), selected, toggle_id).into_any()
                     }
@@ -294,9 +314,17 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                     <div class="flex h-[90vh] w-[95vw] max-w-5xl flex-col rounded-2xl border border-white/[0.06] bg-surface-panel shadow-2xl print:h-auto print:w-full print:max-w-none print:rounded-none print:border-0 print:shadow-none">
                         <header class="flex items-center justify-between border-b border-white/[0.06] px-5 py-3 print:hidden">
                             <div>
-                                <h2 class="text-sm font-semibold text-white">"Pratinjau Label QR Code"</h2>
+                                <h2 class="text-sm font-semibold text-white">
+                                    "Pratinjau Label QR Code"
+                                </h2>
                                 <p class="text-xs text-slate-400">
-                                    {move || format!("{} label · ukuran {}", selected.get().len(), label_size.get().label())}
+                                    {move || {
+                                        format!(
+                                            "{} label · ukuran {}",
+                                            selected.get().len(),
+                                            label_size.get().label(),
+                                        )
+                                    }}
                                 </p>
                             </div>
                             <div class="flex items-center gap-2">
@@ -305,7 +333,9 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                     on:click=print_labels
                                     class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                                 >
-                                    <span class="text-[0.7rem]"><AppIcon icon=PRINTER /></span>
+                                    <span class="text-[0.7rem]">
+                                        <AppIcon icon=PRINTER />
+                                    </span>
                                     "Cetak"
                                 </button>
                                 <button
@@ -313,7 +343,9 @@ pub fn BankAsetQrCodePage() -> impl IntoView {
                                     on:click=close_preview
                                     class="focus-ring inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08]"
                                 >
-                                    <span class="text-[0.7rem]"><AppIcon icon=X /></span>
+                                    <span class="text-[0.7rem]">
+                                        <AppIcon icon=X />
+                                    </span>
                                     "Tutup"
                                 </button>
                             </div>
@@ -366,8 +398,11 @@ fn render_selection_list(
 fn render_label_sheet(items: Vec<BankAsetItem>, size: LabelSize) -> impl IntoView {
     if items.is_empty() {
         return view! {
-            <p class="py-10 text-center text-sm text-slate-500">"Pilih minimal satu aset untuk dicetak."</p>
-        }.into_any();
+            <p class="py-10 text-center text-sm text-slate-500">
+                "Pilih minimal satu aset untuk dicetak."
+            </p>
+        }
+        .into_any();
     }
     let (h, w) = size.dimensions();
     let container_style = format!(
@@ -418,15 +453,20 @@ fn render_single_label(item: BankAsetItem, height: &str, width: &str) -> impl In
         <div style=style>
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 2mm;">
                 <div style="flex: 1; min-width: 0;">
-                    <p style="font-weight: 700; font-size: 6pt; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{nama}</p>
-                    <p style="margin: 0.5mm 0 0 0; font-size: 5pt; color: #475569;">{format!("Kode: {kode}")}</p>
-                    <p style="margin: 0; font-size: 5pt; color: #475569;">{format!("NUP: {nup}")}</p>
-                    <p style="margin: 0; font-size: 5pt; color: #475569;">{format!("Satker: {kode_satker}")}</p>
+                    <p style="font-weight: 700; font-size: 6pt; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {nama}
+                    </p>
+                    <p style="margin: 0.5mm 0 0 0; font-size: 5pt; color: #475569;">
+                        {format!("Kode: {kode}")}
+                    </p>
+                    <p style="margin: 0; font-size: 5pt; color: #475569;">
+                        {format!("NUP: {nup}")}
+                    </p>
+                    <p style="margin: 0; font-size: 5pt; color: #475569;">
+                        {format!("Satker: {kode_satker}")}
+                    </p>
                 </div>
-                <div
-                    style="width: 18mm; height: 18mm; flex-shrink: 0;"
-                    inner_html=svg
-                ></div>
+                <div style="width: 18mm; height: 18mm; flex-shrink: 0;" inner_html=svg></div>
             </div>
             <p style="margin: 0; text-align: center; font-size: 5pt; color: #64748b; letter-spacing: 0.5px;">
                 "SIMPel Kejaksaan RI"

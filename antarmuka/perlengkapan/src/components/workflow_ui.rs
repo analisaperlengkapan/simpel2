@@ -163,19 +163,21 @@ pub fn WorkflowTimeline(
                             {(!is_last)
                                 .then(|| {
                                     view! {
-                                        <span class=format!("absolute left-[7px] top-4 -bottom-0 w-px {}", line_class)></span>
+                                        <span class=format!(
+                                            "absolute left-[7px] top-4 -bottom-0 w-px {}",
+                                            line_class,
+                                        )></span>
                                     }
-                                })}
-                            // Dot
+                                })} // Dot
                             <span class=format!(
                                 "relative z-10 mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 {}",
                                 step.status.dot_class(dark),
-                            )></span>
-                            // Body
+                            )></span> // Body
                             <div class="min-w-0 flex-1">
-                                <p class=format!("text-sm {}", step.status.label_class(dark))>
-                                    {step.label}
-                                </p>
+                                <p class=format!(
+                                    "text-sm {}",
+                                    step.status.label_class(dark),
+                                )>{step.label}</p>
                                 {step
                                     .actor
                                     .map(|a| {
@@ -189,11 +191,7 @@ pub fn WorkflowTimeline(
                                 {step
                                     .note
                                     .map(|n| {
-                                        view! {
-                                            <p class=note_class>
-                                                {n}
-                                            </p>
-                                        }
+                                        view! { <p class=note_class>{n}</p> }
                                     })}
                             </div>
                         </li>
@@ -277,9 +275,7 @@ pub fn ApprovalDialog(
                     })}
 
                 <div class="mb-4">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">
-                        {note_label}
-                    </label>
+                    <label class="mb-1 block text-sm font-medium text-gray-700">{note_label}</label>
                     <textarea
                         class="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
                         rows="3"
@@ -314,7 +310,13 @@ pub fn ApprovalDialog(
                         prop:disabled=move || is_busy()
                         on:click=on_submit
                     >
-                        {move || if is_busy() { "Memproses...".to_string() } else { confirm_label.clone() }}
+                        {move || {
+                            if is_busy() {
+                                "Memproses...".to_string()
+                            } else {
+                                confirm_label.clone()
+                            }
+                        }}
                     </button>
                 </div>
             </div>

@@ -30,7 +30,9 @@ pub fn AppHeader(#[prop(into)] on_toggle_sidebar: Callback<()>) -> impl IntoView
                         class="focus-ring rounded-md p-1 text-slate-400 hover:text-slate-100 lg:hidden"
                         aria-label="Buka menu"
                     >
-                        <span class="text-lg"><AppIcon icon=LIST /></span>
+                        <span class="text-lg">
+                            <AppIcon icon=LIST />
+                        </span>
                     </button>
                     <A
                         href=routes::path::DASHBOARD
@@ -104,7 +106,9 @@ fn NotifikasiBadge() -> impl IntoView {
             attr:class="relative focus-ring rounded-md p-1.5 text-slate-300 hover:text-white no-underline"
             attr:aria_label="Notifikasi"
         >
-            <span class="text-xl"><AppIcon icon=BELL /></span>
+            <span class="text-xl">
+                <AppIcon icon=BELL />
+            </span>
             <Show when=move || { count.get() > 0_i64 }>
                 <span class="absolute -top-0.5 -right-0.5 min-w-[1.25rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[0.65rem] font-bold flex items-center justify-center">
                     {move || {
@@ -162,7 +166,9 @@ pub fn IntegrasiHealthBanner() -> impl IntoView {
     });
 
     view! {
-        <Show when=move || !degraded.get().is_empty()>
+        <Show when=move || {
+            !degraded.get().is_empty()
+        }>
             {move || {
                 let list = degraded.get();
                 let names = list
@@ -193,9 +199,7 @@ pub fn AppFooter() -> impl IntoView {
                 <span class="text-[0.7rem] text-slate-500">
                     "SIMPEL v" {APP_VERSION} " · Kejaksaan Agung RI"
                 </span>
-                <span class="text-[0.65rem] text-slate-600">
-                    "© 2026 Biro Perlengkapan"
-                </span>
+                <span class="text-[0.65rem] text-slate-600">"© 2026 Biro Perlengkapan"</span>
             </div>
         </footer>
     }

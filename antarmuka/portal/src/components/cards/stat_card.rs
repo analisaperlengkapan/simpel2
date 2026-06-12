@@ -84,29 +84,24 @@ pub fn StatCard(
     view! {
         <div class=format!(
             "bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-l-4 {}",
-            border_class
+            border_class,
         )>
             <div class="flex items-center justify-between">
                 <div class="flex-1">
                     <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                         {data.title}
                     </p>
-                    <p class="text-3xl font-bold text-gray-900 dark:text-white">
-                        {data.value}
-                    </p>
-                    {data.trend.map(|trend| view! {
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {trend}
-                        </p>
-                    })}
+                    <p class="text-3xl font-bold text-gray-900 dark:text-white">{data.value}</p>
+                    {data
+                        .trend
+                        .map(|trend| {
+                            view! {
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{trend}</p>
+                            }
+                        })}
                 </div>
-                <div class=format!(
-                    "p-3 rounded-lg {}",
-                    bg_class
-                )>
-                    <span class=format!("text-2xl {}", text_class)>
-                        {data.icon}
-                    </span>
+                <div class=format!("p-3 rounded-lg {}", bg_class)>
+                    <span class=format!("text-2xl {}", text_class)>{data.icon}</span>
                 </div>
             </div>
         </div>

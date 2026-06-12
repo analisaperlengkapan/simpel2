@@ -48,9 +48,10 @@ fn status_badge(code: i32) -> impl IntoView {
         )
     };
     view! {
-        <span class=format!("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 {}", class)>
-            {label}
-        </span>
+        <span class=format!(
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 {}",
+            class,
+        )>{label}</span>
     }
 }
 
@@ -205,13 +206,21 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
             icon="fas fa-building"
             description="Pantau & proses pengajuan pakaian dinas per satuan kerja"
         >
-            {move || error.get().map(|msg| view! {
-                <div class="mb-4 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
-                    {msg}
-                </div>
-            })}
+            {move || {
+                error
+                    .get()
+                    .map(|msg| {
+                        view! {
+                            <div class="mb-4 rounded-xl border border-danger-500/30 bg-danger-500/[0.08] px-4 py-3 text-sm text-danger-300">
+                                {msg}
+                            </div>
+                        }
+                    })
+            }}
 
-            <Suspense fallback=move || view! { <LoadingState /> }>
+            <Suspense fallback=move || {
+                view! { <LoadingState /> }
+            }>
                 {move || match list_resource.get() {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -222,7 +231,8 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                 <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-8 text-center text-sm text-slate-400">
                                     "Belum ada satker pada pengajuan ini."
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -232,20 +242,39 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         children=move |s: PengajuanSatker| {
                                             let s_for_select = s.clone();
                                             let code = s.aktivitas_id;
-                                            let nama = s.satker_nama.clone().unwrap_or_else(|| "Satker".to_string());
+                                            let nama = s
+                                                .satker_nama
+                                                .clone()
+                                                .unwrap_or_else(|| "Satker".to_string());
                                             let kode = s.satker_kode.clone().unwrap_or_default();
                                             let pegawai = s.total_pegawai.unwrap_or(0);
-                                            let is_selected = move || selected.get().as_ref().map(|x| x.id == s_for_select.id).unwrap_or(false);
+                                            let is_selected = move || {
+                                                selected
+                                                    .get()
+                                                    .as_ref()
+                                                    .map(|x| x.id == s_for_select.id)
+                                                    .unwrap_or(false)
+                                            };
                                             let s_click = s.clone();
                                             view! {
-                                                <div class=move || format!(
-                                                    "rounded-2xl border bg-surface-panel p-5 transition {}",
-                                                    if is_selected() { "border-gold-500/40" } else { "border-white/[0.06] hover:border-white/10" }
-                                                )>
+                                                <div class=move || {
+                                                    format!(
+                                                        "rounded-2xl border bg-surface-panel p-5 transition {}",
+                                                        if is_selected() {
+                                                            "border-gold-500/40"
+                                                        } else {
+                                                            "border-white/[0.06] hover:border-white/10"
+                                                        },
+                                                    )
+                                                }>
                                                     <div class="flex items-start justify-between gap-3">
                                                         <div class="min-w-0">
-                                                            <h3 class="truncate text-sm font-semibold text-slate-100">{nama}</h3>
-                                                            <p class="text-xs text-slate-400">{kode} " · " {pegawai.to_string()} " pegawai"</p>
+                                                            <h3 class="truncate text-sm font-semibold text-slate-100">
+                                                                {nama}
+                                                            </h3>
+                                                            <p class="text-xs text-slate-400">
+                                                                {kode} " · " {pegawai.to_string()} " pegawai"
+                                                            </p>
                                                         </div>
                                                         {status_badge(code)}
                                                     </div>
@@ -260,101 +289,142 @@ pub fn PakaianDinasSatkerDetail() -> impl IntoView {
                                         }
                                     />
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }
                 }}
             </Suspense>
 
             // Detail panel for the selected satker.
-            {move || selected.get().map(|s| {
-                let code = s.aktivitas_id;
-                let nama = s.satker_nama.clone().unwrap_or_else(|| "Satker".to_string());
-                let s_for_timeline = s.clone();
-                let actions_meta = available_actions(code);
-                let actions: Vec<WorkflowAction> = match actions_meta {
-                    Some((approve_label, reject_label)) => {
-                        let sid_a = s.id.clone();
-                        let sid_r = s.id.clone();
-                        let approve_title = approve_label.to_string();
-                        let reject_title = reject_label.to_string();
-                        vec![
-                            WorkflowAction::new(approve_label, ActionTone::Success, Callback::new(move |_: ()| {
-                                pending.set(Some(PendingAction {
-                                    satker_id: sid_a.clone(),
-                                    aksi: "approve".to_string(),
-                                    title: approve_title.clone(),
-                                    tone: ActionTone::Success,
-                                    require_note: false,
-                                }));
-                            })),
-                            WorkflowAction::new(reject_label, ActionTone::Danger, Callback::new(move |_: ()| {
-                                pending.set(Some(PendingAction {
-                                    satker_id: sid_r.clone(),
-                                    aksi: "reject".to_string(),
-                                    title: reject_title.clone(),
-                                    tone: ActionTone::Danger,
-                                    require_note: true,
-                                }));
-                            })),
-                        ]
-                    }
-                    None => Vec::new(),
-                };
-                let has_actions = !actions.is_empty();
+            {move || {
+                selected
+                    .get()
+                    .map(|s| {
+                        let code = s.aktivitas_id;
+                        let nama = s.satker_nama.clone().unwrap_or_else(|| "Satker".to_string());
+                        let s_for_timeline = s.clone();
+                        let actions_meta = available_actions(code);
+                        let actions: Vec<WorkflowAction> = match actions_meta {
+                            Some((approve_label, reject_label)) => {
+                                let sid_a = s.id.clone();
+                                let sid_r = s.id.clone();
+                                let approve_title = approve_label.to_string();
+                                let reject_title = reject_label.to_string();
+                                vec![
+                                    WorkflowAction::new(
+                                        approve_label,
+                                        ActionTone::Success,
+                                        Callback::new(move |_: ()| {
+                                            pending
+                                                .set(
+                                                    Some(PendingAction {
+                                                        satker_id: sid_a.clone(),
+                                                        aksi: "approve".to_string(),
+                                                        title: approve_title.clone(),
+                                                        tone: ActionTone::Success,
+                                                        require_note: false,
+                                                    }),
+                                                );
+                                        }),
+                                    ),
+                                    WorkflowAction::new(
+                                        reject_label,
+                                        ActionTone::Danger,
+                                        Callback::new(move |_: ()| {
+                                            pending
+                                                .set(
+                                                    Some(PendingAction {
+                                                        satker_id: sid_r.clone(),
+                                                        aksi: "reject".to_string(),
+                                                        title: reject_title.clone(),
+                                                        tone: ActionTone::Danger,
+                                                        require_note: true,
+                                                    }),
+                                                );
+                                        }),
+                                    ),
+                                ]
+                            }
+                            None => Vec::new(),
+                        };
+                        let has_actions = !actions.is_empty();
 
-                view! {
-                    <div class="mt-6">
-                        <SectionCard title="Riwayat & Aksi Workflow">
-                            <div class="mb-3 flex items-center justify-between">
-                                <p class="text-sm font-semibold text-slate-200">{nama}</p>
-                                <button
-                                    class="text-xs text-slate-400 hover:text-slate-200"
-                                    on:click=move |_| selected.set(None)
-                                >"Tutup"</button>
+                        view! {
+                            <div class="mt-6">
+                                <SectionCard title="Riwayat & Aksi Workflow">
+                                    <div class="mb-3 flex items-center justify-between">
+                                        <p class="text-sm font-semibold text-slate-200">{nama}</p>
+                                        <button
+                                            class="text-xs text-slate-400 hover:text-slate-200"
+                                            on:click=move |_| selected.set(None)
+                                        >
+                                            "Tutup"
+                                        </button>
+                                    </div>
+
+                                    <Suspense fallback=move || {
+                                        view! { <LoadingState /> }
+                                    }>
+                                        {move || match akt_resource.get() {
+                                            None => view! { <LoadingState /> }.into_any(),
+                                            Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
+                                            Some(Ok(acts)) => {
+                                                let steps = build_timeline(&s_for_timeline, &acts);
+                                                view! { <WorkflowTimeline steps=steps dark=true /> }
+                                                    .into_any()
+                                            }
+                                        }}
+                                    </Suspense>
+
+                                    {has_actions
+                                        .then(|| {
+                                            view! {
+                                                <div class="mt-4 border-t border-white/[0.04] pt-4">
+                                                    <WorkflowActions
+                                                        actions=actions
+                                                        busy=Signal::derive(move || busy.get())
+                                                    />
+                                                </div>
+                                            }
+                                        })}
+                                    {(!has_actions)
+                                        .then(|| {
+                                            view! {
+                                                <p class="mt-4 border-t border-white/[0.04] pt-4 text-xs text-slate-500">
+                                                    "Tidak ada aksi tersedia untuk peran Anda pada status ini (mode pantau)."
+                                                </p>
+                                            }
+                                        })}
+                                </SectionCard>
                             </div>
-
-                            <Suspense fallback=move || view! { <LoadingState /> }>
-                                {move || match akt_resource.get() {
-                                    None => view! { <LoadingState /> }.into_any(),
-                                    Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
-                                    Some(Ok(acts)) => {
-                                        let steps = build_timeline(&s_for_timeline, &acts);
-                                        view! { <WorkflowTimeline steps=steps dark=true /> }.into_any()
-                                    }
-                                }}
-                            </Suspense>
-
-                            {has_actions.then(|| view! {
-                                <div class="mt-4 border-t border-white/[0.04] pt-4">
-                                    <WorkflowActions actions=actions busy=Signal::derive(move || busy.get()) />
-                                </div>
-                            })}
-                            {(!has_actions).then(|| view! {
-                                <p class="mt-4 border-t border-white/[0.04] pt-4 text-xs text-slate-500">
-                                    "Tidak ada aksi tersedia untuk peran Anda pada status ini (mode pantau)."
-                                </p>
-                            })}
-                        </SectionCard>
-                    </div>
-                }
-            })}
+                        }
+                    })
+            }}
 
             // Note-confirmation dialog for the pending action.
-            {move || pending.get().map(|act| {
-                view! {
-                    <ApprovalDialog
-                        title=act.title.clone()
-                        note_label=if act.require_note { "Alasan / Catatan (wajib)".to_string() } else { "Catatan (opsional)".to_string() }
-                        require_note=act.require_note
-                        confirm_label="Kirim"
-                        confirm_tone=act.tone
-                        on_confirm=on_confirm
-                        on_close=Callback::new(move |_: ()| pending.set(None))
-                        busy=Signal::derive(move || busy.get())
-                    />
-                }
-            })}
+            {move || {
+                pending
+                    .get()
+                    .map(|act| {
+                        view! {
+                            <ApprovalDialog
+                                title=act.title.clone()
+                                note_label=if act.require_note {
+                                    "Alasan / Catatan (wajib)".to_string()
+                                } else {
+                                    "Catatan (opsional)".to_string()
+                                }
+                                require_note=act.require_note
+                                confirm_label="Kirim"
+                                confirm_tone=act.tone
+                                on_confirm=on_confirm
+                                on_close=Callback::new(move |_: ()| pending.set(None))
+                                busy=Signal::derive(move || busy.get())
+                            />
+                        }
+                    })
+            }}
         </PageLayout>
     }
 }

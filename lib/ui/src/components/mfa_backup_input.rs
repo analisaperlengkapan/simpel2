@@ -126,7 +126,10 @@ pub fn MfaBackupInput(
                         class=move || {
                             let base_classes = "block w-full px-4 py-3 text-lg font-mono border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors";
                             if error.is_some() {
-                                format!("{} border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500", base_classes)
+                                format!(
+                                    "{} border-red-300 text-red-900 placeholder-red-300 focus:ring-red-500 focus:border-red-500",
+                                    base_classes,
+                                )
                             } else {
                                 format!("{} border-gray-300 placeholder-gray-400", base_classes)
                             }
@@ -154,7 +157,11 @@ pub fn MfaBackupInput(
                 <Show when=move || error.is_some()>
                     <div class="mt-2 flex items-center text-sm text-red-600">
                         <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            <path
+                                fill-rule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clip-rule="evenodd"
+                            />
                         </svg>
                         {error.clone().unwrap_or_default()}
                     </div>
@@ -186,7 +193,10 @@ pub fn MfaBackupInput(
                     if disabled || value.get().replace("-", "").len() < 8 {
                         format!("{} bg-gray-300 cursor-not-allowed", base_classes)
                     } else {
-                        format!("{} bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500", base_classes)
+                        format!(
+                            "{} bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+                            base_classes,
+                        )
                     }
                 }
                 disabled=move || disabled || value.get().replace("-", "").len() < 8

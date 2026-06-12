@@ -52,22 +52,29 @@ pub fn BankAsetDashboardPage() -> impl IntoView {
             description="Ringkasan data BMN dari hasil sinkronisasi SIMAN."
             icon="fas fa-boxes-stacked"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::BANK_ASET_DAFTAR
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=LIST /></span>
-                    "Daftar Aset"
-                </A>
-                <A
-                    href=path::BANK_ASET_SEBARAN
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=MAP_PIN_AREA /></span>
-                    "Sebaran"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::BANK_ASET_DAFTAR
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=LIST />
+                        </span>
+                        "Daftar Aset"
+                    </A>
+                    <A
+                        href=path::BANK_ASET_SEBARAN
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=MAP_PIN_AREA />
+                        </span>
+                        "Sebaran"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             {move || {
                 if loading.get() && data.get().is_none() {
@@ -76,9 +83,12 @@ pub fn BankAsetDashboardPage() -> impl IntoView {
                     view! {
                         <ErrorState
                             error=err
-                            on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                            on_retry=Box::new(move || {
+                                set_reload_tick.update(|t| *t += 1);
+                            })
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if let Some(d) = data.get() {
                     view! { <DashboardContent data=d last_sync=last_sync.get() /> }.into_any()
                 } else {
@@ -143,8 +153,11 @@ fn DashboardContent(data: BankAsetDashboard, last_sync: Option<LastSyncInfo>) ->
                 />
             </div>
             <p class="mt-4 text-xs text-slate-500">
-                <span class="mr-2 text-gold-400"><AppIcon icon=DATABASE /></span>
-                "Sumber data: SIMAN — sinkron terakhir: " <span class="font-medium text-slate-300">{sync_label}</span>
+                <span class="mr-2 text-gold-400">
+                    <AppIcon icon=DATABASE />
+                </span>
+                "Sumber data: SIMAN — sinkron terakhir: "
+                <span class="font-medium text-slate-300">{sync_label}</span>
             </p>
         </SectionCard>
 
@@ -185,9 +198,7 @@ fn DashboardContent(data: BankAsetDashboard, last_sync: Option<LastSyncInfo>) ->
 
 fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.kondisi_breakdown.is_empty() {
-        return view! {
-            <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kondisi."</p>
-        }
+        return view! { <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kondisi."</p> }
         .into_any();
     }
     let total: i64 = data.kondisi_breakdown.iter().map(|k| k.count).sum();
@@ -223,9 +234,7 @@ fn render_kondisi(data: &BankAsetDashboard) -> impl IntoView + use<> {
 
 fn render_kategori(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.kategori_breakdown.is_empty() {
-        return view! {
-            <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kategori."</p>
-        }
+        return view! { <p class="py-6 text-center text-sm text-slate-500">"Belum ada data kategori."</p> }
         .into_any();
     }
     let rows: Vec<_> = data.kategori_breakdown.iter().take(10).map(|k| {
@@ -249,9 +258,7 @@ fn render_kategori(data: &BankAsetDashboard) -> impl IntoView + use<> {
 
 fn render_top_satker(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.top_satker.is_empty() {
-        return view! {
-            <p class="py-6 text-center text-sm text-slate-500">"Belum ada data satker."</p>
-        }
+        return view! { <p class="py-6 text-center text-sm text-slate-500">"Belum ada data satker."</p> }
         .into_any();
     }
     let rows: Vec<_> = data
@@ -293,9 +300,7 @@ fn render_top_satker(data: &BankAsetDashboard) -> impl IntoView + use<> {
 
 fn render_per_tahun(data: &BankAsetDashboard) -> impl IntoView + use<> {
     if data.per_tahun.is_empty() {
-        return view! {
-            <p class="py-6 text-center text-sm text-slate-500">"Belum ada data tahun perolehan."</p>
-        }
+        return view! { <p class="py-6 text-center text-sm text-slate-500">"Belum ada data tahun perolehan."</p> }
         .into_any();
     }
     let max = data

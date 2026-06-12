@@ -98,26 +98,40 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
         <div class="p-6 space-y-6">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">"Monitoring Pemakaian BMN"</h2>
-                <p class="text-sm text-gray-600 mt-1">"Pantau penggunaan dan riwayat pemakaian BMN"</p>
+                <p class="text-sm text-gray-600 mt-1">
+                    "Pantau penggunaan dan riwayat pemakaian BMN"
+                </p>
             </div>
 
             // Kartu ringkasan headline (Fase 2.6, read-only):
             // sedang dipakai / tidak dipakai / akan expired (30 hari)
-            <Suspense fallback=move || view! {
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {(0..3).map(|_| view! {
-                        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-pulse h-24"></div>
-                    }).collect_view()}
-                </div>
+            <Suspense fallback=move || {
+                view! {
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {(0..3)
+                            .map(|_| {
+                                view! {
+                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-pulse h-24"></div>
+                                }
+                            })
+                            .collect_view()}
+                    </div>
+                }
             }>
                 {move || {
                     let s = monitoring_summary.get().flatten();
-                    let sedang = s.as_ref().map(|c| c.sedang_dipakai.to_string()).unwrap_or_else(|| "-".to_string());
+                    let sedang = s
+                        .as_ref()
+                        .map(|c| c.sedang_dipakai.to_string())
+                        .unwrap_or_else(|| "-".to_string());
                     let (tidak, tidak_sub) = match s.as_ref().and_then(|c| c.tidak_dipakai) {
                         Some(v) => (v.to_string(), "BMN BAIK tanpa izin aktif".to_string()),
                         None => ("—".to_string(), "Data SIMAN tidak tersedia".to_string()),
                     };
-                    let expired = s.as_ref().map(|c| c.akan_expired_30d.to_string()).unwrap_or_else(|| "-".to_string());
+                    let expired = s
+                        .as_ref()
+                        .map(|c| c.akan_expired_30d.to_string())
+                        .unwrap_or_else(|| "-".to_string());
                     view! {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
@@ -133,7 +147,9 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                                 <p class="text-sm text-gray-600">"Akan Expired (30 hari)"</p>
                                 <p class="text-3xl font-bold text-yellow-600 mt-1">{expired}</p>
-                                <p class="text-xs text-gray-500 mt-1">"Izin berakhir ≤ 30 hari"</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    "Izin berakhir ≤ 30 hari"
+                                </p>
                             </div>
                         </div>
                     }
@@ -143,64 +159,104 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             // Expiring Permits Alert
             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <span class="text-yellow-500"><AppIcon icon=WARNING /></span>
+                    <span class="text-yellow-500">
+                        <AppIcon icon=WARNING />
+                    </span>
                     "Izin yang Akan Berakhir (30 Hari)"
                 </h3>
-                <Suspense fallback=move || view! {
-                    <div class="text-center py-4">
-                        <span class="fa-spin text-gray-400"><AppIcon icon=SPINNER /></span>
-                    </div>
+                <Suspense fallback=move || {
+                    view! {
+                        <div class="text-center py-4">
+                            <span class="fa-spin text-gray-400">
+                                <AppIcon icon=SPINNER />
+                            </span>
+                        </div>
+                    }
                 }>
                     {move || {
-                        expiring_permits.get().flatten().map(|permits: Vec<IzinPemakaianBmn>| {
-                            if permits.is_empty() {
-                                view! {
-                                    <p class="text-gray-600 text-center py-4">"Tidak ada izin yang akan berakhir dalam 30 hari"</p>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full">
-                                            <thead class="bg-gray-50 border-b">
-                                                <tr>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Nomor Izin"</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Pemohon"</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"BMN"</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Berakhir"</th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Aksi"</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y">
-                                                <For
-                                                    each=move || permits.clone()
-                                                    key=|p| p.id.clone()
-                                                    children=move |permit| {
-                                                        view! {
-                                                            <tr class="hover:bg-gray-50">
-                                                                <td class="px-4 py-3 text-sm">{permit.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                                <td class="px-4 py-3 text-sm">{permit.pegawai_nama.clone()}</td>
-                                                                <td class="px-4 py-3 text-sm">{permit.bmn_nama_barang.clone()}</td>
-                                                                <td class="px-4 py-3 text-sm">{permit.tanggal_selesai.clone()}</td>
-                                                                <td class="px-4 py-3 text-sm">
-                                                                    <a
-                                                                        href={format!("/perlengkapan/pemakaian-bmn/{}", permit.id)}
-                                                                        class="text-blue-600 hover:text-blue-800"
-                                                                    >
-                                                                        "Detail"
-                                                                    </a>
-                                                                </td>
-                                                            </tr>
+                        expiring_permits
+                            .get()
+                            .flatten()
+                            .map(|permits: Vec<IzinPemakaianBmn>| {
+                                if permits.is_empty() {
+                                    view! {
+                                        <p class="text-gray-600 text-center py-4">
+                                            "Tidak ada izin yang akan berakhir dalam 30 hari"
+                                        </p>
+                                    }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full">
+                                                <thead class="bg-gray-50 border-b">
+                                                    <tr>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            "Nomor Izin"
+                                                        </th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            "Pemohon"
+                                                        </th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            "BMN"
+                                                        </th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            "Berakhir"
+                                                        </th>
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            "Aksi"
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y">
+                                                    <For
+                                                        each=move || permits.clone()
+                                                        key=|p| p.id.clone()
+                                                        children=move |permit| {
+                                                            view! {
+                                                                <tr class="hover:bg-gray-50">
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        {permit
+                                                                            .nomor_izin
+                                                                            .clone()
+                                                                            .unwrap_or_else(|| "-".to_string())}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        {permit.pegawai_nama.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        {permit.bmn_nama_barang.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        {permit.tanggal_selesai.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        <a
+                                                                            href=format!("/perlengkapan/pemakaian-bmn/{}", permit.id)
+                                                                            class="text-blue-600 hover:text-blue-800"
+                                                                        >
+                                                                            "Detail"
+                                                                        </a>
+                                                                    </td>
+                                                                </tr>
+                                                            }
                                                         }
-                                                    }
-                                                />
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                }.into_any()
-                            }
-                        }).unwrap_or_else(|| view! {
-                            <p class="text-gray-600 text-center py-4">"Gagal memuat data"</p>
-                        }.into_any())
+                                                    />
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                            })
+                            .unwrap_or_else(|| {
+                                view! {
+                                    <p class="text-gray-600 text-center py-4">
+                                        "Gagal memuat data"
+                                    </p>
+                                }
+                                    .into_any()
+                            })
                     }}
                 </Suspense>
             </div>
@@ -220,7 +276,13 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                     <input
                         type="text"
                         class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        placeholder={move || if search_type.get() == "bmn" { "Masukkan NUP BMN" } else { "Masukkan NIP Pegawai" }}
+                        placeholder=move || {
+                            if search_type.get() == "bmn" {
+                                "Masukkan NUP BMN"
+                            } else {
+                                "Masukkan NIP Pegawai"
+                            }
+                        }
                         prop:value=move || search_query.get()
                         on:input=move |ev| set_search_query.set(event_target_value(&ev))
                     />
@@ -229,125 +291,200 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         on:click=handle_search
                         prop:disabled=move || searching.get() || search_query.get().is_empty()
                     >
-                        <Show when=move || searching.get() fallback=|| view! { <AppIcon icon=MAGNIFYING_GLASS /> }>
-                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
+                        <Show
+                            when=move || searching.get()
+                            fallback=|| view! { <AppIcon icon=MAGNIFYING_GLASS /> }
+                        >
+                            <span class="fa-spin">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                     </button>
                 </div>
 
                 // Search Results
-                <Show when=move || search_result.get().is_some()>
+                <Show when=move || {
+                    search_result.get().is_some()
+                }>
                     {move || {
                         match search_result.get().unwrap() {
-                            SearchResult::Bmn(stats) => view! {
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-4 gap-4">
-                                        <div class="bg-blue-50 p-4 rounded-lg">
-                                            <p class="text-sm text-blue-700">"Total Izin"</p>
-                                            <p class="text-2xl font-bold text-blue-900">{stats.total_permits}</p>
+                            SearchResult::Bmn(stats) => {
+                                view! {
+                                    <div class="space-y-4">
+                                        <div class="grid grid-cols-4 gap-4">
+                                            <div class="bg-blue-50 p-4 rounded-lg">
+                                                <p class="text-sm text-blue-700">"Total Izin"</p>
+                                                <p class="text-2xl font-bold text-blue-900">
+                                                    {stats.total_permits}
+                                                </p>
+                                            </div>
+                                            <div class="bg-green-50 p-4 rounded-lg">
+                                                <p class="text-sm text-green-700">"Izin Aktif"</p>
+                                                <p class="text-2xl font-bold text-green-900">
+                                                    {stats.active_permits}
+                                                </p>
+                                            </div>
+                                            <div class="bg-purple-50 p-4 rounded-lg">
+                                                <p class="text-sm text-purple-700">
+                                                    "Total Hari Digunakan"
+                                                </p>
+                                                <p class="text-2xl font-bold text-purple-900">
+                                                    {stats.total_days_used}
+                                                </p>
+                                            </div>
+                                            <div class="bg-orange-50 p-4 rounded-lg">
+                                                <p class="text-sm text-orange-700">"Pemegang Saat Ini"</p>
+                                                <p class="text-lg font-bold text-orange-900">
+                                                    {stats
+                                                        .current_holder
+                                                        .clone()
+                                                        .unwrap_or_else(|| "-".to_string())}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div class="bg-green-50 p-4 rounded-lg">
-                                            <p class="text-sm text-green-700">"Izin Aktif"</p>
-                                            <p class="text-2xl font-bold text-green-900">{stats.active_permits}</p>
-                                        </div>
-                                        <div class="bg-purple-50 p-4 rounded-lg">
-                                            <p class="text-sm text-purple-700">"Total Hari Digunakan"</p>
-                                            <p class="text-2xl font-bold text-purple-900">{stats.total_days_used}</p>
-                                        </div>
-                                        <div class="bg-orange-50 p-4 rounded-lg">
-                                            <p class="text-sm text-orange-700">"Pemegang Saat Ini"</p>
-                                            <p class="text-lg font-bold text-orange-900">{stats.current_holder.clone().unwrap_or_else(|| "-".to_string())}</p>
-                                        </div>
-                                    </div>
 
-                                    <div>
-                                        <h4 class="font-semibold text-gray-800 mb-2">"Riwayat Pemakaian"</h4>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full">
-                                                <thead class="bg-gray-50 border-b">
-                                                    <tr>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Nomor Izin"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Periode"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Status"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Dibuat"</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y">
-                                                    <For
-                                                        each=move || stats.permit_history.clone()
-                                                        key=|h| h.id.clone()
-                                                        children=move |history| {
-                                                            view! {
-                                                                <tr class="hover:bg-gray-50">
-                                                                    <td class="px-4 py-3 text-sm">{history.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.tanggal_mulai.clone()} " - " {history.tanggal_selesai.clone()}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.created_at.clone()}</td>
-                                                                </tr>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-800 mb-2">
+                                                "Riwayat Pemakaian"
+                                            </h4>
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full">
+                                                    <thead class="bg-gray-50 border-b">
+                                                        <tr>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Nomor Izin"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Periode"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Status"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Dibuat"
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y">
+                                                        <For
+                                                            each=move || stats.permit_history.clone()
+                                                            key=|h| h.id.clone()
+                                                            children=move |history| {
+                                                                view! {
+                                                                    <tr class="hover:bg-gray-50">
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history
+                                                                                .nomor_izin
+                                                                                .clone()
+                                                                                .unwrap_or_else(|| "-".to_string())}
+                                                                        </td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history.tanggal_mulai.clone()} " - "
+                                                                            {history.tanggal_selesai.clone()}
+                                                                        </td>
+                                                                        <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history.created_at.clone()}
+                                                                        </td>
+                                                                    </tr>
+                                                                }
                                                             }
-                                                        }
-                                                    />
-                                                </tbody>
-                                            </table>
+                                                        />
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            }.into_any(),
-                            SearchResult::Pegawai(stats) => view! {
-                                <div class="space-y-4">
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div class="bg-blue-50 p-4 rounded-lg">
-                                            <p class="text-sm text-blue-700">"Total Izin"</p>
-                                            <p class="text-2xl font-bold text-blue-900">{stats.total_permits}</p>
+                                }
+                                    .into_any()
+                            }
+                            SearchResult::Pegawai(stats) => {
+                                view! {
+                                    <div class="space-y-4">
+                                        <div class="grid grid-cols-3 gap-4">
+                                            <div class="bg-blue-50 p-4 rounded-lg">
+                                                <p class="text-sm text-blue-700">"Total Izin"</p>
+                                                <p class="text-2xl font-bold text-blue-900">
+                                                    {stats.total_permits}
+                                                </p>
+                                            </div>
+                                            <div class="bg-green-50 p-4 rounded-lg">
+                                                <p class="text-sm text-green-700">"Izin Aktif"</p>
+                                                <p class="text-2xl font-bold text-green-900">
+                                                    {stats.active_permits}
+                                                </p>
+                                            </div>
+                                            <div class="bg-purple-50 p-4 rounded-lg">
+                                                <p class="text-sm text-purple-700">"Pegawai"</p>
+                                                <p class="text-lg font-bold text-purple-900">
+                                                    {stats.pegawai_nama.clone()}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div class="bg-green-50 p-4 rounded-lg">
-                                            <p class="text-sm text-green-700">"Izin Aktif"</p>
-                                            <p class="text-2xl font-bold text-green-900">{stats.active_permits}</p>
-                                        </div>
-                                        <div class="bg-purple-50 p-4 rounded-lg">
-                                            <p class="text-sm text-purple-700">"Pegawai"</p>
-                                            <p class="text-lg font-bold text-purple-900">{stats.pegawai_nama.clone()}</p>
-                                        </div>
-                                    </div>
 
-                                    <div>
-                                        <h4 class="font-semibold text-gray-800 mb-2">"Riwayat Pemakaian"</h4>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full">
-                                                <thead class="bg-gray-50 border-b">
-                                                    <tr>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Nomor Izin"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Periode"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Status"</th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">"Dibuat"</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y">
-                                                    <For
-                                                        each=move || stats.permit_history.clone()
-                                                        key=|h| h.id.clone()
-                                                        children=move |history| {
-                                                            view! {
-                                                                <tr class="hover:bg-gray-50">
-                                                                    <td class="px-4 py-3 text-sm">{history.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.tanggal_mulai.clone()} " - " {history.tanggal_selesai.clone()}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
-                                                                    <td class="px-4 py-3 text-sm">{history.created_at.clone()}</td>
-                                                                </tr>
+                                        <div>
+                                            <h4 class="font-semibold text-gray-800 mb-2">
+                                                "Riwayat Pemakaian"
+                                            </h4>
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full">
+                                                    <thead class="bg-gray-50 border-b">
+                                                        <tr>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Nomor Izin"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Periode"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Status"
+                                                            </th>
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                                "Dibuat"
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y">
+                                                        <For
+                                                            each=move || stats.permit_history.clone()
+                                                            key=|h| h.id.clone()
+                                                            children=move |history| {
+                                                                view! {
+                                                                    <tr class="hover:bg-gray-50">
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history
+                                                                                .nomor_izin
+                                                                                .clone()
+                                                                                .unwrap_or_else(|| "-".to_string())}
+                                                                        </td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history.tanggal_mulai.clone()} " - "
+                                                                            {history.tanggal_selesai.clone()}
+                                                                        </td>
+                                                                        <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            {history.created_at.clone()}
+                                                                        </td>
+                                                                    </tr>
+                                                                }
                                                             }
-                                                        }
-                                                    />
-                                                </tbody>
-                                            </table>
+                                                        />
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            }.into_any(),
-                            SearchResult::Error(msg) => view! {
-                                <div class="p-4 bg-red-50 text-red-700 rounded-lg border border-red-100">
-                                    {msg}
-                                </div>
-                            }.into_any(),
+                                }
+                                    .into_any()
+                            }
+                            SearchResult::Error(msg) => {
+                                view! {
+                                    <div class="p-4 bg-red-50 text-red-700 rounded-lg border border-red-100">
+                                        {msg}
+                                    </div>
+                                }
+                                    .into_any()
+                            }
                         }
                     }}
                 </Show>

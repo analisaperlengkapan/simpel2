@@ -146,21 +146,23 @@ fn BottleneckCard(bottleneck: BottleneckInfo) -> impl IntoView {
                         {bottleneck.count} " workflows aktif"
                     </div>
                 </div>
-                <span class=format!("rounded-lg px-2.5 py-1 text-[0.7rem] font-semibold ring-1 {badge_class}")>
-                    {format!("{:.1}%", usage_percent)}
-                </span>
+                <span class=format!(
+                    "rounded-lg px-2.5 py-1 text-[0.7rem] font-semibold ring-1 {badge_class}",
+                )>{format!("{:.1}%", usage_percent)}</span>
             </div>
 
             <div class="mb-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
-                <div class=format!("h-full rounded-full transition-all duration-300 {bar_class} {width_class}")></div>
+                <div class=format!(
+                    "h-full rounded-full transition-all duration-300 {bar_class} {width_class}",
+                )></div>
             </div>
 
             <div class="flex justify-between text-[0.7rem] text-slate-400">
                 <span>
                     "Avg: "
-                    <strong class=format!("font-semibold {text_class}")>
-                        {format!("{:.0}", bottleneck.avg_time_minutes)} " menit"
-                    </strong>
+                    <strong class=format!(
+                        "font-semibold {text_class}",
+                    )>{format!("{:.0}", bottleneck.avg_time_minutes)} " menit"</strong>
                 </span>
                 <span>
                     "SLA: " <strong class="font-semibold text-slate-200">{sla_display}</strong>
@@ -182,44 +184,59 @@ fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
                 <table class="min-w-full divide-y divide-white/[0.06]">
                     <thead class="bg-white/[0.02]">
                         <tr>
-                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                            <th
+                                scope="col"
+                                class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
+                            >
                                 "Kode Barang"
                             </th>
-                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                            <th
+                                scope="col"
+                                class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
+                            >
                                 "Nama Barang"
                             </th>
-                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                            <th
+                                scope="col"
+                                class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
+                            >
                                 "Status"
                             </th>
-                            <th scope="col" class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400">
+                            <th
+                                scope="col"
+                                class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
+                            >
                                 "Waktu di State"
                             </th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/[0.04]">
-                        {workflows.into_iter().map(|wf| {
-                            let time_display = format_time_in_state(wf.time_in_state_minutes);
-                            view! {
-                                <tr class="transition hover:bg-white/[0.02]">
-                                    <td class="px-3 py-3">
-                                        <span class="font-mono text-xs font-semibold text-info-300">
-                                            {wf.kode_barang}
-                                        </span>
-                                    </td>
-                                    <td class="px-3 py-3 text-sm text-slate-200">
-                                        {wf.nama_barang}
-                                    </td>
-                                    <td class="px-3 py-3">
-                                        <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-medium text-slate-300">
-                                            {wf.status}
-                                        </span>
-                                    </td>
-                                    <td class="px-3 py-3 text-sm text-slate-400">
-                                        {time_display}
-                                    </td>
-                                </tr>
-                            }
-                        }).collect::<Vec<_>>()}
+                        {workflows
+                            .into_iter()
+                            .map(|wf| {
+                                let time_display = format_time_in_state(wf.time_in_state_minutes);
+                                view! {
+                                    <tr class="transition hover:bg-white/[0.02]">
+                                        <td class="px-3 py-3">
+                                            <span class="font-mono text-xs font-semibold text-info-300">
+                                                {wf.kode_barang}
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-3 text-sm text-slate-200">
+                                            {wf.nama_barang}
+                                        </td>
+                                        <td class="px-3 py-3">
+                                            <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-medium text-slate-300">
+                                                {wf.status}
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-3 text-sm text-slate-400">
+                                            {time_display}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect::<Vec<_>>()}
                     </tbody>
                 </table>
             </div>
@@ -238,14 +255,19 @@ fn StateDistributionGrid(by_state: HashMap<String, i64>) -> impl IntoView {
 
     view! {
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {entries.into_iter().map(|(state, count)| view! {
-                <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
-                    <div class="text-[0.7rem] font-semibold uppercase tracking-wider text-slate-500">
-                        {state}
-                    </div>
-                    <div class="mt-2 text-2xl font-bold text-white">{count}</div>
-                </div>
-            }).collect::<Vec<_>>()}
+            {entries
+                .into_iter()
+                .map(|(state, count)| {
+                    view! {
+                        <div class="rounded-xl border border-white/[0.06] bg-white/[0.03] p-4">
+                            <div class="text-[0.7rem] font-semibold uppercase tracking-wider text-slate-500">
+                                {state}
+                            </div>
+                            <div class="mt-2 text-2xl font-bold text-white">{count}</div>
+                        </div>
+                    }
+                })
+                .collect::<Vec<_>>()}
         </div>
     }
 }
@@ -300,20 +322,25 @@ pub fn WorkflowMonitoring() -> impl IntoView {
             title="Monitoring Workflow"
             description="Pantau performa workflow secara real-time dengan metrik SLA dan bottleneck."
             icon="fas fa-gauge-high"
-            actions=Box::new(move || view! {
-                <button
-                    type="button"
-                    on:click=trigger_refresh
-                    class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_CLOCKWISE /></span>
-                    "Refresh"
-                </button>
-                <span class="inline-flex items-center gap-1.5 text-[0.7rem] text-slate-500">
-                    <AppIcon icon=CLOCK_COUNTER_CLOCKWISE />
-                    "Auto-refresh 30 detik"
-                </span>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <button
+                        type="button"
+                        on:click=trigger_refresh
+                        class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_CLOCKWISE />
+                        </span>
+                        "Refresh"
+                    </button>
+                    <span class="inline-flex items-center gap-1.5 text-[0.7rem] text-slate-500">
+                        <AppIcon icon=CLOCK_COUNTER_CLOCKWISE />
+                        "Auto-refresh 30 detik"
+                    </span>
+                }
+                    .into_any()
+            })
         >
             {move || {
                 if loading.get() && metrics.get().is_none() {
@@ -323,9 +350,12 @@ pub fn WorkflowMonitoring() -> impl IntoView {
                         <ErrorState
                             error=err
                             title="Gagal memuat metrics workflow".to_string()
-                            on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                            on_retry=Box::new(move || {
+                                set_reload_tick.update(|t| *t += 1);
+                            })
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if let Some(m) = metrics.get() {
                     let w = workflows.get().unwrap_or_default();
                     view! { <MonitoringContent metrics=m workflows=w /> }.into_any()
@@ -391,11 +421,13 @@ fn MonitoringContent(metrics: WorkflowMetrics, workflows: Vec<WorkflowSummary>) 
             {if has_bottlenecks {
                 view! {
                     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {bottlenecks.into_iter().map(|b| view! {
-                            <BottleneckCard bottleneck=b />
-                        }).collect::<Vec<_>>()}
+                        {bottlenecks
+                            .into_iter()
+                            .map(|b| view! { <BottleneckCard bottleneck=b /> })
+                            .collect::<Vec<_>>()}
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             } else {
                 view! {
                     <div class="flex items-center gap-3 rounded-xl border border-success-500/30 bg-success-500/[0.08] p-4">
@@ -411,19 +443,23 @@ fn MonitoringContent(metrics: WorkflowMetrics, workflows: Vec<WorkflowSummary>) 
                             </div>
                         </div>
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             }}
         </SectionCard>
 
-        {has_state_distribution.then(|| view! {
-            <SectionCard
-                title="Distribusi per State"
-                description="Jumlah workflow aktif di setiap state."
-                icon="fas fa-chart-pie"
-            >
-                <StateDistributionGrid by_state=by_state />
-            </SectionCard>
-        })}
+        {has_state_distribution
+            .then(|| {
+                view! {
+                    <SectionCard
+                        title="Distribusi per State"
+                        description="Jumlah workflow aktif di setiap state."
+                        icon="fas fa-chart-pie"
+                    >
+                        <StateDistributionGrid by_state=by_state />
+                    </SectionCard>
+                }
+            })}
 
         <SectionCard
             title="Workflows Aktif"
@@ -434,10 +470,12 @@ fn MonitoringContent(metrics: WorkflowMetrics, workflows: Vec<WorkflowSummary>) 
                 view! {
                     <EmptyState
                         title="Tidak ada workflow aktif".to_string()
-                        description="Semua workflow telah selesai atau belum ada yang dimulai.".to_string()
+                        description="Semua workflow telah selesai atau belum ada yang dimulai."
+                            .to_string()
                         icon="fas fa-inbox".to_string()
                     />
-                }.into_any()
+                }
+                    .into_any()
             } else {
                 view! { <WorkflowStatusTable workflows=workflows /> }.into_any()
             }}

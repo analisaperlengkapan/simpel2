@@ -42,21 +42,21 @@ pub fn FederationManagementPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / Federasi"
                 </nav>
                 <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-900">"Federasi Identity Provider"</h1>
                 </div>
 
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat data identity provider..." />
+                    fallback=|| {
+                        view! { <LoadingPanel message="Memuat data identity provider..." /> }
                     }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -73,26 +73,36 @@ pub fn FederationManagementPage() -> impl IntoView {
                                     _ => "🌐",
                                 };
                                 view! {
-                                    <div class={format!(
+                                    <div class=format!(
                                         "bg-white rounded-xl border p-5 {}",
-                                        if is_enabled { "border-gray-200" } else { "border-gray-200 opacity-60" }
-                                    )}>
+                                        if is_enabled {
+                                            "border-gray-200"
+                                        } else {
+                                            "border-gray-200 opacity-60"
+                                        },
+                                    )>
                                         <div class="flex items-center gap-3 mb-3">
                                             <span class="text-2xl">{provider_icon}</span>
                                             <div>
-                                                <h3 class="font-semibold text-gray-900">{provider.display_name.clone().unwrap_or_else(|| provider.alias.clone())}</h3>
+                                                <h3 class="font-semibold text-gray-900">
+                                                    {provider
+                                                        .display_name
+                                                        .clone()
+                                                        .unwrap_or_else(|| provider.alias.clone())}
+                                                </h3>
                                                 <p class="text-xs text-gray-500">
-                                                    {provider.provider_type.clone().to_uppercase()}
-                                                    " — "
+                                                    {provider.provider_type.clone().to_uppercase()} " — "
                                                     {provider.alias.clone()}
                                                 </p>
                                             </div>
-                                            <span class={format!(
+                                            <span class=format!(
                                                 "ml-auto text-xs px-2 py-0.5 rounded-full {}",
-                                                if is_enabled { "bg-green-100 text-green-700" } else { "bg-gray-100 text-gray-500" }
-                                            )}>
-                                                {if is_enabled { "Aktif" } else { "Nonaktif" }}
-                                            </span>
+                                                if is_enabled {
+                                                    "bg-green-100 text-green-700"
+                                                } else {
+                                                    "bg-gray-100 text-gray-500"
+                                                },
+                                            )>{if is_enabled { "Aktif" } else { "Nonaktif" }}</span>
                                         </div>
                                     </div>
                                 }

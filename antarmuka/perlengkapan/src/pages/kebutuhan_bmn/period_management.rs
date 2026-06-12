@@ -77,7 +77,9 @@ pub fn PeriodManagement() -> impl IntoView {
                         on:click=move |_| set_view_mode.set(ViewMode::Create)
                         class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     >
-                        <span class="text-xs"><AppIcon icon=PLUS /></span>
+                        <span class="text-xs">
+                            <AppIcon icon=PLUS />
+                        </span>
                         "Buat Periode Baru"
                     </button>
                 </div>
@@ -93,34 +95,45 @@ pub fn PeriodManagement() -> impl IntoView {
 
             // Content based on view mode
             {move || match view_mode.get() {
-                ViewMode::List => view! {
-                    <PeriodList
-                        periods=periods
-                        loading=loading
-                        on_edit=Callback::new(move |id: String| set_view_mode.set(ViewMode::Edit(id)))
-                        on_refresh=Callback::new(move |_| load_periods())
-                    />
-                }.into_any(),
-                ViewMode::Create => view! {
-                    <PeriodForm
-                        mode=FormMode::Create
-                        on_cancel=Callback::new(move |_| set_view_mode.set(ViewMode::List))
-                        on_success=Callback::new(move |_| {
-                            set_view_mode.set(ViewMode::List);
-                            load_periods();
-                        })
-                    />
-                }.into_any(),
-                ViewMode::Edit(id) => view! {
-                    <PeriodForm
-                        mode=FormMode::Edit(id)
-                        on_cancel=Callback::new(move |_| set_view_mode.set(ViewMode::List))
-                        on_success=Callback::new(move |_| {
-                            set_view_mode.set(ViewMode::List);
-                            load_periods();
-                        })
-                    />
-                }.into_any(),
+                ViewMode::List => {
+                    view! {
+                        <PeriodList
+                            periods=periods
+                            loading=loading
+                            on_edit=Callback::new(move |id: String| {
+                                set_view_mode.set(ViewMode::Edit(id))
+                            })
+                            on_refresh=Callback::new(move |_| load_periods())
+                        />
+                    }
+                        .into_any()
+                }
+                ViewMode::Create => {
+                    view! {
+                        <PeriodForm
+                            mode=FormMode::Create
+                            on_cancel=Callback::new(move |_| set_view_mode.set(ViewMode::List))
+                            on_success=Callback::new(move |_| {
+                                set_view_mode.set(ViewMode::List);
+                                load_periods();
+                            })
+                        />
+                    }
+                        .into_any()
+                }
+                ViewMode::Edit(id) => {
+                    view! {
+                        <PeriodForm
+                            mode=FormMode::Edit(id)
+                            on_cancel=Callback::new(move |_| set_view_mode.set(ViewMode::List))
+                            on_success=Callback::new(move |_| {
+                                set_view_mode.set(ViewMode::List);
+                                load_periods();
+                            })
+                        />
+                    }
+                        .into_any()
+                }
             }}
         </PageLayout>
     }
@@ -142,46 +155,54 @@ fn PeriodList(
     view! {
         <div class="rounded-xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur">
             <div class="mb-4 flex items-center justify-between">
-                <h2 class="text-lg font-bold text-slate-100">
-                    "Daftar Periode"
-                </h2>
+                <h2 class="text-lg font-bold text-slate-100">"Daftar Periode"</h2>
                 <button
                     on:click=move |_| on_refresh.run(())
                     class="rounded-lg border border-white/10 bg-slate-800/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700/50"
                 >
-                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
+                    <span class="mr-2">
+                        <AppIcon icon=ARROW_CLOCKWISE />
+                    </span>
                     "Refresh"
                 </button>
             </div>
 
             <Show
                 when=move || loading.get()
-                fallback=move || view! {
-                    <Show
-                        when=move || !periods.get().is_empty()
-                        fallback=|| view! {
-                            <div class="py-12 text-center">
-                                <span class="text-4xl text-slate-600 mb-3"><AppIcon icon=TRAY /></span>
-                                <p class="text-slate-400">"Belum ada periode yang dibuat"</p>
-                            </div>
-                        }
-                    >
-                        <div class="space-y-3">
-                            <For
-                                each=move || periods.get()
-                                key=|p| p.id.clone()
-                                children=move |period| {
-                                    let edit_id = period.id.clone();
-                                    view! {
-                                        <PeriodCard
-                                            period=period
-                                            on_edit=Callback::new(move |_| on_edit.run(edit_id.clone()))
-                                        />
-                                    }
+                fallback=move || {
+                    view! {
+                        <Show
+                            when=move || !periods.get().is_empty()
+                            fallback=|| {
+                                view! {
+                                    <div class="py-12 text-center">
+                                        <span class="text-4xl text-slate-600 mb-3">
+                                            <AppIcon icon=TRAY />
+                                        </span>
+                                        <p class="text-slate-400">
+                                            "Belum ada periode yang dibuat"
+                                        </p>
+                                    </div>
                                 }
-                            />
-                        </div>
-                    </Show>
+                            }
+                        >
+                            <div class="space-y-3">
+                                <For
+                                    each=move || periods.get()
+                                    key=|p| p.id.clone()
+                                    children=move |period| {
+                                        let edit_id = period.id.clone();
+                                        view! {
+                                            <PeriodCard
+                                                period=period
+                                                on_edit=Callback::new(move |_| on_edit.run(edit_id.clone()))
+                                            />
+                                        }
+                                    }
+                                />
+                            </div>
+                        </Show>
+                    }
                 }
             >
                 <div class="space-y-3">
@@ -230,9 +251,7 @@ fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoVi
             <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0 flex-1">
                     <div class="mb-2 flex items-center gap-2">
-                        <h3 class="text-base font-semibold text-white">
-                            {period.nama.clone()}
-                        </h3>
+                        <h3 class="text-base font-semibold text-white">{period.nama.clone()}</h3>
                         <Show when=move || is_active>
                             <span class="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
                                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
@@ -243,23 +262,43 @@ fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoVi
 
                     <div class="mb-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
                         <div class="flex items-center gap-2 text-slate-400">
-                            <span class="text-xs"><AppIcon icon=CALENDAR /></span>
-                            <span>"Tahun: " <span class="font-medium text-slate-300">{period.tahun}</span></span>
+                            <span class="text-xs">
+                                <AppIcon icon=CALENDAR />
+                            </span>
+                            <span>
+                                "Tahun: "
+                                <span class="font-medium text-slate-300">{period.tahun}</span>
+                            </span>
                         </div>
                         <div class="flex items-center gap-2 text-slate-400">
-                            <span class="text-xs"><AppIcon icon=BUILDING /></span>
-                            <span>"Satker: " <span class="font-medium text-slate-300">{period.total_satker}</span></span>
+                            <span class="text-xs">
+                                <AppIcon icon=BUILDING />
+                            </span>
+                            <span>
+                                "Satker: "
+                                <span class="font-medium text-slate-300">
+                                    {period.total_satker}
+                                </span>
+                            </span>
                         </div>
                         <div class="flex items-center gap-2 text-slate-400">
-                            <span class="text-xs"><AppIcon icon=PACKAGE /></span>
-                            <span>"Barang: " <span class="font-medium text-slate-300">{period.total_barang}</span></span>
+                            <span class="text-xs">
+                                <AppIcon icon=PACKAGE />
+                            </span>
+                            <span>
+                                "Barang: "
+                                <span class="font-medium text-slate-300">
+                                    {period.total_barang}
+                                </span>
+                            </span>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <span class=format!("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium {}", status_badge.0)>
-                            {status_badge.1}
-                        </span>
+                        <span class=format!(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium {}",
+                            status_badge.0,
+                        )>{status_badge.1}</span>
                     </div>
                 </div>
 
@@ -268,7 +307,9 @@ fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoVi
                         on:click=move |_| on_edit.run(())
                         class="rounded-lg border border-white/10 bg-slate-700/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-600/50"
                     >
-                        <span class="mr-1"><AppIcon icon=PENCIL_SIMPLE /></span>
+                        <span class="mr-1">
+                            <AppIcon icon=PENCIL_SIMPLE />
+                        </span>
                         "Edit"
                     </button>
                 </div>
@@ -560,7 +601,9 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
                                     name="pilihan_satker"
                                     class="h-4 w-4 text-gold-500"
                                     checked=move || pilihan_satker.get() == PilihanSatker::Sebagian
-                                    on:change=move |_| set_pilihan_satker.set(PilihanSatker::Sebagian)
+                                    on:change=move |_| {
+                                        set_pilihan_satker.set(PilihanSatker::Sebagian)
+                                    }
                                 />
                                 <span class="ml-2 text-slate-300">"Sebagian Satker"</span>
                             </label>
@@ -573,15 +616,21 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
                     // Info box for eligible BMN and satkers
                     <div class="rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
                         <div class="flex items-start gap-3">
-                            <span class="text-blue-300 mt-0.5"><AppIcon icon=INFO /></span>
+                            <span class="text-blue-300 mt-0.5">
+                                <AppIcon icon=INFO />
+                            </span>
                             <div class="text-sm text-blue-200">
                                 <p class="font-medium mb-1">"Konfigurasi Lanjutan"</p>
                                 <p class="text-blue-300/80">
                                     "Setelah periode dibuat, Anda dapat mengkonfigurasi:"
                                 </p>
                                 <ul class="mt-2 space-y-1 text-blue-300/80">
-                                    <li>"• Daftar BMN yang dapat diajukan (filtered by standar kodefikasi)"</li>
-                                    <li>"• Daftar satker yang dapat mengajukan (jika pilih 'Sebagian Satker')"</li>
+                                    <li>
+                                        "• Daftar BMN yang dapat diajukan (filtered by standar kodefikasi)"
+                                    </li>
+                                    <li>
+                                        "• Daftar satker yang dapat mengajukan (jika pilih 'Sebagian Satker')"
+                                    </li>
                                 </ul>
                             </div>
                         </div>
@@ -604,7 +653,9 @@ fn PeriodForm(mode: FormMode, on_cancel: Callback<()>, on_success: Callback<()>)
                             <Show when=move || submitting.get()>
                                 <div class="h-4 w-4 animate-spin rounded-full border-b-2 border-navy-900"></div>
                             </Show>
-                            {move || if submitting.get() { "Menyimpan..." } else { "Simpan Periode" }}
+                            {move || {
+                                if submitting.get() { "Menyimpan..." } else { "Simpan Periode" }
+                            }}
                         </button>
                     </div>
                 </form>

@@ -143,45 +143,78 @@ pub fn PortalDashboardPage() -> impl IntoView {
                         class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
                         </svg>
                         "Refresh"
                     </button>
                 </div>
 
-                <Suspense fallback=move || view! { <DashboardLoadingSkeleton /> }>
+                <Suspense fallback=move || {
+                    view! { <DashboardLoadingSkeleton /> }
+                }>
                     {move || {
                         let _ = refresh_trigger.get();
-                        metrics.get().map(|result| match result {
-                            Ok(data) => view! {
-                                <div class="space-y-8">
-                                    // System Overview Section
-                                    <SystemOverviewSection metrics=data.system_metrics.clone() />
+                        metrics
+                            .get()
+                            .map(|result| match result {
+                                Ok(data) => {
+                                    view! {
+                                        <div class="space-y-8">
+                                            // System Overview Section
+                                            <SystemOverviewSection metrics=data
+                                                .system_metrics
+                                                .clone() />
 
-                                    // BMN Metrics Section
-                                    <BmnMetricsSection metrics=data.cross_domain_metrics.clone() />
+                                            // BMN Metrics Section
+                                            <BmnMetricsSection metrics=data
+                                                .cross_domain_metrics
+                                                .clone() />
 
-                                    // Auth Metrics Section
-                                    <AuthMetricsSection metrics=data.auth_metrics.clone() />
+                                            // Auth Metrics Section
+                                            <AuthMetricsSection metrics=data.auth_metrics.clone() />
 
-                                    // Integration Health Section
-                                    <IntegrationHealthSection health=data.integration_health.clone() />
-                                </div>
-                            }.into_any(),
-                            Err(e) => view! {
-                                <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
-                                    <div class="flex items-center gap-3">
-                                        <svg class="h-5 w-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <div>
-                                            <p class="font-medium text-red-800 dark:text-red-200">"Gagal memuat data dashboard"</p>
-                                            <p class="text-sm text-red-600 dark:text-red-400">{e}</p>
+                                            // Integration Health Section
+                                            <IntegrationHealthSection health=data
+                                                .integration_health
+                                                .clone() />
                                         </div>
-                                    </div>
-                                </div>
-                            }.into_any(),
-                        })
+                                    }
+                                        .into_any()
+                                }
+                                Err(e) => {
+                                    view! {
+                                        <div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+                                            <div class="flex items-center gap-3">
+                                                <svg
+                                                    class="h-5 w-5 text-red-600 dark:text-red-400"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                    />
+                                                </svg>
+                                                <div>
+                                                    <p class="font-medium text-red-800 dark:text-red-200">
+                                                        "Gagal memuat data dashboard"
+                                                    </p>
+                                                    <p class="text-sm text-red-600 dark:text-red-400">{e}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                            })
                     }}
                 </Suspense>
             </div>

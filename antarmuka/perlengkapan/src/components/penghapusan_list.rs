@@ -73,100 +73,133 @@ pub fn PenghapusanList() -> impl IntoView {
             // Status filter bar
             <div class="flex flex-wrap gap-2 mb-4">
                 <button
-                    class=move || if filter_status.get().is_none() {
-                        "px-3 py-1 text-sm rounded-full bg-blue-600 text-white"
-                    } else {
-                        "px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }
-                    on:click=move |_| { set_filter_status.set(None); set_page.set(1); }
-                >"Semua"</button>
-                {[
-                    (4000, "Draft"), (4001, "Submit Wilayah"), (4003, "Submit Pusat"),
-                    (4005, "Konsep SK"), (4007, "Selesai"), (4008, "Ditolak"),
-                ].into_iter().map(|(kode, label)| {
-                    view! {
-                        <button
-                            class=move || if filter_status.get() == Some(kode) {
-                                "px-3 py-1 text-sm rounded-full bg-blue-600 text-white"
-                            } else {
-                                "px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }
-                            on:click=move |_| { set_filter_status.set(Some(kode)); set_page.set(1); }
-                        >{label}</button>
-                    }
-                }).collect_view()}
-            </div>
-
-            <Suspense fallback=move || view! { <LoadingState /> }>
-                {move || {
-                    data_resource.get().flatten().map(|response| {
-                        if response.data.is_empty() {
-                            view! {
-                                <EmptyState
-                                    title="Belum ada data Usulan SK Penghapusan BMN."
-                                    icon_class="fas fa-clipboard-list"
-                                />
-                            }.into_any()
+                    class=move || {
+                        if filter_status.get().is_none() {
+                            "px-3 py-1 text-sm rounded-full bg-blue-600 text-white"
                         } else {
-                            view! {
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
-                                            <th class="p-3 font-semibold border-b">"Kode Barang"</th>
-                                            <th class="p-3 font-semibold border-b">"Nama Barang"</th>
-                                            <th class="p-3 font-semibold border-b">"Metode"</th>
-                                            <th class="p-3 font-semibold border-b">"Tanggal"</th>
-                                            <th class="p-3 font-semibold border-b">"Status"</th>
-                                            <th class="p-3 font-semibold border-b">"Aksi"</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="text-gray-700 text-sm">
-                                        <For
-                                            each=move || response.data.clone()
-                                            key=|item| item.id.clone()
-                                            children=move |item: PenghapusanBmnWorkflow| {
-                                                let (bg, tc, lbl) = status_badge(item.status_kode);
-                                                let detail_url = format!("/perlengkapan/pengelolaan/penghapusan/{}", item.id);
-                                                view! {
-                                                    <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
-                                                        <td class="p-3 font-mono text-xs">{item.kode_barang}</td>
-                                                        <td class="p-3 font-medium">{item.nama_barang}</td>
-                                                        <td class="p-3">{item.metode_penghapusan}</td>
-                                                        <td class="p-3">{item.tanggal_penghapusan}</td>
-                                                        <td class="p-3">
-                                                            <span class=format!("px-2 py-1 rounded-full text-xs font-medium {} {}", bg, tc)>
-                                                                {lbl}
-                                                            </span>
-                                                        </td>
-                                                        <td class="p-3">
-                                                            <a
-                                                                href=detail_url
-                                                                class="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
-                                                                title="Lihat Detail"
-                                                            >
-                                                                <AppIcon icon=EYE />
-                                                                <span class="text-xs">"Detail"</span>
-                                                            </a>
-                                                        </td>
-                                                    </tr>
-                                                }
-                                            }
-                                        />
-                                    </tbody>
-                                </table>
-
-                                <PaginationControls
-                                    current_page=response.page
-                                    total_pages=response.total_pages
-                                    total_items=None
-                                    on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
-                                    on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
-                                />
-                            </div>
-                            }.into_any()
+                            "px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }
+                    }
+                    on:click=move |_| {
+                        set_filter_status.set(None);
+                        set_page.set(1);
+                    }
+                >
+                    "Semua"
+                </button>
+                {[
+                    (4000, "Draft"),
+                    (4001, "Submit Wilayah"),
+                    (4003, "Submit Pusat"),
+                    (4005, "Konsep SK"),
+                    (4007, "Selesai"),
+                    (4008, "Ditolak"),
+                ]
+                    .into_iter()
+                    .map(|(kode, label)| {
+                        view! {
+                            <button
+                                class=move || {
+                                    if filter_status.get() == Some(kode) {
+                                        "px-3 py-1 text-sm rounded-full bg-blue-600 text-white"
+                                    } else {
+                                        "px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                    }
+                                }
+                                on:click=move |_| {
+                                    set_filter_status.set(Some(kode));
+                                    set_page.set(1);
+                                }
+                            >
+                                {label}
+                            </button>
                         }
                     })
+                    .collect_view()}
+            </div>
+
+            <Suspense fallback=move || {
+                view! { <LoadingState /> }
+            }>
+                {move || {
+                    data_resource
+                        .get()
+                        .flatten()
+                        .map(|response| {
+                            if response.data.is_empty() {
+                                view! {
+                                    <EmptyState
+                                        title="Belum ada data Usulan SK Penghapusan BMN."
+                                        icon_class="fas fa-clipboard-list"
+                                    />
+                                }
+                                    .into_any()
+                            } else {
+                                view! {
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr class="bg-gray-50 text-gray-600 text-sm uppercase tracking-wider">
+                                                    <th class="p-3 font-semibold border-b">"Kode Barang"</th>
+                                                    <th class="p-3 font-semibold border-b">"Nama Barang"</th>
+                                                    <th class="p-3 font-semibold border-b">"Metode"</th>
+                                                    <th class="p-3 font-semibold border-b">"Tanggal"</th>
+                                                    <th class="p-3 font-semibold border-b">"Status"</th>
+                                                    <th class="p-3 font-semibold border-b">"Aksi"</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="text-gray-700 text-sm">
+                                                <For
+                                                    each=move || response.data.clone()
+                                                    key=|item| item.id.clone()
+                                                    children=move |item: PenghapusanBmnWorkflow| {
+                                                        let (bg, tc, lbl) = status_badge(item.status_kode);
+                                                        let detail_url = format!(
+                                                            "/perlengkapan/pengelolaan/penghapusan/{}",
+                                                            item.id,
+                                                        );
+                                                        view! {
+                                                            <tr class="hover:bg-gray-50 border-b last:border-0 transition-colors">
+                                                                <td class="p-3 font-mono text-xs">{item.kode_barang}</td>
+                                                                <td class="p-3 font-medium">{item.nama_barang}</td>
+                                                                <td class="p-3">{item.metode_penghapusan}</td>
+                                                                <td class="p-3">{item.tanggal_penghapusan}</td>
+                                                                <td class="p-3">
+                                                                    <span class=format!(
+                                                                        "px-2 py-1 rounded-full text-xs font-medium {} {}",
+                                                                        bg,
+                                                                        tc,
+                                                                    )>{lbl}</span>
+                                                                </td>
+                                                                <td class="p-3">
+                                                                    <a
+                                                                        href=detail_url
+                                                                        class="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+                                                                        title="Lihat Detail"
+                                                                    >
+                                                                        <AppIcon icon=EYE />
+                                                                        <span class="text-xs">"Detail"</span>
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                />
+                                            </tbody>
+                                        </table>
+
+                                        <PaginationControls
+                                            current_page=response.page
+                                            total_pages=response.total_pages
+                                            total_items=None
+                                            on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                            on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                        />
+                                    </div>
+                                }
+                                    .into_any()
+                            }
+                        })
                 }}
             </Suspense>
         </div>

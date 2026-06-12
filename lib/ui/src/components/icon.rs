@@ -30,9 +30,7 @@ pub fn AppIcon(
 ) -> impl IntoView {
     let size_str = format!("{}px", size);
     let color_str = color.unwrap_or_else(|| "currentColor".to_string());
-    view! {
-        <Icon icon=icon weight=weight size=size_str color=color_str />
-    }
+    view! { <Icon icon=icon weight=weight size=size_str color=color_str /> }
 }
 
 /// Resolve a FontAwesome class string to the nearest phosphor icon.

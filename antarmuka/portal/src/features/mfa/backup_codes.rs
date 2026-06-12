@@ -147,35 +147,49 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
 
                         <div class="p-6 space-y-6">
                             // Status Section
-                            <Show when=move || status.get().is_some()>
-                                {move || status.get().map(|status_data| {
-                                    if status_data.available && status_data.remaining_codes > 0 {
-                                        view! {
-                                            <Alert
-                                                variant=AlertVariant::Success
-                                                title="Backup Codes Available".to_string()
-                                                message=format!("You have {} backup codes remaining", status_data.remaining_codes)
-                                                show=true
-                                            />
-                                        }.into_any()
-                                    } else {
-                                        view! {
-                                            <Alert
-                                                variant=AlertVariant::Warning
-                                                title="No Backup Codes".to_string()
-                                                message="You don't have any backup codes. Generate new codes below.".to_string()
-                                                show=true
-                                            />
-                                        }.into_any()
-                                    }
-                                })}
+                            <Show when=move || {
+                                status.get().is_some()
+                            }>
+                                {move || {
+                                    status
+                                        .get()
+                                        .map(|status_data| {
+                                            if status_data.available && status_data.remaining_codes > 0
+                                            {
+                                                view! {
+                                                    <Alert
+                                                        variant=AlertVariant::Success
+                                                        title="Backup Codes Available".to_string()
+                                                        message=format!(
+                                                            "You have {} backup codes remaining",
+                                                            status_data.remaining_codes,
+                                                        )
+                                                        show=true
+                                                    />
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <Alert
+                                                        variant=AlertVariant::Warning
+                                                        title="No Backup Codes".to_string()
+                                                        message="You don't have any backup codes. Generate new codes below."
+                                                            .to_string()
+                                                        show=true
+                                                    />
+                                                }
+                                                    .into_any()
+                                            }
+                                        })
+                                }}
                             </Show>
 
                             // Warning Section
                             <Alert
                                 variant=AlertVariant::Info
                                 title="Important Security Information".to_string()
-                                message="• Backup codes are for emergency access only\n• Each code can only be used once\n• Store codes in a secure, offline location\n• Generate new codes if you suspect compromise\n• Do not share codes with anyone".to_string()
+                                message="• Backup codes are for emergency access only\n• Each code can only be used once\n• Store codes in a secure, offline location\n• Generate new codes if you suspect compromise\n• Do not share codes with anyone"
+                                    .to_string()
                                 show=true
                             />
 
@@ -195,10 +209,18 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                     on:click=move |_| generate_codes()
                                     class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {move || if loading.get() { "Generating..." } else { "Generate New Codes" }}
+                                    {move || {
+                                        if loading.get() {
+                                            "Generating..."
+                                        } else {
+                                            "Generate New Codes"
+                                        }
+                                    }}
                                 </button>
 
-                                <Show when=move || status.get().map(|s| s.remaining_codes > 0).unwrap_or(false)>
+                                <Show when=move || {
+                                    status.get().map(|s| s.remaining_codes > 0).unwrap_or(false)
+                                }>
                                     <p class="text-sm text-amber-600 dark:text-amber-400 mt-2">
                                         "⚠️ Warning: This will replace your existing backup codes"
                                     </p>
@@ -206,65 +228,86 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                             </div>
 
                             // Display Generated Codes
-                            <Show when=move || show_codes.get() && backup_codes.get().is_some()>
-                                {move || backup_codes.get().map(|codes| view! {
-                                    <div class="p-6 bg-gray-50 dark:bg-gray-900 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
-                                        <div class="flex justify-between items-center mb-4">
-                                            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                                "Your New Backup Codes"
-                                            </h2>
-                                            <div class="flex space-x-2">
-                                                <button
-                                                    type="button"
-                                                    on:click=move |_| download_codes()
-                                                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
-                                                >
-                                                    "Download"
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    on:click=move |_| print_codes()
-                                                    class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
-                                                >
-                                                    "Print"
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                                            {codes.codes.iter().enumerate().map(|(i, code)| {
-                                                view! {
-                                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                                                        <span class="text-sm text-gray-500 dark:text-gray-400 mr-3 w-6">
-                                                            {format!("{}.", i + 1)}
-                                                        </span>
-                                                        <code class="font-mono text-lg font-semibold text-gray-900 dark:text-white select-all">
-                                                            {code.clone()}
-                                                        </code>
+                            <Show when=move || {
+                                show_codes.get() && backup_codes.get().is_some()
+                            }>
+                                {move || {
+                                    backup_codes
+                                        .get()
+                                        .map(|codes| {
+                                            view! {
+                                                <div class="p-6 bg-gray-50 dark:bg-gray-900 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                                                    <div class="flex justify-between items-center mb-4">
+                                                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                                                            "Your New Backup Codes"
+                                                        </h2>
+                                                        <div class="flex space-x-2">
+                                                            <button
+                                                                type="button"
+                                                                on:click=move |_| download_codes()
+                                                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
+                                                            >
+                                                                "Download"
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                on:click=move |_| print_codes()
+                                                                class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
+                                                            >
+                                                                "Print"
+                                                            </button>
+                                                        </div>
                                                     </div>
-                                                }
-                                            }).collect_view()}
-                                        </div>
 
-                                        <Alert
-                                            variant=AlertVariant::Error
-                                            message=codes.warning.clone()
-                                            show=true
-                                        />
-                                    </div>
-                                })}
+                                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                                                        {codes
+                                                            .codes
+                                                            .iter()
+                                                            .enumerate()
+                                                            .map(|(i, code)| {
+                                                                view! {
+                                                                    <div class="flex items-center p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                                                        <span class="text-sm text-gray-500 dark:text-gray-400 mr-3 w-6">
+                                                                            {format!("{}.", i + 1)}
+                                                                        </span>
+                                                                        <code class="font-mono text-lg font-semibold text-gray-900 dark:text-white select-all">
+                                                                            {code.clone()}
+                                                                        </code>
+                                                                    </div>
+                                                                }
+                                                            })
+                                                            .collect_view()}
+                                                    </div>
+
+                                                    <Alert
+                                                        variant=AlertVariant::Error
+                                                        message=codes.warning.clone()
+                                                        show=true
+                                                    />
+                                                </div>
+                                            }
+                                        })
+                                }}
                             </Show>
 
                             // Error Display
-                            <Show when=move || error_message.get().is_some()>
-                                {move || error_message.get().map(|msg| view! {
-                                    <Alert
-                                        variant=AlertVariant::Error
-                                        title="Error".to_string()
-                                        message=msg
-                                        show=true
-                                    />
-                                })}
+                            <Show when=move || {
+                                error_message.get().is_some()
+                            }>
+                                {move || {
+                                    error_message
+                                        .get()
+                                        .map(|msg| {
+                                            view! {
+                                                <Alert
+                                                    variant=AlertVariant::Error
+                                                    title="Error".to_string()
+                                                    message=msg
+                                                    show=true
+                                                />
+                                            }
+                                        })
+                                }}
                             </Show>
 
                             // Loading State
@@ -280,7 +323,9 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                 <ol class="text-blue-800 dark:text-blue-200 text-sm space-y-2">
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"1."</span>
-                                        <span>"If you lose access to your authenticator app, go to the login page"</span>
+                                        <span>
+                                            "If you lose access to your authenticator app, go to the login page"
+                                        </span>
                                     </li>
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"2."</span>
@@ -288,15 +333,21 @@ pub fn MfaBackupCodesPage() -> impl IntoView {
                                     </li>
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"3."</span>
-                                        <span>"When prompted for MFA code, click 'Use backup code instead'"</span>
+                                        <span>
+                                            "When prompted for MFA code, click 'Use backup code instead'"
+                                        </span>
                                     </li>
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"4."</span>
-                                        <span>"Enter one of your backup codes exactly as shown"</span>
+                                        <span>
+                                            "Enter one of your backup codes exactly as shown"
+                                        </span>
                                     </li>
                                     <li class="flex items-start">
                                         <span class="font-semibold mr-2">"5."</span>
-                                        <span>"The code will be permanently disabled after use"</span>
+                                        <span>
+                                            "The code will be permanently disabled after use"
+                                        </span>
                                     </li>
                                 </ol>
                             </div>

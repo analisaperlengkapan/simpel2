@@ -199,12 +199,7 @@ pub fn SafeHtml(
 ) -> impl IntoView {
     let sanitized = sanitize_html(&html);
 
-    view! {
-        <div
-            class=class
-            inner_html=sanitized
-        ></div>
-    }
+    view! { <div class=class inner_html=sanitized></div> }
 }
 
 /// Secure input component with automatic XSS validation
@@ -251,11 +246,11 @@ pub fn SecureInput(
                 class=class
                 on:input=on_input
             />
-            {move || error.get().map(|e| view! {
-                <div class="text-red-600 text-sm mt-1">
-                    {e.to_string()}
-                </div>
-            })}
+            {move || {
+                error
+                    .get()
+                    .map(|e| view! { <div class="text-red-600 text-sm mt-1">{e.to_string()}</div> })
+            }}
         </div>
     }
 }

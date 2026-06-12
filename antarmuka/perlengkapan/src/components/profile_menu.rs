@@ -59,7 +59,8 @@ pub fn ProfileMenu() -> impl IntoView {
             trigger_ref=trigger_ref
             offset=10.0
             role="menu"
-            class="w-[300px] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel".to_string()
+            class="w-[300px] rounded-[18px] border border-white/10 bg-surface-panel overflow-hidden shadow-panel"
+                .to_string()
         >
             // ── User info header ─────────────────────────────
             <div style="padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.06);">
@@ -70,21 +71,31 @@ pub fn ProfileMenu() -> impl IntoView {
                         </span>
                     </div>
                     <div>
-                        <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">{display_name}</div>
-                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">{display_email}</div>
+                        <div style="font-size: 0.9rem; font-weight: 700; color: #e2e8f0;">
+                            {display_name}
+                        </div>
+                        <div style="font-size: 0.72rem; color: #64748b; margin-top: 2px;">
+                            {display_email}
+                        </div>
                     </div>
                 </div>
             </div>
 
             // ── Role switcher section ────────────────────────
             <div style="padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.06);">
-                <div style="font-size: 0.68rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px; margin-bottom: 4px;">"Ganti Role"</div>
+                <div style="font-size: 0.68rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 8px; margin-bottom: 4px;">
+                    "Ganti Role"
+                </div>
                 <RoleSwitcher />
             </div>
 
             // ── Actions ──────────────────────────────────────
             <div style="padding: 8px;">
-                <A href=routes::path::ADMIN_MASTER attr:style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;" attr:class="hover:bg-white/[0.04] hover:text-white">
+                <A
+                    href=routes::path::ADMIN_MASTER
+                    attr:style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: #94a3b8; font-size: 0.82rem; transition: all 0.15s;"
+                    attr:class="hover:bg-white/[0.04] hover:text-white"
+                >
                     <span style="width: 18px; display: inline-flex; justify-content: center;">
                         <AppIcon icon=GEAR size=14 />
                     </span>
@@ -97,11 +108,6 @@ pub fn ProfileMenu() -> impl IntoView {
                         #[cfg(target_arch = "wasm32")]
                         {
                             AuthService::logout();
-                            // Full page reload to clear all WASM memory
-                            // (reactive signals, provide_context data,
-                            // closures). SPA navigation would leave
-                            // sensitive session state in the WASM linear
-                            // memory.
                             if let Some(window) = web_sys::window() {
                                 let origin = window
                                     .location()
@@ -112,9 +118,7 @@ pub fn ProfileMenu() -> impl IntoView {
                                     .set_href(&format!("{}/portal/login", origin));
                             }
                         }
-
-                        #[cfg(not(target_arch = "wasm32"))]
-                        AuthService::clear_session();
+                        #[cfg(not(target_arch = "wasm32"))] AuthService::clear_session();
                     }
                 >
                     <span style="width: 18px; display: inline-flex; justify-content: center;">

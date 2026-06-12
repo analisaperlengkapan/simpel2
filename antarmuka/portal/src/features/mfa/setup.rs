@@ -133,8 +133,16 @@ pub fn MfaSetupPage() -> impl IntoView {
                     <Show when=move || setup_complete.get()>
                         <div class="text-center p-8">
                             <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                                <svg class="w-8 h-8 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                <svg
+                                    class="w-8 h-8 text-green-600"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"
+                                    />
                                 </svg>
                             </div>
                             <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -155,8 +163,16 @@ pub fn MfaSetupPage() -> impl IntoView {
                             <Show when=move || show_captcha.get()>
                                 <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
                                     <div class="flex items-start mb-4">
-                                        <svg class="w-6 h-6 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                                        <svg
+                                            class="w-6 h-6 text-yellow-600 mt-0.5 mr-3 flex-shrink-0"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                                clip-rule="evenodd"
+                                            />
                                         </svg>
                                         <div>
                                             <h3 class="text-lg font-medium text-yellow-800 dark:text-yellow-300">
@@ -193,9 +209,25 @@ pub fn MfaSetupPage() -> impl IntoView {
                                 <Show when=move || is_generating.get()>
                                     <div class="flex justify-center py-12">
                                         <div class="text-center">
-                                            <svg class="animate-spin h-12 w-12 text-emerald-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            <svg
+                                                class="animate-spin h-12 w-12 text-emerald-600 mx-auto mb-4"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    class="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    stroke-width="4"
+                                                ></circle>
+                                                <path
+                                                    class="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
                                             </svg>
                                             <p class="text-gray-600">"Generating QR code..."</p>
                                         </div>
@@ -206,7 +238,10 @@ pub fn MfaSetupPage() -> impl IntoView {
                                     <div>
                                         <div class="flex justify-center mb-6">
                                             <QrCodeDisplay
-                                                qr_url=mfa_data.get().map(|d| d.qr_code_url).unwrap_or_default()
+                                                qr_url=mfa_data
+                                                    .get()
+                                                    .map(|d| d.qr_code_url)
+                                                    .unwrap_or_default()
                                                 size="280px".to_string()
                                             />
                                         </div>
@@ -230,7 +265,9 @@ pub fn MfaSetupPage() -> impl IntoView {
                                                         "Secret Key:"
                                                     </label>
                                                     <code class="block text-sm bg-white dark:bg-gray-800 p-2 rounded border font-mono break-all">
-                                                        {move || mfa_data.get().map(|d| d.secret_key).unwrap_or_default()}
+                                                        {move || {
+                                                            mfa_data.get().map(|d| d.secret_key).unwrap_or_default()
+                                                        }}
                                                     </code>
                                                 </div>
                                             </div>
@@ -255,13 +292,19 @@ pub fn MfaSetupPage() -> impl IntoView {
                                         on_change=set_otp_code
                                         disabled=is_loading.get() || mfa_data.get().is_none()
                                         loading=is_loading.get()
-                                        hint="Enter the 6-digit code from your authenticator app".to_string()
-                                        error=if error_message.get().is_empty() { String::new() } else { error_message.get() }
+                                        hint="Enter the 6-digit code from your authenticator app"
+                                            .to_string()
+                                        error=if error_message.get().is_empty() {
+                                            String::new()
+                                        } else {
+                                            error_message.get()
+                                        }
                                     />
 
                                     <button
                                         type="button"
-                                        disabled=otp_code.get().len() != 6 || is_loading.get() || mfa_data.get().is_none()
+                                        disabled=otp_code.get().len() != 6 || is_loading.get()
+                                            || mfa_data.get().is_none()
                                         class="mt-6 w-full inline-flex items-center justify-center px-6 py-3 text-lg font-medium text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                                         on:click={
                                             let navigate = navigate.clone();
@@ -269,35 +312,28 @@ pub fn MfaSetupPage() -> impl IntoView {
                                             move |_| {
                                                 let code = otp_code.get();
                                                 if code.len() != 6 {
-                                                    set_error_message.set("Please enter a 6-digit code".to_string());
+                                                    set_error_message
+                                                        .set("Please enter a 6-digit code".to_string());
                                                     return;
                                                 }
-
                                                 set_is_loading.set(true);
                                                 set_error_message.set(String::new());
-
                                                 let nav = navigate.clone();
                                                 let is_mounted = mounted.clone();
-
                                                 spawn_local(async move {
                                                     match verify_mfa_setup(&code).await {
                                                         Ok(_) => {
                                                             set_setup_complete.set(true);
-                                                            // Update session to mark MFA as enabled
                                                             crate::features::auth::AuthService::update_session_mfa_enabled();
-                                                            // Clear temp token as setup is complete
                                                             crate::features::auth::AuthService::clear_temp_token();
-                                                            // Redirect to login after 2 seconds.
-                                                            // Guard: if the component unmounted during
-                                                            // the timer (e.g. user navigated away),
-                                                            // skip the navigation.
                                                             gloo_timers::future::TimeoutFuture::new(2000).await;
                                                             if is_mounted.load(Ordering::SeqCst) {
                                                                 nav("/login", Default::default());
                                                             }
                                                         }
                                                         Err(e) => {
-                                                            set_error_message.set(format!("Verification failed: {}", e));
+                                                            set_error_message
+                                                                .set(format!("Verification failed: {}", e));
                                                             set_is_loading.set(false);
                                                         }
                                                     }
@@ -305,16 +341,35 @@ pub fn MfaSetupPage() -> impl IntoView {
                                             }
                                         }
                                     >
-                                        {move || if is_loading.get() {
-                                            view! {
-                                                <svg class="animate-spin -ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                "Verifying..."
-                                            }.into_any()
-                                        } else {
-                                            view! { "Complete MFA Setup" }.into_any()
+                                        {move || {
+                                            if is_loading.get() {
+                                                view! {
+                                                    <svg
+                                                        class="animate-spin -ml-1 mr-2 h-5 w-5"
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <circle
+                                                            class="opacity-25"
+                                                            cx="12"
+                                                            cy="12"
+                                                            r="10"
+                                                            stroke="currentColor"
+                                                            stroke-width="4"
+                                                        ></circle>
+                                                        <path
+                                                            class="opacity-75"
+                                                            fill="currentColor"
+                                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                        ></path>
+                                                    </svg>
+                                                    "Verifying..."
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! { "Complete MFA Setup" }.into_any()
+                                            }
                                         }}
                                     </button>
                                 </div>
@@ -324,8 +379,16 @@ pub fn MfaSetupPage() -> impl IntoView {
                             <Show when=move || mfa_data.get().is_some()>
                                 <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                                     <div class="flex items-start">
-                                        <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                        <svg
+                                            class="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                clip-rule="evenodd"
+                                            />
                                         </svg>
                                         <div>
                                             <h4 class="text-sm font-medium text-blue-800 dark:text-blue-300">

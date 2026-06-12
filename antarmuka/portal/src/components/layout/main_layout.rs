@@ -117,7 +117,10 @@ pub fn MainLayout(
                 </main>
             </div>
 
-            <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto" role="contentinfo">
+            <footer
+                class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto"
+                role="contentinfo"
+            >
                 <div class="container mx-auto px-4 py-6">
                     <div class="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
                         <div class="text-center md:text-left">
@@ -129,11 +132,19 @@ pub fn MainLayout(
                             </p>
                         </div>
                         <div class="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
-                            <a href="/portal/apps" class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors">
+                            <a
+                                href="/portal/apps"
+                                class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors"
+                            >
                                 "Aplikasi"
                             </a>
-                            <span class="text-gray-300 dark:text-gray-600" aria-hidden="true">"|"</span>
-                            <a href="/portal/settings" class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors">
+                            <span class="text-gray-300 dark:text-gray-600" aria-hidden="true">
+                                "|"
+                            </span>
+                            <a
+                                href="/portal/settings"
+                                class="hover:text-navy-600 dark:hover:text-gold-400 transition-colors"
+                            >
                                 "Pengaturan"
                             </a>
                         </div>

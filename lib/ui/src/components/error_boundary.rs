@@ -96,23 +96,29 @@ pub fn ErrorPanel(
     view! {
         <div class=format!(
             "flex flex-col items-center justify-center rounded-xl border {} {} p-8 text-center",
-            border, bg
+            border,
+            bg,
         )>
             <span class=format!("mb-4 inline-flex {}", icon_color)>
                 <AppIcon icon=icon size=32 />
             </span>
             <p class="text-lg font-semibold text-slate-100 mb-2">{title}</p>
             <p class="text-sm text-slate-400 max-w-md">{message}</p>
-            {on_retry.map(|retry| view! {
-                <button
-                    type="button"
-                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600 transition-colors"
-                    on:click=move |_| retry.run(())
-                >
-                    <span class="text-xs"><AppIcon icon=ARROW_CLOCKWISE /></span>
-                    "Coba Lagi"
-                </button>
-            })}
+            {on_retry
+                .map(|retry| {
+                    view! {
+                        <button
+                            type="button"
+                            class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-700 px-4 py-2 text-sm font-medium text-slate-100 hover:bg-slate-600 transition-colors"
+                            on:click=move |_| retry.run(())
+                        >
+                            <span class="text-xs">
+                                <AppIcon icon=ARROW_CLOCKWISE />
+                            </span>
+                            "Coba Lagi"
+                        </button>
+                    }
+                })}
         </div>
     }
 }
@@ -138,8 +144,19 @@ pub fn LoadingPanel(
                 fill="none"
                 viewBox="0 0 24 24"
             >
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                ></circle>
+                <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
             </svg>
             <p class="text-sm text-slate-400">{message}</p>
         </div>
@@ -188,11 +205,8 @@ pub fn DarkPagination(
     view! {
         <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
             <p class="text-xs text-slate-400">
-                "Menampilkan "
-                <span class="font-medium text-slate-200">{items_shown}</span>
-                " dari "
-                <span class="font-medium text-slate-200">{total_items}</span>
-                " data"
+                "Menampilkan " <span class="font-medium text-slate-200">{items_shown}</span>
+                " dari " <span class="font-medium text-slate-200">{total_items}</span> " data"
             </p>
             <div class="flex items-center gap-2">
                 <button
@@ -201,7 +215,9 @@ pub fn DarkPagination(
                     prop:disabled=move || current_page.get() <= 1
                     on:click=move |_| on_prev.run(())
                 >
-                    <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
+                    <span class="text-[0.6rem]">
+                        <AppIcon icon=CARET_LEFT />
+                    </span>
                     "Sebelumnya"
                 </button>
                 <span class="text-xs text-slate-400">
@@ -210,11 +226,15 @@ pub fn DarkPagination(
                 <button
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || current_page.get() >= total_pages
-                    on:click=move |_| on_next.run(())
+                    prop:disabled=move || current_page.get()
                 >
+                    = total_pages
+                    on:click=move |_| on_next.run(())
+                    >
                     "Selanjutnya"
-                    <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
+                    <span class="text-[0.6rem]">
+                        <AppIcon icon=CARET_RIGHT />
+                    </span>
                 </button>
             </div>
         </div>
@@ -286,13 +306,7 @@ where
             }
             Some(Err(err)) => {
                 // Error — show error panel
-                view! {
-                    <ErrorPanel
-                        title=err_title.clone()
-                        message=err
-                    />
-                }
-                .into_any()
+                view! { <ErrorPanel title=err_title.clone() message=err /> }.into_any()
             }
         }
     }

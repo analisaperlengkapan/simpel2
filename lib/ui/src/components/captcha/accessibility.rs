@@ -92,84 +92,98 @@ pub fn AudioChallenge(
     };
 
     view! {
-         <div class="audio-challenge bg-blue-50 dark:bg-blue-900 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-6">
-             <div class="audio-header mb-4">
-                 <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                     "🔊 Audio Challenge"
-                 </h3>
-                 <p class="text-sm text-blue-700 dark:text-blue-300">
-                     "Dengarkan dengan seksama dan ketik jawaban Anda di bawah"
-                 </p>
-             </div>
+        <div class="audio-challenge bg-blue-50 dark:bg-blue-900 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-6">
+            <div class="audio-header mb-4">
+                <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                    "🔊 Audio Challenge"
+                </h3>
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    "Dengarkan dengan seksama dan ketik jawaban Anda di bawah"
+                </p>
+            </div>
 
-             <div class="audio-controls space-y-4">
-                 <div class="playback-controls flex items-center justify-center space-x-4">
-                     <Button
-                         on_click=Box::new(move || {
-                             play_audio(leptos::ev::MouseEvent::new("click").unwrap())
-                         })
-                         variant=ButtonVariant::Primary
-                         size=ButtonSize::Large
-                         disabled=audio_playing.get()
-                     >
-                         {if audio_playing.get() { "🔊 Memutar..." } else { "▶️ Putar Audio" }}
-                     </Button>
+            <div class="audio-controls space-y-4">
+                <div class="playback-controls flex items-center justify-center space-x-4">
+                    <Button
+                        on_click=Box::new(move || {
+                            play_audio(leptos::ev::MouseEvent::new("click").unwrap())
+                        })
+                        variant=ButtonVariant::Primary
+                        size=ButtonSize::Large
+                        disabled=audio_playing.get()
+                    >
+                        {if audio_playing.get() { "🔊 Memutar..." } else { "▶️ Putar Audio" }}
+                    </Button>
 
-                     {if audio_playing.get() {
-                         view! {
-                             <Button
-                                 on_click=Box::new(move || {
-                                     stop_audio(leptos::ev::MouseEvent::new("click").unwrap())
-                                 })
-                                 variant=ButtonVariant::Secondary
-                                 size=ButtonSize::Medium
-                             >
-                                 "⏹️ Stop"
-                             </Button>
-                         }.into_any()
-                     } else {
+                    {if audio_playing.get() {
+                        view! {
+                            <Button
+                                on_click=Box::new(move || {
+                                    stop_audio(leptos::ev::MouseEvent::new("click").unwrap())
+                                })
+                                variant=ButtonVariant::Secondary
+                                size=ButtonSize::Medium
+                            >
+                                "⏹️ Stop"
+                            </Button>
+                        }
+                            .into_any()
+                    } else {
+                        ().into_any()
+                    }}
+                </div>
 
-                         ().into_any()
-                     }}
-                 </div>
+                <div class="speed-controls">
+                    <label class="block text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
+                        "Kecepatan Putar"
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <Button
+                            on_click=Box::new(move || adjust_speed(0.75))
+                            variant=if playback_speed.get() == 0.75 {
+                                ButtonVariant::Primary
+                            } else {
+                                ButtonVariant::Ghost
+                            }
+                            size=ButtonSize::Small
+                        >
+                            "0.75x"
+                        </Button>
+                        <Button
+                            on_click=Box::new(move || adjust_speed(1.0))
+                            variant=if playback_speed.get() == 1.0 {
+                                ButtonVariant::Primary
+                            } else {
+                                ButtonVariant::Ghost
+                            }
+                            size=ButtonSize::Small
+                        >
+                            "1x"
+                        </Button>
+                        <Button
+                            on_click=Box::new(move || adjust_speed(1.25))
+                            variant=if playback_speed.get() == 1.25 {
+                                ButtonVariant::Primary
+                            } else {
+                                ButtonVariant::Ghost
+                            }
+                            size=ButtonSize::Small
+                        >
+                            "1.25x"
+                        </Button>
+                    </div>
+                </div>
 
-                 <div class="speed-controls">
-                     <label class="block text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
-                         "Kecepatan Putar"
-                     </label>
-                     <div class="flex items-center space-x-2">
-                         <Button
-                             on_click=Box::new(move || adjust_speed(0.75))
-                             variant=if playback_speed.get() == 0.75 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
-                             size=ButtonSize::Small
-                         >
-                             "0.75x"
-                         </Button>
-                         <Button
-                             on_click=Box::new(move || adjust_speed(1.0))
-    variant=if playback_speed.get() == 1.0 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
-                             size=ButtonSize::Small
-                         >
-                             "1x"
-                         </Button>
-                         <Button
-                             on_click=Box::new(move || adjust_speed(1.25))
-                             variant=if playback_speed.get() == 1.25 { ButtonVariant::Primary } else { ButtonVariant::Ghost }
-                             size=ButtonSize::Small
-                         >
-                             "1.25x"
-                         </Button>
-                     </div>
-                 </div>
-
-                 <div class="text-alternative bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-600 rounded p-3">
-                     <p class="text-sm text-gray-700 dark:text-gray-300">
-                         <strong>"Versi teks:"</strong> " " {audio_text.get()}
-                     </p>
-                 </div>
-             </div>
-         </div>
-     }
+                <div class="text-alternative bg-white dark:bg-gray-800 border border-blue-200 dark:border-blue-600 rounded p-3">
+                    <p class="text-sm text-gray-700 dark:text-gray-300">
+                        <strong>"Versi teks:"</strong>
+                        " "
+                        {audio_text.get()}
+                    </p>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 /// Keyboard navigation helper component
@@ -240,15 +254,15 @@ pub fn KeyboardNavigation(
 #[component]
 pub fn ScreenReaderAnnouncements(announcements: ReadSignal<Vec<String>>) -> impl IntoView {
     view! {
-        <div
-            aria-live="polite"
-            aria-atomic="true"
-            class="sr-only"
-        >
+        <div aria-live="polite" aria-atomic="true" class="sr-only">
             {move || {
-                announcements.get().into_iter().map(|announcement| {
-                    view! { <div>{announcement}</div> }
-                }).collect::<Vec<_>>()
+                announcements
+                    .get()
+                    .into_iter()
+                    .map(|announcement| {
+                        view! { <div>{announcement}</div> }
+                    })
+                    .collect::<Vec<_>>()
             }}
         </div>
     }
@@ -420,32 +434,43 @@ pub fn AlternativeInputs(
                         "Select an answer:"
                     </p>
                     <div class="grid grid-cols-2 gap-2">
-                        {options.into_iter().map(|(value, label)| {
-                            let value_clone = value.to_string();
-                            let value_clone_for_class = value_clone.clone();
-                            let value_clone_for_click = value_clone.clone();
-                            let value_clone_for_aria = value_clone.clone();
-                            view! {
-                                <button
-                                    type="button"
-                                    class=move || format!(
-                                        "p-2 text-sm rounded border-2 transition-colors {}",
-                                        if selected_option.get().as_deref() == Some(&value_clone_for_class) {
-                                            "border-yellow-500 bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100"
-                                        } else {
-                                            "border-yellow-300 dark:border-yellow-600 hover:border-yellow-400 dark:hover:border-yellow-500"
+                        {options
+                            .into_iter()
+                            .map(|(value, label)| {
+                                let value_clone = value.to_string();
+                                let value_clone_for_class = value_clone.clone();
+                                let value_clone_for_click = value_clone.clone();
+                                let value_clone_for_aria = value_clone.clone();
+                                view! {
+                                    <button
+                                        type="button"
+                                        class=move || {
+                                            format!(
+                                                "p-2 text-sm rounded border-2 transition-colors {}",
+                                                if selected_option.get().as_deref()
+                                                    == Some(&value_clone_for_class)
+                                                {
+                                                    "border-yellow-500 bg-yellow-100 dark:bg-yellow-800 text-yellow-900 dark:text-yellow-100"
+                                                } else {
+                                                    "border-yellow-300 dark:border-yellow-600 hover:border-yellow-400 dark:hover:border-yellow-500"
+                                                },
+                                            )
                                         }
-                                    )
-                                    on:click=move |_| {
-                                        set_selected_option.set(Some(value_clone_for_click.clone()));
-                                        on_answer.run(value_clone_for_click.clone());
-                                    }
-                                    aria-pressed=move || selected_option.get().as_deref() == Some(&value_clone_for_aria)
-                                >
-                                    {label}
-                                </button>
-                            }
-                        }).collect::<Vec<_>>()}
+                                        on:click=move |_| {
+                                            set_selected_option
+                                                .set(Some(value_clone_for_click.clone()));
+                                            on_answer.run(value_clone_for_click.clone());
+                                        }
+                                        aria-pressed=move || {
+                                            selected_option.get().as_deref()
+                                                == Some(&value_clone_for_aria)
+                                        }
+                                    >
+                                        {label}
+                                    </button>
+                                }
+                            })
+                            .collect::<Vec<_>>()}
                     </div>
                 </div>
 
@@ -459,7 +484,11 @@ pub fn AlternativeInputs(
                         size=ButtonSize::Small
                         disabled=voice_input_active.get()
                     >
-                        {if voice_input_active.get() { "🎤 Listening..." } else { "🎤 Voice Input" }}
+                        {if voice_input_active.get() {
+                            "🎤 Listening..."
+                        } else {
+                            "🎤 Voice Input"
+                        }}
                     </Button>
                     <p class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
                         "Speak your answer clearly"

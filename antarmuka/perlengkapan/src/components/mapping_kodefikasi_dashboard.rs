@@ -91,45 +91,58 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
                 </div>
             </div>
 
-            <Suspense fallback=move || view! {
-                <div class="flex justify-center items-center py-12">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
+            <Suspense fallback=move || {
+                view! {
+                    <div class="flex justify-center items-center py-12">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                }
             }>
                 {move || {
-                    progress.get().and_then(|data| data.map(|progress| {
-                        view! {
-                            <div>
-                                // Metrics Cards
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                    <MetricCard
-                                        title="Kode Standar"
-                                        value=progress.total_standard.to_string()
-                                        icon="✅"
-                                        color="green"
-                                    />
-                                    <MetricCard
-                                        title="Kode Non-Standar"
-                                        value=progress.total_non_standard.to_string()
-                                        icon="⚠️"
-                                        color="yellow"
-                                    />
-                                    <MetricCard
-                                        title="Sudah Dipetakan"
-                                        value=format!("{} ({:.1}%)", progress.total_mapped, progress.mapping_percentage)
-                                        icon="📊"
-                                        color="blue"
-                                    />
-                                </div>
+                    progress
+                        .get()
+                        .and_then(|data| {
+                            data
+                                .map(|progress| {
+                                    view! {
+                                        <div>
+                                            // Metrics Cards
+                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                                <MetricCard
+                                                    title="Kode Standar"
+                                                    value=progress.total_standard.to_string()
+                                                    icon="✅"
+                                                    color="green"
+                                                />
+                                                <MetricCard
+                                                    title="Kode Non-Standar"
+                                                    value=progress.total_non_standard.to_string()
+                                                    icon="⚠️"
+                                                    color="yellow"
+                                                />
+                                                <MetricCard
+                                                    title="Sudah Dipetakan"
+                                                    value=format!(
+                                                        "{} ({:.1}%)",
+                                                        progress.total_mapped,
+                                                        progress.mapping_percentage,
+                                                    )
+                                                    icon="📊"
+                                                    color="blue"
+                                                />
+                                            </div>
 
-                                // Non-Standard Codes Table
-                                <div class="mt-8">
-                                    <h2 class="text-xl font-bold mb-4 text-gray-800">"Daftar BMN Non-Standar"</h2>
-                                    <MappingTable items=progress.non_standard_codes />
-                                </div>
-                            </div>
-                        }
-                    }))
+                                            // Non-Standard Codes Table
+                                            <div class="mt-8">
+                                                <h2 class="text-xl font-bold mb-4 text-gray-800">
+                                                    "Daftar BMN Non-Standar"
+                                                </h2>
+                                                <MappingTable items=progress.non_standard_codes />
+                                            </div>
+                                        </div>
+                                    }
+                                })
+                        })
                 }}
             </Suspense>
         </div>
@@ -205,16 +218,20 @@ fn MappingTable(items: Vec<NonStandardCodeWithStatus>) -> impl IntoView {
                         key=|item| format!("{}_{}", item.kode_lama, item.satker_id)
                         children=move |item| {
                             let status_badge = match item.status_mapping.as_deref() {
-                                Some("VERIFIED") => view! {
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                                        "Standar"
-                                    </span>
-                                },
-                                _ => view! {
-                                    <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                        "Non-Standar"
-                                    </span>
-                                },
+                                Some("VERIFIED") => {
+                                    view! {
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                            "Standar"
+                                        </span>
+                                    }
+                                }
+                                _ => {
+                                    view! {
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                            "Non-Standar"
+                                        </span>
+                                    }
+                                }
                             };
 
                             view! {
@@ -231,12 +248,17 @@ fn MappingTable(items: Vec<NonStandardCodeWithStatus>) -> impl IntoView {
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {item.jumlah_aset}
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        {status_badge}
-                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">{status_badge}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {item.kode_baru.clone().unwrap_or_else(|| "—".to_string())}
-                                        {item.nama_baru.as_ref().map(|n| format!(" ({})", n)).unwrap_or_default()}
+                                        {item
+                                            .kode_baru
+                                            .clone()
+                                            .unwrap_or_else(|| "—".to_string())}
+                                        {item
+                                            .nama_baru
+                                            .as_ref()
+                                            .map(|n| format!(" ({})", n))
+                                            .unwrap_or_default()}
                                     </td>
                                 </tr>
                             }

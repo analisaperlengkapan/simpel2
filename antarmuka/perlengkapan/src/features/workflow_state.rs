@@ -309,10 +309,8 @@ pub fn WorkflowTimeline(
     #[prop(optional, into)] current_state: Option<String>,
 ) -> impl IntoView {
     if entries.is_empty() {
-        return view! {
-            <p class="text-sm text-slate-500">"Belum ada riwayat alur kerja."</p>
-        }
-        .into_any();
+        return view! { <p class="text-sm text-slate-500">"Belum ada riwayat alur kerja."</p> }
+            .into_any();
     }
 
     let current = current_state.unwrap_or_default();
@@ -343,19 +341,14 @@ pub fn WorkflowTimeline(
                             " · "
                             <span class="text-slate-400">{phase.label()}</span>
                         </p>
-                        {note.map(|n| view! {
-                            <p class="mt-1 text-xs text-slate-400">{n}</p>
-                        })}
+                        {note.map(|n| view! { <p class="mt-1 text-xs text-slate-400">{n}</p> })}
                     </div>
                 </li>
             }
         })
         .collect_view();
 
-    view! {
-        <ol class="relative">{items}</ol>
-    }
-    .into_any()
+    view! { <ol class="relative">{items}</ol> }.into_any()
 }
 
 /// Action bar that renders every transition currently available to the
@@ -397,8 +390,5 @@ pub fn WorkflowActionBar(
         })
         .collect_view();
 
-    view! {
-        <div class="flex flex-wrap gap-2">{buttons}</div>
-    }
-    .into_any()
+    view! { <div class="flex flex-wrap gap-2">{buttons}</div> }.into_any()
 }

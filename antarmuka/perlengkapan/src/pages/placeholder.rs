@@ -22,7 +22,9 @@ pub fn PlaceholderPage(
                 </div>
 
                 // Title
-                <h1 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin: 0 0 8px 0;">{title}</h1>
+                <h1 style="font-size: 1.5rem; font-weight: 800; color: #ffffff; margin: 0 0 8px 0;">
+                    {title}
+                </h1>
 
                 // Description
                 <p style="font-size: 0.88rem; color: #94a3b8; line-height: 1.5; margin: 0 0 24px 0; max-width: 400px; margin-left: auto; margin-right: auto;">
@@ -32,7 +34,9 @@ pub fn PlaceholderPage(
                 // Status badge
                 <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 20px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 999px;">
                     <div style="width: 8px; height: 8px; background: #fbbf24; border-radius: 50%; animation: pulse 2s ease-in-out infinite;"></div>
-                    <span style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.05em;">"DALAM PENGEMBANGAN"</span>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #94a3b8; letter-spacing: 0.05em;">
+                        "DALAM PENGEMBANGAN"
+                    </span>
                 </div>
 
                 // Back link
@@ -41,7 +45,9 @@ pub fn PlaceholderPage(
                         href=routes::path::DASHBOARD
                         style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #d4a843; text-decoration: none; font-weight: 600;"
                     >
-                        <span style="font-size: 0.75rem;"><AppIcon icon=ARROW_LEFT /></span>
+                        <span style="font-size: 0.75rem;">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
                         "Kembali ke Dashboard"
                     </a>
                 </div>

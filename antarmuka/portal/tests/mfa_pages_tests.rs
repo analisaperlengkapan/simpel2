@@ -124,10 +124,7 @@ mod mfa_setup_page_tests {
                                 maxlength="6"
                                 pattern="[0-9]*"
                             />
-                            <button
-                                data-testid="verify-button"
-                                disabled=true
-                            >
+                            <button data-testid="verify-button" disabled=true>
                                 "Verify and Complete Setup"
                             </button>
                         </div>
@@ -192,14 +189,16 @@ mod mfa_setup_page_tests {
                                             alt="MFA Setup QR Code"
                                             data-testid="qr-code-image"
                                         />
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                                 None => {
                                     view! {
                                         <div class="qr-loading" data-testid="qr-loading">
                                             "Generating QR code..."
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }}
                         </div>
@@ -245,8 +244,8 @@ mod mfa_setup_page_tests {
                                 value=otp_code.get()
                                 on:input=move |ev| {
                                     let value = event_target_value(&ev);
-                                    // Only allow digits and limit to 6 characters
-                                    let filtered: String = value.chars()
+                                    let filtered: String = value
+                                        .chars()
                                         .filter(|c| c.is_ascii_digit())
                                         .take(6)
                                         .collect();
@@ -257,7 +256,6 @@ mod mfa_setup_page_tests {
                                 data-testid="verify-button"
                                 disabled=move || otp_code.get().len() != 6
                                 on:click=move |_| {
-                                    // Simulate verification
                                     let code = otp_code.get();
                                     if code == "123456" {
                                         set_verification_result.set(Some(true));
@@ -274,16 +272,18 @@ mod mfa_setup_page_tests {
                                         <div data-testid="success-message" class="success">
                                             "✅ MFA Setup Complete!"
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                                 Some(false) => {
                                     view! {
                                         <div data-testid="error-message" class="error">
                                             "❌ Invalid code. Please try again."
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
-                                None => view! { <div></div> }.into_any()
+                                None => view! { <div></div> }.into_any(),
                             }}
                         </div>
                     </div>
@@ -463,7 +463,8 @@ mod mfa_verification_page_tests {
                                 value=otp_code.get()
                                 on:input=move |ev| {
                                     let value = event_target_value(&ev);
-                                    let filtered: String = value.chars()
+                                    let filtered: String = value
+                                        .chars()
                                         .filter(|c| c.is_ascii_digit())
                                         .take(6)
                                         .collect();
@@ -476,11 +477,8 @@ mod mfa_verification_page_tests {
                                 on:click=move |_| {
                                     set_is_verifying.set(true);
                                     let code = otp_code.get();
-
-                                    // Simulate API call delay
                                     spawn_local(async move {
                                         TimeoutFuture::new(100).await;
-
                                         if code == "123456" {
                                             set_verification_status.set(Some("success".to_string()));
                                         } else {
@@ -499,16 +497,18 @@ mod mfa_verification_page_tests {
                                     <div data-testid="success-message" class="success">
                                         "✅ Verification successful! Redirecting..."
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                             Some("error") => {
                                 view! {
                                     <div data-testid="error-message" class="error">
                                         "❌ Invalid code. Please try again."
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
-                            _ => view! { <div></div> }.into_any()
+                            _ => view! { <div></div> }.into_any(),
                         }}
                     </div>
                 }

@@ -332,11 +332,15 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 <div class="border-t pt-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">
                         "Informasi Pegawai yang Akan Menggunakan BMN"
-                        <span class="text-sm text-gray-500 ml-2">"(Diisi oleh Operator Satker)"</span>
+                        <span class="text-sm text-gray-500 ml-2">
+                            "(Diisi oleh Operator Satker)"
+                        </span>
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"NIP"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "NIP"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -347,7 +351,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Pegawai"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Nama Pegawai"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -358,7 +364,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Golongan"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Golongan"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -368,7 +376,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Pangkat"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Pangkat"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -378,17 +388,23 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Unit Kerja"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Unit Kerja"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                 placeholder="Unit kerja pegawai"
                                 prop:value=move || pegawai_unit_kerja.get()
-                                on:input=move |ev| set_pegawai_unit_kerja.set(event_target_value(&ev))
+                                on:input=move |ev| {
+                                    set_pegawai_unit_kerja.set(event_target_value(&ev))
+                                }
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Foto Pegawai (URL)"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Foto Pegawai (URL)"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -405,7 +421,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">"Pilih BMN"</h3>
                     <div class="flex gap-2">
                         <div class="flex-1">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"NUP BMN"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "NUP BMN"
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -420,17 +438,26 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 type="button"
                                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                                 on:click=check_availability
-                                prop:disabled=move || checking_availability.get() || bmn_nup.get().is_empty()
+                                prop:disabled=move || {
+                                    checking_availability.get() || bmn_nup.get().is_empty()
+                                }
                             >
-                                <Show when=move || checking_availability.get() fallback=|| view! { "Cek Ketersediaan" }>
-                                    <span class="fa-spin"><AppIcon icon=SPINNER /></span>
+                                <Show
+                                    when=move || checking_availability.get()
+                                    fallback=|| view! { "Cek Ketersediaan" }
+                                >
+                                    <span class="fa-spin">
+                                        <AppIcon icon=SPINNER />
+                                    </span>
                                 </Show>
                             </button>
                         </div>
                     </div>
 
                     // Availability Status
-                    <Show when=move || bmn_availability.get().is_some()>
+                    <Show when=move || {
+                        bmn_availability.get().is_some()
+                    }>
                         {move || {
                             let availability = bmn_availability.get().unwrap();
                             if availability.is_available {
@@ -439,7 +466,8 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                         <AppIcon icon=CHECK_CIRCLE />
                                         "BMN tersedia untuk digunakan"
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 view! {
                                     <div class="mt-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100">
@@ -448,13 +476,16 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                             <span class="font-semibold">"BMN sedang digunakan"</span>
                                         </div>
                                         <p class="text-sm">
-                                            "Pemegang: " {availability.active_permit_holder.unwrap_or_default()}
+                                            "Pemegang: "
+                                            {availability.active_permit_holder.unwrap_or_default()}
                                         </p>
                                         <p class="text-sm">
-                                            "Berlaku hingga: " {availability.active_permit_expires.unwrap_or_default()}
+                                            "Berlaku hingga: "
+                                            {availability.active_permit_expires.unwrap_or_default()}
                                         </p>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                         }}
                     </Show>
@@ -468,7 +499,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <Show when=move || jenis_bmn.get() == "KENDARAAN_BERMOTOR">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nomor Polisi" <span class="text-red-500">"*"</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Nomor Polisi" <span class="text-red-500">"*"</span>
+                                </label>
                                 <input
                                     type="text"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -479,7 +512,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nomor BPKB"</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Nomor BPKB"
+                                </label>
                                 <input
                                     type="text"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -488,7 +523,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nomor STNK"</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Nomor STNK"
+                                </label>
                                 <input
                                     type="text"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -497,7 +534,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nomor Rangka"</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Nomor Rangka"
+                                </label>
                                 <input
                                     type="text"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -506,7 +545,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                 />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nomor Mesin"</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Nomor Mesin"
+                                </label>
                                 <input
                                     type="text"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -521,7 +562,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <Show when=move || jenis_bmn.get() == "RUMAH_NEGARA">
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">"Alamat" <span class="text-red-500">"*"</span></label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    "Alamat" <span class="text-red-500">"*"</span>
+                                </label>
                                 <textarea
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                     rows="3"
@@ -533,24 +576,32 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Luas Tanah (m²)" <span class="text-red-500">"*"</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Luas Tanah (m²)" <span class="text-red-500">"*"</span>
+                                    </label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         prop:value=move || luas_tanah.get()
-                                        on:input=move |ev| set_luas_tanah.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_luas_tanah.set(event_target_value(&ev))
+                                        }
                                         required
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Luas Bangunan (m²)" <span class="text-red-500">"*"</span></label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Luas Bangunan (m²)" <span class="text-red-500">"*"</span>
+                                    </label>
                                     <input
                                         type="number"
                                         step="0.01"
                                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                                         prop:value=move || luas_bangunan.get()
-                                        on:input=move |ev| set_luas_bangunan.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_luas_bangunan.set(event_target_value(&ev))
+                                        }
                                         required
                                     />
                                 </div>
@@ -561,7 +612,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     // Laptop-specific fields
                     <Show when=move || jenis_bmn.get() == "LAPTOP">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Serial Number" <span class="text-red-500">"*"</span></label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Serial Number" <span class="text-red-500">"*"</span>
+                            </label>
                             <input
                                 type="text"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -579,7 +632,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">"Periode Pemakaian"</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mulai"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Tanggal Mulai"
+                            </label>
                             <input
                                 type="date"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -589,7 +644,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             />
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Selesai"</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                "Tanggal Selesai"
+                            </label>
                             <input
                                 type="date"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -614,7 +671,9 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Lokasi Pemakaian"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        "Lokasi Pemakaian"
+                    </label>
                     <input
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -629,23 +688,26 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <div class="flex items-center justify-between mb-4">
                         <h3 class="text-lg font-semibold text-gray-800">
                             "BMN Tambahan"
-                            <span class="text-sm font-normal text-gray-500 ml-2">"(Opsional, untuk pegawai yang menggunakan lebih dari 1 BMN)"</span>
+                            <span class="text-sm font-normal text-gray-500 ml-2">
+                                "(Opsional, untuk pegawai yang menggunakan lebih dari 1 BMN)"
+                            </span>
                         </h3>
                         <button
                             type="button"
                             class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 flex items-center gap-1"
                             on:click=move |_| {
                                 let mut items = additional_bmn_items.get();
-                                items.push(CreateBmnItemRequest {
-                                    bmn_nup: String::new(),
-                                    bmn_kode_barang: String::new(),
-                                    bmn_nama_barang: String::new(),
-                                    bmn_merk: None,
-                                    bmn_tahun_perolehan: None,
-                                    bmn_kondisi: None,
-                                    detail_bmn: None,
-                                    keterangan: None,
-                                });
+                                items
+                                    .push(CreateBmnItemRequest {
+                                        bmn_nup: String::new(),
+                                        bmn_kode_barang: String::new(),
+                                        bmn_nama_barang: String::new(),
+                                        bmn_merk: None,
+                                        bmn_tahun_perolehan: None,
+                                        bmn_kondisi: None,
+                                        detail_bmn: None,
+                                        keterangan: None,
+                                    });
                                 set_additional_bmn_items.set(items);
                             }
                         >
@@ -661,74 +723,85 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         } else {
                             view! {
                                 <div class="space-y-3">
-                                    {items.into_iter().enumerate().map(|(idx, _item)| {
-                                        view! {
-                                            <div class="p-4 bg-gray-50 rounded-lg border relative">
-                                                <button
-                                                    type="button"
-                                                    class="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                                                    on:click=move |_| {
-                                                        let mut items = additional_bmn_items.get();
-                                                        if idx < items.len() {
-                                                            items.remove(idx);
-                                                            set_additional_bmn_items.set(items);
+                                    {items
+                                        .into_iter()
+                                        .enumerate()
+                                        .map(|(idx, _item)| {
+                                            view! {
+                                                <div class="p-4 bg-gray-50 rounded-lg border relative">
+                                                    <button
+                                                        type="button"
+                                                        class="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                                                        on:click=move |_| {
+                                                            let mut items = additional_bmn_items.get();
+                                                            if idx < items.len() {
+                                                                items.remove(idx);
+                                                                set_additional_bmn_items.set(items);
+                                                            }
                                                         }
-                                                    }
-                                                >
-                                                    <AppIcon icon=X />
-                                                </button>
-                                                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"Kode Barang"</label>
-                                                        <input
-                                                            type="text"
-                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                            placeholder="Kode barang"
-                                                            on:input=move |ev| {
-                                                                let mut items = additional_bmn_items.get();
-                                                                if let Some(item) = items.get_mut(idx) {
-                                                                    item.bmn_kode_barang = event_target_value(&ev);
+                                                    >
+                                                        <AppIcon icon=X />
+                                                    </button>
+                                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                        <div>
+                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                                "Kode Barang"
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                placeholder="Kode barang"
+                                                                on:input=move |ev| {
+                                                                    let mut items = additional_bmn_items.get();
+                                                                    if let Some(item) = items.get_mut(idx) {
+                                                                        item.bmn_kode_barang = event_target_value(&ev);
+                                                                    }
+                                                                    set_additional_bmn_items.set(items);
                                                                 }
-                                                                set_additional_bmn_items.set(items);
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"Nama Barang"</label>
-                                                        <input
-                                                            type="text"
-                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                            placeholder="Nama barang"
-                                                            on:input=move |ev| {
-                                                                let mut items = additional_bmn_items.get();
-                                                                if let Some(item) = items.get_mut(idx) {
-                                                                    item.bmn_nama_barang = event_target_value(&ev);
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                                "Nama Barang"
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                placeholder="Nama barang"
+                                                                on:input=move |ev| {
+                                                                    let mut items = additional_bmn_items.get();
+                                                                    if let Some(item) = items.get_mut(idx) {
+                                                                        item.bmn_nama_barang = event_target_value(&ev);
+                                                                    }
+                                                                    set_additional_bmn_items.set(items);
                                                                 }
-                                                                set_additional_bmn_items.set(items);
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label class="block text-xs font-medium text-gray-600 mb-1">"NUP"</label>
-                                                        <input
-                                                            type="text"
-                                                            class="w-full px-3 py-1.5 text-sm border rounded-lg"
-                                                            placeholder="NUP"
-                                                            on:input=move |ev| {
-                                                                let mut items = additional_bmn_items.get();
-                                                                if let Some(item) = items.get_mut(idx) {
-                                                                    item.bmn_nup = event_target_value(&ev);
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label class="block text-xs font-medium text-gray-600 mb-1">
+                                                                "NUP"
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                class="w-full px-3 py-1.5 text-sm border rounded-lg"
+                                                                placeholder="NUP"
+                                                                on:input=move |ev| {
+                                                                    let mut items = additional_bmn_items.get();
+                                                                    if let Some(item) = items.get_mut(idx) {
+                                                                        item.bmn_nup = event_target_value(&ev);
+                                                                    }
+                                                                    set_additional_bmn_items.set(items);
                                                                 }
-                                                                set_additional_bmn_items.set(items);
-                                                            }
-                                                        />
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        }
-                                    }).collect::<Vec<_>>()}
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
@@ -744,10 +817,18 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     <button
                         type="submit"
                         class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                        prop:disabled=move || loading.get() || bmn_availability.get().map(|a| !a.is_available).unwrap_or(true)
+                        prop:disabled=move || {
+                            loading.get()
+                                || bmn_availability.get().map(|a| !a.is_available).unwrap_or(true)
+                        }
                     >
-                        <Show when=move || loading.get() fallback=|| view! { <AppIcon icon=PAPER_PLANE_TILT /> }>
-                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
+                        <Show
+                            when=move || loading.get()
+                            fallback=|| view! { <AppIcon icon=PAPER_PLANE_TILT /> }
+                        >
+                            <span class="fa-spin">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                         "Ajukan Permohonan"
                     </button>

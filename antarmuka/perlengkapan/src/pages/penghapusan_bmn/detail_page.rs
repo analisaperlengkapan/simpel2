@@ -123,15 +123,20 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
             description="Pantau workflow, konsep SK, dan status SK tertandatangan."
             icon="fas fa-trash-can"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::PENGELOLAAN_PENGHAPUSAN
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
-                    "Kembali"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::PENGELOLAAN_PENGHAPUSAN
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
+                        "Kembali"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             {move || {
                 if let Some((ok, msg)) = action_msg.get() {
@@ -141,10 +146,12 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                         "border-danger-500/30 bg-danger-500/10 text-danger-200"
                     };
                     view! {
-                        <div class=format!("rounded-lg border px-4 py-2 text-xs {}", tone)>
-                            {msg}
-                        </div>
-                    }.into_any()
+                        <div class=format!(
+                            "rounded-lg border px-4 py-2 text-xs {}",
+                            tone,
+                        )>{msg}</div>
+                    }
+                        .into_any()
                 } else {
                     view! { <div class="hidden"></div> }.into_any()
                 }
@@ -154,12 +161,8 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                 if loading.get() && detail.get().is_none() {
                     view! { <LoadingState message="Memuat detail usulan..." /> }.into_any()
                 } else if let Some(err) = error.get() {
-                    view! {
-                        <ErrorState
-                            error=err
-                            on_retry=Box::new(move || reload())
-                        />
-                    }.into_any()
+                    view! { <ErrorState error=err on_retry=Box::new(move || reload()) /> }
+                        .into_any()
                 } else if let Some(d) = detail.get() {
                     view! {
                         <DetailBody
@@ -168,7 +171,8 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                             on_generate=generate_sk
                             on_upload=open_upload
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <EmptyState
@@ -176,7 +180,8 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                             description="Data usulan penghapusan tidak tersedia dalam basis data."
                             icon="fas fa-folder-open"
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
 
@@ -237,19 +242,26 @@ fn DetailBody(
                 <InfoField label="Metode" value=metode />
                 <InfoField label="Nilai Perolehan" value=nilai_perolehan />
             </div>
-            {nilai_perolehan_legacy.then(|| view! {
-                <div class="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
-                    <p class="text-xs text-amber-200">
-                        "Nilai perolehan diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
-                    </p>
-                </div>
-            })}
+            {nilai_perolehan_legacy
+                .then(|| {
+                    view! {
+                        <div class="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2">
+                            <p class="text-xs text-amber-200">
+                                "Nilai perolehan diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
+                            </p>
+                        </div>
+                    }
+                })}
             <div class="mt-4 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Alasan Penghapusan"</p>
+                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                    "Alasan Penghapusan"
+                </p>
                 <p class="mt-1 text-sm text-slate-200">{alasan}</p>
             </div>
             <div class="mt-3 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Catatan Operator"</p>
+                <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                    "Catatan Operator"
+                </p>
                 <p class="mt-1 text-sm text-slate-300">{catatan_operator}</p>
             </div>
         </SectionCard>
@@ -282,10 +294,8 @@ fn StatusSummary(status: String) -> impl IntoView {
             <div class="flex flex-wrap items-center gap-3">
                 <span class=format!(
                     "inline-flex rounded-full px-3 py-1 text-xs font-semibold ring-1 {}",
-                    status_tone
-                )>
-                    {status_label}
-                </span>
+                    status_tone,
+                )>{status_label}</span>
                 <p class="text-xs text-slate-400">{stage_hint}</p>
             </div>
         </SectionCard>
@@ -319,17 +329,27 @@ fn ValidatorPanel(p: PenghapusanBmnWorkflow) -> impl IntoView {
         >
             <div class="grid gap-4 md:grid-cols-2">
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Validator Wilayah"</p>
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                        "Validator Wilayah"
+                    </p>
                     <p class="mt-1 text-sm text-slate-100">{wilayah_catatan}</p>
                     <p class="mt-2 text-[0.65rem] text-slate-500">
-                        <span class="mr-1"><AppIcon icon=CLOCK /></span>{wilayah_tgl}
+                        <span class="mr-1">
+                            <AppIcon icon=CLOCK />
+                        </span>
+                        {wilayah_tgl}
                     </p>
                 </div>
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Validator Pusat"</p>
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                        "Validator Pusat"
+                    </p>
                     <p class="mt-1 text-sm text-slate-100">{pusat_catatan}</p>
                     <p class="mt-2 text-[0.65rem] text-slate-500">
-                        <span class="mr-1"><AppIcon icon=CLOCK /></span>{pusat_tgl}
+                        <span class="mr-1">
+                            <AppIcon icon=CLOCK />
+                        </span>
+                        {pusat_tgl}
                     </p>
                 </div>
             </div>
@@ -364,34 +384,49 @@ fn SkPanel(
             title="Surat Keputusan"
             description="Alur khusus penghapusan: generate konsep SK, lalu unggah SK tertandatangan."
             icon="fas fa-file-signature"
-            actions=Box::new(move || view! {
-                <button
-                    type="button"
-                    on:click=on_generate
-                    disabled=move || !can_generate_sk || submitting.get()
-                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:opacity-40"
-                >
-                    <span class="text-[0.6rem]"><AppIcon icon=MAGIC_WAND /></span>
-                    {move || if submitting.get() { "Memproses..." } else { "Generate Konsep SK" }}
-                </button>
-                <button
-                    type="button"
-                    on:click=on_upload
-                    disabled=!can_upload_signed_sk
-                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
-                >
-                    <span class="text-[0.6rem]"><AppIcon icon=FILE_ARROW_UP /></span>
-                    "Unggah SK Tertandatangan"
-                </button>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <button
+                        type="button"
+                        on:click=on_generate
+                        disabled=move || !can_generate_sk || submitting.get()
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-100 transition hover:bg-white/[0.08] disabled:opacity-40"
+                    >
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=MAGIC_WAND />
+                        </span>
+                        {move || {
+                            if submitting.get() { "Memproses..." } else { "Generate Konsep SK" }
+                        }}
+                    </button>
+                    <button
+                        type="button"
+                        on:click=on_upload
+                        disabled=!can_upload_signed_sk
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                    >
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=FILE_ARROW_UP />
+                        </span>
+                        "Unggah SK Tertandatangan"
+                    </button>
+                }
+                    .into_any()
+            })
         >
             {if needs_upload {
-                Some(view! {
-                    <div class="mb-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
-                        <span class="mt-0.5 text-warning-300"><AppIcon icon=WARNING /></span>
-                        <span>"Konsep SK sudah digenerate. Silakan cetak, tandatangani, lalu unggah SK yang telah ditandatangani untuk melanjutkan ke fase penyelesaian."</span>
-                    </div>
-                })
+                Some(
+                    view! {
+                        <div class="mb-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
+                            <span class="mt-0.5 text-warning-300">
+                                <AppIcon icon=WARNING />
+                            </span>
+                            <span>
+                                "Konsep SK sudah digenerate. Silakan cetak, tandatangani, lalu unggah SK yang telah ditandatangani untuk melanjutkan ke fase penyelesaian."
+                            </span>
+                        </div>
+                    },
+                )
             } else {
                 None
             }}
@@ -400,49 +435,69 @@ fn SkPanel(
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
                     <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Konsep SK"</p>
                     {match konsep_url {
-                        Some(url) => view! {
-                            <p class="mt-1">
-                                <a
-                                    href=url.clone()
-                                    target="_blank"
-                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-gold-300 hover:underline"
-                                >
-                                    <span class="text-[0.6rem]"><AppIcon icon=FILE_TEXT /></span>
-                                    "Lihat dokumen konsep"
-                                </a>
-                            </p>
-                            <p class="mt-2 text-[0.65rem] text-slate-500">
-                                <span class="mr-1"><AppIcon icon=CLOCK /></span>
-                                "Digenerate: " {konsep_generated_at.clone()}
-                            </p>
-                        }.into_any(),
-                        None => view! {
-                            <p class="mt-1 text-sm text-slate-400">"Belum digenerate."</p>
-                        }.into_any(),
+                        Some(url) => {
+                            view! {
+                                <p class="mt-1">
+                                    <a
+                                        href=url.clone()
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1.5 text-sm font-medium text-gold-300 hover:underline"
+                                    >
+                                        <span class="text-[0.6rem]">
+                                            <AppIcon icon=FILE_TEXT />
+                                        </span>
+                                        "Lihat dokumen konsep"
+                                    </a>
+                                </p>
+                                <p class="mt-2 text-[0.65rem] text-slate-500">
+                                    <span class="mr-1">
+                                        <AppIcon icon=CLOCK />
+                                    </span>
+                                    "Digenerate: "
+                                    {konsep_generated_at.clone()}
+                                </p>
+                            }
+                                .into_any()
+                        }
+                        None => {
+                            view! { <p class="mt-1 text-sm text-slate-400">"Belum digenerate."</p> }
+                                .into_any()
+                        }
                     }}
                 </div>
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"SK Tertandatangan"</p>
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                        "SK Tertandatangan"
+                    </p>
                     {match signed_url {
-                        Some(url) => view! {
-                            <p class="mt-1">
-                                <a
-                                    href=url.clone()
-                                    target="_blank"
-                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-success-300 hover:underline"
-                                >
-                                    <span class="text-[0.6rem]"><AppIcon icon=FILE_TEXT /></span>
-                                    "Lihat dokumen tertandatangan"
-                                </a>
-                            </p>
-                            <p class="mt-2 text-[0.65rem] text-slate-500">
-                                <span class="mr-1"><AppIcon icon=CLOCK /></span>
-                                "Diunggah: " {signed_uploaded_at.clone()}
-                            </p>
-                        }.into_any(),
-                        None => view! {
-                            <p class="mt-1 text-sm text-slate-400">"Belum diunggah."</p>
-                        }.into_any(),
+                        Some(url) => {
+                            view! {
+                                <p class="mt-1">
+                                    <a
+                                        href=url.clone()
+                                        target="_blank"
+                                        class="inline-flex items-center gap-1.5 text-sm font-medium text-success-300 hover:underline"
+                                    >
+                                        <span class="text-[0.6rem]">
+                                            <AppIcon icon=FILE_TEXT />
+                                        </span>
+                                        "Lihat dokumen tertandatangan"
+                                    </a>
+                                </p>
+                                <p class="mt-2 text-[0.65rem] text-slate-500">
+                                    <span class="mr-1">
+                                        <AppIcon icon=CLOCK />
+                                    </span>
+                                    "Diunggah: "
+                                    {signed_uploaded_at.clone()}
+                                </p>
+                            }
+                                .into_any()
+                        }
+                        None => {
+                            view! { <p class="mt-1 text-sm text-slate-400">"Belum diunggah."</p> }
+                                .into_any()
+                        }
                     }}
                 </div>
             </div>
@@ -481,7 +536,9 @@ fn UploadSignedSKModal(
             <div class="w-[95vw] max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-5 shadow-2xl">
                 <header class="flex items-start justify-between gap-3">
                     <div>
-                        <h2 class="text-base font-semibold text-white">"Unggah SK Tertandatangan"</h2>
+                        <h2 class="text-base font-semibold text-white">
+                            "Unggah SK Tertandatangan"
+                        </h2>
                         <p class="mt-1 text-xs text-slate-400">
                             "Masukkan URL dokumen SK (PDF) yang sudah ditandatangani. Dokumen ini akan mengunci usulan ke fase SK_SIGNED."
                         </p>
@@ -495,7 +552,9 @@ fn UploadSignedSKModal(
                     </button>
                 </header>
                 <label class="mt-4 flex flex-col gap-1">
-                    <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"URL PDF"</span>
+                    <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">
+                        "URL PDF"
+                    </span>
                     <input
                         type="url"
                         placeholder="https://storage.example.com/sk/..."
@@ -518,7 +577,9 @@ fn UploadSignedSKModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                     >
-                        <span class="text-[0.6rem]"><AppIcon icon=FILE_ARROW_UP /></span>
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=FILE_ARROW_UP />
+                        </span>
                         {move || if submitting.get() { "Mengunggah..." } else { "Unggah" }}
                     </button>
                 </div>

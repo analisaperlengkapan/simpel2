@@ -23,23 +23,21 @@ pub fn AppHeader(
                 <div class="flex items-center justify-between h-16">
                     // Left section: Logo and Title
                     <div class="flex items-center space-x-4">
-                        {show_logo.then(|| view! {
-                            <Logo size="sm" />
-                        })}
-                        <div>
+                        {show_logo.then(|| view! { <Logo size="sm" /> })} <div>
                             <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">
                                 {title}
                             </h1>
-                            {subtitle.map(|s| view! {
-                                <p class="text-sm text-gray-600 dark:text-gray-400">{s}</p>
-                            })}
+                            {subtitle
+                                .map(|s| {
+                                    view! {
+                                        <p class="text-sm text-gray-600 dark:text-gray-400">{s}</p>
+                                    }
+                                })}
                         </div>
                     </div>
 
                     // Right section: Actions (slot)
-                    <div class="flex items-center space-x-4">
-                        {children()}
-                    </div>
+                    <div class="flex items-center space-x-4">{children()}</div>
                 </div>
             </div>
         </header>
@@ -56,38 +54,54 @@ pub fn Breadcrumb(#[prop(into)] items: Vec<BreadcrumbItem>) -> impl IntoView {
     view! {
         <nav class="flex" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                {items.into_iter().enumerate().map(|(index, item)| {
-                    let is_last = index == total - 1;
-                    view! {
-                        <li class="inline-flex items-center">
-                            {(!index == 0).then(|| view! {
-                                <svg class="w-3 h-3 text-gray-400 mx-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-                                </svg>
-                            })}
-
-                            {if is_last {
-                                view! {
-                                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
-                                        {item.label}
-                                    </span>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <A
-                                        href=item.path.unwrap_or_else(|| "#".to_string())
-                                        attr:class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300"
-                                    >
-                                        {item.icon.map(|icon| view! {
-                                            <span class="mr-2">{icon}</span>
-                                        })}
-                                        {item.label}
-                                    </A>
-                                }.into_any()
-                            }}
-                        </li>
-                    }
-                }).collect_view()}
+                {items
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, item)| {
+                        let is_last = index == total - 1;
+                        view! {
+                            <li class="inline-flex items-center">
+                                {(!index == 0)
+                                    .then(|| {
+                                        view! {
+                                            <svg
+                                                class="w-3 h-3 text-gray-400 mx-1"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                            >
+                                                <path
+                                                    fill-rule="evenodd"
+                                                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                                                    clip-rule="evenodd"
+                                                />
+                                            </svg>
+                                        }
+                                    })}
+                                {if is_last {
+                                    view! {
+                                        <span class="text-sm font-medium text-gray-500 dark:text-gray-400">
+                                            {item.label}
+                                        </span>
+                                    }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <A
+                                            href=item.path.unwrap_or_else(|| "#".to_string())
+                                            attr:class="inline-flex items-center text-sm font-medium text-gray-700 hover:text-emerald-600 dark:text-gray-300"
+                                        >
+                                            {item
+                                                .icon
+                                                .map(|icon| view! { <span class="mr-2">{icon}</span> })}
+                                            {item.label}
+                                        </A>
+                                    }
+                                        .into_any()
+                                }}
+                            </li>
+                        }
+                    })
+                    .collect_view()}
             </ol>
         </nav>
     }
@@ -111,9 +125,10 @@ pub fn NavMenu(
     view! {
         <nav>
             <ul class=menu_class>
-                {items.into_iter().map(|item| view! {
-                    <NavMenuItem item=item vertical=vertical />
-                }).collect_view()}
+                {items
+                    .into_iter()
+                    .map(|item| view! { <NavMenuItem item=item vertical=vertical /> })
+                    .collect_view()}
             </ul>
         </nav>
     }
@@ -133,32 +148,33 @@ pub fn NavMenuItem(item: NavItem, #[prop(default = false)] vertical: bool) -> im
                 href=item.path
                 attr:class=format!(
                     "flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors {}",
-                    active_class
+                    active_class,
                 )
             >
-                {item.icon.map(|icon| view! {
-                    <span class="mr-2">{icon}</span>
-                })}
+                {item.icon.map(|icon| view! { <span class="mr-2">{icon}</span> })}
                 <span>{item.label.clone()}</span>
-                {item.badge.map(|badge| view! {
-                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-600 text-white">
-                        {badge}
-                    </span>
-                })}
+                {item
+                    .badge
+                    .map(|badge| {
+                        view! {
+                            <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-600 text-white">
+                                {badge}
+                            </span>
+                        }
+                    })}
             </A>
 
-            {(!item.children.is_empty()).then(|| {
-                let items: Vec<_> = item.children.into_iter().map(|child| {
-                    view! {
-                        <NavMenuItem item=child vertical=vertical />
-                    }.into_any()
-                }).collect();
-                view! {
-                    <ul class="ml-4 mt-1 space-y-1">
-                        {items}
-                    </ul>
-                }.into_any()
-            })}
+            {(!item.children.is_empty())
+                .then(|| {
+                    let items: Vec<_> = item
+                        .children
+                        .into_iter()
+                        .map(|child| {
+                            view! { <NavMenuItem item=child vertical=vertical /> }.into_any()
+                        })
+                        .collect();
+                    view! { <ul class="ml-4 mt-1 space-y-1">{items}</ul> }.into_any()
+                })}
         </li>
     }
 }
@@ -180,19 +196,26 @@ pub fn Logo(
 
     view! {
         <div class="flex items-center space-x-2">
-            <div class=format!("{} bg-emerald-700 rounded-lg flex items-center justify-center", img_size)>
+            <div class=format!(
+                "{} bg-emerald-700 rounded-lg flex items-center justify-center",
+                img_size,
+            )>
                 <span class="text-white font-bold text-2xl">"K"</span>
             </div>
-            {show_text.then(|| view! {
-                <div class="flex flex-col">
-                    <span class=format!("font-bold text-gray-900 dark:text-gray-100 {}", text_size)>
-                        {APP_NAME}
-                    </span>
-                    <span class="text-xs text-gray-600 dark:text-gray-400">
-                        {ORG_SHORT}
-                    </span>
-                </div>
-            })}
+            {show_text
+                .then(|| {
+                    view! {
+                        <div class="flex flex-col">
+                            <span class=format!(
+                                "font-bold text-gray-900 dark:text-gray-100 {}",
+                                text_size,
+                            )>{APP_NAME}</span>
+                            <span class="text-xs text-gray-600 dark:text-gray-400">
+                                {ORG_SHORT}
+                            </span>
+                        </div>
+                    }
+                })}
         </div>
     }
 }
@@ -218,20 +241,23 @@ pub fn Sidebar(
     view! {
         <aside class=format!(
             "flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 {}",
-            width_class
+            width_class,
         )>
             // Header
             <div class="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-700">
-                {(!collapsed).then(|| view! {
-                    <Logo size="sm" />
-                })}
+                {(!collapsed).then(|| view! { <Logo size="sm" /> })}
                 <button
                     type="button"
                     class="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                     on:click=handle_toggle
                 >
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"
+                        />
                     </svg>
                 </button>
             </div>
@@ -270,41 +296,41 @@ pub fn Tabs(
     view! {
         <div class=format!("border-b border-gray-200 dark:border-gray-700 {}", class)>
             <nav class="-mb-px flex space-x-8" aria-label="Tabs" role="tablist">
-                {items.into_iter().map(|item| {
-                    let is_active = item.id == active_tab;
-                    let on_change = Rc::clone(&on_change_rc);
-                    let item_id = item.id.clone();
+                {items
+                    .into_iter()
+                    .map(|item| {
+                        let is_active = item.id == active_tab;
+                        let on_change = Rc::clone(&on_change_rc);
+                        let item_id = item.id.clone();
 
-                    view! {
-                        <button
-                            type="button"
-                            role="tab"
-                            aria-selected=is_active
-                            aria-controls=format!("tabpanel-{}", item.id)
-                            id=format!("tab-{}", item.id)
-                            disabled=item.disabled
-                            class=format!(
-                                "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed {}",
-                                if is_active {
-                                    "border-emerald-600 text-emerald-600"
-                                } else {
-                                    "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-                                }
-                            )
-                            on:click=move |_| {
-                                if !item.disabled
-                                    && let Some(ref callback) = *on_change {
+                        view! {
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected=is_active
+                                aria-controls=format!("tabpanel-{}", item.id)
+                                id=format!("tab-{}", item.id)
+                                disabled=item.disabled
+                                class=format!(
+                                    "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed {}",
+                                    if is_active {
+                                        "border-emerald-600 text-emerald-600"
+                                    } else {
+                                        "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                                    },
+                                )
+                                on:click=move |_| {
+                                    if !item.disabled && let Some(ref callback) = *on_change {
                                         callback(item_id.clone());
                                     }
-                            }
-                        >
-                            {item.icon.map(|icon| view! {
-                                <span class="mr-2">{icon}</span>
-                            })}
-                            {item.label}
-                        </button>
-                    }
-                }).collect_view()}
+                                }
+                            >
+                                {item.icon.map(|icon| view! { <span class="mr-2">{icon}</span> })}
+                                {item.label}
+                            </button>
+                        }
+                    })
+                    .collect_view()}
             </nav>
         </div>
     }
@@ -360,7 +386,7 @@ pub fn MobileMenuButton(
             type="button"
             class=format!(
                 "inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 {}",
-                class
+                class,
             )
             aria-expanded=open
             aria-label=if open { "Close menu" } else { "Open menu" }
@@ -368,16 +394,40 @@ pub fn MobileMenuButton(
         >
             {if open {
                 view! {
-                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    <svg
+                        class="h-6 w-6"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"
+                        />
                     </svg>
-                }.into_any()
+                }
+                    .into_any()
             } else {
                 view! {
-                    <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    <svg
+                        class="h-6 w-6"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16"
+                        />
                     </svg>
-                }.into_any()
+                }
+                    .into_any()
             }}
         </button>
     }
@@ -409,11 +459,22 @@ pub fn BackButton(
                 href=path
                 attr:class=format!(
                     "inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 {}",
-                    class
+                    class,
                 )
             >
-                <svg class="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                <svg
+                    class="mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 19l-7-7 7-7"
+                    />
                 </svg>
                 {label}
             </A>
@@ -424,12 +485,23 @@ pub fn BackButton(
                 type="button"
                 class=format!(
                     "inline-flex items-center text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded {}",
-                    class
+                    class,
                 )
                 on:click=handle_click
             >
-                <svg class="mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                <svg
+                    class="mr-2 h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 19l-7-7 7-7"
+                    />
                 </svg>
                 {label}
             </button>

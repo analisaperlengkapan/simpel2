@@ -126,8 +126,11 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                         let id = n.id.clone();
                         let is_unread = !n.read;
                         view! {
-                            <li class:bg-blue-50=is_unread class:border-blue-200=is_unread
-                                class="p-3 bg-white border rounded-lg flex items-start justify-between">
+                            <li
+                                class:bg-blue-50=is_unread
+                                class:border-blue-200=is_unread
+                                class="p-3 bg-white border rounded-lg flex items-start justify-between"
+                            >
                                 <div class="flex-1 mr-3">
                                     <div class="flex items-center gap-2">
                                         <span class="font-medium text-sm">{n.title.clone()}</span>
@@ -137,10 +140,17 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                                     <p class="text-sm text-gray-700 mt-1">{n.message.clone()}</p>
                                     <div class="text-xs text-gray-400 mt-2">
                                         {n.created_at.clone()}
-                                        {n.action_url.clone().map(|u| view! {
-                                            " · "
-                                            <a href=u class="text-blue-600 hover:underline">"Buka"</a>
-                                        })}
+                                        {n
+                                            .action_url
+                                            .clone()
+                                            .map(|u| {
+                                                view! {
+                                                    " · "
+                                                    <a href=u class="text-blue-600 hover:underline">
+                                                        "Buka"
+                                                    </a>
+                                                }
+                                            })}
                                     </div>
                                 </div>
                                 <Show when=move || is_unread>
@@ -162,9 +172,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
             </ul>
 
             <Show when=move || !loading.get() && items.get().is_empty()>
-                <p class="text-sm text-gray-400 text-center py-12">
-                    "Belum ada notifikasi."
-                </p>
+                <p class="text-sm text-gray-400 text-center py-12">"Belum ada notifikasi."</p>
             </Show>
         </div>
     }
@@ -178,9 +186,7 @@ fn category_chip(category: String) -> impl IntoView {
         "system" => ("bg-gray-100 text-gray-700", "Sistem"),
         _ => ("bg-blue-100 text-blue-700", "Info"),
     };
-    view! {
-        <span class=format!("text-[10px] px-2 py-0.5 rounded {}", bg)>{label}</span>
-    }
+    view! { <span class=format!("text-[10px] px-2 py-0.5 rounded {}", bg)>{label}</span> }
 }
 
 fn priority_chip(priority: String) -> impl IntoView {

@@ -93,14 +93,20 @@ pub fn LoginRedirectPage(
                     on:click=move |_| handle_login()
                     style="display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 16px 24px; font-size: 1.1rem; font-weight: 700; color: #0f172a; background: linear-gradient(135deg, #facc15, #d4a843); border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 0 25px rgba(212,168,67,0.35), 0 4px 15px rgba(0,0,0,0.2); transition: all 0.3s ease; letter-spacing: 0.02em;"
                 >
-                    <span style="font-size: 1.2rem;"><AppIcon icon=SIGN_IN /></span>
+                    <span style="font-size: 1.2rem;">
+                        <AppIcon icon=SIGN_IN />
+                    </span>
                     <span>"Masuk"</span>
                 </button>
 
                 // Footer text inside card
                 <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06);">
-                    <p style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 4px 0; font-weight: 600;">"Kejaksaan Republik Indonesia"</p>
-                    <p style="font-size: 0.65rem; color: #64748b; margin: 0;">"\u{00a9} 2025 SIMPEL v2.0"</p>
+                    <p style="font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 4px 0; font-weight: 600;">
+                        "Kejaksaan Republik Indonesia"
+                    </p>
+                    <p style="font-size: 0.65rem; color: #64748b; margin: 0;">
+                        "\u{00a9} 2025 SIMPEL v2.0"
+                    </p>
                 </div>
             </div>
         </div>
@@ -157,17 +163,18 @@ pub fn ProtectedRoute(
     view! {
         <Show
             when=move || {
-                auth_show.is_authenticated() && perm_show.as_ref()
-                    .map(|p| auth_show.has_permission(p))
-                    .unwrap_or(true)
+                auth_show.is_authenticated()
+                    && perm_show.as_ref().map(|p| auth_show.has_permission(p)).unwrap_or(true)
             }
-            fallback=|| view! {
-                <div class="min-h-screen flex items-center justify-center">
-                    <div class="text-center">
-                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                        <p class="text-gray-600">"Memuat..."</p>
+            fallback=|| {
+                view! {
+                    <div class="min-h-screen flex items-center justify-center">
+                        <div class="text-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                            <p class="text-gray-600">"Memuat..."</p>
+                        </div>
                     </div>
-                </div>
+                }
             }
         >
             {children.run()}
@@ -210,7 +217,10 @@ pub fn LogoutButton(
 
     view! {
         <button
-            class=format!("inline-flex items-center justify-center font-medium transition-colors focus:outline-none hover:bg-gray-100 text-gray-700 px-4 py-2 text-base rounded-md {}", class)
+            class=format!(
+                "inline-flex items-center justify-center font-medium transition-colors focus:outline-none hover:bg-gray-100 text-gray-700 px-4 py-2 text-base rounded-md {}",
+                class,
+            )
             on:click=move |_| handle_logout()
         >
             <AppIcon icon=SIGN_OUT />
@@ -250,29 +260,39 @@ pub fn UserProfile(
     let class_stored = StoredValue::new(class);
 
     view! {
-        <Show when=move || auth_check.is_authenticated()>
+        <Show when=move || {
+            auth_check.is_authenticated()
+        }>
             {move || {
                 let class_value = class_stored.get_value();
-                auth_session.get_session().map(|session| {
-                    view! {
-                        <div class=format!("flex items-center space-x-3 {}", class_value)>
-                            // Avatar
-                            <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
-                                {session.name.chars().next().unwrap_or('U').to_uppercase().to_string()}
-                            </div>
+                auth_session
+                    .get_session()
+                    .map(|session| {
+                        view! {
+                            <div class=format!("flex items-center space-x-3 {}", class_value)>
+                                // Avatar
+                                <div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
+                                    {session
+                                        .name
+                                        .chars()
+                                        .next()
+                                        .unwrap_or('U')
+                                        .to_uppercase()
+                                        .to_string()}
+                                </div>
 
-                            // User info
-                            <div class="hidden md:block">
-                                <p class="text-sm font-medium text-gray-900 dark:text-white">
-                                    {session.name}
-                                </p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {session.role.display_name()}
-                                </p>
+                                // User info
+                                <div class="hidden md:block">
+                                    <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                        {session.name}
+                                    </p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                                        {session.role.display_name()}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    }
-                })
+                        }
+                    })
             }}
         </Show>
     }
@@ -307,10 +327,7 @@ pub fn PermissionGuard(
     let perm = permission.clone();
 
     view! {
-        <Show
-            when=move || auth.has_permission(&perm)
-            fallback=|| view! { <></> }
-        >
+        <Show when=move || auth.has_permission(&perm) fallback=|| view! { <></> }>
             {children.run()}
         </Show>
     }

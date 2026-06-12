@@ -23,10 +23,11 @@ pub fn AuthLayout(
             // Decorative top accent bar — gold branding
             <div class="h-1 w-full bg-gradient-to-r from-gold-400 via-gold-500 to-gold-400 flex-shrink-0"></div>
 
-            <main class="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 w-full" role="main">
-                <div class="w-full">
-                    {children()}
-                </div>
+            <main
+                class="flex-1 flex items-center justify-center px-4 py-8 sm:py-12 w-full"
+                role="main"
+            >
+                <div class="w-full">{children()}</div>
             </main>
 
             <footer class="flex-shrink-0 border-t border-white/10" role="contentinfo">

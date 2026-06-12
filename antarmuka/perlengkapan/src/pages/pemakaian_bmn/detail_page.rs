@@ -145,15 +145,20 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
             description="Kelola aksi lifecycle: perpanjang, cabut, dan pantau sisa waktu."
             icon="fas fa-handshake"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::PENGELOLAAN_PEMAKAIAN
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
-                    "Kembali"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::PENGELOLAAN_PEMAKAIAN
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
+                        "Kembali"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             {move || {
                 if let Some((ok, msg)) = action_msg.get() {
@@ -163,10 +168,12 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
                         "border-danger-500/30 bg-danger-500/10 text-danger-200"
                     };
                     view! {
-                        <div class=format!("rounded-lg border px-4 py-2 text-xs {}", tone)>
-                            {msg}
-                        </div>
-                    }.into_any()
+                        <div class=format!(
+                            "rounded-lg border px-4 py-2 text-xs {}",
+                            tone,
+                        )>{msg}</div>
+                    }
+                        .into_any()
                 } else {
                     view! { <div class="hidden"></div> }.into_any()
                 }
@@ -176,20 +183,11 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
                 if loading.get() && detail.get().is_none() {
                     view! { <LoadingState message="Memuat detail izin..." /> }.into_any()
                 } else if let Some(err) = error.get() {
-                    view! {
-                        <ErrorState
-                            error=err
-                            on_retry=Box::new(move || reload())
-                        />
-                    }.into_any()
+                    view! { <ErrorState error=err on_retry=Box::new(move || reload()) /> }
+                        .into_any()
                 } else if let Some(d) = detail.get() {
-                    view! {
-                        <DetailBody
-                            detail=d
-                            on_renew=open_renew
-                            on_revoke=open_revoke
-                        />
-                    }.into_any()
+                    view! { <DetailBody detail=d on_renew=open_renew on_revoke=open_revoke /> }
+                        .into_any()
                 } else {
                     view! {
                         <EmptyState
@@ -197,7 +195,8 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
                             description="Permohonan izin tidak tersedia dalam basis data."
                             icon="fas fa-folder-open"
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
 
@@ -342,8 +341,12 @@ fn LifecycleSummary(
 
     let warning_banner = expiring_soon.then(|| view! {
         <div class="mt-3 flex items-start gap-2 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-xs text-warning-200">
-            <span class="mt-0.5 text-warning-300"><AppIcon icon=WARNING /></span>
-            <span>"Izin akan berakhir dalam 7 hari. Pertimbangkan perpanjangan sebelum masa aktif habis."</span>
+            <span class="mt-0.5 text-warning-300">
+                <AppIcon icon=WARNING />
+            </span>
+            <span>
+                "Izin akan berakhir dalam 7 hari. Pertimbangkan perpanjangan sebelum masa aktif habis."
+            </span>
         </div>
     });
 
@@ -352,26 +355,33 @@ fn LifecycleSummary(
             title="Lifecycle"
             description="Status dan sisa waktu izin."
             icon="fas fa-gauge-high"
-            actions=Box::new(move || view! {
-                <button
-                    type="button"
-                    on:click=on_renew
-                    disabled=!can_renew
-                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
-                >
-                    <span class="text-[0.6rem]"><AppIcon icon=REPEAT /></span>
-                    "Perpanjang"
-                </button>
-                <button
-                    type="button"
-                    on:click=on_revoke
-                    disabled=!can_revoke
-                    class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-semibold text-danger-200 transition hover:bg-danger-500/20 disabled:opacity-40"
-                >
-                    <span class="text-[0.6rem]"><AppIcon icon=PROHIBIT /></span>
-                    "Cabut Izin"
-                </button>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <button
+                        type="button"
+                        on:click=on_renew
+                        disabled=!can_renew
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                    >
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=REPEAT />
+                        </span>
+                        "Perpanjang"
+                    </button>
+                    <button
+                        type="button"
+                        on:click=on_revoke
+                        disabled=!can_revoke
+                        class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-semibold text-danger-200 transition hover:bg-danger-500/20 disabled:opacity-40"
+                    >
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=PROHIBIT />
+                        </span>
+                        "Cabut Izin"
+                    </button>
+                }
+                    .into_any()
+            })
         >
             <div class="grid gap-4 sm:grid-cols-3">
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
@@ -379,10 +389,8 @@ fn LifecycleSummary(
                     <p class="mt-1">
                         <span class=format!(
                             "inline-flex rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold ring-1 {}",
-                            status_tone
-                        )>
-                            {status_label}
-                        </span>
+                            status_tone,
+                        )>{status_label}</span>
                     </p>
                 </div>
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
@@ -390,10 +398,10 @@ fn LifecycleSummary(
                     <p class="mt-1 text-sm text-slate-100">{periode}</p>
                 </div>
                 <div class="rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
-                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">"Sisa Waktu"</p>
-                    <p class=format!("mt-1 text-sm font-semibold {}", countdown.1)>
-                        {countdown.0}
+                    <p class="text-[0.65rem] uppercase tracking-wide text-slate-500">
+                        "Sisa Waktu"
                     </p>
+                    <p class=format!("mt-1 text-sm font-semibold {}", countdown.1)>{countdown.0}</p>
                 </div>
             </div>
             {warning_banner}
@@ -433,7 +441,9 @@ fn RevokeModal(
                 <header class="flex items-start justify-between gap-3">
                     <div>
                         <h2 class="text-base font-semibold text-white">"Cabut Izin Pemakaian"</h2>
-                        <p class="mt-1 text-xs text-slate-400">"Berikan alasan pencabutan. Aksi ini mengubah status izin menjadi REVOKED."</p>
+                        <p class="mt-1 text-xs text-slate-400">
+                            "Berikan alasan pencabutan. Aksi ini mengubah status izin menjadi REVOKED."
+                        </p>
                     </div>
                     <button
                         type="button"
@@ -464,7 +474,9 @@ fn RevokeModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-danger-500/80 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-danger-500 disabled:opacity-50"
                     >
-                        <span class="text-[0.6rem]"><AppIcon icon=PROHIBIT /></span>
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=PROHIBIT />
+                        </span>
                         {move || if submitting.get() { "Memproses..." } else { "Cabut" }}
                     </button>
                 </div>
@@ -515,7 +527,9 @@ fn RenewModal(
                 <header class="flex items-start justify-between gap-3">
                     <div>
                         <h2 class="text-base font-semibold text-white">"Perpanjang Izin"</h2>
-                        <p class="mt-1 text-xs text-slate-400">"Tentukan periode perpanjangan dan keperluan lanjutannya."</p>
+                        <p class="mt-1 text-xs text-slate-400">
+                            "Tentukan periode perpanjangan dan keperluan lanjutannya."
+                        </p>
                     </div>
                     <button
                         type="button"
@@ -527,7 +541,9 @@ fn RenewModal(
                 </header>
                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     <label class="flex flex-col gap-1">
-                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Tanggal Mulai"</span>
+                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">
+                            "Tanggal Mulai"
+                        </span>
                         <input
                             type="date"
                             class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
@@ -536,7 +552,9 @@ fn RenewModal(
                         />
                     </label>
                     <label class="flex flex-col gap-1">
-                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Tanggal Selesai"</span>
+                        <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">
+                            "Tanggal Selesai"
+                        </span>
                         <input
                             type="date"
                             class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
@@ -546,7 +564,9 @@ fn RenewModal(
                     </label>
                 </div>
                 <label class="mt-3 flex flex-col gap-1">
-                    <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">"Keperluan"</span>
+                    <span class="text-[0.65rem] uppercase tracking-wide text-slate-400">
+                        "Keperluan"
+                    </span>
                     <textarea
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
                         rows="3"
@@ -569,7 +589,9 @@ fn RenewModal(
                         disabled=move || submitting.get()
                         class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                     >
-                        <span class="text-[0.6rem]"><AppIcon icon=REPEAT /></span>
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=REPEAT />
+                        </span>
                         {move || if submitting.get() { "Memproses..." } else { "Perpanjang" }}
                     </button>
                 </div>

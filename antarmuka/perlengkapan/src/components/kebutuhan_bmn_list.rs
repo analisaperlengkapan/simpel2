@@ -139,7 +139,9 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                     href=routes::path::KEBUTUHAN_BUAT
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                 >
-                    <span class="text-xs"><AppIcon icon=PLUS /></span>
+                    <span class="text-xs">
+                        <AppIcon icon=PLUS />
+                    </span>
                     "Buat Pengajuan"
                 </a>
             </div>
@@ -168,7 +170,10 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                         }
                     >
                         <option value="">"Semua Tahun"</option>
-                        {years.iter().map(|y| view! { <option value=y.to_string()>{*y}</option> }).collect_view()}
+                        {years
+                            .iter()
+                            .map(|y| view! { <option value=y.to_string()>{*y}</option> })
+                            .collect_view()}
                     </select>
 
                     // Status filter
@@ -199,7 +204,9 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                             class="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-300 transition hover:bg-white/[0.08]"
                             on:click=move |_| set_selected_ids.set(Vec::new())
                         >
-                            <span class="text-xs"><AppIcon icon=X /></span>
+                            <span class="text-xs">
+                                <AppIcon icon=X />
+                            </span>
                             "Batal Pilih"
                         </button>
                     </Show>
@@ -208,7 +215,9 @@ pub fn KebutuhanBmnList() -> impl IntoView {
 
             // Data table
             <div class="mt-4">
-                <Suspense fallback=move || view! { <LoadingState /> }>
+                <Suspense fallback=move || {
+                    view! { <LoadingState /> }
+                }>
                     {move || match data_resource.get() {
                         None => view! { <LoadingState /> }.into_any(),
                         Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -220,7 +229,8 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                         title="Belum Ada Pengajuan"
                                         description="Klik tombol \"Buat Pengajuan\" untuk memulai."
                                     />
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 let data_for_for = response.data.clone();
                                 let data_for_select_all = response.data.clone();
@@ -241,14 +251,17 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                                     let data_for_checked = data_for_select_all.clone();
                                                                     move || {
                                                                         let selected = selected_ids.get();
-                                                                        let all_ids: Vec<Uuid> = data_for_checked.iter()
+                                                                        let all_ids: Vec<Uuid> = data_for_checked
+                                                                            .iter()
                                                                             .filter_map(|item| Uuid::parse_str(&item.id).ok())
                                                                             .collect();
-                                                                        !all_ids.is_empty() && all_ids.iter().all(|id| selected.contains(id))
+                                                                        !all_ids.is_empty()
+                                                                            && all_ids.iter().all(|id| selected.contains(id))
                                                                     }
                                                                 }
                                                                 on:change=move |_| {
-                                                                    let all_ids: Vec<Uuid> = data_for_select_all.iter()
+                                                                    let all_ids: Vec<Uuid> = data_for_select_all
+                                                                        .iter()
                                                                         .filter_map(|item| Uuid::parse_str(&item.id).ok())
                                                                         .collect();
                                                                     let selected = selected_ids.get();
@@ -260,83 +273,118 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                                 }
                                                             />
                                                         </th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Pengajuan"</th>
-                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Tahun"</th>
-                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Satker"</th>
-                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Barang"</th>
-                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Diminta"</th>
-                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Disetujui"</th>
-                                                        <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">"Status"</th>
-                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Nama Pengajuan"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Tahun"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Satker"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Barang"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Diminta"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Disetujui"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Status"
+                                                        </th>
+                                                        <th class="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            "Aksi"
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {data_for_for.into_iter().map(|item| {
-                                                        let status = KebutuhanBmnStatus::from_code(item.status_kode);
-                                                        let badge_class = status_badge_class(status.as_ref());
-                                                        let id_for_link = item.id.clone();
-                                                        let id_for_edit = item.id.clone();
-                                                        let item_uuid = Uuid::parse_str(&item.id).ok();
+                                                    {data_for_for
+                                                        .into_iter()
+                                                        .map(|item| {
+                                                            let status = KebutuhanBmnStatus::from_code(
+                                                                item.status_kode,
+                                                            );
+                                                            let badge_class = status_badge_class(status.as_ref());
+                                                            let id_for_link = item.id.clone();
+                                                            let id_for_edit = item.id.clone();
+                                                            let item_uuid = Uuid::parse_str(&item.id).ok();
 
-                                                        view! {
-                                                            <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
-                                                                <td class="px-3 py-3">
-                                                                    {item_uuid.map(|uuid| view! {
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            class="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
-                                                                            prop:checked=move || selected_ids.get().contains(&uuid)
-                                                                            on:change=move |_| toggle_selection(uuid)
-                                                                        />
-                                                                    })}
-                                                                </td>
-                                                                <td class="px-4 py-3">
-                                                                    <a
-                                                                        href=routes::url::kebutuhan_detail(&id_for_link)
-                                                                        class="text-sm font-medium text-gold-400 transition hover:text-gold-300"
-                                                                    >
-                                                                        {item.nama.clone()}
-                                                                    </a>
-                                                                </td>
-                                                                <td class="px-3 py-3 text-center text-sm text-slate-300">{item.tahun}</td>
-                                                                <td class="px-3 py-3 text-center">
-                                                                    <span class="inline-flex items-center rounded-full bg-info-500/15 px-2 py-0.5 text-xs font-medium text-info-300 ring-1 ring-info-500/25">
-                                                                        {item.total_satker}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="px-3 py-3 text-center">
-                                                                    <span class="inline-flex items-center rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-500/25">
-                                                                        {item.total_barang}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="px-3 py-3 text-right font-mono text-sm text-slate-300">{item.total_jumlah_diminta}</td>
-                                                                <td class="px-3 py-3 text-right font-mono text-sm text-success-400">{item.total_jumlah_disetujui}</td>
-                                                                <td class="px-3 py-3">
-                                                                    <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}", badge_class)>
-                                                                        {item.status_nama.clone()}
-                                                                    </span>
-                                                                </td>
-                                                                <td class="px-3 py-3">
-                                                                    <div class="flex justify-center gap-3">
+                                                            view! {
+                                                                <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
+                                                                    <td class="px-3 py-3">
+                                                                        {item_uuid
+                                                                            .map(|uuid| {
+                                                                                view! {
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        class="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
+                                                                                        prop:checked=move || selected_ids.get().contains(&uuid)
+                                                                                        on:change=move |_| toggle_selection(uuid)
+                                                                                    />
+                                                                                }
+                                                                            })}
+                                                                    </td>
+                                                                    <td class="px-4 py-3">
                                                                         <a
-                                                                            href=routes::url::kebutuhan_detail(&id_for_edit)
-                                                                            class="text-info-400 transition hover:text-info-300"
-                                                                            title="Detail"
+                                                                            href=routes::url::kebutuhan_detail(&id_for_link)
+                                                                            class="text-sm font-medium text-gold-400 transition hover:text-gold-300"
                                                                         >
-                                                                            <span class="text-xs"><AppIcon icon=EYE /></span>
+                                                                            {item.nama.clone()}
                                                                         </a>
-                                                                        <a
-                                                                            href=routes::url::kebutuhan_edit(&item.id)
-                                                                            class="text-slate-400 transition hover:text-slate-200"
-                                                                            title="Edit"
-                                                                        >
-                                                                            <span class="text-xs"><AppIcon icon=PENCIL_SIMPLE /></span>
-                                                                        </a>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        }
-                                                    }).collect_view()}
+                                                                    </td>
+                                                                    <td class="px-3 py-3 text-center text-sm text-slate-300">
+                                                                        {item.tahun}
+                                                                    </td>
+                                                                    <td class="px-3 py-3 text-center">
+                                                                        <span class="inline-flex items-center rounded-full bg-info-500/15 px-2 py-0.5 text-xs font-medium text-info-300 ring-1 ring-info-500/25">
+                                                                            {item.total_satker}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="px-3 py-3 text-center">
+                                                                        <span class="inline-flex items-center rounded-full bg-purple-500/15 px-2 py-0.5 text-xs font-medium text-purple-300 ring-1 ring-purple-500/25">
+                                                                            {item.total_barang}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="px-3 py-3 text-right font-mono text-sm text-slate-300">
+                                                                        {item.total_jumlah_diminta}
+                                                                    </td>
+                                                                    <td class="px-3 py-3 text-right font-mono text-sm text-success-400">
+                                                                        {item.total_jumlah_disetujui}
+                                                                    </td>
+                                                                    <td class="px-3 py-3">
+                                                                        <span class=format!(
+                                                                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}",
+                                                                            badge_class,
+                                                                        )>{item.status_nama.clone()}</span>
+                                                                    </td>
+                                                                    <td class="px-3 py-3">
+                                                                        <div class="flex justify-center gap-3">
+                                                                            <a
+                                                                                href=routes::url::kebutuhan_detail(&id_for_edit)
+                                                                                class="text-info-400 transition hover:text-info-300"
+                                                                                title="Detail"
+                                                                            >
+                                                                                <span class="text-xs">
+                                                                                    <AppIcon icon=EYE />
+                                                                                </span>
+                                                                            </a>
+                                                                            <a
+                                                                                href=routes::url::kebutuhan_edit(&item.id)
+                                                                                class="text-slate-400 transition hover:text-slate-200"
+                                                                                title="Edit"
+                                                                            >
+                                                                                <span class="text-xs">
+                                                                                    <AppIcon icon=PENCIL_SIMPLE />
+                                                                                </span>
+                                                                            </a>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        })
+                                                        .collect_view()}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -351,7 +399,8 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                             on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
                                         />
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                         }
                     }}

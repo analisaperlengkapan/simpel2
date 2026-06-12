@@ -115,43 +115,102 @@ pub fn AdminAuditPage() -> impl IntoView {
                             <span class="font-semibold text-slate-300">"Jenis Entitas"</span>
                             <select
                                 on:change=move |e| {
-                                    let v = e.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+                                    let v = e
+                                        .target()
+                                        .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
                                     if let Some(sel) = v {
                                         set_entity_type.set(sel.value());
                                     }
                                 }
                                 class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
                             >
-                                <option value="" selected=move || entity_type.get().is_empty()>"Semua"</option>
-                                <option value="kebutuhan_bmn" selected=move || entity_type.get() == "kebutuhan_bmn">"Kebutuhan BMN"</option>
-                                <option value="pakaian_dinas" selected=move || entity_type.get() == "pakaian_dinas">"Pakaian Dinas"</option>
-                                <option value="pemakaian_bmn" selected=move || entity_type.get() == "pemakaian_bmn">"Pemakaian BMN"</option>
-                                <option value="penghapusan_bmn" selected=move || entity_type.get() == "penghapusan_bmn">"Penghapusan BMN"</option>
-                                <option value="bank_aset" selected=move || entity_type.get() == "bank_aset">"Bank Aset"</option>
-                                <option value="workflow" selected=move || entity_type.get() == "workflow">"Workflow"</option>
-                                <option value="master_data" selected=move || entity_type.get() == "master_data">"Master Data"</option>
-                                <option value="user" selected=move || entity_type.get() == "user">"Pengguna"</option>
+                                <option value="" selected=move || entity_type.get().is_empty()>
+                                    "Semua"
+                                </option>
+                                <option
+                                    value="kebutuhan_bmn"
+                                    selected=move || entity_type.get() == "kebutuhan_bmn"
+                                >
+                                    "Kebutuhan BMN"
+                                </option>
+                                <option
+                                    value="pakaian_dinas"
+                                    selected=move || entity_type.get() == "pakaian_dinas"
+                                >
+                                    "Pakaian Dinas"
+                                </option>
+                                <option
+                                    value="pemakaian_bmn"
+                                    selected=move || entity_type.get() == "pemakaian_bmn"
+                                >
+                                    "Pemakaian BMN"
+                                </option>
+                                <option
+                                    value="penghapusan_bmn"
+                                    selected=move || entity_type.get() == "penghapusan_bmn"
+                                >
+                                    "Penghapusan BMN"
+                                </option>
+                                <option
+                                    value="bank_aset"
+                                    selected=move || entity_type.get() == "bank_aset"
+                                >
+                                    "Bank Aset"
+                                </option>
+                                <option
+                                    value="workflow"
+                                    selected=move || entity_type.get() == "workflow"
+                                >
+                                    "Workflow"
+                                </option>
+                                <option
+                                    value="master_data"
+                                    selected=move || entity_type.get() == "master_data"
+                                >
+                                    "Master Data"
+                                </option>
+                                <option value="user" selected=move || entity_type.get() == "user">
+                                    "Pengguna"
+                                </option>
                             </select>
                         </label>
                         <label class="flex flex-col gap-1 text-xs">
                             <span class="font-semibold text-slate-300">"Aksi"</span>
                             <select
                                 on:change=move |e| {
-                                    let v = e.target().and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
+                                    let v = e
+                                        .target()
+                                        .and_then(|t| t.dyn_into::<HtmlSelectElement>().ok());
                                     if let Some(sel) = v {
                                         set_action.set(sel.value());
                                     }
                                 }
                                 class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
                             >
-                                <option value="" selected=move || action.get().is_empty()>"Semua"</option>
-                                <option value="create" selected=move || action.get() == "create">"Create"</option>
-                                <option value="update" selected=move || action.get() == "update">"Update"</option>
-                                <option value="delete" selected=move || action.get() == "delete">"Delete"</option>
-                                <option value="approve" selected=move || action.get() == "approve">"Approve"</option>
-                                <option value="reject" selected=move || action.get() == "reject">"Reject"</option>
-                                <option value="login" selected=move || action.get() == "login">"Login"</option>
-                                <option value="logout" selected=move || action.get() == "logout">"Logout"</option>
+                                <option value="" selected=move || action.get().is_empty()>
+                                    "Semua"
+                                </option>
+                                <option value="create" selected=move || action.get() == "create">
+                                    "Create"
+                                </option>
+                                <option value="update" selected=move || action.get() == "update">
+                                    "Update"
+                                </option>
+                                <option value="delete" selected=move || action.get() == "delete">
+                                    "Delete"
+                                </option>
+                                <option value="approve" selected=move || action.get() == "approve">
+                                    "Approve"
+                                </option>
+                                <option value="reject" selected=move || action.get() == "reject">
+                                    "Reject"
+                                </option>
+                                <option value="login" selected=move || action.get() == "login">
+                                    "Login"
+                                </option>
+                                <option value="logout" selected=move || action.get() == "logout">
+                                    "Logout"
+                                </option>
                             </select>
                         </label>
                         <label class="flex flex-col gap-1 text-xs">
@@ -160,7 +219,9 @@ pub fn AdminAuditPage() -> impl IntoView {
                                 type="date"
                                 prop:value=move || date_from.get()
                                 on:input=move |e| {
-                                    let v = e.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+                                    let v = e
+                                        .target()
+                                        .and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
                                     if let Some(inp) = v {
                                         set_date_from.set(inp.value());
                                     }
@@ -174,7 +235,9 @@ pub fn AdminAuditPage() -> impl IntoView {
                                 type="date"
                                 prop:value=move || date_to.get()
                                 on:input=move |e| {
-                                    let v = e.target().and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
+                                    let v = e
+                                        .target()
+                                        .and_then(|t| t.dyn_into::<HtmlInputElement>().ok());
                                     if let Some(inp) = v {
                                         set_date_to.set(inp.value());
                                     }
@@ -205,15 +268,16 @@ pub fn AdminAuditPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
                         >
-                            <span class="mr-1.5"><AppIcon icon=MAGNIFYING_GLASS /></span>
+                            <span class="mr-1.5">
+                                <AppIcon icon=MAGNIFYING_GLASS />
+                            </span>
                             "Terapkan"
                         </button>
                     </div>
                 </form>
             </SectionCard>
 
-            <SectionCard title="Aktivitas"
-                         icon="fas fa-scroll">
+            <SectionCard title="Aktivitas" icon="fas fa-scroll">
                 <div class="mb-3 text-xs text-slate-400">
                     "Menampilkan " <strong class="text-white">{move || total.get()}</strong>
                     " entri."
@@ -222,7 +286,9 @@ pub fn AdminAuditPage() -> impl IntoView {
                     if loading.get() {
                         view! { <LoadingState message="Memuat audit log..." /> }.into_any()
                     } else if let Some(e) = error.get() {
-                        let retry: Box<dyn Fn()> = Box::new(move || { set_reload_tick.update(|t| *t += 1); });
+                        let retry: Box<dyn Fn()> = Box::new(move || {
+                            set_reload_tick.update(|t| *t += 1);
+                        });
                         view! { <ErrorState error=e on_retry=retry /> }.into_any()
                     } else if entries.with(Vec::is_empty) {
                         view! {
@@ -231,7 +297,8 @@ pub fn AdminAuditPage() -> impl IntoView {
                                 description="Belum ada entri audit untuk filter saat ini."
                                 icon="fas fa-inbox"
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         view! {
                             <AuditTable rows=entries />
@@ -241,7 +308,8 @@ pub fn AdminAuditPage() -> impl IntoView {
                                 total_pages=Signal::derive(total_pages)
                                 on_change=Box::new(move || set_reload_tick.update(|t| *t += 1))
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     }
                 }}
             </SectionCard>
@@ -256,57 +324,97 @@ fn AuditTable(rows: ReadSignal<Vec<AuditLogEntry>>) -> impl IntoView {
             <table class="min-w-full border-collapse">
                 <thead>
                     <tr class="bg-white/[0.02]">
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Waktu"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Pengguna"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Aksi"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Entitas"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Ringkasan"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"IP"</th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Waktu"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Pengguna"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Aksi"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Entitas"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Ringkasan"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "IP"
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
-                    {move || rows.get().into_iter().map(|entry| {
-                        let actor_label = entry.actor_name.clone().unwrap_or_else(|| "—".to_string());
-                        let role = entry.actor_role.clone().unwrap_or_default();
-                        let action_class = match entry.action.as_str() {
-                            "create" => "border-success-500/30 bg-success-500/10 text-success-400",
-                            "update" => "border-info-500/30 bg-info-500/10 text-info-300",
-                            "delete" => "border-danger-500/30 bg-danger-500/10 text-danger-400",
-                            "approve" => "border-success-500/30 bg-success-500/10 text-success-400",
-                            "reject" => "border-warning-500/30 bg-warning-500/10 text-warning-400",
-                            _ => "border-white/[0.08] bg-white/[0.04] text-slate-300",
-                        };
-                        let entity_id = entry.entity_id.clone().unwrap_or_default();
-                        let summary = entry.summary.clone().unwrap_or_default();
-                        let ip = entry.ip_address.clone().unwrap_or_else(|| "—".to_string());
-                        view! {
-                            <tr class="border-b border-white/[0.04] align-top text-xs">
-                                <td class="px-3 py-2 whitespace-nowrap text-slate-400">{entry.occurred_at.clone()}</td>
-                                <td class="px-3 py-2">
-                                    <div class="font-semibold text-white">{actor_label}</div>
-                                    {(!role.is_empty()).then(|| view! {
-                                        <div class="text-[0.65rem] text-slate-500">{role}</div>
-                                    })}
-                                </td>
-                                <td class="px-3 py-2">
-                                    <span class=format!(
-                                        "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold {}",
-                                        action_class
-                                    )>
-                                        {entry.action.clone()}
-                                    </span>
-                                </td>
-                                <td class="px-3 py-2">
-                                    <div class="font-medium text-slate-200">{entry.entity_type.clone()}</div>
-                                    {(!entity_id.is_empty()).then(|| view! {
-                                        <div class="text-[0.65rem] text-slate-500">{entity_id}</div>
-                                    })}
-                                </td>
-                                <td class="px-3 py-2 text-slate-300">{summary}</td>
-                                <td class="px-3 py-2 text-[0.7rem] text-slate-500">{ip}</td>
-                            </tr>
-                        }
-                    }).collect::<Vec<_>>()}
+                    {move || {
+                        rows
+                            .get()
+                            .into_iter()
+                            .map(|entry| {
+                                let actor_label = entry
+                                    .actor_name
+                                    .clone()
+                                    .unwrap_or_else(|| "—".to_string());
+                                let role = entry.actor_role.clone().unwrap_or_default();
+                                let action_class = match entry.action.as_str() {
+                                    "create" => {
+                                        "border-success-500/30 bg-success-500/10 text-success-400"
+                                    }
+                                    "update" => "border-info-500/30 bg-info-500/10 text-info-300",
+                                    "delete" => {
+                                        "border-danger-500/30 bg-danger-500/10 text-danger-400"
+                                    }
+                                    "approve" => {
+                                        "border-success-500/30 bg-success-500/10 text-success-400"
+                                    }
+                                    "reject" => {
+                                        "border-warning-500/30 bg-warning-500/10 text-warning-400"
+                                    }
+                                    _ => "border-white/[0.08] bg-white/[0.04] text-slate-300",
+                                };
+                                let entity_id = entry.entity_id.clone().unwrap_or_default();
+                                let summary = entry.summary.clone().unwrap_or_default();
+                                let ip = entry
+                                    .ip_address
+                                    .clone()
+                                    .unwrap_or_else(|| "—".to_string());
+                                view! {
+                                    <tr class="border-b border-white/[0.04] align-top text-xs">
+                                        <td class="px-3 py-2 whitespace-nowrap text-slate-400">
+                                            {entry.occurred_at.clone()}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="font-semibold text-white">{actor_label}</div>
+                                            {(!role.is_empty())
+                                                .then(|| {
+                                                    view! {
+                                                        <div class="text-[0.65rem] text-slate-500">{role}</div>
+                                                    }
+                                                })}
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class=format!(
+                                                "inline-flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold {}",
+                                                action_class,
+                                            )>{entry.action.clone()}</span>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="font-medium text-slate-200">
+                                                {entry.entity_type.clone()}
+                                            </div>
+                                            {(!entity_id.is_empty())
+                                                .then(|| {
+                                                    view! {
+                                                        <div class="text-[0.65rem] text-slate-500">{entity_id}</div>
+                                                    }
+                                                })}
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-300">{summary}</td>
+                                        <td class="px-3 py-2 text-[0.7rem] text-slate-500">{ip}</td>
+                                    </tr>
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                    }}
                 </tbody>
             </table>
         </div>
@@ -345,8 +453,7 @@ fn Pagination(
     view! {
         <div class="mt-3 flex items-center justify-between text-xs text-slate-400">
             <div>
-                "Halaman " <strong class="text-white">{move || page.get()}</strong>
-                " dari "
+                "Halaman " <strong class="text-white">{move || page.get()}</strong> " dari "
                 <strong class="text-white">{move || total_pages.get()}</strong>
             </div>
             <div class="flex gap-2">
@@ -356,17 +463,23 @@ fn Pagination(
                     prop:disabled=move || page.get() <= 1
                     on:click=prev_handler
                 >
-                    <span class="mr-1"><AppIcon icon=CARET_LEFT /></span>
+                    <span class="mr-1">
+                        <AppIcon icon=CARET_LEFT />
+                    </span>
                     "Sebelumnya"
                 </button>
                 <button
                     type="button"
                     class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || page.get() >= total_pages.get()
-                    on:click=next_handler
+                    prop:disabled=move || page.get()
                 >
+                    = total_pages.get()
+                    on:click=next_handler
+                    >
                     "Berikutnya"
-                    <span class="ml-1"><AppIcon icon=CARET_RIGHT /></span>
+                    <span class="ml-1">
+                        <AppIcon icon=CARET_RIGHT />
+                    </span>
                 </button>
             </div>
         </div>

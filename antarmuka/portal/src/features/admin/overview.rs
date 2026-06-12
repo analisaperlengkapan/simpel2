@@ -48,9 +48,7 @@ pub fn AdminOverviewPage() -> impl IntoView {
                     </div>
                 </div>
 
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 // Quick navigation cards
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -95,19 +93,41 @@ pub fn AdminOverviewPage() -> impl IntoView {
                 // Stats cards
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat statistik sistem..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat statistik sistem..." /> }
                 >
-                    {move || stats.get().map(|s| view! {
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">"Statistik Sistem"</h2>
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                            <StatCard label="Total Pengguna" value=s.total_users.to_string() icon="👤" />
-                            <StatCard label="Pengguna Aktif" value=s.active_users.to_string() icon="✅" />
-                            <StatCard label="Sesi Aktif" value=s.total_sessions.to_string() icon="📱" />
-                            <StatCard label="Klien OAuth2" value=s.total_clients.to_string() icon="🔑" />
-                        </div>
-                    })}
+                    {move || {
+                        stats
+                            .get()
+                            .map(|s| {
+                                view! {
+                                    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                                        "Statistik Sistem"
+                                    </h2>
+                                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <StatCard
+                                            label="Total Pengguna"
+                                            value=s.total_users.to_string()
+                                            icon="👤"
+                                        />
+                                        <StatCard
+                                            label="Pengguna Aktif"
+                                            value=s.active_users.to_string()
+                                            icon="✅"
+                                        />
+                                        <StatCard
+                                            label="Sesi Aktif"
+                                            value=s.total_sessions.to_string()
+                                            icon="📱"
+                                        />
+                                        <StatCard
+                                            label="Klien OAuth2"
+                                            value=s.total_clients.to_string()
+                                            icon="🔑"
+                                        />
+                                    </div>
+                                }
+                            })
+                    }}
                 </Show>
             </div>
         </MainLayout>
@@ -122,7 +142,10 @@ fn AdminNavCard(
     href: &'static str,
 ) -> impl IntoView {
     view! {
-        <a href=href class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-primary-300 transition-all group">
+        <a
+            href=href
+            class="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-primary-300 transition-all group"
+        >
             <span class="text-3xl">{icon}</span>
             <h3 class="font-semibold text-gray-900 mt-3 group-hover:text-primary-700">{title}</h3>
             <p class="text-sm text-gray-500 mt-1">{desc}</p>

@@ -318,9 +318,7 @@ pub fn LoginPage(
                     <h1 class="text-2xl font-bold text-white">
                         "Masuk ke " <span class="text-gold-400">"SIMPEL"</span>
                     </h1>
-                    <p class="text-sm text-slate-400">
-                        "Kejaksaan Agung Republik Indonesia"
-                    </p>
+                    <p class="text-sm text-slate-400">"Kejaksaan Agung Republik Indonesia"</p>
                 </div>
 
                 // Login Card
@@ -340,16 +338,44 @@ pub fn LoginPage(
                             >
                                 <Show
                                     when=move || passkey_loading.get()
-                                    fallback=|| view! {
-                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                                        </svg>
-                                        "Masuk dengan Passkey"
+                                    fallback=|| {
+                                        view! {
+                                            <svg
+                                                class="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                                                />
+                                            </svg>
+                                            "Masuk dengan Passkey"
+                                        }
                                     }
                                 >
-                                    <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    <svg
+                                        class="animate-spin h-5 w-5"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <circle
+                                            class="opacity-25"
+                                            cx="12"
+                                            cy="12"
+                                            r="10"
+                                            stroke="currentColor"
+                                            stroke-width="4"
+                                        ></circle>
+                                        <path
+                                            class="opacity-75"
+                                            fill="currentColor"
+                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
                                     </svg>
                                     "Memverifikasi Passkey..."
                                 </Show>
@@ -367,13 +393,17 @@ pub fn LoginPage(
                             <div class="relative flex justify-center">
                                 <button
                                     type="button"
-                                    on:click=move |_| set_show_password_form.set(!show_password_form.get())
+                                    on:click=move |_| {
+                                        set_show_password_form.set(!show_password_form.get())
+                                    }
                                     class="bg-white dark:bg-gray-800 px-4 py-1.5 text-sm font-medium text-gold-600 dark:text-gold-400 border border-gold-300 dark:border-gold-600/50 rounded-full shadow-sm hover:bg-gold-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gold-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                                 >
-                                    {move || if show_password_form.get() {
-                                        "Tutup login password"
-                                    } else {
-                                        "Atau masuk dengan password"
+                                    {move || {
+                                        if show_password_form.get() {
+                                            "Tutup login password"
+                                        } else {
+                                            "Atau masuk dengan password"
+                                        }
                                     }}
                                 </button>
                             </div>
@@ -388,107 +418,145 @@ pub fn LoginPage(
                             "hidden"
                         }
                     }>
-                    <form on:submit=handle_submit class="space-y-4">
-                        // Username
-                        <div>
-                            <label for="username" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                "Username"
-                            </label>
-                            <input
-                                type="text"
-                                id="username"
-                                name="username"
-                                class="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-navy-600 rounded-xl focus:ring-2 focus:ring-navy-500 focus:border-navy-500 dark:focus:ring-gold-500 dark:focus:border-gold-500 bg-white dark:bg-navy-700 dark:text-white transition-colors"
-                                placeholder="Masukkan username"
-                                prop:value=move || username.get()
-                                on:input=move |ev| set_username.set(event_target_value(&ev))
-                                required
-                                disabled=move || is_loading.get()
-                            />
-                        </div>
+                        <form on:submit=handle_submit class="space-y-4">
+                            // Username
+                            <div>
+                                <label
+                                    for="username"
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                                >
+                                    "Username"
+                                </label>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    class="w-full px-4 py-2.5 text-sm border border-slate-200 dark:border-navy-600 rounded-xl focus:ring-2 focus:ring-navy-500 focus:border-navy-500 dark:focus:ring-gold-500 dark:focus:border-gold-500 bg-white dark:bg-navy-700 dark:text-white transition-colors"
+                                    placeholder="Masukkan username"
+                                    prop:value=move || username.get()
+                                    on:input=move |ev| set_username.set(event_target_value(&ev))
+                                    required
+                                    disabled=move || is_loading.get()
+                                />
+                            </div>
 
-                        // Password
-                        <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                "Password"
-                            </label>
-                            <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                class="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors"
-                                placeholder="Masukkan password"
-                                prop:value=move || password.get()
-                                on:input=move |ev| set_password.set(event_target_value(&ev))
-                                required
-                                disabled=move || is_loading.get()
-                            />
-                        </div>
+                            // Password
+                            <div>
+                                <label
+                                    for="password"
+                                    class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+                                >
+                                    "Password"
+                                </label>
+                                <input
+                                    type="password"
+                                    id="password"
+                                    name="password"
+                                    class="w-full px-4 py-2.5 text-sm border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white transition-colors"
+                                    placeholder="Masukkan password"
+                                    prop:value=move || password.get()
+                                    on:input=move |ev| set_password.set(event_target_value(&ev))
+                                    required
+                                    disabled=move || is_loading.get()
+                                />
+                            </div>
 
-                        // CAPTCHA — compact wrapper
-                        <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
-                            <Captcha
-                                on_success=Callback::new(handle_captcha_success)
-                                on_failure=Callback::new(handle_captcha_failure)
-                                difficulty=3u8
-                                accessibility_enabled=true
-                                behavioral_analysis=true
-                                reset=captcha_reset
-                                class="captcha-login"
-                            />
-                        </div>
+                            // CAPTCHA — compact wrapper
+                            <div class="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3 border border-gray-200 dark:border-gray-600">
+                                <Captcha
+                                    on_success=Callback::new(handle_captcha_success)
+                                    on_failure=Callback::new(handle_captcha_failure)
+                                    difficulty=3u8
+                                    accessibility_enabled=true
+                                    behavioral_analysis=true
+                                    reset=captcha_reset
+                                    class="captcha-login"
+                                />
+                            </div>
 
-                        // Submit Button
-                        <button
-                            type="submit"
-                            class=move || format!(
-                                "w-full py-3 px-6 text-sm font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed {}",
-                                if captcha_token.get().is_none() {
-                                    "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                                } else {
-                                    "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-navy-900 shadow-lg hover:shadow-xl focus:ring-gold-500"
+                            // Submit Button
+                            <button
+                                type="submit"
+                                class=move || {
+                                    format!(
+                                        "w-full py-3 px-6 text-sm font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed {}",
+                                        if captcha_token.get().is_none() {
+                                            "bg-slate-300 dark:bg-slate-600 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                        } else {
+                                            "bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-navy-900 shadow-lg hover:shadow-xl focus:ring-gold-500"
+                                        },
+                                    )
                                 }
-                            )
-                            disabled=move || is_loading.get() || captcha_token.get().is_none()
-                        >
-                            <Show
-                                when=move || is_loading.get()
-                                fallback=move || {
-                                    if captcha_token.get().is_none() {
-                                        view! { "Selesaikan Verifikasi Keamanan" }
-                                    } else {
-                                        view! { "Masuk ke Portal" }
-                                    }
-                                }
+                                disabled=move || is_loading.get() || captcha_token.get().is_none()
                             >
-                                <span class="inline-flex items-center gap-2">
-                                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    "Memverifikasi..."
-                                </span>
-                            </Show>
-                        </button>
+                                <Show
+                                    when=move || is_loading.get()
+                                    fallback=move || {
+                                        if captcha_token.get().is_none() {
+                                            view! { "Selesaikan Verifikasi Keamanan" }
+                                        } else {
+                                            view! { "Masuk ke Portal" }
+                                        }
+                                    }
+                                >
+                                    <span class="inline-flex items-center gap-2">
+                                        <svg
+                                            class="animate-spin h-4 w-4"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                class="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                stroke-width="4"
+                                            ></circle>
+                                            <path
+                                                class="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                        "Memverifikasi..."
+                                    </span>
+                                </Show>
+                            </button>
 
-                        // Info: Admin-only password reset
-                        <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                            <p class="text-xs text-blue-700 dark:text-blue-400 text-center">
-                                "Lupa password? Hubungi administrator unit kerja Anda."
-                            </p>
-                        </div>
-                    </form>
-                    </div> // end password form wrapper
+                            // Info: Admin-only password reset
+                            <div class="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                                <p class="text-xs text-blue-700 dark:text-blue-400 text-center">
+                                    "Lupa password? Hubungi administrator unit kerja Anda."
+                                </p>
+                            </div>
+                        </form>
+                    // end password form wrapper
+                    </div>
 
                     // ═══ Error messages (shared between passkey and password) ═══
-                    {move || (!error_message.get().is_empty()).then(|| view! {
-                        <div class="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
-                            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                            <span>{error_message.get()}</span>
-                        </div>
-                    })}
+                    {move || {
+                        (!error_message.get().is_empty())
+                            .then(|| {
+                                view! {
+                                    <div class="mt-4 flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-400">
+                                        <svg
+                                            class="w-4 h-4 mt-0.5 flex-shrink-0"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                        <span>{error_message.get()}</span>
+                                    </div>
+                                }
+                            })
+                    }}
                 </div>
             </div>
         </AuthLayout>

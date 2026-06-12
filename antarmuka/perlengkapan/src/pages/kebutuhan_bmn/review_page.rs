@@ -219,8 +219,12 @@ pub fn ReviewPage() -> impl IntoView {
                         {move || {
                             if list_loading.get() {
                                 view! {
-                                    <LoadingState message="Memuat pengajuan...".to_string() inline=true />
-                                }.into_any()
+                                    <LoadingState
+                                        message="Memuat pengajuan...".to_string()
+                                        inline=true
+                                    />
+                                }
+                                    .into_any()
                             } else if let Some(err) = list_error.get() {
                                 view! {
                                     <ErrorState
@@ -228,67 +232,87 @@ pub fn ReviewPage() -> impl IntoView {
                                         title="Gagal memuat daftar".to_string()
                                         on_retry=Box::new(move || load_submissions())
                                     />
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 let subs = submissions.get();
                                 if subs.is_empty() {
                                     view! {
                                         <EmptyState
                                             title="Tidak ada pengajuan".to_string()
-                                            description="Tidak ada pengajuan yang perlu direview saat ini.".to_string()
+                                            description="Tidak ada pengajuan yang perlu direview saat ini."
+                                                .to_string()
                                             icon="fas fa-inbox".to_string()
                                         />
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="flex flex-col gap-2">
-                                            {subs.into_iter().map(|sub| {
-                                                let sub_id = sub.id;
-                                                let status_label = sub
-                                                    .status_nama
-                                                    .clone()
-                                                    .unwrap_or_else(|| format!("Kode {}", sub.status_kode));
-                                                let satker_label = sub
-                                                    .satker_nama
-                                                    .clone()
-                                                    .unwrap_or_else(|| sub.satker_id.clone());
-                                                let created_label = sub.created_at.format("%d %b %Y %H:%M").to_string();
-                                                let is_selected = Signal::derive(move || {
-                                                    selected_submission
-                                                        .get()
-                                                        .map(|s| s.id == sub_id)
-                                                        .unwrap_or(false)
-                                                });
+                                            {subs
+                                                .into_iter()
+                                                .map(|sub| {
+                                                    let sub_id = sub.id;
+                                                    let status_label = sub
+                                                        .status_nama
+                                                        .clone()
+                                                        .unwrap_or_else(|| format!("Kode {}", sub.status_kode));
+                                                    let satker_label = sub
+                                                        .satker_nama
+                                                        .clone()
+                                                        .unwrap_or_else(|| sub.satker_id.clone());
+                                                    let created_label = sub
+                                                        .created_at
+                                                        .format("%d %b %Y %H:%M")
+                                                        .to_string();
+                                                    let is_selected = Signal::derive(move || {
+                                                        selected_submission
+                                                            .get()
+                                                            .map(|s| s.id == sub_id)
+                                                            .unwrap_or(false)
+                                                    });
 
-                                                view! {
-                                                    <button
-                                                        type="button"
-                                                        class=move || {
-                                                            let base = "w-full rounded-xl border p-4 text-left transition";
-                                                            if is_selected.get() {
-                                                                format!("{} border-gold-500/40 bg-gold-500/10 ring-1 ring-gold-500/25", base)
-                                                            } else {
-                                                                format!("{} border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]", base)
+                                                    view! {
+                                                        <button
+                                                            type="button"
+                                                            class=move || {
+                                                                let base = "w-full rounded-xl border p-4 text-left transition";
+                                                                if is_selected.get() {
+                                                                    format!(
+                                                                        "{} border-gold-500/40 bg-gold-500/10 ring-1 ring-gold-500/25",
+                                                                        base,
+                                                                    )
+                                                                } else {
+                                                                    format!(
+                                                                        "{} border-white/[0.06] bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]",
+                                                                        base,
+                                                                    )
+                                                                }
                                                             }
-                                                        }
-                                                        on:click=move |_| load_submission_detail(sub_id)
-                                                    >
-                                                        <div class="text-sm font-semibold text-slate-100">
-                                                            {satker_label}
-                                                        </div>
-                                                        <div class="mt-1 text-xs text-slate-400">
-                                                            "Status: "
-                                                            <span class="font-medium text-info-300">{status_label}</span>
-                                                        </div>
-                                                        <div class="mt-1 text-xs text-slate-500">
-                                                            <span class="mr-1"><AppIcon icon=CLOCK /></span>
-                                                            {created_label}
-                                                        </div>
-                                                    </button>
-                                                }
-                                            }).collect_view()}
+                                                            on:click=move |_| load_submission_detail(sub_id)
+                                                        >
+                                                            <div class="text-sm font-semibold text-slate-100">
+                                                                {satker_label}
+                                                            </div>
+                                                            <div class="mt-1 text-xs text-slate-400">
+                                                                "Status: "
+                                                                <span class="font-medium text-info-300">
+                                                                    {status_label}
+                                                                </span>
+                                                            </div>
+                                                            <div class="mt-1 text-xs text-slate-500">
+                                                                <span class="mr-1">
+                                                                    <AppIcon icon=CLOCK />
+                                                                </span>
+                                                                {created_label}
+                                                            </div>
+                                                        </button>
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }
                         }}
@@ -300,9 +324,11 @@ pub fn ReviewPage() -> impl IntoView {
                         if detail_loading.get() {
                             view! {
                                 <SectionCard>
-                                    <LoadingState message="Memuat detail pengajuan...".to_string() />
+                                    <LoadingState message="Memuat detail pengajuan..."
+                                        .to_string() />
                                 </SectionCard>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else if let Some(err) = detail_error.get() {
                             view! {
                                 <SectionCard>
@@ -311,26 +337,34 @@ pub fn ReviewPage() -> impl IntoView {
                                         title="Gagal memuat detail pengajuan".to_string()
                                     />
                                 </SectionCard>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else if let Some(detail) = selected_submission.get() {
                             view! {
                                 <DetailPanel
                                     detail=detail
                                     action_loading=action_loading
-                                    on_forward=Callback::new(move |_| open_action_modal("forward".to_string()))
-                                    on_return=Callback::new(move |_| open_action_modal("return".to_string()))
+                                    on_forward=Callback::new(move |_| open_action_modal(
+                                        "forward".to_string(),
+                                    ))
+                                    on_return=Callback::new(move |_| open_action_modal(
+                                        "return".to_string(),
+                                    ))
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <SectionCard>
                                     <EmptyState
                                         title="Pilih pengajuan".to_string()
-                                        description="Pilih pengajuan dari daftar di sebelah kiri untuk melihat detail dan melakukan tindakan.".to_string()
+                                        description="Pilih pengajuan dari daftar di sebelah kiri untuk melihat detail dan melakukan tindakan."
+                                            .to_string()
                                         icon="fas fa-hand-pointer".to_string()
                                     />
                                 </SectionCard>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
@@ -380,7 +414,9 @@ fn DetailPanel(
                     <InfoField label="Nama Satker" value=satker_label />
                     <InfoField label="Kode Satker" value=detail.satker_id.clone() />
                     <div>
-                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">"Status"</dt>
+                        <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            "Status"
+                        </dt>
                         <dd class="mt-1">
                             <span class="inline-flex items-center gap-1.5 rounded-full bg-info-500/15 px-2.5 py-1 text-xs font-semibold text-info-300 ring-1 ring-info-500/25">
                                 {status_label}
@@ -396,22 +432,23 @@ fn DetailPanel(
                 icon="fas fa-box".to_string()
                 description=format!("{} item diajukan", barang_count)
             >
-                {
-                    if barang_items.is_empty() {
-                        view! {
-                            <EmptyState
-                                title="Belum ada barang".to_string()
-                                description="Pengajuan ini tidak memiliki daftar barang.".to_string()
-                                icon="fas fa-box-open".to_string()
-                            />
-                        }.into_any()
-                    } else {
-                        view! { <BarangTable items=barang_items.clone() /> }.into_any()
+                {if barang_items.is_empty() {
+                    view! {
+                        <EmptyState
+                            title="Belum ada barang".to_string()
+                            description="Pengajuan ini tidak memiliki daftar barang.".to_string()
+                            icon="fas fa-box-open".to_string()
+                        />
                     }
-                }
+                        .into_any()
+                } else {
+                    view! { <BarangTable items=barang_items.clone() /> }.into_any()
+                }}
             </SectionCard>
 
-            <Show when=move || has_docs>
+            <Show when=move || {
+                has_docs
+            }>
                 {
                     let docs_items = detail.barang_items.clone();
                     view! {
@@ -420,24 +457,35 @@ fn DetailPanel(
                                 {docs_items
                                     .into_iter()
                                     .filter(|item| !item.file_pendukung.is_empty())
-                                    .map(|item| view! {
-                                        <div class="rounded-xl border-l-4 border-gold-400/60 bg-white/[0.02] px-4 py-3">
-                                            <p class="text-sm font-semibold text-slate-100">{item.nama.clone()}</p>
-                                            <div class="mt-2 flex flex-col gap-1">
-                                                {item.file_pendukung.iter().map(|file| view! {
-                                                    <a
-                                                        href=file.clone()
-                                                        target="_blank"
-                                                        rel="noopener"
-                                                        class="inline-flex items-center gap-2 text-xs font-medium text-gold-300 transition hover:text-gold-200"
-                                                    >
-                                                        <AppIcon icon=FILE_ARROW_DOWN />
-                                                        <span>"Unduh dokumen"</span>
-                                                    </a>
-                                                }).collect_view()}
+                                    .map(|item| {
+                                        view! {
+                                            <div class="rounded-xl border-l-4 border-gold-400/60 bg-white/[0.02] px-4 py-3">
+                                                <p class="text-sm font-semibold text-slate-100">
+                                                    {item.nama.clone()}
+                                                </p>
+                                                <div class="mt-2 flex flex-col gap-1">
+                                                    {item
+                                                        .file_pendukung
+                                                        .iter()
+                                                        .map(|file| {
+                                                            view! {
+                                                                <a
+                                                                    href=file.clone()
+                                                                    target="_blank"
+                                                                    rel="noopener"
+                                                                    class="inline-flex items-center gap-2 text-xs font-medium text-gold-300 transition hover:text-gold-200"
+                                                                >
+                                                                    <AppIcon icon=FILE_ARROW_DOWN />
+                                                                    <span>"Unduh dokumen"</span>
+                                                                </a>
+                                                            }
+                                                        })
+                                                        .collect_view()}
+                                                </div>
                                             </div>
-                                        </div>
-                                    }).collect_view()}
+                                        }
+                                    })
+                                    .collect_view()}
                             </div>
                         </SectionCard>
                     }
@@ -445,24 +493,31 @@ fn DetailPanel(
             </Show>
 
             <SectionCard title="Riwayat Aktivitas" icon="fas fa-clock-rotate-left">
-                {
-                    if aktivitas_history.is_empty() {
-                        view! {
-                            <EmptyState
-                                title="Belum ada aktivitas".to_string()
-                                description="Belum ada riwayat tindakan pada pengajuan ini.".to_string()
-                                icon="fas fa-clock-rotate-left".to_string()
-                            />
-                        }.into_any()
-                    } else {
-                        view! {
-                            <ol class="flex flex-col gap-3 border-l border-white/[0.08] pl-4">
-                                {aktivitas_history.into_iter().map(|aktivitas| {
+                {if aktivitas_history.is_empty() {
+                    view! {
+                        <EmptyState
+                            title="Belum ada aktivitas".to_string()
+                            description="Belum ada riwayat tindakan pada pengajuan ini.".to_string()
+                            icon="fas fa-clock-rotate-left".to_string()
+                        />
+                    }
+                        .into_any()
+                } else {
+                    view! {
+                        <ol class="flex flex-col gap-3 border-l border-white/[0.08] pl-4">
+                            {aktivitas_history
+                                .into_iter()
+                                .map(|aktivitas| {
                                     let name = aktivitas
                                         .aktivitas_nama
                                         .clone()
-                                        .unwrap_or_else(|| format!("Aktivitas {}", aktivitas.aktivitas_id));
-                                    let time = aktivitas.created_at.format("%d %b %Y %H:%M").to_string();
+                                        .unwrap_or_else(|| {
+                                            format!("Aktivitas {}", aktivitas.aktivitas_id)
+                                        });
+                                    let time = aktivitas
+                                        .created_at
+                                        .format("%d %b %Y %H:%M")
+                                        .to_string();
                                     view! {
                                         <li class="relative">
                                             <span class="absolute -left-[1.1rem] top-1.5 inline-block h-2 w-2 rounded-full bg-gold-400 ring-2 ring-navy-950"></span>
@@ -470,23 +525,37 @@ fn DetailPanel(
                                                 <p class="text-sm font-semibold text-slate-100">{name}</p>
                                                 <span class="text-xs text-slate-500">{time}</span>
                                             </div>
-                                            {aktivitas.user_nama.as_ref().map(|user| view! {
-                                                <p class="mt-1 text-xs text-slate-400">
-                                                    "Oleh: "<span class="font-medium text-slate-300">{user.clone()}</span>
-                                                </p>
-                                            })}
-                                            {aktivitas.catatan.as_ref().map(|catatan| view! {
-                                                <p class="mt-1 text-xs italic leading-relaxed text-slate-400">
-                                                    "\"" {catatan.clone()} "\""
-                                                </p>
-                                            })}
+                                            {aktivitas
+                                                .user_nama
+                                                .as_ref()
+                                                .map(|user| {
+                                                    view! {
+                                                        <p class="mt-1 text-xs text-slate-400">
+                                                            "Oleh: "
+                                                            <span class="font-medium text-slate-300">
+                                                                {user.clone()}
+                                                            </span>
+                                                        </p>
+                                                    }
+                                                })}
+                                            {aktivitas
+                                                .catatan
+                                                .as_ref()
+                                                .map(|catatan| {
+                                                    view! {
+                                                        <p class="mt-1 text-xs italic leading-relaxed text-slate-400">
+                                                            "\"" {catatan.clone()} "\""
+                                                        </p>
+                                                    }
+                                                })}
                                         </li>
                                     }
-                                }).collect_view()}
-                            </ol>
-                        }.into_any()
+                                })
+                                .collect_view()}
+                        </ol>
                     }
-                }
+                        .into_any()
+                }}
             </SectionCard>
 
             <SectionCard>
@@ -536,32 +605,64 @@ fn BarangTable(items: Vec<BarangItem>) -> impl IntoView {
                 <table class="min-w-full divide-y divide-white/[0.04]">
                     <thead class="bg-white/[0.02]">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"No"</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Barang"</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Kode"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Jumlah"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Existing"</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Justifikasi"</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "No"
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Nama Barang"
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Kode"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Jumlah"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Existing"
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Justifikasi"
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {items.into_iter().enumerate().map(|(idx, item)| {
-                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
-                            view! {
-                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                                    <td class="px-4 py-3 text-sm text-slate-400">{idx + 1}</td>
-                                    <td class="px-4 py-3 text-sm font-medium text-slate-100">{item.nama.clone()}</td>
-                                    <td class="px-4 py-3 font-mono text-xs text-slate-400">
-                                        {item.kode_barang.clone().unwrap_or_else(|| "—".to_string())}
-                                    </td>
-                                    <td class="px-4 py-3 text-right text-sm text-slate-200">{item.jumlah}</td>
-                                    <td class="px-4 py-3 text-right text-sm text-info-300">{item.existing_count}</td>
-                                    <td class="px-4 py-3 text-sm text-slate-300">
-                                        {item.justifikasi.clone().unwrap_or_else(|| "—".to_string())}
-                                    </td>
-                                </tr>
-                            }
-                        }).collect_view()}
+                        {items
+                            .into_iter()
+                            .enumerate()
+                            .map(|(idx, item)| {
+                                let bg = if idx % 2 == 0 {
+                                    "bg-transparent"
+                                } else {
+                                    "bg-white/[0.015]"
+                                };
+                                view! {
+                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                        <td class="px-4 py-3 text-sm text-slate-400">{idx + 1}</td>
+                                        <td class="px-4 py-3 text-sm font-medium text-slate-100">
+                                            {item.nama.clone()}
+                                        </td>
+                                        <td class="px-4 py-3 font-mono text-xs text-slate-400">
+                                            {item
+                                                .kode_barang
+                                                .clone()
+                                                .unwrap_or_else(|| "—".to_string())}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm text-slate-200">
+                                            {item.jumlah}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm text-info-300">
+                                            {item.existing_count}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-300">
+                                            {item
+                                                .justifikasi
+                                                .clone()
+                                                .unwrap_or_else(|| "—".to_string())}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
                     </tbody>
                 </table>
             </div>
@@ -670,10 +771,12 @@ fn ActionModal(
                         on:click=move |_| on_submit.run(())
                         disabled=move || action_loading.get()
                     >
-                        {move || if action_loading.get() {
-                            "Memproses...".to_string()
-                        } else {
-                            submit_label()
+                        {move || {
+                            if action_loading.get() {
+                                "Memproses...".to_string()
+                            } else {
+                                submit_label()
+                            }
                         }}
                     </button>
                 </div>

@@ -12,26 +12,11 @@ pub fn SecurityMeta(#[prop(optional)] custom_csp: Option<ContentSecurityPolicy>)
     let csp_content = csp.build();
 
     view! {
-        <Meta
-            http_equiv="Content-Security-Policy"
-            content=csp_content
-        />
-        <Meta
-            http_equiv="X-Content-Type-Options"
-            content="nosniff"
-        />
-        <Meta
-            http_equiv="X-Frame-Options"
-            content="DENY"
-        />
-        <Meta
-            http_equiv="X-XSS-Protection"
-            content="1; mode=block"
-        />
-        <Meta
-            name="referrer"
-            content="no-referrer-when-downgrade"
-        />
+        <Meta http_equiv="Content-Security-Policy" content=csp_content />
+        <Meta http_equiv="X-Content-Type-Options" content="nosniff" />
+        <Meta http_equiv="X-Frame-Options" content="DENY" />
+        <Meta http_equiv="X-XSS-Protection" content="1; mode=block" />
+        <Meta name="referrer" content="no-referrer-when-downgrade" />
     }
 }
 
@@ -56,26 +41,11 @@ pub fn StrictSecurityMeta() -> impl IntoView {
     let csp_content = csp.build();
 
     view! {
-        <Meta
-            http_equiv="Content-Security-Policy"
-            content=csp_content
-        />
-        <Meta
-            http_equiv="X-Content-Type-Options"
-            content="nosniff"
-        />
-        <Meta
-            http_equiv="X-Frame-Options"
-            content="DENY"
-        />
-        <Meta
-            http_equiv="X-XSS-Protection"
-            content="1; mode=block"
-        />
-        <Meta
-            name="referrer"
-            content="no-referrer"
-        />
+        <Meta http_equiv="Content-Security-Policy" content=csp_content />
+        <Meta http_equiv="X-Content-Type-Options" content="nosniff" />
+        <Meta http_equiv="X-Frame-Options" content="DENY" />
+        <Meta http_equiv="X-XSS-Protection" content="1; mode=block" />
+        <Meta name="referrer" content="no-referrer" />
     }
 }
 
@@ -131,9 +101,7 @@ pub fn CspViolationReporter(#[prop(optional)] report_uri: Option<String>) -> imp
         }
     });
 
-    view! {
-        <></>
-    }
+    view! { <></> }
 }
 
 /// Nonce generator for inline scripts (CSP nonce support)
@@ -166,11 +134,7 @@ pub fn ScriptWithNonce(
 ) -> impl IntoView {
     let nonce = nonce.unwrap_or_else(generate_csp_nonce);
 
-    view! {
-        <script nonce=nonce>
-            {content}
-        </script>
-    }
+    view! { <script nonce=nonce>{content}</script> }
 }
 
 #[cfg(test)]

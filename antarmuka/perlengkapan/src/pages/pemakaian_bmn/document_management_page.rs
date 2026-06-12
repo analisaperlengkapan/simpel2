@@ -141,19 +141,25 @@ pub fn DocumentManagementPage() -> impl IntoView {
                 "Manajemen Dokumen Izin Pemakaian"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
-            {move || success_message.get().map(|msg| view! {
-                <Alert message=msg variant=AlertVariant::Success />
-            })}
+            {move || {
+                success_message
+                    .get()
+                    .map(|msg| view! { <Alert message=msg variant=AlertVariant::Success /> })
+            }}
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center py-4">
-                    <Spinner size="lg" />
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center py-4">
+                                <Spinner size="lg" />
+                            </div>
+                        }
+                    })
+            }}
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 // Left Panel: Permits List
@@ -167,52 +173,67 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                         <div class="text-center py-8 text-gray-500">
                                             "Tidak ada izin pemakaian"
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="space-y-2">
-                                            {list.into_iter().map(|permit| {
-                                                let permit_id = permit.id;
-                                                let is_selected = selected_permit.get()
-                                                    .map(|p| p.id == permit_id)
-                                                    .unwrap_or(false);
+                                            {list
+                                                .into_iter()
+                                                .map(|permit| {
+                                                    let permit_id = permit.id;
+                                                    let is_selected = selected_permit
+                                                        .get()
+                                                        .map(|p| p.id == permit_id)
+                                                        .unwrap_or(false);
 
-                                                view! {
-                                                    <div
-                                                        class=move || format!(
-                                                            "p-4 border rounded-lg cursor-pointer transition-colors {}",
-                                                            if is_selected {
-                                                                "border-emerald-500 bg-emerald-50"
-                                                            } else {
-                                                                "border-gray-200 hover:bg-gray-50"
+                                                    view! {
+                                                        <div
+                                                            class=move || {
+                                                                format!(
+                                                                    "p-4 border rounded-lg cursor-pointer transition-colors {}",
+                                                                    if is_selected {
+                                                                        "border-emerald-500 bg-emerald-50"
+                                                                    } else {
+                                                                        "border-gray-200 hover:bg-gray-50"
+                                                                    },
+                                                                )
                                                             }
-                                                        )
-                                                        on:click=move |_| set_selected_permit.set(Some(permit.clone()))
-                                                    >
-                                                        <div class="font-semibold text-gray-900">
-                                                            {permit.pegawai_nama.clone()}
-                                                        </div>
-                                                        <div class="text-sm text-gray-600 mt-1">
-                                                            "NIP: " {permit.pegawai_nip.clone()}
-                                                        </div>
-                                                        {permit.permit_number.as_ref().map(|num| view! {
-                                                            <div class="text-sm text-gray-600 mt-1">
-                                                                "No. Izin: " {num.clone()}
+                                                            on:click=move |_| {
+                                                                set_selected_permit.set(Some(permit.clone()))
+                                                            }
+                                                        >
+                                                            <div class="font-semibold text-gray-900">
+                                                                {permit.pegawai_nama.clone()}
                                                             </div>
-                                                        })}
-                                                        <Badge
-                                                            label=permit.status.clone()
-                                                            variant=match permit.status.as_str() {
-                                                                "COMPLETED" => BadgeVariant::Success,
-                                                                "DRAFT" => BadgeVariant::Warning,
-                                                                _ => BadgeVariant::Info,
-                                                            }
-                                                        />
-                                                    </div>
-                                                }
-                                            }).collect_view()}
+                                                            <div class="text-sm text-gray-600 mt-1">
+                                                                "NIP: " {permit.pegawai_nip.clone()}
+                                                            </div>
+                                                            {permit
+                                                                .permit_number
+                                                                .as_ref()
+                                                                .map(|num| {
+                                                                    view! {
+                                                                        <div class="text-sm text-gray-600 mt-1">
+                                                                            "No. Izin: " {num.clone()}
+                                                                        </div>
+                                                                    }
+                                                                })}
+                                                            <Badge
+                                                                label=permit.status.clone()
+                                                                variant=match permit.status.as_str() {
+                                                                    "COMPLETED" => BadgeVariant::Success,
+                                                                    "DRAFT" => BadgeVariant::Warning,
+                                                                    _ => BadgeVariant::Info,
+                                                                }
+                                                            />
+                                                        </div>
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }}
                         </div>
@@ -225,20 +246,30 @@ pub fn DocumentManagementPage() -> impl IntoView {
                         if let Some(permit) = selected_permit.get() {
                             let permit_document_url_for_generation = permit.document_url.clone();
                             let permit_document_url_for_upload = permit.document_url.clone();
-                            let permit_signed_document_url_for_upload = permit.signed_document_url.clone();
-                            let permit_signed_document_url_for_final = permit.signed_document_url.clone();
+                            let permit_signed_document_url_for_upload = permit
+                                .signed_document_url
+                                .clone();
+                            let permit_signed_document_url_for_final = permit
+                                .signed_document_url
+                                .clone();
                             view! {
                                 <div class="space-y-6">
                                     // Permit Information
                                     <Card title="Informasi Izin">
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Pegawai"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Pegawai"
+                                                </label>
                                                 <p class="text-gray-900">{permit.pegawai_nama.clone()}</p>
-                                                <p class="text-sm text-gray-600">"NIP: " {permit.pegawai_nip.clone()}</p>
+                                                <p class="text-sm text-gray-600">
+                                                    "NIP: " {permit.pegawai_nip.clone()}
+                                                </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Status"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Status"
+                                                </label>
                                                 <Badge
                                                     label=permit.status.clone()
                                                     variant=match permit.status.as_str() {
@@ -249,35 +280,53 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                                 />
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Periode"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Periode"
+                                                </label>
                                                 <p class="text-gray-900">
-                                                    {permit.tanggal_mulai.clone()} " s/d " {permit.tanggal_selesai.clone()}
+                                                    {permit.tanggal_mulai.clone()} " s/d "
+                                                    {permit.tanggal_selesai.clone()}
                                                 </p>
                                             </div>
-                                            {permit.permit_number.as_ref().map(|num| view! {
-                                                <div>
-                                                    <label class="text-sm font-medium text-gray-700">"Nomor Izin (REQ-P010)"</label>
-                                                    <p class="text-gray-900 font-mono">{num.clone()}</p>
-                                                </div>
-                                            })}
+                                            {permit
+                                                .permit_number
+                                                .as_ref()
+                                                .map(|num| {
+                                                    view! {
+                                                        <div>
+                                                            <label class="text-sm font-medium text-gray-700">
+                                                                "Nomor Izin (REQ-P010)"
+                                                            </label>
+                                                            <p class="text-gray-900 font-mono">{num.clone()}</p>
+                                                        </div>
+                                                    }
+                                                })}
                                         </div>
                                     </Card>
 
                                     // BMN Items
                                     <Card title="Daftar BMN">
                                         <div class="space-y-2">
-                                            {permit.bmn_items.iter().enumerate().map(|(idx, item)| view! {
-                                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                                    <div>
-                                                        <p class="font-medium text-gray-900">
-                                                            {idx + 1} ". " {item.nama_barang.clone()}
-                                                        </p>
-                                                        <p class="text-sm text-gray-600">
-                                                            "NUP: " {item.nup.clone()} " | Kondisi: " {item.kondisi.clone()}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            }).collect_view()}
+                                            {permit
+                                                .bmn_items
+                                                .iter()
+                                                .enumerate()
+                                                .map(|(idx, item)| {
+                                                    view! {
+                                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                            <div>
+                                                                <p class="font-medium text-gray-900">
+                                                                    {idx + 1} ". " {item.nama_barang.clone()}
+                                                                </p>
+                                                                <p class="text-sm text-gray-600">
+                                                                    "NUP: " {item.nup.clone()} " | Kondisi: "
+                                                                    {item.kondisi.clone()}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
                                     </Card>
 
@@ -300,17 +349,30 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                                         "Generate Dokumen Konsep"
                                                     </Button>
                                                 </div>
-                                            }.into_any()
+                                            }
+                                                .into_any()
                                         } else {
                                             view! {
                                                 <div class="space-y-4">
                                                     <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-lg">
                                                         <div class="flex items-center space-x-3">
-                                                            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            <svg
+                                                                class="w-8 h-8 text-emerald-600"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                                />
                                                             </svg>
                                                             <div>
-                                                                <p class="font-medium text-emerald-900">"Dokumen Konsep Tersedia"</p>
+                                                                <p class="font-medium text-emerald-900">
+                                                                    "Dokumen Konsep Tersedia"
+                                                                </p>
                                                                 <p class="text-sm text-emerald-700">"Format: DOCX"</p>
                                                             </div>
                                                         </div>
@@ -326,12 +388,15 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                                         "Silakan download dokumen, minta tanda tangan Pimpinan Satker, lalu upload kembali dalam format PDF."
                                                     </p>
                                                 </div>
-                                            }.into_any()
+                                            }
+                                                .into_any()
                                         }}
                                     </Card>
 
                                     // Upload Signed Document (REQ-P008, REQ-P009)
-                                    {if permit_document_url_for_upload.is_some() && permit_signed_document_url_for_upload.is_none() {
+                                    {if permit_document_url_for_upload.is_some()
+                                        && permit_signed_document_url_for_upload.is_none()
+                                    {
                                         view! {
                                             <Card title="Upload Dokumen Bertanda Tangan">
                                                 <div class="space-y-4">
@@ -348,26 +413,43 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                                             }
                                                         })
                                                     />
-                                                    {uploading.get().then(|| view! {
-                                                        <div class="flex items-center space-x-2 text-emerald-600">
-                                                            <Spinner size="sm" />
-                                                            <span>"Uploading..."</span>
-                                                        </div>
-                                                    })}
+                                                    {uploading
+                                                        .get()
+                                                        .then(|| {
+                                                            view! {
+                                                                <div class="flex items-center space-x-2 text-emerald-600">
+                                                                    <Spinner size="sm" />
+                                                                    <span>"Uploading..."</span>
+                                                                </div>
+                                                            }
+                                                        })}
                                                 </div>
                                             </Card>
-                                        }.into_any()
+                                        }
+                                            .into_any()
                                     } else if permit_signed_document_url_for_final.is_some() {
                                         view! {
                                             <Card title="Dokumen Final">
                                                 <div class="flex items-center justify-between p-4 bg-green-50 rounded-lg">
                                                     <div class="flex items-center space-x-3">
-                                                        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        <svg
+                                                            class="w-8 h-8 text-green-600"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                            />
                                                         </svg>
                                                         <div>
                                                             <p class="font-medium text-green-900">"Dokumen Lengkap"</p>
-                                                            <p class="text-sm text-green-700">"Status: COMPLETED (REQ-P009)"</p>
+                                                            <p class="text-sm text-green-700">
+                                                                "Status: COMPLETED (REQ-P009)"
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <a
@@ -379,12 +461,14 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                                     </a>
                                                 </div>
                                             </Card>
-                                        }.into_any()
+                                        }
+                                            .into_any()
                                     } else {
                                         view! { <div></div> }.into_any()
                                     }}
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <Card>
@@ -392,7 +476,8 @@ pub fn DocumentManagementPage() -> impl IntoView {
                                         "Pilih izin dari daftar untuk mengelola dokumen"
                                     </div>
                                 </Card>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>

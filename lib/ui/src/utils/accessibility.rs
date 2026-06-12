@@ -226,11 +226,7 @@ pub fn VisuallyHidden(
 ) -> impl IntoView {
     let class = class.unwrap_or_default();
 
-    view! {
-        <span class=format!("sr-only {}", class)>
-            {children()}
-        </span>
-    }
+    view! { <span class=format!("sr-only {}", class)>{children()}</span> }
 }
 
 // ============================================================================
@@ -278,45 +274,47 @@ pub fn FocusTrap(
                 if !active.get() {
                     return;
                 }
-
-                if ev.key() == "Tab"
-                    && let Some(container) = container_ref.get() {
-                        // Get all focusable elements
-                        if let Ok(elements) = container.query_selector_all(FOCUSABLE_ELEMENTS_SELECTOR) {
-                            let length = elements.length();
-                            if length == 0 {
-                                return;
-                            }
-
-                            let first = elements.get(0);
-                            let last = elements.get(length - 1);
-
-                            if let Some(active_element) = web_sys::window()
-                                .and_then(|w| w.document())
-                                .and_then(|d| d.active_element())
-                            {
-                                if ev.shift_key() {
-                                    // Shift+Tab: wrap to last element if current is first
-                                    let is_first = first.as_ref().is_some_and(|n| active_element.is_same_node(Some(n)));
-                                    if is_first {
-                                        ev.prevent_default();
-                                        if let Some(last_el) = last {
-                                            let _ = last_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
-                                        }
+                if ev.key() == "Tab" && let Some(container) = container_ref.get() {
+                    if let Ok(elements) = container.query_selector_all(FOCUSABLE_ELEMENTS_SELECTOR)
+                    {
+                        let length = elements.length();
+                        if length == 0 {
+                            return;
+                        }
+                        let first = elements.get(0);
+                        let last = elements.get(length - 1);
+                        if let Some(active_element) = web_sys::window()
+                            .and_then(|w| w.document())
+                            .and_then(|d| d.active_element())
+                        {
+                            if ev.shift_key() {
+                                let is_first = first
+                                    .as_ref()
+                                    .is_some_and(|n| active_element.is_same_node(Some(n)));
+                                if is_first {
+                                    ev.prevent_default();
+                                    if let Some(last_el) = last {
+                                        let _ = last_el
+                                            .dyn_ref::<web_sys::HtmlElement>()
+                                            .map(|el| el.focus());
                                     }
-                                } else {
-                                    // Tab: wrap to first element if current is last
-                                    let is_last = last.as_ref().is_some_and(|n| active_element.is_same_node(Some(n)));
-                                    if is_last {
-                                        ev.prevent_default();
-                                        if let Some(first_el) = first {
-                                            let _ = first_el.dyn_ref::<web_sys::HtmlElement>().map(|el| el.focus());
-                                        }
+                                }
+                            } else {
+                                let is_last = last
+                                    .as_ref()
+                                    .is_some_and(|n| active_element.is_same_node(Some(n)));
+                                if is_last {
+                                    ev.prevent_default();
+                                    if let Some(first_el) = first {
+                                        let _ = first_el
+                                            .dyn_ref::<web_sys::HtmlElement>()
+                                            .map(|el| el.focus());
                                     }
                                 }
                             }
                         }
                     }
+                }
             }
         >
             {children()}
