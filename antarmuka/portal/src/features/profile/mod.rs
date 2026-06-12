@@ -1,7 +1,7 @@
 //! Profile feature (F0-B): user profile + account settings screens.
 
-pub mod profile;
+pub mod page;
 pub mod settings;
 
-pub use profile::*;
+pub use page::*;
 pub use settings::SettingsPage;

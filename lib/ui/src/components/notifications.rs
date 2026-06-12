@@ -377,8 +377,7 @@ pub fn NotificationList(
                             </div>
                         </div>
                     }
-                })}
-            // Notifications list
+                })} // Notifications list
             <div class="space-y-4">
                 {move || {
                     let notifs = filtered_notifications();

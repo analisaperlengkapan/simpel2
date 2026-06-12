@@ -451,8 +451,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                         .into_any();
                 }
                 let Some(data) = satker_data.get() else {
-                    return
-                    view! {
+                    return view! {
                         <div class="py-8 text-center text-sm text-slate-500">
                             "Data tidak tersedia"
                         </div>
@@ -913,8 +912,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     </span>
                                                                 </div>
                                                             }
-                                                        })}
-                                                    // Summary stats
+                                                        })} // Summary stats
                                                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                                         <div class="rounded-xl border border-white/[0.06] bg-surface-panel p-4">
                                                             <div class="text-xs font-medium text-info-400">
@@ -948,8 +946,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                 {format!("{:.1}%", a.summary.kelayakan_persen)}
                                                             </div>
                                                         </div>
-                                                    </div>
                                                     // Integrasi sync status
+                                                    </div>
                                                     {sync_data
                                                         .map(|sync| {
                                                             let mysimkari = sync.mysimkari;
@@ -1042,8 +1040,7 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                                     </div>
                                                                 </div>
                                                             }
-                                                        })}
-                                                    // Gap analysis table
+                                                        })} // Gap analysis table
                                                     <SectionCard title="Detail Analisis per Barang">
                                                         <div class="overflow-hidden rounded-xl border border-white/[0.06]">
                                                             <div class="overflow-x-auto">
@@ -1170,8 +1167,8 @@ pub fn KebutuhanBmnSatkerDetail() -> impl IntoView {
                                                             </span>
                                                             "Data aset existing diambil dari SIMAN. Gap dihitung berdasarkan jumlah diminta dikurangi aset sejenis."
                                                         </div>
-                                                    </SectionCard>
                                                     // Pegawai data (MySIMKARI)
+                                                    </SectionCard>
                                                     {a
                                                         .data_pegawai
                                                         .clone()

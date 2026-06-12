@@ -131,8 +131,7 @@ pub fn StepEditorModal(
                                     </div>
                                 }
                             })
-                    }}
-                    <div class="flex flex-col gap-5">
+                    }} <div class="flex flex-col gap-5">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
                                 "State"

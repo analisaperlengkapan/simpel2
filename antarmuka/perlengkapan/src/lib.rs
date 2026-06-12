@@ -203,8 +203,7 @@ pub fn App() -> impl IntoView {
                                     } else {
                                         view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
                                     }
-                                }}
-                                <main class=main_class>
+                                }} <main class=main_class>
                                     <Routes fallback=move || view! { <NotFound /> }.into_any()>
                                         // ══════════════════════════════════════════
                                         // PUBLIC ROUTES (no auth required)

@@ -472,8 +472,7 @@ pub fn ContextMenu(
             {children()}
 
             {move || {
-                show
-                    .get()
+                show.get()
                     .then(|| {
                         let (x, y) = position.get();
                         view! {

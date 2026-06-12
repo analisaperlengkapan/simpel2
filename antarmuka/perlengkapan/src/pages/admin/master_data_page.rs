@@ -443,8 +443,7 @@ fn RecordTable(
                 </thead>
                 <tbody>
                     {move || {
-                        rows
-                            .get()
+                        rows.get()
                             .into_iter()
                             .map(|rec| {
                                 let rec_edit = rec.clone();
@@ -679,8 +678,7 @@ fn RecordEditorModal(
                                     </div>
                                 }
                             })
-                    }}
-                    <div class="flex flex-col gap-4">
+                    }} <div class="flex flex-col gap-4">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
                                 "Kode"

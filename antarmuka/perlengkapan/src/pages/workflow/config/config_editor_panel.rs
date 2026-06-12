@@ -145,8 +145,7 @@ pub fn ConfigEditorPanel(
                                     </div>
                                 }
                             })
-                    }}
-                    <div class="flex flex-col gap-4">
+                    }} <div class="flex flex-col gap-4">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
                                 "Nama Workflow " <span class="text-danger-400">"*"</span>
