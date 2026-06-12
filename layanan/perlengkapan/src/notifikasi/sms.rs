@@ -475,6 +475,10 @@ impl SmsService {
 
 /// Trait for Secreton client abstraction
 /// This allows for easier testing and mocking
+// Native async-in-trait: this is an internal, single-process abstraction (no
+// dyn dispatch across the trait), so the `async_fn_in_trait` Send-bound caveat
+// does not apply here.
+#[allow(async_fn_in_trait)]
 pub trait SecretonClient {
     async fn get_secret(&mut self, path: &str) -> Result<String, Box<dyn std::error::Error>>;
 }
@@ -482,14 +486,6 @@ pub trait SecretonClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    struct MockSecretonClient;
-
-    impl SecretonClient for MockSecretonClient {
-        async fn get_secret(&mut self, _path: &str) -> Result<String, Box<dyn std::error::Error>> {
-            Ok("mock_secret".to_string())
-        }
-    }
 
     #[tokio::test]
     async fn test_template_rendering() {

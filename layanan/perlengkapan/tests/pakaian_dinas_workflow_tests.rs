@@ -1,6 +1,5 @@
 // Placeholder smoke tests; real assertions land with the comprehensive
-// suite (#33 / F5-C). Until then these assert reachability, not outcomes.
-#![allow(clippy::assertions_on_constants)]
+// suite (#33 / F5-C); marked #[ignore] until then.
 
 // ============================================================================
 // Pakaian Dinas Workflow Integration Tests
@@ -10,10 +9,9 @@
 
 #[cfg(test)]
 mod tests {
-    #[allow(unused_imports)]
-    use uuid::Uuid;
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_workflow_submit() {
         // Test submitting pengajuan from DRAFT to SUBMITTED
         // This test verifies:
@@ -23,10 +21,10 @@ mod tests {
 
         // TODO: Implement test with actual database and notification service
         // For now, this is a placeholder
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_workflow_approve() {
         // Test approving pengajuan from SUBMITTED to APPROVED
         // This test verifies:
@@ -36,10 +34,10 @@ mod tests {
         // 4. Document generation is triggered
 
         // TODO: Implement test with actual database, document, and notification services
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_workflow_reject() {
         // Test rejecting pengajuan from SUBMITTED to REJECTED
         // This test verifies:
@@ -48,10 +46,10 @@ mod tests {
         // 3. Notification is sent to requester with rejection reason
 
         // TODO: Implement test with actual database and notification service
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_document_generation() {
         // Test document generation after approval
         // This test verifies:
@@ -60,10 +58,10 @@ mod tests {
         // 3. Document URL is accessible
 
         // TODO: Implement test with actual document service
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_notification_delivery() {
         // Test notification delivery after workflow transitions
         // This test verifies:
@@ -72,10 +70,10 @@ mod tests {
         // 3. Notification is sent on REJECTED with reason
 
         // TODO: Implement test with actual notification service
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_complete_flow() {
         // Test complete end-to-end flow:
         // DRAFT -> SUBMITTED -> APPROVED -> COMPLETED
@@ -86,10 +84,10 @@ mod tests {
         // 4. Activity log is complete
 
         // TODO: Implement full integration test
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_invalid_transition() {
         // Test invalid state transitions
         // This test verifies:
@@ -98,10 +96,10 @@ mod tests {
         // 3. Proper error messages are returned
 
         // TODO: Implement test with actual service
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_document_download() {
         // Test document download endpoint
         // This test verifies:
@@ -110,10 +108,10 @@ mod tests {
         // 3. Access control is enforced
 
         // TODO: Implement test with actual document service
-        assert!(true);
     }
 
     #[tokio::test]
+    #[ignore = "placeholder; real assertions land in F5-C (#33)"]
     async fn test_pakaian_dinas_notification_to_satker_operators() {
         // Test notification to all operators in satker
         // This test verifies:
@@ -122,6 +120,5 @@ mod tests {
         // 3. Action link is included
 
         // TODO: Implement test with actual notification service and Authenc
-        assert!(true);
     }
 }
