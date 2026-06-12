@@ -167,23 +167,18 @@ jobs:
           # synthetic-key false positives). Keeps findings to OUR actionable code.
           trivy-config: "infra/lint/trivy.yaml"
           trivyignores: "infra/lint/.trivyignore.yaml"
-          format: "sarif"
-          output: "trivy-fs.sarif"
+          # Render findings as a TABLE to the job log (NOT sarif). Code scanning
+          # is not enabled on this repo, so an uploaded SARIF can't be viewed —
+          # the table makes findings visible inline, so a red job is actionable
+          # (you can see WHAT failed) instead of an opaque exit code.
+          format: "table"
           severity: "HIGH,CRITICAL"
           # Advisory but VISIBLE: fail the job on fixable HIGH/CRITICAL so it
           # shows red (a green check gets overlooked). Non-blocking for merges —
-          # the Security Summary only gates on gitleaks. SARIF still uploads
-          # (next step is if: always()) so findings also land in the Security tab.
+          # the Security Summary only gates on gitleaks.
           exit-code: "1"
           ignore-unfixed: "true"
           scanners: "vuln,secret,misconfig"
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-fs
-        continue-on-error: true
 
   # Verifikasi formal Verus — SCAFFOLD untuk masa depan.
   # Verus hanya bisa memverifikasi kode yang ditulis dalam subset Verus, yaitu
