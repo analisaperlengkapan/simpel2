@@ -1026,8 +1026,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                                                 </span>
                                                             </div>
                                                         }
-                                                    })}
-                                                // Rejected status
+                                                    })} // Rejected status
                                                 {(status_kode == 4008)
                                                     .then(|| {
                                                         view! {
@@ -1048,8 +1047,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                                                                 <span class="font-medium">"Pengajuan Ditolak"</span>
                                                             </div>
                                                         }
-                                                    })}
-                                                // Back button
+                                                    })} // Back button
                                                 <a
                                                     href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
                                                     class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
@@ -1064,8 +1062,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                             }
                         })
                 }}
-            </Suspense>
-            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
+            </Suspense> // Return to Operator — ApprovalDialog reusable (Fase 2.5)
             {move || {
                 show_return_modal
                     .get()
@@ -1085,8 +1082,7 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
                             />
                         }
                     })
-            }}
-            // Upload Signed SK Modal
+            }} // Upload Signed SK Modal
             {move || {
                 show_upload_modal
                     .get()

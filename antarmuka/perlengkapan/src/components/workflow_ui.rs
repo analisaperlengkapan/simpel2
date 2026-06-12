@@ -172,8 +172,8 @@ pub fn WorkflowTimeline(
                             <span class=format!(
                                 "relative z-10 mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 {}",
                                 step.status.dot_class(dark),
-                            )></span> // Body
-                            <div class="min-w-0 flex-1">
+                            )>// Body
+                            </span> <div class="min-w-0 flex-1">
                                 <p class=format!(
                                     "text-sm {}",
                                     step.status.label_class(dark),

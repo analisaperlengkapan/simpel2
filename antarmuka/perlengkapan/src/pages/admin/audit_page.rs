@@ -346,8 +346,7 @@ fn AuditTable(rows: ReadSignal<Vec<AuditLogEntry>>) -> impl IntoView {
                 </thead>
                 <tbody>
                     {move || {
-                        rows
-                            .get()
+                        rows.get()
                             .into_iter()
                             .map(|entry| {
                                 let actor_label = entry

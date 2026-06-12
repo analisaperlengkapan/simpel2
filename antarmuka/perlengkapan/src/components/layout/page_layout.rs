@@ -97,8 +97,7 @@ pub fn PageLayout(
                 </div>
                 {actions
                     .map(|a| view! { <div class="flex flex-wrap items-center gap-2">{a()}</div> })}
-            </header>
-            <div class="flex flex-col gap-6">{children()}</div>
+            </header> <div class="flex flex-col gap-6">{children()}</div>
         </section>
     }
 }

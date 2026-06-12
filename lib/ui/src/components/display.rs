@@ -246,8 +246,7 @@ pub fn EmptyState(
                             {t}
                         </h3>
                     }
-                })}
-            <p class="text-gray-500 dark:text-gray-400 mb-6">{message}</p>
+                })} <p class="text-gray-500 dark:text-gray-400 mb-6">{message}</p>
             {action.map(|a| view! { <div>{a()}</div> })}
         </div>
     }
@@ -446,8 +445,7 @@ pub fn OptimizedImage(
                             </div>
                         }
                     })
-            }}
-            // Actual image
+            }} // Actual image
             <img
                 src=src.clone()
                 alt=alt.clone()
@@ -467,8 +465,7 @@ pub fn OptimizedImage(
                     set_error.set(true);
                     set_loaded.set(false);
                 }
-            />
-            // Error state
+            /> // Error state
             {move || {
                 error
                     .get()
@@ -800,8 +797,7 @@ pub fn FilterPanel(
                     </div>
                 }
                     .into_any()
-            }}
-            {move || (is_open.get() || !collapsible).then(|| children())}
+            }} {move || (is_open.get() || !collapsible).then(|| children())}
         </div>
     }
 }

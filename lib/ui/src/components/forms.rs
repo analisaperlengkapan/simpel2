@@ -160,8 +160,7 @@ pub fn Input(
                     input_class,
                 )
                 on:input=handle_input
-            />
-            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            /> {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
             {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
@@ -230,8 +229,7 @@ pub fn OtpInput(
                             {l}
                         </label>
                     }
-                })}
-            <div class="relative">
+                })} <div class="relative">
                 <input
                     type="text"
                     id=id
@@ -277,8 +275,7 @@ pub fn OtpInput(
                             </div>
                         }
                     })}
-            </div>
-            // Character counter
+            </div> // Character counter
             <div class="flex justify-between items-center text-xs">
                 <div class=format!(
                     "{}",
@@ -314,8 +311,7 @@ pub fn OtpInput(
                             {e}
                         </p>
                     }
-                })}
-            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
+                })} {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }
@@ -384,8 +380,7 @@ pub fn Select(
                 on:change=handle_change
             >
                 {children()}
-            </select>
-            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            </select> {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -456,8 +451,7 @@ pub fn Textarea(
                 on:input=handle_input
             >
                 {value}
-            </textarea>
-            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            </textarea> {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -601,8 +595,7 @@ pub fn RadioGroup(
                             {l}
                         </label>
                     }
-                })}
-            <div class=layout_class role="radiogroup">
+                })} <div class=layout_class role="radiogroup">
                 {options
                     .into_iter()
                     .map(|opt| {
@@ -625,8 +618,7 @@ pub fn RadioGroup(
                         }
                     })
                     .collect_view()}
-            </div>
-            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            </div> {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -764,8 +756,7 @@ pub fn FileInput(
                     },
                 )
                 on:change=handle_change
-            />
-            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            /> {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -884,8 +875,7 @@ pub fn DatePicker(
                             {e}
                         </p>
                     }
-                })}
-            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
+                })} {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }
@@ -1011,8 +1001,7 @@ pub fn FileUpload(
                         }}
                     </p>
                 </label>
-            </div>
-            // File list preview
+            </div> // File list preview
             {show_preview
                 .then(|| {
                     view! {
@@ -1073,8 +1062,7 @@ pub fn FileUpload(
                             {e}
                         </p>
                     }
-                })}
-            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
+                })} {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }

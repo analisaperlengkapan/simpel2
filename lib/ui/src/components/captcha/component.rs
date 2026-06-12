@@ -546,8 +546,7 @@ fn CaptchaContainer(
                                     .into_any()
                             } else {
                                 ().into_any()
-                            }}
-                            // Behavioral analysis runs silently (no debug UI shown)
+                            }} // Behavioral analysis runs silently (no debug UI shown)
                             {().into_any()}
                         </div>
                     }
@@ -759,8 +758,8 @@ pub fn ChallengeDisplay(
                                             "We analyze your interaction patterns to verify you're human"
                                         </p>
                                     </div>
-                                    <div class="interaction-area bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 border-2 border-green-200 dark:border-green-700 rounded-lg h-32 cursor-crosshair">// Behavioral tracking area
-                                    </div>
+                                    // Behavioral tracking area
+                                    <div class="interaction-area bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 border-2 border-green-200 dark:border-green-700 rounded-lg h-32 cursor-crosshair"></div>
                                 </div>
                             }
                                 .into_any()
@@ -1150,11 +1149,9 @@ pub fn ChallengeInput(
                             .into_any()
                     }
                 }
-            }}
-            // Validation feedback is shown by ValidationStatusIndicator in CaptchaContainer
+            }} // Validation feedback is shown by ValidationStatusIndicator in CaptchaContainer
 
-            {
-            ().into_any()}
+            {().into_any()}
         </div>
     }
 }

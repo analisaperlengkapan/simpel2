@@ -102,46 +102,45 @@ pub fn MappingKodefikasiDashboard() -> impl IntoView {
                     progress
                         .get()
                         .and_then(|data| {
-                            data
-                                .map(|progress| {
-                                    view! {
-                                        <div>
-                                            // Metrics Cards
-                                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                                                <MetricCard
-                                                    title="Kode Standar"
-                                                    value=progress.total_standard.to_string()
-                                                    icon="✅"
-                                                    color="green"
-                                                />
-                                                <MetricCard
-                                                    title="Kode Non-Standar"
-                                                    value=progress.total_non_standard.to_string()
-                                                    icon="⚠️"
-                                                    color="yellow"
-                                                />
-                                                <MetricCard
-                                                    title="Sudah Dipetakan"
-                                                    value=format!(
-                                                        "{} ({:.1}%)",
-                                                        progress.total_mapped,
-                                                        progress.mapping_percentage,
-                                                    )
-                                                    icon="📊"
-                                                    color="blue"
-                                                />
-                                            </div>
-
-                                            // Non-Standard Codes Table
-                                            <div class="mt-8">
-                                                <h2 class="text-xl font-bold mb-4 text-gray-800">
-                                                    "Daftar BMN Non-Standar"
-                                                </h2>
-                                                <MappingTable items=progress.non_standard_codes />
-                                            </div>
+                            data.map(|progress| {
+                                view! {
+                                    <div>
+                                        // Metrics Cards
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                                            <MetricCard
+                                                title="Kode Standar"
+                                                value=progress.total_standard.to_string()
+                                                icon="✅"
+                                                color="green"
+                                            />
+                                            <MetricCard
+                                                title="Kode Non-Standar"
+                                                value=progress.total_non_standard.to_string()
+                                                icon="⚠️"
+                                                color="yellow"
+                                            />
+                                            <MetricCard
+                                                title="Sudah Dipetakan"
+                                                value=format!(
+                                                    "{} ({:.1}%)",
+                                                    progress.total_mapped,
+                                                    progress.mapping_percentage,
+                                                )
+                                                icon="📊"
+                                                color="blue"
+                                            />
                                         </div>
-                                    }
-                                })
+
+                                        // Non-Standard Codes Table
+                                        <div class="mt-8">
+                                            <h2 class="text-xl font-bold mb-4 text-gray-800">
+                                                "Daftar BMN Non-Standar"
+                                            </h2>
+                                            <MappingTable items=progress.non_standard_codes />
+                                        </div>
+                                    </div>
+                                }
+                            })
                         })
                 }}
             </Suspense>

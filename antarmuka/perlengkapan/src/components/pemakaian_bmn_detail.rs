@@ -473,8 +473,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                                 <p class="font-medium text-sm">"Konsep Surat Izin"</p>
                                                                 <p class="text-xs text-gray-500">
                                                                     {move || {
-                                                                        izin
-                                                                            .konsep_surat_generated_at
+                                                                        izin.konsep_surat_generated_at
                                                                             .clone()
                                                                             .map(|d| format!("Digenerate: {}", d))
                                                                             .unwrap_or("Belum digenerate".to_string())
@@ -557,8 +556,7 @@ pub fn PemakaianBmnDetail() -> impl IntoView {
                                                                 </p>
                                                                 <p class="text-xs text-gray-500">
                                                                     {move || {
-                                                                        izin
-                                                                            .signed_pdf_uploaded_at
+                                                                        izin.signed_pdf_uploaded_at
                                                                             .clone()
                                                                             .map(|d| format!("Diupload: {}", d))
                                                                             .unwrap_or("Belum diupload".to_string())

@@ -96,8 +96,7 @@ pub fn OptimizedImage(
                             <div class="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse"></div>
                         }
                     })
-            }}
-            // Actual image
+            }} // Actual image
             {move || {
                 (!error.get())
                     .then(|| {
@@ -124,8 +123,7 @@ pub fn OptimizedImage(
                             />
                         }
                     })
-            }}
-            // Error state
+            }} // Error state
             {move || {
                 error
                     .get()
