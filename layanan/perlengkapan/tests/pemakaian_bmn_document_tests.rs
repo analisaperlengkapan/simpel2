@@ -6,7 +6,6 @@
 //! Tests for permit document generation during activation
 //! Requirements: REQ-P006, REQ-D002, REQ-D004, REQ-D005
 
-
 #[tokio::test]
 #[ignore = "placeholder; real assertions land in F5-C (#33)"]
 async fn test_document_generated_after_activation() {
@@ -23,7 +22,6 @@ async fn test_document_generated_after_activation() {
     // - Mock dokumen service client
     // - Verification of document generation call
     // - Verification of document fields in database
-
 }
 
 #[tokio::test]
@@ -34,7 +32,6 @@ async fn test_document_stored_in_database() {
     // 2. Query database for permit
     // 3. Verify document_id and document_url are not null
     // 4. Verify document_url is valid format
-
 }
 
 #[tokio::test]
@@ -45,7 +42,6 @@ async fn test_document_download_endpoint() {
     // 2. Call GET /pemakaian-bmn/:id/document
     // 3. Verify redirect to document URL
     // 4. Verify user authorization (only permit holder or same satker can access)
-
 }
 
 #[tokio::test]
@@ -57,7 +53,6 @@ async fn test_document_generation_error_handling() {
     // 3. Verify permit is still activated (status = ACTIVE)
     // 4. Verify document_id and document_url are null
     // 5. Verify error is logged but doesn't fail activation
-
 }
 
 #[tokio::test]
@@ -69,7 +64,6 @@ async fn test_document_generation_retry_logic() {
     // 3. Verify 3 attempts were made
     // 4. Verify document was eventually generated
     // 5. Verify exponential backoff was used
-
 }
 
 #[tokio::test]
@@ -82,7 +76,6 @@ async fn test_document_generation_max_retries() {
     // 4. Verify permit is still activated
     // 5. Verify document_id and document_url are null
     // 6. Verify error is logged
-
 }
 
 #[tokio::test]
@@ -98,7 +91,6 @@ async fn test_document_data_includes_all_fields() {
     //    - Housing fields (if applicable)
     //    - Laptop fields (if applicable)
     //    - Permit period, approval info
-
 }
 
 #[tokio::test]
@@ -108,7 +100,6 @@ async fn test_document_download_requires_authentication() {
     // 1. Create permit with document
     // 2. Call GET /pemakaian-bmn/:id/document without auth token
     // 3. Verify 401 Unauthorized response
-
 }
 
 #[tokio::test]
@@ -118,7 +109,6 @@ async fn test_document_download_not_found() {
     // 1. Create permit without document (not activated)
     // 2. Call GET /pemakaian-bmn/:id/document
     // 3. Verify 404 Not Found response with appropriate message
-
 }
 
 // Integration test notes:

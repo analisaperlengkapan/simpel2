@@ -46,7 +46,6 @@ mod tests {
         // 3. Reject (SUBMITTED → REJECTED)
         // 4. Verify notification sent to requester
         // 5. Verify no document generated
-
     }
 
     /// Test penghapusan BMN role validation
@@ -59,7 +58,6 @@ mod tests {
         // 3. Verify transition fails with InsufficientPermissions error
         // 4. Attempt transition with correct role
         // 5. Verify transition succeeds
-
     }
 
     /// Test document generation after approval
@@ -71,7 +69,6 @@ mod tests {
         // 2. Verify SK Penghapusan BMN document was generated
         // 3. Verify document metadata stored in database
         // 4. Verify document URL is accessible
-
     }
 
     /// Test notification delivery after transitions
@@ -84,6 +81,5 @@ mod tests {
         // 3. Verify notification sent to approver
         // 4. Approve (REVIEWED → APPROVED)
         // 5. Verify notification sent to requester
-
     }
 }
