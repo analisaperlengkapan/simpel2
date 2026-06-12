@@ -1,0 +1,10 @@
+# Trivy misconfiguration ignores (referenced by security.yml::trivy-fs).
+# Path-scoped FALSE POSITIVES only — each must justify why it is not real.
+misconfigurations:
+  - id: AVD-KSV-0109
+    paths:
+      - "tests/load/k8s-load-test-job.yaml"
+    statement: >-
+      k6 load-test JS embeds 'password'/'token' as VARIABLE names (TEST_PASSWORD
+      env lookup, `const token = login()`); the real credential is injected via
+      secretKeyRef (load-test-credentials), not stored in the ConfigMap. FP.

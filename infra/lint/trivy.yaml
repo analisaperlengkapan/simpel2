@@ -1,0 +1,25 @@
+# Trivy config for the filesystem scan (security.yml::trivy-fs).
+#
+# Scope the scan to OUR source so HIGH/CRITICAL findings are signal, not noise.
+# The job is advisory (non-blocking) but fails red on findings to stay visible —
+# so the findings it does surface must be ours and actionable.
+scan:
+  # Build artifacts + third-party trees we neither author nor ship from source.
+  # - target/**           : cargo build output (e.g. a vendored rdkafka Dockerfile)
+  # - **/vendor/**        : PHP/Go vendored deps (Laravel Sail Dockerfiles, mockery docs)
+  # - **/node_modules/**  : npm deps (Playwright e2e, simpelv1)
+  # - **/dist/**          : trunk/web build output
+  # - infra/helm/**       : Helm charts are gated by kube-linter (security.yml). Trivy's
+  #                         misconfig scanner cannot even render them (charts require
+  #                         kubeVersion >=1.27; trivy assumes an old API) → pure noise.
+  skip-dirs:
+    - "**/node_modules"
+    - "**/vendor"
+    - "target"
+    - "**/dist"
+    - "infra/helm"
+
+# Secret-scanning allow-rules live in a sibling file (renamed off the
+# `*-secret.yaml` .gitignore guard — it holds allow-rules, not secrets).
+secret:
+  config: infra/lint/trivy-fp-allowlist.yaml
