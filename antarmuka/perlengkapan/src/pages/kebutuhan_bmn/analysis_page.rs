@@ -321,7 +321,10 @@ fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
         "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/laporan/download?format=pdf",
         satker_id
     );
-    let _download_url_for_click = download_url.clone();
+    // Bound by the wasm `on:click` handler below; unused on the host target.
+    // Targeted allow (not `_`-prefix, which would break the closure binding).
+    #[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
+    let download_url_for_click = download_url.clone();
     let preview_for_iframe = preview_url.clone();
 
     view! {

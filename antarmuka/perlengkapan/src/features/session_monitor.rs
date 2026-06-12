@@ -6,6 +6,10 @@
 //! But if Perlengkapan is the only open tab, nobody else refreshes the JWT and the
 //! user gets booted the moment `exp` passes. This monitor closes that gap.
 
+// AuthService is referenced only from the wasm refresh loop below; gating the
+// import keeps the host-target build warning-free (and immune to `cargo fix`).
+#[cfg(target_arch = "wasm32")]
+use crate::features::auth::AuthService;
 use leptos::prelude::*;
 
 /// Spawn a long-lived task that refreshes the JWT before it expires and

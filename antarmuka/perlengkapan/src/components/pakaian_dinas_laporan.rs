@@ -72,7 +72,9 @@ fn build_export_url(
     url
 }
 
-fn open_url(_url: &str) {
+// `url` is consumed only by the wasm body; unused on the host target.
+#[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
+fn open_url(url: &str) {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {
