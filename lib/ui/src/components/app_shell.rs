@@ -39,9 +39,5 @@ pub fn AppShell(children: Children) -> impl IntoView {
     // `use_query` / `client.local_resource` / `client.resource`.
     QueryClient::new().provide();
 
-    view! {
-        <ToastProvider>
-            {children()}
-        </ToastProvider>
-    }
+    view! { <ToastProvider>{children()}</ToastProvider> }
 }

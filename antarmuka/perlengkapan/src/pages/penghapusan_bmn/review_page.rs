@@ -152,19 +152,25 @@ pub fn ReviewPage() -> impl IntoView {
                 "Review SK Penghapusan BMN - Validator Wilayah"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
-            {move || success_message.get().map(|msg| view! {
-                <Alert message=msg variant=AlertVariant::Success />
-            })}
+            {move || {
+                success_message
+                    .get()
+                    .map(|msg| view! { <Alert message=msg variant=AlertVariant::Success /> })
+            }}
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center py-4">
-                    <Spinner size="lg" />
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center py-4">
+                                <Spinner size="lg" />
+                            </div>
+                        }
+                    })
+            }}
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 // Left Panel: Requests List
@@ -178,42 +184,55 @@ pub fn ReviewPage() -> impl IntoView {
                                         <div class="text-center py-8 text-gray-500">
                                             "Tidak ada permohonan yang perlu direview"
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="space-y-2">
-                                            {list.into_iter().map(|req| {
-                                                let req_id = req.id;
-                                                let is_selected = selected_request.get()
-                                                    .map(|r| r.id == req_id)
-                                                    .unwrap_or(false);
+                                            {list
+                                                .into_iter()
+                                                .map(|req| {
+                                                    let req_id = req.id;
+                                                    let is_selected = selected_request
+                                                        .get()
+                                                        .map(|r| r.id == req_id)
+                                                        .unwrap_or(false);
 
-                                                view! {
-                                                    <div
-                                                        class=move || format!(
-                                                            "p-4 border rounded-lg cursor-pointer transition-colors {}",
-                                                            if is_selected {
-                                                                "border-emerald-500 bg-emerald-50"
-                                                            } else {
-                                                                "border-gray-200 hover:bg-gray-50"
+                                                    view! {
+                                                        <div
+                                                            class=move || {
+                                                                format!(
+                                                                    "p-4 border rounded-lg cursor-pointer transition-colors {}",
+                                                                    if is_selected {
+                                                                        "border-emerald-500 bg-emerald-50"
+                                                                    } else {
+                                                                        "border-gray-200 hover:bg-gray-50"
+                                                                    },
+                                                                )
                                                             }
-                                                        )
-                                                        on:click=move |_| set_selected_request.set(Some(req.clone()))
-                                                    >
-                                                        <div class="font-semibold text-gray-900">
-                                                            {req.satker_nama.clone().unwrap_or_else(|| "Unknown Satker".to_string())}
+                                                            on:click=move |_| {
+                                                                set_selected_request.set(Some(req.clone()))
+                                                            }
+                                                        >
+                                                            <div class="font-semibold text-gray-900">
+                                                                {req
+                                                                    .satker_nama
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "Unknown Satker".to_string())}
+                                                            </div>
+                                                            <div class="text-sm text-gray-600 mt-1">
+                                                                {req.bmn_items.len()} " BMN"
+                                                            </div>
+                                                            <div class="text-xs text-gray-500 mt-1">
+                                                                {req.created_at.format("%d %b %Y").to_string()}
+                                                            </div>
                                                         </div>
-                                                        <div class="text-sm text-gray-600 mt-1">
-                                                            {req.bmn_items.len()} " BMN"
-                                                        </div>
-                                                        <div class="text-xs text-gray-500 mt-1">
-                                                            {req.created_at.format("%d %b %Y").to_string()}
-                                                        </div>
-                                                    </div>
-                                                }
-                                            }).collect_view()}
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }}
                         </div>
@@ -224,7 +243,9 @@ pub fn ReviewPage() -> impl IntoView {
                 <div class="lg:col-span-2">
                     {move || {
                         if let Some(request) = selected_request.get() {
-                            let total_nilai: f64 = request.bmn_items.iter()
+                            let total_nilai: f64 = request
+                                .bmn_items
+                                .iter()
                                 .filter_map(|item| item.nilai_perolehan)
                                 .sum();
 
@@ -234,17 +255,28 @@ pub fn ReviewPage() -> impl IntoView {
                                     <Card title="Informasi Permohonan">
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Satker"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Satker"
+                                                </label>
                                                 <p class="text-gray-900">
-                                                    {request.satker_nama.clone().unwrap_or_else(|| "Unknown".to_string())}
+                                                    {request
+                                                        .satker_nama
+                                                        .clone()
+                                                        .unwrap_or_else(|| "Unknown".to_string())}
                                                 </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Metode"</label>
-                                                <p class="text-gray-900">{request.metode_penghapusan.clone()}</p>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Metode"
+                                                </label>
+                                                <p class="text-gray-900">
+                                                    {request.metode_penghapusan.clone()}
+                                                </p>
                                             </div>
                                             <div class="col-span-2">
-                                                <label class="text-sm font-medium text-gray-700">"Alasan"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Alasan"
+                                                </label>
                                                 <p class="text-gray-900">{request.alasan.clone()}</p>
                                             </div>
                                         </div>
@@ -262,27 +294,54 @@ pub fn ReviewPage() -> impl IntoView {
                                             <table class="min-w-full divide-y divide-gray-200">
                                                 <thead class="bg-gray-50">
                                                     <tr>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"No"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Nama Barang"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"NUP"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Kondisi"</th>
-                                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Nilai"</th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "No"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "Nama Barang"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "NUP"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "Kondisi"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                                            "Nilai"
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="bg-white divide-y divide-gray-200">
-                                                    {request.bmn_items.iter().enumerate().map(|(idx, item)| view! {
-                                                        <tr class="hover:bg-gray-50">
-                                                            <td class="px-4 py-3 text-sm text-gray-900">{idx + 1}</td>
-                                                            <td class="px-4 py-3 text-sm font-medium text-gray-900">{item.nama_barang.clone()}</td>
-                                                            <td class="px-4 py-3 text-sm text-gray-600">{item.nup.clone()}</td>
-                                                            <td class="px-4 py-3 text-sm text-gray-600">{item.kondisi.clone()}</td>
-                                                            <td class="px-4 py-3 text-sm text-right text-gray-900">
-                                                                {item.nilai_perolehan.map(|n| format!("Rp {:.2}", n)).unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                        </tr>
-                                                    }).collect_view()}
-                                                    <tr class="bg-gray-50 font-semibold">
-                                                        <td colspan="4" class="px-4 py-3 text-sm text-right">"Total Nilai:"</td>
+                                                    {request
+                                                        .bmn_items
+                                                        .iter()
+                                                        .enumerate()
+                                                        .map(|(idx, item)| {
+                                                            view! {
+                                                                <tr class="hover:bg-gray-50">
+                                                                    <td class="px-4 py-3 text-sm text-gray-900">{idx + 1}</td>
+                                                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                                                        {item.nama_barang.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm text-gray-600">
+                                                                        {item.nup.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm text-gray-600">
+                                                                        {item.kondisi.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm text-right text-gray-900">
+                                                                        {item
+                                                                            .nilai_perolehan
+                                                                            .map(|n| format!("Rp {:.2}", n))
+                                                                            .unwrap_or_else(|| "-".to_string())}
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        })
+                                                        .collect_view()} <tr class="bg-gray-50 font-semibold">
+                                                        <td colspan="4" class="px-4 py-3 text-sm text-right">
+                                                            "Total Nilai:"
+                                                        </td>
                                                         <td class="px-4 py-3 text-sm text-right">
                                                             "Rp " {format!("{:.2}", total_nilai)}
                                                         </td>
@@ -295,28 +354,46 @@ pub fn ReviewPage() -> impl IntoView {
                                     // Supporting Documents
                                     <Card title="Dokumen Pendukung">
                                         <div class="space-y-2">
-                                            {request.attachments.iter().map(|att| view! {
-                                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                                    <div class="flex items-center space-x-3">
-                                                        <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                        </svg>
-                                                        <div>
-                                                            <p class="font-medium text-gray-900">{att.filename.clone()}</p>
-                                                            <p class="text-xs text-gray-500">
-                                                                {att.uploaded_at.format("%d %b %Y %H:%M").to_string()}
-                                                            </p>
+                                            {request
+                                                .attachments
+                                                .iter()
+                                                .map(|att| {
+                                                    view! {
+                                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                            <div class="flex items-center space-x-3">
+                                                                <svg
+                                                                    class="w-6 h-6 text-gray-600"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                                    />
+                                                                </svg>
+                                                                <div>
+                                                                    <p class="font-medium text-gray-900">
+                                                                        {att.filename.clone()}
+                                                                    </p>
+                                                                    <p class="text-xs text-gray-500">
+                                                                        {att.uploaded_at.format("%d %b %Y %H:%M").to_string()}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <a
+                                                                href=att.url.clone()
+                                                                target="_blank"
+                                                                class="text-emerald-600 hover:text-emerald-700"
+                                                            >
+                                                                "Download"
+                                                            </a>
                                                         </div>
-                                                    </div>
-                                                    <a
-                                                        href=att.url.clone()
-                                                        target="_blank"
-                                                        class="text-emerald-600 hover:text-emerald-700"
-                                                    >
-                                                        "Download"
-                                                    </a>
-                                                </div>
-                                            }).collect_view()}
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
                                     </Card>
 
@@ -334,7 +411,9 @@ pub fn ReviewPage() -> impl IntoView {
 
                                             <Button
                                                 variant=ButtonVariant::Danger
-                                                on_click=Box::new(move || open_action_modal("return".to_string()))
+                                                on_click=Box::new(move || open_action_modal(
+                                                    "return".to_string(),
+                                                ))
                                                 disabled=loading.get()
                                             >
                                                 "Kembalikan untuk Revisi"
@@ -343,7 +422,9 @@ pub fn ReviewPage() -> impl IntoView {
                                             <Button
                                                 variant=ButtonVariant::Primary
                                                 size=ButtonSize::Large
-                                                on_click=Box::new(move || open_action_modal("forward".to_string()))
+                                                on_click=Box::new(move || open_action_modal(
+                                                    "forward".to_string(),
+                                                ))
                                                 disabled=loading.get()
                                             >
                                                 "Teruskan ke Validator Pusat"
@@ -351,7 +432,8 @@ pub fn ReviewPage() -> impl IntoView {
                                         </div>
                                     </Card>
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <Card>
@@ -359,57 +441,70 @@ pub fn ReviewPage() -> impl IntoView {
                                         "Pilih permohonan dari daftar untuk melihat detail"
                                     </div>
                                 </Card>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
             </div>
 
             // Action Modal
-            {move || show_action_modal.get().then(|| {
-                let action = action_type.get().unwrap_or_default();
-                let title = if action == "forward" {
-                    "Teruskan ke Validator Pusat"
-                } else {
-                    "Kembalikan untuk Revisi"
-                };
+            {move || {
+                show_action_modal
+                    .get()
+                    .then(|| {
+                        let action = action_type.get().unwrap_or_default();
+                        let title = if action == "forward" {
+                            "Teruskan ke Validator Pusat"
+                        } else {
+                            "Kembalikan untuk Revisi"
+                        };
 
-                view! {
-                    <Modal
-                        show=show_action_modal.get()
-                        on_close=Box::new(move || set_show_action_modal.set(false))
-                        title=title.to_string()
-                    >
-                        <div class="space-y-4">
-                            <Textarea
-                                label="Catatan"
-                                placeholder="Masukkan catatan..."
-                                value=catatan.get()
-                                on_input=Box::new(move |v| set_catatan.set(v))
-                                rows=4
-                                required=true
-                            />
+                        view! {
+                            <Modal
+                                show=show_action_modal.get()
+                                on_close=Box::new(move || set_show_action_modal.set(false))
+                                title=title.to_string()
+                            >
+                                <div class="space-y-4">
+                                    <Textarea
+                                        label="Catatan"
+                                        placeholder="Masukkan catatan..."
+                                        value=catatan.get()
+                                        on_input=Box::new(move |v| set_catatan.set(v))
+                                        rows=4
+                                        required=true
+                                    />
 
-                            <div class="flex justify-end space-x-3 mt-6">
-                                <Button
-                                    variant=ButtonVariant::Secondary
-                                    on_click=Box::new(move || set_show_action_modal.set(false))
-                                >
-                                    "Batal"
-                                </Button>
+                                    <div class="flex justify-end space-x-3 mt-6">
+                                        <Button
+                                            variant=ButtonVariant::Secondary
+                                            on_click=Box::new(move || set_show_action_modal.set(false))
+                                        >
+                                            "Batal"
+                                        </Button>
 
-                                <Button
-                                    variant=if action == "forward" { ButtonVariant::Primary } else { ButtonVariant::Danger }
-                                    on_click=Box::new(submit_action)
-                                    disabled=loading.get()
-                                >
-                                    {if action == "forward" { "Teruskan" } else { "Kembalikan" }}
-                                </Button>
-                            </div>
-                        </div>
-                    </Modal>
-                }
-            })}
+                                        <Button
+                                            variant=if action == "forward" {
+                                                ButtonVariant::Primary
+                                            } else {
+                                                ButtonVariant::Danger
+                                            }
+                                            on_click=Box::new(submit_action)
+                                            disabled=loading.get()
+                                        >
+                                            {if action == "forward" {
+                                                "Teruskan"
+                                            } else {
+                                                "Kembalikan"
+                                            }}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </Modal>
+                        }
+                    })
+            }}
         </div>
     }
 }

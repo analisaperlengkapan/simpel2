@@ -123,7 +123,9 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
                 href=routes::path::KEBUTUHAN_DAFTAR
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
+                <span class="text-xs">
+                    <AppIcon icon=ARROW_LEFT />
+                </span>
                 "Kembali ke Daftar"
             </a>
 
@@ -138,19 +140,21 @@ pub fn KebutuhanBmnDetail() -> impl IntoView {
             // Main content: loading / error / detail
             {move || {
                 if loading.get() {
-                    view! { <LoadingState message="Memuat data pengajuan...".to_string() /> }.into_any()
+                    view! { <LoadingState message="Memuat data pengajuan...".to_string() /> }
+                        .into_any()
                 } else if let Some(err) = error.get() {
                     view! { <ErrorState error=err /> }.into_any()
                 } else if let Some(d) = detail.get() {
                     render_detail(
-                        d,
-                        satkers,
-                        transitioning,
-                        handle_transition,
-                        transition_comment,
-                        set_transition_comment,
-                        set_show_delete_modal,
-                    ).into_any()
+                            d,
+                            satkers,
+                            transitioning,
+                            handle_transition,
+                            transition_comment,
+                            set_transition_comment,
+                            set_show_delete_modal,
+                        )
+                        .into_any()
                 } else {
                     view! { <LoadingState /> }.into_any()
                 }
@@ -215,26 +219,32 @@ fn render_detail(
                 <div>
                     <h2 class="text-xl font-bold text-slate-100">{pengajuan.nama.clone()}</h2>
                     <p class="mt-1 text-sm text-slate-400">
-                        "Tahun Anggaran: " <span class="font-medium text-slate-200">{pengajuan.tahun}</span>
+                        "Tahun Anggaran: "
+                        <span class="font-medium text-slate-200">{pengajuan.tahun}</span>
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class=format!("inline-flex items-center rounded-full px-3 py-1 text-xs font-medium {}", badge_class)>
-                        {status_label}
-                    </span>
+                    <span class=format!(
+                        "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium {}",
+                        badge_class,
+                    )>{status_label}</span>
                     <div class="flex gap-2">
                         <a
                             href=routes::url::kebutuhan_edit(&pengajuan_id)
                             class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08]"
                         >
-                            <span class="text-2xs"><AppIcon icon=PENCIL_SIMPLE /></span>
+                            <span class="text-2xs">
+                                <AppIcon icon=PENCIL_SIMPLE />
+                            </span>
                             "Edit"
                         </a>
                         <button
                             class="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
                             on:click=move |_| set_show_delete_modal.set(true)
                         >
-                            <span class="text-2xs"><AppIcon icon=TRASH /></span>
+                            <span class="text-2xs">
+                                <AppIcon icon=TRASH />
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -283,7 +293,10 @@ fn render_detail(
                                 let btn_class = transition_btn_class(status_kode);
                                 view! {
                                     <button
-                                        class=format!("rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 {}", btn_class)
+                                        class=format!(
+                                            "rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 {}",
+                                            btn_class,
+                                        )
                                         disabled=move || transitioning.get()
                                         on:click=move |_| handle_transition(status_kode)
                                     >
@@ -312,10 +325,13 @@ fn render_detail(
                     if s.is_empty() {
                         view! {
                             <div class="py-8 text-center text-sm text-slate-500">
-                                <span class="mb-2 text-2xl text-slate-600"><AppIcon icon=BUILDING /></span>
+                                <span class="mb-2 text-2xl text-slate-600">
+                                    <AppIcon icon=BUILDING />
+                                </span>
                                 <p>"Belum ada satker yang terdaftar"</p>
                             </div>
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         render_satker_table(s).into_any()
                     }
@@ -342,41 +358,70 @@ fn render_satker_table(satkers: Vec<PengajuanKebutuhanBmnSatker>) -> impl IntoVi
                 <table class="min-w-full divide-y divide-white/[0.04]">
                     <thead class="bg-white/[0.02]">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Satker"</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Status"</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Prioritas"</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Nama Satker"
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Status"
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Prioritas"
+                            </th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Aksi"
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {satkers.into_iter().enumerate().map(|(idx, satker)| {
-                            let status = KebutuhanBmnStatus::from_code(satker.status_kode);
-                            let badge_class = status.map(|s| s.badge_class()).unwrap_or("bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25");
-                            let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
-                            let satker_id = satker.id.clone();
-                            let nm = satker.satker_nama.unwrap_or_else(|| satker.satker_id.clone());
-                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
-                            view! {
-                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                                    <td class="px-4 py-3 text-sm font-medium text-slate-200">{nm}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}", badge_class)>
-                                            {status_label}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3 text-center text-sm text-slate-300">{satker.prioritas}</td>
-                                    <td class="px-4 py-3 text-center">
-                                        <a
-                                            href=routes::url::kebutuhan_satker_detail(&satker_id)
-                                            class="inline-flex items-center gap-1.5 text-xs text-info-400 transition hover:text-info-300"
-                                        >
-                                            <span class="text-2xs"><AppIcon icon=EYE /></span>
-                                            "Detail"
-                                        </a>
-                                    </td>
-                                </tr>
-                            }
-                        }).collect_view()}
+                        {satkers
+                            .into_iter()
+                            .enumerate()
+                            .map(|(idx, satker)| {
+                                let status = KebutuhanBmnStatus::from_code(satker.status_kode);
+                                let badge_class = status
+                                    .map(|s| s.badge_class())
+                                    .unwrap_or(
+                                        "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
+                                    );
+                                let status_label = status.map(|s| s.label()).unwrap_or("Unknown");
+                                let satker_id = satker.id.clone();
+                                let nm = satker
+                                    .satker_nama
+                                    .unwrap_or_else(|| satker.satker_id.clone());
+                                let bg = if idx % 2 == 0 {
+                                    "bg-transparent"
+                                } else {
+                                    "bg-white/[0.015]"
+                                };
+                                view! {
+                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                        <td class="px-4 py-3 text-sm font-medium text-slate-200">
+                                            {nm}
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <span class=format!(
+                                                "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}",
+                                                badge_class,
+                                            )>{status_label}</span>
+                                        </td>
+                                        <td class="px-4 py-3 text-center text-sm text-slate-300">
+                                            {satker.prioritas}
+                                        </td>
+                                        <td class="px-4 py-3 text-center">
+                                            <a
+                                                href=routes::url::kebutuhan_satker_detail(&satker_id)
+                                                class="inline-flex items-center gap-1.5 text-xs text-info-400 transition hover:text-info-300"
+                                            >
+                                                <span class="text-2xs">
+                                                    <AppIcon icon=EYE />
+                                                </span>
+                                                "Detail"
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
                     </tbody>
                 </table>
             </div>

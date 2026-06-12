@@ -104,37 +104,32 @@ pub fn MonitoringDashboard(
     view! {
         <div class="monitoring-dashboard p-6 space-y-6">
             <div class="flex justify-between items-center">
-                <h1 class="text-3xl font-bold text-gray-900">
-                    "Monitoring Dashboard"
-                </h1>
+                <h1 class="text-3xl font-bold text-gray-900">"Monitoring Dashboard"</h1>
                 <button
                     class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark"
                     on:click=move |_| {
                         set_loading.set(true);
-                        // Refresh data
                     }
                 >
-                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
+                    <span class="mr-2">
+                        <AppIcon icon=ARROW_CLOCKWISE />
+                    </span>
                     "Refresh"
                 </button>
             </div>
 
             <Show
                 when=move || loading.get()
-                fallback=move || view! {
-                    <div class="space-y-6">
-                        {show_performance.then(|| view! {
-                            <PerformanceSection metrics=metrics />
-                        })}
-
-                        {show_errors.then(|| view! {
-                            <ErrorSection errors=errors />
-                        })}
-
-                        {show_analytics.then(|| view! {
-                            <AnalyticsSection analytics=analytics />
-                        })}
-                    </div>
+                fallback=move || {
+                    view! {
+                        <div class="space-y-6">
+                            {show_performance
+                                .then(|| view! { <PerformanceSection metrics=metrics /> })}
+                            {show_errors.then(|| view! { <ErrorSection errors=errors /> })}
+                            {show_analytics
+                                .then(|| view! { <AnalyticsSection analytics=analytics /> })}
+                        </div>
+                    }
                 }
             >
                 <Loading />
@@ -153,9 +148,7 @@ fn PerformanceSection(metrics: ReadSignal<Vec<MetricCard>>) -> impl IntoView {
                     each=move || metrics.get()
                     key=|metric| metric.title.clone()
                     children=move |metric: MetricCard| {
-                        view! {
-                            <MetricCardComponent metric=metric />
-                        }
+                        view! { <MetricCardComponent metric=metric /> }
                     }
                 />
             </Grid>
@@ -174,23 +167,23 @@ fn MetricCardComponent(metric: MetricCard) -> impl IntoView {
     view! {
         <div class=format!("p-4 rounded-lg border {}", metric.status.bg_color())>
             <div class="text-sm text-gray-600 mb-1">{metric.title}</div>
-            <div class=format!("text-2xl font-bold {}", metric.status.color())>
-                {metric.value}
-            </div>
-            {metric.change.map(|change| {
-                let is_positive = change > 0.0;
-                let icon = if is_positive { ARROW_UP } else { ARROW_DOWN };
-                let color = if is_positive { "text-green-600" } else { "text-red-600" };
+            <div class=format!("text-2xl font-bold {}", metric.status.color())>{metric.value}</div>
+            {metric
+                .change
+                .map(|change| {
+                    let is_positive = change > 0.0;
+                    let icon = if is_positive { ARROW_UP } else { ARROW_DOWN };
+                    let color = if is_positive { "text-green-600" } else { "text-red-600" };
 
-                view! {
-                    <div class=format!("text-sm mt-2 {}", color)>
-                        <span class="mr-1 inline-flex">
-                            <AppIcon icon=icon size=12 />
-                        </span>
-                        {format!("{:.1}%", change.abs())}
-                    </div>
-                }
-            })}
+                    view! {
+                        <div class=format!("text-sm mt-2 {}", color)>
+                            <span class="mr-1 inline-flex">
+                                <AppIcon icon=icon size=12 />
+                            </span>
+                            {format!("{:.1}%", change.abs())}
+                        </div>
+                    }
+                })}
         </div>
     }
 }
@@ -210,28 +203,34 @@ fn CoreWebVitalsChart() -> impl IntoView {
 
     view! {
         <div class="grid grid-cols-3 gap-4">
-            {move || vitals.get().map(|v| view! {
-                <div class="space-y-2">
-                    <VitalBar
-                        label="LCP"
-                        value=v.lcp.unwrap_or(0.0)
-                        threshold=2500.0
-                        unit="ms"
-                    />
-                    <VitalBar
-                        label="FID"
-                        value=v.fid.unwrap_or(0.0)
-                        threshold=100.0
-                        unit="ms"
-                    />
-                    <VitalBar
-                        label="CLS"
-                        value=v.cls.unwrap_or(0.0)
-                        threshold=0.1
-                        unit=""
-                    />
-                </div>
-            })}
+            {move || {
+                vitals
+                    .get()
+                    .map(|v| {
+                        view! {
+                            <div class="space-y-2">
+                                <VitalBar
+                                    label="LCP"
+                                    value=v.lcp.unwrap_or(0.0)
+                                    threshold=2500.0
+                                    unit="ms"
+                                />
+                                <VitalBar
+                                    label="FID"
+                                    value=v.fid.unwrap_or(0.0)
+                                    threshold=100.0
+                                    unit="ms"
+                                />
+                                <VitalBar
+                                    label="CLS"
+                                    value=v.cls.unwrap_or(0.0)
+                                    threshold=0.1
+                                    unit=""
+                                />
+                            </div>
+                        }
+                    })
+            }}
         </div>
     }
 }
@@ -323,38 +322,45 @@ fn ErrorSection(errors: ReadSignal<Vec<ErrorSummary>>) -> impl IntoView {
 #[component]
 fn AnalyticsSection(analytics: ReadSignal<Option<AnalyticsSummary>>) -> impl IntoView {
     view! {
-        <Card title="Analytics Summary".to_string()>
-            {move || analytics.get().map(|data| view! {
-                <Grid cols=4>
-                    <div class="p-4 bg-blue-50 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">"Page Views"</div>
-                        <div class="text-2xl font-bold text-blue-600">
-                            {format!("{}", data.page_views)}
-                        </div>
-                    </div>
+        <Card title="Analytics Summary"
+            .to_string()>
+            {move || {
+                analytics
+                    .get()
+                    .map(|data| {
+                        view! {
+                            <Grid cols=4>
+                                <div class="p-4 bg-blue-50 rounded-lg">
+                                    <div class="text-sm text-gray-600 mb-1">"Page Views"</div>
+                                    <div class="text-2xl font-bold text-blue-600">
+                                        {format!("{}", data.page_views)}
+                                    </div>
+                                </div>
 
-                    <div class="p-4 bg-green-50 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">"Unique Users"</div>
-                        <div class="text-2xl font-bold text-green-600">
-                            {format!("{}", data.unique_users)}
-                        </div>
-                    </div>
+                                <div class="p-4 bg-green-50 rounded-lg">
+                                    <div class="text-sm text-gray-600 mb-1">"Unique Users"</div>
+                                    <div class="text-2xl font-bold text-green-600">
+                                        {format!("{}", data.unique_users)}
+                                    </div>
+                                </div>
 
-                    <div class="p-4 bg-purple-50 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">"Avg Session"</div>
-                        <div class="text-2xl font-bold text-purple-600">
-                            {format!("{:.1}m", data.avg_session_duration / 60.0)}
-                        </div>
-                    </div>
+                                <div class="p-4 bg-purple-50 rounded-lg">
+                                    <div class="text-sm text-gray-600 mb-1">"Avg Session"</div>
+                                    <div class="text-2xl font-bold text-purple-600">
+                                        {format!("{:.1}m", data.avg_session_duration / 60.0)}
+                                    </div>
+                                </div>
 
-                    <div class="p-4 bg-orange-50 rounded-lg">
-                        <div class="text-sm text-gray-600 mb-1">"Bounce Rate"</div>
-                        <div class="text-2xl font-bold text-orange-600">
-                            {format!("{:.1}%", data.bounce_rate)}
-                        </div>
-                    </div>
-                </Grid>
-            })}
+                                <div class="p-4 bg-orange-50 rounded-lg">
+                                    <div class="text-sm text-gray-600 mb-1">"Bounce Rate"</div>
+                                    <div class="text-2xl font-bold text-orange-600">
+                                        {format!("{:.1}%", data.bounce_rate)}
+                                    </div>
+                                </div>
+                            </Grid>
+                        }
+                    })
+            }}
         </Card>
     }
 }

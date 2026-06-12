@@ -264,34 +264,42 @@ fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
                     let show_progress = item.show_progress;
                     let paused = item.paused;
                     let (border, bg, icon_color, progress_bg, icon_data) = match item.variant {
-                        ToastVariant::Success => (
-                            "border-emerald-500/40",
-                            "bg-emerald-950/90",
-                            "text-emerald-400",
-                            "bg-emerald-400",
-                            CHECK_CIRCLE,
-                        ),
-                        ToastVariant::Error => (
-                            "border-red-500/40",
-                            "bg-red-950/90",
-                            "text-red-400",
-                            "bg-red-400",
-                            WARNING_CIRCLE,
-                        ),
-                        ToastVariant::Warning => (
-                            "border-yellow-500/40",
-                            "bg-yellow-950/90",
-                            "text-yellow-400",
-                            "bg-yellow-400",
-                            WARNING,
-                        ),
-                        ToastVariant::Info => (
-                            "border-blue-500/40",
-                            "bg-blue-950/90",
-                            "text-blue-400",
-                            "bg-blue-400",
-                            INFO,
-                        ),
+                        ToastVariant::Success => {
+                            (
+                                "border-emerald-500/40",
+                                "bg-emerald-950/90",
+                                "text-emerald-400",
+                                "bg-emerald-400",
+                                CHECK_CIRCLE,
+                            )
+                        }
+                        ToastVariant::Error => {
+                            (
+                                "border-red-500/40",
+                                "bg-red-950/90",
+                                "text-red-400",
+                                "bg-red-400",
+                                WARNING_CIRCLE,
+                            )
+                        }
+                        ToastVariant::Warning => {
+                            (
+                                "border-yellow-500/40",
+                                "bg-yellow-950/90",
+                                "text-yellow-400",
+                                "bg-yellow-400",
+                                WARNING,
+                            )
+                        }
+                        ToastVariant::Info => {
+                            (
+                                "border-blue-500/40",
+                                "bg-blue-950/90",
+                                "text-blue-400",
+                                "bg-blue-400",
+                                INFO,
+                            )
+                        }
                     };
 
                     view! {
@@ -299,7 +307,8 @@ fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
                             role=role
                             class=format!(
                                 "pointer-events-auto relative overflow-hidden flex items-start gap-3 rounded-xl border {} {} px-4 py-3 shadow-lg backdrop-blur-sm min-w-[280px] max-w-sm animate-slide-in-right",
-                                border, bg
+                                border,
+                                bg,
                             )
                             on:mouseenter=move |_| paused.set(true)
                             on:mouseleave=move |_| paused.set(false)
@@ -318,19 +327,24 @@ fn ToastOverlay(ctx: ToastContext) -> impl IntoView {
                             >
                                 <AppIcon icon=X size=12 />
                             </button>
-                            {show_progress.then(|| view! {
-                                <span
-                                    class=format!(
-                                        "absolute bottom-0 left-0 h-0.5 {} origin-left animate-toast-progress",
-                                        progress_bg,
-                                    )
-                                    style=move || format!(
-                                        "animation-duration: {}ms; animation-play-state: {};",
-                                        duration_ms,
-                                        if paused.get() { "paused" } else { "running" },
-                                    )
-                                ></span>
-                            })}
+                            {show_progress
+                                .then(|| {
+                                    view! {
+                                        <span
+                                            class=format!(
+                                                "absolute bottom-0 left-0 h-0.5 {} origin-left animate-toast-progress",
+                                                progress_bg,
+                                            )
+                                            style=move || {
+                                                format!(
+                                                    "animation-duration: {}ms; animation-play-state: {};",
+                                                    duration_ms,
+                                                    if paused.get() { "paused" } else { "running" },
+                                                )
+                                            }
+                                        ></span>
+                                    }
+                                })}
                         </div>
                     }
                 }

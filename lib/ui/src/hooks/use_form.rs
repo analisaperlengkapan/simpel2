@@ -376,7 +376,9 @@ where
     view! {
         <Show when=move || message().is_some()>
             <p class="mt-1 flex items-center gap-1.5 text-xs text-red-400">
-                <span class="text-[0.7rem]"><AppIcon icon=WARNING_CIRCLE /></span>
+                <span class="text-[0.7rem]">
+                    <AppIcon icon=WARNING_CIRCLE />
+                </span>
                 {move || message().unwrap_or_default()}
             </p>
         </Show>

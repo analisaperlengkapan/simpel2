@@ -87,8 +87,8 @@ mod otp_input_tests {
                             value=otp_value.get()
                             on:input=move |ev| {
                                 let value = event_target_value(&ev);
-                                // Only allow digits and limit to 6 characters
-                                let filtered: String = value.chars()
+                                let filtered: String = value
+                                    .chars()
                                     .filter(|c| c.is_ascii_digit())
                                     .take(6)
                                     .collect();
@@ -200,7 +200,9 @@ mod otp_input_tests {
                     <div class="otp-input-container">
                         <input
                             type="text"
-                            class=move || if has_error.get() { "otp-input error" } else { "otp-input" }
+                            class=move || {
+                                if has_error.get() { "otp-input error" } else { "otp-input" }
+                            }
                             aria-invalid=move || if has_error.get() { "true" } else { "false" }
                             value=otp_value.get()
                             on:input=move |ev| {
@@ -298,13 +300,10 @@ mod qr_code_display_tests {
                         {move || {
                             let url = qr_url.get();
                             if url.is_empty() {
-                                view! {
-                                    <div class="qr-loading">"Generating QR code..."</div>
-                                }.into_any()
+                                view! { <div class="qr-loading">"Generating QR code..."</div> }
+                                    .into_any()
                             } else {
-                                view! {
-                                    <img src=url alt="MFA Setup QR Code" />
-                                }.into_any()
+                                view! { <img src=url alt="MFA Setup QR Code" /> }.into_any()
                             }
                         }}
                     </div>
@@ -346,18 +345,11 @@ mod button_tests {
             move || {
                 view! {
                     <div class="button-container">
-                        <button
-                            class="btn btn-primary"
-                            on:click=move |_| set_clicked.set(true)
-                        >
+                        <button class="btn btn-primary" on:click=move |_| set_clicked.set(true)>
                             "Setup MFA"
                         </button>
-                        <button class="btn btn-secondary">
-                            "Cancel"
-                        </button>
-                        <button class="btn btn-danger">
-                            "Disable MFA"
-                        </button>
+                        <button class="btn btn-secondary">"Cancel"</button>
+                        <button class="btn btn-danger">"Disable MFA"</button>
                     </div>
                 }
             },
@@ -451,7 +443,13 @@ mod button_tests {
             move || {
                 view! {
                     <button
-                        class=move || if is_loading.get() { "btn btn-primary loading" } else { "btn btn-primary" }
+                        class=move || {
+                            if is_loading.get() {
+                                "btn btn-primary loading"
+                            } else {
+                                "btn btn-primary"
+                            }
+                        }
                         disabled=is_loading.get()
                     >
                         {move || if is_loading.get() { "Loading..." } else { "Submit" }}

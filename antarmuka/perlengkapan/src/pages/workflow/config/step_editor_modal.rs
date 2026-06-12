@@ -118,16 +118,25 @@ pub fn StepEditorModal(
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-6">
-                    {move || error.get().map(|msg| view! {
-                        <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                            <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
-                            <div class="text-xs text-danger-100">{msg}</div>
-                        </div>
-                    })}
-
+                    {move || {
+                        error
+                            .get()
+                            .map(|msg| {
+                                view! {
+                                    <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
+                                        <span class="mt-0.5 text-danger-400">
+                                            <AppIcon icon=WARNING />
+                                        </span>
+                                        <div class="text-xs text-danger-100">{msg}</div>
+                                    </div>
+                                }
+                            })
+                    }}
                     <div class="flex flex-col gap-5">
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"State"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "State"
+                            </label>
                             <input
                                 type="text"
                                 value=state_label.clone()
@@ -140,7 +149,9 @@ pub fn StepEditorModal(
                         </div>
 
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"Role yang Dibutuhkan"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "Role yang Dibutuhkan"
+                            </label>
                             <input
                                 type="text"
                                 placeholder="admin_pusat"
@@ -155,7 +166,9 @@ pub fn StepEditorModal(
                         </div>
 
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"Next States"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "Next States"
+                            </label>
                             {
                                 let all = all_states.clone();
                                 if all.is_empty() {
@@ -163,7 +176,8 @@ pub fn StepEditorModal(
                                         <div class="rounded-lg border border-dashed border-white/[0.08] bg-white/[0.02] px-3 py-4 text-xs text-slate-400">
                                             "Belum ada state lain di workflow ini — tambah langkah lain terlebih dahulu."
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="flex flex-wrap gap-2">
@@ -183,12 +197,20 @@ pub fn StepEditorModal(
                                                             class=move || {
                                                                 let base = "focus-ring rounded-lg border px-3 py-1.5 text-xs font-semibold transition";
                                                                 if is_selected() {
-                                                                    format!("{} border-gold-400/40 bg-gold-400/15 text-gold-200", base)
+                                                                    format!(
+                                                                        "{} border-gold-400/40 bg-gold-400/15 text-gold-200",
+                                                                        base,
+                                                                    )
                                                                 } else {
-                                                                    format!("{} border-white/[0.08] bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]", base)
+                                                                    format!(
+                                                                        "{} border-white/[0.08] bg-white/[0.04] text-slate-300 hover:bg-white/[0.08]",
+                                                                        base,
+                                                                    )
                                                                 }
                                                             }
-                                                            on:click=move |_| toggle_next_state(candidate_for_click.clone())
+                                                            on:click=move |_| toggle_next_state(
+                                                                candidate_for_click.clone(),
+                                                            )
                                                         >
                                                             {label}
                                                         </button>
@@ -196,7 +218,8 @@ pub fn StepEditorModal(
                                                 })
                                                 .collect::<Vec<_>>()}
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }
                             <p class="mt-2 text-xs text-slate-500">
@@ -205,7 +228,9 @@ pub fn StepEditorModal(
                         </div>
 
                         <div>
-                            <label class="mb-2 block text-sm font-semibold text-white">"SLA & Eskalasi"</label>
+                            <label class="mb-2 block text-sm font-semibold text-white">
+                                "SLA & Eskalasi"
+                            </label>
                             <SlaEditor
                                 enabled=sla_enabled
                                 set_enabled=set_sla_enabled
@@ -232,7 +257,9 @@ pub fn StepEditorModal(
                     <button
                         type="button"
                         class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105 disabled:opacity-60"
-                        prop:disabled=move || saving.get() || (sla_enabled.get() && sla_value.get() == 0)
+                        prop:disabled=move || {
+                            saving.get() || (sla_enabled.get() && sla_value.get() == 0)
+                        }
                         on:click=on_submit
                     >
                         {move || if saving.get() { "Menyimpan..." } else { "Simpan" }}

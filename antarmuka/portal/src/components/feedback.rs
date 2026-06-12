@@ -15,7 +15,11 @@ pub fn ErrorBanner(#[prop(into)] message: String) -> impl IntoView {
 #[component]
 pub fn SuccessBanner(#[prop(into)] message: String) -> impl IntoView {
     view! {
-        <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700" role="status" aria-live="polite">
+        <div
+            class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700"
+            role="status"
+            aria-live="polite"
+        >
             <span class="font-medium">"Berhasil: "</span>
             {message}
         </div>

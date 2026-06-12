@@ -132,18 +132,24 @@ pub fn ConfigEditorPanel(
                 </header>
 
                 <div class="flex-1 overflow-y-auto p-6">
-                    {move || error.get().map(|msg| view! {
-                        <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
-                            <span class="mt-0.5 text-danger-400"><AppIcon icon=WARNING /></span>
-                            <div class="text-xs text-danger-100">{msg}</div>
-                        </div>
-                    })}
-
+                    {move || {
+                        error
+                            .get()
+                            .map(|msg| {
+                                view! {
+                                    <div class="mb-4 flex items-start gap-3 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3">
+                                        <span class="mt-0.5 text-danger-400">
+                                            <AppIcon icon=WARNING />
+                                        </span>
+                                        <div class="text-xs text-danger-100">{msg}</div>
+                                    </div>
+                                }
+                            })
+                    }}
                     <div class="flex flex-col gap-4">
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
-                                "Nama Workflow "
-                                <span class="text-danger-400">"*"</span>
+                                "Nama Workflow " <span class="text-danger-400">"*"</span>
                             </label>
                             <input
                                 type="text"
@@ -160,8 +166,7 @@ pub fn ConfigEditorPanel(
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-white">
-                                "Deskripsi "
-                                <span class="text-danger-400">"*"</span>
+                                "Deskripsi " <span class="text-danger-400">"*"</span>
                             </label>
                             <textarea
                                 rows="3"
@@ -175,7 +180,9 @@ pub fn ConfigEditorPanel(
 
                         <div class="grid gap-4 sm:grid-cols-2">
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-white">"Versi"</label>
+                                <label class="mb-2 block text-sm font-semibold text-white">
+                                    "Versi"
+                                </label>
                                 <input
                                     type="text"
                                     placeholder="1.0"
@@ -186,15 +193,29 @@ pub fn ConfigEditorPanel(
                                 />
                             </div>
                             <div>
-                                <label class="mb-2 block text-sm font-semibold text-white">"Status"</label>
+                                <label class="mb-2 block text-sm font-semibold text-white">
+                                    "Status"
+                                </label>
                                 <select
                                     prop:disabled=move || saving.get()
                                     on:change=move |e| set_status.set(event_target_value(&e))
                                     class="focus-ring w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white"
                                 >
-                                    <option value="draft" selected=move || status.get() == "draft">"Draft"</option>
-                                    <option value="active" selected=move || status.get() == "active">"Active"</option>
-                                    <option value="inactive" selected=move || status.get() == "inactive">"Inactive"</option>
+                                    <option value="draft" selected=move || status.get() == "draft">
+                                        "Draft"
+                                    </option>
+                                    <option
+                                        value="active"
+                                        selected=move || status.get() == "active"
+                                    >
+                                        "Active"
+                                    </option>
+                                    <option
+                                        value="inactive"
+                                        selected=move || status.get() == "inactive"
+                                    >
+                                        "Inactive"
+                                    </option>
                                 </select>
                             </div>
                         </div>
@@ -208,7 +229,9 @@ pub fn ConfigEditorPanel(
                                 class="mt-1 h-4 w-4 cursor-pointer accent-gold-400"
                             />
                             <div>
-                                <div class="text-sm font-semibold text-white">"Dukungan Parallel Approval"</div>
+                                <div class="text-sm font-semibold text-white">
+                                    "Dukungan Parallel Approval"
+                                </div>
                                 <div class="mt-1 text-xs text-slate-400">
                                     "Izinkan beberapa approver menyetujui secara bersamaan (khusus kebutuhan_bmn)."
                                 </div>
@@ -230,7 +253,8 @@ pub fn ConfigEditorPanel(
                         type="button"
                         class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105 disabled:opacity-60"
                         prop:disabled=move || {
-                            saving.get() || name.get().trim().is_empty() || description.get().trim().is_empty()
+                            saving.get() || name.get().trim().is_empty()
+                                || description.get().trim().is_empty()
                         }
                         on:click=on_submit
                     >

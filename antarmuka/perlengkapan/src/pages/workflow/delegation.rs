@@ -79,37 +79,44 @@ pub fn WorkflowDelegationPage() -> impl IntoView {
             title="Delegasi Workflow"
             description="Lihat dan kelola pendelegasian role workflow ke pengguna lain."
             icon="fas fa-user-shield"
-            actions=Box::new(move || view! {
-                <button
-                    type="button"
-                    class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
-                    on:click=open_create
-                >
-                    <span class="mr-2"><AppIcon icon=PLUS /></span>
-                    "Buat Delegasi"
-                </button>
-                <button
-                    type="button"
-                    class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
-                    on:click=refresh
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_CLOCKWISE /></span>
-                    "Refresh"
-                </button>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <button
+                        type="button"
+                        class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
+                        on:click=open_create
+                    >
+                        <span class="mr-2">
+                            <AppIcon icon=PLUS />
+                        </span>
+                        "Buat Delegasi"
+                    </button>
+                    <button
+                        type="button"
+                        class="focus-ring inline-flex items-center gap-2 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-semibold text-info-300 transition hover:bg-info-500/20"
+                        on:click=refresh
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_CLOCKWISE />
+                        </span>
+                        "Refresh"
+                    </button>
+                }
+                    .into_any()
+            })
         >
             // Tab switcher between "saya delegasikan" vs "untuk saya"
             <div class="mb-4 inline-flex gap-1 rounded-lg border border-white/[0.06] bg-white/[0.02] p-1">
                 <button
                     type="button"
-                    class={move || tab_classes(!as_delegate.get())}
+                    class=move || tab_classes(!as_delegate.get())
                     on:click=move |_| set_as_delegate.set(false)
                 >
                     "Saya Delegasikan"
                 </button>
                 <button
                     type="button"
-                    class={move || tab_classes(as_delegate.get())}
+                    class=move || tab_classes(as_delegate.get())
                     on:click=move |_| set_as_delegate.set(true)
                 >
                     "Untuk Saya"
@@ -121,7 +128,9 @@ pub fn WorkflowDelegationPage() -> impl IntoView {
                     if loading.get() && rows.with(|r| r.is_empty()) {
                         view! { <LoadingState message="Memuat delegasi..." /> }.into_any()
                     } else if let Some(err) = error.get() {
-                        let retry: Box<dyn Fn()> = Box::new(move || set_reload_tick.update(|t| *t += 1));
+                        let retry: Box<dyn Fn()> = Box::new(move || {
+                            set_reload_tick.update(|t| *t += 1)
+                        });
                         view! { <ErrorState error=err on_retry=retry /> }.into_any()
                     } else {
                         let list = rows.get();
@@ -129,20 +138,35 @@ pub fn WorkflowDelegationPage() -> impl IntoView {
                             view! {
                                 <EmptyState
                                     title="Belum ada delegasi"
-                                    description="Belum ada pendelegasian yang tercatat pada tab ini.".to_string()
+                                    description="Belum ada pendelegasian yang tercatat pada tab ini."
+                                        .to_string()
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             let mine = !as_delegate.get();
-                            view! { <DelegationTable rows=list mine_can_revoke=mine on_revoked=Callback::new(move |_| set_reload_tick.update(|t| *t += 1)) /> }.into_any()
+                            view! {
+                                <DelegationTable
+                                    rows=list
+                                    mine_can_revoke=mine
+                                    on_revoked=Callback::new(move |_| {
+                                        set_reload_tick.update(|t| *t += 1)
+                                    })
+                                />
+                            }
+                                .into_any()
                         }
                     }
                 }}
             </SectionCard>
 
-            {move || show_create.get().then(|| view! {
-                <CreateDelegationModal on_close=close_create on_save=on_created />
-            })}
+            {move || {
+                show_create
+                    .get()
+                    .then(|| {
+                        view! { <CreateDelegationModal on_close=close_create on_save=on_created /> }
+                    })
+            }}
         </PageLayout>
     }
 }
@@ -194,17 +218,30 @@ fn DelegationTable(
 
             view! {
                 <tr class="border-b border-white/[0.04]">
-                    <td class="px-3 py-3 font-mono text-xs text-slate-300" title=id_full>{short_id(&d.id)}</td>
-                    <td class="px-3 py-3 font-mono text-xs text-slate-300" title=delegator_full.clone()>{short_id(&delegator_full)}</td>
-                    <td class="px-3 py-3 font-mono text-xs text-slate-300" title=delegate_full.clone()>{short_id(&delegate_full)}</td>
+                    <td class="px-3 py-3 font-mono text-xs text-slate-300" title=id_full>
+                        {short_id(&d.id)}
+                    </td>
+                    <td
+                        class="px-3 py-3 font-mono text-xs text-slate-300"
+                        title=delegator_full.clone()
+                    >
+                        {short_id(&delegator_full)}
+                    </td>
+                    <td
+                        class="px-3 py-3 font-mono text-xs text-slate-300"
+                        title=delegate_full.clone()
+                    >
+                        {short_id(&delegate_full)}
+                    </td>
                     <td class="px-3 py-3 text-xs text-white">{role}</td>
                     <td class="px-3 py-3 text-xs text-slate-300">{valid_from}</td>
                     <td class="px-3 py-3 text-xs text-slate-300">{valid_until}</td>
                     <td class="px-3 py-3 text-xs text-slate-400">{reason}</td>
                     <td class="px-3 py-3">
-                        <span class=format!("inline-flex items-center rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold {}", status_classes)>
-                            {status_text}
-                        </span>
+                        <span class=format!(
+                            "inline-flex items-center rounded-md border px-2 py-0.5 text-[0.65rem] font-semibold {}",
+                            status_classes,
+                        )>{status_text}</span>
                     </td>
                     <td class="px-3 py-3 text-right">
                         {if can_revoke {
@@ -216,9 +253,11 @@ fn DelegationTable(
                                 >
                                     "Cabut"
                                 </button>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-                            view! { <span class="text-[0.65rem] text-slate-500">"—"</span> }.into_any()
+                            view! { <span class="text-[0.65rem] text-slate-500">"—"</span> }
+                                .into_any()
                         }}
                     </td>
                 </tr>
@@ -231,15 +270,33 @@ fn DelegationTable(
             <table class="min-w-full border-collapse">
                 <thead>
                     <tr class="bg-white/[0.02]">
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"ID"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Delegator"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Delegate"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Role"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Mulai"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Berakhir"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Alasan"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Status"</th>
-                        <th class="border-b border-white/[0.06] px-3 py-2 text-right text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">"Aksi"</th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "ID"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Delegator"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Delegate"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Role"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Mulai"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Berakhir"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Alasan"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-left text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Status"
+                        </th>
+                        <th class="border-b border-white/[0.06] px-3 py-2 text-right text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400">
+                            "Aksi"
+                        </th>
                     </tr>
                 </thead>
                 <tbody>{body_rows}</tbody>
@@ -359,7 +416,9 @@ fn CreateDelegationModal(
                 </header>
 
                 <label class="flex flex-col gap-1">
-                    <span class="text-xs font-semibold text-slate-300">"Delegate User ID (UUID)"</span>
+                    <span class="text-xs font-semibold text-slate-300">
+                        "Delegate User ID (UUID)"
+                    </span>
                     <input
                         class="rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-sm text-white focus:border-gold-400 focus:outline-none"
                         placeholder="00000000-0000-0000-0000-000000000000"
@@ -409,11 +468,17 @@ fn CreateDelegationModal(
                     />
                 </label>
 
-                {move || submit_error.get().map(|msg| view! {
-                    <div class="rounded-md border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
-                        {msg}
-                    </div>
-                })}
+                {move || {
+                    submit_error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="rounded-md border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
+                                    {msg}
+                                </div>
+                            }
+                        })
+                }}
 
                 <div class="mt-2 flex justify-end gap-2">
                     <button

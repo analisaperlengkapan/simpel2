@@ -38,14 +38,24 @@ pub fn Logo(
     view! {
         <div class="flex items-center space-x-3">
             <div class=format!("flex-shrink-0 {}", logo_classes)>
-                <svg
-                    viewBox="0 0 100 100"
-                    class="w-full h-full text-blue-600"
-                    fill="currentColor"
-                >
+                <svg viewBox="0 0 100 100" class="w-full h-full text-blue-600" fill="currentColor">
                     // Simplified Indonesian government emblem-inspired design
-                    <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="3"/>
-                    <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <circle
+                        cx="50"
+                        cy="50"
+                        r="45"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="3"
+                    />
+                    <circle
+                        cx="50"
+                        cy="50"
+                        r="35"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    />
 
                     // Central star (Pancasila symbol)
                     <polygon
@@ -54,7 +64,13 @@ pub fn Logo(
                     />
 
                     // Text "RI" at bottom
-                    <text x="50" y="80" text-anchor="middle" class="text-xs font-bold" fill="currentColor">
+                    <text
+                        x="50"
+                        y="80"
+                        text-anchor="middle"
+                        class="text-xs font-bold"
+                        fill="currentColor"
+                    >
                         RI
                     </text>
                 </svg>
@@ -62,12 +78,8 @@ pub fn Logo(
 
             <Show when=move || show_text>
                 <div class="flex flex-col">
-                    <span class="text-lg font-bold text-gray-900 dark:text-white">
-                        SIMPEL
-                    </span>
-                    <span class="text-sm text-gray-600 dark:text-gray-300">
-                        Kejaksaan RI
-                    </span>
+                    <span class="text-lg font-bold text-gray-900 dark:text-white">SIMPEL</span>
+                    <span class="text-sm text-gray-600 dark:text-gray-300">Kejaksaan RI</span>
                 </div>
             </Show>
         </div>

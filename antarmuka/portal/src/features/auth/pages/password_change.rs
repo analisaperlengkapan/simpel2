@@ -239,24 +239,41 @@ pub fn PasswordChangePage() -> impl IntoView {
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">"Ubah Kata Sandi"</h1>
                 <p class="text-gray-600 mb-6">"Pastikan kata sandi baru Anda kuat dan unik."</p>
 
-                {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
-                        "✅ " {msg}
-                    </div>
-                })}
-                {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                        "❌ " {msg}
-                    </div>
-                })}
+                {move || {
+                    success
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                                    "✅ " {msg}
+                                </div>
+                            }
+                        })
+                }}
+                {move || {
+                    error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                                    "❌ " {msg}
+                                </div>
+                            }
+                        })
+                }}
 
-                <form on:submit=handle_submit class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5">
+                <form
+                    on:submit=handle_submit
+                    class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5"
+                >
                     // Current password
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Kata Sandi Saat Ini"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Kata Sandi Saat Ini"
+                        </label>
                         <div class="relative">
                             <input
-                                type={move || if show_current.get() { "text" } else { "password" }}
+                                type=move || if show_current.get() { "text" } else { "password" }
                                 prop:value=current_password
                                 on:input=move |ev| set_current_password.set(event_target_value(&ev))
                                 required=true
@@ -274,10 +291,12 @@ pub fn PasswordChangePage() -> impl IntoView {
 
                     // New password
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Kata Sandi Baru"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Kata Sandi Baru"
+                        </label>
                         <div class="relative">
                             <input
-                                type={move || if show_new.get() { "text" } else { "password" }}
+                                type=move || if show_new.get() { "text" } else { "password" }
                                 prop:value=new_password
                                 on:input=move |ev| set_new_password.set(event_target_value(&ev))
                                 required=true
@@ -294,39 +313,92 @@ pub fn PasswordChangePage() -> impl IntoView {
                         </div>
 
                         // Password strength indicator
-                        {move || password_strength.get().map(|strength| view! {
-                            <div class="mt-2">
-                                <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div class={format!("h-full {} {} transition-all duration-300", strength.color(), strength.width())}></div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">"Kekuatan: " <strong>{strength.label()}</strong></p>
-                            </div>
-                        })}
+                        {move || {
+                            password_strength
+                                .get()
+                                .map(|strength| {
+                                    view! {
+                                        <div class="mt-2">
+                                            <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div class=format!(
+                                                    "h-full {} {} transition-all duration-300",
+                                                    strength.color(),
+                                                    strength.width(),
+                                                )></div>
+                                            </div>
+                                            <p class="text-xs text-gray-500 mt-1">
+                                                "Kekuatan: " <strong>{strength.label()}</strong>
+                                            </p>
+                                        </div>
+                                    }
+                                })
+                        }}
 
                         // Password requirements
                         <div class="mt-2 text-xs text-gray-500 space-y-1">
-                            <p class={move || if new_password.get().len() >= 8 { "text-green-600" } else { "text-gray-400" }}>
+                            <p class=move || {
+                                if new_password.get().len() >= 8 {
+                                    "text-green-600"
+                                } else {
+                                    "text-gray-400"
+                                }
+                            }>
                                 {move || if new_password.get().len() >= 8 { "✅" } else { "○" }}
                                 " Minimal 8 karakter"
                             </p>
-                            <p class={move || if new_password.get().chars().any(|c| c.is_uppercase()) { "text-green-600" } else { "text-gray-400" }}>
-                                {move || if new_password.get().chars().any(|c| c.is_uppercase()) { "✅" } else { "○" }}
-                                " Huruf besar"
+                            <p class=move || {
+                                if new_password.get().chars().any(|c| c.is_uppercase()) {
+                                    "text-green-600"
+                                } else {
+                                    "text-gray-400"
+                                }
+                            }>
+                                {move || {
+                                    if new_password.get().chars().any(|c| c.is_uppercase()) {
+                                        "✅"
+                                    } else {
+                                        "○"
+                                    }
+                                }} " Huruf besar"
                             </p>
-                            <p class={move || if new_password.get().chars().any(|c| c.is_ascii_digit()) { "text-green-600" } else { "text-gray-400" }}>
-                                {move || if new_password.get().chars().any(|c| c.is_ascii_digit()) { "✅" } else { "○" }}
-                                " Angka"
+                            <p class=move || {
+                                if new_password.get().chars().any(|c| c.is_ascii_digit()) {
+                                    "text-green-600"
+                                } else {
+                                    "text-gray-400"
+                                }
+                            }>
+                                {move || {
+                                    if new_password.get().chars().any(|c| c.is_ascii_digit()) {
+                                        "✅"
+                                    } else {
+                                        "○"
+                                    }
+                                }} " Angka"
                             </p>
-                            <p class={move || if new_password.get().chars().any(|c| !c.is_alphanumeric()) { "text-green-600" } else { "text-gray-400" }}>
-                                {move || if new_password.get().chars().any(|c| !c.is_alphanumeric()) { "✅" } else { "○" }}
-                                " Karakter khusus"
+                            <p class=move || {
+                                if new_password.get().chars().any(|c| !c.is_alphanumeric()) {
+                                    "text-green-600"
+                                } else {
+                                    "text-gray-400"
+                                }
+                            }>
+                                {move || {
+                                    if new_password.get().chars().any(|c| !c.is_alphanumeric()) {
+                                        "✅"
+                                    } else {
+                                        "○"
+                                    }
+                                }} " Karakter khusus"
                             </p>
                         </div>
                     </div>
 
                     // Confirm password
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Konfirmasi Kata Sandi Baru"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Konfirmasi Kata Sandi Baru"
+                        </label>
                         <input
                             type="password"
                             prop:value=confirm_password
@@ -337,9 +409,13 @@ pub fn PasswordChangePage() -> impl IntoView {
                         {move || {
                             let cp = confirm_password.get();
                             if !cp.is_empty() && !passwords_match.get() {
-                                Some(view! {
-                                    <p class="text-red-500 text-xs mt-1">"Kata sandi tidak cocok"</p>
-                                })
+                                Some(
+                                    view! {
+                                        <p class="text-red-500 text-xs mt-1">
+                                            "Kata sandi tidak cocok"
+                                        </p>
+                                    },
+                                )
                             } else {
                                 None
                             }

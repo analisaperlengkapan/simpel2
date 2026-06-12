@@ -102,10 +102,11 @@ pub fn BatchOperationsToolbar(
                 <div class="bg-white rounded-lg shadow-2xl border border-gray-200 p-4 flex items-center gap-4">
                     // Selection count
                     <div class="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg">
-                        <span class="text-blue-600"><AppIcon icon=CHECK_SQUARE /></span>
+                        <span class="text-blue-600">
+                            <AppIcon icon=CHECK_SQUARE />
+                        </span>
                         <span class="font-semibold text-blue-900">
-                            {move || selected_count.get()}
-                            " item dipilih"
+                            {move || selected_count.get()} " item dipilih"
                         </span>
                     </div>
 
@@ -117,7 +118,9 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_approve_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <span class="mr-2"><AppIcon icon=CHECK /></span>
+                            <span class="mr-2">
+                                <AppIcon icon=CHECK />
+                            </span>
                             "Setujui"
                         </button>
 
@@ -127,7 +130,9 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_reject_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <span class="mr-2"><AppIcon icon=X /></span>
+                            <span class="mr-2">
+                                <AppIcon icon=X />
+                            </span>
                             "Tolak"
                         </button>
 
@@ -137,7 +142,9 @@ pub fn BatchOperationsToolbar(
                             on:click=move |_| set_show_status_dialog.set(true)
                             disabled=move || is_processing.get()
                         >
-                            <span class="mr-2"><AppIcon icon=DOTS_THREE /></span>
+                            <span class="mr-2">
+                                <AppIcon icon=DOTS_THREE />
+                            </span>
                             "Lainnya"
                         </button>
                     </div>
@@ -150,7 +157,9 @@ pub fn BatchOperationsToolbar(
                     selected_count=selected_count
                     is_processing=is_processing
                     error_message=error_message
-                    on_confirm=Callback::new(move |_| { handle_approve.dispatch(()); })
+                    on_confirm=Callback::new(move |_| {
+                        handle_approve.dispatch(());
+                    })
                     on_cancel=Callback::new(move |_| set_show_approve_dialog.set(false))
                 />
             </Show>
@@ -163,7 +172,9 @@ pub fn BatchOperationsToolbar(
                     error_message=error_message
                     reject_reason=reject_reason
                     set_reject_reason=set_reject_reason
-                    on_confirm=Callback::new(move |_| { handle_reject.dispatch(()); })
+                    on_confirm=Callback::new(move |_| {
+                        handle_reject.dispatch(());
+                    })
                     on_cancel=Callback::new(move |_| {
                         set_show_reject_dialog.set(false);
                         set_reject_reason.set(String::new());
@@ -187,7 +198,9 @@ fn BatchApproveDialog(
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                        <span class="text-green-600 text-xl"><AppIcon icon=CHECK /></span>
+                        <span class="text-green-600 text-xl">
+                            <AppIcon icon=CHECK />
+                        </span>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">"Konfirmasi Approval"</h3>
@@ -223,7 +236,9 @@ fn BatchApproveDialog(
                         disabled=move || is_processing.get()
                     >
                         <Show when=move || is_processing.get()>
-                            <span class="fa-spin mr-2"><AppIcon icon=SPINNER /></span>
+                            <span class="fa-spin mr-2">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                         "Ya, Setujui"
                     </button>
@@ -248,7 +263,9 @@ fn BatchRejectDialog(
             <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                        <span class="text-red-600 text-xl"><AppIcon icon=X /></span>
+                        <span class="text-red-600 text-xl">
+                            <AppIcon icon=X />
+                        </span>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-gray-900">"Konfirmasi Penolakan"</h3>
@@ -264,8 +281,7 @@ fn BatchRejectDialog(
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">
-                        "Alasan Penolakan"
-                        <span class="text-red-500">"*"</span>
+                        "Alasan Penolakan" <span class="text-red-500">"*"</span>
                     </label>
                     <textarea
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
@@ -275,8 +291,7 @@ fn BatchRejectDialog(
                         prop:value=move || reject_reason.get()
                     />
                     <p class="text-xs text-gray-500 mt-1">
-                        {move || reject_reason.get().len()}
-                        " / 10 karakter minimum"
+                        {move || reject_reason.get().len()} " / 10 karakter minimum"
                     </p>
                 </div>
 
@@ -302,7 +317,9 @@ fn BatchRejectDialog(
                         disabled=move || is_processing.get() || reject_reason.get().len() < 10
                     >
                         <Show when=move || is_processing.get()>
-                            <span class="fa-spin mr-2"><AppIcon icon=SPINNER /></span>
+                            <span class="fa-spin mr-2">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                         "Ya, Tolak"
                     </button>
@@ -318,12 +335,18 @@ pub fn BatchResultSummary(
     on_close: Callback<()>,
 ) -> impl IntoView {
     view! {
-        <Show when=move || result.get().is_some()>
+        <Show when=move || {
+            result.get().is_some()
+        }>
             {move || {
                 let r = result.get().unwrap();
                 let is_success = r.failed_items == 0;
                 let bg_color = if is_success { "bg-green-50" } else { "bg-yellow-50" };
-                let border_color = if is_success { "border-green-200" } else { "border-yellow-200" };
+                let border_color = if is_success {
+                    "border-green-200"
+                } else {
+                    "border-yellow-200"
+                };
                 let icon_color = if is_success { "text-green-600" } else { "text-yellow-600" };
                 let icon = if is_success { CHECK_CIRCLE } else { WARNING };
 
@@ -344,7 +367,9 @@ pub fn BatchResultSummary(
                                     </h4>
                                     <p class="text-sm text-gray-700 mb-2">
                                         "Batch ID: "
-                                        <code class="px-2 py-1 bg-white rounded text-xs">{r.batch_id.to_string()}</code>
+                                        <code class="px-2 py-1 bg-white rounded text-xs">
+                                            {r.batch_id.to_string()}
+                                        </code>
                                     </p>
                                     <div class="flex gap-4 text-sm">
                                         <div>
@@ -353,12 +378,16 @@ pub fn BatchResultSummary(
                                         </div>
                                         <div>
                                             <span class="text-gray-600">"Berhasil: "</span>
-                                            <span class="font-semibold text-green-600">{r.successful_items}</span>
+                                            <span class="font-semibold text-green-600">
+                                                {r.successful_items}
+                                            </span>
                                         </div>
                                         <Show when=move || r.failed_items != 0>
                                             <div>
                                                 <span class="text-gray-600">"Gagal: "</span>
-                                                <span class="font-semibold text-red-600">{r.failed_items}</span>
+                                                <span class="font-semibold text-red-600">
+                                                    {r.failed_items}
+                                                </span>
                                             </div>
                                         </Show>
                                     </div>

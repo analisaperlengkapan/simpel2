@@ -51,32 +51,43 @@ pub fn FaqPage() -> impl IntoView {
             description="Pertanyaan yang sering diajukan tentang SIMPEL"
         >
             <div class="overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel">
-                {faqs.into_iter().enumerate().map(|(i, (question, answer))| {
-                    view! {
-                        <div class="border-b border-white/[0.04] last:border-b-0">
-                            <button
-                                type="button"
-                                on:click=move |_| open_idx.update(|o| *o = if *o == Some(i) { None } else { Some(i) })
-                                class="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-white/[0.02]"
-                            >
-                                <span class="text-sm font-semibold text-slate-100">{question}</span>
-                                <span
-                                    class="inline-flex text-slate-500 transition-transform"
-                                    class:rotate-180=move || open_idx.get() == Some(i)
+                {faqs
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, (question, answer))| {
+                        view! {
+                            <div class="border-b border-white/[0.04] last:border-b-0">
+                                <button
+                                    type="button"
+                                    on:click=move |_| {
+                                        open_idx
+                                            .update(|o| *o = if *o == Some(i) { None } else { Some(i) })
+                                    }
+                                    class="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-white/[0.02]"
                                 >
-                                    <AppIcon icon=CARET_DOWN size=10 />
-                                </span>
-                            </button>
-                            <div
-                                class="overflow-hidden transition-all duration-200"
-                                class:max-h-0=move || open_idx.get() != Some(i)
-                                class:max-h-52=move || open_idx.get() == Some(i)
-                            >
-                                <p class="px-5 pb-4 text-sm leading-relaxed text-slate-400">{answer}</p>
+                                    <span class="text-sm font-semibold text-slate-100">
+                                        {question}
+                                    </span>
+                                    <span
+                                        class="inline-flex text-slate-500 transition-transform"
+                                        class:rotate-180=move || open_idx.get() == Some(i)
+                                    >
+                                        <AppIcon icon=CARET_DOWN size=10 />
+                                    </span>
+                                </button>
+                                <div
+                                    class="overflow-hidden transition-all duration-200"
+                                    class:max-h-0=move || open_idx.get() != Some(i)
+                                    class:max-h-52=move || open_idx.get() == Some(i)
+                                >
+                                    <p class="px-5 pb-4 text-sm leading-relaxed text-slate-400">
+                                        {answer}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    }
-                }).collect_view()}
+                        }
+                    })
+                    .collect_view()}
             </div>
         </PageLayout>
     }

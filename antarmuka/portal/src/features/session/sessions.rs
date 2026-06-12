@@ -69,33 +69,49 @@ pub fn SessionsPage() -> impl IntoView {
                 <h1 class="text-2xl font-bold text-gray-900 mb-2">"Sesi Aktif"</h1>
                 <p class="text-gray-600 mb-6">"Kelola perangkat dan sesi login yang aktif."</p>
 
-                {move || success.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
-                        "✅ " {msg}
-                    </div>
-                })}
-                {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
-                        "❌ " {msg}
-                    </div>
-                })}
+                {move || {
+                    success
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700">
+                                    "✅ " {msg}
+                                </div>
+                            }
+                        })
+                }}
+                {move || {
+                    error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+                                    "❌ " {msg}
+                                </div>
+                            }
+                        })
+                }}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <div class="flex items-center justify-center py-12">
-                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-                            <span class="ml-3 text-gray-500">"Memuat sesi..."</span>
-                        </div>
+                    fallback=|| {
+                        view! {
+                            <div class="flex items-center justify-center py-12">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+                                <span class="ml-3 text-gray-500">"Memuat sesi..."</span>
+                            </div>
+                        }
                     }
                 >
                     <Show
                         when=move || !sessions.get().is_empty()
-                        fallback=|| view! {
-                            <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
-                                <p class="text-4xl mb-3">"📱"</p>
-                                <p class="text-gray-500">"Tidak ada sesi aktif ditemukan."</p>
-                            </div>
+                        fallback=|| {
+                            view! {
+                                <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+                                    <p class="text-4xl mb-3">"📱"</p>
+                                    <p class="text-gray-500">"Tidak ada sesi aktif ditemukan."</p>
+                                </div>
+                            }
                         }
                     >
                         <div class="space-y-3">
@@ -106,33 +122,55 @@ pub fn SessionsPage() -> impl IntoView {
                                     let sid = session_info.id.clone();
                                     let sid2 = session_info.id.clone();
                                     let is_current = session_info.is_current;
-                                    let device = session_info.user_agent.clone().unwrap_or_else(|| "Perangkat tidak dikenal".to_string());
-                                    let ip = session_info.ip_address.clone().unwrap_or_else(|| "-".to_string());
-                                    let location = session_info.location.clone().unwrap_or_else(|| "Lokasi tidak diketahui".to_string());
+                                    let device = session_info
+                                        .user_agent
+                                        .clone()
+                                        .unwrap_or_else(|| "Perangkat tidak dikenal".to_string());
+                                    let ip = session_info
+                                        .ip_address
+                                        .clone()
+                                        .unwrap_or_else(|| "-".to_string());
+                                    let location = session_info
+                                        .location
+                                        .clone()
+                                        .unwrap_or_else(|| "Lokasi tidak diketahui".to_string());
                                     let last_active = session_info.last_active.clone();
                                     let created = session_info.created_at.clone();
-
                                     let device_lower = device.to_lowercase();
-                                    let device_icon = if device_lower.contains("mobile") || device_lower.contains("android") || device_lower.contains("iphone") || device_lower.contains("tablet") || device_lower.contains("ipad") {
+                                    let device_icon = if device_lower.contains("mobile")
+                                        || device_lower.contains("android")
+                                        || device_lower.contains("iphone")
+                                        || device_lower.contains("tablet")
+                                        || device_lower.contains("ipad")
+                                    {
                                         "📱"
                                     } else {
                                         "💻"
                                     };
 
                                     view! {
-                                        <div class={format!(
+                                        <div class=format!(
                                             "bg-white rounded-xl border {} p-4 flex items-start gap-4",
-                                            if is_current { "border-primary-300 ring-1 ring-primary-100" } else { "border-gray-200" }
-                                        )}>
+                                            if is_current {
+                                                "border-primary-300 ring-1 ring-primary-100"
+                                            } else {
+                                                "border-gray-200"
+                                            },
+                                        )>
                                             <span class="text-2xl mt-1">{device_icon}</span>
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center gap-2">
-                                                    <h3 class="font-medium text-gray-900 truncate">{device.clone()}</h3>
-                                                    {is_current.then(|| view! {
-                                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                                                            "Sesi ini"
-                                                        </span>
-                                                    })}
+                                                    <h3 class="font-medium text-gray-900 truncate">
+                                                        {device.clone()}
+                                                    </h3>
+                                                    {is_current
+                                                        .then(|| {
+                                                            view! {
+                                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                                    "Sesi ini"
+                                                                </span>
+                                                            }
+                                                        })}
                                                 </div>
                                                 <div class="text-sm text-gray-500 mt-1 space-y-0.5">
                                                     <p>"IP: " {ip}</p>
@@ -145,23 +183,28 @@ pub fn SessionsPage() -> impl IntoView {
                                                 {if !is_current {
                                                     let sid2_disabled = sid2.clone();
                                                     let sid2_label = sid2;
-                                                    Some(view! {
-                                                        <button
-                                                            on:click=move |_| {
-                                                                set_terminate_trigger.set(Some(sid.clone()));
-                                                            }
-                                                            disabled=move || terminating.get().as_deref() == Some(&sid2_disabled)
-                                                            class="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
-                                                        >
-                                                            {move || {
-                                                                if terminating.get().as_deref() == Some(sid2_label.as_str()) {
-                                                                    "..."
-                                                                } else {
-                                                                    "Hentikan"
+                                                    Some(
+                                                        view! {
+                                                            <button
+                                                                on:click=move |_| {
+                                                                    set_terminate_trigger.set(Some(sid.clone()));
                                                                 }
-                                                            }}
-                                                        </button>
-                                                    })
+                                                                disabled=move || {
+                                                                    terminating.get().as_deref() == Some(&sid2_disabled)
+                                                                }
+                                                                class="px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                                                            >
+                                                                {move || {
+                                                                    if terminating.get().as_deref() == Some(sid2_label.as_str())
+                                                                    {
+                                                                        "..."
+                                                                    } else {
+                                                                        "Hentikan"
+                                                                    }
+                                                                }}
+                                                            </button>
+                                                        },
+                                                    )
                                                 } else {
                                                     None
                                                 }}
@@ -177,7 +220,9 @@ pub fn SessionsPage() -> impl IntoView {
                 // Info box
                 <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
                     <p class="font-medium mb-1">"ℹ️ Tentang Sesi"</p>
-                    <p>"Jika Anda melihat sesi yang tidak Anda kenali, segera hentikan sesi tersebut dan ubah kata sandi Anda."</p>
+                    <p>
+                        "Jika Anda melihat sesi yang tidak Anda kenali, segera hentikan sesi tersebut dan ubah kata sandi Anda."
+                    </p>
                 </div>
             </div>
         </MainLayout>

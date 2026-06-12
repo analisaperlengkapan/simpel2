@@ -37,13 +37,48 @@ pub fn Heading(
     };
 
     match level {
-        1 => view! { <h1 id=id class=heading_class>{children.run()}</h1> }.into_any(),
-        2 => view! { <h2 id=id class=heading_class>{children.run()}</h2> }.into_any(),
-        3 => view! { <h3 id=id class=heading_class>{children.run()}</h3> }.into_any(),
-        4 => view! { <h4 id=id class=heading_class>{children.run()}</h4> }.into_any(),
-        5 => view! { <h5 id=id class=heading_class>{children.run()}</h5> }.into_any(),
-        6 => view! { <h6 id=id class=heading_class>{children.run()}</h6> }.into_any(),
-        _ => view! { <h2 id=id class=heading_class>{children.run()}</h2> }.into_any(),
+        1 => view! {
+            <h1 id=id class=heading_class>
+                {children.run()}
+            </h1>
+        }
+        .into_any(),
+        2 => view! {
+            <h2 id=id class=heading_class>
+                {children.run()}
+            </h2>
+        }
+        .into_any(),
+        3 => view! {
+            <h3 id=id class=heading_class>
+                {children.run()}
+            </h3>
+        }
+        .into_any(),
+        4 => view! {
+            <h4 id=id class=heading_class>
+                {children.run()}
+            </h4>
+        }
+        .into_any(),
+        5 => view! {
+            <h5 id=id class=heading_class>
+                {children.run()}
+            </h5>
+        }
+        .into_any(),
+        6 => view! {
+            <h6 id=id class=heading_class>
+                {children.run()}
+            </h6>
+        }
+        .into_any(),
+        _ => view! {
+            <h2 id=id class=heading_class>
+                {children.run()}
+            </h2>
+        }
+        .into_any(),
     }
 }
 
@@ -87,11 +122,7 @@ pub fn AccessibleLink(
             tabindex=if disabled { Some("-1") } else { None }
         >
             {children.run()}
-            {external.then(|| view! {
-                <VisuallyHidden>
-                    " (opens in new tab)"
-                </VisuallyHidden>
-            })}
+            {external.then(|| view! { <VisuallyHidden>" (opens in new tab)"</VisuallyHidden> })}
         </a>
     }
 }
@@ -130,12 +161,7 @@ pub fn AccessibleImage(
             role=if decorative { Some("presentation") } else { None }
             aria-hidden=if decorative { Some("true") } else { None }
         >
-            <OptimizedImage
-                src=src
-                alt=alt_text
-                class=class
-                lazy=lazy
-            />
+            <OptimizedImage src=src alt=alt_text class=class lazy=lazy />
         </div>
     }
 }
@@ -166,11 +192,7 @@ pub fn ButtonGroup(
     };
 
     view! {
-        <div
-            role="group"
-            aria-label=label
-            class=format!("{} {}", direction_class, class)
-        >
+        <div role="group" aria-label=label class=format!("{} {}", direction_class, class)>
             {children.run()}
         </div>
     }
@@ -226,26 +248,25 @@ pub fn AccessibleAlert(
                     <span class="flex-shrink-0 mr-3 text-xl" aria-hidden="true">
                         {icon}
                     </span>
-                    <div class="flex-1">
-                        {children.run()}
-                    </div>
-                    {dismissible.then(|| {
-                        view! {
-                            <button
-                                type="button"
-                                class="flex-shrink-0 ml-3 hover:opacity-75 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded"
-                                aria-label="Dismiss alert"
-                                on:click=move |_| {
-                                    set_visible.set(false);
-                                    if let Some(callback) = on_dismiss {
-                                        callback.run(());
+                    <div class="flex-1">{children.run()}</div>
+                    {dismissible
+                        .then(|| {
+                            view! {
+                                <button
+                                    type="button"
+                                    class="flex-shrink-0 ml-3 hover:opacity-75 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded"
+                                    aria-label="Dismiss alert"
+                                    on:click=move |_| {
+                                        set_visible.set(false);
+                                        if let Some(callback) = on_dismiss {
+                                            callback.run(());
+                                        }
                                     }
-                                }
-                            >
-                                <span aria-hidden="true">"×"</span>
-                            </button>
-                        }
-                    })}
+                                >
+                                    <span aria-hidden="true">"×"</span>
+                                </button>
+                            }
+                        })}
                 </div>
             </div>
         </Show>
@@ -288,11 +309,14 @@ pub fn AccessibleProgressBar(
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                     {label.clone()}
                 </span>
-                {show_percentage.then(|| view! {
-                    <span class="text-sm text-gray-600 dark:text-gray-400">
-                        {move || format!("{}%", value.get().round())}
-                    </span>
-                })}
+                {show_percentage
+                    .then(|| {
+                        view! {
+                            <span class="text-sm text-gray-600 dark:text-gray-400">
+                                {move || format!("{}%", value.get().round())}
+                            </span>
+                        }
+                    })}
             </div>
             <div
                 role="progressbar"
@@ -357,54 +381,68 @@ pub fn AccessibleTabs(
 
     view! {
         <div class=format!("space-y-4 {}", class)>
-            <div role="tablist" aria-label="Tabs" class="flex border-b border-gray-200 dark:border-gray-700">
-                {tabs.iter().enumerate().map(|(index, tab)| {
+            <div
+                role="tablist"
+                aria-label="Tabs"
+                class="flex border-b border-gray-200 dark:border-gray-700"
+            >
+                {tabs
+                    .iter()
+                    .enumerate()
+                    .map(|(index, tab)| {
+                        let is_active = move || active.get() == index;
+                        let tab_id = format!("tab-{}", index);
+                        let panel_id = format!("panel-{}", index);
+
+                        view! {
+                            <button
+                                id=tab_id.clone()
+                                role="tab"
+                                aria-selected=move || if is_active() { "true" } else { "false" }
+                                aria-controls=panel_id
+                                tabindex=move || if is_active() { "0" } else { "-1" }
+                                class=move || {
+                                    format!(
+                                        "px-4 py-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
+                                        if is_active() {
+                                            "border-b-2 border-primary-600 text-primary-600"
+                                        } else {
+                                            "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                                        },
+                                    )
+                                }
+                                on:click=move |_| on_change.set(index)
+                                on:keydown=move |ev| handle_keydown(ev, index)
+                            >
+                                {tab.label.clone()}
+                            </button>
+                        }
+                    })
+                    .collect_view()}
+            </div>
+
+            {tabs
+                .iter()
+                .enumerate()
+                .map(|(index, tab)| {
                     let is_active = move || active.get() == index;
                     let tab_id = format!("tab-{}", index);
                     let panel_id = format!("panel-{}", index);
 
                     view! {
-                        <button
-                            id=tab_id.clone()
-                            role="tab"
-                            aria-selected=move || if is_active() { "true" } else { "false" }
-                            aria-controls=panel_id
-                            tabindex=move || if is_active() { "0" } else { "-1" }
-                            class=move || format!(
-                                "px-4 py-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
-                                if is_active() {
-                                    "border-b-2 border-primary-600 text-primary-600"
-                                } else {
-                                    "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
-                                }
-                            )
-                            on:click=move |_| on_change.set(index)
-                            on:keydown=move |ev| handle_keydown(ev, index)
+                        <div
+                            id=panel_id
+                            role="tabpanel"
+                            aria-labelledby=tab_id
+                            hidden=move || !is_active()
+                            class="focus:outline-none"
+                            tabindex="0"
                         >
-                            {tab.label.clone()}
-                        </button>
+                            {(tab.content)()}
+                        </div>
                     }
-                }).collect_view()}
-            </div>
-
-            {tabs.iter().enumerate().map(|(index, tab)| {
-                let is_active = move || active.get() == index;
-                let tab_id = format!("tab-{}", index);
-                let panel_id = format!("panel-{}", index);
-
-                view! {
-                    <div
-                        id=panel_id
-                        role="tabpanel"
-                        aria-labelledby=tab_id
-                        hidden=move || !is_active()
-                        class="focus:outline-none"
-                        tabindex="0"
-                    >
-                        {(tab.content)()}
-                    </div>
-                }
-            }).collect_view()}
+                })
+                .collect_view()}
         </div>
     }
 }
@@ -467,7 +505,7 @@ pub fn AccessibleTooltip(
                     role="tooltip"
                     class=format!(
                         "absolute z-tooltip px-3 py-2 text-sm text-white bg-gray-900 rounded-md shadow-lg whitespace-nowrap {}",
-                        position_class
+                        position_class,
                     )
                 >
                     {content_stored.get_value()}

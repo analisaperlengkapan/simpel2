@@ -46,15 +46,20 @@ pub fn BankAsetSebaranPage() -> impl IntoView {
             description="Distribusi BMN berdasarkan satuan kerja, lengkap dengan komposisi kondisi."
             icon="fas fa-map-location-dot"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::BANK_ASET_DAFTAR
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=LIST /></span>
-                    "Daftar Aset"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::BANK_ASET_DAFTAR
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=LIST />
+                        </span>
+                        "Daftar Aset"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             <SectionCard
                 title="Ringkasan per Satker"
@@ -68,9 +73,12 @@ pub fn BankAsetSebaranPage() -> impl IntoView {
                         view! {
                             <ErrorState
                                 error=err
-                                on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                                on_retry=Box::new(move || {
+                                    set_reload_tick.update(|t| *t += 1);
+                                })
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else if let Some(d) = data.get() {
                         if d.satker.is_empty() {
                             view! {
@@ -79,7 +87,8 @@ pub fn BankAsetSebaranPage() -> impl IntoView {
                                     description="Sinkronisasi SIMAN belum menghasilkan data aset per satker."
                                     icon="fas fa-building-circle-exclamation"
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             render_table(d.satker).into_any()
                         }

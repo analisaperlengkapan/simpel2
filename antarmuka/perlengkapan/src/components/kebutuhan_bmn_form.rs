@@ -214,7 +214,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                 href=routes::path::KEBUTUHAN_DAFTAR
                 class="mb-4 inline-flex items-center gap-2 text-sm text-gold-400 transition hover:text-gold-300"
             >
-                <span class="text-xs"><AppIcon icon=ARROW_LEFT /></span>
+                <span class="text-xs">
+                    <AppIcon icon=ARROW_LEFT />
+                </span>
                 "Kembali ke Daftar"
             </a>
 
@@ -249,7 +251,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                 placeholder="Deskripsi pengajuan (opsional)"
                                 on:input=move |ev| {
                                     let v = event_target_value(&ev);
-                                    form.update(|f| f.deskripsi = if v.is_empty() { None } else { Some(v) });
+                                    form.update(|f| {
+                                        f.deskripsi = if v.is_empty() { None } else { Some(v) };
+                                    });
                                 }
                                 prop:value=move || form.get().deskripsi.clone().unwrap_or_default()
                             ></textarea>
@@ -266,16 +270,22 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                         }
                                     }
                                 >
-                                    {move || years.get_value().into_iter().map(|y| {
-                                        view! {
-                                            <option
-                                                value=y.to_string()
-                                                selected=move || form.get().tahun == y
-                                            >
-                                                {y}
-                                            </option>
-                                        }
-                                    }).collect_view()}
+                                    {move || {
+                                        years
+                                            .get_value()
+                                            .into_iter()
+                                            .map(|y| {
+                                                view! {
+                                                    <option
+                                                        value=y.to_string()
+                                                        selected=move || form.get().tahun == y
+                                                    >
+                                                        {y}
+                                                    </option>
+                                                }
+                                            })
+                                            .collect_view()
+                                    }}
                                 </select>
                             </FormField>
                             <FormField label="Tanggal Mulai" required=true>
@@ -283,7 +293,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                     type="date"
                                     required
                                     class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-200"
-                                    on:input=move |ev| form.update(|f| f.tgl_mulai = event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        form.update(|f| f.tgl_mulai = event_target_value(&ev))
+                                    }
                                     prop:value=move || form.get().tgl_mulai.clone()
                                 />
                             </FormField>
@@ -292,7 +304,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                     type="date"
                                     required
                                     class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-200"
-                                    on:input=move |ev| form.update(|f| f.tgl_selesai = event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        form.update(|f| f.tgl_selesai = event_target_value(&ev))
+                                    }
                                     prop:value=move || form.get().tgl_selesai.clone()
                                 />
                             </FormField>
@@ -306,8 +320,12 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                         type="radio"
                                         name="pilihan_satker"
                                         class="h-4 w-4 border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
-                                        checked=move || form.get().pilihan_satker == PilihanSatker::Semua
-                                        on:change=move |_| form.update(|f| f.pilihan_satker = PilihanSatker::Semua)
+                                        checked=move || {
+                                            form.get().pilihan_satker == PilihanSatker::Semua
+                                        }
+                                        on:change=move |_| {
+                                            form.update(|f| f.pilihan_satker = PilihanSatker::Semua)
+                                        }
                                     />
                                     "Semua Satker"
                                 </label>
@@ -316,8 +334,12 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                         type="radio"
                                         name="pilihan_satker"
                                         class="h-4 w-4 border-white/20 bg-white/[0.04] text-gold-500 focus:ring-gold-500/30"
-                                        checked=move || form.get().pilihan_satker == PilihanSatker::Sebagian
-                                        on:change=move |_| form.update(|f| f.pilihan_satker = PilihanSatker::Sebagian)
+                                        checked=move || {
+                                            form.get().pilihan_satker == PilihanSatker::Sebagian
+                                        }
+                                        on:change=move |_| {
+                                            form.update(|f| f.pilihan_satker = PilihanSatker::Sebagian)
+                                        }
                                     />
                                     "Sebagian Satker"
                                 </label>
@@ -343,7 +365,9 @@ pub fn KebutuhanBmnForm() -> impl IntoView {
                                         <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-navy-950"></span>
                                     </span>
                                 </Show>
-                                {move || if form.submitting.get() { "Menyimpan..." } else { "Simpan" }}
+                                {move || {
+                                    if form.submitting.get() { "Menyimpan..." } else { "Simpan" }
+                                }}
                             </button>
                         </div>
                     </form>

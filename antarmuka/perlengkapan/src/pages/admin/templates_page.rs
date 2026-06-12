@@ -81,8 +81,7 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                 <h1 class="text-2xl font-bold text-gray-800">"Document Templates"</h1>
                 <p class="text-sm text-gray-500">
                     "Pratinjau langsung template surat / SK / laporan. Pilih template di kiri, atur format, lalu klik "
-                    <span class="font-semibold">"Render Preview"</span>
-                    "."
+                    <span class="font-semibold">"Render Preview"</span> "."
                 </p>
             </div>
 
@@ -146,11 +145,12 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                             prop:value=move || format.get()
                             on:change=move |ev| set_format.set(event_target_value(&ev))
                         >
-                            {FORMATS.iter().map(|(value, label)| {
-                                view! {
-                                    <option value={*value}>{*label}</option>
-                                }
-                            }).collect_view()}
+                            {FORMATS
+                                .iter()
+                                .map(|(value, label)| {
+                                    view! { <option value=*value>{*label}</option> }
+                                })
+                                .collect_view()}
                         </select>
                         <button
                             type="button"
@@ -162,44 +162,48 @@ pub fn AdminTemplatesPage() -> impl IntoView {
                                 }
                             }
                         >
-                            {move || if loading_preview.get() {
-                                "Merender..."
-                            } else {
-                                "Render Preview"
+                            {move || {
+                                if loading_preview.get() { "Merender..." } else { "Render Preview" }
                             }}
                         </button>
                     </div>
 
-                    {move || preview_url.get().map(|url| {
-                        let mime = preview_blob_mime.get();
-                        let can_inline = mime.starts_with("application/pdf")
-                            || mime.starts_with("text/html");
-                        if can_inline {
-                            view! {
-                                <iframe
-                                    src=url.clone()
-                                    class="w-full border rounded"
-                                    style="height: 75vh"
-                                />
-                            }.into_any()
-                        } else {
-                            // Browsers don't render .docx / .xlsx inline.
-                            view! {
-                                <div class="p-6 border-2 border-dashed rounded text-center">
-                                    <p class="text-sm text-gray-600 mb-2">
-                                        "Format ini tidak bisa dipratinjau inline di browser."
-                                    </p>
-                                    <a
-                                        href=url.clone()
-                                        download=true
-                                        class="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                                    >
-                                        "Unduh hasil preview"
-                                    </a>
-                                </div>
-                            }.into_any()
-                        }
-                    })}
+                    {move || {
+                        preview_url
+                            .get()
+                            .map(|url| {
+                                let mime = preview_blob_mime.get();
+                                let can_inline = mime.starts_with("application/pdf")
+                                    || mime.starts_with("text/html");
+                                if can_inline {
+                                    view! {
+                                        <iframe
+                                            src=url.clone()
+                                            class="w-full border rounded"
+                                            style="height: 75vh"
+                                        />
+                                    }
+                                        .into_any()
+                                } else {
+                                    // Browsers don't render .docx / .xlsx inline.
+                                    view! {
+                                        <div class="p-6 border-2 border-dashed rounded text-center">
+                                            <p class="text-sm text-gray-600 mb-2">
+                                                "Format ini tidak bisa dipratinjau inline di browser."
+                                            </p>
+                                            <a
+                                                href=url.clone()
+                                                download=true
+                                                class="inline-block px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                                            >
+                                                "Unduh hasil preview"
+                                            </a>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                            })
+                    }}
 
                     <Show when=move || selected_id.get().is_none()>
                         <p class="text-sm text-gray-400 text-center py-12">

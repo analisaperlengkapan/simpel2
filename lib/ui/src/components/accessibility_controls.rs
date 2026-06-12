@@ -90,14 +90,16 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
             <div class="flex items-center space-x-2" role="group" aria-label="Font size controls">
                 <button
                     type="button"
-                    class=move || format!(
-                        "px-3 py-2 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
-                        if current_size() == FontSize::Small {
-                            "bg-primary-600 text-white"
-                        } else {
-                            "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }
-                    )
+                    class=move || {
+                        format!(
+                            "px-3 py-2 text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
+                            if current_size() == FontSize::Small {
+                                "bg-primary-600 text-white"
+                            } else {
+                                "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            },
+                        )
+                    }
                     aria-label="Small font size"
                     aria-pressed=move || (current_size() == FontSize::Small).to_string()
                     on:click=move |_| handle_change(FontSize::Small)
@@ -106,14 +108,16 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
                 </button>
                 <button
                     type="button"
-                    class=move || format!(
-                        "px-3 py-2 text-base rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
-                        if current_size() == FontSize::Medium {
-                            "bg-primary-600 text-white"
-                        } else {
-                            "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }
-                    )
+                    class=move || {
+                        format!(
+                            "px-3 py-2 text-base rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
+                            if current_size() == FontSize::Medium {
+                                "bg-primary-600 text-white"
+                            } else {
+                                "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            },
+                        )
+                    }
                     aria-label="Medium font size"
                     aria-pressed=move || (current_size() == FontSize::Medium).to_string()
                     on:click=move |_| handle_change(FontSize::Medium)
@@ -122,14 +126,16 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
                 </button>
                 <button
                     type="button"
-                    class=move || format!(
-                        "px-3 py-2 text-lg rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
-                        if current_size() == FontSize::Large {
-                            "bg-primary-600 text-white"
-                        } else {
-                            "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }
-                    )
+                    class=move || {
+                        format!(
+                            "px-3 py-2 text-lg rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
+                            if current_size() == FontSize::Large {
+                                "bg-primary-600 text-white"
+                            } else {
+                                "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            },
+                        )
+                    }
                     aria-label="Large font size"
                     aria-pressed=move || (current_size() == FontSize::Large).to_string()
                     on:click=move |_| handle_change(FontSize::Large)
@@ -138,14 +144,16 @@ pub fn FontSizeControl(#[prop(optional, into)] class: Option<String>) -> impl In
                 </button>
                 <button
                     type="button"
-                    class=move || format!(
-                        "px-3 py-2 text-xl rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
-                        if current_size() == FontSize::ExtraLarge {
-                            "bg-primary-600 text-white"
-                        } else {
-                            "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }
-                    )
+                    class=move || {
+                        format!(
+                            "px-3 py-2 text-xl rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 {}",
+                            if current_size() == FontSize::ExtraLarge {
+                                "bg-primary-600 text-white"
+                            } else {
+                                "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            },
+                        )
+                    }
                     aria-label="Extra large font size"
                     aria-pressed=move || (current_size() == FontSize::ExtraLarge).to_string()
                     on:click=move |_| handle_change(FontSize::ExtraLarge)
@@ -190,7 +198,10 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
 
     view! {
         <div class=format!("flex items-center justify-between {}", class)>
-            <label for="high-contrast-toggle" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+                for="high-contrast-toggle"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
                 "High Contrast Mode"
             </label>
             <button
@@ -198,27 +209,21 @@ pub fn HighContrastControl(#[prop(optional, into)] class: Option<String>) -> imp
                 id="high-contrast-toggle"
                 role="switch"
                 aria-checked=move || high_contrast.get().to_string()
-                class=move || format!(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
-                    if high_contrast.get() {
-                        "bg-primary-600"
-                    } else {
-                        "bg-gray-200"
-                    }
-                )
+                class=move || {
+                    format!(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
+                        if high_contrast.get() { "bg-primary-600" } else { "bg-gray-200" },
+                    )
+                }
                 on:click=toggle
             >
                 <span class="sr-only">"Toggle high contrast mode"</span>
-                <span
-                    class=move || format!(
+                <span class=move || {
+                    format!(
                         "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {}",
-                        if high_contrast.get() {
-                            "translate-x-5"
-                        } else {
-                            "translate-x-0"
-                        }
+                        if high_contrast.get() { "translate-x-5" } else { "translate-x-0" },
                     )
-                ></span>
+                }></span>
             </button>
         </div>
     }
@@ -257,7 +262,10 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
 
     view! {
         <div class=format!("flex items-center justify-between {}", class)>
-            <label for="reduced-motion-toggle" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+                for="reduced-motion-toggle"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
                 "Reduce Motion"
             </label>
             <button
@@ -265,27 +273,21 @@ pub fn ReducedMotionControl(#[prop(optional, into)] class: Option<String>) -> im
                 id="reduced-motion-toggle"
                 role="switch"
                 aria-checked=move || reduced_motion.get().to_string()
-                class=move || format!(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
-                    if reduced_motion.get() {
-                        "bg-primary-600"
-                    } else {
-                        "bg-gray-200"
-                    }
-                )
+                class=move || {
+                    format!(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
+                        if reduced_motion.get() { "bg-primary-600" } else { "bg-gray-200" },
+                    )
+                }
                 on:click=toggle
             >
                 <span class="sr-only">"Toggle reduced motion"</span>
-                <span
-                    class=move || format!(
+                <span class=move || {
+                    format!(
                         "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {}",
-                        if reduced_motion.get() {
-                            "translate-x-5"
-                        } else {
-                            "translate-x-0"
-                        }
+                        if reduced_motion.get() { "translate-x-5" } else { "translate-x-0" },
                     )
-                ></span>
+                }></span>
             </button>
         </div>
     }
@@ -324,7 +326,10 @@ pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> 
 
     view! {
         <div class=format!("flex items-center justify-between {}", class)>
-            <label for="focus-indicators-toggle" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label
+                for="focus-indicators-toggle"
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
                 "Enhanced Focus Indicators"
             </label>
             <button
@@ -332,27 +337,21 @@ pub fn FocusIndicatorsControl(#[prop(optional, into)] class: Option<String>) -> 
                 id="focus-indicators-toggle"
                 role="switch"
                 aria-checked=move || enhanced_focus.get().to_string()
-                class=move || format!(
-                    "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
-                    if enhanced_focus.get() {
-                        "bg-primary-600"
-                    } else {
-                        "bg-gray-200"
-                    }
-                )
+                class=move || {
+                    format!(
+                        "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {}",
+                        if enhanced_focus.get() { "bg-primary-600" } else { "bg-gray-200" },
+                    )
+                }
                 on:click=toggle
             >
                 <span class="sr-only">"Toggle enhanced focus indicators"</span>
-                <span
-                    class=move || format!(
+                <span class=move || {
+                    format!(
                         "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {}",
-                        if enhanced_focus.get() {
-                            "translate-x-5"
-                        } else {
-                            "translate-x-0"
-                        }
+                        if enhanced_focus.get() { "translate-x-5" } else { "translate-x-0" },
                     )
-                ></span>
+                }></span>
             </button>
         </div>
     }
@@ -368,7 +367,10 @@ pub fn AccessibilitySettingsPanel(#[prop(optional, into)] class: Option<String>)
     let class = class.unwrap_or_default();
 
     view! {
-        <div class=format!("space-y-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md {}", class)>
+        <div class=format!(
+            "space-y-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md {}",
+            class,
+        )>
             <div>
                 <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                     "Accessibility Settings"
@@ -420,7 +422,12 @@ pub fn AccessibilityMenuButton() -> impl IntoView {
                 on:click=toggle_panel
             >
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                    ></path>
                 </svg>
             </button>
 
@@ -434,7 +441,12 @@ pub fn AccessibilityMenuButton() -> impl IntoView {
                         on:click=move |_| set_show_panel.set(false)
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            ></path>
                         </svg>
                     </button>
                 </div>

@@ -218,7 +218,12 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
                         aria-label="Close"
                     >
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 </div>
@@ -314,19 +319,31 @@ pub fn ThemeEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl Int
                     <Show when=move || !warnings.get().is_empty()>
                         <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                             <div class="flex items-start">
-                                <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                <svg
+                                    class="w-5 h-5 text-yellow-600 dark:text-yellow-500 mt-0.5 mr-3"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd"
+                                    />
                                 </svg>
                                 <div class="flex-1">
                                     <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
                                         "Accessibility Warnings"
                                     </h3>
                                     <ul class="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
-                                        {move || warnings.get().into_iter().map(|warning| {
-                                            view! {
-                                                <li>"• " {warning}</li>
-                                            }
-                                        }).collect_view()}
+                                        {move || {
+                                            warnings
+                                                .get()
+                                                .into_iter()
+                                                .map(|warning| {
+                                                    view! { <li>"• " {warning}</li> }
+                                                })
+                                                .collect_view()
+                                        }}
                                     </ul>
                                 </div>
                             </div>
@@ -391,14 +408,16 @@ fn ThemeModeButton(
     view! {
         <button
             on:click=move |_| on_select.run(mode)
-            class=move || format!(
-                "flex-1 px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors {}",
-                if is_active() {
-                    "border-primary bg-primary/10 text-primary"
-                } else {
-                    "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
-                }
-            )
+            class=move || {
+                format!(
+                    "flex-1 px-4 py-3 text-sm font-medium rounded-lg border-2 transition-colors {}",
+                    if is_active() {
+                        "border-primary bg-primary/10 text-primary"
+                    } else {
+                        "border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600"
+                    },
+                )
+            }
         >
             <div class="flex flex-col items-center gap-1">
                 <span class="text-2xl">{icon}</span>
@@ -448,26 +467,44 @@ fn ThemePreview() -> impl IntoView {
         <div class="space-y-3">
             // Buttons
             <div class="flex gap-2">
-                <button class="px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: var(--color-primary)">
+                <button
+                    class="px-4 py-2 text-sm font-medium text-white rounded-lg"
+                    style="background-color: var(--color-primary)"
+                >
                     "Primary"
                 </button>
-                <button class="px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: var(--color-secondary)">
+                <button
+                    class="px-4 py-2 text-sm font-medium text-white rounded-lg"
+                    style="background-color: var(--color-secondary)"
+                >
                     "Secondary"
                 </button>
-                <button class="px-4 py-2 text-sm font-medium text-white rounded-lg" style="background-color: var(--color-accent)">
+                <button
+                    class="px-4 py-2 text-sm font-medium text-white rounded-lg"
+                    style="background-color: var(--color-accent)"
+                >
                     "Accent"
                 </button>
             </div>
 
             // Status badges
             <div class="flex gap-2">
-                <span class="px-3 py-1 text-xs font-medium text-white rounded-full" style="background-color: var(--color-success)">
+                <span
+                    class="px-3 py-1 text-xs font-medium text-white rounded-full"
+                    style="background-color: var(--color-success)"
+                >
                     "Success"
                 </span>
-                <span class="px-3 py-1 text-xs font-medium text-white rounded-full" style="background-color: var(--color-warning)">
+                <span
+                    class="px-3 py-1 text-xs font-medium text-white rounded-full"
+                    style="background-color: var(--color-warning)"
+                >
                     "Warning"
                 </span>
-                <span class="px-3 py-1 text-xs font-medium text-white rounded-full" style="background-color: var(--color-error)">
+                <span
+                    class="px-3 py-1 text-xs font-medium text-white rounded-full"
+                    style="background-color: var(--color-error)"
+                >
                     "Error"
                 </span>
             </div>

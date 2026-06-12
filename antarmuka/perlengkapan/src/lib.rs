@@ -94,13 +94,7 @@ fn UkuranPegawaiCurrentUser() -> impl IntoView {
             // unique per identity and never empty, so we never collide
             // across two pegawai sharing a workstation.
             let cache_key = s.user_id.clone();
-            view! {
-                <UkuranPegawai
-                    pegawai_id=cache_key
-                    pegawai_nama=s.name.clone()
-                    pegawai_nip=nip
-                />
-            }
+            view! { <UkuranPegawai pegawai_id=cache_key pegawai_nama=s.name.clone() pegawai_nip=nip /> }
             .into_any()
         }
         None => view! {
@@ -158,174 +152,312 @@ pub fn App() -> impl IntoView {
         <Meta name="viewport" content="width=device-width, initial-scale=1" />
 
         <AppShell>
-        // Router base harus match canonical mount point `/perlengkapan/simpel/v2/`
-        // sesuai routing spec — supaya path `/perlengkapan/simpel/v2/` ke router
-        // dianggap path `/` (root), trigger redirect ke `/login` jika belum
-        // authenticated. Sebelumnya base="/perlengkapan" tidak match path baru
-        // sehingga semua route fall through ke NotFound.
-        <Router base="/perlengkapan/simpel/v2">
-            {
-                // use_location() HARUS dipanggil di dalam Router scope.
-                // location.pathname adalah reactive signal → closures
-                // di bawahnya re-evaluate setiap kali router nav.
-                let location = leptos_router::hooks::use_location();
-                let is_login_page = move || {
-                    let path = location.pathname.get();
-                    let normalized = path.trim_end_matches('/');
-                    normalized == "/perlengkapan/simpel/v2/login"
-                        || normalized == "/perlengkapan/login"
-                        || normalized == "/login"
-                        || normalized.ends_with("/login")
-                };
-                let main_class = move || {
-                    if is_login_page() {
-                        "flex-1 overflow-y-auto p-0"
-                    } else {
-                        "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
-                    }
-                };
+            // Router base harus match canonical mount point `/perlengkapan/simpel/v2/`
+            // sesuai routing spec — supaya path `/perlengkapan/simpel/v2/` ke router
+            // dianggap path `/` (root), trigger redirect ke `/login` jika belum
+            // authenticated. Sebelumnya base="/perlengkapan" tidak match path baru
+            // sehingga semua route fall through ke NotFound.
+            <Router base="/perlengkapan/simpel/v2">
+                {
+                    let location = leptos_router::hooks::use_location();
+                    let is_login_page = move || {
+                        let path = location.pathname.get();
+                        let normalized = path.trim_end_matches('/');
+                        normalized == "/perlengkapan/simpel/v2/login"
+                            || normalized == "/perlengkapan/login" || normalized == "/login"
+                            || normalized.ends_with("/login")
+                    };
+                    let main_class = move || {
+                        if is_login_page() {
+                            "flex-1 overflow-y-auto p-0"
+                        } else {
+                            "flex-1 overflow-y-auto p-6 lg:ml-[250px]"
+                        }
+                    };
+                    // use_location() HARUS dipanggil di dalam Router scope.
+                    // location.pathname adalah reactive signal → closures
+                    // di bawahnya re-evaluate setiap kali router nav.
 
-                view! {
-                    <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
-                        // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
-                        <div class="hidden lg:ml-[250px]"></div>
+                    view! {
+                        <div class="flex min-h-screen flex-col bg-app-gradient font-sans text-slate-100">
+                            // Keep this static class token so Tailwind/JIT always emits the desktop offset utility.
+                            <div class="hidden lg:ml-[250px]"></div>
 
-                        {move || (!is_login_page()).then(|| {
-                            let toggle = Callback::new(move |_: ()| sidebar_open.update(|o| *o = !*o));
-                            view! {
-                                <AppHeader on_toggle_sidebar=toggle />
-                                <IntegrasiHealthBanner />
-                            }
-                        })}
-
-                        <div class="flex min-h-0 flex-1">
-                            {move || if is_login_page() {
-                                ().into_any()
-                            } else {
-                                view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
+                            {move || {
+                                (!is_login_page())
+                                    .then(|| {
+                                        let toggle = Callback::new(move |_: ()| {
+                                            sidebar_open.update(|o| *o = !*o)
+                                        });
+                                        view! {
+                                            <AppHeader on_toggle_sidebar=toggle />
+                                            <IntegrasiHealthBanner />
+                                        }
+                                    })
                             }}
 
+                            <div class="flex min-h-0 flex-1">
+                                {move || {
+                                    if is_login_page() {
+                                        ().into_any()
+                                    } else {
+                                        view! { <Sidebar sidebar_open=sidebar_open /> }.into_any()
+                                    }
+                                }}
                                 <main class=main_class>
-                        <Routes fallback=move || view! { <NotFound /> }.into_any()>
-                            // ══════════════════════════════════════════
-                            // PUBLIC ROUTES (no auth required)
-                            // ══════════════════════════════════════════
-                            <Route path=path!("/login") view=move || {
-                                if AuthService::load_session().is_some() {
-                                    // Leptos Router base "/perlengkapan/simpel/v2" otomatis
-                                    // prepend ke nav() path — pakai relative path /dashboard
-                                    // (tanpa prefix) supaya tidak jadi
-                                    // "/perlengkapan/simpel/v2/perlengkapan/simpel/v2/dashboard".
-                                    let nav = leptos_router::hooks::use_navigate();
-                                    nav("/dashboard", Default::default());
-                                    view! { <div></div> }.into_any()
-                                } else {
-                                    view! { <LoginPage /> }.into_any()
-                                }
-                            } />
-                            <Route path=path!("/") view=move || {
-                                // SPA redirect based on authentication status.
-                                // Lihat catatan di atas: nav() relative ke router base.
-                                let nav = leptos_router::hooks::use_navigate();
-                                if AuthService::load_session().is_some() {
-                                    nav("/dashboard", Default::default());
-                                } else {
-                                    nav("/login", Default::default());
-                                }
-                                view! { <div></div> }
-                            } />
+                                    <Routes fallback=move || view! { <NotFound /> }.into_any()>
+                                        // ══════════════════════════════════════════
+                                        // PUBLIC ROUTES (no auth required)
+                                        // ══════════════════════════════════════════
+                                        <Route
+                                            path=path!("/login")
+                                            view=move || {
+                                                if AuthService::load_session().is_some() {
+                                                    let nav = leptos_router::hooks::use_navigate();
+                                                    nav("/dashboard", Default::default());
+                                                    // Leptos Router base "/perlengkapan/simpel/v2" otomatis
+                                                    // prepend ke nav() path — pakai relative path /dashboard
+                                                    // (tanpa prefix) supaya tidak jadi
+                                                    // "/perlengkapan/simpel/v2/perlengkapan/simpel/v2/dashboard".
+                                                    view! { <div></div> }
+                                                        .into_any()
+                                                } else {
+                                                    view! { <LoginPage /> }.into_any()
+                                                }
+                                            }
+                                        />
+                                        <Route
+                                            path=path!("/")
+                                            view=move || {
+                                                let nav = leptos_router::hooks::use_navigate();
+                                                if AuthService::load_session().is_some() {
+                                                    nav("/dashboard", Default::default());
+                                                } else {
+                                                    nav("/login", Default::default());
+                                                }
+                                                // SPA redirect based on authentication status.
+                                                // Lihat catatan di atas: nav() relative ke router base.
+                                                view! { <div></div> }
+                                            }
+                                        />
 
-                            // ══════════════════════════════════════════
-                            // AUTHENTICATED ROUTES — AuthenticatedLayout
-                            // guards ALL children automatically (like
-                            // Next.js layout.tsx / Laravel middleware)
-                            // ══════════════════════════════════════════
-                            <ParentRoute path=path!("/") view=AuthenticatedLayout>
-                                <Route path=path!("/dashboard") view=DashboardHome />
-                                <Route path=path!("/dashboard/search") view=SearchPage />
+                                        // ══════════════════════════════════════════
+                                        // AUTHENTICATED ROUTES — AuthenticatedLayout
+                                        // guards ALL children automatically (like
+                                        // Next.js layout.tsx / Laravel middleware)
+                                        // ══════════════════════════════════════════
+                                        <ParentRoute path=path!("/") view=AuthenticatedLayout>
+                                            <Route path=path!("/dashboard") view=DashboardHome />
+                                            <Route path=path!("/dashboard/search") view=SearchPage />
 
-                                // ── Bank Aset ────────────────────────
-                                <Route path=path!("/bank-aset") view=BankAsetDashboardPage />
-                                <Route path=path!("/bank-aset/dashboard") view=BankAsetDashboardPage />
-                                <Route path=path!("/bank-aset/daftar") view=BankAsetListPage />
-                                <Route path=path!("/bank-aset/daftar/:id") view=BankAsetDetailPage />
-                                <Route path=path!("/bank-aset/sebaran") view=BankAsetSebaranPage />
-                                <Route path=path!("/bank-aset/qrcode") view=BankAsetQrCodePage />
+                                            // ── Bank Aset ────────────────────────
+                                            <Route
+                                                path=path!("/bank-aset")
+                                                view=BankAsetDashboardPage
+                                            />
+                                            <Route
+                                                path=path!("/bank-aset/dashboard")
+                                                view=BankAsetDashboardPage
+                                            />
+                                            <Route
+                                                path=path!("/bank-aset/daftar")
+                                                view=BankAsetListPage
+                                            />
+                                            <Route
+                                                path=path!("/bank-aset/daftar/:id")
+                                                view=BankAsetDetailPage
+                                            />
+                                            <Route
+                                                path=path!("/bank-aset/sebaran")
+                                                view=BankAsetSebaranPage
+                                            />
+                                            <Route
+                                                path=path!("/bank-aset/qrcode")
+                                                view=BankAsetQrCodePage
+                                            />
 
-                                // ── Kebutuhan BMN ────────────────────
-                                <Route path=path!("/kebutuhan-bmn/periode") view=PeriodManagement />
-                                <Route path=path!("/kebutuhan-bmn/daftar") view=KebutuhanBmnList />
-                                <Route path=path!("/kebutuhan-bmn") view=KebutuhanBmnList />
-                                <Route path=path!("/kebutuhan-bmn/buat") view=KebutuhanBmnForm />
-                                <Route path=path!("/kebutuhan-bmn/baru") view=KebutuhanBmnForm />
-                                <Route path=path!("/kebutuhan-bmn/:id/edit") view=KebutuhanBmnForm />
-                                <Route path=path!("/kebutuhan-bmn/detail/:id") view=KebutuhanBmnDetail />
-                                <Route path=path!("/kebutuhan-bmn/:id") view=KebutuhanBmnDetail />
-                                <Route path=path!("/kebutuhan-bmn/satker/:satker_id") view=KebutuhanBmnSatkerDetail />
-                                <Route path=path!("/kebutuhan-bmn/laporan") view=LaporanKebutuhanBmn />
+                                            // ── Kebutuhan BMN ────────────────────
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/periode")
+                                                view=PeriodManagement
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/daftar")
+                                                view=KebutuhanBmnList
+                                            />
+                                            <Route path=path!("/kebutuhan-bmn") view=KebutuhanBmnList />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/buat")
+                                                view=KebutuhanBmnForm
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/baru")
+                                                view=KebutuhanBmnForm
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/:id/edit")
+                                                view=KebutuhanBmnForm
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/detail/:id")
+                                                view=KebutuhanBmnDetail
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/:id")
+                                                view=KebutuhanBmnDetail
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/satker/:satker_id")
+                                                view=KebutuhanBmnSatkerDetail
+                                            />
+                                            <Route
+                                                path=path!("/kebutuhan-bmn/laporan")
+                                                view=LaporanKebutuhanBmn
+                                            />
 
-                                // ── Pakaian Dinas ────────────────────
-                                <Route path=path!("/pakaian-dinas/jenis") view=PakaianDinasJenisList />
-                                <Route path=path!("/pakaian-dinas/jenis/:id/spesifikasi") view=SpesifikasiPage />
-                                <Route path=path!("/pakaian-dinas/pengajuan") view=PakaianDinasPengajuanList />
-                                <Route path=path!("/pakaian-dinas/pengajuan/:pengajuan_id/satker") view=PakaianDinasSatkerDetail />
-                                <Route path=path!("/pakaian-dinas/ukuran") view=UkuranPegawaiCurrentUser />
-                                <Route path=path!("/pakaian-dinas/laporan") view=PakaianDinasLaporan />
-                                <Route path=path!("/pakaian-dinas/laporan/rekap") view=PakaianDinasLaporan />
+                                            // ── Pakaian Dinas ────────────────────
+                                            <Route
+                                                path=path!("/pakaian-dinas/jenis")
+                                                view=PakaianDinasJenisList
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/jenis/:id/spesifikasi")
+                                                view=SpesifikasiPage
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/pengajuan")
+                                                view=PakaianDinasPengajuanList
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/pengajuan/:pengajuan_id/satker")
+                                                view=PakaianDinasSatkerDetail
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/ukuran")
+                                                view=UkuranPegawaiCurrentUser
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/laporan")
+                                                view=PakaianDinasLaporan
+                                            />
+                                            <Route
+                                                path=path!("/pakaian-dinas/laporan/rekap")
+                                                view=PakaianDinasLaporan
+                                            />
 
-                                // ── Pengelolaan BMN ──────────────────
-                                <Route path=path!("/pengelolaan/pemakaian") view=PemakaianBmnListPage />
-                                <Route path=path!("/pemakaian-bmn") view=PemakaianBmnListPage />
-                                <Route path=path!("/pengelolaan/pemakaian/buat") view=PemakaianBmnForm />
-                                <Route path=path!("/pemakaian-bmn/baru") view=PemakaianBmnForm />
-                                <Route path=path!("/pengelolaan/pemakaian/detail/:id") view=PemakaianBmnDetailPage />
-                                <Route path=path!("/pemakaian-bmn/:id") view=PemakaianBmnDetailPage />
-                                <Route path=path!("/pemakaian-bmn/:id/renew") view=PemakaianBmnRenew />
-                                <Route path=path!("/pengelolaan/pemakaian/monitoring") view=PemakaianBmnMonitoring />
-                                <Route path=path!("/pengelolaan/penghapusan") view=PenghapusanBmnListPage />
-                                <Route path=path!("/pengelolaan/penghapusan/daftar") view=PenghapusanBmnListPage />
-                                <Route path=path!("/pengelolaan/penghapusan/buat") view=PenghapusanForm />
-                                <Route path=path!("/pengelolaan/penghapusan/baru") view=PenghapusanForm />
-                                <Route path=path!("/pengelolaan/penghapusan/detail/:id") view=PenghapusanBmnDetailPage />
-                                <Route path=path!("/pengelolaan/penghapusan/:id") view=PenghapusanBmnDetailPage />
+                                            // ── Pengelolaan BMN ──────────────────
+                                            <Route
+                                                path=path!("/pengelolaan/pemakaian")
+                                                view=PemakaianBmnListPage
+                                            />
+                                            <Route
+                                                path=path!("/pemakaian-bmn")
+                                                view=PemakaianBmnListPage
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/pemakaian/buat")
+                                                view=PemakaianBmnForm
+                                            />
+                                            <Route
+                                                path=path!("/pemakaian-bmn/baru")
+                                                view=PemakaianBmnForm
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/pemakaian/detail/:id")
+                                                view=PemakaianBmnDetailPage
+                                            />
+                                            <Route
+                                                path=path!("/pemakaian-bmn/:id")
+                                                view=PemakaianBmnDetailPage
+                                            />
+                                            <Route
+                                                path=path!("/pemakaian-bmn/:id/renew")
+                                                view=PemakaianBmnRenew
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/pemakaian/monitoring")
+                                                view=PemakaianBmnMonitoring
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan")
+                                                view=PenghapusanBmnListPage
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan/daftar")
+                                                view=PenghapusanBmnListPage
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan/buat")
+                                                view=PenghapusanForm
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan/baru")
+                                                view=PenghapusanForm
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan/detail/:id")
+                                                view=PenghapusanBmnDetailPage
+                                            />
+                                            <Route
+                                                path=path!("/pengelolaan/penghapusan/:id")
+                                                view=PenghapusanBmnDetailPage
+                                            />
 
-                                // ── Analitik ─────────────────────────
-                                <Route path=path!("/analitik/roadmap") view=AnalisisList />
-                                <Route path=path!("/analitik/roadmap/buat") view=AnalisisForm />
-                                <Route path=path!("/analitik/kodefikasi") view=MappingKodefikasiDashboard />
+                                            // ── Analitik ─────────────────────────
+                                            <Route path=path!("/analitik/roadmap") view=AnalisisList />
+                                            <Route
+                                                path=path!("/analitik/roadmap/buat")
+                                                view=AnalisisForm
+                                            />
+                                            <Route
+                                                path=path!("/analitik/kodefikasi")
+                                                view=MappingKodefikasiDashboard
+                                            />
 
-                                // ── Notifikasi ───────────────────────
-                                <Route path=path!("/notifikasi") view=NotifikasiInboxPage />
+                                            // ── Notifikasi ───────────────────────
+                                            <Route path=path!("/notifikasi") view=NotifikasiInboxPage />
 
-                                // ── Bantuan ──────────────────────────
-                                <Route path=path!("/bantuan/panduan") view=PanduanPengguna />
-                                <Route path=path!("/bantuan/faq") view=FaqPage />
-                                <Route path=path!("/bantuan/helpdesk") view=HelpdeskPage />
-                            </ParentRoute>
+                                            // ── Bantuan ──────────────────────────
+                                            <Route
+                                                path=path!("/bantuan/panduan")
+                                                view=PanduanPengguna
+                                            />
+                                            <Route path=path!("/bantuan/faq") view=FaqPage />
+                                            <Route path=path!("/bantuan/helpdesk") view=HelpdeskPage />
+                                        </ParentRoute>
 
-                            // ══════════════════════════════════════════
-                            // ADMIN ROUTES — AdminLayout guards all
-                            // children (admin role required)
-                            // ══════════════════════════════════════════
-                            <ParentRoute path=path!("/admin") view=AdminLayout>
-                                <Route path=path!("/users") view=AdminUsersPage />
-                                <Route path=path!("/roles") view=AdminRolesPage />
-                                <Route path=path!("/audit") view=AdminAuditPage />
-                                <Route path=path!("/master") view=AdminMasterDataPage />
-                                <Route path=path!("/templates") view=AdminTemplatesPage />
-                                <Route path=path!("/workflow") view=WorkflowConfigManagement />
-                                <Route path=path!("/workflow-monitoring") view=WorkflowMonitoring />
-                                <Route path=path!("/workflow-delegation") view=WorkflowDelegationPage />
-                            </ParentRoute>
-                        </Routes>
-                    </main>
-                </div>
+                                        // ══════════════════════════════════════════
+                                        // ADMIN ROUTES — AdminLayout guards all
+                                        // children (admin role required)
+                                        // ══════════════════════════════════════════
+                                        <ParentRoute path=path!("/admin") view=AdminLayout>
+                                            <Route path=path!("/users") view=AdminUsersPage />
+                                            <Route path=path!("/roles") view=AdminRolesPage />
+                                            <Route path=path!("/audit") view=AdminAuditPage />
+                                            <Route path=path!("/master") view=AdminMasterDataPage />
+                                            <Route path=path!("/templates") view=AdminTemplatesPage />
+                                            <Route
+                                                path=path!("/workflow")
+                                                view=WorkflowConfigManagement
+                                            />
+                                            <Route
+                                                path=path!("/workflow-monitoring")
+                                                view=WorkflowMonitoring
+                                            />
+                                            <Route
+                                                path=path!("/workflow-delegation")
+                                                view=WorkflowDelegationPage
+                                            />
+                                        </ParentRoute>
+                                    </Routes>
+                                </main>
+                            </div>
 
-                        {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
-                    </div>
+                            {move || (!is_login_page()).then(|| view! { <AppFooter /> })}
+                        </div>
+                    }
                 }
-            }
-        </Router>
+            </Router>
         </AppShell>
     }
 }

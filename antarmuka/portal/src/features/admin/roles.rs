@@ -66,7 +66,9 @@ pub fn RolesManagementPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / Peran"
                 </nav>
                 <div class="flex items-center justify-between mb-6">
@@ -79,15 +81,11 @@ pub fn RolesManagementPage() -> impl IntoView {
                     </button>
                 </div>
 
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat data peran..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat data peran..." /> }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <For
@@ -99,20 +97,29 @@ pub fn RolesManagementPage() -> impl IntoView {
                                 view! {
                                     <div class="bg-white rounded-xl border border-gray-200 p-5">
                                         <div class="flex items-center justify-between mb-2">
-                                            <h3 class="font-semibold text-gray-900">{role.name.clone()}</h3>
+                                            <h3 class="font-semibold text-gray-900">
+                                                {role.name.clone()}
+                                            </h3>
                                             <button
                                                 class="text-xs text-red-600 hover:text-red-800 font-medium"
                                                 title="Hapus peran"
-                                                on:click=move |_| set_deleting.set(Some(role_for_delete.clone()))
+                                                on:click=move |_| {
+                                                    set_deleting.set(Some(role_for_delete.clone()))
+                                                }
                                             >
                                                 "🗑️ Hapus"
                                             </button>
                                         </div>
                                         <p class="text-sm text-gray-500 mb-3">
-                                            {role.description.clone().unwrap_or_else(|| "Tanpa deskripsi".to_string())}
+                                            {role
+                                                .description
+                                                .clone()
+                                                .unwrap_or_else(|| "Tanpa deskripsi".to_string())}
                                         </p>
                                         <div class="flex items-center gap-2 text-xs text-gray-400">
-                                            <span>"🛡️ " {format!("{} permission", perm_count)}</span>
+                                            <span>
+                                                "🛡️ " {format!("{} permission", perm_count)}
+                                            </span>
                                         </div>
                                     </div>
                                 }
@@ -128,13 +135,29 @@ pub fn RolesManagementPage() -> impl IntoView {
                     </Show>
                 </Show>
 
-                {move || show_create.get().then(|| view! {
-                    <CreateRoleModal on_close=close_create on_saved=saved_create />
-                })}
+                {move || {
+                    show_create
+                        .get()
+                        .then(|| {
+                            view! {
+                                <CreateRoleModal on_close=close_create on_saved=saved_create />
+                            }
+                        })
+                }}
 
-                {move || deleting.get().map(|role| view! {
-                    <DeleteRoleModal role=role on_close=close_delete on_confirmed=confirm_delete />
-                })}
+                {move || {
+                    deleting
+                        .get()
+                        .map(|role| {
+                            view! {
+                                <DeleteRoleModal
+                                    role=role
+                                    on_close=close_delete
+                                    on_confirmed=confirm_delete
+                                />
+                            }
+                        })
+                }}
             </div>
         </MainLayout>
     }
@@ -227,7 +250,9 @@ fn CreateRoleModal(
                 </label>
 
                 <label class="block">
-                    <span class="block text-sm font-medium text-gray-700 mb-1">"Deskripsi (opsional)"</span>
+                    <span class="block text-sm font-medium text-gray-700 mb-1">
+                        "Deskripsi (opsional)"
+                    </span>
                     <textarea
                         class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500"
                         rows="3"
@@ -237,11 +262,17 @@ fn CreateRoleModal(
                     />
                 </label>
 
-                {move || submit_error.get().map(|msg| view! {
-                    <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        {msg}
-                    </div>
-                })}
+                {move || {
+                    submit_error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                    {msg}
+                                </div>
+                            }
+                        })
+                }}
 
                 <div class="flex justify-end gap-2 pt-2">
                     <button
@@ -310,18 +341,22 @@ fn DeleteRoleModal(
             <div class="w-full max-w-md bg-white rounded-xl shadow-xl p-6 space-y-4">
                 <h2 class="text-lg font-semibold text-gray-900">"Hapus Peran"</h2>
                 <p class="text-sm text-gray-600">
-                    "Anda akan menghapus peran "
-                    <strong class="text-gray-900">{role_name}</strong>
-                    " yang memiliki "
-                    {format!("{} permission", role_perms)}
+                    "Anda akan menghapus peran " <strong class="text-gray-900">{role_name}</strong>
+                    " yang memiliki " {format!("{} permission", role_perms)}
                     ". Tindakan ini tidak dapat dibatalkan."
                 </p>
 
-                {move || delete_error.get().map(|msg| view! {
-                    <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                        {msg}
-                    </div>
-                })}
+                {move || {
+                    delete_error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                    {msg}
+                                </div>
+                            }
+                        })
+                }}
 
                 <div class="flex justify-end gap-2">
                     <button

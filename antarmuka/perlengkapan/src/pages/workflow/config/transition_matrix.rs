@@ -68,8 +68,15 @@ pub fn TransitionMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                 <tr>
                     <th class="whitespace-nowrap border-b border-white/[0.04] bg-white/[0.02] px-3 py-2 text-left text-xs font-semibold text-slate-200">
                         <div class="flex items-center gap-2">
-                            <span class=if is_terminal { "inline-flex text-danger-400" } else { "inline-flex text-info-400" }>
-                                <AppIcon icon=if is_terminal { FLAG_CHECKERED } else { CIRCLE } size=10 />
+                            <span class=if is_terminal {
+                                "inline-flex text-danger-400"
+                            } else {
+                                "inline-flex text-info-400"
+                            }>
+                                <AppIcon
+                                    icon=if is_terminal { FLAG_CHECKERED } else { CIRCLE }
+                                    size=10
+                                />
                             </span>
                             {row_label}
                         </div>
@@ -91,9 +98,7 @@ pub fn TransitionMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                         {header_cells}
                     </tr>
                 </thead>
-                <tbody>
-                    {rows}
-                </tbody>
+                <tbody>{rows}</tbody>
             </table>
         </div>
     }

@@ -154,7 +154,11 @@ mod mfa_accessibility_tests {
                     <div class="mfa-setup-page" role="main" aria-labelledby="setup-title">
                         <h1 id="setup-title">"Multi-Factor Authentication Setup"</h1>
 
-                        <div class="setup-instructions" role="region" aria-labelledby="instructions-title">
+                        <div
+                            class="setup-instructions"
+                            role="region"
+                            aria-labelledby="instructions-title"
+                        >
                             <h2 id="instructions-title">"Setup Instructions"</h2>
                             <ol>
                                 <li>"Download an authenticator app"</li>
@@ -177,7 +181,11 @@ mod mfa_accessibility_tests {
                             </p>
                         </div>
 
-                        <div class="verification-section" role="region" aria-labelledby="verify-title">
+                        <div
+                            class="verification-section"
+                            role="region"
+                            aria-labelledby="verify-title"
+                        >
                             <h2 id="verify-title">"Verification"</h2>
                             <label for="otp-code" class="otp-label">
                                 "Enter 6-digit code from your app:"
@@ -301,32 +309,45 @@ mod mfa_accessibility_tests {
                             <div class="form-group">
                                 <label for="verify-otp" class="required">
                                     "Authentication Code"
-                                    <span class="required-indicator" aria-label="required">"*"</span>
+                                    <span class="required-indicator" aria-label="required">
+                                        "*"
+                                    </span>
                                 </label>
                                 <input
                                     type="text"
                                     id="verify-otp"
-                                    class=move || if has_error.get() { "otp-input error" } else { "otp-input" }
+                                    class=move || {
+                                        if has_error.get() {
+                                            "otp-input error"
+                                        } else {
+                                            "otp-input"
+                                        }
+                                    }
                                     placeholder="000000"
                                     maxlength="6"
                                     pattern="[0-9]*"
                                     inputmode="numeric"
                                     autocomplete="one-time-code"
                                     aria-required="true"
-                                    aria-invalid=move || if has_error.get() { "true" } else { "false" }
+                                    aria-invalid=move || {
+                                        if has_error.get() { "true" } else { "false" }
+                                    }
                                     aria-describedby="otp-help error-message"
                                 />
                                 <p id="otp-help" class="input-help">
                                     "Enter the 6-digit code from your authenticator app"
                                 </p>
-                                {move || if has_error.get() {
-                                    view! {
-                                        <p id="error-message" class="error-text" role="alert">
-                                            "Invalid code. Please check your authenticator app and try again."
-                                        </p>
-                                    }.into_any()
-                                } else {
-                                    view! { <div></div> }.into_any()
+                                {move || {
+                                    if has_error.get() {
+                                        view! {
+                                            <p id="error-message" class="error-text" role="alert">
+                                                "Invalid code. Please check your authenticator app and try again."
+                                            </p>
+                                        }
+                                            .into_any()
+                                    } else {
+                                        view! { <div></div> }.into_any()
+                                    }
                                 }}
                             </div>
 
@@ -476,12 +497,15 @@ mod mfa_accessibility_tests {
                                         aria-live="assertive"
                                         data-testid="invalid-code-error"
                                     >
-                                        <span class="error-icon" aria-hidden="true">"❌"</span>
+                                        <span class="error-icon" aria-hidden="true">
+                                            "❌"
+                                        </span>
                                         <span class="error-text">
                                             "Invalid authentication code. Please check your authenticator app and try again."
                                         </span>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                             Some("rate_limited") => {
                                 view! {
@@ -491,15 +515,22 @@ mod mfa_accessibility_tests {
                                         aria-live="assertive"
                                         data-testid="rate-limit-error"
                                     >
-                                        <span class="error-icon" aria-hidden="true">"🔒"</span>
+                                        <span class="error-icon" aria-hidden="true">
+                                            "🔒"
+                                        </span>
                                         <span class="error-text">
                                             "Too many failed attempts. Please wait 5 minutes before trying again."
                                         </span>
-                                        <div class="countdown" aria-live="polite" aria-label="Time remaining">
+                                        <div
+                                            class="countdown"
+                                            aria-live="polite"
+                                            aria-label="Time remaining"
+                                        >
                                             "4:59 remaining"
                                         </div>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                             Some("network_error") => {
                                 view! {
@@ -509,7 +540,9 @@ mod mfa_accessibility_tests {
                                         aria-live="assertive"
                                         data-testid="network-error"
                                     >
-                                        <span class="error-icon" aria-hidden="true">"🌐"</span>
+                                        <span class="error-icon" aria-hidden="true">
+                                            "🌐"
+                                        </span>
                                         <span class="error-text">
                                             "Network error. Please check your connection and try again."
                                         </span>
@@ -520,9 +553,10 @@ mod mfa_accessibility_tests {
                                             "Click to retry the verification request"
                                         </p>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
-                            _ => view! { <div></div> }.into_any()
+                            _ => view! { <div></div> }.into_any(),
                         }}
                     </div>
                 }
@@ -609,7 +643,9 @@ mod mfa_accessibility_tests {
                             aria-live="polite"
                             data-testid="success-status"
                         >
-                            <span class="success-icon" aria-hidden="true">"✅"</span>
+                            <span class="success-icon" aria-hidden="true">
+                                "✅"
+                            </span>
                             <h2>"MFA Setup Complete!"</h2>
                             <p>"Your account is now protected with multi-factor authentication."</p>
                         </div>

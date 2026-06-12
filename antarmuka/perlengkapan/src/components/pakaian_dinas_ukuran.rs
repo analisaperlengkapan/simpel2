@@ -133,7 +133,9 @@ pub fn UkuranPegawai(
 
             // Size form
             <div class="mt-4">
-                <Suspense fallback=move || view! { <LoadingState message="Memuat data ukuran...".to_string() /> }>
+                <Suspense fallback=move || {
+                    view! { <LoadingState message="Memuat data ukuran...".to_string() /> }
+                }>
                     {move || {
                         let pid = pegawai_id_for_submit.clone();
                         match master_ukuran.get() {
@@ -153,12 +155,27 @@ pub fn UkuranPegawai(
                                     spawn_local(async move {
                                         let request = UpsertPegawaiUkuranRequest {
                                             pegawai_id: pid,
-                                            ukuran_baju: if baju.is_empty() { None } else { Some(baju) },
-                                            ukuran_celana: if celana.is_empty() { None } else { Some(celana) },
-                                            ukuran_sepatu: if sepatu.is_empty() { None } else { Some(sepatu) },
+                                            ukuran_baju: if baju.is_empty() {
+                                                None
+                                            } else {
+                                                Some(baju)
+                                            },
+                                            ukuran_celana: if celana.is_empty() {
+                                                None
+                                            } else {
+                                                Some(celana)
+                                            },
+                                            ukuran_sepatu: if sepatu.is_empty() {
+                                                None
+                                            } else {
+                                                Some(sepatu)
+                                            },
                                         };
                                         match upsert_pegawai_ukuran(request).await {
-                                            Ok(_) => set_success_message.set(Some("Ukuran berhasil disimpan!".to_string())),
+                                            Ok(_) => {
+                                                set_success_message
+                                                    .set(Some("Ukuran berhasil disimpan!".to_string()))
+                                            }
                                             Err(e) => set_error_message.set(Some(e.user_message())),
                                         }
                                         set_is_saving.set(false);
@@ -168,9 +185,30 @@ pub fn UkuranPegawai(
                                     <SectionCard title="Isi Ukuran">
                                         <form on:submit=on_submit>
                                             <div class="grid grid-cols-1 gap-5 sm:grid-cols-3">
-                                                {render_size_select("Ukuran Baju", "fas fa-tshirt text-info-400", baju_sizes, ukuran_baju, set_ukuran_baju, "Ukuran standar: S, M, L, XL, XXL, XXXL")}
-                                                {render_size_select("Ukuran Celana", "fas fa-male text-success-400", celana_sizes, ukuran_celana, set_ukuran_celana, "Ukuran standar: 27-42 (angka)")}
-                                                {render_size_select("Ukuran Sepatu", "fas fa-shoe-prints text-gold-400", sepatu_sizes, ukuran_sepatu, set_ukuran_sepatu, "Ukuran standar: 36-46 (angka)")}
+                                                {render_size_select(
+                                                    "Ukuran Baju",
+                                                    "fas fa-tshirt text-info-400",
+                                                    baju_sizes,
+                                                    ukuran_baju,
+                                                    set_ukuran_baju,
+                                                    "Ukuran standar: S, M, L, XL, XXL, XXXL",
+                                                )}
+                                                {render_size_select(
+                                                    "Ukuran Celana",
+                                                    "fas fa-male text-success-400",
+                                                    celana_sizes,
+                                                    ukuran_celana,
+                                                    set_ukuran_celana,
+                                                    "Ukuran standar: 27-42 (angka)",
+                                                )}
+                                                {render_size_select(
+                                                    "Ukuran Sepatu",
+                                                    "fas fa-shoe-prints text-gold-400",
+                                                    sepatu_sizes,
+                                                    ukuran_sepatu,
+                                                    set_ukuran_sepatu,
+                                                    "Ukuran standar: 36-46 (angka)",
+                                                )}
                                             </div>
                                             <div class="mt-5 flex justify-end border-t border-white/[0.04] pt-4">
                                                 <button
@@ -178,13 +216,22 @@ pub fn UkuranPegawai(
                                                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                                                     prop:disabled=move || is_saving.get()
                                                 >
-                                                    <span class="text-xs"><AppIcon icon=FLOPPY_DISK /></span>
-                                                    {move || if is_saving.get() { "Menyimpan..." } else { "Simpan Ukuran" }}
+                                                    <span class="text-xs">
+                                                        <AppIcon icon=FLOPPY_DISK />
+                                                    </span>
+                                                    {move || {
+                                                        if is_saving.get() {
+                                                            "Menyimpan..."
+                                                        } else {
+                                                            "Simpan Ukuran"
+                                                        }
+                                                    }}
                                                 </button>
                                             </div>
                                         </form>
                                     </SectionCard>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                         }
                     }}
@@ -195,16 +242,31 @@ pub fn UkuranPegawai(
             <SectionCard title="Panduan Pengukuran">
                 <ul class="flex flex-col gap-2 text-sm text-slate-300">
                     <li class="flex items-start gap-2">
-                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
-                        <span><strong class="text-slate-100">"Baju:"</strong>" Ukur lingkar dada pada bagian terlebar, pilih ukuran yang sesuai."</span>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0">
+                            <AppIcon icon=INFO />
+                        </span>
+                        <span>
+                            <strong class="text-slate-100">"Baju:"</strong>
+                            " Ukur lingkar dada pada bagian terlebar, pilih ukuran yang sesuai."
+                        </span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
-                        <span><strong class="text-slate-100">"Celana:"</strong>" Ukur lingkar pinggang pada posisi normal."</span>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0">
+                            <AppIcon icon=INFO />
+                        </span>
+                        <span>
+                            <strong class="text-slate-100">"Celana:"</strong>
+                            " Ukur lingkar pinggang pada posisi normal."
+                        </span>
                     </li>
                     <li class="flex items-start gap-2">
-                        <span class="mt-0.5 text-xs text-gold-400 shrink-0"><AppIcon icon=INFO /></span>
-                        <span><strong class="text-slate-100">"Sepatu:"</strong>" Ukur panjang kaki dari tumit ke ujung jari terpanjang."</span>
+                        <span class="mt-0.5 text-xs text-gold-400 shrink-0">
+                            <AppIcon icon=INFO />
+                        </span>
+                        <span>
+                            <strong class="text-slate-100">"Sepatu:"</strong>
+                            " Ukur panjang kaki dari tumit ke ujung jari terpanjang."
+                        </span>
                     </li>
                 </ul>
             </SectionCard>
@@ -288,38 +350,63 @@ pub fn UkuranPegawaiSatker(
             description="Daftar ukuran pakaian dinas seluruh pegawai di satker"
         >
             // Banner kesegaran data pegawai MySIMKARI (Fase 2.4)
-            <Suspense fallback=|| ().into_any()>
+            <Suspense fallback=|| {
+                ().into_any()
+            }>
                 {move || {
-                    sync_resource.get().map(|maybe_sync| match maybe_sync {
-                        Some(s) => {
-                            let waktu = s.last_sync_at.clone().unwrap_or_else(|| "-".to_string());
-                            if s.segar {
-                                view! {
-                                    <div class="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-                                        <span><AppIcon icon=CHECK_CIRCLE /></span>
-                                        "Data pegawai sinkron dari MySIMKARI per " {waktu}
-                                    </div>
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <div class="mb-4 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-                                        <span><AppIcon icon=WARNING_CIRCLE /></span>
-                                        "Data pegawai mungkin belum terbaru (sinkronisasi terakhir: " {waktu} ", status: " {s.state.clone()} "). Menampilkan data cache."
-                                    </div>
-                                }.into_any()
+                    sync_resource
+                        .get()
+                        .map(|maybe_sync| match maybe_sync {
+                            Some(s) => {
+                                let waktu = s
+                                    .last_sync_at
+                                    .clone()
+                                    .unwrap_or_else(|| "-".to_string());
+                                if s.segar {
+                                    view! {
+                                        <div class="mb-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+                                            <span>
+                                                <AppIcon icon=CHECK_CIRCLE />
+                                            </span>
+                                            "Data pegawai sinkron dari MySIMKARI per "
+                                            {waktu}
+                                        </div>
+                                    }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <div class="mb-4 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+                                            <span>
+                                                <AppIcon icon=WARNING_CIRCLE />
+                                            </span>
+                                            "Data pegawai mungkin belum terbaru (sinkronisasi terakhir: "
+                                            {waktu}
+                                            ", status: "
+                                            {s.state.clone()}
+                                            "). Menampilkan data cache."
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
                             }
-                        }
-                        None => view! {
-                            <div class="mb-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
-                                <span><AppIcon icon=INFO /></span>
-                                "Status sinkronisasi MySIMKARI tidak diketahui."
-                            </div>
-                        }.into_any(),
-                    })
+                            None => {
+                                view! {
+                                    <div class="mb-4 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-600">
+                                        <span>
+                                            <AppIcon icon=INFO />
+                                        </span>
+                                        "Status sinkronisasi MySIMKARI tidak diketahui."
+                                    </div>
+                                }
+                                    .into_any()
+                            }
+                        })
                 }}
             </Suspense>
 
-            <Suspense fallback=move || view! { <LoadingState /> }>
+            <Suspense fallback=move || {
+                view! { <LoadingState /> }
+            }>
                 {move || match data_resource.get() {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -331,9 +418,16 @@ pub fn UkuranPegawaiSatker(
                                     title="Tidak Ada Data Pegawai"
                                     description="Belum ada data pegawai di satker ini."
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-                            render_satker_table(response.data, response.total, response.total_pages, page, set_page)
+                            render_satker_table(
+                                response.data,
+                                response.total,
+                                response.total_pages,
+                                page,
+                                set_page,
+                            )
                         }
                     }
                 }}
@@ -426,11 +520,8 @@ fn render_satker_table(
             // Pagination
             <div class="mt-4 flex items-center justify-between border-t border-white/[0.04] pt-4">
                 <p class="text-xs text-slate-400">
-                    "Menampilkan "
-                    <span class="font-medium text-slate-200">{data_len}</span>
-                    " dari "
-                    <span class="font-medium text-slate-200">{total}</span>
-                    " pegawai"
+                    "Menampilkan " <span class="font-medium text-slate-200">{data_len}</span>
+                    " dari " <span class="font-medium text-slate-200">{total}</span> " pegawai"
                 </p>
                 <div class="flex gap-2">
                     <button
@@ -442,9 +533,11 @@ fn render_satker_table(
                     </button>
                     <button
                         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        prop:disabled=move || page.get() >= total_pages
-                        on:click=move |_| set_page.update(|p| *p += 1)
+                        prop:disabled=move || page.get()
                     >
+                        = total_pages
+                        on:click=move |_| set_page.update(|p| *p += 1)
+                        >
                         "Selanjutnya"
                     </button>
                 </div>

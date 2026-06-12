@@ -85,114 +85,156 @@ pub fn PemakaianBmnRenew() -> impl IntoView {
 
     view! {
         <div class="max-w-4xl mx-auto p-6">
-            <Suspense fallback=move || view! {
-                <div class="p-8 text-center">
-                    <span class="fa-spin text-2xl text-gray-400 mb-2"><AppIcon icon=SPINNER /></span>
-                    <p class="text-gray-600">"Memuat data..."</p>
-                </div>
+            <Suspense fallback=move || {
+                view! {
+                    <div class="p-8 text-center">
+                        <span class="fa-spin text-2xl text-gray-400 mb-2">
+                            <AppIcon icon=SPINNER />
+                        </span>
+                        <p class="text-gray-600">"Memuat data..."</p>
+                    </div>
+                }
             }>
                 {move || {
-                    permit_resource.get().flatten().map(|izin| {
-                        view! {
-                            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h2 class="text-2xl font-bold text-gray-800 mb-6">"Perpanjangan Izin Pemakaian BMN"</h2>
+                    permit_resource
+                        .get()
+                        .flatten()
+                        .map(|izin| {
+                            view! {
+                                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                                    <h2 class="text-2xl font-bold text-gray-800 mb-6">
+                                        "Perpanjangan Izin Pemakaian BMN"
+                                    </h2>
 
-                                // Current permit info
-                                <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                                    <h3 class="font-semibold text-blue-900 mb-2">"Izin Saat Ini"</h3>
-                                    <div class="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <p class="text-blue-700">"Nomor Izin"</p>
-                                            <p class="font-medium text-blue-900">{izin.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-blue-700">"BMN"</p>
-                                            <p class="font-medium text-blue-900">{izin.bmn_nama_barang.clone()}</p>
-                                        </div>
-                                        <div>
-                                            <p class="text-blue-700">"Periode Saat Ini"</p>
-                                            <p class="font-medium text-blue-900">{izin.tanggal_mulai.clone()} " - " {izin.tanggal_selesai.clone()}</p>
+                                    // Current permit info
+                                    <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                                        <h3 class="font-semibold text-blue-900 mb-2">
+                                            "Izin Saat Ini"
+                                        </h3>
+                                        <div class="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <p class="text-blue-700">"Nomor Izin"</p>
+                                                <p class="font-medium text-blue-900">
+                                                    {izin.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p class="text-blue-700">"BMN"</p>
+                                                <p class="font-medium text-blue-900">
+                                                    {izin.bmn_nama_barang.clone()}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <p class="text-blue-700">"Periode Saat Ini"</p>
+                                                <p class="font-medium text-blue-900">
+                                                    {izin.tanggal_mulai.clone()} " - "
+                                                    {izin.tanggal_selesai.clone()}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
+
+                                    <Show when=move || success.get()>
+                                        <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
+                                            <AppIcon icon=CHECK_CIRCLE />
+                                            "Izin berhasil diperpanjang!"
+                                        </div>
+                                    </Show>
+
+                                    <Show when=move || error.get().is_some()>
+                                        <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
+                                            <AppIcon icon=WARNING_CIRCLE />
+                                            {error.get()}
+                                        </div>
+                                    </Show>
+
+                                    <form on:submit=move |ev| on_submit.run(ev) class="space-y-6">
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Tanggal Mulai Baru"
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                    prop:value=move || tanggal_mulai.get()
+                                                    on:input=move |ev| {
+                                                        set_tanggal_mulai.set(event_target_value(&ev))
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Tanggal Selesai Baru"
+                                                </label>
+                                                <input
+                                                    type="date"
+                                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                    prop:value=move || tanggal_selesai.get()
+                                                    on:input=move |ev| {
+                                                        set_tanggal_selesai.set(event_target_value(&ev))
+                                                    }
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                "Keperluan Perpanjangan"
+                                            </label>
+                                            <textarea
+                                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                                                rows="4"
+                                                placeholder="Jelaskan alasan perpanjangan (minimal 10 karakter)"
+                                                prop:value=move || keperluan.get()
+                                                on:input=move |ev| {
+                                                    set_keperluan.set(event_target_value(&ev))
+                                                }
+                                                required
+                                            ></textarea>
+                                        </div>
+
+                                        <div class="pt-6 flex justify-end gap-3 border-t">
+                                            <a
+                                                href=format!("/perlengkapan/pemakaian-bmn/{}", izin.id)
+                                                class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                "Batal"
+                                            </a>
+                                            <button
+                                                type="submit"
+                                                class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                                prop:disabled=move || loading.get()
+                                            >
+                                                <Show
+                                                    when=move || loading.get()
+                                                    fallback=|| view! { <AppIcon icon=ARROW_CLOCKWISE /> }
+                                                >
+                                                    <span class="fa-spin">
+                                                        <AppIcon icon=SPINNER />
+                                                    </span>
+                                                </Show>
+                                                "Perpanjang Izin"
+                                            </button>
+                                        </div>
+                                    </form>
                                 </div>
-
-                                <Show when=move || success.get()>
-                                    <div class="mb-4 p-4 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
-                                        <AppIcon icon=CHECK_CIRCLE />
-                                        "Izin berhasil diperpanjang!"
-                                    </div>
-                                </Show>
-
-                                <Show when=move || error.get().is_some()>
-                                    <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
+                            }
+                                .into_any()
+                        })
+                        .unwrap_or_else(|| {
+                            view! {
+                                <div class="p-12 text-center">
+                                    <span class="text-5xl text-red-300 mb-4">
                                         <AppIcon icon=WARNING_CIRCLE />
-                                        {error.get()}
-                                    </div>
-                                </Show>
-
-                                <form on:submit=move |ev| on_submit.run(ev) class="space-y-6">
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Mulai Baru"</label>
-                                            <input
-                                                type="date"
-                                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                prop:value=move || tanggal_mulai.get()
-                                                on:input=move |ev| set_tanggal_mulai.set(event_target_value(&ev))
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">"Tanggal Selesai Baru"</label>
-                                            <input
-                                                type="date"
-                                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                                prop:value=move || tanggal_selesai.get()
-                                                on:input=move |ev| set_tanggal_selesai.set(event_target_value(&ev))
-                                                required
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Keperluan Perpanjangan"</label>
-                                        <textarea
-                                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                                            rows="4"
-                                            placeholder="Jelaskan alasan perpanjangan (minimal 10 karakter)"
-                                            prop:value=move || keperluan.get()
-                                            on:input=move |ev| set_keperluan.set(event_target_value(&ev))
-                                            required
-                                        ></textarea>
-                                    </div>
-
-                                    <div class="pt-6 flex justify-end gap-3 border-t">
-                                        <a
-                                            href={format!("/perlengkapan/pemakaian-bmn/{}", izin.id)}
-                                            class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                                        >
-                                            "Batal"
-                                        </a>
-                                        <button
-                                            type="submit"
-                                            class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                                            prop:disabled=move || loading.get()
-                                        >
-                                            <Show when=move || loading.get() fallback=|| view! { <AppIcon icon=ARROW_CLOCKWISE /> }>
-                                                <span class="fa-spin"><AppIcon icon=SPINNER /></span>
-                                            </Show>
-                                            "Perpanjang Izin"
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        }.into_any()
-                    }).unwrap_or_else(|| view! {
-                        <div class="p-12 text-center">
-                            <span class="text-5xl text-red-300 mb-4"><AppIcon icon=WARNING_CIRCLE /></span>
-                            <p class="text-gray-600 text-lg">"Data tidak ditemukan"</p>
-                        </div>
-                    }.into_any())
+                                    </span>
+                                    <p class="text-gray-600 text-lg">"Data tidak ditemukan"</p>
+                                </div>
+                            }
+                                .into_any()
+                        })
                 }}
             </Suspense>
         </div>

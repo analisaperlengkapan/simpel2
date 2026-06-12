@@ -183,29 +183,39 @@ pub fn BankAsetListPage() -> impl IntoView {
             description="Jelajahi, cari, dan filter seluruh BMN dari SIMAN."
             icon="fas fa-warehouse"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::BANK_ASET_DASHBOARD
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=CHART_LINE /></span>
-                    "Dashboard"
-                </A>
-                <A
-                    href=path::BANK_ASET_QRCODE
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=QR_CODE /></span>
-                    "QR Code"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::BANK_ASET_DASHBOARD
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=CHART_LINE />
+                        </span>
+                        "Dashboard"
+                    </A>
+                    <A
+                        href=path::BANK_ASET_QRCODE
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=QR_CODE />
+                        </span>
+                        "QR Code"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             <SectionCard
                 title="Filter"
                 description="Batasi daftar berdasarkan kategori, kondisi, atau kata kunci."
                 icon="fas fa-filter"
             >
-                <form class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto]" on:submit=on_search_submit>
+                <form
+                    class="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_2fr_auto]"
+                    on:submit=on_search_submit
+                >
                     <select
                         class="focus-ring rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100"
                         on:change=on_jenis
@@ -281,7 +291,9 @@ pub fn BankAsetListPage() -> impl IntoView {
                             type="submit"
                             class="focus-ring inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                         >
-                            <span class="text-xs"><AppIcon icon=MAGNIFYING_GLASS /></span>
+                            <span class="text-xs">
+                                <AppIcon icon=MAGNIFYING_GLASS />
+                            </span>
                             "Terapkan"
                         </button>
                         <button
@@ -289,7 +301,9 @@ pub fn BankAsetListPage() -> impl IntoView {
                             on:click=reset_filters
                             class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 transition hover:bg-white/[0.08]"
                         >
-                            <span class="text-xs"><AppIcon icon=ARROW_COUNTER_CLOCKWISE /></span>
+                            <span class="text-xs">
+                                <AppIcon icon=ARROW_COUNTER_CLOCKWISE />
+                            </span>
                             "Reset"
                         </button>
                     </div>
@@ -319,7 +333,10 @@ pub fn BankAsetListPage() -> impl IntoView {
                 icon="fas fa-list"
             >
                 <p class="mb-3 text-xs text-slate-400">
-                    "Total: " <span class="font-semibold text-slate-200">{move || format_thousands(total.get())}</span> " aset"
+                    "Total: "
+                    <span class="font-semibold text-slate-200">
+                        {move || format_thousands(total.get())}
+                    </span> " aset"
                 </p>
                 {move || {
                     if loading.get() && items.get().is_empty() {
@@ -328,9 +345,12 @@ pub fn BankAsetListPage() -> impl IntoView {
                         view! {
                             <ErrorState
                                 error=err
-                                on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                                on_retry=Box::new(move || {
+                                    set_reload_tick.update(|t| *t += 1);
+                                })
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else if items.get().is_empty() {
                         view! {
                             <EmptyState
@@ -338,15 +358,20 @@ pub fn BankAsetListPage() -> impl IntoView {
                                 description="Coba ubah filter atau kata kunci pencarian."
                                 icon="fas fa-box-open"
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         render_table(items.get()).into_any()
                     }
                 }}
                 <div class="mt-4 flex flex-col items-center justify-between gap-3 border-t border-white/[0.05] pt-4 sm:flex-row">
                     <p class="text-xs text-slate-400">
-                        "Halaman " <span class="font-semibold text-slate-200">{move || page.get()}</span>
-                        " dari " <span class="font-semibold text-slate-200">{move || total_pages.get()}</span>
+                        "Halaman "
+                        <span class="font-semibold text-slate-200">{move || page.get()}</span>
+                        " dari "
+                        <span class="font-semibold text-slate-200">
+                            {move || total_pages.get()}
+                        </span>
                     </p>
                     <div class="flex items-center gap-2">
                         <button
@@ -355,17 +380,20 @@ pub fn BankAsetListPage() -> impl IntoView {
                             disabled=move || page.get() <= 1 || loading.get()
                             class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
                         >
-                            <span class="text-[0.6rem]"><AppIcon icon=CARET_LEFT /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=CARET_LEFT />
+                            </span>
                             "Sebelumnya"
                         </button>
-                        <button
-                            type="button"
-                            on:click=go_next
-                            disabled=move || page.get() >= total_pages.get() || loading.get()
-                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        >
+                        <button type="button" on:click=go_next disabled=move || page.get()>
+                            = total_pages.get() || loading.get()
+                            class=
+                            "focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
+                            >
                             "Selanjutnya"
-                            <span class="text-[0.6rem]"><AppIcon icon=CARET_RIGHT /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=CARET_RIGHT />
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -390,24 +418,34 @@ fn render_table(items: Vec<BankAsetItem>) -> impl IntoView {
         view! {
             <tr class="border-b border-white/[0.04] transition hover:bg-white/[0.02]">
                 <td class="py-3 pr-3">
-                    <A href=detail_href attr:class="text-sm font-semibold text-slate-100 transition hover:text-gold-300">
+                    <A
+                        href=detail_href
+                        attr:class="text-sm font-semibold text-slate-100 transition hover:text-gold-300"
+                    >
                         {nama}
                     </A>
-                    <p class="mt-0.5 text-[0.7rem] uppercase tracking-wide text-slate-500">{kategori}</p>
+                    <p class="mt-0.5 text-[0.7rem] uppercase tracking-wide text-slate-500">
+                        {kategori}
+                    </p>
                 </td>
                 <td class="py-3 pr-3 text-xs text-slate-300">{kode}</td>
                 <td class="py-3 pr-3 text-xs text-slate-300">{nup}</td>
                 <td class="py-3 pr-3">
-                    <span class=format!("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ring-1 {}", tone)>
-                        {kondisi}
-                    </span>
+                    <span class=format!(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ring-1 {}",
+                        tone,
+                    )>{kondisi}</span>
                 </td>
                 <td class="py-3 pr-3 text-xs text-slate-300">{satker}</td>
                 <td class="py-3 pr-3 text-right text-xs text-slate-300">{nilai}</td>
                 <td class="py-3 text-right">
-                    <A href=url::bank_aset_detail(&id)
-                       attr:class="focus-ring inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[0.7rem] text-slate-200 transition hover:bg-white/[0.08]">
-                        <span class="text-[0.6rem]"><AppIcon icon=EYE /></span>
+                    <A
+                        href=url::bank_aset_detail(&id)
+                        attr:class="focus-ring inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[0.7rem] text-slate-200 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.6rem]">
+                            <AppIcon icon=EYE />
+                        </span>
                         "Detail"
                     </A>
                 </td>

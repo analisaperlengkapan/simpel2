@@ -183,19 +183,25 @@ pub fn RequestCreationPage() -> impl IntoView {
                 "Buat Permohonan SK Penghapusan BMN"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
-            {move || success_message.get().map(|msg| view! {
-                <Alert message=msg variant=AlertVariant::Success />
-            })}
+            {move || {
+                success_message
+                    .get()
+                    .map(|msg| view! { <Alert message=msg variant=AlertVariant::Success /> })
+            }}
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center py-4">
-                    <Spinner size="lg" />
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center py-4">
+                                <Spinner size="lg" />
+                            </div>
+                        }
+                    })
+            }}
 
             <div class="space-y-6">
                 // Step 1: Select BMN Items
@@ -205,52 +211,85 @@ pub fn RequestCreationPage() -> impl IntoView {
                     </p>
 
                     <div class="space-y-4">
-                        {move || available_bmn.get().into_iter().map(|bmn| {
-                            let nup = bmn.nup.clone();
-                            let is_selected = selected_bmn.get().iter().any(|b| b.nup == nup);
-                            let bmn_for_click = bmn.clone();
-                            let bmn_has_active_permit = bmn.has_active_permit;
+                        {move || {
+                            available_bmn
+                                .get()
+                                .into_iter()
+                                .map(|bmn| {
+                                    let nup = bmn.nup.clone();
+                                    let is_selected = selected_bmn
+                                        .get()
+                                        .iter()
+                                        .any(|b| b.nup == nup);
+                                    let bmn_for_click = bmn.clone();
+                                    let bmn_has_active_permit = bmn.has_active_permit;
 
-                            view! {
-                                <div class="border rounded-lg p-4">
-                                    <div class="flex justify-between items-start">
-                                        <div class="flex-1">
-                                            <h4 class="font-semibold text-gray-900">{bmn.nama_barang.clone()}</h4>
-                                            <p class="text-sm text-gray-600">"NUP: " {bmn.nup.clone()}</p>
-                                            <p class="text-sm text-gray-600">"Kode: " {bmn.kode_barang.clone()}</p>
-                                            <p class="text-sm text-gray-600">"Kondisi: " {bmn.kondisi.clone()}</p>
-                                            {bmn.nilai_perolehan.map(|nilai| view! {
-                                                <p class="text-sm text-gray-600">
-                                                    "Nilai: Rp " {format!("{:.2}", nilai)}
-                                                </p>
-                                            })}
-                                            {if bmn.has_active_permit {
-                                                view! {
-                                                    <Badge label="Sedang Digunakan - Tidak Dapat Dihapus" variant=BadgeVariant::Danger />
-                                                }.into_any()
-                                            } else {
-                                                view! {
-                                                    <Badge label="Dapat Dihapus" variant=BadgeVariant::Success />
-                                                }.into_any()
-                                            }}
+                                    view! {
+                                        <div class="border rounded-lg p-4">
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex-1">
+                                                    <h4 class="font-semibold text-gray-900">
+                                                        {bmn.nama_barang.clone()}
+                                                    </h4>
+                                                    <p class="text-sm text-gray-600">
+                                                        "NUP: " {bmn.nup.clone()}
+                                                    </p>
+                                                    <p class="text-sm text-gray-600">
+                                                        "Kode: " {bmn.kode_barang.clone()}
+                                                    </p>
+                                                    <p class="text-sm text-gray-600">
+                                                        "Kondisi: " {bmn.kondisi.clone()}
+                                                    </p>
+                                                    {bmn
+                                                        .nilai_perolehan
+                                                        .map(|nilai| {
+                                                            view! {
+                                                                <p class="text-sm text-gray-600">
+                                                                    "Nilai: Rp " {format!("{:.2}", nilai)}
+                                                                </p>
+                                                            }
+                                                        })}
+                                                    {if bmn.has_active_permit {
+                                                        view! {
+                                                            <Badge
+                                                                label="Sedang Digunakan - Tidak Dapat Dihapus"
+                                                                variant=BadgeVariant::Danger
+                                                            />
+                                                        }
+                                                            .into_any()
+                                                    } else {
+                                                        view! {
+                                                            <Badge
+                                                                label="Dapat Dihapus"
+                                                                variant=BadgeVariant::Success
+                                                            />
+                                                        }
+                                                            .into_any()
+                                                    }}
+                                                </div>
+                                                <Button
+                                                    variant=if is_selected {
+                                                        ButtonVariant::Secondary
+                                                    } else {
+                                                        ButtonVariant::Primary
+                                                    }
+                                                    on_click=Box::new(move || {
+                                                        if is_selected {
+                                                            remove_bmn(nup.clone());
+                                                        } else {
+                                                            add_bmn(bmn_for_click.clone());
+                                                        }
+                                                    })
+                                                    disabled=bmn_has_active_permit
+                                                >
+                                                    {if is_selected { "Hapus" } else { "Pilih" }}
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <Button
-                                            variant=if is_selected { ButtonVariant::Secondary } else { ButtonVariant::Primary }
-                                            on_click=Box::new(move || {
-                                                if is_selected {
-                                                    remove_bmn(nup.clone());
-                                                } else {
-                                                    add_bmn(bmn_for_click.clone());
-                                                }
-                                            })
-                                            disabled=bmn_has_active_permit
-                                        >
-                                            {if is_selected { "Hapus" } else { "Pilih" }}
-                                        </Button>
-                                    </div>
-                                </div>
-                            }
-                        }).collect_view()}
+                                    }
+                                })
+                                .collect_view()
+                        }}
                     </div>
 
                     <div class="mt-4 p-4 bg-emerald-50 rounded-lg">
@@ -261,76 +300,91 @@ pub fn RequestCreationPage() -> impl IntoView {
                 </Card>
 
                 // Step 2: Reason and Method
-                {move || (!selected_bmn.get().is_empty()).then(|| view! {
-                    <Card title="2. Alasan dan Metode Penghapusan">
-                        <div class="space-y-4">
-                            <Textarea
-                                label="Alasan Penghapusan"
-                                placeholder="Jelaskan alasan penghapusan BMN..."
-                                value=alasan_umum.get()
-                                on_input=Box::new(move |v| set_alasan_umum.set(v))
-                                rows=4
-                                required=true
-                            />
+                {move || {
+                    (!selected_bmn.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <Card title="2. Alasan dan Metode Penghapusan">
+                                    <div class="space-y-4">
+                                        <Textarea
+                                            label="Alasan Penghapusan"
+                                            placeholder="Jelaskan alasan penghapusan BMN..."
+                                            value=alasan_umum.get()
+                                            on_input=Box::new(move |v| set_alasan_umum.set(v))
+                                            rows=4
+                                            required=true
+                                        />
 
-                            <Select
-                                label="Metode Penghapusan"
-                                value=metode.get()
-                                on_change=Box::new(move |v: String| set_metode.set(v))
-                            >
-                                <option value="DIMUSNAHKAN">"Dimusnahkan"</option>
-                                <option value="DIJUAL">"Dijual"</option>
-                                <option value="DIHIBAHKAN">"Dihibahkan"</option>
-                            </Select>
-                        </div>
-                    </Card>
-                })}
+                                        <Select
+                                            label="Metode Penghapusan"
+                                            value=metode.get()
+                                            on_change=Box::new(move |v: String| set_metode.set(v))
+                                        >
+                                            <option value="DIMUSNAHKAN">"Dimusnahkan"</option>
+                                            <option value="DIJUAL">"Dijual"</option>
+                                            <option value="DIHIBAHKAN">"Dihibahkan"</option>
+                                        </Select>
+                                    </div>
+                                </Card>
+                            }
+                        })
+                }}
 
                 // Step 3: Upload Documents
-                {move || (!selected_bmn.get().is_empty()).then(|| view! {
-                    <Card title="3. Dokumen Pendukung (REQ-PH003)">
-                        <p class="text-sm text-gray-600 mb-4">
-                            "Upload dokumen persyaratan penghapusan (minimal 1 dokumen)"
-                        </p>
-                        <FileUpload
-                            label="Dokumen Pendukung"
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            multiple=true
-                            show_preview=true
-                            on_change=Box::new(move |files: Vec<web_sys::File>| {
-                                set_uploaded_files.set(files);
-                            })
-                            hint="Format: PDF, DOC, DOCX, JPG, PNG. Maksimal 10MB per file."
-                        />
-                    </Card>
-                })}
+                {move || {
+                    (!selected_bmn.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <Card title="3. Dokumen Pendukung (REQ-PH003)">
+                                    <p class="text-sm text-gray-600 mb-4">
+                                        "Upload dokumen persyaratan penghapusan (minimal 1 dokumen)"
+                                    </p>
+                                    <FileUpload
+                                        label="Dokumen Pendukung"
+                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                        multiple=true
+                                        show_preview=true
+                                        on_change=Box::new(move |files: Vec<web_sys::File>| {
+                                            set_uploaded_files.set(files);
+                                        })
+                                        hint="Format: PDF, DOC, DOCX, JPG, PNG. Maksimal 10MB per file."
+                                    />
+                                </Card>
+                            }
+                        })
+                }}
 
                 // Submit Button
-                {move || (!selected_bmn.get().is_empty() && !alasan_umum.get().is_empty()).then(|| view! {
-                    <Card>
-                        <div class="flex justify-end space-x-4">
-                            <Button
-                                variant=ButtonVariant::Secondary
-                                on_click=Box::new(move || {
-                                    web_sys::window().unwrap().history().unwrap().back().ok();
-                                })
-                            >
-                                "Batal"
-                            </Button>
-                            <Button
-                                variant=ButtonVariant::Primary
-                                size=ButtonSize::Large
-                                on_click=Box::new(create_request)
-                                disabled=loading.get()
-                            >
-                                "Buat Permohonan"
-                            </Button>
-                        </div>
-                        <p class="text-sm text-gray-500 mt-4 text-right">
-                            "Permohonan akan dikirim ke Validator Wilayah untuk ditinjau (REQ-PH004)"
-                        </p>
-                    </Card>
-                })}
+                {move || {
+                    (!selected_bmn.get().is_empty() && !alasan_umum.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <Card>
+                                    <div class="flex justify-end space-x-4">
+                                        <Button
+                                            variant=ButtonVariant::Secondary
+                                            on_click=Box::new(move || {
+                                                web_sys::window().unwrap().history().unwrap().back().ok();
+                                            })
+                                        >
+                                            "Batal"
+                                        </Button>
+                                        <Button
+                                            variant=ButtonVariant::Primary
+                                            size=ButtonSize::Large
+                                            on_click=Box::new(create_request)
+                                            disabled=loading.get()
+                                        >
+                                            "Buat Permohonan"
+                                        </Button>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mt-4 text-right">
+                                        "Permohonan akan dikirim ke Validator Wilayah untuk ditinjau (REQ-PH004)"
+                                    </p>
+                                </Card>
+                            }
+                        })
+                }}
             </div>
         </div>
     }

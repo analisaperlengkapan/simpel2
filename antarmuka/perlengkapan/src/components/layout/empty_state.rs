@@ -18,12 +18,20 @@ pub fn EmptyState(
                 <AppIcon icon=icon_from_fa_class(&icon) size=20 />
             </span>
             <h3 class="mt-4 text-base font-semibold text-white">{title}</h3>
-            {description.map(|d| view! {
-                <p class="mt-2 max-w-md text-sm leading-relaxed text-slate-400">{d}</p>
-            })}
-            {action.map(|a| view! {
-                <div class="mt-5 flex flex-wrap items-center justify-center gap-2">{a()}</div>
-            })}
+            {description
+                .map(|d| {
+                    view! {
+                        <p class="mt-2 max-w-md text-sm leading-relaxed text-slate-400">{d}</p>
+                    }
+                })}
+            {action
+                .map(|a| {
+                    view! {
+                        <div class="mt-5 flex flex-wrap items-center justify-center gap-2">
+                            {a()}
+                        </div>
+                    }
+                })}
         </div>
     }
 }

@@ -302,14 +302,16 @@ mod qr_code_visual_tests {
                                         <p>"Failed to generate QR code"</p>
                                         <button class="retry-button">"Retry"</button>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else if is_loading.get() {
                                 view! {
                                     <div class="qr-loading-state" data-testid="qr-loading">
                                         <div class="loading-spinner"></div>
                                         <p>"Generating QR code..."</p>
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 view! {
                                     <div class="qr-success-state" data-testid="qr-success">
@@ -319,7 +321,8 @@ mod qr_code_visual_tests {
                                             class="qr-code-image"
                                         />
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                         }}
                     </div>
@@ -396,8 +399,12 @@ mod qr_code_visual_tests {
                             id="otp-visual-test"
                             class=move || {
                                 let mut classes = vec!["otp-input"];
-                                if has_error.get() { classes.push("error"); }
-                                if is_focused.get() { classes.push("focused"); }
+                                if has_error.get() {
+                                    classes.push("error");
+                                }
+                                if is_focused.get() {
+                                    classes.push("focused");
+                                }
                                 classes.join(" ")
                             }
                             placeholder="000000"
@@ -413,14 +420,17 @@ mod qr_code_visual_tests {
                                 set_is_focused.set(false);
                             }
                         />
-                        {move || if has_error.get() {
-                            view! {
-                                <p class="error-message" data-testid="error-text">
-                                    "Invalid OTP code"
-                                </p>
-                            }.into_any()
-                        } else {
-                            view! { <div></div> }.into_any()
+                        {move || {
+                            if has_error.get() {
+                                view! {
+                                    <p class="error-message" data-testid="error-text">
+                                        "Invalid OTP code"
+                                    </p>
+                                }
+                                    .into_any()
+                            } else {
+                                view! { <div></div> }.into_any()
+                            }
                         }}
                     </div>
                 }

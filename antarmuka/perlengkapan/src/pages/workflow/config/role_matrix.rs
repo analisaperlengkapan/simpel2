@@ -48,7 +48,9 @@ pub fn RoleMatrix(steps: Vec<WorkflowStep>) -> impl IntoView {
                         } else {
                             "inline-flex items-center gap-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] px-2.5 py-1 text-[0.7rem] font-semibold text-slate-500"
                         }>
-                            <span class="text-[0.6rem]"><AppIcon icon=USER_LIST /></span>
+                            <span class="text-[0.6rem]">
+                                <AppIcon icon=USER_LIST />
+                            </span>
                             {role}
                         </span>
                     </td>

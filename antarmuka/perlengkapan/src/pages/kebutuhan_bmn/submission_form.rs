@@ -233,13 +233,13 @@ pub fn SubmissionFormPage() -> impl IntoView {
 
             {move || {
                 if loading.get() {
-                    view! {
-                        <LoadingState message="Memuat data pengajuan...".to_string() />
-                    }.into_any()
+                    view! { <LoadingState message="Memuat data pengajuan...".to_string() /> }
+                        .into_any()
                 } else if let Some(err) = fatal_error.get() {
                     view! {
                         <ErrorState error=err title="Gagal memuat data pengajuan".to_string() />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if let Some(pengajuan) = active_pengajuan.get() {
                     view! {
                         <SubmissionContent
@@ -257,15 +257,18 @@ pub fn SubmissionFormPage() -> impl IntoView {
                             handle_add_barang=handle_add_barang
                             submit_to_wilayah=submit_to_wilayah
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <EmptyState
                             title="Tidak ada periode aktif".to_string()
-                            description="Tidak ada periode pengajuan kebutuhan BMN yang sedang terbuka. Silakan hubungi Validator Pusat.".to_string()
+                            description="Tidak ada periode pengajuan kebutuhan BMN yang sedang terbuka. Silakan hubungi Validator Pusat."
+                                .to_string()
                             icon="fas fa-calendar-xmark".to_string()
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
         </PageLayout>
@@ -304,8 +307,12 @@ fn SubmissionContent(
 
             <Show when=move || period_expired>
                 <div class="mt-4 flex items-start gap-2 rounded-xl border border-warning-500/30 bg-warning-500/[0.08] px-4 py-3 text-sm text-warning-300">
-                    <span class="mt-0.5"><AppIcon icon=WARNING /></span>
-                    <span>"Periode pengajuan telah berakhir. Anda tidak dapat menambah atau mengubah data."</span>
+                    <span class="mt-0.5">
+                        <AppIcon icon=WARNING />
+                    </span>
+                    <span>
+                        "Periode pengajuan telah berakhir. Anda tidak dapat menambah atau mengubah data."
+                    </span>
                 </div>
             </Show>
         </SectionCard>
@@ -324,7 +331,10 @@ fn SubmissionContent(
                         />
                     </FormField>
 
-                    <FormField label="Kode Barang" helper="Opsional — sesuai standar kodefikasi.".to_string()>
+                    <FormField
+                        label="Kode Barang"
+                        helper="Opsional — sesuai standar kodefikasi.".to_string()
+                    >
                         <input
                             type="text"
                             placeholder="Contoh: 3.02.01.01.001"
@@ -377,9 +387,8 @@ fn SubmissionContent(
         <SectionCard
             title="Daftar Barang Kebutuhan".to_string()
             icon="fas fa-list".to_string()
-            description=Signal::derive(move || {
-                format!("{} item", barang_items.get().len())
-            }).get()
+            description=Signal::derive(move || { format!("{} item", barang_items.get().len()) })
+                .get()
         >
             {move || {
                 let items = barang_items.get();
@@ -387,42 +396,60 @@ fn SubmissionContent(
                     view! {
                         <EmptyState
                             title="Belum ada barang".to_string()
-                            description="Tambahkan minimal satu barang sebelum melakukan submit ke Validator Wilayah.".to_string()
+                            description="Tambahkan minimal satu barang sebelum melakukan submit ke Validator Wilayah."
+                                .to_string()
                             icon="fas fa-box-open".to_string()
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <div class="space-y-3">
-                            {items.into_iter().enumerate().map(|(idx, item)| view! {
-                                <div class="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/10 hover:bg-white/[0.04]">
-                                    <div class="flex items-start gap-3">
-                                        <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold-500/15 text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
-                                            {idx + 1}
-                                        </span>
-                                        <div class="flex-1">
-                                            <h3 class="text-sm font-semibold text-slate-100">
-                                                {item.nama.clone()}
-                                            </h3>
-                                            {item.kode_barang.as_ref().map(|kode| view! {
-                                                <p class="mt-1 font-mono text-xs text-slate-400">
-                                                    "Kode: " {kode.clone()}
-                                                </p>
-                                            })}
-                                            <p class="mt-1 text-xs text-slate-400">
-                                                "Jumlah: "
-                                                <span class="font-semibold text-slate-200">{item.jumlah}</span>
-                                            </p>
-                                            <p class="mt-2 text-sm leading-relaxed text-slate-300">
-                                                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">"Justifikasi: "</span>
-                                                {item.justifikasi.clone()}
-                                            </p>
+                            {items
+                                .into_iter()
+                                .enumerate()
+                                .map(|(idx, item)| {
+                                    view! {
+                                        <div class="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/10 hover:bg-white/[0.04]">
+                                            <div class="flex items-start gap-3">
+                                                <span class="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold-500/15 text-xs font-bold text-gold-300 ring-1 ring-gold-500/25">
+                                                    {idx + 1}
+                                                </span>
+                                                <div class="flex-1">
+                                                    <h3 class="text-sm font-semibold text-slate-100">
+                                                        {item.nama.clone()}
+                                                    </h3>
+                                                    {item
+                                                        .kode_barang
+                                                        .as_ref()
+                                                        .map(|kode| {
+                                                            view! {
+                                                                <p class="mt-1 font-mono text-xs text-slate-400">
+                                                                    "Kode: " {kode.clone()}
+                                                                </p>
+                                                            }
+                                                        })}
+                                                    <p class="mt-1 text-xs text-slate-400">
+                                                        "Jumlah: "
+                                                        <span class="font-semibold text-slate-200">
+                                                            {item.jumlah}
+                                                        </span>
+                                                    </p>
+                                                    <p class="mt-2 text-sm leading-relaxed text-slate-300">
+                                                        <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                                            "Justifikasi: "
+                                                        </span>
+                                                        {item.justifikasi.clone()}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
-                            }).collect_view()}
+                                    }
+                                })
+                                .collect_view()}
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
         </SectionCard>
@@ -433,10 +460,16 @@ fn SubmissionContent(
                     <AppIcon icon=CLOUD_ARROW_UP />
                 </span>
                 <div>
-                    <h3 class="text-sm font-semibold text-slate-100">"Upload surat permohonan dan lampiran"</h3>
-                    <p class="mt-1 text-xs text-slate-400">"Format: PDF, DOC, DOCX, JPG, PNG. Maksimal 10MB per file."</p>
+                    <h3 class="text-sm font-semibold text-slate-100">
+                        "Upload surat permohonan dan lampiran"
+                    </h3>
+                    <p class="mt-1 text-xs text-slate-400">
+                        "Format: PDF, DOC, DOCX, JPG, PNG. Maksimal 10MB per file."
+                    </p>
                 </div>
-                <p class="text-xs italic text-slate-500">"Fitur upload dokumen akan tersedia setelah integrasi dengan layanan dokumen selesai."</p>
+                <p class="text-xs italic text-slate-500">
+                    "Fitur upload dokumen akan tersedia setelah integrasi dengan layanan dokumen selesai."
+                </p>
             </div>
         </SectionCard>
 
@@ -460,10 +493,14 @@ fn SubmissionContent(
                     type="button"
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-5 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-50"
                     on:click=submit_to_wilayah
-                    disabled=move || submitting.get() || barang_items.get().is_empty() || period_expired
+                    disabled=move || {
+                        submitting.get() || barang_items.get().is_empty() || period_expired
+                    }
                 >
                     <AppIcon icon=PAPER_PLANE_TILT />
-                    {move || if submitting.get() { "Mengirim..." } else { "Submit ke Validator Wilayah" }}
+                    {move || {
+                        if submitting.get() { "Mengirim..." } else { "Submit ke Validator Wilayah" }
+                    }}
                 </button>
             </div>
             <p class="mt-3 text-right text-xs text-slate-500">

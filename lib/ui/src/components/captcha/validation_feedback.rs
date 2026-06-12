@@ -41,15 +41,17 @@ pub fn DifficultyIndicator(
 
             <div class="difficulty-bar bg-gray-200 dark:bg-gray-700 rounded-full h-2 mb-3">
                 <div
-                    class=move || format!(
-                        "h-2 rounded-full transition-all duration-500 {}",
-                        match current_difficulty {
-                            1..=3 => "bg-green-500",
-                            4..=6 => "bg-yellow-500",
-                            7..=8 => "bg-orange-500",
-                            _ => "bg-red-500",
-                        }
-                    )
+                    class=move || {
+                        format!(
+                            "h-2 rounded-full transition-all duration-500 {}",
+                            match current_difficulty {
+                                1..=3 => "bg-green-500",
+                                4..=6 => "bg-yellow-500",
+                                7..=8 => "bg-orange-500",
+                                _ => "bg-red-500",
+                            },
+                        )
+                    }
                     style=move || format!("width: {}%", difficulty_percentage)
                 ></div>
             </div>
@@ -58,26 +60,34 @@ pub fn DifficultyIndicator(
                 <div class="flex items-center space-x-2">
                     <span class="text-gray-600 dark:text-gray-400">"Attempts:"</span>
                     <div class="flex space-x-1">
-                        {(0..max_attempts).map(|i| {
-                            view! {
-                                <div class=format!(
-                                    "w-2 h-2 rounded-full {}",
-                                    if i < attempts { "bg-red-400" } else { "bg-gray-300 dark:bg-gray-600" }
-                                )></div>
-                            }
-                        }).collect::<Vec<_>>()}
+                        {(0..max_attempts)
+                            .map(|i| {
+                                view! {
+                                    <div class=format!(
+                                        "w-2 h-2 rounded-full {}",
+                                        if i < attempts {
+                                            "bg-red-400"
+                                        } else {
+                                            "bg-gray-300 dark:bg-gray-600"
+                                        },
+                                    )></div>
+                                }
+                            })
+                            .collect::<Vec<_>>()}
                     </div>
                 </div>
 
-                <span class=move || format!(
-                    "font-medium {}",
-                    match current_difficulty {
-                        1..=3 => "text-green-600 dark:text-green-400",
-                        4..=6 => "text-yellow-600 dark:text-yellow-400",
-                        7..=8 => "text-orange-600 dark:text-orange-400",
-                        _ => "text-red-600 dark:text-red-400",
-                    }
-                )>
+                <span class=move || {
+                    format!(
+                        "font-medium {}",
+                        match current_difficulty {
+                            1..=3 => "text-green-600 dark:text-green-400",
+                            4..=6 => "text-yellow-600 dark:text-yellow-400",
+                            7..=8 => "text-orange-600 dark:text-orange-400",
+                            _ => "text-red-600 dark:text-red-400",
+                        },
+                    )
+                }>
                     {match current_difficulty {
                         1..=3 => "Easy",
                         4..=6 => "Medium",
@@ -100,100 +110,109 @@ pub fn ValidationStatusIndicator(
         <div class="validation-status">
             {move || {
                 match status.get() {
-                    ValidationStatus::Idle => {
+                    ValidationStatus::Idle => ().into_any(),
+                    ValidationStatus::Validating => {
 
-                        ().into_any()
-                    },
-
-                    ValidationStatus::Validating => view! {
-                        <div class="validating-indicator bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                <div>
-                                    <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                        "Memvalidasi jawaban Anda..."
-                                    </div>
-                                    <div class="text-xs text-blue-700 dark:text-blue-300">
-                                        "Analyzing behavioral patterns and answer"
+                        view! {
+                            <div class="validating-indicator bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                                    <div>
+                                        <div class="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                            "Memvalidasi jawaban Anda..."
+                                        </div>
+                                        <div class="text-xs text-blue-700 dark:text-blue-300">
+                                            "Analyzing behavioral patterns and answer"
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    }.into_any(),
+                        }
+                            .into_any()
+                    }
+                    ValidationStatus::Success => {
 
-                    ValidationStatus::Success => view! {
-                        <div class="success-indicator bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3 mb-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="flex-shrink-0">
-                                    <div class="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                        <span class="text-white text-xs">"✓"</span>
+                        view! {
+                            <div class="success-indicator bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700 rounded-lg p-3 mb-4">
+                                <div class="flex items-center space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                            <span class="text-white text-xs">"✓"</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <div class="text-sm font-medium text-green-900 dark:text-green-100">
-                                        "Verifikasi berhasil!"
-                                    </div>
-                                    <div class="text-xs text-green-700 dark:text-green-300">
-                                        "Anda telah diverifikasi sebagai manusia"
+                                    <div>
+                                        <div class="text-sm font-medium text-green-900 dark:text-green-100">
+                                            "Verifikasi berhasil!"
+                                        </div>
+                                        <div class="text-xs text-green-700 dark:text-green-300">
+                                            "Anda telah diverifikasi sebagai manusia"
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    }.into_any(),
+                        }
+                            .into_any()
+                    }
+                    ValidationStatus::Failed(message) => {
 
-                    ValidationStatus::Failed(message) => view! {
-                        <div class="failed-indicator bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4">
-                            <div class="flex items-start space-x-3">
-                                <div class="flex-shrink-0">
-                                    <div class="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                                        <span class="text-white text-xs">"✕"</span>
+                        view! {
+                            <div class="failed-indicator bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700 rounded-lg p-3 mb-4">
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                                            <span class="text-white text-xs">"✕"</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="text-sm font-medium text-red-900 dark:text-red-100">
-                                        "Verifikasi gagal"
-                                    </div>
-                                    <div class="text-xs text-red-700 dark:text-red-300 mb-2">
-                                        {message}
-                                    </div>
-                                    {if let Some(_retry_callback) = on_retry {
-                                        view! {
-                                            <Button
-                                                // on_click=Some(Box::new(move || retry_callback(())))
-                                                variant=ButtonVariant::Danger
-                                                size=ButtonSize::Small
-                                            >
-                                                "Coba Lagi"
-                                            </Button>
-                                        }.into_any()
-                                    } else {
-
-                                        ().into_any()
-                                    }}
-                                </div>
-                            </div>
-                        </div>
-                    }.into_any(),
-
-                    ValidationStatus::RateLimited(seconds) => view! {
-                        <div class="rate-limited-indicator bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 mb-4">
-                            <div class="flex items-start space-x-3">
-                                <div class="flex-shrink-0">
-                                    <div class="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
-                                        <span class="text-white text-xs">"⏱"</span>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-sm font-medium text-yellow-900 dark:text-yellow-100">
-                                        "Terlalu banyak percobaan"
-                                    </div>
-                                    <div class="text-xs text-yellow-700 dark:text-yellow-300">
-                                        "Silakan tunggu " {seconds} " detik sebelum mencoba lagi"
+                                    <div class="flex-1">
+                                        <div class="text-sm font-medium text-red-900 dark:text-red-100">
+                                            "Verifikasi gagal"
+                                        </div>
+                                        <div class="text-xs text-red-700 dark:text-red-300 mb-2">
+                                            {message}
+                                        </div>
+                                        {if let Some(_retry_callback) = on_retry {
+                                            view! {
+                                                <Button
+                                                    // on_click=Some(Box::new(move || retry_callback(())))
+                                                    variant=ButtonVariant::Danger
+                                                    size=ButtonSize::Small
+                                                >
+                                                    "Coba Lagi"
+                                                </Button>
+                                            }
+                                                .into_any()
+                                        } else {
+                                            ().into_any()
+                                        }}
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    }.into_any(),
+                        }
+                            .into_any()
+                    }
+                    ValidationStatus::RateLimited(seconds) => {
+
+                        view! {
+                            <div class="rate-limited-indicator bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3 mb-4">
+                                <div class="flex items-start space-x-3">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-5 h-5 bg-yellow-500 rounded-full flex items-center justify-center">
+                                            <span class="text-white text-xs">"⏱"</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                                            "Terlalu banyak percobaan"
+                                        </div>
+                                        <div class="text-xs text-yellow-700 dark:text-yellow-300">
+                                            "Silakan tunggu " {seconds} " detik sebelum mencoba lagi"
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                            .into_any()
+                    }
                 }
             }}
         </div>
@@ -255,15 +274,15 @@ pub fn InputValidationFeedback(
                                 "warning" => "bg-yellow-500",
                                 "partial" => "bg-blue-500 animate-pulse",
                                 _ => "bg-gray-300",
-                            }
+                            },
                         )></span>
                         <span>{message}</span>
                         {if is_validating {
                             view! {
                                 <div class="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-
                             ().into_any()
                         }}
                     </div>
@@ -292,44 +311,60 @@ pub fn ChallengeProgressIndicator(
             </div>
 
             <div class="flex items-center space-x-2">
-                {(1..=total_steps).map(|step| {
-                    let is_current = step == current_step;
-                    let is_completed = step < current_step;
-                    let _step_name = step_names.get((step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", step));
+                {(1..=total_steps)
+                    .map(|step| {
+                        let is_current = step == current_step;
+                        let is_completed = step < current_step;
+                        let _step_name = step_names
+                            .get((step - 1) as usize)
+                            .cloned()
+                            .unwrap_or_else(|| format!("Step {}", step));
 
-                    view! {
-                        <div class="flex items-center">
-                            <div class=format!(
-                                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors {}",
-                                if is_completed {
-                                    "bg-green-500 text-white"
-                                } else if is_current {
-                                    "bg-blue-500 text-white"
+                        view! {
+                            <div class="flex items-center">
+                                <div class=format!(
+                                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium transition-colors {}",
+                                    if is_completed {
+                                        "bg-green-500 text-white"
+                                    } else if is_current {
+                                        "bg-blue-500 text-white"
+                                    } else {
+                                        "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
+                                    },
+                                )>
+                                    {if is_completed {
+                                        "✓".to_string()
+                                    } else {
+                                        format!("{}", step)
+                                    }}
+                                </div>
+
+                                {if step < total_steps {
+                                    view! {
+                                        <div class=format!(
+                                            "w-8 h-0.5 mx-1 {}",
+                                            if is_completed {
+                                                "bg-green-500"
+                                            } else {
+                                                "bg-gray-300 dark:bg-gray-600"
+                                            },
+                                        )></div>
+                                    }
+                                        .into_any()
                                 } else {
-                                    "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
-                                }
-                            )>
-                                {if is_completed { "✓".to_string() } else { format!("{}", step) }}
+                                    ().into_any()
+                                }}
                             </div>
-
-                            {if step < total_steps {
-                                view! {
-                                    <div class=format!(
-                                        "w-8 h-0.5 mx-1 {}",
-                                        if is_completed { "bg-green-500" } else { "bg-gray-300 dark:bg-gray-600" }
-                                    )></div>
-                                }.into_any()
-                            } else {
-
-                                ().into_any()
-                            }}
-                        </div>
-                    }
-                }).collect::<Vec<_>>()}
+                        }
+                    })
+                    .collect::<Vec<_>>()}
             </div>
 
             <div class="mt-2 text-xs text-gray-600 dark:text-gray-400 text-center">
-                {step_names.get((current_step - 1) as usize).cloned().unwrap_or_else(|| format!("Step {}", current_step))}
+                {step_names
+                    .get((current_step - 1) as usize)
+                    .cloned()
+                    .unwrap_or_else(|| format!("Step {}", current_step))}
             </div>
         </div>
     }
@@ -370,7 +405,11 @@ pub fn RetryMechanism(
             <div class="text-center">
                 <div class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
                     {if attempts_remaining > 0 {
-                        format!("You have {} attempt{} remaining", attempts_remaining, if attempts_remaining == 1 { "" } else { "s" })
+                        format!(
+                            "You have {} attempt{} remaining",
+                            attempts_remaining,
+                            if attempts_remaining == 1 { "" } else { "s" },
+                        )
                     } else {
                         "No attempts remaining".to_string()
                     }}
@@ -381,9 +420,9 @@ pub fn RetryMechanism(
                         <div class="text-xs text-gray-600 dark:text-gray-400 mb-3">
                             "Please wait " {countdown.get()} " seconds before retrying"
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
-
                     ().into_any()
                 }}
 
@@ -397,12 +436,11 @@ pub fn RetryMechanism(
                             >
                                 "Retry Challenge"
                             </Button>
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
-
                         ().into_any()
                     }}
-
                     <Button
                         // on_click=Some(Box::new(move || on_new_challenge(())))
                         variant=ButtonVariant::Secondary

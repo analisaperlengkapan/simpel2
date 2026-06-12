@@ -353,61 +353,94 @@ fn DrillDownSelectors(
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 // Wilayah selector
                 <div>
-                    <Suspense fallback=move || view! { <p>"Loading wilayah..."</p> }>
+                    <Suspense fallback=move || {
+                        view! { <p>"Loading wilayah..."</p> }
+                    }>
                         {move || {
-                            wilayah_options_resource.get().map(|result| {
-                                match result {
-                                    Ok(options) => view! {
-                                        <Select
-                                            label="Filter by Wilayah"
-                                            value=selected_wilayah.get().unwrap_or_default()
-                                            on_change=Box::new(handle_wilayah_change)
-                                        >
-                                            <option value="">"-- Semua Wilayah (Nasional) --"</option>
-                                            {options.into_iter().map(|opt| view! {
-                                                <option value=opt.code.clone()>{opt.name}</option>
-                                            }).collect_view()}
-                                        </Select>
-                                    }.into_any(),
-                                    Err(e) => view! {
-                                        <p class="text-sm text-red-600">"Error loading wilayah: " {e.to_string()}</p>
-                                    }.into_any(),
-                                }
-                            })
+                            wilayah_options_resource
+                                .get()
+                                .map(|result| {
+                                    match result {
+                                        Ok(options) => {
+                                            view! {
+                                                <Select
+                                                    label="Filter by Wilayah"
+                                                    value=selected_wilayah.get().unwrap_or_default()
+                                                    on_change=Box::new(handle_wilayah_change)
+                                                >
+                                                    <option value="">"-- Semua Wilayah (Nasional) --"</option>
+                                                    {options
+                                                        .into_iter()
+                                                        .map(|opt| {
+                                                            view! { <option value=opt.code.clone()>{opt.name}</option> }
+                                                        })
+                                                        .collect_view()}
+                                                </Select>
+                                            }
+                                                .into_any()
+                                        }
+                                        Err(e) => {
+                                            view! {
+                                                <p class="text-sm text-red-600">
+                                                    "Error loading wilayah: " {e.to_string()}
+                                                </p>
+                                            }
+                                                .into_any()
+                                        }
+                                    }
+                                })
                         }}
                     </Suspense>
                 </div>
 
                 // Satker selector (only show if wilayah is selected or at satker level)
                 {move || {
-                    if selected_wilayah.get().is_some() || matches!(current_level_for_satker_visibility, DrillDownLevel::Satker(_)) {
+                    if selected_wilayah.get().is_some()
+                        || matches!(current_level_for_satker_visibility, DrillDownLevel::Satker(_))
+                    {
                         view! {
                             <div>
-                                <Suspense fallback=move || view! { <p>"Loading satker..."</p> }>
+                                <Suspense fallback=move || {
+                                    view! { <p>"Loading satker..."</p> }
+                                }>
                                     {move || {
-                                        satker_options_resource.get().map(|result| {
-                                            match result {
-                                                Ok(options) => view! {
-                                                    <Select
-                                                        label="Filter by Satker"
-                                                        value=selected_satker.get().unwrap_or_default()
-                                                        on_change=Box::new(handle_satker_change)
-                                                    >
-                                                        <option value="">"-- Semua Satker di Wilayah --"</option>
-                                                        {options.into_iter().map(|opt| view! {
-                                                            <option value=opt.id.clone()>{opt.name}</option>
-                                                        }).collect_view()}
-                                                    </Select>
-                                                }.into_any(),
-                                                Err(e) => view! {
-                                                    <p class="text-sm text-red-600">"Error loading satker: " {e.to_string()}</p>
-                                                }.into_any(),
-                                            }
-                                        })
+                                        satker_options_resource
+                                            .get()
+                                            .map(|result| {
+                                                match result {
+                                                    Ok(options) => {
+                                                        view! {
+                                                            <Select
+                                                                label="Filter by Satker"
+                                                                value=selected_satker.get().unwrap_or_default()
+                                                                on_change=Box::new(handle_satker_change)
+                                                            >
+                                                                <option value="">"-- Semua Satker di Wilayah --"</option>
+                                                                {options
+                                                                    .into_iter()
+                                                                    .map(|opt| {
+                                                                        view! { <option value=opt.id.clone()>{opt.name}</option> }
+                                                                    })
+                                                                    .collect_view()}
+                                                            </Select>
+                                                        }
+                                                            .into_any()
+                                                    }
+                                                    Err(e) => {
+                                                        view! {
+                                                            <p class="text-sm text-red-600">
+                                                                "Error loading satker: " {e.to_string()}
+                                                            </p>
+                                                        }
+                                                            .into_any()
+                                                    }
+                                                }
+                                            })
                                     }}
                                 </Suspense>
                             </div>
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         view! { <div></div> }.into_any()
                     }
@@ -530,16 +563,13 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
                 </div>
                 <button
                     on:click=move |_| {
-                        // All three resources now route through the leptos-fetch
-                        // cache, which serves the stale cached value when
-                        // `.refetch()` re-evaluates the keyer with an unchanged
-                        // key. Bump `refresh_trigger` to allocate a fresh cache
-                        // slot for each and force a real network round-trip.
                         refresh_trigger.update(|v| *v += 1);
                     }
                     class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
                 >
-                    <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
+                    <span class="mr-2">
+                        <AppIcon icon=ARROW_CLOCKWISE />
+                    </span>
                     "Refresh"
                 </button>
             </div>
@@ -556,16 +586,16 @@ pub fn DashboardPerlengkapan() -> impl IntoView {
 
             <Suspense fallback=LoadingState>
                 {move || {
-                    dashboard_resource.get().map(|result| {
-                        match result {
-                            Ok(metrics) => view! {
-                                <DashboardContent metrics=metrics />
-                            }.into_any(),
-                            Err(e) => view! {
-                                <ErrorState message=e.to_string() />
-                            }.into_any(),
-                        }
-                    })
+                    dashboard_resource
+                        .get()
+                        .map(|result| {
+                            match result {
+                                Ok(metrics) => {
+                                    view! { <DashboardContent metrics=metrics /> }.into_any()
+                                }
+                                Err(e) => view! { <ErrorState message=e.to_string() /> }.into_any(),
+                            }
+                        })
                 }}
             </Suspense>
         </div>
@@ -715,11 +745,7 @@ fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
                 <h2 class="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
                     "Gap Analysis - Top 10 Kekurangan BMN"
                 </h2>
-                <GapAnalysisTable
-                    data=gap_rows
-                    show_satker=true
-                    sortable=true
-                />
+                <GapAnalysisTable data=gap_rows show_satker=true sortable=true />
             </section>
 
             <section>
@@ -763,7 +789,10 @@ fn DashboardContent(metrics: PerlengkapanDashboardMetrics) -> impl IntoView {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <MetricCard
                         title="Avg Processing Time"
-                        value=format!("{:.1}h", metrics.workflow_metrics.average_processing_time_hours)
+                        value=format!(
+                            "{:.1}h",
+                            metrics.workflow_metrics.average_processing_time_hours,
+                        )
                         icon="⏱️"
                         subtitle="Rata-rata waktu proses"
                     />

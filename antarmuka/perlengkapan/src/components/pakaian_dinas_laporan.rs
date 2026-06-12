@@ -149,12 +149,22 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
         >
             // Tabs
             <div class="mb-5 flex border-b border-white/[0.06]">
-                <button class=move || tab_class("rekap") on:click=move |_| set_active_tab.set("rekap")>
-                    <span class="text-xs"><AppIcon icon=CHART_PIE /></span>
+                <button
+                    class=move || tab_class("rekap")
+                    on:click=move |_| set_active_tab.set("rekap")
+                >
+                    <span class="text-xs">
+                        <AppIcon icon=CHART_PIE />
+                    </span>
                     "Rekap Ukuran"
                 </button>
-                <button class=move || tab_class("pegawai") on:click=move |_| set_active_tab.set("pegawai")>
-                    <span class="text-xs"><AppIcon icon=USERS /></span>
+                <button
+                    class=move || tab_class("pegawai")
+                    on:click=move |_| set_active_tab.set("pegawai")
+                >
+                    <span class="text-xs">
+                        <AppIcon icon=USERS />
+                    </span>
                     "Daftar Pegawai"
                 </button>
             </div>
@@ -164,117 +174,160 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     // Pengajuan filter
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Periode Pengajuan"</label>
-                        <Suspense fallback=move || view! {
-                            <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
-                                <option>"Memuat..."</option>
-                            </select>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">
+                            "Periode Pengajuan"
+                        </label>
+                        <Suspense fallback=move || {
+                            view! {
+                                <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                    <option>"Memuat..."</option>
+                                </select>
+                            }
                         }>
                             {move || match pengajuan_options.get() {
-                                Some(Ok(options)) => view! {
-                                    <select
-                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
-                                        on:change=move |ev| {
-                                            let val = event_target_value(&ev);
-                                            set_selected_pengajuan.set(if val.is_empty() { None } else { Some(val) });
-                                            set_daftar_page.set(1);
-                                        }
-                                    >
-                                        <option value="">"Semua Periode"</option>
-                                        {options.into_iter().map(|p| {
-                                            let label = format!("{} ({})", p.nama, p.tahun);
-                                            view! { <option value=p.id>{label}</option> }
-                                        }).collect_view()}
-                                    </select>
-                                }.into_any(),
-                                _ => view! {
-                                    <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
-                                        <option>"Semua Periode"</option>
-                                    </select>
-                                }.into_any(),
+                                Some(Ok(options)) => {
+                                    view! {
+                                        <select
+                                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
+                                            on:change=move |ev| {
+                                                let val = event_target_value(&ev);
+                                                set_selected_pengajuan
+                                                    .set(if val.is_empty() { None } else { Some(val) });
+                                                set_daftar_page.set(1);
+                                            }
+                                        >
+                                            <option value="">"Semua Periode"</option>
+                                            {options
+                                                .into_iter()
+                                                .map(|p| {
+                                                    let label = format!("{} ({})", p.nama, p.tahun);
+                                                    view! { <option value=p.id>{label}</option> }
+                                                })
+                                                .collect_view()}
+                                        </select>
+                                    }
+                                        .into_any()
+                                }
+                                _ => {
+                                    view! {
+                                        <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                            <option>"Semua Periode"</option>
+                                        </select>
+                                    }
+                                        .into_any()
+                                }
                             }}
                         </Suspense>
                     </div>
 
                     // Jenis Pakaian filter
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Jenis Pakaian"</label>
-                        <Suspense fallback=move || view! {
-                            <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
-                                <option>"Memuat..."</option>
-                            </select>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">
+                            "Jenis Pakaian"
+                        </label>
+                        <Suspense fallback=move || {
+                            view! {
+                                <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                    <option>"Memuat..."</option>
+                                </select>
+                            }
                         }>
                             {move || match jenis_options.get() {
-                                Some(Ok(options)) => view! {
-                                    <select
-                                        class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
-                                        on:change=move |ev| {
-                                            let val = event_target_value(&ev);
-                                            set_selected_jenis.set(if val.is_empty() { None } else { Some(val) });
-                                            set_daftar_page.set(1);
-                                        }
-                                    >
-                                        <option value="">"Semua Jenis"</option>
-                                        {options.into_iter().map(|j| {
-                                            view! { <option value=j.id>{j.nama}</option> }
-                                        }).collect_view()}
-                                    </select>
-                                }.into_any(),
-                                _ => view! {
-                                    <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
-                                        <option>"Semua Jenis"</option>
-                                    </select>
-                                }.into_any(),
+                                Some(Ok(options)) => {
+                                    view! {
+                                        <select
+                                            class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
+                                            on:change=move |ev| {
+                                                let val = event_target_value(&ev);
+                                                set_selected_jenis
+                                                    .set(if val.is_empty() { None } else { Some(val) });
+                                                set_daftar_page.set(1);
+                                            }
+                                        >
+                                            <option value="">"Semua Jenis"</option>
+                                            {options
+                                                .into_iter()
+                                                .map(|j| {
+                                                    view! { <option value=j.id>{j.nama}</option> }
+                                                })
+                                                .collect_view()}
+                                        </select>
+                                    }
+                                        .into_any()
+                                }
+                                _ => {
+                                    view! {
+                                        <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
+                                            <option>"Semua Jenis"</option>
+                                        </select>
+                                    }
+                                        .into_any()
+                                }
                             }}
                         </Suspense>
                     </div>
 
                     // Satker filter
                     <div>
-                        <label class="mb-1.5 block text-xs font-medium text-slate-400">"Satker"</label>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-400">
+                            "Satker"
+                        </label>
                         <input
                             type="text"
                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 placeholder-slate-500"
                             placeholder="ID Satker (opsional)"
                             on:change=move |ev| {
                                 let val = event_target_value(&ev);
-                                set_selected_satker.set(if val.is_empty() { None } else { Some(val) });
+                                set_selected_satker
+                                    .set(if val.is_empty() { None } else { Some(val) });
                                 set_daftar_page.set(1);
                             }
                         />
                     </div>
 
                     // Jenis Kelamin
-                    {filter_select("Jenis Kelamin", move |v| {
-                        set_selected_jenis_kelamin.set(v);
-                        set_daftar_page.set(1);
-                    }, view! {
-                        <option value="">"Semua"</option>
-                        <option value="L">"Laki-laki"</option>
-                        <option value="P">"Perempuan"</option>
-                    })}
+                    {filter_select(
+                        "Jenis Kelamin",
+                        move |v| {
+                            set_selected_jenis_kelamin.set(v);
+                            set_daftar_page.set(1);
+                        },
+                        view! {
+                            <option value="">"Semua"</option>
+                            <option value="L">"Laki-laki"</option>
+                            <option value="P">"Perempuan"</option>
+                        },
+                    )}
 
                     // Jenis Pegawai
-                    {filter_select("Jenis Pegawai", move |v| {
-                        set_selected_jenis_pegawai.set(v);
-                        set_daftar_page.set(1);
-                    }, view! {
-                        <option value="">"Semua"</option>
-                        <option value="0">"Jaksa"</option>
-                        <option value="1">"Tata Usaha"</option>
-                    })}
+                    {filter_select(
+                        "Jenis Pegawai",
+                        move |v| {
+                            set_selected_jenis_pegawai.set(v);
+                            set_daftar_page.set(1);
+                        },
+                        view! {
+                            <option value="">"Semua"</option>
+                            <option value="0">"Jaksa"</option>
+                            <option value="1">"Tata Usaha"</option>
+                        },
+                    )}
 
                     // Eselon
-                    {filter_select("Eselon", move |v| {
-                        set_selected_eselon.set(v);
-                        set_daftar_page.set(1);
-                    }, view! {
-                        <option value="">"Semua Eselon"</option>
-                        <option value="I">"Eselon I"</option>
-                        <option value="II">"Eselon II"</option>
-                        <option value="III">"Eselon III"</option>
-                        <option value="IV">"Eselon IV"</option>
-                    })}
+                    {filter_select(
+                        "Eselon",
+                        move |v| {
+                            set_selected_eselon.set(v);
+                            set_daftar_page.set(1);
+                        },
+                        view! {
+                            <option value="">"Semua Eselon"</option>
+                            <option value="I">"Eselon I"</option>
+                            <option value="II">"Eselon II"</option>
+                            <option value="III">"Eselon III"</option>
+                            <option value="IV">"Eselon IV"</option>
+                        },
+                    )}
                 </div>
             </SectionCard>
 
@@ -283,21 +336,41 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                 <button
                     class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2.5 text-sm font-medium text-success-300 transition hover:bg-success-500/20"
                     on:click=move |_| {
-                        let url = build_export_url(active_tab.get(), "excel", &selected_pengajuan.get(), &selected_satker.get(), &selected_jenis_kelamin.get(), &selected_eselon.get(), &selected_jenis_pegawai.get());
+                        let url = build_export_url(
+                            active_tab.get(),
+                            "excel",
+                            &selected_pengajuan.get(),
+                            &selected_satker.get(),
+                            &selected_jenis_kelamin.get(),
+                            &selected_eselon.get(),
+                            &selected_jenis_pegawai.get(),
+                        );
                         open_url(&url);
                     }
                 >
-                    <span class="text-xs"><AppIcon icon=FILE_XLS /></span>
+                    <span class="text-xs">
+                        <AppIcon icon=FILE_XLS />
+                    </span>
                     "Cetak Excel"
                 </button>
                 <button
                     class="inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-2.5 text-sm font-medium text-danger-300 transition hover:bg-danger-500/20"
                     on:click=move |_| {
-                        let url = build_export_url(active_tab.get(), "pdf", &selected_pengajuan.get(), &selected_satker.get(), &selected_jenis_kelamin.get(), &selected_eselon.get(), &selected_jenis_pegawai.get());
+                        let url = build_export_url(
+                            active_tab.get(),
+                            "pdf",
+                            &selected_pengajuan.get(),
+                            &selected_satker.get(),
+                            &selected_jenis_kelamin.get(),
+                            &selected_eselon.get(),
+                            &selected_jenis_pegawai.get(),
+                        );
                         open_url(&url);
                     }
                 >
-                    <span class="text-xs"><AppIcon icon=FILE_PDF /></span>
+                    <span class="text-xs">
+                        <AppIcon icon=FILE_PDF />
+                    </span>
                     "Cetak PDF"
                 </button>
             </div>
@@ -367,7 +440,9 @@ fn RekapUkuranTab(
     });
 
     view! {
-        <Suspense fallback=move || view! { <LoadingState message="Memuat data rekap...".to_string() /> }>
+        <Suspense fallback=move || {
+            view! { <LoadingState message="Memuat data rekap...".to_string() /> }
+        }>
             {move || match data.get() {
                 None => view! { <LoadingState /> }.into_any(),
                 Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -379,7 +454,8 @@ fn RekapUkuranTab(
                                 title="Tidak Ada Data"
                                 description="Tidak ada data untuk filter yang dipilih."
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         render_rekap_groups(rekap)
                     }
@@ -400,14 +476,17 @@ fn render_rekap_groups(rekap: Vec<LaporanRekapUkuran>) -> AnyView {
 
     view! {
         <div class="flex flex-col gap-5">
-            {groups.into_iter().map(|group_name| {
-                let items: Vec<LaporanRekapUkuran> = rekap
-                    .iter()
-                    .filter(|r| r.pakaian_nama == group_name)
-                    .cloned()
-                    .collect();
-                render_rekap_table(group_name, items)
-            }).collect_view()}
+            {groups
+                .into_iter()
+                .map(|group_name| {
+                    let items: Vec<LaporanRekapUkuran> = rekap
+                        .iter()
+                        .filter(|r| r.pakaian_nama == group_name)
+                        .cloned()
+                        .collect();
+                    render_rekap_table(group_name, items)
+                })
+                .collect_view()}
         </div>
     }
     .into_any()
@@ -429,58 +508,98 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
     let ring = format!("ring-{}-500/25", accent);
 
     view! {
-        <div class=format!("overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}", ring)>
+        <div class=format!(
+            "overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}",
+            ring,
+        )>
             // Group header
             <div class=format!("flex items-center gap-3 px-5 py-3 {}", header_bg)>
                 <span class=format!("inline-flex {}", header_text)>
                     <AppIcon icon=icon_from_fa_class(icon) size=14 />
                 </span>
-                <h4 class=format!("text-sm font-semibold {}", header_text)>
-                    {format!("{} ({})", group_name, ukuran_group)}
-                </h4>
+                <h4 class=format!(
+                    "text-sm font-semibold {}",
+                    header_text,
+                )>{format!("{} ({})", group_name, ukuran_group)}</h4>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                     <thead>
                         <tr class="border-b border-white/[0.06] bg-white/[0.02]">
-                            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-slate-400">"Gender"</th>
-                            {items.iter().map(|r| {
-                                let ukuran = r.ukuran.clone();
-                                view! {
-                                    <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase text-slate-400">{ukuran}</th>
-                                }
-                            }).collect_view()}
-                            <th class="px-4 py-2.5 text-center text-xs font-bold uppercase text-slate-300">"Total"</th>
+                            <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase text-slate-400">
+                                "Gender"
+                            </th>
+                            {items
+                                .iter()
+                                .map(|r| {
+                                    let ukuran = r.ukuran.clone();
+                                    view! {
+                                        <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase text-slate-400">
+                                            {ukuran}
+                                        </th>
+                                    }
+                                })
+                                .collect_view()}
+                            <th class="px-4 py-2.5 text-center text-xs font-bold uppercase text-slate-300">
+                                "Total"
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         // Laki-laki row
                         <tr class="border-b border-white/[0.04]">
-                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">"Laki-laki (L)"</td>
-                            {items.iter().map(|r| {
-                                let v = r.jumlah_laki.to_string();
-                                view! { <td class="px-3 py-2.5 text-center text-slate-300">{v}</td> }
-                            }).collect_view()}
-                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">{total_l.to_string()}</td>
+                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">
+                                "Laki-laki (L)"
+                            </td>
+                            {items
+                                .iter()
+                                .map(|r| {
+                                    let v = r.jumlah_laki.to_string();
+                                    view! {
+                                        <td class="px-3 py-2.5 text-center text-slate-300">{v}</td>
+                                    }
+                                })
+                                .collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">
+                                {total_l.to_string()}
+                            </td>
                         </tr>
                         // Perempuan row
                         <tr class="border-b border-white/[0.04]">
-                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">"Perempuan (P)"</td>
-                            {items.iter().map(|r| {
-                                let v = r.jumlah_perempuan.to_string();
-                                view! { <td class="px-3 py-2.5 text-center text-slate-300">{v}</td> }
-                            }).collect_view()}
-                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">{total_p.to_string()}</td>
+                            <td class="px-4 py-2.5 text-sm font-medium text-slate-200">
+                                "Perempuan (P)"
+                            </td>
+                            {items
+                                .iter()
+                                .map(|r| {
+                                    let v = r.jumlah_perempuan.to_string();
+                                    view! {
+                                        <td class="px-3 py-2.5 text-center text-slate-300">{v}</td>
+                                    }
+                                })
+                                .collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-slate-100">
+                                {total_p.to_string()}
+                            </td>
                         </tr>
                         // Total row
                         <tr class="bg-white/[0.03]">
                             <td class="px-4 py-2.5 text-sm font-bold text-slate-100">"Jumlah"</td>
-                            {items.iter().map(|r| {
-                                let v = r.jumlah_total.to_string();
-                                view! { <td class="px-3 py-2.5 text-center font-bold text-slate-100">{v}</td> }
-                            }).collect_view()}
-                            <td class="px-4 py-2.5 text-center font-bold text-gold-400">{total_all.to_string()}</td>
+                            {items
+                                .iter()
+                                .map(|r| {
+                                    let v = r.jumlah_total.to_string();
+                                    view! {
+                                        <td class="px-3 py-2.5 text-center font-bold text-slate-100">
+                                            {v}
+                                        </td>
+                                    }
+                                })
+                                .collect_view()}
+                            <td class="px-4 py-2.5 text-center font-bold text-gold-400">
+                                {total_all.to_string()}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -526,7 +645,9 @@ fn DaftarPegawaiTab(
     });
 
     view! {
-        <Suspense fallback=move || view! { <LoadingState message="Memuat daftar pegawai...".to_string() /> }>
+        <Suspense fallback=move || {
+            view! { <LoadingState message="Memuat daftar pegawai...".to_string() /> }
+        }>
             {move || match data.get() {
                 None => view! { <LoadingState /> }.into_any(),
                 Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -538,9 +659,17 @@ fn DaftarPegawaiTab(
                                 title="Tidak Ada Data"
                                 description="Tidak ada data untuk filter yang dipilih."
                             />
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
-                        render_pegawai_table(response.data, response.page, response.total, response.total_pages, page, set_page)
+                        render_pegawai_table(
+                            response.data,
+                            response.page,
+                            response.total,
+                            response.total_pages,
+                            page,
+                            set_page,
+                        )
                     }
                 }
             }}
@@ -568,41 +697,76 @@ fn render_pegawai_table(
                 <table class="min-w-full divide-y divide-white/[0.04]">
                     <thead class="bg-white/[0.02]">
                         <tr>
-                            {headers.iter().map(|h| view! {
-                                <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">{*h}</th>
-                            }).collect_view()}
+                            {headers
+                                .iter()
+                                .map(|h| {
+                                    view! {
+                                        <th class="px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                            {*h}
+                                        </th>
+                                    }
+                                })
+                                .collect_view()}
                         </tr>
                     </thead>
                     <tbody>
-                        {data.into_iter().enumerate().map(|(idx, item)| {
-                            let status_label = match item.jenis.as_deref() {
-                                Some("0") => "J",
-                                Some("1") => "T",
-                                _ => "-",
-                            };
-                            let hijab_label = match item.with_hijab {
-                                Some(true) => "Y",
-                                Some(false) => "T",
-                                None => "-",
-                            };
-                            let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
-                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
-                            view! {
-                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                                    <td class="px-3 py-2.5 text-sm text-slate-400">{num}</td>
-                                    <td class="px-3 py-2.5 font-mono text-xs text-slate-300">{item.nip}</td>
-                                    <td class="px-3 py-2.5 text-sm font-medium text-slate-100">{item.nama}</td>
-                                    <td class="px-3 py-2.5 text-sm text-slate-400">{item.jabatan.unwrap_or_else(|| "-".to_string())}</td>
-                                    <td class="px-3 py-2.5 text-center text-xs text-slate-400">{item.gol_kd.unwrap_or_else(|| "-".to_string())}</td>
-                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{status_label}</td>
-                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{item.jenis_kelamin.unwrap_or_else(|| "-".to_string())}</td>
-                                    <td class="px-3 py-2.5 text-center text-xs text-slate-300">{hijab_label}</td>
-                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_baju.unwrap_or_else(|| "-".to_string())}</td>
-                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_celana.unwrap_or_else(|| "-".to_string())}</td>
-                                    <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">{item.ukuran_sepatu.unwrap_or_else(|| "-".to_string())}</td>
-                                </tr>
-                            }
-                        }).collect_view()}
+                        {data
+                            .into_iter()
+                            .enumerate()
+                            .map(|(idx, item)| {
+                                let status_label = match item.jenis.as_deref() {
+                                    Some("0") => "J",
+                                    Some("1") => "T",
+                                    _ => "-",
+                                };
+                                let hijab_label = match item.with_hijab {
+                                    Some(true) => "Y",
+                                    Some(false) => "T",
+                                    None => "-",
+                                };
+                                let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
+                                let bg = if idx % 2 == 0 {
+                                    "bg-transparent"
+                                } else {
+                                    "bg-white/[0.015]"
+                                };
+                                view! {
+                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                        <td class="px-3 py-2.5 text-sm text-slate-400">{num}</td>
+                                        <td class="px-3 py-2.5 font-mono text-xs text-slate-300">
+                                            {item.nip}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-sm font-medium text-slate-100">
+                                            {item.nama}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-sm text-slate-400">
+                                            {item.jabatan.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-xs text-slate-400">
+                                            {item.gol_kd.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-xs text-slate-300">
+                                            {status_label}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-xs text-slate-300">
+                                            {item.jenis_kelamin.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-xs text-slate-300">
+                                            {hijab_label}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
+                                            {item.ukuran_baju.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
+                                            {item.ukuran_celana.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                        <td class="px-3 py-2.5 text-center text-sm font-semibold text-slate-200">
+                                            {item.ukuran_sepatu.unwrap_or_else(|| "-".to_string())}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
                     </tbody>
                 </table>
             </div>
@@ -610,11 +774,9 @@ fn render_pegawai_table(
             // Pagination
             <div class="flex items-center justify-between border-t border-white/[0.04] px-5 py-3">
                 <p class="text-xs text-slate-400">
-                    "Halaman "
-                    <span class="font-medium text-slate-200">{current_page}</span>
-                    " dari "
-                    <span class="font-medium text-slate-200">{total_pages}</span>
-                    " (" <span class="font-medium text-slate-200">{total}</span> " pegawai)"
+                    "Halaman " <span class="font-medium text-slate-200">{current_page}</span>
+                    " dari " <span class="font-medium text-slate-200">{total_pages}</span> " ("
+                    <span class="font-medium text-slate-200">{total}</span> " pegawai)"
                 </p>
                 <div class="flex gap-2">
                     <button
@@ -626,9 +788,11 @@ fn render_pegawai_table(
                     </button>
                     <button
                         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        prop:disabled=move || page.get() >= total_pages
-                        on:click=move |_| set_page.update(|p| *p += 1)
+                        prop:disabled=move || page.get()
                     >
+                        = total_pages
+                        on:click=move |_| set_page.update(|p| *p += 1)
+                        >
                         "Selanjutnya"
                     </button>
                 </div>

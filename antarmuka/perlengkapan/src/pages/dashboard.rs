@@ -61,14 +61,17 @@ fn StatCard(
                 <div class="mb-4 flex items-center justify-between">
                     <div class=format!(
                         "flex h-11 w-11 items-center justify-center rounded-xl {} {} shadow-lg",
-                        icon_bg, glow
+                        icon_bg,
+                        glow,
                     )>
                         <span class=format!("inline-flex {}", icon_text)>
                             <AppIcon icon=icon_from_fa_class(icon) size=16 />
                         </span>
                     </div>
                 </div>
-                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">{label}</p>
+                <p class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    {label}
+                </p>
                 <p class="mt-2 text-3xl font-extrabold leading-none text-white">{value}</p>
                 <p class="mt-2 text-xs text-slate-500">{subtitle}</p>
             </div>
@@ -155,21 +158,29 @@ fn QuickNav(
     };
 
     view! {
-        <a href=href class="group block rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all duration-300 hover:border-white/20 hover:bg-slate-900/80">
+        <a
+            href=href
+            class="group block rounded-xl border border-white/10 bg-slate-900/50 p-4 transition-all duration-300 hover:border-white/20 hover:bg-slate-900/80"
+        >
             <div class="flex items-start gap-3">
                 <div class=format!(
                     "mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg {} {} ring-1 ring-transparent transition-all",
-                    icon_bg, ring
+                    icon_bg,
+                    ring,
                 )>
                     <span class=format!("inline-flex {}", icon_text)>
                         <AppIcon icon=icon_from_fa_class(icon) size=14 />
                     </span>
                 </div>
                 <div class="min-w-0 flex-1">
-                    <h3 class="text-sm font-semibold text-slate-100 transition-colors group-hover:text-gold-300">{label}</h3>
+                    <h3 class="text-sm font-semibold text-slate-100 transition-colors group-hover:text-gold-300">
+                        {label}
+                    </h3>
                     <p class="mt-1 text-xs leading-relaxed text-slate-500">{description}</p>
                 </div>
-                <span class="pt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-300"><AppIcon icon=CARET_RIGHT /></span>
+                <span class="pt-1 text-[10px] text-slate-600 transition-colors group-hover:text-slate-300">
+                    <AppIcon icon=CARET_RIGHT />
+                </span>
             </div>
         </a>
     }
@@ -234,43 +245,75 @@ pub fn DashboardHome() -> impl IntoView {
 
                     <div class="mt-6 flex flex-wrap gap-3">
                         <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
-                            <span class="text-emerald-300"><AppIcon icon=SHIELD /></span>
+                            <span class="text-emerald-300">
+                                <AppIcon icon=SHIELD />
+                            </span>
                             <span>"Role: " <strong class="text-white">{role_label}</strong></span>
                         </div>
                         <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
-                            <span class="text-blue-300"><AppIcon icon=CALENDAR /></span>
+                            <span class="text-blue-300">
+                                <AppIcon icon=CALENDAR />
+                            </span>
                             "Tahun Anggaran 2025"
                         </div>
                     </div>
                 </div>
             </section>
 
-            <Suspense fallback=move || view! {
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                    <StatCardSkeleton />
-                </div>
+            <Suspense fallback=move || {
+                view! {
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                    </div>
+                }
             }>
                 {move || {
                     let stats = stats_resource.get().and_then(|r| r.ok());
                     let (total, baik, rusak, satker) = match &stats {
-                        Some(s) => (
-                            format_number(s.total_aset),
-                            format_number(s.aset_baik),
-                            format_number(s.aset_rusak),
-                            format_number(s.total_satker),
-                        ),
+                        Some(s) => {
+                            (
+                                format_number(s.total_aset),
+                                format_number(s.aset_baik),
+                                format_number(s.aset_rusak),
+                                format_number(s.total_satker),
+                            )
+                        }
                         None => ("-".into(), "-".into(), "-".into(), "-".into()),
                     };
 
                     view! {
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <StatCard icon="fas fa-box"                  label="Total Aset BMN"  value=total  subtitle="Terintegrasi SIMAN"   tone="blue" />
-                            <StatCard icon="fas fa-check-circle"         label="Kondisi Baik"    value=baik   subtitle="Siap pakai"           tone="green" />
-                            <StatCard icon="fas fa-exclamation-triangle" label="Perlu Perbaikan" value=rusak  subtitle="Tindakan diperlukan"  tone="amber" />
-                            <StatCard icon="fas fa-building"             label="Satuan Kerja"    value=satker subtitle="Unit kerja aktif"     tone="violet" />
+                            <StatCard
+                                icon="fas fa-box"
+                                label="Total Aset BMN"
+                                value=total
+                                subtitle="Terintegrasi SIMAN"
+                                tone="blue"
+                            />
+                            <StatCard
+                                icon="fas fa-check-circle"
+                                label="Kondisi Baik"
+                                value=baik
+                                subtitle="Siap pakai"
+                                tone="green"
+                            />
+                            <StatCard
+                                icon="fas fa-exclamation-triangle"
+                                label="Perlu Perbaikan"
+                                value=rusak
+                                subtitle="Tindakan diperlukan"
+                                tone="amber"
+                            />
+                            <StatCard
+                                icon="fas fa-building"
+                                label="Satuan Kerja"
+                                value=satker
+                                subtitle="Unit kerja aktif"
+                                tone="violet"
+                            />
                         </div>
                     }
                 }}
@@ -279,19 +322,61 @@ pub fn DashboardHome() -> impl IntoView {
             <section>
                 <SectionHeader title="Modul Utama" tone="gold" />
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <QuickNav href=routes::path::BANK_ASET_DAFTAR      icon="fas fa-boxes"          label="Bank Aset"       description="Katalog dan registrasi BMN"          tone="emerald" />
-                    <QuickNav href=routes::path::KEBUTUHAN_DAFTAR      icon="fas fa-clipboard-list" label="Kebutuhan BMN"   description="Analisis kebutuhan dan perencanaan"  tone="blue" />
-                    <QuickNav href=routes::path::PAKAIAN_PENGAJUAN     icon="fas fa-tshirt"         label="Pakaian Dinas"   description="Pengajuan dan distribusi atribut"    tone="purple" />
-                    <QuickNav href=routes::path::PENGELOLAAN_PEMAKAIAN icon="fas fa-file-signature" label="Pemakaian BMN"   description="Izin pemakaian dan monitoring"       tone="indigo" />
-                    <QuickNav href=routes::path::PENGELOLAAN_PENGHAPUSAN icon="fas fa-trash-alt"    label="Penghapusan BMN" description="Disposal dan penghapusan BMN"        tone="red" />
+                    <QuickNav
+                        href=routes::path::BANK_ASET_DAFTAR
+                        icon="fas fa-boxes"
+                        label="Bank Aset"
+                        description="Katalog dan registrasi BMN"
+                        tone="emerald"
+                    />
+                    <QuickNav
+                        href=routes::path::KEBUTUHAN_DAFTAR
+                        icon="fas fa-clipboard-list"
+                        label="Kebutuhan BMN"
+                        description="Analisis kebutuhan dan perencanaan"
+                        tone="blue"
+                    />
+                    <QuickNav
+                        href=routes::path::PAKAIAN_PENGAJUAN
+                        icon="fas fa-tshirt"
+                        label="Pakaian Dinas"
+                        description="Pengajuan dan distribusi atribut"
+                        tone="purple"
+                    />
+                    <QuickNav
+                        href=routes::path::PENGELOLAAN_PEMAKAIAN
+                        icon="fas fa-file-signature"
+                        label="Pemakaian BMN"
+                        description="Izin pemakaian dan monitoring"
+                        tone="indigo"
+                    />
+                    <QuickNav
+                        href=routes::path::PENGELOLAAN_PENGHAPUSAN
+                        icon="fas fa-trash-alt"
+                        label="Penghapusan BMN"
+                        description="Disposal dan penghapusan BMN"
+                        tone="red"
+                    />
                 </div>
             </section>
 
             <section>
                 <SectionHeader title="Analitik" tone="teal" />
                 <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <QuickNav href=routes::path::ANALITIK_ROADMAP    icon="fas fa-road"    label="Roadmap Sarpras" description="Prediksi kebutuhan sarana prasarana" tone="teal" />
-                    <QuickNav href=routes::path::ANALITIK_KODEFIKASI icon="fas fa-barcode" label="Kodefikasi BMN"  description="Mapping kode barang standar"         tone="purple" />
+                    <QuickNav
+                        href=routes::path::ANALITIK_ROADMAP
+                        icon="fas fa-road"
+                        label="Roadmap Sarpras"
+                        description="Prediksi kebutuhan sarana prasarana"
+                        tone="teal"
+                    />
+                    <QuickNav
+                        href=routes::path::ANALITIK_KODEFIKASI
+                        icon="fas fa-barcode"
+                        label="Kodefikasi BMN"
+                        description="Mapping kode barang standar"
+                        tone="purple"
+                    />
                 </div>
             </section>
 
@@ -299,11 +384,41 @@ pub fn DashboardHome() -> impl IntoView {
                 <section>
                     <SectionHeader title="Panel Administrator" tone="red" />
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <QuickNav href=routes::path::ADMIN_USERS      icon="fas fa-users-cog"      label="Manajemen Pengguna" description="Data pengguna dan sesi aktif"         tone="red" />
-                        <QuickNav href=routes::path::ADMIN_ROLES      icon="fas fa-user-tag"       label="Otorisasi (RBAC)"   description="Konfigurasi hak akses peran"       tone="orange" />
-                        <QuickNav href=routes::path::ADMIN_AUDIT      icon="fas fa-history"        label="Audit Log"          description="Jejak audit seluruh aktivitas"       tone="indigo" />
-                        <QuickNav href=routes::path::ADMIN_MASTER     icon="fas fa-database"       label="Master Data"        description="Pengelolaan data referensi"          tone="cyan" />
-                        <QuickNav href=routes::path::ADMIN_WORKFLOW   icon="fas fa-project-diagram" label="Workflow Config"    description="Konfigurasi workflow persetujuan"    tone="blue" />
+                        <QuickNav
+                            href=routes::path::ADMIN_USERS
+                            icon="fas fa-users-cog"
+                            label="Manajemen Pengguna"
+                            description="Data pengguna dan sesi aktif"
+                            tone="red"
+                        />
+                        <QuickNav
+                            href=routes::path::ADMIN_ROLES
+                            icon="fas fa-user-tag"
+                            label="Otorisasi (RBAC)"
+                            description="Konfigurasi hak akses peran"
+                            tone="orange"
+                        />
+                        <QuickNav
+                            href=routes::path::ADMIN_AUDIT
+                            icon="fas fa-history"
+                            label="Audit Log"
+                            description="Jejak audit seluruh aktivitas"
+                            tone="indigo"
+                        />
+                        <QuickNav
+                            href=routes::path::ADMIN_MASTER
+                            icon="fas fa-database"
+                            label="Master Data"
+                            description="Pengelolaan data referensi"
+                            tone="cyan"
+                        />
+                        <QuickNav
+                            href=routes::path::ADMIN_WORKFLOW
+                            icon="fas fa-project-diagram"
+                            label="Workflow Config"
+                            description="Konfigurasi workflow persetujuan"
+                            tone="blue"
+                        />
                     </div>
                 </section>
             </Show>

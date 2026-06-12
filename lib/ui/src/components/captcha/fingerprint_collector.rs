@@ -159,8 +159,10 @@ pub fn FingerprintCollector(
     });
 
     view! {
-        <div class="fingerprint-collector" style="display: none;">
-            // Hidden component for fingerprint collection
+        <div
+            class="fingerprint-collector"
+            style="display: none;"
+        >// Hidden component for fingerprint collection
         </div>
     }
 }

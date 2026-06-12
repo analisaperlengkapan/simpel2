@@ -70,15 +70,20 @@ pub fn BankAsetDetailPage() -> impl IntoView {
             description="Informasi lengkap aset beserta riwayat pemakaian, penghapusan, dan kebutuhan."
             icon="fas fa-cube"
             breadcrumbs=breadcrumbs
-            actions=Box::new(move || view! {
-                <A
-                    href=path::BANK_ASET_DAFTAR
-                    attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_LEFT /></span>
-                    "Kembali ke Daftar"
-                </A>
-            }.into_any())
+            actions=Box::new(move || {
+                view! {
+                    <A
+                        href=path::BANK_ASET_DAFTAR
+                        attr:class="focus-ring inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-100 transition hover:bg-white/[0.08]"
+                    >
+                        <span class="text-[0.7rem]">
+                            <AppIcon icon=ARROW_LEFT />
+                        </span>
+                        "Kembali ke Daftar"
+                    </A>
+                }
+                    .into_any()
+            })
         >
             {move || {
                 if loading.get() && detail.get().is_none() {
@@ -87,9 +92,12 @@ pub fn BankAsetDetailPage() -> impl IntoView {
                     view! {
                         <ErrorState
                             error=err
-                            on_retry=Box::new(move || { set_reload_tick.update(|t| *t += 1); })
+                            on_retry=Box::new(move || {
+                                set_reload_tick.update(|t| *t += 1);
+                            })
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if let Some(d) = detail.get() {
                     view! { <DetailBody detail=d tab=tab set_tab=set_tab /> }.into_any()
                 } else {
@@ -99,7 +107,8 @@ pub fn BankAsetDetailPage() -> impl IntoView {
                             description="Data aset tidak tersedia di basis data SIMAN."
                             icon="fas fa-box-open"
                         />
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
         </PageLayout>
@@ -133,16 +142,37 @@ fn DetailBody(
             icon="fas fa-cube"
         >
             <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <InfoField label="Kode Barang" value=item.kode_barang.clone().unwrap_or_else(|| "-".to_string()) />
+                <InfoField
+                    label="Kode Barang"
+                    value=item.kode_barang.clone().unwrap_or_else(|| "-".to_string())
+                />
                 <InfoField label="NUP" value=item.nup.clone().unwrap_or_else(|| "-".to_string()) />
-                <InfoField label="Merk" value=item.merk.clone().unwrap_or_else(|| "-".to_string()) />
-                <InfoField label="Tipe" value=item.tipe.clone().unwrap_or_else(|| "-".to_string()) />
+                <InfoField
+                    label="Merk"
+                    value=item.merk.clone().unwrap_or_else(|| "-".to_string())
+                />
+                <InfoField
+                    label="Tipe"
+                    value=item.tipe.clone().unwrap_or_else(|| "-".to_string())
+                />
                 <InfoField label="Kondisi" value=kondisi />
-                <InfoField label="Tanggal Perolehan" value=item.tgl_perolehan.clone().unwrap_or_else(|| "-".to_string()) />
+                <InfoField
+                    label="Tanggal Perolehan"
+                    value=item.tgl_perolehan.clone().unwrap_or_else(|| "-".to_string())
+                />
                 <InfoField label="Nilai Perolehan" value=nilai />
-                <InfoField label="Satker" value=item.satker.clone().unwrap_or_else(|| "-".to_string()) />
-                <InfoField label="Kode Satker" value=item.kode_satker.clone().unwrap_or_else(|| "-".to_string()) />
-                <InfoField label="Lokasi" value=item.lokasi.clone().unwrap_or_else(|| "-".to_string()) />
+                <InfoField
+                    label="Satker"
+                    value=item.satker.clone().unwrap_or_else(|| "-".to_string())
+                />
+                <InfoField
+                    label="Kode Satker"
+                    value=item.kode_satker.clone().unwrap_or_else(|| "-".to_string())
+                />
+                <InfoField
+                    label="Lokasi"
+                    value=item.lokasi.clone().unwrap_or_else(|| "-".to_string())
+                />
                 <InfoField label="Diperbarui" value=item.updated_at.clone() />
             </div>
         </SectionCard>
@@ -153,21 +183,60 @@ fn DetailBody(
             icon="fas fa-clock-rotate-left"
         >
             <div class="flex flex-wrap gap-2 border-b border-white/[0.08] pb-3">
-                <TabButton current=tab value=Tab::Ringkasan label="Ringkasan" icon="fas fa-info" set_tab=set_tab />
-                <TabButton current=tab value=Tab::Pemakaian label="Pemakaian" icon="fas fa-handshake" set_tab=set_tab />
-                <TabButton current=tab value=Tab::Penghapusan label="Penghapusan" icon="fas fa-trash" set_tab=set_tab />
-                <TabButton current=tab value=Tab::Kebutuhan label="Kebutuhan" icon="fas fa-clipboard-list" set_tab=set_tab />
+                <TabButton
+                    current=tab
+                    value=Tab::Ringkasan
+                    label="Ringkasan"
+                    icon="fas fa-info"
+                    set_tab=set_tab
+                />
+                <TabButton
+                    current=tab
+                    value=Tab::Pemakaian
+                    label="Pemakaian"
+                    icon="fas fa-handshake"
+                    set_tab=set_tab
+                />
+                <TabButton
+                    current=tab
+                    value=Tab::Penghapusan
+                    label="Penghapusan"
+                    icon="fas fa-trash"
+                    set_tab=set_tab
+                />
+                <TabButton
+                    current=tab
+                    value=Tab::Kebutuhan
+                    label="Kebutuhan"
+                    icon="fas fa-clipboard-list"
+                    set_tab=set_tab
+                />
             </div>
             <div class="mt-4">
                 {move || match tab.get() {
-                    Tab::Ringkasan => view! {
-                        <p class="rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm leading-relaxed text-slate-300">
-                            "Pilih tab di atas untuk melihat riwayat pemakaian, usulan penghapusan, atau pengajuan kebutuhan yang terkait dengan aset ini."
-                        </p>
-                    }.into_any(),
-                    Tab::Pemakaian => render_riwayat(&pemakaian, "Belum ada riwayat pemakaian untuk aset ini.").into_any(),
-                    Tab::Penghapusan => render_riwayat(&penghapusan, "Belum ada usulan penghapusan untuk aset ini.").into_any(),
-                    Tab::Kebutuhan => render_riwayat(&kebutuhan, "Belum ada pengajuan kebutuhan yang terkait aset ini.").into_any(),
+                    Tab::Ringkasan => {
+                        view! {
+                            <p class="rounded-lg border border-white/[0.05] bg-white/[0.02] px-4 py-3 text-sm leading-relaxed text-slate-300">
+                                "Pilih tab di atas untuk melihat riwayat pemakaian, usulan penghapusan, atau pengajuan kebutuhan yang terkait dengan aset ini."
+                            </p>
+                        }
+                            .into_any()
+                    }
+                    Tab::Pemakaian => {
+                        render_riwayat(&pemakaian, "Belum ada riwayat pemakaian untuk aset ini.")
+                            .into_any()
+                    }
+                    Tab::Penghapusan => {
+                        render_riwayat(&penghapusan, "Belum ada usulan penghapusan untuk aset ini.")
+                            .into_any()
+                    }
+                    Tab::Kebutuhan => {
+                        render_riwayat(
+                                &kebutuhan,
+                                "Belum ada pengajuan kebutuhan yang terkait aset ini.",
+                            )
+                            .into_any()
+                    }
                 }}
             </div>
         </SectionCard>
@@ -192,7 +261,9 @@ fn TabButton(
                 if is_active() {
                     format!("{base} bg-gold-gradient text-navy-950 shadow-sm")
                 } else {
-                    format!("{base} border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]")
+                    format!(
+                        "{base} border border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]",
+                    )
                 }
             }
         >
@@ -215,13 +286,7 @@ fn InfoField(#[prop(into)] label: String, #[prop(into)] value: String) -> impl I
 fn render_riwayat(entries: &[RiwayatEntry], empty_msg: &str) -> impl IntoView {
     if entries.is_empty() {
         let msg = empty_msg.to_string();
-        return view! {
-            <EmptyState
-                title="Belum ada riwayat"
-                description=msg
-                icon="fas fa-clock"
-            />
-        }
+        return view! { <EmptyState title="Belum ada riwayat" description=msg icon="fas fa-clock" /> }
         .into_any();
     }
     let rows: Vec<_> = entries.iter().map(|e| {

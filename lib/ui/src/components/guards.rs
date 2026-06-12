@@ -45,13 +45,10 @@ pub fn AuthGate(
     let children = StoredValue::new(children);
 
     view! {
-        <Show
-            when=move || authenticated.get()
-            fallback=move || unauthenticated.run()
-        >
+        <Show when=move || authenticated.get() fallback=move || unauthenticated.run()>
             {
-                // Authenticated. Apply the optional authorization tier.
                 let forbidden = forbidden.clone();
+                // Authenticated. Apply the optional authorization tier.
                 view! {
                     <Show
                         when=move || authorized.map(|a| a.get()).unwrap_or(true)

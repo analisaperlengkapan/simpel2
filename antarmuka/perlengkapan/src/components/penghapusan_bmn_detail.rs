@@ -319,517 +319,823 @@ pub fn PenghapusanBmnDetail() -> impl IntoView {
     view! {
         <div class="space-y-6">
             // Messages
-            {move || error_msg.get().map(|msg| view! {
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                    <p class="font-medium">{msg}</p>
-                </div>
-            })}
-            {move || success_msg.get().map(|msg| view! {
-                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                    <p class="font-medium">{msg}</p>
-                </div>
-            })}
-
-            <Suspense fallback=move || view! {
-                <div class="flex items-center justify-center py-12">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span class="ml-3 text-gray-600">"Memuat detail..."</span>
-                </div>
-            }>
-                {move || detail_resource.get().map(|result| match result {
-                    Err(e) => view! {
-                        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                            <p>{format!("Error: {}", e)}</p>
-                        </div>
-                    }.into_any(),
-                    Ok(detail) => {
-                        let d = detail.clone();
-                        let status_kode = d.penghapusan.status_kode;
-
+            {move || {
+                error_msg
+                    .get()
+                    .map(|msg| {
                         view! {
-                            <div class="space-y-6">
-                                // Header
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        <h2 class="text-2xl font-bold text-gray-900">
-                                            "Usulan SK Penghapusan BMN"
-                                        </h2>
-                                        <p class="text-gray-500">
-                                            {format!("{} - {}", d.penghapusan.nama_barang, d.penghapusan.nup)}
-                                        </p>
+                            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                <p class="font-medium">{msg}</p>
+                            </div>
+                        }
+                    })
+            }}
+            {move || {
+                success_msg
+                    .get()
+                    .map(|msg| {
+                        view! {
+                            <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                                <p class="font-medium">{msg}</p>
+                            </div>
+                        }
+                    })
+            }}
+            <Suspense fallback=move || {
+                view! {
+                    <div class="flex items-center justify-center py-12">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span class="ml-3 text-gray-600">"Memuat detail..."</span>
+                    </div>
+                }
+            }>
+                {move || {
+                    detail_resource
+                        .get()
+                        .map(|result| match result {
+                            Err(e) => {
+                                view! {
+                                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                                        <p>{format!("Error: {}", e)}</p>
                                     </div>
-                                    <span class={format!("px-3 py-1 rounded-full text-sm font-medium {}", status_badge_class(status_kode))}>
-                                        {status_label(status_kode)}
-                                    </span>
-                                </div>
+                                }
+                                    .into_any()
+                            }
+                            Ok(detail) => {
+                                let d = detail.clone();
+                                let status_kode = d.penghapusan.status_kode;
 
-                                // Info Cards
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    // Informasi BMN
-                                    <div class="bg-white rounded-lg shadow p-4">
-                                        <h3 class="font-semibold text-gray-700 mb-3">"Informasi BMN"</h3>
-                                        <dl class="space-y-2 text-sm">
+                                view! {
+                                    <div class="space-y-6">
+                                        // Header
+                                        <div class="flex items-center justify-between">
                                             <div>
-                                                <dt class="text-gray-500">"Kode Barang"</dt>
-                                                <dd class="font-medium">{d.penghapusan.kode_barang.clone()}</dd>
+                                                <h2 class="text-2xl font-bold text-gray-900">
+                                                    "Usulan SK Penghapusan BMN"
+                                                </h2>
+                                                <p class="text-gray-500">
+                                                    {format!(
+                                                        "{} - {}",
+                                                        d.penghapusan.nama_barang,
+                                                        d.penghapusan.nup,
+                                                    )}
+                                                </p>
                                             </div>
-                                            <div>
-                                                <dt class="text-gray-500">"Nama Barang"</dt>
-                                                <dd class="font-medium">{d.penghapusan.nama_barang.clone()}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-gray-500">"NUP"</dt>
-                                                <dd class="font-medium">{d.penghapusan.nup.clone()}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-gray-500">"Nilai Perolehan"</dt>
-                                                <dd class="font-medium">
-                                                    {d.penghapusan.nilai_perolehan.map(|v| format!("Rp {:.2}", v)).unwrap_or_else(|| "-".to_string())}
-                                                </dd>
-                                                {d.penghapusan.nilai_perolehan_dari_backfill.then(|| view! {
-                                                    <p class="mt-1 text-xs text-amber-600">
-                                                        "Diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
-                                                    </p>
-                                                })}
-                                            </div>
-                                        </dl>
-                                    </div>
+                                            <span class=format!(
+                                                "px-3 py-1 rounded-full text-sm font-medium {}",
+                                                status_badge_class(status_kode),
+                                            )>{status_label(status_kode)}</span>
+                                        </div>
 
-                                    // Detail Penghapusan
-                                    <div class="bg-white rounded-lg shadow p-4">
-                                        <h3 class="font-semibold text-gray-700 mb-3">"Detail Penghapusan"</h3>
-                                        <dl class="space-y-2 text-sm">
-                                            <div>
-                                                <dt class="text-gray-500">"Tanggal Penghapusan"</dt>
-                                                <dd class="font-medium">{d.penghapusan.tanggal_penghapusan.clone()}</dd>
+                                        // Info Cards
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            // Informasi BMN
+                                            <div class="bg-white rounded-lg shadow p-4">
+                                                <h3 class="font-semibold text-gray-700 mb-3">
+                                                    "Informasi BMN"
+                                                </h3>
+                                                <dl class="space-y-2 text-sm">
+                                                    <div>
+                                                        <dt class="text-gray-500">"Kode Barang"</dt>
+                                                        <dd class="font-medium">
+                                                            {d.penghapusan.kode_barang.clone()}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-gray-500">"Nama Barang"</dt>
+                                                        <dd class="font-medium">
+                                                            {d.penghapusan.nama_barang.clone()}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-gray-500">"NUP"</dt>
+                                                        <dd class="font-medium">{d.penghapusan.nup.clone()}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-gray-500">"Nilai Perolehan"</dt>
+                                                        <dd class="font-medium">
+                                                            {d
+                                                                .penghapusan
+                                                                .nilai_perolehan
+                                                                .map(|v| format!("Rp {:.2}", v))
+                                                                .unwrap_or_else(|| "-".to_string())}
+                                                        </dd>
+                                                        {d
+                                                            .penghapusan
+                                                            .nilai_perolehan_dari_backfill
+                                                            .then(|| {
+                                                                view! {
+                                                                    <p class="mt-1 text-xs text-amber-600">
+                                                                        "Diisi otomatis dari data lama (nilai residu) — perlu diverifikasi."
+                                                                    </p>
+                                                                }
+                                                            })}
+                                                    </div>
+                                                </dl>
                                             </div>
-                                            <div>
-                                                <dt class="text-gray-500">"Metode"</dt>
-                                                <dd class="font-medium">{d.penghapusan.metode_penghapusan.clone()}</dd>
-                                            </div>
-                                            <div>
-                                                <dt class="text-gray-500">"Alasan"</dt>
-                                                <dd class="font-medium">{d.penghapusan.alasan.clone()}</dd>
-                                            </div>
-                                        </dl>
-                                    </div>
 
-                                    // Lampiran & Catatan
-                                    <div class="bg-white rounded-lg shadow p-4">
-                                        <h3 class="font-semibold text-gray-700 mb-3">"Lampiran & Catatan"</h3>
-                                        <dl class="space-y-2 text-sm">
-                                            {d.penghapusan.lampiran_persyaratan.clone().map(|url| view! {
-                                                <div>
-                                                    <dt class="text-gray-500">"Lampiran Persyaratan"</dt>
-                                                    <dd>
-                                                        <a href={url.clone()} target="_blank" class="text-blue-600 hover:underline">
-                                                            "Lihat Dokumen"
-                                                        </a>
-                                                    </dd>
-                                                </div>
-                                            })}
-                                            {d.penghapusan.catatan_operator.clone().map(|c| view! {
-                                                <div>
-                                                    <dt class="text-gray-500">"Catatan Operator"</dt>
-                                                    <dd>{c}</dd>
-                                                </div>
-                                            })}
-                                            {d.penghapusan.catatan_validator_wilayah.clone().map(|c| view! {
-                                                <div>
-                                                    <dt class="text-gray-500">"Catatan Validator Wilayah"</dt>
-                                                    <dd>{c}</dd>
-                                                </div>
-                                            })}
-                                            {d.penghapusan.catatan_validator_pusat.clone().map(|c| view! {
-                                                <div>
-                                                    <dt class="text-gray-500">"Catatan Validator Pusat"</dt>
-                                                    <dd>{c}</dd>
-                                                </div>
-                                            })}
-                                        </dl>
-                                    </div>
-                                </div>
+                                            // Detail Penghapusan
+                                            <div class="bg-white rounded-lg shadow p-4">
+                                                <h3 class="font-semibold text-gray-700 mb-3">
+                                                    "Detail Penghapusan"
+                                                </h3>
+                                                <dl class="space-y-2 text-sm">
+                                                    <div>
+                                                        <dt class="text-gray-500">"Tanggal Penghapusan"</dt>
+                                                        <dd class="font-medium">
+                                                            {d.penghapusan.tanggal_penghapusan.clone()}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-gray-500">"Metode"</dt>
+                                                        <dd class="font-medium">
+                                                            {d.penghapusan.metode_penghapusan.clone()}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt class="text-gray-500">"Alasan"</dt>
+                                                        <dd class="font-medium">{d.penghapusan.alasan.clone()}</dd>
+                                                    </div>
+                                                </dl>
+                                            </div>
 
-                                // Daftar Item BMN (Fase 2.8) — multi-item
-                                {(!d.items.is_empty()).then(|| {
-                                    let items = d.items.clone();
-                                    view! {
+                                            // Lampiran & Catatan
+                                            <div class="bg-white rounded-lg shadow p-4">
+                                                <h3 class="font-semibold text-gray-700 mb-3">
+                                                    "Lampiran & Catatan"
+                                                </h3>
+                                                <dl class="space-y-2 text-sm">
+                                                    {d
+                                                        .penghapusan
+                                                        .lampiran_persyaratan
+                                                        .clone()
+                                                        .map(|url| {
+                                                            view! {
+                                                                <div>
+                                                                    <dt class="text-gray-500">"Lampiran Persyaratan"</dt>
+                                                                    <dd>
+                                                                        <a
+                                                                            href=url.clone()
+                                                                            target="_blank"
+                                                                            class="text-blue-600 hover:underline"
+                                                                        >
+                                                                            "Lihat Dokumen"
+                                                                        </a>
+                                                                    </dd>
+                                                                </div>
+                                                            }
+                                                        })}
+                                                    {d
+                                                        .penghapusan
+                                                        .catatan_operator
+                                                        .clone()
+                                                        .map(|c| {
+                                                            view! {
+                                                                <div>
+                                                                    <dt class="text-gray-500">"Catatan Operator"</dt>
+                                                                    <dd>{c}</dd>
+                                                                </div>
+                                                            }
+                                                        })}
+                                                    {d
+                                                        .penghapusan
+                                                        .catatan_validator_wilayah
+                                                        .clone()
+                                                        .map(|c| {
+                                                            view! {
+                                                                <div>
+                                                                    <dt class="text-gray-500">"Catatan Validator Wilayah"</dt>
+                                                                    <dd>{c}</dd>
+                                                                </div>
+                                                            }
+                                                        })}
+                                                    {d
+                                                        .penghapusan
+                                                        .catatan_validator_pusat
+                                                        .clone()
+                                                        .map(|c| {
+                                                            view! {
+                                                                <div>
+                                                                    <dt class="text-gray-500">"Catatan Validator Pusat"</dt>
+                                                                    <dd>{c}</dd>
+                                                                </div>
+                                                            }
+                                                        })}
+                                                </dl>
+                                            </div>
+                                        </div>
+
+                                        // Daftar Item BMN (Fase 2.8) — multi-item
+                                        {(!d.items.is_empty())
+                                            .then(|| {
+                                                let items = d.items.clone();
+                                                view! {
+                                                    <div class="bg-white rounded-lg shadow p-4">
+                                                        <h3 class="font-semibold text-gray-700 mb-3">
+                                                            "Daftar Item BMN (" {items.len()} ")"
+                                                        </h3>
+                                                        <div class="overflow-x-auto">
+                                                            <table class="min-w-full text-sm">
+                                                                <thead class="bg-gray-50 text-left text-xs text-gray-500">
+                                                                    <tr>
+                                                                        <th class="px-3 py-2">"No"</th>
+                                                                        <th class="px-3 py-2">"Kode Barang"</th>
+                                                                        <th class="px-3 py-2">"Nama Barang"</th>
+                                                                        <th class="px-3 py-2">"NUP"</th>
+                                                                        <th class="px-3 py-2">"Kondisi"</th>
+                                                                        <th class="px-3 py-2 text-right">"Nilai Perolehan"</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody class="divide-y">
+                                                                    {items
+                                                                        .into_iter()
+                                                                        .enumerate()
+                                                                        .map(|(i, it)| {
+                                                                            view! {
+                                                                                <tr>
+                                                                                    <td class="px-3 py-2">{i + 1}</td>
+                                                                                    <td class="px-3 py-2 font-mono">{it.kode_barang}</td>
+                                                                                    <td class="px-3 py-2">{it.nama_barang}</td>
+                                                                                    <td class="px-3 py-2 font-mono">{it.nup}</td>
+                                                                                    <td class="px-3 py-2">
+                                                                                        {it.kondisi.unwrap_or_else(|| "-".to_string())}
+                                                                                    </td>
+                                                                                    <td class="px-3 py-2 text-right">
+                                                                                        {it
+                                                                                            .nilai_perolehan
+                                                                                            .map(|v| format!("Rp {:.0}", v))
+                                                                                            .unwrap_or_else(|| "-".to_string())}
+                                                                                    </td>
+                                                                                </tr>
+                                                                            }
+                                                                        })
+                                                                        .collect_view()}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            })}
+
+                                        // Lampiran Pendukung (Fase 0.6 / #15) — daftar + unggah
+                                        {
+                                            let can_upload = status_kode == 4000 || status_kode == 4002;
+                                            let upload_surat = Box::new(move |
+                                                files: Vec<web_sys::File>|
+                                            {
+                                                let Some(file) = files.into_iter().next() else { return };
+                                                let id = params.get().get("id").unwrap_or_default();
+                                                uploading.set(true);
+                                                set_error_msg.set(None);
+                                                leptos::task::spawn_local(async move {
+                                                    match upload_penghapusan_lampiran(&id, Some(file), vec![])
+                                                        .await
+                                                    {
+                                                        Ok(_) => {
+                                                            set_success_msg
+                                                                .set(Some("Surat Usulan berhasil diunggah".to_string()));
+                                                            refresh_trigger.update(|v| *v += 1);
+                                                        }
+                                                        Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                                    }
+                                                    uploading.set(false);
+                                                });
+                                            }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                            let upload_lampiran = Box::new(move |
+                                                files: Vec<web_sys::File>|
+                                            {
+                                                if files.is_empty() {
+                                                    return;
+                                                }
+                                                let id = params.get().get("id").unwrap_or_default();
+                                                uploading.set(true);
+                                                set_error_msg.set(None);
+                                                leptos::task::spawn_local(async move {
+                                                    match upload_penghapusan_lampiran(&id, None, files).await {
+                                                        Ok(_) => {
+                                                            set_success_msg
+                                                                .set(Some("Lampiran berhasil diunggah".to_string()));
+                                                            refresh_trigger.update(|v| *v += 1);
+                                                        }
+                                                        Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
+                                                    }
+                                                    uploading.set(false);
+                                                });
+                                            }) as Box<dyn Fn(Vec<web_sys::File>)>;
+                                            view! {
+                                                <div class="bg-white rounded-lg shadow p-4">
+                                                    <h3 class="font-semibold text-gray-700 mb-3">
+                                                        "Lampiran Pendukung"
+                                                    </h3>
+                                                    <Suspense fallback=move || {
+                                                        view! {
+                                                            <p class="text-sm text-gray-400">"Memuat lampiran..."</p>
+                                                        }
+                                                    }>
+                                                        {move || match lampiran_resource.get() {
+                                                            None => {
+                                                                view! {
+                                                                    <p class="text-sm text-gray-400">"Memuat lampiran..."</p>
+                                                                }
+                                                                    .into_any()
+                                                            }
+                                                            Some(Err(_)) => {
+                                                                view! {
+                                                                    <p class="text-sm text-gray-400">
+                                                                        "Gagal memuat daftar lampiran."
+                                                                    </p>
+                                                                }
+                                                                    .into_any()
+                                                            }
+                                                            Some(Ok(resp)) => {
+                                                                let items = resp.data;
+                                                                if items.is_empty() {
+                                                                    view! {
+                                                                        <p class="text-sm text-gray-400">
+                                                                            "Belum ada lampiran diunggah."
+                                                                        </p>
+                                                                    }
+                                                                        .into_any()
+                                                                } else {
+                                                                    view! {
+                                                                        <ul class="space-y-1.5 text-sm">
+                                                                            {items
+                                                                                .into_iter()
+                                                                                .map(|l| {
+                                                                                    view! {
+                                                                                        <li class="flex items-center justify-between gap-2">
+                                                                                            <a
+                                                                                                href=l.file_url.clone()
+                                                                                                target="_blank"
+                                                                                                class="text-blue-600 hover:underline truncate"
+                                                                                            >
+                                                                                                {l.nama.clone()}
+                                                                                            </a>
+                                                                                            <span class="text-xs text-gray-400 shrink-0">
+                                                                                                {l
+                                                                                                    .size_bytes
+                                                                                                    .map(|b| format!("{} KB", (b + 1023) / 1024))
+                                                                                                    .unwrap_or_default()}
+                                                                                            </span>
+                                                                                        </li>
+                                                                                    }
+                                                                                })
+                                                                                .collect_view()}
+                                                                        </ul>
+                                                                    }
+                                                                        .into_any()
+                                                                }
+                                                            }
+                                                        }}
+                                                    </Suspense>
+
+                                                    {can_upload
+                                                        .then(move || {
+                                                            view! {
+                                                                <div class="mt-4 space-y-3 border-t pt-4">
+                                                                    <FileUpload
+                                                                        label="Surat Usulan (1 file)".to_string()
+                                                                        accept=".pdf,.doc,.docx".to_string()
+                                                                        disabled=uploading.get()
+                                                                        on_change=upload_surat
+                                                                    />
+                                                                    <FileUpload
+                                                                        label="Lampiran Pendukung (boleh lebih dari satu)"
+                                                                            .to_string()
+                                                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png".to_string()
+                                                                        multiple=true
+                                                                        disabled=uploading.get()
+                                                                        on_change=upload_lampiran
+                                                                    />
+                                                                    {move || {
+                                                                        uploading
+                                                                            .get()
+                                                                            .then(|| {
+                                                                                view! {
+                                                                                    <p class="text-xs text-gray-500">"Mengunggah berkas..."</p>
+                                                                                }
+                                                                            })
+                                                                    }}
+                                                                </div>
+                                                            }
+                                                        })}
+                                                </div>
+                                            }
+                                        }
+
+                                        // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
+                                        {(status_kode == 4001 || status_kode == 4003
+                                            || status_kode == 4004)
+                                            .then(|| {
+                                                view! {
+                                                    <div class="bg-white rounded-lg shadow p-4">
+                                                        <h3 class="font-semibold text-gray-700 mb-3">
+                                                            "Verifikasi Aset di SIMAN"
+                                                        </h3>
+                                                        <Suspense fallback=move || {
+                                                            view! {
+                                                                <p class="text-sm text-gray-400">
+                                                                    "Memeriksa aset di SIMAN..."
+                                                                </p>
+                                                            }
+                                                        }>
+                                                            {move || {
+                                                                verifikasi_resource
+                                                                    .get()
+                                                                    .flatten()
+                                                                    .map(|v| {
+                                                                        let (badge_class, badge_text) = if !v.ditemukan {
+                                                                            ("bg-red-100 text-red-800", "Tidak Ditemukan")
+                                                                        } else if v.layak_lanjut {
+                                                                            ("bg-green-100 text-green-800", "Terverifikasi")
+                                                                        } else {
+                                                                            ("bg-yellow-100 text-yellow-800", "Perlu Pengecekan")
+                                                                        };
+                                                                        view! {
+                                                                            <div>
+                                                                                <div class="flex items-center gap-2 mb-2">
+                                                                                    <span class=format!(
+                                                                                        "px-2 py-0.5 rounded text-xs font-medium {}",
+                                                                                        badge_class,
+                                                                                    )>{badge_text}</span>
+                                                                                    <span class="text-sm text-gray-600">{v.pesan.clone()}</span>
+                                                                                </div>
+                                                                                {v
+                                                                                    .ditemukan
+                                                                                    .then(|| {
+                                                                                        view! {
+                                                                                            <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                                                                                <dt class="text-gray-500">"NUP"</dt>
+                                                                                                <dd class="font-medium">{v.nup.clone()}</dd>
+                                                                                                <dt class="text-gray-500">"Nama (SIMAN)"</dt>
+                                                                                                <dd class="font-medium">
+                                                                                                    {v
+                                                                                                        .nama_barang_siman
+                                                                                                        .clone()
+                                                                                                        .unwrap_or_else(|| "-".to_string())}
+                                                                                                </dd>
+                                                                                                <dt class="text-gray-500">"Kondisi"</dt>
+                                                                                                <dd class="font-medium">
+                                                                                                    {v.kondisi.clone().unwrap_or_else(|| "-".to_string())}
+                                                                                                </dd>
+                                                                                                <dt class="text-gray-500">"Kode Barang (SIMAN)"</dt>
+                                                                                                <dd class=if v.kode_barang_cocok {
+                                                                                                    "font-medium"
+                                                                                                } else {
+                                                                                                    "font-medium text-red-600"
+                                                                                                }>
+                                                                                                    {v
+                                                                                                        .kode_barang_siman
+                                                                                                        .clone()
+                                                                                                        .unwrap_or_else(|| "-".to_string())}
+                                                                                                </dd>
+                                                                                            </dl>
+                                                                                        }
+                                                                                    })}
+                                                                            </div>
+                                                                        }
+                                                                            .into_any()
+                                                                    })
+                                                                    .unwrap_or_else(|| {
+                                                                        view! {
+                                                                            <p class="text-sm text-gray-400">
+                                                                                "Data verifikasi tidak tersedia"
+                                                                            </p>
+                                                                        }
+                                                                            .into_any()
+                                                                    })
+                                                            }}
+                                                        </Suspense>
+                                                    </div>
+                                                }
+                                            })}
+
+                                        // Riwayat Proses (Fase 2.5 — WorkflowTimeline reusable)
                                         <div class="bg-white rounded-lg shadow p-4">
                                             <h3 class="font-semibold text-gray-700 mb-3">
-                                                "Daftar Item BMN (" {items.len()} ")"
+                                                "Riwayat Proses"
                                             </h3>
-                                            <div class="overflow-x-auto">
-                                                <table class="min-w-full text-sm">
-                                                    <thead class="bg-gray-50 text-left text-xs text-gray-500">
-                                                        <tr>
-                                                            <th class="px-3 py-2">"No"</th>
-                                                            <th class="px-3 py-2">"Kode Barang"</th>
-                                                            <th class="px-3 py-2">"Nama Barang"</th>
-                                                            <th class="px-3 py-2">"NUP"</th>
-                                                            <th class="px-3 py-2">"Kondisi"</th>
-                                                            <th class="px-3 py-2 text-right">"Nilai Perolehan"</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y">
-                                                        {items.into_iter().enumerate().map(|(i, it)| view! {
-                                                            <tr>
-                                                                <td class="px-3 py-2">{i + 1}</td>
-                                                                <td class="px-3 py-2 font-mono">{it.kode_barang}</td>
-                                                                <td class="px-3 py-2">{it.nama_barang}</td>
-                                                                <td class="px-3 py-2 font-mono">{it.nup}</td>
-                                                                <td class="px-3 py-2">{it.kondisi.unwrap_or_else(|| "-".to_string())}</td>
-                                                                <td class="px-3 py-2 text-right">
-                                                                    {it.nilai_perolehan.map(|v| format!("Rp {:.0}", v)).unwrap_or_else(|| "-".to_string())}
-                                                                </td>
-                                                            </tr>
-                                                        }).collect_view()}
-                                                    </tbody>
-                                                </table>
-                                            </div>
+                                            <WorkflowTimeline steps=build_penghapusan_timeline(
+                                                &d.penghapusan,
+                                            ) />
                                         </div>
-                                    }
-                                })}
 
-                                // Lampiran Pendukung (Fase 0.6 / #15) — daftar + unggah
-                                {
-                                    let can_upload = status_kode == 4000 || status_kode == 4002;
-                                    let upload_surat = Box::new(move |files: Vec<web_sys::File>| {
-                                        let Some(file) = files.into_iter().next() else { return };
-                                        let id = params.get().get("id").unwrap_or_default();
-                                        uploading.set(true);
-                                        set_error_msg.set(None);
-                                        leptos::task::spawn_local(async move {
-                                            match upload_penghapusan_lampiran(&id, Some(file), vec![]).await {
-                                                Ok(_) => {
-                                                    set_success_msg.set(Some("Surat Usulan berhasil diunggah".to_string()));
-                                                    refresh_trigger.update(|v| *v += 1);
-                                                }
-                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
-                                            }
-                                            uploading.set(false);
-                                        });
-                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
-                                    let upload_lampiran = Box::new(move |files: Vec<web_sys::File>| {
-                                        if files.is_empty() { return; }
-                                        let id = params.get().get("id").unwrap_or_default();
-                                        uploading.set(true);
-                                        set_error_msg.set(None);
-                                        leptos::task::spawn_local(async move {
-                                            match upload_penghapusan_lampiran(&id, None, files).await {
-                                                Ok(_) => {
-                                                    set_success_msg.set(Some("Lampiran berhasil diunggah".to_string()));
-                                                    refresh_trigger.update(|v| *v += 1);
-                                                }
-                                                Err(e) => set_error_msg.set(Some(format!("{:?}", e))),
-                                            }
-                                            uploading.set(false);
-                                        });
-                                    }) as Box<dyn Fn(Vec<web_sys::File>)>;
-                                    view! {
-                                        <div class="bg-white rounded-lg shadow p-4">
-                                            <h3 class="font-semibold text-gray-700 mb-3">"Lampiran Pendukung"</h3>
-                                            <Suspense fallback=move || view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }>
-                                                {move || match lampiran_resource.get() {
-                                                    None => view! { <p class="text-sm text-gray-400">"Memuat lampiran..."</p> }.into_any(),
-                                                    Some(Err(_)) => view! { <p class="text-sm text-gray-400">"Gagal memuat daftar lampiran."</p> }.into_any(),
-                                                    Some(Ok(resp)) => {
-                                                        let items = resp.data;
-                                                        if items.is_empty() {
-                                                            view! { <p class="text-sm text-gray-400">"Belum ada lampiran diunggah."</p> }.into_any()
-                                                        } else {
-                                                            view! {
-                                                                <ul class="space-y-1.5 text-sm">
-                                                                    {items.into_iter().map(|l| view! {
-                                                                        <li class="flex items-center justify-between gap-2">
-                                                                            <a href={l.file_url.clone()} target="_blank" class="text-blue-600 hover:underline truncate">
-                                                                                {l.nama.clone()}
-                                                                            </a>
-                                                                            <span class="text-xs text-gray-400 shrink-0">
-                                                                                {l.size_bytes.map(|b| format!("{} KB", (b + 1023) / 1024)).unwrap_or_default()}
-                                                                            </span>
-                                                                        </li>
-                                                                    }).collect_view()}
-                                                                </ul>
-                                                            }.into_any()
-                                                        }
-                                                    }
-                                                }}
-                                            </Suspense>
-
-                                            {can_upload.then(move || view! {
-                                                <div class="mt-4 space-y-3 border-t pt-4">
-                                                    <FileUpload
-                                                        label="Surat Usulan (1 file)".to_string()
-                                                        accept=".pdf,.doc,.docx".to_string()
-                                                        disabled=uploading.get()
-                                                        on_change=upload_surat
-                                                    />
-                                                    <FileUpload
-                                                        label="Lampiran Pendukung (boleh lebih dari satu)".to_string()
-                                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png".to_string()
-                                                        multiple=true
-                                                        disabled=uploading.get()
-                                                        on_change=upload_lampiran
-                                                    />
-                                                    {move || uploading.get().then(|| view! {
-                                                        <p class="text-xs text-gray-500">"Mengunggah berkas..."</p>
-                                                    })}
-                                                </div>
-                                            })}
-                                        </div>
-                                    }
-                                }
-
-                                // Verifikasi Aset SIMAN (Fase 2.3) — tampil di tahap validator
-                                {(status_kode == 4001 || status_kode == 4003 || status_kode == 4004)
-                                    .then(|| view! {
-                                        <div class="bg-white rounded-lg shadow p-4">
-                                            <h3 class="font-semibold text-gray-700 mb-3">"Verifikasi Aset di SIMAN"</h3>
-                                            <Suspense fallback=move || view! {
-                                                <p class="text-sm text-gray-400">"Memeriksa aset di SIMAN..."</p>
-                                            }>
-                                                {move || {
-                                                    verifikasi_resource.get().flatten().map(|v| {
-                                                        let (badge_class, badge_text) = if !v.ditemukan {
-                                                            ("bg-red-100 text-red-800", "Tidak Ditemukan")
-                                                        } else if v.layak_lanjut {
-                                                            ("bg-green-100 text-green-800", "Terverifikasi")
-                                                        } else {
-                                                            ("bg-yellow-100 text-yellow-800", "Perlu Pengecekan")
-                                                        };
-                                                        view! {
-                                                            <div>
-                                                                <div class="flex items-center gap-2 mb-2">
-                                                                    <span class=format!("px-2 py-0.5 rounded text-xs font-medium {}", badge_class)>
-                                                                        {badge_text}
-                                                                    </span>
-                                                                    <span class="text-sm text-gray-600">{v.pesan.clone()}</span>
-                                                                </div>
-                                                                {v.ditemukan.then(|| view! {
-                                                                    <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                                                                        <dt class="text-gray-500">"NUP"</dt>
-                                                                        <dd class="font-medium">{v.nup.clone()}</dd>
-                                                                        <dt class="text-gray-500">"Nama (SIMAN)"</dt>
-                                                                        <dd class="font-medium">{v.nama_barang_siman.clone().unwrap_or_else(|| "-".to_string())}</dd>
-                                                                        <dt class="text-gray-500">"Kondisi"</dt>
-                                                                        <dd class="font-medium">{v.kondisi.clone().unwrap_or_else(|| "-".to_string())}</dd>
-                                                                        <dt class="text-gray-500">"Kode Barang (SIMAN)"</dt>
-                                                                        <dd class=if v.kode_barang_cocok { "font-medium" } else { "font-medium text-red-600" }>
-                                                                            {v.kode_barang_siman.clone().unwrap_or_else(|| "-".to_string())}
-                                                                        </dd>
-                                                                    </dl>
+                                        // SK Document Section — konsep is produced as both DOCX
+                                        // (editable) and PDF (final) side-by-side, signed PDF is
+                                        // the post-signature upload.
+                                        {(d.penghapusan.konsep_sk_url.is_some()
+                                            || d.penghapusan.konsep_sk_pdf_url.is_some()
+                                            || d.penghapusan.signed_sk_pdf_url.is_some())
+                                            .then(|| {
+                                                let konsep_docx = d.penghapusan.konsep_sk_url.clone();
+                                                let konsep_pdf = d.penghapusan.konsep_sk_pdf_url.clone();
+                                                let signed = d.penghapusan.signed_sk_pdf_url.clone();
+                                                view! {
+                                                    <div class="bg-white rounded-lg shadow p-4">
+                                                        <h3 class="font-semibold text-gray-700 mb-3">
+                                                            "Dokumen SK"
+                                                        </h3>
+                                                        <div class="flex flex-wrap gap-4">
+                                                            {konsep_docx
+                                                                .map(|url| {
+                                                                    view! {
+                                                                        <a
+                                                                            href=url
+                                                                            target="_blank"
+                                                                            class="inline-flex items-center px-4 py-2 bg-cyan-50 text-cyan-700 rounded-lg hover:bg-cyan-100"
+                                                                        >
+                                                                            <svg
+                                                                                class="w-4 h-4 mr-2"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round"
+                                                                                    stroke-width="2"
+                                                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                                                                />
+                                                                            </svg>
+                                                                            "Konsep SK (DOCX)"
+                                                                        </a>
+                                                                    }
                                                                 })}
-                                                            </div>
-                                                        }.into_any()
-                                                    }).unwrap_or_else(|| view! {
-                                                        <p class="text-sm text-gray-400">"Data verifikasi tidak tersedia"</p>
-                                                    }.into_any())
-                                                }}
-                                            </Suspense>
-                                        </div>
-                                    })}
+                                                            {konsep_pdf
+                                                                .map(|url| {
+                                                                    view! {
+                                                                        <a
+                                                                            href=url
+                                                                            target="_blank"
+                                                                            class="inline-flex items-center px-4 py-2 bg-rose-50 text-rose-700 rounded-lg hover:bg-rose-100"
+                                                                        >
+                                                                            <svg
+                                                                                class="w-4 h-4 mr-2"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round"
+                                                                                    stroke-width="2"
+                                                                                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                                                                                />
+                                                                            </svg>
+                                                                            "Konsep SK (PDF)"
+                                                                        </a>
+                                                                    }
+                                                                })}
+                                                            {signed
+                                                                .map(|url| {
+                                                                    view! {
+                                                                        <a
+                                                                            href=url
+                                                                            target="_blank"
+                                                                            class="inline-flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100"
+                                                                        >
+                                                                            <svg
+                                                                                class="w-4 h-4 mr-2"
+                                                                                fill="none"
+                                                                                stroke="currentColor"
+                                                                                viewBox="0 0 24 24"
+                                                                            >
+                                                                                <path
+                                                                                    stroke-linecap="round"
+                                                                                    stroke-linejoin="round"
+                                                                                    stroke-width="2"
+                                                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                                />
+                                                                            </svg>
+                                                                            "SK Ditandatangani (PDF)"
+                                                                        </a>
+                                                                    }
+                                                                })}
+                                                        </div>
+                                                    </div>
+                                                }
+                                            })}
 
-                                // Riwayat Proses (Fase 2.5 — WorkflowTimeline reusable)
-                                <div class="bg-white rounded-lg shadow p-4">
-                                    <h3 class="font-semibold text-gray-700 mb-3">"Riwayat Proses"</h3>
-                                    <WorkflowTimeline steps=build_penghapusan_timeline(&d.penghapusan) />
-                                </div>
-
-                                // SK Document Section — konsep is produced as both DOCX
-                                // (editable) and PDF (final) side-by-side, signed PDF is
-                                // the post-signature upload.
-                                {(d.penghapusan.konsep_sk_url.is_some()
-                                    || d.penghapusan.konsep_sk_pdf_url.is_some()
-                                    || d.penghapusan.signed_sk_pdf_url.is_some()).then(|| {
-                                    let konsep_docx = d.penghapusan.konsep_sk_url.clone();
-                                    let konsep_pdf = d.penghapusan.konsep_sk_pdf_url.clone();
-                                    let signed = d.penghapusan.signed_sk_pdf_url.clone();
-                                    view! {
+                                        // Action Buttons based on status
                                         <div class="bg-white rounded-lg shadow p-4">
-                                            <h3 class="font-semibold text-gray-700 mb-3">"Dokumen SK"</h3>
-                                            <div class="flex flex-wrap gap-4">
-                                                {konsep_docx.map(|url| view! {
-                                                    <a href={url} target="_blank"
-                                                       class="inline-flex items-center px-4 py-2 bg-cyan-50 text-cyan-700 rounded-lg hover:bg-cyan-100">
-                                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                                        </svg>
-                                                        "Konsep SK (DOCX)"
-                                                    </a>
+                                            <h3 class="font-semibold text-gray-700 mb-3">"Aksi"</h3>
+
+                                            // Catatan input for validator actions
+                                            {(status_kode == 4001 || status_kode == 4003)
+                                                .then(|| {
+                                                    view! {
+                                                        <div class="mb-4">
+                                                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                                "Catatan"
+                                                            </label>
+                                                            <textarea
+                                                                class="w-full border rounded-lg px-3 py-2 text-sm"
+                                                                rows="2"
+                                                                placeholder="Tambahkan catatan (opsional untuk meneruskan, wajib untuk mengembalikan)"
+                                                                prop:value=move || catatan_input.get()
+                                                                on:input=move |ev| {
+                                                                    set_catatan_input.set(event_target_value(&ev))
+                                                                }
+                                                            />
+                                                        </div>
+                                                    }
                                                 })}
-                                                {konsep_pdf.map(|url| view! {
-                                                    <a href={url} target="_blank"
-                                                       class="inline-flex items-center px-4 py-2 bg-rose-50 text-rose-700 rounded-lg hover:bg-rose-100">
-                                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                                                        </svg>
-                                                        "Konsep SK (PDF)"
-                                                    </a>
-                                                })}
-                                                {signed.map(|url| view! {
-                                                    <a href={url} target="_blank"
-                                                       class="inline-flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100">
-                                                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                        </svg>
-                                                        "SK Ditandatangani (PDF)"
-                                                    </a>
-                                                })}
+
+                                            // Tombol aksi — WorkflowActions reusable (Fase 2.5).
+                                            // Vec dirakit kondisional sesuai status & kapabilitas.
+                                            {
+                                                let mut actions: Vec<WorkflowAction> = Vec::new();
+                                                if status_kode == 4000 || status_kode == 4002 {
+                                                    actions
+                                                        .push(
+                                                            WorkflowAction::new(
+                                                                "Ajukan ke Validator Wilayah",
+                                                                ActionTone::Primary,
+                                                                on_submit_wilayah,
+                                                            ),
+                                                        );
+                                                }
+                                                if status_kode == 4001 {
+                                                    actions
+                                                        .push(
+                                                            WorkflowAction::new(
+                                                                "Teruskan ke Validator Pusat",
+                                                                ActionTone::Primary,
+                                                                on_forward_pusat,
+                                                            ),
+                                                        );
+                                                    actions
+                                                        .push(
+                                                            WorkflowAction::new(
+                                                                "Kembalikan ke Operator",
+                                                                ActionTone::Warning,
+                                                                Callback::new(move |_| set_show_return_modal.set(true)),
+                                                            ),
+                                                        );
+                                                }
+                                                if detail.can_generate_sk {
+                                                    actions
+                                                        .push(
+                                                            WorkflowAction::new(
+                                                                "Generate Konsep SK",
+                                                                ActionTone::Primary,
+                                                                on_generate_sk,
+                                                            ),
+                                                        );
+                                                }
+                                                if detail.can_upload_signed_sk {
+                                                    actions
+                                                        .push(
+                                                            WorkflowAction::new(
+                                                                "Upload SK Ditandatangani",
+                                                                ActionTone::Success,
+                                                                Callback::new(move |_| set_show_upload_modal.set(true)),
+                                                            ),
+                                                        );
+                                                }
+                                                view! {
+                                                    <WorkflowActions
+                                                        actions=actions
+                                                        busy=Signal::derive(move || loading_action.get())
+                                                    />
+                                                }
+                                            }
+
+                                            // Terminal status displays + back link
+                                            <div class="mt-3 flex flex-wrap items-center gap-3">
+                                                // Completed status
+                                                {(status_kode == 4007)
+                                                    .then(|| {
+                                                        view! {
+                                                            <div class="flex items-center text-green-600">
+                                                                <svg
+                                                                    class="w-5 h-5 mr-2"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                    />
+                                                                </svg>
+                                                                <span class="font-medium">
+                                                                    "Proses Usulan SK Penghapusan BMN Telah Selesai"
+                                                                </span>
+                                                            </div>
+                                                        }
+                                                    })}
+                                                // Rejected status
+                                                {(status_kode == 4008)
+                                                    .then(|| {
+                                                        view! {
+                                                            <div class="flex items-center text-red-600">
+                                                                <svg
+                                                                    class="w-5 h-5 mr-2"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                    />
+                                                                </svg>
+                                                                <span class="font-medium">"Pengajuan Ditolak"</span>
+                                                            </div>
+                                                        }
+                                                    })}
+                                                // Back button
+                                                <a
+                                                    href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
+                                                    class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                                >
+                                                    "Kembali ke Daftar"
+                                                </a>
                                             </div>
                                         </div>
-                                    }
-                                })}
-
-                                // Action Buttons based on status
-                                <div class="bg-white rounded-lg shadow p-4">
-                                    <h3 class="font-semibold text-gray-700 mb-3">"Aksi"</h3>
-
-                                    // Catatan input for validator actions
-                                    {(status_kode == 4001 || status_kode == 4003).then(|| view! {
-                                        <div class="mb-4">
-                                            <label class="block text-sm font-medium text-gray-700 mb-1">"Catatan"</label>
-                                            <textarea
-                                                class="w-full border rounded-lg px-3 py-2 text-sm"
-                                                rows="2"
-                                                placeholder="Tambahkan catatan (opsional untuk meneruskan, wajib untuk mengembalikan)"
-                                                prop:value=move || catatan_input.get()
-                                                on:input=move |ev| set_catatan_input.set(event_target_value(&ev))
-                                            />
-                                        </div>
-                                    })}
-
-                                    // Tombol aksi — WorkflowActions reusable (Fase 2.5).
-                                    // Vec dirakit kondisional sesuai status & kapabilitas.
-                                    {
-                                        let mut actions: Vec<WorkflowAction> = Vec::new();
-                                        if status_kode == 4000 || status_kode == 4002 {
-                                            actions.push(WorkflowAction::new(
-                                                "Ajukan ke Validator Wilayah",
-                                                ActionTone::Primary,
-                                                on_submit_wilayah,
-                                            ));
-                                        }
-                                        if status_kode == 4001 {
-                                            actions.push(WorkflowAction::new(
-                                                "Teruskan ke Validator Pusat",
-                                                ActionTone::Primary,
-                                                on_forward_pusat,
-                                            ));
-                                            actions.push(WorkflowAction::new(
-                                                "Kembalikan ke Operator",
-                                                ActionTone::Warning,
-                                                Callback::new(move |_| set_show_return_modal.set(true)),
-                                            ));
-                                        }
-                                        if detail.can_generate_sk {
-                                            actions.push(WorkflowAction::new(
-                                                "Generate Konsep SK",
-                                                ActionTone::Primary,
-                                                on_generate_sk,
-                                            ));
-                                        }
-                                        if detail.can_upload_signed_sk {
-                                            actions.push(WorkflowAction::new(
-                                                "Upload SK Ditandatangani",
-                                                ActionTone::Success,
-                                                Callback::new(move |_| set_show_upload_modal.set(true)),
-                                            ));
-                                        }
-                                        view! {
-                                            <WorkflowActions
-                                                actions=actions
-                                                busy=Signal::derive(move || loading_action.get())
-                                            />
-                                        }
-                                    }
-
-                                    // Terminal status displays + back link
-                                    <div class="mt-3 flex flex-wrap items-center gap-3">
-                                        // Completed status
-                                        {(status_kode == 4007).then(|| view! {
-                                            <div class="flex items-center text-green-600">
-                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                                <span class="font-medium">"Proses Usulan SK Penghapusan BMN Telah Selesai"</span>
-                                            </div>
-                                        })}
-
-                                        // Rejected status
-                                        {(status_kode == 4008).then(|| view! {
-                                            <div class="flex items-center text-red-600">
-                                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                </svg>
-                                                <span class="font-medium">"Pengajuan Ditolak"</span>
-                                            </div>
-                                        })}
-
-                                        // Back button
-                                        <a
-                                            href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
-                                            class="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                                    </div>
+                                }
+                                    .into_any()
+                            }
+                        })
+                }}
+            </Suspense>
+            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
+            {move || {
+                show_return_modal
+                    .get()
+                    .then(|| {
+                        view! {
+                            <ApprovalDialog
+                                title="Kembalikan ke Operator Satker"
+                                description="Jelaskan alasan pengembalian agar Operator Satker dapat memperbaiki usulan."
+                                note_label="Catatan (wajib)"
+                                note_placeholder="Jelaskan alasan pengembalian..."
+                                require_note=true
+                                confirm_label="Kembalikan"
+                                confirm_tone=ActionTone::Warning
+                                on_confirm=on_return_operator
+                                on_close=Callback::new(move |_| set_show_return_modal.set(false))
+                                busy=Signal::derive(move || loading_action.get())
+                            />
+                        }
+                    })
+            }}
+            // Upload Signed SK Modal
+            {move || {
+                show_upload_modal
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
+                                <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                                    <h3 class="text-lg font-semibold mb-4">
+                                        "Upload SK Ditandatangani"
+                                    </h3>
+                                    <div class="mb-4">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            "URL File SK (PDF)"
+                                        </label>
+                                        <input
+                                            type="text"
+                                            class="w-full border rounded-lg px-3 py-2 text-sm"
+                                            placeholder="https://storage.example.com/sk-penghapusan.pdf"
+                                            prop:value=move || signed_sk_url.get()
+                                            on:input=move |ev| {
+                                                set_signed_sk_url.set(event_target_value(&ev))
+                                            }
+                                        />
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            "Upload file PDF SK yang telah ditandatangani ke storage, lalu masukkan URL-nya."
+                                        </p>
+                                    </div>
+                                    <div class="flex gap-3 justify-end">
+                                        <button
+                                            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                                            on:click=move |_| set_show_upload_modal.set(false)
                                         >
-                                            "Kembali ke Daftar"
-                                        </a>
+                                            "Batal"
+                                        </button>
+                                        <button
+                                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                                            disabled=move || {
+                                                loading_action.get() || signed_sk_url.get().is_empty()
+                                            }
+                                            on:click=on_upload_signed_sk
+                                        >
+                                            "Upload & Selesaikan"
+                                        </button>
                                     </div>
                                 </div>
                             </div>
-                        }.into_any()
-                    }
-                })}
-            </Suspense>
-
-            // Return to Operator — ApprovalDialog reusable (Fase 2.5)
-            {move || show_return_modal.get().then(|| view! {
-                <ApprovalDialog
-                    title="Kembalikan ke Operator Satker"
-                    description="Jelaskan alasan pengembalian agar Operator Satker dapat memperbaiki usulan."
-                    note_label="Catatan (wajib)"
-                    note_placeholder="Jelaskan alasan pengembalian..."
-                    require_note=true
-                    confirm_label="Kembalikan"
-                    confirm_tone=ActionTone::Warning
-                    on_confirm=on_return_operator
-                    on_close=Callback::new(move |_| set_show_return_modal.set(false))
-                    busy=Signal::derive(move || loading_action.get())
-                />
-            })}
-
-            // Upload Signed SK Modal
-            {move || show_upload_modal.get().then(|| view! {
-                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal">
-                    <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                        <h3 class="text-lg font-semibold mb-4">"Upload SK Ditandatangani"</h3>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">"URL File SK (PDF)"</label>
-                            <input
-                                type="text"
-                                class="w-full border rounded-lg px-3 py-2 text-sm"
-                                placeholder="https://storage.example.com/sk-penghapusan.pdf"
-                                prop:value=move || signed_sk_url.get()
-                                on:input=move |ev| set_signed_sk_url.set(event_target_value(&ev))
-                            />
-                            <p class="text-xs text-gray-500 mt-1">"Upload file PDF SK yang telah ditandatangani ke storage, lalu masukkan URL-nya."</p>
-                        </div>
-                        <div class="flex gap-3 justify-end">
-                            <button
-                                class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                                on:click=move |_| set_show_upload_modal.set(false)
-                            >
-                                "Batal"
-                            </button>
-                            <button
-                                class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                                disabled=move || loading_action.get() || signed_sk_url.get().is_empty()
-                                on:click=on_upload_signed_sk
-                            >
-                                "Upload & Selesaikan"
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            })}
+                        }
+                    })
+            }}
         </div>
     }
 }

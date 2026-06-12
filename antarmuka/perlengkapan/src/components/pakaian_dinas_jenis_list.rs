@@ -86,7 +86,9 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <span class="text-xs"><AppIcon icon=PLUS /></span>
+                    <span class="text-xs">
+                        <AppIcon icon=PLUS />
+                    </span>
                     "Tambah Jenis"
                 </button>
             </div>
@@ -119,7 +121,9 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                                     class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500"
                                     placeholder="Keterangan (opsional)"
                                     prop:value=move || form_keterangan.get()
-                                    on:input=move |ev| set_form_keterangan.set(event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        set_form_keterangan.set(event_target_value(&ev))
+                                    }
                                 />
                             </FormField>
                         </div>
@@ -144,7 +148,9 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
             </Show>
 
             // Data table
-            <Suspense fallback=move || view! { <LoadingState /> }>
+            <Suspense fallback=move || {
+                view! { <LoadingState /> }
+            }>
                 {move || match data_resource.get() {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -156,9 +162,18 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
                                     title="Belum Ada Data"
                                     description="Klik \"Tambah Jenis\" untuk menambahkan jenis pakaian dinas."
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-                            render_jenis_table(response.data, response.page, response.total, response.total_pages, page, set_page, refresh_trigger)
+                            render_jenis_table(
+                                response.data,
+                                response.page,
+                                response.total,
+                                response.total_pages,
+                                page,
+                                set_page,
+                                refresh_trigger,
+                            )
                         }
                     }
                 }}
@@ -184,61 +199,94 @@ fn render_jenis_table(
                     <table class="min-w-full divide-y divide-white/[0.04]">
                         <thead class="bg-white/[0.02]">
                             <tr>
-                                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">"No"</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Jenis"</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Keterangan"</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Dibuat"</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Aksi"</th>
+                                <th class="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    "No"
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    "Nama Jenis"
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    "Keterangan"
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    "Dibuat"
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                    "Aksi"
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {data.into_iter().enumerate().map(|(idx, item)| {
-                                let item_id = item.id.clone();
-                                let item_id_for_delete = item_id.clone();
-                                let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
-                                let ket = item.keterangan.unwrap_or_else(|| "-".to_string());
-                                let date = item.created_at.chars().take(10).collect::<String>();
-                                let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
-                                view! {
-                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                                        <td class="px-4 py-3 text-sm text-slate-400">{num}</td>
-                                        <td class="px-4 py-3 text-sm font-semibold text-gold-400">{item.nama}</td>
-                                        <td class="px-4 py-3 text-sm text-slate-400">{ket}</td>
-                                        <td class="px-4 py-3 text-xs text-slate-500">{date}</td>
-                                        <td class="px-4 py-3">
-                                            <div class="flex items-center gap-3">
-                                                <a
-                                                    href=format!("/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi", item_id)
-                                                    class="text-success-400 transition hover:text-success-300"
-                                                    title="Lihat Spesifikasi"
-                                                >
-                                                    <span class="text-xs"><AppIcon icon=LIST /></span>
-                                                </a>
-                                                <button
-                                                    class="text-danger-400 transition hover:text-danger-300"
-                                                    title="Hapus"
-                                                    on:click=move |_| {
-                                                        let id = item_id_for_delete.clone();
-                                                        let confirmed = web_sys::window()
-                                                            .and_then(|w| w.confirm_with_message("Yakin ingin menghapus?").ok())
-                                                            .unwrap_or(false);
-                                                        if confirmed {
-                                                            spawn_local(async move {
-                                                                match delete_jenis_pakaian_dinas(id).await {
-                                                                    Ok(_) => refresh_trigger.update(|v| *v += 1),
-                                                                    Err(e) => leptos::logging::error!("Failed to delete: {}", e.user_message()),
-                                                                }
-                                                            });
+                            {data
+                                .into_iter()
+                                .enumerate()
+                                .map(|(idx, item)| {
+                                    let item_id = item.id.clone();
+                                    let item_id_for_delete = item_id.clone();
+                                    let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
+                                    let ket = item.keterangan.unwrap_or_else(|| "-".to_string());
+                                    let date = item.created_at.chars().take(10).collect::<String>();
+                                    let bg = if idx % 2 == 0 {
+                                        "bg-transparent"
+                                    } else {
+                                        "bg-white/[0.015]"
+                                    };
+                                    view! {
+                                        <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                            <td class="px-4 py-3 text-sm text-slate-400">{num}</td>
+                                            <td class="px-4 py-3 text-sm font-semibold text-gold-400">
+                                                {item.nama}
+                                            </td>
+                                            <td class="px-4 py-3 text-sm text-slate-400">{ket}</td>
+                                            <td class="px-4 py-3 text-xs text-slate-500">{date}</td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex items-center gap-3">
+                                                    <a
+                                                        href=format!(
+                                                            "/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi",
+                                                            item_id,
+                                                        )
+                                                        class="text-success-400 transition hover:text-success-300"
+                                                        title="Lihat Spesifikasi"
+                                                    >
+                                                        <span class="text-xs">
+                                                            <AppIcon icon=LIST />
+                                                        </span>
+                                                    </a>
+                                                    <button
+                                                        class="text-danger-400 transition hover:text-danger-300"
+                                                        title="Hapus"
+                                                        on:click=move |_| {
+                                                            let id = item_id_for_delete.clone();
+                                                            let confirmed = web_sys::window()
+                                                                .and_then(|w| {
+                                                                    w.confirm_with_message("Yakin ingin menghapus?").ok()
+                                                                })
+                                                                .unwrap_or(false);
+                                                            if confirmed {
+                                                                spawn_local(async move {
+                                                                    match delete_jenis_pakaian_dinas(id).await {
+                                                                        Ok(_) => refresh_trigger.update(|v| *v += 1),
+                                                                        Err(e) => {
+                                                                            leptos::logging::error!(
+                                                                                "Failed to delete: {}", e.user_message()
+                                                                            )
+                                                                        }
+                                                                    }
+                                                                });
+                                                            }
                                                         }
-                                                    }
-                                                >
-                                                    <span class="text-xs"><AppIcon icon=TRASH /></span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            }).collect_view()}
+                                                    >
+                                                        <span class="text-xs">
+                                                            <AppIcon icon=TRASH />
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                })
+                                .collect_view()}
                         </tbody>
                     </table>
                 </div>
@@ -247,11 +295,9 @@ fn render_jenis_table(
             // Pagination
             <div class="mt-4 flex items-center justify-between border-t border-white/[0.04] pt-4">
                 <p class="text-xs text-slate-400">
-                    "Halaman "
-                    <span class="font-medium text-slate-200">{current_page}</span>
-                    " dari "
-                    <span class="font-medium text-slate-200">{total_pages}</span>
-                    " (" <span class="font-medium text-slate-200">{total}</span> " data)"
+                    "Halaman " <span class="font-medium text-slate-200">{current_page}</span>
+                    " dari " <span class="font-medium text-slate-200">{total_pages}</span> " ("
+                    <span class="font-medium text-slate-200">{total}</span> " data)"
                 </p>
                 <div class="flex gap-2">
                     <button
@@ -263,9 +309,11 @@ fn render_jenis_table(
                     </button>
                     <button
                         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        prop:disabled=move || page.get() >= total_pages
-                        on:click=move |_| set_page.update(|p| *p += 1)
+                        prop:disabled=move || page.get()
                     >
+                        = total_pages
+                        on:click=move |_| set_page.update(|p| *p += 1)
+                        >
                         "Selanjutnya"
                     </button>
                 </div>

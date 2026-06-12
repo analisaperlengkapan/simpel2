@@ -52,13 +52,13 @@ pub fn PageLayout(
                         >
                             {label.clone()}
                         </A>
-                        <span class="text-[0.55rem] text-slate-600"><AppIcon icon=CARET_RIGHT /></span>
+                        <span class="text-[0.55rem] text-slate-600">
+                            <AppIcon icon=CARET_RIGHT />
+                        </span>
                     </li>
                 }
                 .into_any(),
-                None => view! {
-                    <li class="text-xs font-semibold text-slate-200">{label.clone()}</li>
-                }
+                None => view! { <li class="text-xs font-semibold text-slate-200">{label.clone()}</li> }
                 .into_any(),
             }
         })
@@ -66,38 +66,39 @@ pub fn PageLayout(
 
     view! {
         <section class="mx-auto flex w-full max-w-[1440px] flex-col gap-6">
-            {has_breadcrumbs.then(|| view! {
-                <nav aria-label="breadcrumb">
-                    <ol class="flex flex-wrap items-center gap-2">
-                        {breadcrumb_items}
-                    </ol>
-                </nav>
-            })}
-
+            {has_breadcrumbs
+                .then(|| {
+                    view! {
+                        <nav aria-label="breadcrumb">
+                            <ol class="flex flex-wrap items-center gap-2">{breadcrumb_items}</ol>
+                        </nav>
+                    }
+                })}
             <header class="flex flex-col gap-4 border-b border-white/5 pb-6 lg:flex-row lg:items-start lg:justify-between">
                 <div class="flex items-start gap-4">
-                    {icon.map(|i| view! {
-                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
-                            <AppIcon icon=icon_from_fa_class(&i) size=18 />
-                        </span>
-                    })}
-                    <div>
+                    {icon
+                        .map(|i| {
+                            view! {
+                                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400 ring-1 ring-gold-500/20">
+                                    <AppIcon icon=icon_from_fa_class(&i) size=18 />
+                                </span>
+                            }
+                        })} <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white">{title}</h1>
-                        {description.map(|d| view! {
-                            <p class="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">{d}</p>
-                        })}
+                        {description
+                            .map(|d| {
+                                view! {
+                                    <p class="mt-1 max-w-3xl text-sm leading-relaxed text-slate-400">
+                                        {d}
+                                    </p>
+                                }
+                            })}
                     </div>
                 </div>
-                {actions.map(|a| view! {
-                    <div class="flex flex-wrap items-center gap-2">
-                        {a()}
-                    </div>
-                })}
+                {actions
+                    .map(|a| view! { <div class="flex flex-wrap items-center gap-2">{a()}</div> })}
             </header>
-
-            <div class="flex flex-col gap-6">
-                {children()}
-            </div>
+            <div class="flex flex-col gap-6">{children()}</div>
         </section>
     }
 }

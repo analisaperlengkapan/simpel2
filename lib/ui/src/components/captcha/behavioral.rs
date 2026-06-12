@@ -251,8 +251,7 @@ pub fn MouseTracker(on_data_collected: Callback<Vec<MouseEvent>>) -> impl IntoVi
         <div
             class="mouse-tracker"
             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"
-        >
-            // Invisible overlay
+        >// Invisible overlay
         </div>
     }
 }
@@ -302,8 +301,10 @@ pub fn KeystrokeAnalyzer(on_data_collected: Callback<Vec<KeystrokeEvent>>) -> im
     let _ = window_event_listener(ev::keyup, on_keyup);
 
     view! {
-        <div class="keystroke-analyzer" style="display: none;">
-            // Component for keystroke analysis (invisible)
+        <div
+            class="keystroke-analyzer"
+            style="display: none;"
+        >// Component for keystroke analysis (invisible)
         </div>
     }
 }

@@ -49,22 +49,22 @@ pub fn StatCard(
     view! {
         <div class=format!(
             "flex items-start gap-4 rounded-2xl border bg-surface-panel p-5 shadow-card {}",
-            tone.accent_border()
+            tone.accent_border(),
         )>
-            {icon.map(|i| view! {
-                <span class=format!(
-                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 {}",
-                    tone.badge_classes()
-                )>
-                    <AppIcon icon=icon_from_fa_class(&i) size=18 />
-                </span>
-            })}
-            <div class="min-w-0 flex-1">
+            {icon
+                .map(|i| {
+                    view! {
+                        <span class=format!(
+                            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-1 {}",
+                            tone.badge_classes(),
+                        )>
+                            <AppIcon icon=icon_from_fa_class(&i) size=18 />
+                        </span>
+                    }
+                })} <div class="min-w-0 flex-1">
                 <p class="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
                 <p class="mt-1 truncate text-2xl font-bold text-white">{value}</p>
-                {caption.map(|c| view! {
-                    <p class="mt-1 text-xs text-slate-500">{c}</p>
-                })}
+                {caption.map(|c| view! { <p class="mt-1 text-xs text-slate-500">{c}</p> })}
             </div>
         </div>
     }

@@ -197,7 +197,9 @@ pub fn RealmsManagementPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / Realm"
                 </nav>
                 <div class="flex items-center justify-between mb-6">
@@ -213,18 +215,12 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     </button>
                 </div>
 
-                {move || success.get().map(|msg| view! {
-                    <SuccessBanner message=msg />
-                })}
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat data realm..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat data realm..." /> }
                 >
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <For
@@ -236,17 +232,20 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                 view! {
                                     <div class="bg-white rounded-xl border border-gray-200 p-5 group relative">
                                         <div class="flex items-center justify-between mb-2">
-                                            <h3 class="font-semibold text-gray-900">{realm.name.clone()}</h3>
-                                            <span class={if is_enabled {
+                                            <h3 class="font-semibold text-gray-900">
+                                                {realm.name.clone()}
+                                            </h3>
+                                            <span class=if is_enabled {
                                                 "text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700"
                                             } else {
                                                 "text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500"
-                                            }}>
-                                                {if is_enabled { "Aktif" } else { "Nonaktif" }}
-                                            </span>
+                                            }>{if is_enabled { "Aktif" } else { "Nonaktif" }}</span>
                                         </div>
                                         <p class="text-sm text-gray-500 mb-3">
-                                            {realm.display_name.clone().unwrap_or_else(|| realm.name.clone())}
+                                            {realm
+                                                .display_name
+                                                .clone()
+                                                .unwrap_or_else(|| realm.name.clone())}
                                         </p>
                                         <div class="flex items-center justify-between">
                                             <div class="text-xs text-gray-400">
@@ -255,7 +254,8 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                             <div class="flex gap-1">
                                                 <button
                                                     on:click=move |_| {
-                                                        set_edit_display_name.set(r_clone.display_name.clone().unwrap_or_default());
+                                                        set_edit_display_name
+                                                            .set(r_clone.display_name.clone().unwrap_or_default());
                                                         set_edit_enabled.set(r_clone.enabled);
                                                         set_edit_error.set(None);
                                                         set_realm_to_edit.set(Some(r_clone.clone()));
@@ -263,23 +263,47 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                                     class="opacity-0 group-hover:opacity-100 p-1.5 text-primary-600 hover:bg-primary-50 rounded-lg transition-all"
                                                     title="Edit Realm"
                                                 >
-                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                    <svg
+                                                        class="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                        />
                                                     </svg>
                                                 </button>
                                                 {if realm.id != MASTER_REALM_ID {
                                                     let r_del = realm.clone();
-                                                    Some(view! {
-                                                        <button
-                                                            on:click=move |_| set_realm_to_delete.set(Some(r_del.clone()))
-                                                            class="opacity-0 group-hover:opacity-100 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                                                            title="Hapus Realm"
-                                                        >
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                            </svg>
-                                                        </button>
-                                                    })
+                                                    Some(
+                                                        view! {
+                                                            <button
+                                                                on:click=move |_| {
+                                                                    set_realm_to_delete.set(Some(r_del.clone()))
+                                                                }
+                                                                class="opacity-0 group-hover:opacity-100 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                                title="Hapus Realm"
+                                                            >
+                                                                <svg
+                                                                    class="w-4 h-4"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    viewBox="0 0 24 24"
+                                                                >
+                                                                    <path
+                                                                        stroke-linecap="round"
+                                                                        stroke-linejoin="round"
+                                                                        stroke-width="2"
+                                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                                    />
+                                                                </svg>
+                                                            </button>
+                                                        },
+                                                    )
                                                 } else {
                                                     None
                                                 }}
@@ -304,38 +328,64 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Buat Realm Baru"</h2>
-                            {move || create_error.get().map(|msg| view! {
-                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">"❌ " {msg}</div>
-                            })}
+                            {move || {
+                                create_error
+                                    .get()
+                                    .map(|msg| {
+                                        view! {
+                                            <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                                                "❌ " {msg}
+                                            </div>
+                                        }
+                                    })
+                            }}
                             <form
                                 on:submit=move |ev| handle_create.with_value(|f| f(ev))
                                 class="space-y-4"
                             >
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Realm *"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Nama Realm *"
+                                    </label>
                                     <input
                                         type="text"
                                         prop:value=new_name
                                         on:input=move |ev| set_new_name.set(event_target_value(&ev))
                                         required=true
                                         placeholder="contoh: kejaksaan-agung"
-                                        class=move || if new_name_error().is_some() {
-                                            "w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                                        } else {
-                                            "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                        class=move || {
+                                            if new_name_error().is_some() {
+                                                "w-full px-3 py-2 border border-red-300 rounded-lg focus:ring-2 focus:ring-red-500"
+                                            } else {
+                                                "w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                                            }
                                         }
                                     />
                                     {move || match new_name_error() {
-                                        Some(msg) => view! { <p class="text-xs text-red-500 mt-1">{msg}</p> }.into_any(),
-                                        None => view! { <p class="text-xs text-gray-400 mt-1">"Hanya huruf kecil, angka, garis bawah, dan tanda hubung."</p> }.into_any(),
+                                        Some(msg) => {
+                                            view! { <p class="text-xs text-red-500 mt-1">{msg}</p> }
+                                                .into_any()
+                                        }
+                                        None => {
+                                            view! {
+                                                <p class="text-xs text-gray-400 mt-1">
+                                                    "Hanya huruf kecil, angka, garis bawah, dan tanda hubung."
+                                                </p>
+                                            }
+                                                .into_any()
+                                        }
                                     }}
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Nama Tampilan"
+                                    </label>
                                     <input
                                         type="text"
                                         prop:value=new_display_name
-                                        on:input=move |ev| set_new_display_name.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_new_display_name.set(event_target_value(&ev))
+                                        }
                                         placeholder="contoh: Kejaksaan Agung RI"
                                         class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                     />
@@ -356,7 +406,9 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                         disabled=move || creating.get() || !is_name_valid()
                                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
-                                        {move || if creating.get() { "Membuat..." } else { "Buat Realm" }}
+                                        {move || {
+                                            if creating.get() { "Membuat..." } else { "Buat Realm" }
+                                        }}
                                     </button>
                                 </div>
                             </form>
@@ -369,14 +421,28 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <div class="flex items-center gap-3 text-red-600 mb-4">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                <svg
+                                    class="w-6 h-6"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
                                 </svg>
                                 <h2 class="text-lg font-bold">"Hapus Realm"</h2>
                             </div>
                             <p class="text-gray-600 mb-6">
                                 "Apakah Anda yakin ingin menghapus realm "
-                                <span class="font-bold text-gray-900">{move || realm_to_delete.get().map(|r| r.name).unwrap_or_default()}</span>
+                                <span class="font-bold text-gray-900">
+                                    {move || {
+                                        realm_to_delete.get().map(|r| r.name).unwrap_or_default()
+                                    }}
+                                </span>
                                 "? Realm akan dinonaktifkan dan tidak dapat diakses lagi. Data terkait akan diarsipkan dan dapat dipulihkan oleh administrator sistem jika diperlukan."
                             </p>
                             <div class="flex justify-end gap-3">
@@ -391,7 +457,13 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                     disabled=deleting
                                     class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                                 >
-                                    {move || if deleting.get() { "Menghapus..." } else { "Ya, Hapus Realm" }}
+                                    {move || {
+                                        if deleting.get() {
+                                            "Menghapus..."
+                                        } else {
+                                            "Ya, Hapus Realm"
+                                        }
+                                    }}
                                 </button>
                             </div>
                         </div>
@@ -403,28 +475,44 @@ pub fn RealmsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Edit Realm"</h2>
-                            {move || edit_error.get().map(|msg| view! {
-                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">"❌ " {msg}</div>
-                            })}
+                            {move || {
+                                edit_error
+                                    .get()
+                                    .map(|msg| {
+                                        view! {
+                                            <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                                                "❌ " {msg}
+                                            </div>
+                                        }
+                                    })
+                            }}
                             <form
                                 on:submit=move |ev| handle_update.with_value(|f| f(ev))
                                 class="space-y-4"
                             >
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Realm"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Nama Realm"
+                                    </label>
                                     <input
                                         type="text"
-                                        value=move || realm_to_edit.get().map(|r| r.name).unwrap_or_default()
+                                        value=move || {
+                                            realm_to_edit.get().map(|r| r.name).unwrap_or_default()
+                                        }
                                         disabled=true
                                         class="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Tampilan"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Nama Tampilan"
+                                    </label>
                                     <input
                                         type="text"
                                         prop:value=edit_display_name
-                                        on:input=move |ev| set_edit_display_name.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_edit_display_name.set(event_target_value(&ev))
+                                        }
                                         placeholder="contoh: Kejaksaan Agung RI"
                                         class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                     />
@@ -434,15 +522,31 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                         <input
                                             type="checkbox"
                                             prop:checked=edit_enabled
-                                            on:change=move |ev| set_edit_enabled.set(event_target_checked(&ev))
-                                            disabled=move || realm_to_edit.get().map(|r| r.id == MASTER_REALM_ID).unwrap_or(false)
+                                            on:change=move |ev| {
+                                                set_edit_enabled.set(event_target_checked(&ev))
+                                            }
+                                            disabled=move || {
+                                                realm_to_edit
+                                                    .get()
+                                                    .map(|r| r.id == MASTER_REALM_ID)
+                                                    .unwrap_or(false)
+                                            }
                                             class="sr-only peer"
                                         />
                                         <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-primary-600 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
-                                        <span class="ms-3 text-sm font-medium text-gray-700">"Realm Aktif"</span>
+                                        <span class="ms-3 text-sm font-medium text-gray-700">
+                                            "Realm Aktif"
+                                        </span>
                                     </label>
-                                    <Show when=move || realm_to_edit.get().map(|r| r.id == MASTER_REALM_ID).unwrap_or(false)>
-                                        <span class="text-xs text-amber-600">"Master realm tidak dapat dinonaktifkan"</span>
+                                    <Show when=move || {
+                                        realm_to_edit
+                                            .get()
+                                            .map(|r| r.id == MASTER_REALM_ID)
+                                            .unwrap_or(false)
+                                    }>
+                                        <span class="text-xs text-amber-600">
+                                            "Master realm tidak dapat dinonaktifkan"
+                                        </span>
                                     </Show>
                                 </div>
                                 <div class="flex justify-end gap-3 pt-2">
@@ -461,7 +565,13 @@ pub fn RealmsManagementPage() -> impl IntoView {
                                         disabled=updating
                                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
-                                        {move || if updating.get() { "Menyimpan..." } else { "Simpan Perubahan" }}
+                                        {move || {
+                                            if updating.get() {
+                                                "Menyimpan..."
+                                            } else {
+                                                "Simpan Perubahan"
+                                            }
+                                        }}
                                     </button>
                                 </div>
                             </form>

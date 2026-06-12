@@ -101,9 +101,7 @@ pub fn SpesifikasiPage() -> impl IntoView {
             icon="fas fa-list"
             description="Daftar spesifikasi untuk jenis pakaian dinas yang dipilih."
         >
-            <Suspense fallback=move || view! { <LoadingState /> }>
-                {content}
-            </Suspense>
+            <Suspense fallback=move || view! { <LoadingState /> }>{content}</Suspense>
         </PageLayout>
     }
 }

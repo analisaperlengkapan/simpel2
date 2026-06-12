@@ -194,18 +194,9 @@ pub fn CsrfProtectedForm(
     };
 
     view! {
-        <form
-            class=class
-            method=method
-            action=action
-            on:submit=handle_submit
-        >
+        <form class=class method=method action=action on:submit=handle_submit>
             // Hidden CSRF token field
-            <input
-                type="hidden"
-                name="csrf_token"
-                value=csrf_token
-            />
+            <input type="hidden" name="csrf_token" value=csrf_token />
             {children()}
         </form>
     }

@@ -118,42 +118,64 @@ pub fn RoleSwitcher() -> impl IntoView {
 
     view! {
         <div>
-            {ROLES.iter().map(|role| {
-                let key = role.key;
-                let label = role.label;
-                let icon = role.icon;
-                let accent = role.accent;
+            {ROLES
+                .iter()
+                .map(|role| {
+                    let key = role.key;
+                    let label = role.label;
+                    let icon = role.icon;
+                    let accent = role.accent;
 
-                view! {
-                    <button
-                        on:click=move |_| {
-                            set_active_role_storage(key);
-                            active_key.set(key.to_string());
-                            if let Some(window) = web_sys::window() {
-                                if let Ok(event) = web_sys::CustomEvent::new("role-changed") {
-                                    let _ = window.dispatch_event(&event);
+                    view! {
+                        <button
+                            on:click=move |_| {
+                                set_active_role_storage(key);
+                                active_key.set(key.to_string());
+                                if let Some(window) = web_sys::window() {
+                                    if let Ok(event) = web_sys::CustomEvent::new("role-changed") {
+                                        let _ = window.dispatch_event(&event);
+                                    }
                                 }
                             }
-                        }
-                        style=move || format!(
-                            "width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; background: {}; border-radius: 8px; cursor: pointer; transition: all 0.15s; text-align: left; border-left: 2px solid {};",
-                            if active_key.get() == key { "rgba(255,255,255,0.06)" } else { "transparent" },
-                            if active_key.get() == key { accent } else { "transparent" },
-                        )
-                        class="hover:bg-white/[0.04]"
-                    >
-                        <span style=format!("color: {}; width: 16px; display: inline-flex; justify-content: center;", accent)>
-                            <AppIcon icon=icon_from_fa_class(icon) size=12 />
-                        </span>
-                        <span style="font-size: 0.78rem; font-weight: 500; color: #cbd5e1;">{label}</span>
-                        {move || (active_key.get() == key).then(|| view! {
-                            <span style=format!("color: {}; margin-left: auto; display: inline-flex;", accent)>
-                                <AppIcon icon=CHECK size=10 />
+                            style=move || {
+                                format!(
+                                    "width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; background: {}; border-radius: 8px; cursor: pointer; transition: all 0.15s; text-align: left; border-left: 2px solid {};",
+                                    if active_key.get() == key {
+                                        "rgba(255,255,255,0.06)"
+                                    } else {
+                                        "transparent"
+                                    },
+                                    if active_key.get() == key { accent } else { "transparent" },
+                                )
+                            }
+                            class="hover:bg-white/[0.04]"
+                        >
+                            <span style=format!(
+                                "color: {}; width: 16px; display: inline-flex; justify-content: center;",
+                                accent,
+                            )>
+                                <AppIcon icon=icon_from_fa_class(icon) size=12 />
                             </span>
-                        })}
-                    </button>
-                }
-            }).collect_view()}
+                            <span style="font-size: 0.78rem; font-weight: 500; color: #cbd5e1;">
+                                {label}
+                            </span>
+                            {move || {
+                                (active_key.get() == key)
+                                    .then(|| {
+                                        view! {
+                                            <span style=format!(
+                                                "color: {}; margin-left: auto; display: inline-flex;",
+                                                accent,
+                                            )>
+                                                <AppIcon icon=CHECK size=10 />
+                                            </span>
+                                        }
+                                    })
+                            }}
+                        </button>
+                    }
+                })
+                .collect_view()}
         </div>
     }
 }

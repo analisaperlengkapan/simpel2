@@ -16,13 +16,10 @@ pub fn PaginationControls(
             <div class="text-sm text-gray-500">
                 "Menampilkan halaman " <span class="font-medium">{move || current_page.get()}</span>
                 " dari " <span class="font-medium">{move || total_pages.get()}</span>
-                {total_items.map(|total| {
-                    view! {
-                        <>
-                            " (" <span class="font-medium">{total}</span> " total)"
-                        </>
-                    }
-                })}
+                {total_items
+                    .map(|total| {
+                        view! { <>" (" <span class="font-medium">{total}</span> " total)"</> }
+                    })}
             </div>
             <div class="flex gap-2">
                 <button
@@ -34,9 +31,11 @@ pub fn PaginationControls(
                 </button>
                 <button
                     class="px-3 py-1 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    prop:disabled=move || current_page.get() >= total_pages.get()
-                    on:click=move |_| on_next.run(())
+                    prop:disabled=move || current_page.get()
                 >
+                    = total_pages.get()
+                    on:click=move |_| on_next.run(())
+                    >
                     "Selanjutnya"
                 </button>
             </div>

@@ -27,8 +27,7 @@ pub fn HomePage() -> impl IntoView {
 
                     // Typography Hierarchy
                     <h1 class="text-4xl sm:text-5xl lg:text-5xl font-extrabold tracking-tight mb-4 text-white drop-shadow-md">
-                        "Sistem Informasi"
-                        <br/>
+                        "Sistem Informasi" <br />
                         <span class="bg-gradient-to-r from-gold-300 via-gold-400 to-gold-500 bg-clip-text text-transparent">
                             "Manajemen Perlengkapan"
                         </span>
@@ -50,8 +49,18 @@ pub fn HomePage() -> impl IntoView {
                         >
                             <span class="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
                             <span class="relative flex items-center gap-3">
-                                <svg class="w-6 h-6 transform group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                                <svg
+                                    class="w-6 h-6 transform group-hover:scale-110 transition-transform duration-300"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
+                                    />
                                 </svg>
                                 "Masuk ke Aplikasi"
                             </span>

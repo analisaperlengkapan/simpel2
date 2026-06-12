@@ -434,10 +434,12 @@ fn CaptchaContainer(
 ) -> impl IntoView {
     view! {
         <div
-            class=move || format!(
-                "captcha-container bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 {}",
-                class.clone().unwrap_or_default()
-            )
+            class=move || {
+                format!(
+                    "captcha-container bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 {}",
+                    class.clone().unwrap_or_default(),
+                )
+            }
             role="region"
             aria-labelledby="captcha-title"
             aria-describedby="captcha-description"
@@ -456,17 +458,16 @@ fn CaptchaContainer(
                 <h3 id="captcha-title" class="text-lg font-bold text-gray-900 dark:text-white">
                     "Verifikasi Keamanan"
                 </h3>
-                <p id="captcha-description" class="text-sm font-medium text-gray-600 dark:text-gray-300">
+                <p
+                    id="captcha-description"
+                    class="text-sm font-medium text-gray-600 dark:text-gray-300"
+                >
                     "Selesaikan tantangan di bawah ini"
                 </p>
             </div>
 
-
             // Validation status indicator
-            <ValidationStatusIndicator
-                status=validation_status
-                on_retry=None
-            />
+            <ValidationStatusIndicator status=validation_status on_retry=None />
 
             {move || {
                 let current_state = state.get();
@@ -474,9 +475,12 @@ fn CaptchaContainer(
                     view! {
                         <div class="captcha-loading flex items-center justify-center py-8">
                             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                            <span class="ml-2 text-gray-600 dark:text-gray-400">"Memuat tantangan..."</span>
+                            <span class="ml-2 text-gray-600 dark:text-gray-400">
+                                "Memuat tantangan..."
+                            </span>
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if let Some(error) = current_state.error {
                     view! {
                         <div class="mb-4">
@@ -491,7 +495,8 @@ fn CaptchaContainer(
                         >
                             "Coba Lagi"
                         </Button>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <div class="captcha-challenge space-y-4">
@@ -502,7 +507,8 @@ fn CaptchaContainer(
                                         _on_answer=on_success
                                         difficulty=current_state.difficulty
                                     />
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 view! {
                                     <ChallengeDisplay
@@ -511,9 +517,9 @@ fn CaptchaContainer(
                                         challenge_data=challenge_data.get()
                                         accessibility_enabled=accessibility_enabled
                                     />
-                                }.into_any()
+                                }
+                                    .into_any()
                             }}
-
                             <ChallengeInput
                                 on_submit=on_success
                                 on_failure=on_failure
@@ -530,23 +536,22 @@ fn CaptchaContainer(
                                 challenge_id=current_state.challenge_id.clone()
                                 challenge_data=challenge_data.get()
                             />
-
                             {if accessibility_enabled && show_alternative_inputs.get() {
                                 view! {
                                     <AlternativeInputs
                                         on_answer=on_verify_answer
                                         challenge_type=state.get().challenge_type
                                     />
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
-
                                 ().into_any()
                             }}
-
                             // Behavioral analysis runs silently (no debug UI shown)
-                            { ().into_any()}
+                            {().into_any()}
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
         </div>
@@ -589,161 +594,223 @@ pub fn ChallengeDisplay(
 
     view! {
         <div class="challenge-display border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 bg-gray-50 dark:bg-gray-900">
-            <div class="challenge-header flex items-center justify-between mb-4">
-            </div>
+            <div class="challenge-header flex items-center justify-between mb-4"></div>
 
             <div class="challenge-content">
                 {move || {
                     let parsed = challenge_parser::parse_challenge(challenge_data.clone());
                     let play_audio_fn = play_audio.clone();
-
                     match challenge_type {
-                    ChallengeType::Visual => match parsed.challenge_type.as_str() {
-                            "text_recognition" => view! {
-                                <div class="text-recognition-challenge">
-                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                        {parsed.instructions.clone()}
-                                    </div>
-                                    <div class="text-display rounded-lg p-2 flex items-center justify-center select-none"
-                                        style="user-select: none; -webkit-user-select: none; pointer-events: none;">
-                                        {move || {
-                                            if let Some(ref svg_markup) = parsed.svg {
-                                                // Render server-generated SVG with noise/distortion
-                                                view! {
-                                                    <div
-                                                        class="captcha-svg-container"
-                                                        style="user-select: none; -webkit-user-select: none; pointer-events: none; width: 100%; max-width: 100%; overflow: hidden;"
-                                                        inner_html=svg_markup.clone()
-                                                    ></div>
-                                                }.into_any()
-                                            } else {
-                                                // Fallback: render individual characters with CSS distortion
-                                                let text = parsed.text_to_recognize.clone().unwrap_or_default();
-                                                let chars: Vec<char> = text.chars().collect();
-                                                view! {
-                                                    <div class="flex space-x-1 select-none" style="letter-spacing: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">
-                                                        {chars.into_iter().map(|ch| {
-                                                            let rot = js_sys::Math::random() * 30.0 - 15.0;
-                                                            let style_str = format!("transform: rotate({rot:.1}deg); display: inline-block;");
-                                                            view! {
-                                                                <span class="text-4xl font-mono font-bold text-blue-800 dark:text-blue-200 inline-block"
-                                                                    style=style_str>
-                                                                    {ch.to_string()}
-                                                                </span>
-                                                            }
-                                                        }).collect::<Vec<_>>()}
-                                                    </div>
-                                                }.into_any()
-                                            }
-                                        }}
-                                    </div>
-                                </div>
-                            }.into_any(),
-                            "image_selection" => view! {
-                                <div class="image-selection-challenge">
-                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                        {parsed.instructions.clone()}
-                                    </div>
-                                    <div class="image-grid grid gap-2"
-                                        style={format!("grid-template-columns: repeat({}, 1fr);", parsed.grid_size)}>
-                                        {parsed.images.iter().map(|img| {
-                                            let idx = img.index;
-                                            view! {
-                                                <div class="image-cell aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
-                                                    data-index={idx.to_string()}>
-                                                    <div class="w-full h-full flex items-center justify-center text-gray-500">
-                                                        {format!("📷 {}", idx + 1)}
-                                                    </div>
+                        ChallengeType::Visual => {
+                            match parsed.challenge_type.as_str() {
+                                "text_recognition" => {
+
+                                    view! {
+                                        <div class="text-recognition-challenge">
+                                            <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                                {parsed.instructions.clone()}
+                                            </div>
+                                            <div
+                                                class="text-display rounded-lg p-2 flex items-center justify-center select-none"
+                                                style="user-select: none; -webkit-user-select: none; pointer-events: none;"
+                                            >
+                                                {move || {
+                                                    if let Some(ref svg_markup) = parsed.svg {
+                                                        // Render server-generated SVG with noise/distortion
+                                                        view! {
+                                                            <div
+                                                                class="captcha-svg-container"
+                                                                style="user-select: none; -webkit-user-select: none; pointer-events: none; width: 100%; max-width: 100%; overflow: hidden;"
+                                                                inner_html=svg_markup.clone()
+                                                            ></div>
+                                                        }
+                                                            .into_any()
+                                                    } else {
+                                                        let text = parsed
+                                                            .text_to_recognize
+                                                            .clone()
+                                                            .unwrap_or_default();
+                                                        let chars: Vec<char> = text.chars().collect();
+                                                        // Fallback: render individual characters with CSS distortion
+                                                        view! {
+                                                            <div
+                                                                class="flex space-x-1 select-none"
+                                                                style="letter-spacing: 0.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);"
+                                                            >
+                                                                {chars
+                                                                    .into_iter()
+                                                                    .map(|ch| {
+                                                                        let rot = js_sys::Math::random() * 30.0 - 15.0;
+                                                                        let style_str = format!(
+                                                                            "transform: rotate({rot:.1}deg); display: inline-block;",
+                                                                        );
+                                                                        view! {
+                                                                            <span
+                                                                                class="text-4xl font-mono font-bold text-blue-800 dark:text-blue-200 inline-block"
+                                                                                style=style_str
+                                                                            >
+                                                                                {ch.to_string()}
+                                                                            </span>
+                                                                        }
+                                                                    })
+                                                                    .collect::<Vec<_>>()}
+                                                            </div>
+                                                        }
+                                                            .into_any()
+                                                    }
+                                                }}
+                                            </div>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                                "image_selection" => {
+                                    view! {
+                                        <div class="image-selection-challenge">
+                                            <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                                {parsed.instructions.clone()}
+                                            </div>
+                                            <div
+                                                class="image-grid grid gap-2"
+                                                style=format!(
+                                                    "grid-template-columns: repeat({}, 1fr);",
+                                                    parsed.grid_size,
+                                                )
+                                            >
+                                                {parsed
+                                                    .images
+                                                    .iter()
+                                                    .map(|img| {
+                                                        let idx = img.index;
+                                                        view! {
+                                                            <div
+                                                                class="image-cell aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all"
+                                                                data-index=idx.to_string()
+                                                            >
+                                                                <div class="w-full h-full flex items-center justify-center text-gray-500">
+                                                                    {format!("📷 {}", idx + 1)}
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    })
+                                                    .collect::<Vec<_>>()}
+                                            </div>
+                                            <p class="text-sm text-gray-500 mt-2">
+                                                "Click images to select/deselect"
+                                            </p>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                                _ => {
+                                    view! {
+                                        <div class="visual-challenge">
+                                            <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                                {parsed.instructions.clone()}
+                                            </div>
+                                            <div class="visual-elements grid grid-cols-2 gap-4">
+                                                <div class="challenge-image bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg h-32 flex items-center justify-center">
+                                                    <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                                                        {parsed.display_data.clone()}
+                                                    </span>
                                                 </div>
-                                            }
-                                        }).collect::<Vec<_>>()}
+                                            </div>
+                                        </div>
+                                    }
+                                        .into_any()
+                                }
+                            }
+                        }
+                        ChallengeType::Audio => {
+                            view! {
+                                <div class="audio-challenge text-center">
+                                    <div class="audio-player bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg p-6">
+                                        <div class="text-4xl mb-4">"🎵"</div>
+                                        <p class="text-gray-700 dark:text-gray-300 mb-4">
+                                            "Listen to the audio challenge"
+                                        </p>
+                                        <Button
+                                            on_click=Box::new(move || {
+                                                play_audio_fn(leptos::ev::MouseEvent::new("click").unwrap())
+                                            })
+                                            variant=ButtonVariant::Primary
+                                            disabled=audio_playing.get()
+                                        >
+                                            {if audio_playing.get() {
+                                                "Playing..."
+                                            } else {
+                                                "Play Audio"
+                                            }}
+                                        </Button>
                                     </div>
-                                    <p class="text-sm text-gray-500 mt-2">"Click images to select/deselect"</p>
                                 </div>
-                            }.into_any(),
-                            _ => view! {
-                                <div class="visual-challenge">
-                                    <div class="challenge-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                        {parsed.instructions.clone()}
+                            }
+                                .into_any()
+                        }
+                        ChallengeType::Behavioral => {
+                            view! {
+                                <div class="behavioral-challenge">
+                                    <div class="instruction-text text-center py-8">
+                                        <div class="text-6xl mb-4">"🖱️"</div>
+                                        <p class="text-lg text-gray-700 dark:text-gray-300 mb-2">
+                                            "Move your mouse naturally in the area below"
+                                        </p>
+                                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                                            "We analyze your interaction patterns to verify you're human"
+                                        </p>
                                     </div>
-                                    <div class="visual-elements grid grid-cols-2 gap-4">
-                                        <div class="challenge-image bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 rounded-lg h-32 flex items-center justify-center">
-                                            <span class="text-2xl font-bold text-blue-800 dark:text-blue-200">
-                                                {parsed.display_data.clone()}
-                                            </span>
+                                    <div class="interaction-area bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 border-2 border-green-200 dark:border-green-700 rounded-lg h-32 cursor-crosshair">// Behavioral tracking area
+                                    </div>
+                                </div>
+                            }
+                                .into_any()
+                        }
+                        ChallengeType::Logical => {
+                            let logical_parsed = challenge_parser::parse_challenge(
+                                challenge_data.clone(),
+                            );
+                            view! {
+                                <div class="logical-challenge">
+                                    <div class="puzzle-container bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-lg p-6">
+                                        <div class="puzzle-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                                            {logical_parsed.instructions.clone()}
+                                        </div>
+                                        <div class="sequence-display flex items-center justify-center space-x-4 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+                                            <span>{logical_parsed.display_data.clone()}</span>
                                         </div>
                                     </div>
                                 </div>
-                            }.into_any()
-                        },
-                    ChallengeType::Audio => view! {
-                        <div class="audio-challenge text-center">
-                            <div class="audio-player bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 rounded-lg p-6">
-                                <div class="text-4xl mb-4">"🎵"</div>
-                                <p class="text-gray-700 dark:text-gray-300 mb-4">"Listen to the audio challenge"</p>
-                                <Button
-                                    on_click=Box::new(move || {
-                                        play_audio_fn(leptos::ev::MouseEvent::new("click").unwrap())
-                                    })
-                                    variant=ButtonVariant::Primary
-                                    disabled=audio_playing.get()
-                                >
-                                    {if audio_playing.get() { "Playing..." } else { "Play Audio" }}
-                                </Button>
-                            </div>
-                        </div>
-                    }.into_any(),
-                    ChallengeType::Behavioral => view! {
-                        <div class="behavioral-challenge">
-                            <div class="instruction-text text-center py-8">
-                                <div class="text-6xl mb-4">"🖱️"</div>
-                                <p class="text-lg text-gray-700 dark:text-gray-300 mb-2">
-                                    "Move your mouse naturally in the area below"
-                                </p>
-                                <p class="text-sm text-gray-500 dark:text-gray-400">
-                                    "We analyze your interaction patterns to verify you're human"
-                                </p>
-                            </div>
-                            <div class="interaction-area bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900 dark:to-emerald-900 border-2 border-green-200 dark:border-green-700 rounded-lg h-32 cursor-crosshair">
-                                // Behavioral tracking area
-                            </div>
-                        </div>
-                    }.into_any(),
-                    ChallengeType::Logical => {
-                        let logical_parsed = challenge_parser::parse_challenge(challenge_data.clone());
-                        view! {
-                        <div class="logical-challenge">
-                            <div class="puzzle-container bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900 dark:to-purple-900 rounded-lg p-6">
-                                <div class="puzzle-question text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-                                    {logical_parsed.instructions.clone()}
+                            }
+                                .into_any()
+                        }
+                        ChallengeType::Hybrid => {
+                            let hybrid_parsed = challenge_parser::parse_challenge(
+                                challenge_data.clone(),
+                            );
+                            view! {
+                                <div class="hybrid-challenge">
+                                    <div class="multi-step-challenge space-y-4">
+                                        <div class="step-indicator flex items-center justify-center space-x-2 mb-4">
+                                            <div class="step active bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                                                "1"
+                                            </div>
+                                            <div class="connector w-8 h-0.5 bg-gray-300"></div>
+                                            <div class="step bg-gray-300 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center text-xs">
+                                                "2"
+                                            </div>
+                                        </div>
+                                        <div class="current-step bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900 dark:to-orange-900 rounded-lg p-4">
+                                            <p class="text-center text-gray-700 dark:text-gray-300">
+                                                "Step 1: " {hybrid_parsed.instructions.clone()}
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="sequence-display flex items-center justify-center space-x-4 text-2xl font-bold text-indigo-700 dark:text-indigo-300">
-                                    <span>{logical_parsed.display_data.clone()}</span>
-                                </div>
-                            </div>
-                        </div>
-                    }.into_any()
-                    },
-                    ChallengeType::Hybrid => {
-                        let hybrid_parsed = challenge_parser::parse_challenge(challenge_data.clone());
-                        view! {
-                        <div class="hybrid-challenge">
-                            <div class="multi-step-challenge space-y-4">
-                                <div class="step-indicator flex items-center justify-center space-x-2 mb-4">
-                                    <div class="step active bg-emerald-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">"1"</div>
-                                    <div class="connector w-8 h-0.5 bg-gray-300"></div>
-                                    <div class="step bg-gray-300 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center text-xs">"2"</div>
-                                </div>
-                                <div class="current-step bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900 dark:to-orange-900 rounded-lg p-4">
-                                    <p class="text-center text-gray-700 dark:text-gray-300">
-                                        "Step 1: " {hybrid_parsed.instructions.clone()}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    }.into_any()
-                    },
-                }}}
+                            }
+                                .into_any()
+                        }
+                    }
+                }}
             </div>
         </div>
     }
@@ -918,61 +985,77 @@ pub fn ChallengeInput(
             {move || {
                 let current_state = state.get();
                 let parsed = challenge_parser::parse_challenge(challenge_data.clone());
-
                 match current_state.challenge_type {
                     ChallengeType::Visual => {
                         match parsed.challenge_type.as_str() {
-                            "text_recognition" => view! {
-                                <div class="text-input-challenge">
-                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        "Ketik karakter yang Anda lihat di atas (perhatikan huruf besar/kecil):"
+                            "text_recognition" => {
+
+                                view! {
+                                    <div class="text-input-challenge">
+                                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                            "Ketik karakter yang Anda lihat di atas (perhatikan huruf besar/kecil):"
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <input
+                                                type="text"
+                                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white font-mono text-lg tracking-widest"
+                                                placeholder="Masukkan teks..."
+                                                value=input_value
+                                                on:input=handle_input_change
+                                                disabled=is_submitting.get()
+                                                maxlength="10"
+                                                autocomplete="off"
+                                                spellcheck="false"
+                                            />
+                                            <Button
+                                                on_click=Box::new(handle_submit)
+                                                variant=ButtonVariant::Primary
+                                                disabled=is_submitting.get()
+                                                    || input_value.get().trim().is_empty()
+                                            >
+                                                {if is_submitting.get() {
+                                                    "Memverifikasi..."
+                                                } else {
+                                                    "Kirim"
+                                                }}
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div class="flex space-x-2">
-                                        <input
-                                            type="text"
-                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white font-mono text-lg tracking-widest"
-                                            placeholder="Masukkan teks..."
-                                            value=input_value
-                                            on:input=handle_input_change
-                                            disabled=is_submitting.get()
-                                            maxlength="10"
-                                            autocomplete="off"
-                                            spellcheck="false"
-                                        />
-                                        <Button
-                                            on_click=Box::new(handle_submit)
-                                            variant=ButtonVariant::Primary
-                                            disabled=is_submitting.get() || input_value.get().trim().is_empty()
-                                        >
-                                            {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
-                                        </Button>
+                                }
+                                    .into_any()
+                            }
+                            "image_selection" => {
+                                view! {
+                                    <div class="image-selection-input">
+                                        <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                            "Gambar terpilih akan disorot. Klik Kirim jika sudah selesai."
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <input
+                                                type="text"
+                                                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+                                                placeholder="Masukkan nomor gambar (cth: 1,3,5)..."
+                                                value=input_value
+                                                on:input=handle_input_change
+                                                disabled=is_submitting.get()
+                                            />
+                                            <Button
+                                                on_click=Box::new(handle_submit)
+                                                variant=ButtonVariant::Primary
+                                                disabled=is_submitting.get()
+                                                    || input_value.get().trim().is_empty()
+                                            >
+                                                {if is_submitting.get() {
+                                                    "Memverifikasi"
+                                                } else {
+                                                    "Kirim"
+                                                }}
+                                            </Button>
+                                        </div>
                                     </div>
-                                </div>
-                            }.into_any(),
-                            "image_selection" => view! {
-                                <div class="image-selection-input">
-                                    <div class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                                        "Gambar terpilih akan disorot. Klik Kirim jika sudah selesai."
-                                    </div>
-                                    <div class="flex space-x-2">
-                                        <input
-                                            type="text"
-                                            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-                                            placeholder="Masukkan nomor gambar (cth: 1,3,5)..."
-                                            value=input_value
-                                            on:input=handle_input_change
-                                            disabled=is_submitting.get()
-                                        />
-                                        <Button
-                                            on_click=Box::new(handle_submit)
-                                            variant=ButtonVariant::Primary
-                                            disabled=is_submitting.get() || input_value.get().trim().is_empty()
-                                        >
-                                            {if is_submitting.get() { "Memverifikasi" } else { "Kirim" }}
-                                        </Button>
-                                    </div>
-                                </div>
-                            }.into_any(),
+                                }
+                                    .into_any()
+                            }
                             _ => {
                                 let options = parsed.options.clone();
                                 if options.is_empty() || options[0] == "..." {
@@ -991,13 +1074,19 @@ pub fn ChallengeInput(
                                                 <Button
                                                     on_click=Box::new(handle_submit)
                                                     variant=ButtonVariant::Primary
-                                                    disabled=is_submitting.get() || input_value.get().trim().is_empty()
+                                                    disabled=is_submitting.get()
+                                                        || input_value.get().trim().is_empty()
                                                 >
-                                                    {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
+                                                    {if is_submitting.get() {
+                                                        "Memverifikasi..."
+                                                    } else {
+                                                        "Kirim"
+                                                    }}
                                                 </Button>
                                             </div>
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     // Show option buttons
                                     view! {
@@ -1006,55 +1095,66 @@ pub fn ChallengeInput(
                                                 "Pilih jawaban yang benar:"
                                             </div>
                                             <div class="grid grid-cols-2 gap-3">
-                                                {options.into_iter().map(|option| {
-                                                    let option_clone = option.clone();
-                                                    view! {
-                                                        <button
-                                                            class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                            disabled=is_submitting.get()
-                                                            on:click=move |_| handle_answer_click(option_clone.clone())
-                                                        >
-                                                            <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">{option}</div>
-                                                        </button>
-                                                    }
-                                                }).collect_view()}
+                                                {options
+                                                    .into_iter()
+                                                    .map(|option| {
+                                                        let option_clone = option.clone();
+                                                        view! {
+                                                            <button
+                                                                class="answer-option bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 border-2 border-blue-300 dark:border-blue-700 rounded-lg p-4 text-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                disabled=is_submitting.get()
+                                                                on:click=move |_| handle_answer_click(option_clone.clone())
+                                                            >
+                                                                <div class="text-2xl font-bold text-blue-800 dark:text-blue-200">
+                                                                    {option}
+                                                                </div>
+                                                            </button>
+                                                        }
+                                                    })
+                                                    .collect_view()}
                                             </div>
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }
                         }
-                    },
-                    _ => view! {
-                        <div class="text-input-challenge">
-                            <div class="flex space-x-2">
-                                <input
-                                    type="text"
-                                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
-                                    placeholder="Masukkan jawaban Anda..."
-                                    value=input_value
-                                    on:input=handle_input_change
-                                    disabled=is_submitting.get()
-                                />
-                                <Button
-                                    on_click=Box::new(handle_submit)
-                                    variant=ButtonVariant::Primary
-                                    disabled=is_submitting.get() || input_value.get().trim().is_empty()
-                                >
-                                    {if is_submitting.get() { "Memverifikasi..." } else { "Kirim" }}
-                                </Button>
+                    }
+                    _ => {
+                        view! {
+                            <div class="text-input-challenge">
+                                <div class="flex space-x-2">
+                                    <input
+                                        type="text"
+                                        class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-gray-700 dark:text-white"
+                                        placeholder="Masukkan jawaban Anda..."
+                                        value=input_value
+                                        on:input=handle_input_change
+                                        disabled=is_submitting.get()
+                                    />
+                                    <Button
+                                        on_click=Box::new(handle_submit)
+                                        variant=ButtonVariant::Primary
+                                        disabled=is_submitting.get()
+                                            || input_value.get().trim().is_empty()
+                                    >
+                                        {if is_submitting.get() {
+                                            "Memverifikasi..."
+                                        } else {
+                                            "Kirim"
+                                        }}
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
-                    }.into_any()
+                        }
+                            .into_any()
+                    }
                 }
             }}
-
             // Validation feedback is shown by ValidationStatusIndicator in CaptchaContainer
 
-            { /* accessibility options removed per updated requirements */
-
-                ().into_any()
-            }
+            {
+            ().into_any()}
         </div>
     }
 }

@@ -53,23 +53,31 @@ pub fn Card(
         <div
             class=format!(
                 "bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 {} {} {} {}",
-                hover_class, cursor_class, class, if clickable { "focus:outline-none focus:ring-2 focus:ring-primary-500" } else { "" }
+                hover_class,
+                cursor_class,
+                class,
+                if clickable {
+                    "focus:outline-none focus:ring-2 focus:ring-primary-500"
+                } else {
+                    ""
+                },
             )
             role=if clickable { Some("button") } else { None }
             tabindex=if clickable { Some("0") } else { None }
             on:click=handle_click
             on:keydown=handle_keydown
         >
-            {title.map(|t| view! {
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                        {t}
-                    </h3>
-                </div>
-            })}
-            <div class=padding_class>
-                {children()}
-            </div>
+            {title
+                .map(|t| {
+                    view! {
+                        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                {t}
+                            </h3>
+                        </div>
+                    }
+                })}
+            <div class=padding_class>{children()}</div>
         </div>
     }
 }
@@ -106,24 +114,9 @@ pub fn Container(
             </main>
         }
         .into_any(),
-        "section" => view! {
-            <section class=container_class>
-                {children()}
-            </section>
-        }
-        .into_any(),
-        "article" => view! {
-            <article class=container_class>
-                {children()}
-            </article>
-        }
-        .into_any(),
-        _ => view! {
-            <div class=container_class>
-                {children()}
-            </div>
-        }
-        .into_any(),
+        "section" => view! { <section class=container_class>{children()}</section> }.into_any(),
+        "article" => view! { <article class=container_class>{children()}</article> }.into_any(),
+        _ => view! { <div class=container_class>{children()}</div> }.into_any(),
     }
 }
 
@@ -167,11 +160,7 @@ pub fn Grid(
     };
 
     view! {
-        <div
-            class=grid_class
-            style=style
-            role="grid"
-        >
+        <div class=grid_class style=style role="grid">
             {children()}
         </div>
     }
@@ -214,7 +203,15 @@ pub fn Stack(
 
     view! {
         <div
-            class=format!("flex {} {} {} {} {} {}", direction, gap_class, align_class, justify_class, wrap_class, class)
+            class=format!(
+                "flex {} {} {} {} {} {}",
+                direction,
+                gap_class,
+                align_class,
+                justify_class,
+                wrap_class,
+                class,
+            )
             role="group"
         >
             {children()}
@@ -236,17 +233,17 @@ pub fn Footer(
     let copyright = copyright.unwrap_or_else(|| "© 2024 Kejaksaan Republik Indonesia".to_string());
 
     view! {
-        <footer class=format!("bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto {}", class)>
+        <footer class=format!(
+            "bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-auto {}",
+            class,
+        )>
             <div class="container mx-auto px-4 py-6">
                 <div class="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                    <div class="text-sm text-gray-600 dark:text-gray-400">
-                        {copyright}
-                    </div>
-                    {children.map(|children| view! {
-                        <div class="flex items-center space-x-4">
-                            {children()}
-                        </div>
-                    })}
+                    <div class="text-sm text-gray-600 dark:text-gray-400">{copyright}</div>
+                    {children
+                        .map(|children| {
+                            view! { <div class="flex items-center space-x-4">{children()}</div> }
+                        })}
                 </div>
             </div>
         </footer>
@@ -316,24 +313,32 @@ pub fn Section(
     let text_align = if centered { "text-center" } else { "" };
 
     view! {
-        <section class=format!("py-8 {}", class)>
-            {(title.is_some() || description.is_some()).then(|| view! {
-                <div class=format!("mb-6 {}", text_align)>
-                    {title.map(|t| view! {
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                            {t}
-                        </h2>
-                    })}
-                    {description.map(|d| view! {
-                        <p class="text-gray-600 dark:text-gray-400">
-                            {d}
-                        </p>
-                    })}
-                </div>
-            })}
-            <div>
-                {children()}
-            </div>
+        <section class=format!(
+            "py-8 {}",
+            class,
+        )>
+            {(title.is_some() || description.is_some())
+                .then(|| {
+                    view! {
+                        <div class=format!(
+                            "mb-6 {}",
+                            text_align,
+                        )>
+                            {title
+                                .map(|t| {
+                                    view! {
+                                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                                            {t}
+                                        </h2>
+                                    }
+                                })}
+                            {description
+                                .map(|d| {
+                                    view! { <p class="text-gray-600 dark:text-gray-400">{d}</p> }
+                                })}
+                        </div>
+                    }
+                })} <div>{children()}</div>
         </section>
     }
 }
@@ -350,7 +355,5 @@ pub fn Spacer(
     let class = class.unwrap_or_default();
     let height_class = format!("h-{}", size);
 
-    view! {
-        <div class=format!("{} {}", height_class, class) aria-hidden="true"></div>
-    }
+    view! { <div class=format!("{} {}", height_class, class) aria-hidden="true"></div> }
 }

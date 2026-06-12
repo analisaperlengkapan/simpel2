@@ -80,15 +80,19 @@ pub fn SkViewPage() -> impl IntoView {
                 "SK Penghapusan BMN - Lihat Dokumen"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center py-4">
-                    <Spinner size="lg" />
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center py-4">
+                                <Spinner size="lg" />
+                            </div>
+                        }
+                    })
+            }}
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 // Left Panel: Requests List
@@ -102,52 +106,63 @@ pub fn SkViewPage() -> impl IntoView {
                                         <div class="text-center py-8 text-gray-500">
                                             "Tidak ada SK yang tersedia"
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="space-y-2">
-                                            {list.into_iter().map(|req| {
-                                                let has_signed_sk = req.signed_sk_url.is_some();
-                                                view! {
-                                                    <div
-                                                        class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                                                        class:border-green-500=has_signed_sk
-                                                        class:bg-green-50=has_signed_sk
-                                                        on:click=move |_| set_selected_request.set(Some(req.clone()))
-                                                    >
-                                                        <div class="font-semibold text-gray-900">
-                                                            {req.satker_nama.clone().unwrap_or_else(|| "Unknown".to_string())}
-                                                        </div>
-                                                        {req.sk_number.as_ref().map(|num| view! {
-                                                            <div class="text-sm text-gray-700 mt-1 font-mono">
-                                                                {num.clone()}
+                                            {list
+                                                .into_iter()
+                                                .map(|req| {
+                                                    let has_signed_sk = req.signed_sk_url.is_some();
+                                                    view! {
+                                                        <div
+                                                            class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                                                            class:border-green-500=has_signed_sk
+                                                            class:bg-green-50=has_signed_sk
+                                                            on:click=move |_| {
+                                                                set_selected_request.set(Some(req.clone()))
+                                                            }
+                                                        >
+                                                            <div class="font-semibold text-gray-900">
+                                                                {req
+                                                                    .satker_nama
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "Unknown".to_string())}
                                                             </div>
-                                                        })}
-                                                        <div class="text-xs text-gray-600 mt-1">
-                                                            {req.bmn_items.len()} " BMN"
+                                                            {req
+                                                                .sk_number
+                                                                .as_ref()
+                                                                .map(|num| {
+                                                                    view! {
+                                                                        <div class="text-sm text-gray-700 mt-1 font-mono">
+                                                                            {num.clone()}
+                                                                        </div>
+                                                                    }
+                                                                })}
+                                                            <div class="text-xs text-gray-600 mt-1">
+                                                                {req.bmn_items.len()} " BMN"
+                                                            </div>
+                                                            <div class="mt-2">
+                                                                {if has_signed_sk {
+                                                                    view! {
+                                                                        <Badge label="SK Tersedia" variant=BadgeVariant::Success />
+                                                                    }
+                                                                        .into_any()
+                                                                } else {
+                                                                    view! {
+                                                                        <Badge label="Menunggu SK" variant=BadgeVariant::Warning />
+                                                                    }
+                                                                        .into_any()
+                                                                }}
+                                                            </div>
                                                         </div>
-                                                        <div class="mt-2">
-                                                            {if has_signed_sk {
-                                                                view! {
-                                                                    <Badge
-                                                                        label="SK Tersedia"
-                                                                        variant=BadgeVariant::Success
-                                                                    />
-                                                                }.into_any()
-                                                            } else {
-                                                                view! {
-                                                                    <Badge
-                                                                        label="Menunggu SK"
-                                                                        variant=BadgeVariant::Warning
-                                                                    />
-                                                                }.into_any()
-                                                            }}
-                                                        </div>
-                                                    </div>
-                                                }
-                                            }).collect_view()}
+                                                    }
+                                                })
+                                                .collect_view()}
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }
                             }}
                         </div>
@@ -162,7 +177,8 @@ pub fn SkViewPage() -> impl IntoView {
                             let request_sk_number_for_document = request.sk_number.clone();
                             let request_bmn_items_for_summary = request.bmn_items.clone();
                             let request_bmn_items_for_table = request.bmn_items.clone();
-                            let total_nilai: f64 = request_bmn_items_for_table.iter()
+                            let total_nilai: f64 = request_bmn_items_for_table
+                                .iter()
                                 .filter_map(|item| item.nilai_perolehan)
                                 .sum();
 
@@ -172,13 +188,19 @@ pub fn SkViewPage() -> impl IntoView {
                                     <Card title="Informasi SK Penghapusan">
                                         <div class="grid grid-cols-2 gap-4">
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Nomor SK"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Nomor SK"
+                                                </label>
                                                 <p class="text-gray-900 font-mono">
-                                                    {request_sk_number_for_summary.clone().unwrap_or_else(|| "-".to_string())}
+                                                    {request_sk_number_for_summary
+                                                        .clone()
+                                                        .unwrap_or_else(|| "-".to_string())}
                                                 </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Status"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Status"
+                                                </label>
                                                 <div class="mt-1">
                                                     <Badge
                                                         label=request.status.clone()
@@ -191,21 +213,36 @@ pub fn SkViewPage() -> impl IntoView {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Satker"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Satker"
+                                                </label>
                                                 <p class="text-gray-900">
-                                                    {request.satker_nama.clone().unwrap_or_else(|| "Unknown".to_string())}
+                                                    {request
+                                                        .satker_nama
+                                                        .clone()
+                                                        .unwrap_or_else(|| "Unknown".to_string())}
                                                 </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Metode Penghapusan"</label>
-                                                <p class="text-gray-900">{request.metode_penghapusan.clone()}</p>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Metode Penghapusan"
+                                                </label>
+                                                <p class="text-gray-900">
+                                                    {request.metode_penghapusan.clone()}
+                                                </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Jumlah BMN"</label>
-                                                <p class="text-gray-900">{request_bmn_items_for_summary.len()} " item"</p>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Jumlah BMN"
+                                                </label>
+                                                <p class="text-gray-900">
+                                                    {request_bmn_items_for_summary.len()} " item"
+                                                </p>
                                             </div>
                                             <div>
-                                                <label class="text-sm font-medium text-gray-700">"Total Nilai"</label>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Total Nilai"
+                                                </label>
                                                 <p class="text-gray-900 font-semibold">
                                                     "Rp " {format!("{:.2}", total_nilai)}
                                                 </p>
@@ -219,41 +256,69 @@ pub fn SkViewPage() -> impl IntoView {
                                             <table class="min-w-full divide-y divide-gray-200">
                                                 <thead class="bg-gray-50">
                                                     <tr>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"No"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Nama Barang"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"NUP"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Kondisi"</th>
-                                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Nilai"</th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "No"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "Nama Barang"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "NUP"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                            "Kondisi"
+                                                        </th>
+                                                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                                            "Nilai"
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody class="bg-white divide-y divide-gray-200">
-                                                    {request_bmn_items_for_table.iter().enumerate().map(|(idx, item)| view! {
-                                                        <tr>
-                                                            <td class="px-4 py-3 text-sm">{idx + 1}</td>
-                                                            <td class="px-4 py-3 text-sm">
-                                                                <div class="font-medium">{item.nama_barang.clone()}</div>
-                                                                <div class="text-xs text-gray-500">{item.kode_barang.clone()}</div>
-                                                            </td>
-                                                            <td class="px-4 py-3 text-sm font-mono">{item.nup.clone()}</td>
-                                                            <td class="px-4 py-3 text-sm">
-                                                                <Badge
-                                                                    label=item.kondisi.clone()
-                                                                    variant=match item.kondisi.as_str() {
-                                                                        "BAIK" => BadgeVariant::Success,
-                                                                        "RUSAK_RINGAN" => BadgeVariant::Warning,
-                                                                        _ => BadgeVariant::Danger,
-                                                                    }
-                                                                />
-                                                            </td>
-                                                            <td class="px-4 py-3 text-sm text-right">
-                                                                {item.nilai_perolehan.map(|n| format!("Rp {:.2}", n)).unwrap_or_else(|| "-".to_string())}
-                                                            </td>
-                                                        </tr>
-                                                    }).collect_view()}
+                                                    {request_bmn_items_for_table
+                                                        .iter()
+                                                        .enumerate()
+                                                        .map(|(idx, item)| {
+                                                            view! {
+                                                                <tr>
+                                                                    <td class="px-4 py-3 text-sm">{idx + 1}</td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        <div class="font-medium">{item.nama_barang.clone()}</div>
+                                                                        <div class="text-xs text-gray-500">
+                                                                            {item.kode_barang.clone()}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm font-mono">
+                                                                        {item.nup.clone()}
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm">
+                                                                        <Badge
+                                                                            label=item.kondisi.clone()
+                                                                            variant=match item.kondisi.as_str() {
+                                                                                "BAIK" => BadgeVariant::Success,
+                                                                                "RUSAK_RINGAN" => BadgeVariant::Warning,
+                                                                                _ => BadgeVariant::Danger,
+                                                                            }
+                                                                        />
+                                                                    </td>
+                                                                    <td class="px-4 py-3 text-sm text-right">
+                                                                        {item
+                                                                            .nilai_perolehan
+                                                                            .map(|n| format!("Rp {:.2}", n))
+                                                                            .unwrap_or_else(|| "-".to_string())}
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        })
+                                                        .collect_view()}
                                                 </tbody>
                                                 <tfoot class="bg-gray-50">
                                                     <tr>
-                                                        <td colspan="4" class="px-4 py-3 text-sm font-semibold text-right">"Total Nilai:"</td>
+                                                        <td
+                                                            colspan="4"
+                                                            class="px-4 py-3 text-sm font-semibold text-right"
+                                                        >
+                                                            "Total Nilai:"
+                                                        </td>
                                                         <td class="px-4 py-3 text-sm font-bold text-right">
                                                             "Rp " {format!("{:.2}", total_nilai)}
                                                         </td>
@@ -265,21 +330,42 @@ pub fn SkViewPage() -> impl IntoView {
 
                                     // SK Document Viewer (REQ-PH011, REQ-PH012)
                                     <Card title="Dokumen SK Penghapusan">
-                                        {if let Some(signed_sk_url) = request.signed_sk_url.clone() {
+                                        {if let Some(signed_sk_url) = request.signed_sk_url.clone()
+                                        {
                                             view! {
                                                 <div class="space-y-4">
                                                     // Download Button
                                                     <div class="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
                                                         <div class="flex items-center space-x-3">
-                                                            <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            <svg
+                                                                class="w-10 h-10 text-green-600"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                />
                                                             </svg>
                                                             <div>
-                                                                <p class="font-semibold text-green-900">"SK Penghapusan Tersedia"</p>
-                                                                <p class="text-sm text-green-700">"Dokumen telah ditandatangani dan siap diunduh"</p>
-                                                                {request_sk_number_for_document.as_ref().map(|num| view! {
-                                                                    <p class="text-xs text-green-600 font-mono mt-1">{num.clone()}</p>
-                                                                })}
+                                                                <p class="font-semibold text-green-900">
+                                                                    "SK Penghapusan Tersedia"
+                                                                </p>
+                                                                <p class="text-sm text-green-700">
+                                                                    "Dokumen telah ditandatangani dan siap diunduh"
+                                                                </p>
+                                                                {request_sk_number_for_document
+                                                                    .as_ref()
+                                                                    .map(|num| {
+                                                                        view! {
+                                                                            <p class="text-xs text-green-600 font-mono mt-1">
+                                                                                {num.clone()}
+                                                                            </p>
+                                                                        }
+                                                                    })}
                                                             </div>
                                                         </div>
                                                         <a
@@ -288,8 +374,18 @@ pub fn SkViewPage() -> impl IntoView {
                                                             download
                                                             class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
                                                         >
-                                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                            <svg
+                                                                class="w-5 h-5"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                                />
                                                             </svg>
                                                             <span>"Download PDF"</span>
                                                         </a>
@@ -298,7 +394,9 @@ pub fn SkViewPage() -> impl IntoView {
                                                     // PDF Viewer (embedded)
                                                     <div class="border rounded-lg overflow-hidden bg-gray-100">
                                                         <div class="bg-gray-800 text-white px-4 py-2 flex items-center justify-between">
-                                                            <span class="text-sm font-medium">"Preview SK Penghapusan"</span>
+                                                            <span class="text-sm font-medium">
+                                                                "Preview SK Penghapusan"
+                                                            </span>
                                                             <a
                                                                 href=signed_sk_url.clone()
                                                                 target="_blank"
@@ -319,13 +417,25 @@ pub fn SkViewPage() -> impl IntoView {
                                                     // Additional Info
                                                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                                         <div class="flex items-start space-x-3">
-                                                            <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            <svg
+                                                                class="w-5 h-5 text-blue-600 mt-0.5"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                                />
                                                             </svg>
                                                             <div class="text-sm text-blue-800">
                                                                 <p class="font-medium mb-1">"Informasi Dokumen"</p>
                                                                 <ul class="list-disc list-inside space-y-1 text-blue-700">
-                                                                    <li>"Dokumen SK telah ditandatangani oleh pejabat berwenang"</li>
+                                                                    <li>
+                                                                        "Dokumen SK telah ditandatangani oleh pejabat berwenang"
+                                                                    </li>
                                                                     <li>"Format dokumen: PDF"</li>
                                                                     <li>"Dokumen dapat diunduh dan disimpan untuk arsip"</li>
                                                                 </ul>
@@ -333,12 +443,26 @@ pub fn SkViewPage() -> impl IntoView {
                                                         </div>
                                                     </div>
                                                 </div>
-                                            }.into_any()
-                                        } else if let Some(draft_url) = request.sk_document_url.clone() {
+                                            }
+                                                .into_any()
+                                        } else if let Some(draft_url) = request
+                                            .sk_document_url
+                                            .clone()
+                                        {
                                             view! {
                                                 <div class="text-center py-12">
-                                                    <svg class="w-16 h-16 text-yellow-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    <svg
+                                                        class="w-16 h-16 text-yellow-500 mx-auto mb-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                                        />
                                                     </svg>
                                                     <p class="text-lg font-medium text-gray-900 mb-2">
                                                         "SK Penghapusan Sedang Diproses"
@@ -354,12 +478,23 @@ pub fn SkViewPage() -> impl IntoView {
                                                         "Lihat Draft SK (DOCX)"
                                                     </a>
                                                 </div>
-                                            }.into_any()
+                                            }
+                                                .into_any()
                                         } else {
                                             view! {
                                                 <div class="text-center py-12">
-                                                    <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    <svg
+                                                        class="w-16 h-16 text-gray-400 mx-auto mb-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                        />
                                                     </svg>
                                                     <p class="text-lg font-medium text-gray-900 mb-2">
                                                         "Dokumen SK Belum Tersedia"
@@ -368,22 +503,37 @@ pub fn SkViewPage() -> impl IntoView {
                                                         "SK Penghapusan belum dibuat oleh Validator Pusat"
                                                     </p>
                                                 </div>
-                                            }.into_any()
+                                            }
+                                                .into_any()
                                         }}
                                     </Card>
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <Card>
                                     <div class="text-center py-12 text-gray-500">
-                                        <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        <svg
+                                            class="w-16 h-16 text-gray-300 mx-auto mb-4"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                            />
                                         </svg>
-                                        <p class="text-lg">"Pilih SK dari daftar untuk melihat detail"</p>
+                                        <p class="text-lg">
+                                            "Pilih SK dari daftar untuk melihat detail"
+                                        </p>
                                     </div>
                                 </Card>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>

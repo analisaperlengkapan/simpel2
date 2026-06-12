@@ -163,24 +163,22 @@ pub fn ClientDetailPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-6xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-4">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / "
-                    <a href="/portal/admin/clients" class="hover:text-primary-600">"Klien"</a>
+                    <a href="/portal/admin/clients" class="hover:text-primary-600">
+                        "Klien"
+                    </a>
                     " / Detail"
                 </nav>
 
-                {move || success.get().map(|msg| view! {
-                    <SuccessBanner message=msg />
-                })}
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat detail klien..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat detail klien..." /> }
                 >
                     <Show when=move || client.get().is_some()>
                         // Client header
@@ -191,16 +189,34 @@ pub fn ClientDetailPage() -> impl IntoView {
                                         "🔐"
                                     </div>
                                     <div class="flex-1">
-                                        <h1 class="text-xl font-bold text-gray-900">{client_name}</h1>
-                                        <p class="text-sm text-gray-500 font-mono">{client_client_id}</p>
+                                        <h1 class="text-xl font-bold text-gray-900">
+                                            {client_name}
+                                        </h1>
+                                        <p class="text-sm text-gray-500 font-mono">
+                                            {client_client_id}
+                                        </p>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        {move || if client_enabled() {
-                                            view! { <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">"Aktif"</span> }.into_any()
-                                        } else {
-                                            view! { <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">"Nonaktif"</span> }.into_any()
+                                        {move || {
+                                            if client_enabled() {
+                                                view! {
+                                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                                        "Aktif"
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                                        "Nonaktif"
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            }
                                         }}
-                                        <span class="px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">{client_type}</span>
+                                        <span class="px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-700">
+                                            {client_type}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -208,7 +224,9 @@ pub fn ClientDetailPage() -> impl IntoView {
                             <div class="grid grid-cols-3 divide-x border-t">
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"ID Klien"</p>
-                                    <p class="text-xs font-mono text-gray-700 truncate">{client_id_display}</p>
+                                    <p class="text-xs font-mono text-gray-700 truncate">
+                                        {client_id_display}
+                                    </p>
                                 </div>
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"Dibuat"</p>
@@ -216,7 +234,9 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 </div>
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"URI Pengalihan"</p>
-                                    <p class="text-sm text-gray-700">{move || client_uris().len()}</p>
+                                    <p class="text-sm text-gray-700">
+                                        {move || client_uris().len()}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -225,24 +245,27 @@ pub fn ClientDetailPage() -> impl IntoView {
                         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <div class="border-b">
                                 <nav class="flex overflow-x-auto px-2">
-                                    {ClientTab::all().iter().map(|tab| {
-                                        let t = *tab;
-                                        view! {
-                                            <button
-                                                on:click=move |_| set_active_tab.set(t)
-                                                class=move || {
-                                                    if active_tab.get() == t {
-                                                        "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
-                                                    } else {
-                                                        "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap"
+                                    {ClientTab::all()
+                                        .iter()
+                                        .map(|tab| {
+                                            let t = *tab;
+                                            view! {
+                                                <button
+                                                    on:click=move |_| set_active_tab.set(t)
+                                                    class=move || {
+                                                        if active_tab.get() == t {
+                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
+                                                        } else {
+                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap"
+                                                        }
                                                     }
-                                                }
-                                            >
-                                                <span>{t.icon()}</span>
-                                                {t.label()}
-                                            </button>
-                                        }
-                                    }).collect::<Vec<_>>()}
+                                                >
+                                                    <span>{t.icon()}</span>
+                                                    {t.label()}
+                                                </button>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
                                 </nav>
                             </div>
 
@@ -254,11 +277,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div class="border rounded-lg p-4">
                                                     <dt class="text-xs text-gray-500 mb-1">"ID Klien"</dt>
-                                                    <dd class="text-sm font-mono font-semibold text-gray-900">{client_client_id}</dd>
+                                                    <dd class="text-sm font-mono font-semibold text-gray-900">
+                                                        {client_client_id}
+                                                    </dd>
                                                 </div>
                                                 <div class="border rounded-lg p-4">
                                                     <dt class="text-xs text-gray-500 mb-1">"Tipe Klien"</dt>
-                                                    <dd class="text-sm font-semibold text-gray-900">{client_type}</dd>
+                                                    <dd class="text-sm font-semibold text-gray-900">
+                                                        {client_type}
+                                                    </dd>
                                                 </div>
                                             </div>
                                             <div class="border rounded-lg p-4">
@@ -271,17 +298,28 @@ pub fn ClientDetailPage() -> impl IntoView {
                                                     {move || {
                                                         let uris = client_uris();
                                                         if uris.is_empty() {
-                                                            view! { <p class="text-sm text-gray-400 italic">"Tidak ada redirect URI."</p> }.into_any()
+                                                            view! {
+                                                                <p class="text-sm text-gray-400 italic">
+                                                                    "Tidak ada redirect URI."
+                                                                </p>
+                                                            }
+                                                                .into_any()
                                                         } else {
                                                             view! {
                                                                 <ul class="space-y-1">
-                                                                    {uris.into_iter().map(|uri| {
-                                                                        view! {
-                                                                            <li class="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded">{uri}</li>
-                                                                        }
-                                                                    }).collect::<Vec<_>>()}
+                                                                    {uris
+                                                                        .into_iter()
+                                                                        .map(|uri| {
+                                                                            view! {
+                                                                                <li class="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded">
+                                                                                    {uri}
+                                                                                </li>
+                                                                            }
+                                                                        })
+                                                                        .collect::<Vec<_>>()}
                                                                 </ul>
-                                                            }.into_any()
+                                                            }
+                                                                .into_any()
                                                         }
                                                     }}
                                                 </dd>
@@ -294,13 +332,21 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::Credentials>
                                     <div class="space-y-6">
                                         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                                            <h4 class="font-semibold text-amber-800">"⚠ Client Secret"</h4>
-                                            <p class="text-sm text-amber-700 mt-1">"Regenerasi secret akan membuat secret lama tidak valid. Semua aplikasi yang menggunakan secret lama akan gagal otentikasi."</p>
+                                            <h4 class="font-semibold text-amber-800">
+                                                "⚠ Client Secret"
+                                            </h4>
+                                            <p class="text-sm text-amber-700 mt-1">
+                                                "Regenerasi secret akan membuat secret lama tidak valid. Semua aplikasi yang menggunakan secret lama akan gagal otentikasi."
+                                            </p>
                                         </div>
                                         <div class="border rounded-lg p-5">
-                                            <h4 class="font-medium text-gray-900 mb-3">"Regenerasi Client Secret"</h4>
+                                            <h4 class="font-medium text-gray-900 mb-3">
+                                                "Regenerasi Client Secret"
+                                            </h4>
                                             <button
-                                                on:click=move |_| set_regen_trigger.set(regen_trigger.get() + 1)
+                                                on:click=move |_| {
+                                                    set_regen_trigger.set(regen_trigger.get() + 1)
+                                                }
                                                 class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
                                             >
                                                 "🔄 Regenerasi Secret"
@@ -313,9 +359,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::Roles>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"🛡"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Peran Klien"</h3>
-                                        <p class="text-sm text-gray-500">"Peran yang tersedia untuk klien ini."</p>
-                                        <p class="text-xs text-gray-400 mt-4">"Belum ada peran klien yang dikonfigurasi."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Peran Klien"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Peran yang tersedia untuk klien ini."
+                                        </p>
+                                        <p class="text-xs text-gray-400 mt-4">
+                                            "Belum ada peran klien yang dikonfigurasi."
+                                        </p>
                                     </div>
                                 </Show>
 
@@ -323,9 +375,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::ClientScopes>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"📋"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Cakupan Klien"</h3>
-                                        <p class="text-sm text-gray-500">"Cakupan default dan opsional yang ditetapkan ke klien ini."</p>
-                                        <p class="text-xs text-gray-400 mt-4">"Belum ada cakupan yang dikonfigurasi."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Cakupan Klien"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Cakupan default dan opsional yang ditetapkan ke klien ini."
+                                        </p>
+                                        <p class="text-xs text-gray-400 mt-4">
+                                            "Belum ada cakupan yang dikonfigurasi."
+                                        </p>
                                     </div>
                                 </Show>
 
@@ -333,9 +391,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::Mappers>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"🔄"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Protocol Mappers"</h3>
-                                        <p class="text-sm text-gray-500">"Mapper yang mengontrol klaim token untuk klien ini."</p>
-                                        <p class="text-xs text-gray-400 mt-4">"Belum ada mapper yang dikonfigurasi."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Protocol Mappers"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Mapper yang mengontrol klaim token untuk klien ini."
+                                        </p>
+                                        <p class="text-xs text-gray-400 mt-4">
+                                            "Belum ada mapper yang dikonfigurasi."
+                                        </p>
                                     </div>
                                 </Show>
 
@@ -343,9 +407,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::Scope>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"📦"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Scope Evaluation"</h3>
-                                        <p class="text-sm text-gray-500">"Evaluasi scope yang efektif untuk klien ini berdasarkan konfigurasi realm."</p>
-                                        <p class="text-xs text-gray-400 mt-4">"Belum ada evaluasi scope."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Scope Evaluation"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Evaluasi scope yang efektif untuk klien ini berdasarkan konfigurasi realm."
+                                        </p>
+                                        <p class="text-xs text-gray-400 mt-4">
+                                            "Belum ada evaluasi scope."
+                                        </p>
                                     </div>
                                 </Show>
 
@@ -353,9 +423,15 @@ pub fn ClientDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == ClientTab::Sessions>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"📱"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Sesi Aktif"</h3>
-                                        <p class="text-sm text-gray-500">"Sesi aktif yang menggunakan klien ini."</p>
-                                        <p class="text-xs text-gray-400 mt-4">"Tidak ada sesi aktif."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Sesi Aktif"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Sesi aktif yang menggunakan klien ini."
+                                        </p>
+                                        <p class="text-xs text-gray-400 mt-4">
+                                            "Tidak ada sesi aktif."
+                                        </p>
                                     </div>
                                 </Show>
                             </div>

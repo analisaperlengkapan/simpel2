@@ -87,14 +87,14 @@ pub fn AuditLogsPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / Audit Log"
                 </nav>
                 <h1 class="text-2xl font-bold text-gray-900 mb-6">"Audit Log"</h1>
 
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 // Filters
                 <form on:submit=handle_filter class="mb-6 flex flex-wrap gap-3">
@@ -122,7 +122,10 @@ pub fn AuditLogsPage() -> impl IntoView {
                         placeholder="Filter by User ID..."
                         class="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64"
                     />
-                    <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm">
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
+                    >
                         "🔍 Filter"
                     </button>
                 </form>
@@ -131,19 +134,27 @@ pub fn AuditLogsPage() -> impl IntoView {
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <Show
                         when=move || !loading.get()
-                        fallback=|| view! {
-                            <LoadingPanel message="Memuat audit log..." />
-                        }
+                        fallback=|| view! { <LoadingPanel message="Memuat audit log..." /> }
                     >
                         <div class="overflow-x-auto">
                             <table class="w-full">
                                 <thead class="bg-gray-50 border-b">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Waktu"</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Event"</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"User"</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"IP"</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Detail"</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            "Waktu"
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            "Event"
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            "User"
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            "IP"
+                                        </th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            "Detail"
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-200">
@@ -159,15 +170,30 @@ pub fn AuditLogsPage() -> impl IntoView {
                                             };
                                             view! {
                                                 <tr class="hover:bg-gray-50 text-sm">
-                                                    <td class="px-4 py-2.5 text-gray-500 whitespace-nowrap">{log_entry.timestamp.clone()}</td>
-                                                    <td class="px-4 py-2.5">
-                                                        <span class={format!("text-xs px-2 py-0.5 rounded-full {}", event_class)}>
-                                                            {log_entry.event_type.clone()}
-                                                        </span>
+                                                    <td class="px-4 py-2.5 text-gray-500 whitespace-nowrap">
+                                                        {log_entry.timestamp.clone()}
                                                     </td>
-                                                    <td class="px-4 py-2.5 text-gray-700">{log_entry.user_id.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                    <td class="px-4 py-2.5 text-gray-500 font-mono text-xs">{log_entry.ip_address.clone().unwrap_or_else(|| "-".to_string())}</td>
-                                                    <td class="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">{log_entry.details.clone().unwrap_or_default()}</td>
+                                                    <td class="px-4 py-2.5">
+                                                        <span class=format!(
+                                                            "text-xs px-2 py-0.5 rounded-full {}",
+                                                            event_class,
+                                                        )>{log_entry.event_type.clone()}</span>
+                                                    </td>
+                                                    <td class="px-4 py-2.5 text-gray-700">
+                                                        {log_entry
+                                                            .user_id
+                                                            .clone()
+                                                            .unwrap_or_else(|| "-".to_string())}
+                                                    </td>
+                                                    <td class="px-4 py-2.5 text-gray-500 font-mono text-xs">
+                                                        {log_entry
+                                                            .ip_address
+                                                            .clone()
+                                                            .unwrap_or_else(|| "-".to_string())}
+                                                    </td>
+                                                    <td class="px-4 py-2.5 text-gray-500 text-xs max-w-xs truncate">
+                                                        {log_entry.details.clone().unwrap_or_default()}
+                                                    </td>
                                                 </tr>
                                             }
                                         }
@@ -189,20 +215,28 @@ pub fn AuditLogsPage() -> impl IntoView {
                         <Show when=move || { total_pages.get() > 1 }>
                             <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
                                 <button
-                                    on:click=move |_| set_page.set(page.get().saturating_sub(1).max(1))
+                                    on:click=move |_| {
+                                        set_page.set(page.get().saturating_sub(1).max(1))
+                                    }
                                     disabled=move || page.get() <= 1
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "← Sebelumnya"
                                 </button>
                                 <span class="text-sm text-gray-600">
-                                    "Halaman " {move || page.get()} " dari " {move || total_pages.get()}
+                                    "Halaman " {move || page.get()} " dari "
+                                    {move || total_pages.get()}
                                 </span>
                                 <button
-                                    on:click=move |_| set_page.set((page.get() + 1).min(total_pages.get()))
-                                    disabled=move || page.get() >= total_pages.get()
-                                    class="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    on:click=move |_| {
+                                        set_page.set((page.get() + 1).min(total_pages.get()))
+                                    }
+                                    disabled=move || page.get()
                                 >
+                                    = total_pages.get()
+                                    class=
+                                    "px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    >
                                     "Selanjutnya →"
                                 </button>
                             </div>

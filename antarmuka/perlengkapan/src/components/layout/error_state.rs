@@ -29,27 +29,36 @@ pub fn ErrorState(
     let has_retry = on_retry_rc.is_some();
 
     view! {
-        <div class="flex flex-col items-start gap-3 rounded-2xl border border-danger-500/30 bg-danger-500/[0.05] p-5"
-             role="alert">
+        <div
+            class="flex flex-col items-start gap-3 rounded-2xl border border-danger-500/30 bg-danger-500/[0.05] p-5"
+            role="alert"
+        >
             <div class="flex items-start gap-3">
                 <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-danger-500/15 text-danger-400 ring-1 ring-danger-500/25">
-                    <span class="text-sm"><AppIcon icon=WARNING /></span>
+                    <span class="text-sm">
+                        <AppIcon icon=WARNING />
+                    </span>
                 </span>
                 <div>
                     <h3 class="text-sm font-semibold text-white">{headline}</h3>
                     <p class="mt-1 text-sm leading-relaxed text-slate-300">{message}</p>
                 </div>
             </div>
-            {has_retry.then(|| view! {
-                <button
-                    type="button"
-                    on:click=handler
-                    class="focus-ring inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-medium text-danger-100 transition hover:bg-danger-500/20"
-                >
-                    <span class="text-[0.7rem]"><AppIcon icon=ARROW_CLOCKWISE /></span>
-                    "Coba lagi"
-                </button>
-            })}
+            {has_retry
+                .then(|| {
+                    view! {
+                        <button
+                            type="button"
+                            on:click=handler
+                            class="focus-ring inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs font-medium text-danger-100 transition hover:bg-danger-500/20"
+                        >
+                            <span class="text-[0.7rem]">
+                                <AppIcon icon=ARROW_CLOCKWISE />
+                            </span>
+                            "Coba lagi"
+                        </button>
+                    }
+                })}
         </div>
     }
 }

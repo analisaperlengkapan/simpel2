@@ -40,7 +40,7 @@ pub fn Tooltip(
                 class=format!(
                     "absolute {} z-tooltip px-3 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg shadow-sm whitespace-nowrap transition-opacity duration-200 pointer-events-none {}",
                     position_class,
-                    if show.get() { "opacity-100" } else { "opacity-0" }
+                    if show.get() { "opacity-100" } else { "opacity-0" },
                 )
                 role="tooltip"
             >
@@ -81,29 +81,31 @@ pub fn Popover(
     };
 
     view! {
-        <div class=format!("relative inline-block {}", class)>
+        <div class=format!(
+            "relative inline-block {}",
+            class,
+        )>
             {children()}
+            {show
+                .then(|| {
+                    view! {
+                        <>
+                            <div class="fixed inset-0 z-dropdown" on:click=handle_close></div>
 
-            {show.then(|| view! {
-                <>
-                    <div
-                        class="fixed inset-0 z-dropdown"
-                        on:click=handle_close
-                    ></div>
-
-                    <div
-                        class=format!(
-                            "absolute {} z-popover w-64 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
-                            position_class
-                        )
-                        role="dialog"
-                    >
-                        <div class="text-sm text-gray-700 dark:text-gray-300">
-                            {content}
-                        </div>
-                    </div>
-                </>
-            })}
+                            <div
+                                class=format!(
+                                    "absolute {} z-popover w-64 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700",
+                                    position_class,
+                                )
+                                role="dialog"
+                            >
+                                <div class="text-sm text-gray-700 dark:text-gray-300">
+                                    {content}
+                                </div>
+                            </div>
+                        </>
+                    }
+                })}
         </div>
     }
 }
@@ -144,54 +146,59 @@ pub fn Dropdown(
     };
 
     view! {
-        <div class=format!("relative inline-block {}", class)>
+        <div class=format!(
+            "relative inline-block {}",
+            class,
+        )>
             {children()}
+            {show
+                .then(|| {
+                    view! {
+                        <>
+                            <div class="fixed inset-0 z-dropdown" on:click=handle_close></div>
 
-            {show.then(|| view! {
-                <>
-                    <div
-                        class="fixed inset-0 z-dropdown"
-                        on:click=handle_close
-                    ></div>
+                            <div
+                                class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-popover"
+                                role="menu"
+                            >
+                                <div class="py-1">
+                                    {items
+                                        .into_iter()
+                                        .map(|item| {
+                                            let on_select = Rc::clone(&on_select_rc);
+                                            let on_close = Rc::clone(&on_close_rc);
+                                            let item_id = item.id.clone();
 
-                    <div
-                        class="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-popover"
-                        role="menu"
-                    >
-                        <div class="py-1">
-                            {items.into_iter().map(|item| {
-                                let on_select = Rc::clone(&on_select_rc);
-                                let on_close = Rc::clone(&on_close_rc);
-                                let item_id = item.id.clone();
-
-                                view! {
-                                    <button
-                                        type="button"
-                                        disabled=item.disabled
-                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                                        role="menuitem"
-                                        on:click=move |_| {
-                                            if !item.disabled {
-                                                if let Some(ref callback) = *on_select {
-                                                    callback(item_id.clone());
-                                                }
-                                                if let Some(ref callback) = *on_close {
-                                                    callback();
-                                                }
+                                            view! {
+                                                <button
+                                                    type="button"
+                                                    disabled=item.disabled
+                                                    class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                                    role="menuitem"
+                                                    on:click=move |_| {
+                                                        if !item.disabled {
+                                                            if let Some(ref callback) = *on_select {
+                                                                callback(item_id.clone());
+                                                            }
+                                                            if let Some(ref callback) = *on_close {
+                                                                callback();
+                                                            }
+                                                        }
+                                                    }
+                                                >
+                                                    {item
+                                                        .icon
+                                                        .map(|icon| view! { <span class="mr-2">{icon}</span> })}
+                                                    {item.label}
+                                                </button>
                                             }
-                                        }
-                                    >
-                                        {item.icon.map(|icon| view! {
-                                            <span class="mr-2">{icon}</span>
-                                        })}
-                                        {item.label}
-                                    </button>
-                                }
-                            }).collect_view()}
-                        </div>
-                    </div>
-                </>
-            })}
+                                        })
+                                        .collect_view()}
+                                </div>
+                            </div>
+                        </>
+                    }
+                })}
         </div>
     }
 }
@@ -261,14 +268,10 @@ where
             style=format!("height: {}px", viewport_height)
             on:scroll=handle_scroll
         >
-            <div
-                class="relative"
-                style=move || format!("height: {}px", total_height())
-            >
+            <div class="relative" style=move || format!("height: {}px", total_height())>
                 {move || {
                     let range = visible_range();
                     let items_vec = items.get();
-
                     items_vec[range.clone()]
                         .iter()
                         .enumerate()
@@ -347,37 +350,43 @@ where
     };
 
     view! {
-        <div
-            class=format!("overflow-y-auto {}", class)
-            on:scroll=handle_scroll
-        >
+        <div class=format!("overflow-y-auto {}", class) on:scroll=handle_scroll>
             <div class="space-y-2">
                 {move || {
                     let items_vec = items.get();
                     items_vec
                         .iter()
                         .enumerate()
-                        .map(|(idx, item)| {
-                            render_item.run((item.clone(), idx))
-                        })
+                        .map(|(idx, item)| { render_item.run((item.clone(), idx)) })
                         .collect_view()
                 }}
             </div>
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center items-center py-4">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    <span class="ml-3 text-gray-600 dark:text-gray-400">"Loading more..."</span>
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center items-center py-4">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                <span class="ml-3 text-gray-600 dark:text-gray-400">
+                                    "Loading more..."
+                                </span>
+                            </div>
+                        }
+                    })
+            }}
 
             {move || {
                 let items_vec = items.get();
-                (!has_more.get() && !loading.get() && !items_vec.is_empty()).then(|| view! {
-                    <div class="text-center py-4 text-gray-500 dark:text-gray-400">
-                        "No more items to load"
-                    </div>
-                })
+                (!has_more.get() && !loading.get() && !items_vec.is_empty())
+                    .then(|| {
+                        view! {
+                            <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                                "No more items to load"
+                            </div>
+                        }
+                    })
             }}
         </div>
     }
@@ -459,68 +468,73 @@ pub fn ContextMenu(
     };
 
     view! {
-        <div
-            class=format!("relative {}", class)
-            on:contextmenu=handle_context_menu
-        >
+        <div class=format!("relative {}", class) on:contextmenu=handle_context_menu>
             {children()}
 
-            {move || show.get().then(|| {
-                let (x, y) = position.get();
-                view! {
-                    <>
-                        <div
-                            class="fixed inset-0 z-dropdown"
-                            on:click=handle_close
-                            on:contextmenu=move |ev: web_sys::MouseEvent| {
-                                ev.prevent_default();
-                                set_show.set(false);
-                            }
-                        ></div>
-
-                        <div
-                            class="fixed z-popover min-w-[200px] rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5"
-                            style=format!("left: {}px; top: {}px", x, y)
-                            role="menu"
-                        >
-                            <div class="py-1">
-                                {items.iter().map(|item| {
-                                    if item.divider {
-                                        view! {
-                                            <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
-                                        }.into_any()
-                                    } else {
-                                        let item_id = item.id.clone();
-                                        let item_label = item.label.clone();
-                                        let item_icon = item.icon.clone();
-                                        let item_disabled = item.disabled;
-
-                                        view! {
-                                            <button
-                                                type="button"
-                                                disabled=item_disabled
-                                                class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                                                role="menuitem"
-                                                on:click=move |_| {
-                                                    if !item_disabled {
-                                                        on_select.run(item_id.clone());
-                                                        set_show.set(false);
-                                                    }
-                                                }
-                                            >
-                                                {item_icon.map(|icon| view! {
-                                                    <span class="mr-2">{icon}</span>
-                                                })}
-                                                {item_label.clone()}
-                                            </button>
-                                        }.into_any()
+            {move || {
+                show
+                    .get()
+                    .then(|| {
+                        let (x, y) = position.get();
+                        view! {
+                            <>
+                                <div
+                                    class="fixed inset-0 z-dropdown"
+                                    on:click=handle_close
+                                    on:contextmenu=move |ev: web_sys::MouseEvent| {
+                                        ev.prevent_default();
+                                        set_show.set(false);
                                     }
-                                }).collect_view()}
-                            </div>
-                        </div>
-                    </>
-                }
-            })}
+                                ></div>
+
+                                <div
+                                    class="fixed z-popover min-w-[200px] rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5"
+                                    style=format!("left: {}px; top: {}px", x, y)
+                                    role="menu"
+                                >
+                                    <div class="py-1">
+                                        {items
+                                            .iter()
+                                            .map(|item| {
+                                                if item.divider {
+                                                    view! {
+                                                        <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                                                    }
+                                                        .into_any()
+                                                } else {
+                                                    let item_id = item.id.clone();
+                                                    let item_label = item.label.clone();
+                                                    let item_icon = item.icon.clone();
+                                                    let item_disabled = item.disabled;
+
+                                                    view! {
+                                                        <button
+                                                            type="button"
+                                                            disabled=item_disabled
+                                                            class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                                            role="menuitem"
+                                                            on:click=move |_| {
+                                                                if !item_disabled {
+                                                                    on_select.run(item_id.clone());
+                                                                    set_show.set(false);
+                                                                }
+                                                            }
+                                                        >
+                                                            {item_icon
+                                                                .map(|icon| view! { <span class="mr-2">{icon}</span> })}
+                                                            {item_label.clone()}
+                                                        </button>
+                                                    }
+                                                        .into_any()
+                                                }
+                                            })
+                                            .collect_view()}
+                                    </div>
+                                </div>
+                            </>
+                        }
+                    })
+            }}
         </div>
     }
 }

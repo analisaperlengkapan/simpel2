@@ -12,14 +12,15 @@ pub fn FormLayout(
 ) -> impl IntoView {
     view! {
         <form class="flex flex-col gap-5">
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                {children()}
-            </div>
-            {actions.map(|a| view! {
-                <div class="flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.04] pt-4">
-                    {a()}
-                </div>
-            })}
+            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">{children()}</div>
+            {actions
+                .map(|a| {
+                    view! {
+                        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.04] pt-4">
+                            {a()}
+                        </div>
+                    }
+                })}
         </form>
     }
 }
@@ -42,25 +43,33 @@ pub fn FormField(
         <div class=format!("flex flex-col gap-1.5 {}", col_class)>
             <label class="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-slate-300">
                 <span>{label}</span>
-                {required.then(|| view! {
-                    <span class="text-danger-400" aria-hidden="true">"*"</span>
-                })}
+                {required
+                    .then(|| {
+                        view! {
+                            <span class="text-danger-400" aria-hidden="true">
+                                "*"
+                            </span>
+                        }
+                    })}
             </label>
-            <div>
-                {children()}
-            </div>
-            {helper.as_ref().map(|h| {
-                let text = h.clone();
-                view! {
-                    <p class="text-xs text-slate-500">{text}</p>
-                }
-            })}
-            {error.map(|e| view! {
-                <p class="text-xs font-medium text-danger-300">
-                    <span class="mr-1 text-[0.65rem]"><AppIcon icon=WARNING_CIRCLE /></span>
-                    {e}
-                </p>
-            })}
+            <div>{children()}</div>
+            {helper
+                .as_ref()
+                .map(|h| {
+                    let text = h.clone();
+                    view! { <p class="text-xs text-slate-500">{text}</p> }
+                })}
+            {error
+                .map(|e| {
+                    view! {
+                        <p class="text-xs font-medium text-danger-300">
+                            <span class="mr-1 text-[0.65rem]">
+                                <AppIcon icon=WARNING_CIRCLE />
+                            </span>
+                            {e}
+                        </p>
+                    }
+                })}
         </div>
     }
 }

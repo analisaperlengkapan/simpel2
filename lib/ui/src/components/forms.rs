@@ -52,16 +52,43 @@ pub fn Button(
     view! {
         <button
             type=type_attr
-            class=format!("{} {} {} {} {} {}", base_class, variant_class, size_class, width_class, class, if loading { "cursor-wait" } else { "" })
+            class=format!(
+                "{} {} {} {} {} {}",
+                base_class,
+                variant_class,
+                size_class,
+                width_class,
+                class,
+                if loading { "cursor-wait" } else { "" },
+            )
             disabled=disabled || loading
             on:click=handle_click
         >
-            {loading.then(|| view! {
-                <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-            })}
+            {loading
+                .then(|| {
+                    view! {
+                        <svg
+                            class="animate-spin -ml-1 mr-2 h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                class="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                stroke-width="4"
+                            ></circle>
+                            <path
+                                class="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                        </svg>
+                    }
+                })}
             {children()}
         </button>
     }
@@ -104,14 +131,22 @@ pub fn Input(
     };
 
     view! {
-        <div class=format!("space-y-1 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-1 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })}
             <input
                 type=input_type
                 id=id
@@ -122,18 +157,12 @@ pub fn Input(
                 disabled=disabled
                 class=format!(
                     "block w-full rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed {}",
-                    input_class
+                    input_class,
                 )
                 on:input=handle_input
             />
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600">{e}</p>
-            })}
-
-            {hint.map(|h| view! {
-                <p class="mt-1 text-sm text-gray-500">{h}</p>
-            })}
+            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
+            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }
@@ -187,13 +216,21 @@ pub fn OtpInput(
     };
 
     view! {
-        <div class=format!("space-y-2 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-2 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                        </label>
+                    }
+                })}
             <div class="relative">
                 <input
                     type="text"
@@ -207,52 +244,78 @@ pub fn OtpInput(
                     disabled=disabled || loading
                     class=format!(
                         "block w-full text-center text-2xl font-mono tracking-widest rounded-lg shadow-sm sm:text-xl disabled:bg-gray-100 disabled:cursor-not-allowed px-4 py-3 {}",
-                        input_class
+                        input_class,
                     )
                     on:input=handle_input
                     on:keydown=handle_keydown
                 />
 
-                {loading.then(|| view! {
-                    <div class="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <svg class="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </div>
-                })}
+                {loading
+                    .then(|| {
+                        view! {
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg
+                                    class="animate-spin h-5 w-5 text-gray-400"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        class="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        stroke-width="4"
+                                    ></circle>
+                                    <path
+                                        class="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                </svg>
+                            </div>
+                        }
+                    })}
             </div>
-
             // Character counter
             <div class="flex justify-between items-center text-xs">
                 <div class=format!(
                     "{}",
-                    if value.get().len() == 6 { "text-emerald-600" } else { "text-gray-500" }
-                )>
-                    {move || format!("{}/6 digits", value.get().len())}
-                </div>
-                {(value.get().len() == 6).then(|| view! {
-                    <div class="text-emerald-600 flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        "Ready"
-                    </div>
-                })}
+                    if value.get().len() == 6 { "text-emerald-600" } else { "text-gray-500" },
+                )>{move || format!("{}/6 digits", value.get().len())}</div>
+                {(value.get().len() == 6)
+                    .then(|| {
+                        view! {
+                            <div class="text-emerald-600 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                                "Ready"
+                            </div>
+                        }
+                    })}
             </div>
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                    </svg>
-                    {e}
-                </p>
-            })}
-
-            {hint.map(|h| view! {
-                <p class="mt-1 text-sm text-gray-500">{h}</p>
-            })}
+            {error
+                .map(|e| {
+                    view! {
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                            {e}
+                        </p>
+                    }
+                })}
+            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }
@@ -292,14 +355,22 @@ pub fn Select(
     };
 
     view! {
-        <div class=format!("space-y-1 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-1 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })}
             <select
                 id=id
                 name=name
@@ -308,16 +379,13 @@ pub fn Select(
                 disabled=disabled
                 class=format!(
                     "block w-full rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed {}",
-                    select_class
+                    select_class,
                 )
                 on:change=handle_change
             >
                 {children()}
             </select>
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600">{e}</p>
-            })}
+            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -358,14 +426,22 @@ pub fn Textarea(
     };
 
     view! {
-        <div class=format!("space-y-1 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-1 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })}
             <textarea
                 id=id
                 name=name
@@ -375,16 +451,13 @@ pub fn Textarea(
                 disabled=disabled
                 class=format!(
                     "block w-full rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed {}",
-                    textarea_class
+                    textarea_class,
                 )
                 on:input=handle_input
             >
                 {value}
             </textarea>
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600">{e}</p>
-            })}
+            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -424,11 +497,14 @@ pub fn Checkbox(
                 class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed"
                 on:change=handle_change
             />
-            {label.map(|l| view! {
-                <label for=id class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    {l}
-                </label>
-            })}
+            {label
+                .map(|l| {
+                    view! {
+                        <label for=id class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            {l}
+                        </label>
+                    }
+                })}
         </div>
     }
 }
@@ -470,11 +546,14 @@ pub fn Radio(
                 class="h-4 w-4 border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed"
                 on:change=handle_change
             />
-            {label.map(|l| view! {
-                <label for=id class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                    {l}
-                </label>
-            })}
+            {label
+                .map(|l| {
+                    view! {
+                        <label for=id class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                            {l}
+                        </label>
+                    }
+                })}
         </div>
     }
 }
@@ -511,38 +590,43 @@ pub fn RadioGroup(
     };
 
     view! {
-        <div class=format!("space-y-2 {}", class)>
-            {label.map(|l| view! {
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                </label>
-            })}
-
-            <div class=layout_class role="radiogroup">
-                {options.into_iter().map(|opt| {
-                    let is_checked = value.as_ref().map(|v| v == &opt.value).unwrap_or(false);
-                    let on_change = Rc::clone(&on_change_rc);
-
+        <div class=format!(
+            "space-y-2 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
                     view! {
-                        <Radio
-                            name=name.clone()
-                            value=opt.value
-                            label=opt.label
-                            checked=is_checked
-                            disabled=opt.disabled
-                            on_change=Box::new(move |v| {
-                                if let Some(ref callback) = *on_change {
-                                    callback(v);
-                                }
-                            })
-                        />
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {l}
+                        </label>
                     }
-                }).collect_view()}
-            </div>
+                })}
+            <div class=layout_class role="radiogroup">
+                {options
+                    .into_iter()
+                    .map(|opt| {
+                        let is_checked = value.as_ref().map(|v| v == &opt.value).unwrap_or(false);
+                        let on_change = Rc::clone(&on_change_rc);
 
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600">{e}</p>
-            })}
+                        view! {
+                            <Radio
+                                name=name.clone()
+                                value=opt.value
+                                label=opt.label
+                                checked=is_checked
+                                disabled=opt.disabled
+                                on_change=Box::new(move |v| {
+                                    if let Some(ref callback) = *on_change {
+                                        callback(v);
+                                    }
+                                })
+                            />
+                        }
+                    })
+                    .collect_view()}
+            </div>
+            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -576,30 +660,30 @@ pub fn Switch(
                 disabled=disabled
                 class=format!(
                     "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 {}",
-                    if checked { "bg-emerald-600" } else { "bg-gray-200 dark:bg-gray-700" }
+                    if checked { "bg-emerald-600" } else { "bg-gray-200 dark:bg-gray-700" },
                 )
                 on:click={
                     let on_change = Rc::clone(&on_change_rc);
                     move |_| {
-                        if !disabled
-                            && let Some(ref callback) = *on_change {
-                                callback(!checked);
-                            }
+                        if !disabled && let Some(ref callback) = *on_change {
+                            callback(!checked);
+                        }
                     }
                 }
             >
-                <span
-                    class=format!(
-                        "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {}",
-                        if checked { "translate-x-5" } else { "translate-x-0" }
-                    )
-                ></span>
+                <span class=format!(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {}",
+                    if checked { "translate-x-5" } else { "translate-x-0" },
+                )></span>
             </button>
-            {label.map(|l| view! {
-                <label for=id class="ml-3 text-sm text-gray-700 dark:text-gray-300">
-                    {l}
-                </label>
-            })}
+            {label
+                .map(|l| {
+                    view! {
+                        <label for=id class="ml-3 text-sm text-gray-700 dark:text-gray-300">
+                            {l}
+                        </label>
+                    }
+                })}
         </div>
     }
 }
@@ -647,14 +731,22 @@ pub fn FileInput(
     };
 
     view! {
-        <div class=format!("space-y-1 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-1 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })}
             <input
                 type="file"
                 id=id
@@ -665,14 +757,15 @@ pub fn FileInput(
                 disabled=disabled
                 class=format!(
                     "block w-full text-sm text-gray-900 dark:text-gray-100 border rounded-md cursor-pointer bg-gray-50 dark:bg-gray-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {}",
-                    if has_error { "border-red-300" } else { "border-gray-300 dark:border-gray-600" }
+                    if has_error {
+                        "border-red-300"
+                    } else {
+                        "border-gray-300 dark:border-gray-600"
+                    },
                 )
                 on:change=handle_change
             />
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600">{e}</p>
-            })}
+            {error.map(|e| view! { <p class="mt-1 text-sm text-red-600">{e}</p> })}
         </div>
     }
 }
@@ -691,14 +784,19 @@ pub fn FormGroup(
     let class = class.unwrap_or_default();
 
     view! {
-        <div class=format!("space-y-2 {}", class)>
-            {label.map(|l| view! {
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-            {children()}
+        <div class=format!(
+            "space-y-2 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })} {children()}
         </div>
     }
 }
@@ -741,14 +839,22 @@ pub fn DatePicker(
     };
 
     view! {
-        <div class=format!("space-y-1 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
+        <div class=format!(
+            "space-y-1 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
+                    }
+                })}
             <input
                 type="date"
                 id=id
@@ -760,23 +866,26 @@ pub fn DatePicker(
                 disabled=disabled
                 class=format!(
                     "block w-full rounded-md shadow-sm sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed {}",
-                    input_class
+                    input_class,
                 )
                 on:change=handle_change
             />
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                    </svg>
-                    {e}
-                </p>
-            })}
-
-            {hint.map(|h| view! {
-                <p class="mt-1 text-sm text-gray-500">{h}</p>
-            })}
+            {error
+                .map(|e| {
+                    view! {
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                            {e}
+                        </p>
+                    }
+                })}
+            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }
@@ -833,24 +942,30 @@ pub fn FileUpload(
     };
 
     view! {
-        <div class=format!("space-y-2 {}", class)>
-            {label.map(|l| view! {
-                <label for=id.clone() class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {l}
-                    {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
-                </label>
-            })}
-
-            <div
-                class=format!(
-                    "relative border-2 border-dashed rounded-lg p-6 transition-colors {}",
-                    if has_error {
-                        "border-red-300 bg-red-50 dark:bg-red-900/20"
-                    } else {
-                        "border-gray-300 dark:border-gray-600 hover:border-emerald-400"
+        <div class=format!(
+            "space-y-2 {}",
+            class,
+        )>
+            {label
+                .map(|l| {
+                    view! {
+                        <label
+                            for=id.clone()
+                            class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                        >
+                            {l}
+                            {required.then(|| view! { <span class="text-red-500 ml-1">"*"</span> })}
+                        </label>
                     }
-                )
-            >
+                })}
+            <div class=format!(
+                "relative border-2 border-dashed rounded-lg p-6 transition-colors {}",
+                if has_error {
+                    "border-red-300 bg-red-50 dark:bg-red-900/20"
+                } else {
+                    "border-gray-300 dark:border-gray-600 hover:border-emerald-400"
+                },
+            )>
                 <input
                     type="file"
                     id=id.clone()
@@ -867,14 +982,26 @@ pub fn FileUpload(
                     for=id
                     class=format!(
                         "flex flex-col items-center justify-center cursor-pointer {}",
-                        if disabled { "opacity-50 cursor-not-allowed" } else { "" }
+                        if disabled { "opacity-50 cursor-not-allowed" } else { "" },
                     )
                 >
-                    <svg class="w-12 h-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    <svg
+                        class="w-12 h-12 text-gray-400 mb-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
                     </svg>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">"Click to upload"</span>
+                        <span class="font-semibold text-emerald-600 dark:text-emerald-400">
+                            "Click to upload"
+                        </span>
                     </p>
                     <p class="text-xs text-gray-500 dark:text-gray-500">
                         {if let Some(ref a) = accept {
@@ -885,40 +1012,69 @@ pub fn FileUpload(
                     </p>
                 </label>
             </div>
-
             // File list preview
-            {show_preview.then(|| view! {
-                <div class="space-y-2">
-                    {move || files.get().into_iter().map(|file_name| view! {
-                        <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
-                            <div class="flex items-center space-x-2">
-                                <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/>
-                                </svg>
-                                <span class="text-sm text-gray-700 dark:text-gray-300 truncate">
-                                    {file_name}
-                                </span>
-                            </div>
-                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                            </svg>
+            {show_preview
+                .then(|| {
+                    view! {
+                        <div class="space-y-2">
+                            {move || {
+                                files
+                                    .get()
+                                    .into_iter()
+                                    .map(|file_name| {
+                                        view! {
+                                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+                                                <div class="flex items-center space-x-2">
+                                                    <svg
+                                                        class="w-5 h-5 text-gray-400"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 20 20"
+                                                    >
+                                                        <path
+                                                            fill-rule="evenodd"
+                                                            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+                                                            clip-rule="evenodd"
+                                                        />
+                                                    </svg>
+                                                    <span class="text-sm text-gray-700 dark:text-gray-300 truncate">
+                                                        {file_name}
+                                                    </span>
+                                                </div>
+                                                <svg
+                                                    class="w-5 h-5 text-green-500"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 20 20"
+                                                >
+                                                    <path
+                                                        fill-rule="evenodd"
+                                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                        clip-rule="evenodd"
+                                                    />
+                                                </svg>
+                                            </div>
+                                        }
+                                    })
+                                    .collect_view()
+                            }}
                         </div>
-                    }).collect_view()}
-                </div>
-            })}
-
-            {error.map(|e| view! {
-                <p class="mt-1 text-sm text-red-600 flex items-center">
-                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                    </svg>
-                    {e}
-                </p>
-            })}
-
-            {hint.map(|h| view! {
-                <p class="mt-1 text-sm text-gray-500">{h}</p>
-            })}
+                    }
+                })}
+            {error
+                .map(|e| {
+                    view! {
+                        <p class="mt-1 text-sm text-red-600 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                            {e}
+                        </p>
+                    }
+                })}
+            {hint.map(|h| view! { <p class="mt-1 text-sm text-gray-500">{h}</p> })}
         </div>
     }
 }

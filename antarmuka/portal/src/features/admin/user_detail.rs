@@ -217,24 +217,22 @@ pub fn UserDetailPage() -> impl IntoView {
             <div class="max-w-6xl mx-auto px-4 py-8">
                 // Breadcrumb
                 <nav class="text-sm text-gray-500 mb-4">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / "
-                    <a href="/portal/admin/users" class="hover:text-primary-600">"Pengguna"</a>
+                    <a href="/portal/admin/users" class="hover:text-primary-600">
+                        "Pengguna"
+                    </a>
                     " / Detail"
                 </nav>
 
-                {move || success.get().map(|msg| view! {
-                    <SuccessBanner message=msg />
-                })}
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat detail pengguna..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat detail pengguna..." /> }
                 >
                     <Show when=move || user.get().is_some()>
                         // User header card
@@ -245,19 +243,42 @@ pub fn UserDetailPage() -> impl IntoView {
                                         {avatar_letter}
                                     </div>
                                     <div class="flex-1">
-                                        <h1 class="text-xl font-bold text-gray-900">{display_name}</h1>
-                                        <p class="text-sm text-gray-500">{user_username} " · " {user_email}</p>
+                                        <h1 class="text-xl font-bold text-gray-900">
+                                            {display_name}
+                                        </h1>
+                                        <p class="text-sm text-gray-500">
+                                            {user_username} " · " {user_email}
+                                        </p>
                                     </div>
                                     <div class="flex items-center gap-2">
-                                        {move || if user_enabled() {
-                                            view! { <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">"Aktif"</span> }.into_any()
-                                        } else {
-                                            view! { <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">"Nonaktif"</span> }.into_any()
+                                        {move || {
+                                            if user_enabled() {
+                                                view! {
+                                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                                        "Aktif"
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                                                        "Nonaktif"
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            }
                                         }}
-                                        {move || if user_mfa() {
-                                            view! { <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">"MFA"</span> }.into_any()
-                                        } else {
-                                            view! { <span></span> }.into_any()
+                                        {move || {
+                                            if user_mfa() {
+                                                view! {
+                                                    <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                                                        "MFA"
+                                                    </span>
+                                                }
+                                                    .into_any()
+                                            } else {
+                                                view! { <span></span> }.into_any()
+                                            }
                                         }}
                                     </div>
                                 </div>
@@ -267,11 +288,15 @@ pub fn UserDetailPage() -> impl IntoView {
                             <div class="grid grid-cols-4 divide-x border-t">
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"ID"</p>
-                                    <p class="text-xs font-mono text-gray-700 truncate">{user_id_str}</p>
+                                    <p class="text-xs font-mono text-gray-700 truncate">
+                                        {user_id_str}
+                                    </p>
                                 </div>
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"Peran"</p>
-                                    <p class="text-sm font-semibold text-gray-900">{user_roles_len}</p>
+                                    <p class="text-sm font-semibold text-gray-900">
+                                        {user_roles_len}
+                                    </p>
                                 </div>
                                 <div class="px-4 py-3 text-center">
                                     <p class="text-xs text-gray-500">"Dibuat"</p>
@@ -288,43 +313,58 @@ pub fn UserDetailPage() -> impl IntoView {
                         <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                             <div class="border-b">
                                 <nav class="flex overflow-x-auto px-2">
-                                    {UserTab::all().iter().map(|tab| {
-                                        let t = *tab;
-                                        view! {
-                                            <button
-                                                on:click=move |_| set_active_tab.set(t)
-                                                class=move || {
-                                                    if active_tab.get() == t {
-                                                        "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
-                                                    } else {
-                                                        "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap"
+                                    {UserTab::all()
+                                        .iter()
+                                        .map(|tab| {
+                                            let t = *tab;
+                                            view! {
+                                                <button
+                                                    on:click=move |_| set_active_tab.set(t)
+                                                    class=move || {
+                                                        if active_tab.get() == t {
+                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
+                                                        } else {
+                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap"
+                                                        }
                                                     }
-                                                }
-                                            >
-                                                <span>{t.icon()}</span>
-                                                {t.label()}
-                                            </button>
-                                        }
-                                    }).collect::<Vec<_>>()}
+                                                >
+                                                    <span>{t.icon()}</span>
+                                                    {t.label()}
+                                                </button>
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
                                 </nav>
                             </div>
 
                             <div class="p-6">
                                 // === Details Tab ===
                                 <Show when=move || active_tab.get() == UserTab::Details>
-                                    <form on:submit=move |ev: web_sys::SubmitEvent| { ev.prevent_default(); set_save_trigger.set(save_trigger.get() + 1); } class="space-y-5">
+                                    <form
+                                        on:submit=move |ev: web_sys::SubmitEvent| {
+                                            ev.prevent_default();
+                                            set_save_trigger.set(save_trigger.get() + 1);
+                                        }
+                                        class="space-y-5"
+                                    >
                                         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">"Email"</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Email"
+                                                </label>
                                                 <input
                                                     type="email"
                                                     prop:value=edit_email
-                                                    on:input=move |ev| set_edit_email.set(event_target_value(&ev))
+                                                    on:input=move |ev| {
+                                                        set_edit_email.set(event_target_value(&ev))
+                                                    }
                                                     class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">"Username"</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Username"
+                                                </label>
                                                 <input
                                                     type="text"
                                                     prop:value=user_username
@@ -333,20 +373,28 @@ pub fn UserDetailPage() -> impl IntoView {
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Depan"</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Nama Depan"
+                                                </label>
                                                 <input
                                                     type="text"
                                                     prop:value=edit_first_name
-                                                    on:input=move |ev| set_edit_first_name.set(event_target_value(&ev))
+                                                    on:input=move |ev| {
+                                                        set_edit_first_name.set(event_target_value(&ev))
+                                                    }
                                                     class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Belakang"</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                                    "Nama Belakang"
+                                                </label>
                                                 <input
                                                     type="text"
                                                     prop:value=edit_last_name
-                                                    on:input=move |ev| set_edit_last_name.set(event_target_value(&ev))
+                                                    on:input=move |ev| {
+                                                        set_edit_last_name.set(event_target_value(&ev))
+                                                    }
                                                     class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                                 />
                                             </div>
@@ -364,7 +412,9 @@ pub fn UserDetailPage() -> impl IntoView {
                                                     class="sr-only peer"
                                                 />
                                                 <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                                                <span class="ms-3 text-sm font-medium text-gray-700">"Akun Aktif"</span>
+                                                <span class="ms-3 text-sm font-medium text-gray-700">
+                                                    "Akun Aktif"
+                                                </span>
                                             </label>
                                         </div>
 
@@ -374,7 +424,9 @@ pub fn UserDetailPage() -> impl IntoView {
                                                 disabled=move || saving.get()
                                                 class="px-5 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                                             >
-                                                {move || if saving.get() { "Menyimpan..." } else { "Simpan" }}
+                                                {move || {
+                                                    if saving.get() { "Menyimpan..." } else { "Simpan" }
+                                                }}
                                             </button>
                                         </div>
                                     </form>
@@ -384,10 +436,16 @@ pub fn UserDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == UserTab::Attributes>
                                     <div class="text-center py-8">
                                         <p class="text-3xl mb-3">"🏷"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">"Atribut Kustom"</h3>
-                                        <p class="text-sm text-gray-500">"Atribut kustom pengguna untuk konfigurasi tambahan."</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Atribut Kustom"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Atribut kustom pengguna untuk konfigurasi tambahan."
+                                        </p>
                                         <div class="mt-6 bg-gray-50 rounded-lg p-4 inline-block">
-                                            <p class="text-xs text-gray-400 font-mono">"Belum ada atribut kustom."</p>
+                                            <p class="text-xs text-gray-400 font-mono">
+                                                "Belum ada atribut kustom."
+                                            </p>
                                         </div>
                                     </div>
                                 </Show>
@@ -396,15 +454,25 @@ pub fn UserDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == UserTab::Credentials>
                                     <div class="space-y-6">
                                         <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                                            <h4 class="font-semibold text-amber-800">"⚠ Manajemen Kredensial"</h4>
-                                            <p class="text-sm text-amber-700 mt-1">"Perubahan kredensial akan berlaku segera. Pengguna akan diminta untuk login kembali."</p>
+                                            <h4 class="font-semibold text-amber-800">
+                                                "⚠ Manajemen Kredensial"
+                                            </h4>
+                                            <p class="text-sm text-amber-700 mt-1">
+                                                "Perubahan kredensial akan berlaku segera. Pengguna akan diminta untuk login kembali."
+                                            </p>
                                         </div>
 
                                         <div class="border rounded-lg p-5">
-                                            <h4 class="font-medium text-gray-900 mb-3">"Reset Kata Sandi"</h4>
-                                            <p class="text-sm text-gray-500 mb-4">"Kirim tautan reset kata sandi ke email pengguna atau tetapkan kata sandi baru secara langsung."</p>
+                                            <h4 class="font-medium text-gray-900 mb-3">
+                                                "Reset Kata Sandi"
+                                            </h4>
+                                            <p class="text-sm text-gray-500 mb-4">
+                                                "Kirim tautan reset kata sandi ke email pengguna atau tetapkan kata sandi baru secara langsung."
+                                            </p>
                                             <button
-                                                on:click=move |_| set_reset_trigger.set(reset_trigger.get() + 1)
+                                                on:click=move |_| {
+                                                    set_reset_trigger.set(reset_trigger.get() + 1)
+                                                }
                                                 class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
                                             >
                                                 "🔄 Reset Kata Sandi"
@@ -412,23 +480,27 @@ pub fn UserDetailPage() -> impl IntoView {
                                         </div>
 
                                         <div class="border rounded-lg p-5">
-                                            <h4 class="font-medium text-gray-900 mb-3">"Multi-Factor Authentication"</h4>
+                                            <h4 class="font-medium text-gray-900 mb-3">
+                                                "Multi-Factor Authentication"
+                                            </h4>
                                             <div class="text-sm text-gray-500 mb-2 flex items-center gap-2">
                                                 <span>"Status MFA:"</span>
-                                                {move || if user_mfa() {
-                                                    view! {
-                                                        <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
-                                                            "Aktif"
-                                                        </span>
+                                                {move || {
+                                                    if user_mfa() {
+                                                        view! {
+                                                            <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700">
+                                                                "Aktif"
+                                                            </span>
+                                                        }
+                                                            .into_any()
+                                                    } else {
+                                                        view! {
+                                                            <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
+                                                                "Tidak Aktif"
+                                                            </span>
+                                                        }
+                                                            .into_any()
                                                     }
-                                                        .into_any()
-                                                } else {
-                                                    view! {
-                                                        <span class="inline-flex px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-600">
-                                                            "Tidak Aktif"
-                                                        </span>
-                                                    }
-                                                        .into_any()
                                                 }}
                                             </div>
                                         </div>
@@ -439,7 +511,9 @@ pub fn UserDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == UserTab::RoleMappings>
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
-                                            <h4 class="font-medium text-gray-900">"Peran yang Ditetapkan"</h4>
+                                            <h4 class="font-medium text-gray-900">
+                                                "Peran yang Ditetapkan"
+                                            </h4>
                                         </div>
                                         {move || {
                                             let roles = user_roles();
@@ -447,24 +521,33 @@ pub fn UserDetailPage() -> impl IntoView {
                                                 view! {
                                                     <div class="text-center py-8">
                                                         <p class="text-3xl mb-2">"🛡"</p>
-                                                        <p class="text-sm text-gray-500">"Belum ada peran yang ditetapkan."</p>
+                                                        <p class="text-sm text-gray-500">
+                                                            "Belum ada peran yang ditetapkan."
+                                                        </p>
                                                     </div>
-                                                }.into_any()
+                                                }
+                                                    .into_any()
                                             } else {
                                                 view! {
                                                     <div class="space-y-2">
-                                                        {roles.into_iter().map(|role| {
-                                                            view! {
-                                                                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
-                                                                    <div class="flex items-center gap-3">
-                                                                        <span class="text-lg">"🛡"</span>
-                                                                        <span class="text-sm font-medium text-gray-900">{role}</span>
+                                                        {roles
+                                                            .into_iter()
+                                                            .map(|role| {
+                                                                view! {
+                                                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
+                                                                        <div class="flex items-center gap-3">
+                                                                            <span class="text-lg">"🛡"</span>
+                                                                            <span class="text-sm font-medium text-gray-900">
+                                                                                {role}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            }
-                                                        }).collect::<Vec<_>>()}
+                                                                }
+                                                            })
+                                                            .collect::<Vec<_>>()}
                                                     </div>
-                                                }.into_any()
+                                                }
+                                                    .into_any()
                                             }
                                         }}
                                     </div>
@@ -474,12 +557,19 @@ pub fn UserDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == UserTab::Groups>
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
-                                            <h4 class="font-medium text-gray-900">"Keanggotaan Grup"</h4>
+                                            <h4 class="font-medium text-gray-900">
+                                                "Keanggotaan Grup"
+                                            </h4>
                                         </div>
                                         <div class="text-center py-8">
                                             <p class="text-3xl mb-2">"👥"</p>
-                                            <p class="text-sm text-gray-500">"Pengguna belum tergabung dalam grup manapun."</p>
-                                            <a href="/portal/admin/groups" class="text-sm text-primary-600 hover:underline mt-2 inline-block">
+                                            <p class="text-sm text-gray-500">
+                                                "Pengguna belum tergabung dalam grup manapun."
+                                            </p>
+                                            <a
+                                                href="/portal/admin/groups"
+                                                class="text-sm text-primary-600 hover:underline mt-2 inline-block"
+                                            >
                                                 "Kelola Grup →"
                                             </a>
                                         </div>
@@ -494,7 +584,9 @@ pub fn UserDetailPage() -> impl IntoView {
                                         </div>
                                         <div class="text-center py-8">
                                             <p class="text-3xl mb-2">"📱"</p>
-                                            <p class="text-sm text-gray-500">"Tidak ada sesi aktif untuk pengguna ini."</p>
+                                            <p class="text-sm text-gray-500">
+                                                "Tidak ada sesi aktif untuk pengguna ini."
+                                            </p>
                                         </div>
                                     </div>
                                 </Show>

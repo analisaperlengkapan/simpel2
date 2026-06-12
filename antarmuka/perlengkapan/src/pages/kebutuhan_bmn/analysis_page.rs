@@ -196,28 +196,36 @@ pub fn AnalysisPage() -> impl IntoView {
                                     <div class="py-8 text-center text-sm text-slate-500">
                                         "Tidak ada pengajuan yang perlu dianalisis"
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             } else {
                                 view! {
                                     <div class="space-y-2">
-                                        {subs.into_iter().map(|sub| {
-                                            let sub_id = sub.id;
-                                            view! {
-                                                <div
-                                                    class="cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/10 hover:bg-white/[0.04]"
-                                                    on:click=move |_| load_analysis(sub_id)
-                                                >
-                                                    <div class="text-sm font-semibold text-slate-200">
-                                                        {sub.satker_nama.clone().unwrap_or_else(|| sub.satker_id.clone())}
+                                        {subs
+                                            .into_iter()
+                                            .map(|sub| {
+                                                let sub_id = sub.id;
+                                                view! {
+                                                    <div
+                                                        class="cursor-pointer rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition hover:border-white/10 hover:bg-white/[0.04]"
+                                                        on:click=move |_| load_analysis(sub_id)
+                                                    >
+                                                        <div class="text-sm font-semibold text-slate-200">
+                                                            {sub
+                                                                .satker_nama
+                                                                .clone()
+                                                                .unwrap_or_else(|| sub.satker_id.clone())}
+                                                        </div>
+                                                        <div class="mt-1 text-xs text-slate-400">
+                                                            "Prioritas: " {sub.prioritas}
+                                                        </div>
                                                     </div>
-                                                    <div class="mt-1 text-xs text-slate-400">
-                                                        "Prioritas: " {sub.prioritas}
-                                                    </div>
-                                                </div>
-                                            }
-                                        }).collect_view()}
+                                                }
+                                            })
+                                            .collect_view()}
                                     </div>
-                                }.into_any()
+                                }
+                                    .into_any()
                             }
                         }}
                     </SectionCard>
@@ -233,7 +241,8 @@ pub fn AnalysisPage() -> impl IntoView {
                                     approved_quantities=approved_quantities
                                     set_approved_quantities=set_approved_quantities
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             view! {
                                 <SectionCard title="Analisis">
@@ -241,7 +250,8 @@ pub fn AnalysisPage() -> impl IntoView {
                                         "Pilih pengajuan untuk melihat analisis"
                                     </div>
                                 </SectionCard>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
@@ -271,7 +281,12 @@ fn AnalysisContent(
                     />
                     <MetricCard
                         title="Kondisi Baik"
-                        value=analysis.siman_data.assets_by_condition.get("BAIK").unwrap_or(&0).to_string()
+                        value=analysis
+                            .siman_data
+                            .assets_by_condition
+                            .get("BAIK")
+                            .unwrap_or(&0)
+                            .to_string()
                         icon="fas fa-check"
                     />
                 </div>
@@ -335,9 +350,13 @@ fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
                     on:click=move |_| set_show_preview.update(|v| *v = !*v)
                 >
                     <span class="text-xs">
-                        <i class={move || if show_preview.get() { "fas fa-eye-slash" } else { "fas fa-eye" }}></i>
+                        <i class=move || {
+                            if show_preview.get() { "fas fa-eye-slash" } else { "fas fa-eye" }
+                        }></i>
                     </span>
-                    {move || if show_preview.get() { "Tutup Preview" } else { "Preview Laporan (PDF)" }}
+                    {move || {
+                        if show_preview.get() { "Tutup Preview" } else { "Preview Laporan (PDF)" }
+                    }}
                 </button>
                 <button
                     class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2 text-sm font-medium text-success-300 transition hover:bg-success-500/20"
@@ -348,7 +367,9 @@ fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
                         }
                     }
                 >
-                    <span class="text-xs"><i class="fas fa-file-pdf"></i></span>
+                    <span class="text-xs">
+                        <i class="fas fa-file-pdf"></i>
+                    </span>
                     "Download PDF"
                 </button>
             </div>
@@ -376,31 +397,74 @@ fn GapAnalysisTable(data: Vec<GapAnalysisItem>) -> impl IntoView {
                 <table class="min-w-full divide-y divide-white/[0.04]">
                     <thead class="bg-white/[0.02]">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Kode"</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Nama Barang"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Standar"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Existing"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Diminta"</th>
-                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">"Gap"</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">"Rekomendasi"</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Kode"
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Nama Barang"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Standar"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Existing"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Diminta"
+                            </th>
+                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Gap"
+                            </th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                "Rekomendasi"
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {data.into_iter().enumerate().map(|(idx, item)| {
-                            let bg = if idx % 2 == 0 { "bg-transparent" } else { "bg-white/[0.015]" };
-                            let gap_color = if item.gap > 0 { "text-danger-400" } else if item.gap < 0 { "text-success-400" } else { "text-slate-300" };
-                            view! {
-                                <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                                    <td class="px-4 py-3 font-mono text-xs text-slate-400">{item.kode_barang}</td>
-                                    <td class="px-4 py-3 text-sm text-slate-200">{item.nama_barang}</td>
-                                    <td class="px-4 py-3 text-right text-sm text-slate-300">{item.standard_quantity}</td>
-                                    <td class="px-4 py-3 text-right text-sm text-info-400">{item.existing_quantity}</td>
-                                    <td class="px-4 py-3 text-right text-sm text-slate-300">{item.requested_quantity}</td>
-                                    <td class=format!("px-4 py-3 text-right text-sm font-bold {}", gap_color)>{item.gap}</td>
-                                    <td class="px-4 py-3 text-sm text-slate-400">{item.recommendation}</td>
-                                </tr>
-                            }
-                        }).collect_view()}
+                        {data
+                            .into_iter()
+                            .enumerate()
+                            .map(|(idx, item)| {
+                                let bg = if idx % 2 == 0 {
+                                    "bg-transparent"
+                                } else {
+                                    "bg-white/[0.015]"
+                                };
+                                let gap_color = if item.gap > 0 {
+                                    "text-danger-400"
+                                } else if item.gap < 0 {
+                                    "text-success-400"
+                                } else {
+                                    "text-slate-300"
+                                };
+                                view! {
+                                    <tr class=format!("border-b border-white/[0.04] {}", bg)>
+                                        <td class="px-4 py-3 font-mono text-xs text-slate-400">
+                                            {item.kode_barang}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-200">
+                                            {item.nama_barang}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm text-slate-300">
+                                            {item.standard_quantity}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm text-info-400">
+                                            {item.existing_quantity}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-sm text-slate-300">
+                                            {item.requested_quantity}
+                                        </td>
+                                        <td class=format!(
+                                            "px-4 py-3 text-right text-sm font-bold {}",
+                                            gap_color,
+                                        )>{item.gap}</td>
+                                        <td class="px-4 py-3 text-sm text-slate-400">
+                                            {item.recommendation}
+                                        </td>
+                                    </tr>
+                                }
+                            })
+                            .collect_view()}
                     </tbody>
                 </table>
             </div>

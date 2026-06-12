@@ -42,32 +42,40 @@ pub fn ClientsManagementPage() -> impl IntoView {
         <MainLayout user_session=session.clone() on_logout=on_logout>
             <div class="max-w-7xl mx-auto px-4 py-8">
                 <nav class="text-sm text-gray-500 mb-1">
-                    <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                    <a href="/portal/admin" class="hover:text-primary-600">
+                        "Admin"
+                    </a>
                     " / Klien OAuth2"
                 </nav>
                 <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-bold text-gray-900">"Manajemen Klien OAuth2"</h1>
                 </div>
 
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
                     when=move || !loading.get()
-                    fallback=|| view! {
-                        <LoadingPanel message="Memuat data klien OAuth2..." />
-                    }
+                    fallback=|| view! { <LoadingPanel message="Memuat data klien OAuth2..." /> }
                 >
                     <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                         <table class="w-full">
                             <thead class="bg-gray-50 border-b">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Client ID"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Nama"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Tipe"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Status"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Redirect URI"</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Client ID"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Nama"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Tipe"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Status"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Redirect URI"
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
@@ -79,17 +87,21 @@ pub fn ClientsManagementPage() -> impl IntoView {
                                         let redirect_uris = client.redirect_uris.clone();
                                         view! {
                                             <tr class="hover:bg-gray-50">
-                                                <td class="px-4 py-3 font-mono text-sm text-gray-900">{client.client_id.clone()}</td>
-                                                <td class="px-4 py-3 text-gray-700">{client.name.clone().unwrap_or_default()}</td>
-                                                <td class="px-4 py-3 text-gray-500 text-sm">{client.client_type.clone()}</td>
+                                                <td class="px-4 py-3 font-mono text-sm text-gray-900">
+                                                    {client.client_id.clone()}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-700">
+                                                    {client.name.clone().unwrap_or_default()}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-500 text-sm">
+                                                    {client.client_type.clone()}
+                                                </td>
                                                 <td class="px-4 py-3">
-                                                    <span class={if is_enabled {
+                                                    <span class=if is_enabled {
                                                         "text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700"
                                                     } else {
                                                         "text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700"
-                                                    }}>
-                                                        {if is_enabled { "Aktif" } else { "Nonaktif" }}
-                                                    </span>
+                                                    }>{if is_enabled { "Aktif" } else { "Nonaktif" }}</span>
                                                 </td>
                                                 <td class="px-4 py-3 text-xs text-gray-500 max-w-xs truncate">
                                                     {redirect_uris.join(", ")}

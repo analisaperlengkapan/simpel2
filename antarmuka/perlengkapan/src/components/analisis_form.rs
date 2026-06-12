@@ -71,7 +71,9 @@ pub fn AnalisisForm() -> impl IntoView {
 
             <form on:submit=on_submit class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Judul Analisis"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        "Judul Analisis"
+                    </label>
                     <input
                         type="text"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -84,11 +86,15 @@ pub fn AnalisisForm() -> impl IntoView {
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Kategori"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Kategori"
+                        </label>
                         <select
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             prop:value=move || form.get().kategori.clone()
-                            on:change=move |ev| form.update(|f| f.kategori = event_target_value(&ev))
+                            on:change=move |ev| {
+                                form.update(|f| f.kategori = event_target_value(&ev))
+                            }
                             required
                         >
                             <option value="">"Pilih Kategori"</option>
@@ -100,11 +106,15 @@ pub fn AnalisisForm() -> impl IntoView {
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Prioritas"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Prioritas"
+                        </label>
                         <select
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             prop:value=move || form.get().prioritas.clone()
-                            on:change=move |ev| form.update(|f| f.prioritas = event_target_value(&ev))
+                            on:change=move |ev| {
+                                form.update(|f| f.prioritas = event_target_value(&ev))
+                            }
                         >
                             <option value="rendah">"Rendah"</option>
                             <option value="sedang">"Sedang"</option>
@@ -114,7 +124,9 @@ pub fn AnalisisForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">"Estimasi Biaya (Rp)"</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        "Estimasi Biaya (Rp)"
+                    </label>
                     <input
                         type="number"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
@@ -136,8 +148,13 @@ pub fn AnalisisForm() -> impl IntoView {
                         class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
                         prop:disabled=move || form.submitting.get()
                     >
-                        <Show when=move || form.submitting.get() fallback=|| view! { <AppIcon icon=FLOPPY_DISK /> }>
-                            <span class="fa-spin"><AppIcon icon=SPINNER /></span>
+                        <Show
+                            when=move || form.submitting.get()
+                            fallback=|| view! { <AppIcon icon=FLOPPY_DISK /> }
+                        >
+                            <span class="fa-spin">
+                                <AppIcon icon=SPINNER />
+                            </span>
                         </Show>
                         "Simpan"
                     </button>

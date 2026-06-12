@@ -116,9 +116,7 @@ pub fn SearchPage() -> impl IntoView {
                 "Pencarian Global"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
             // Search Bar
             <Card class="mb-6">
@@ -145,16 +143,28 @@ pub fn SearchPage() -> impl IntoView {
                                             <Spinner size="sm" />
                                             <span>"Mencari..."</span>
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! {
                                         <div class="flex items-center space-x-2">
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            <svg
+                                                class="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                                />
                                             </svg>
                                             <span>"Cari"</span>
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 }}
                             </Button>
                         </div>
@@ -203,11 +213,7 @@ pub fn SearchPage() -> impl IntoView {
                             placeholder="2024"
                             value=filter_tahun.get().map(|t| t.to_string()).unwrap_or_default()
                             on_input=Box::new(move |v| {
-                                let tahun = if v.is_empty() {
-                                    None
-                                } else {
-                                    v.parse::<i32>().ok()
-                                };
+                                let tahun = if v.is_empty() { None } else { v.parse::<i32>().ok() };
                                 set_filter_tahun.set(tahun);
                                 if has_searched.get() {
                                     perform_search();
@@ -224,16 +230,29 @@ pub fn SearchPage() -> impl IntoView {
                     view! {
                         <Card>
                             <div class="text-center py-12">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                <svg
+                                    class="mx-auto h-12 w-12 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    />
                                 </svg>
-                                <h3 class="mt-2 text-sm font-medium text-gray-900">"Mulai Pencarian"</h3>
+                                <h3 class="mt-2 text-sm font-medium text-gray-900">
+                                    "Mulai Pencarian"
+                                </h3>
                                 <p class="mt-1 text-sm text-gray-500">
                                     "Masukkan kata kunci untuk mencari di semua modul"
                                 </p>
                             </div>
                         </Card>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if loading.get() {
                     view! {
                         <Card>
@@ -241,100 +260,157 @@ pub fn SearchPage() -> impl IntoView {
                                 <Spinner size="lg" />
                             </div>
                         </Card>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else if search_results.get().is_empty() {
                     view! {
                         <Card>
                             <div class="text-center py-12">
-                                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                <svg
+                                    class="mx-auto h-12 w-12 text-gray-400"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
                                 </svg>
-                                <h3 class="mt-2 text-sm font-medium text-gray-900">"Tidak Ada Hasil"</h3>
+                                <h3 class="mt-2 text-sm font-medium text-gray-900">
+                                    "Tidak Ada Hasil"
+                                </h3>
                                 <p class="mt-1 text-sm text-gray-500">
-                                    "Tidak ditemukan hasil untuk kata kunci \"" {search_query.get()} "\""
+                                    "Tidak ditemukan hasil untuk kata kunci \"" {search_query.get()}
+                                    "\""
                                 </p>
                             </div>
                         </Card>
-                    }.into_any()
+                    }
+                        .into_any()
                 } else {
                     view! {
                         <div class="space-y-6">
                             // Results Summary
                             <div class="flex items-center justify-between">
                                 <p class="text-sm text-gray-700">
-                                    "Ditemukan " <span class="font-semibold">{total_results.get()}</span>
-                                    " hasil untuk \"" <span class="font-semibold">{search_query.get()}</span> "\""
+                                    "Ditemukan "
+                                    <span class="font-semibold">{total_results.get()}</span>
+                                    " hasil untuk \""
+                                    <span class="font-semibold">{search_query.get()}</span> "\""
                                 </p>
                             </div>
 
                             // Results List
                             <div class="space-y-4">
-                                {search_results.get().into_iter().map(|result| {
-                                    let url = result.url.clone();
-                                    view! {
-                                        <Card>
-                                            <a
-                                                href=url
-                                                class="block hover:bg-gray-50 transition-colors -m-6 p-6"
-                                            >
-                                                <div class="flex items-start justify-between">
-                                                    <div class="flex-1">
-                                                        <div class="flex items-center space-x-2 mb-2">
-                                                            <Badge
-                                                                label=result.module.clone()
-                                                                variant=match result.module.as_str() {
-                                                                    "kebutuhan" => BadgeVariant::Info,
-                                                                    "pemakaian" => BadgeVariant::Success,
-                                                                    "penghapusan" => BadgeVariant::Warning,
-                                                                    _ => BadgeVariant::Default,
-                                                                }
-                                                            />
-                                                            <Badge
-                                                                label=result.status.clone()
-                                                                variant=match result.status.as_str() {
-                                                                    "COMPLETED" | "APPROVED" => BadgeVariant::Success,
-                                                                    "DRAFT" => BadgeVariant::Warning,
-                                                                    "REJECTED" => BadgeVariant::Danger,
-                                                                    _ => BadgeVariant::Info,
-                                                                }
-                                                            />
-                                                            {result.tahun.map(|t| view! {
-                                                                <span class="text-xs text-gray-500">
-                                                                    "Tahun " {t}
-                                                                </span>
-                                                            })}
-                                                        </div>
-                                                        <h3 class="text-lg font-semibold text-gray-900 mb-1">
-                                                            {result.title.clone()}
-                                                        </h3>
-                                                        <p class="text-sm text-gray-600 mb-2">
-                                                            {result.description.clone()}
-                                                        </p>
-                                                        <div class="flex items-center space-x-4 text-xs text-gray-500">
-                                                            {result.satker_nama.as_ref().map(|satker| view! {
-                                                                <span class="flex items-center">
-                                                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                {search_results
+                                    .get()
+                                    .into_iter()
+                                    .map(|result| {
+                                        let url = result.url.clone();
+                                        view! {
+                                            <Card>
+                                                <a
+                                                    href=url
+                                                    class="block hover:bg-gray-50 transition-colors -m-6 p-6"
+                                                >
+                                                    <div class="flex items-start justify-between">
+                                                        <div class="flex-1">
+                                                            <div class="flex items-center space-x-2 mb-2">
+                                                                <Badge
+                                                                    label=result.module.clone()
+                                                                    variant=match result.module.as_str() {
+                                                                        "kebutuhan" => BadgeVariant::Info,
+                                                                        "pemakaian" => BadgeVariant::Success,
+                                                                        "penghapusan" => BadgeVariant::Warning,
+                                                                        _ => BadgeVariant::Default,
+                                                                    }
+                                                                />
+                                                                <Badge
+                                                                    label=result.status.clone()
+                                                                    variant=match result.status.as_str() {
+                                                                        "COMPLETED" | "APPROVED" => BadgeVariant::Success,
+                                                                        "DRAFT" => BadgeVariant::Warning,
+                                                                        "REJECTED" => BadgeVariant::Danger,
+                                                                        _ => BadgeVariant::Info,
+                                                                    }
+                                                                />
+                                                                {result
+                                                                    .tahun
+                                                                    .map(|t| {
+                                                                        view! {
+                                                                            <span class="text-xs text-gray-500">"Tahun " {t}</span>
+                                                                        }
+                                                                    })}
+                                                            </div>
+                                                            <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                                                                {result.title.clone()}
+                                                            </h3>
+                                                            <p class="text-sm text-gray-600 mb-2">
+                                                                {result.description.clone()}
+                                                            </p>
+                                                            <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                                                {result
+                                                                    .satker_nama
+                                                                    .as_ref()
+                                                                    .map(|satker| {
+                                                                        view! {
+                                                                            <span class="flex items-center">
+                                                                                <svg
+                                                                                    class="w-4 h-4 mr-1"
+                                                                                    fill="none"
+                                                                                    stroke="currentColor"
+                                                                                    viewBox="0 0 24 24"
+                                                                                >
+                                                                                    <path
+                                                                                        stroke-linecap="round"
+                                                                                        stroke-linejoin="round"
+                                                                                        stroke-width="2"
+                                                                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                                                                                    />
+                                                                                </svg>
+                                                                                {satker.clone()}
+                                                                            </span>
+                                                                        }
+                                                                    })} <span class="flex items-center">
+                                                                    <svg
+                                                                        class="w-4 h-4 mr-1"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        viewBox="0 0 24 24"
+                                                                    >
+                                                                        <path
+                                                                            stroke-linecap="round"
+                                                                            stroke-linejoin="round"
+                                                                            stroke-width="2"
+                                                                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                                        />
                                                                     </svg>
-                                                                    {satker.clone()}
+                                                                    {result.created_at.clone()}
                                                                 </span>
-                                                            })}
-                                                            <span class="flex items-center">
-                                                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                                </svg>
-                                                                {result.created_at.clone()}
-                                                            </span>
+                                                            </div>
                                                         </div>
+                                                        <svg
+                                                            class="w-5 h-5 text-gray-400"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                stroke-linecap="round"
+                                                                stroke-linejoin="round"
+                                                                stroke-width="2"
+                                                                d="M9 5l7 7-7 7"
+                                                            />
+                                                        </svg>
                                                     </div>
-                                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                                    </svg>
-                                                </div>
-                                            </a>
-                                        </Card>
-                                    }
-                                }).collect_view()}
+                                                </a>
+                                            </Card>
+                                        }
+                                    })
+                                    .collect_view()}
                             </div>
 
                             // Pagination
@@ -376,13 +452,15 @@ pub fn SearchPage() -> impl IntoView {
                                                 "Next"
                                             </Button>
                                         </div>
-                                    }.into_any()
+                                    }
+                                        .into_any()
                                 } else {
                                     view! { <div></div> }.into_any()
                                 }
                             }}
                         </div>
-                    }.into_any()
+                    }
+                        .into_any()
                 }
             }}
         </div>

@@ -175,55 +175,79 @@ pub fn PasskeysPage() -> impl IntoView {
                     {if webauthn_supported {
                         view! {
                             <button
-                                on:click=move |_| set_register_trigger.set(register_trigger.get() + 1)
+                                on:click=move |_| {
+                                    set_register_trigger.set(register_trigger.get() + 1)
+                                }
                                 disabled=registering
                                 class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
-                                {move || if registering.get() {
-                                    view! {
-                                        <span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
-                                        <span>"Mendaftarkan..."</span>
-                                    }.into_any()
-                                } else {
-                                    view! {
-                                        <span>"🔑"</span>
-                                        <span>"Tambah Passkey"</span>
-                                    }.into_any()
+                                {move || {
+                                    if registering.get() {
+                                        view! {
+                                            <span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                                            <span>"Mendaftarkan..."</span>
+                                        }
+                                            .into_any()
+                                    } else {
+                                        view! {
+                                            <span>"🔑"</span>
+                                            <span>"Tambah Passkey"</span>
+                                        }
+                                            .into_any()
+                                    }
                                 }}
                             </button>
-                        }.into_any()
+                        }
+                            .into_any()
                     } else {
                         view! {
                             <div class="text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
                                 "⚠️ Browser Anda tidak mendukung WebAuthn/Passkey"
                             </div>
-                        }.into_any()
+                        }
+                            .into_any()
                     }}
                 </div>
 
                 // Success message
-                {move || success_msg.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center gap-2">
-                        <span>"✅"</span>
-                        <span>{msg}</span>
-                        <button
-                            on:click=move |_| set_success_msg.set(None)
-                            class="ml-auto text-green-500 hover:text-green-700"
-                        >"✕"</button>
-                    </div>
-                })}
+                {move || {
+                    success_msg
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 flex items-center gap-2">
+                                    <span>"✅"</span>
+                                    <span>{msg}</span>
+                                    <button
+                                        on:click=move |_| set_success_msg.set(None)
+                                        class="ml-auto text-green-500 hover:text-green-700"
+                                    >
+                                        "✕"
+                                    </button>
+                                </div>
+                            }
+                        })
+                }}
 
                 // Error message
-                {move || error.get().map(|msg| view! {
-                    <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
-                        <span>"❌"</span>
-                        <span>{msg}</span>
-                        <button
-                            on:click=move |_| set_error.set(None)
-                            class="ml-auto text-red-500 hover:text-red-700"
-                        >"✕"</button>
-                    </div>
-                })}
+                {move || {
+                    error
+                        .get()
+                        .map(|msg| {
+                            view! {
+                                <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2">
+                                    <span>"❌"</span>
+                                    <span>{msg}</span>
+                                    <button
+                                        on:click=move |_| set_error.set(None)
+                                        class="ml-auto text-red-500 hover:text-red-700"
+                                    >
+                                        "✕"
+                                    </button>
+                                </div>
+                            }
+                        })
+                }}
 
                 // Passkey list
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200">
@@ -234,12 +258,15 @@ pub fn PasskeysPage() -> impl IntoView {
                                     <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-3"></div>
                                     <p class="text-gray-500">"Memuat passkey..."</p>
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else if passkeys.get().is_empty() {
                             view! {
                                 <div class="p-12 text-center">
                                     <div class="text-5xl mb-4">"🔐"</div>
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">"Belum Ada Passkey"</h3>
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                        "Belum Ada Passkey"
+                                    </h3>
                                     <p class="text-gray-600 max-w-md mx-auto mb-6">
                                         "Passkey memungkinkan login yang lebih aman dan cepat menggunakan "
                                         "sidik jari, pengenalan wajah, atau kunci keamanan fisik."
@@ -247,131 +274,175 @@ pub fn PasskeysPage() -> impl IntoView {
                                     {if webauthn_supported {
                                         view! {
                                             <button
-                                                on:click=move |_| set_register_trigger.set(register_trigger.get() + 1)
+                                                on:click=move |_| {
+                                                    set_register_trigger.set(register_trigger.get() + 1)
+                                                }
                                                 disabled=registering
                                                 class="inline-flex items-center gap-2 px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                                             >
                                                 <span>"🔑"</span>
                                                 <span>"Daftarkan Passkey Pertama"</span>
                                             </button>
-                                        }.into_any()
+                                        }
+                                            .into_any()
                                     } else {
                                         view! { <div></div> }.into_any()
                                     }}
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
                             let keys = passkeys.get();
                             view! {
                                 <div class="divide-y divide-gray-200">
-                                    {keys.into_iter().map(|pk| {
-                                        let pk_id = pk.id.clone();
-                                        let pk_id_del = pk.id.clone();
-                                        let pk_id_edit = pk.id.clone();
-                                        let pk_id_save = pk.id.clone();
-                                        let pk_nickname = pk.nickname.clone().unwrap_or_else(|| "Passkey".to_string());
-                                        let pk_nickname_edit = pk_nickname.clone();
-                                        let is_editing = {
-                                            let pk_id = pk_id.clone();
-                                            move || editing_id.get().as_deref() == Some(&pk_id)
-                                        };
+                                    {keys
+                                        .into_iter()
+                                        .map(|pk| {
+                                            let pk_id = pk.id.clone();
+                                            let pk_id_del = pk.id.clone();
+                                            let pk_id_edit = pk.id.clone();
+                                            let pk_id_save = pk.id.clone();
+                                            let pk_nickname = pk
+                                                .nickname
+                                                .clone()
+                                                .unwrap_or_else(|| "Passkey".to_string());
+                                            let pk_nickname_edit = pk_nickname.clone();
+                                            let is_editing = {
+                                                let pk_id = pk_id.clone();
+                                                move || editing_id.get().as_deref() == Some(&pk_id)
+                                            };
 
-                                        view! {
-                                            <div class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
-                                                <div class="flex items-center gap-4">
-                                                    // Icon: platform vs security key
-                                                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center">
-                                                        {if pk.is_platform {
-                                                            view! { <span class="text-xl">"👆"</span> }.into_any()
-                                                        } else {
-                                                            view! { <span class="text-xl">"🔑"</span> }.into_any()
-                                                        }}
-                                                    </div>
-
-                                                    <div>
-                                                        {move || {
-                                                            if is_editing() {
-                                                                view! {
-                                                                    <div class="flex items-center gap-2">
-                                                                        <input
-                                                                            type="text"
-                                                                            prop:value=edit_nickname
-                                                                            on:input=move |ev| {
-                                                                                set_edit_nickname.set(event_target_value(&ev));
-                                                                            }
-                                                                            class="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-primary-500 focus:border-primary-500"
-                                                                            autofocus=true
-                                                                        />
-                                                                        <button
-                                                                            on:click={
-                                                                                let pk_id = pk_id_save.clone();
-                                                                                move |_| set_save_nick_trigger.set(Some(pk_id.clone()))
-                                                                            }
-                                                                            class="text-primary-600 hover:text-primary-700 text-sm font-medium"
-                                                                        >"Simpan"</button>
-                                                                        <button
-                                                                            on:click=move |_| set_editing_id.set(None)
-                                                                            class="text-gray-500 hover:text-gray-700 text-sm"
-                                                                        >"Batal"</button>
-                                                                    </div>
-                                                                }.into_any()
+                                            view! {
+                                                <div class="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
+                                                    <div class="flex items-center gap-4">
+                                                        // Icon: platform vs security key
+                                                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-primary-50 flex items-center justify-center">
+                                                            {if pk.is_platform {
+                                                                view! { <span class="text-xl">"👆"</span> }.into_any()
                                                             } else {
-                                                                let nick = pk_nickname.clone();
-                                                                view! {
-                                                                    <h4 class="font-medium text-gray-900">{nick}</h4>
-                                                                }.into_any()
-                                                            }
-                                                        }}
-                                                        <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                                                            <span>
-                                                                {if pk.is_platform { "Biometrik" } else { "Kunci keamanan" }}
-                                                            </span>
-                                                            <span>"•"</span>
-                                                            <span>"Dibuat: " {pk.created_at.clone()}</span>
-                                                            {pk.last_used.clone().map(|lu| view! {
+                                                                view! { <span class="text-xl">"🔑"</span> }.into_any()
+                                                            }}
+                                                        </div>
+
+                                                        <div>
+                                                            {move || {
+                                                                if is_editing() {
+                                                                    view! {
+                                                                        <div class="flex items-center gap-2">
+                                                                            <input
+                                                                                type="text"
+                                                                                prop:value=edit_nickname
+                                                                                on:input=move |ev| {
+                                                                                    set_edit_nickname.set(event_target_value(&ev));
+                                                                                }
+                                                                                class="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-primary-500 focus:border-primary-500"
+                                                                                autofocus=true
+                                                                            />
+                                                                            <button
+                                                                                on:click={
+                                                                                    let pk_id = pk_id_save.clone();
+                                                                                    move |_| set_save_nick_trigger.set(Some(pk_id.clone()))
+                                                                                }
+                                                                                class="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                                                                            >
+                                                                                "Simpan"
+                                                                            </button>
+                                                                            <button
+                                                                                on:click=move |_| set_editing_id.set(None)
+                                                                                class="text-gray-500 hover:text-gray-700 text-sm"
+                                                                            >
+                                                                                "Batal"
+                                                                            </button>
+                                                                        </div>
+                                                                    }
+                                                                        .into_any()
+                                                                } else {
+                                                                    let nick = pk_nickname.clone();
+                                                                    view! { <h4 class="font-medium text-gray-900">{nick}</h4> }
+                                                                        .into_any()
+                                                                }
+                                                            }}
+                                                            <div class="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                                                                <span>
+                                                                    {if pk.is_platform {
+                                                                        "Biometrik"
+                                                                    } else {
+                                                                        "Kunci keamanan"
+                                                                    }}
+                                                                </span>
                                                                 <span>"•"</span>
-                                                                <span>"Terakhir: " {lu}</span>
-                                                            })}
+                                                                <span>"Dibuat: " {pk.created_at.clone()}</span>
+                                                                {pk
+                                                                    .last_used
+                                                                    .clone()
+                                                                    .map(|lu| {
+                                                                        view! {
+                                                                            <span>"•"</span>
+                                                                            <span>"Terakhir: " {lu}</span>
+                                                                        }
+                                                                    })}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                // Actions
-                                                <div class="flex items-center gap-2">
-                                                    <button
-                                                        on:click={
-                                                            let pk_id = pk_id_edit.clone();
-                                                            let nick = pk_nickname_edit.clone();
-                                                            move |_| {
-                                                                set_editing_id.set(Some(pk_id.clone()));
-                                                                set_edit_nickname.set(nick.clone());
+                                                    // Actions
+                                                    <div class="flex items-center gap-2">
+                                                        <button
+                                                            on:click={
+                                                                let pk_id = pk_id_edit.clone();
+                                                                let nick = pk_nickname_edit.clone();
+                                                                move |_| {
+                                                                    set_editing_id.set(Some(pk_id.clone()));
+                                                                    set_edit_nickname.set(nick.clone());
+                                                                }
                                                             }
-                                                        }
-                                                        class="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
-                                                        title="Ubah nama"
-                                                    >
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        on:click={
-                                                            let pk_id = pk_id_del.clone();
-                                                            move |_| set_confirm_delete.set(Some(pk_id.clone()))
-                                                        }
-                                                        class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                                                        title="Hapus passkey"
-                                                    >
-                                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                                            class="p-2 text-gray-400 hover:text-primary-600 rounded-lg hover:bg-primary-50 transition-colors"
+                                                            title="Ubah nama"
+                                                        >
+                                                            <svg
+                                                                class="w-4 h-4"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            on:click={
+                                                                let pk_id = pk_id_del.clone();
+                                                                move |_| set_confirm_delete.set(Some(pk_id.clone()))
+                                                            }
+                                                            class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                                            title="Hapus passkey"
+                                                        >
+                                                            <svg
+                                                                class="w-4 h-4"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        }
-                                    }).collect::<Vec<_>>()}
+                                            }
+                                        })
+                                        .collect::<Vec<_>>()}
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         }
                     }}
                 </div>
@@ -380,41 +451,57 @@ pub fn PasskeysPage() -> impl IntoView {
                 <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h4 class="font-medium text-blue-900 mb-2">"ℹ️ Tentang Passkey"</h4>
                     <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                        <li>"Passkey menggantikan kata sandi dengan autentikasi biometrik atau kunci keamanan"</li>
+                        <li>
+                            "Passkey menggantikan kata sandi dengan autentikasi biometrik atau kunci keamanan"
+                        </li>
                         <li>"Lebih aman dari kata sandi - tahan terhadap phishing"</li>
-                        <li>"Tersinkronisasi otomatis melalui iCloud, Google Password Manager, dsb."</li>
+                        <li>
+                            "Tersinkronisasi otomatis melalui iCloud, Google Password Manager, dsb."
+                        </li>
                         <li>"Disarankan mendaftarkan setidaknya 2 passkey untuk cadangan"</li>
                     </ul>
                 </div>
 
                 // Delete confirmation modal
-                {move || confirm_delete.get().map(|id| {
-                    let id_for_delete = id.clone();
-                    view! {
-                        <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
-                            <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
-                                <div class="text-center">
-                                    <div class="text-4xl mb-3">"⚠️"</div>
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">"Hapus Passkey?"</h3>
-                                    <p class="text-gray-600 text-sm mb-6">
-                                        "Passkey ini akan dihapus secara permanen. "
-                                        "Anda tidak akan bisa menggunakannya untuk login lagi."
-                                    </p>
-                                    <div class="flex gap-3 justify-center">
-                                        <button
-                                            on:click=move |_| set_confirm_delete.set(None)
-                                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                                        >"Batal"</button>
-                                        <button
-                                            on:click=move |_| set_delete_trigger.set(Some(id_for_delete.clone()))
-                                            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                        >"Hapus"</button>
+                {move || {
+                    confirm_delete
+                        .get()
+                        .map(|id| {
+                            let id_for_delete = id.clone();
+                            view! {
+                                <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
+                                    <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4">
+                                        <div class="text-center">
+                                            <div class="text-4xl mb-3">"⚠️"</div>
+                                            <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                                                "Hapus Passkey?"
+                                            </h3>
+                                            <p class="text-gray-600 text-sm mb-6">
+                                                "Passkey ini akan dihapus secara permanen. "
+                                                "Anda tidak akan bisa menggunakannya untuk login lagi."
+                                            </p>
+                                            <div class="flex gap-3 justify-center">
+                                                <button
+                                                    on:click=move |_| set_confirm_delete.set(None)
+                                                    class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                                                >
+                                                    "Batal"
+                                                </button>
+                                                <button
+                                                    on:click=move |_| {
+                                                        set_delete_trigger.set(Some(id_for_delete.clone()))
+                                                    }
+                                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                                >
+                                                    "Hapus"
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    }
-                })}
+                            }
+                        })
+                }}
             </div>
         </MainLayout>
     }

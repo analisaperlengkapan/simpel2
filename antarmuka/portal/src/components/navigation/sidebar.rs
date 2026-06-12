@@ -17,27 +17,37 @@ pub fn SidebarNavigation(
     let sections = resolve_menu_sections(user_session.as_ref());
 
     view! {
-        <aside class="hidden lg:block w-72 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50" aria-label="Menu portal">
+        <aside
+            class="hidden lg:block w-72 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50"
+            aria-label="Menu portal"
+        >
             <div class="sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto px-4 py-5 space-y-5">
-                {sections.clone().into_iter().map(|section| {
-                    let items = section.items.clone();
-                    view! {
-                        <section>
-                            <h2 class="px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                                {section.title}
-                            </h2>
-                            <ul class="mt-2 space-y-1">
-                                {items.into_iter().map(|item| {
-                                    view! {
-                                        <li>
-                                            <MenuItemNode item=item depth=0 />
-                                        </li>
-                                    }
-                                }).collect_view()}
-                            </ul>
-                        </section>
-                    }
-                }).collect_view()}
+                {sections
+                    .clone()
+                    .into_iter()
+                    .map(|section| {
+                        let items = section.items.clone();
+                        view! {
+                            <section>
+                                <h2 class="px-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                    {section.title}
+                                </h2>
+                                <ul class="mt-2 space-y-1">
+                                    {items
+                                        .into_iter()
+                                        .map(|item| {
+                                            view! {
+                                                <li>
+                                                    <MenuItemNode item=item depth=0 />
+                                                </li>
+                                            }
+                                        })
+                                        .collect_view()}
+                                </ul>
+                            </section>
+                        }
+                    })
+                    .collect_view()}
             </div>
         </aside>
     }
@@ -69,17 +79,20 @@ fn MenuItemNode(item: PortalMenuItem, depth: usize) -> impl IntoView {
             {if has_children {
                 view! {
                     <ul class="space-y-1">
-                        {children.into_iter().map(|child| {
-                            view! {
-                                <li>
-                                    <MenuItemNode item=child depth=depth + 1 />
-                                </li>
-                            }
-                        }).collect_view()}
+                        {children
+                            .into_iter()
+                            .map(|child| {
+                                view! {
+                                    <li>
+                                        <MenuItemNode item=child depth=depth + 1 />
+                                    </li>
+                                }
+                            })
+                            .collect_view()}
                     </ul>
-                }.into_any()
+                }
+                    .into_any()
             } else {
-
                 ().into_any()
             }}
         </div>

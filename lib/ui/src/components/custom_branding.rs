@@ -233,9 +233,7 @@ pub fn BrandingProvider(
     provide_context(branding);
     provide_context(set_branding);
 
-    view! {
-        {children()}
-    }
+    view! { {children()} }
 }
 
 /// Hook to access branding configuration
@@ -274,10 +272,13 @@ pub fn BrandedLogo(
         <div class=format!("flex items-center gap-3 {}", class)>
             <Show
                 when=move || branding.get().logo_url.is_some()
-                fallback=move || view! {
-                    <div class=format!("bg-primary text-white font-bold rounded-lg flex items-center justify-center {}", size_class_clone)>
-                        {move || branding.get().unit_name.chars().next().unwrap_or('K')}
-                    </div>
+                fallback=move || {
+                    view! {
+                        <div class=format!(
+                            "bg-primary text-white font-bold rounded-lg flex items-center justify-center {}",
+                            size_class_clone,
+                        )>{move || branding.get().unit_name.chars().next().unwrap_or('K')}</div>
+                    }
                 }
             >
                 <picture>
@@ -376,7 +377,12 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                         aria-label="Close"
                     >
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"
+                            />
                         </svg>
                     </button>
                 </div>
@@ -409,9 +415,14 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                             prop:value=move || editing.get().tagline.unwrap_or_default()
                             on:input=move |ev| {
                                 let value = event_target_value(&ev);
-                                set_editing.update(|e| {
-                                    e.tagline = if value.is_empty() { None } else { Some(value) };
-                                });
+                                set_editing
+                                    .update(|e| {
+                                        e.tagline = if value.is_empty() {
+                                            None
+                                        } else {
+                                            Some(value)
+                                        };
+                                    });
                             }
                             class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             placeholder="Tagline atau deskripsi singkat"
@@ -429,9 +440,14 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                 prop:value=move || editing.get().logo_url.unwrap_or_default()
                                 on:input=move |ev| {
                                     let value = event_target_value(&ev);
-                                    set_editing.update(|e| {
-                                        e.logo_url = if value.is_empty() { None } else { Some(value) };
-                                    });
+                                    set_editing
+                                        .update(|e| {
+                                            e.logo_url = if value.is_empty() {
+                                                None
+                                            } else {
+                                                Some(value)
+                                            };
+                                        });
                                 }
                                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                                 placeholder="/assets/logo.svg"
@@ -446,9 +462,14 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                 prop:value=move || editing.get().logo_dark_url.unwrap_or_default()
                                 on:input=move |ev| {
                                     let value = event_target_value(&ev);
-                                    set_editing.update(|e| {
-                                        e.logo_dark_url = if value.is_empty() { None } else { Some(value) };
-                                    });
+                                    set_editing
+                                        .update(|e| {
+                                            e.logo_dark_url = if value.is_empty() {
+                                                None
+                                            } else {
+                                                Some(value)
+                                            };
+                                        });
                                 }
                                 class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
                                 placeholder="/assets/logo-dark.svg"
@@ -467,7 +488,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="color"
                                     prop:value=move || editing.get().primary_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.primary_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.primary_color = event_target_value(&ev));
                                     }
                                     class="w-12 h-12 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                                 />
@@ -475,7 +497,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="text"
                                     prop:value=move || editing.get().primary_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.primary_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.primary_color = event_target_value(&ev));
                                     }
                                     class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-mono"
                                 />
@@ -490,7 +513,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="color"
                                     prop:value=move || editing.get().secondary_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.secondary_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.secondary_color = event_target_value(&ev));
                                     }
                                     class="w-12 h-12 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                                 />
@@ -498,7 +522,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="text"
                                     prop:value=move || editing.get().secondary_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.secondary_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.secondary_color = event_target_value(&ev));
                                     }
                                     class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-mono"
                                 />
@@ -513,7 +538,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="color"
                                     prop:value=move || editing.get().accent_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.accent_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.accent_color = event_target_value(&ev));
                                     }
                                     class="w-12 h-12 rounded border border-gray-300 dark:border-gray-600 cursor-pointer"
                                 />
@@ -521,7 +547,8 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                                     type="text"
                                     prop:value=move || editing.get().accent_color
                                     on:input=move |ev| {
-                                        set_editing.update(|e| e.accent_color = event_target_value(&ev));
+                                        set_editing
+                                            .update(|e| e.accent_color = event_target_value(&ev));
                                     }
                                     class="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs font-mono"
                                 />
@@ -533,19 +560,32 @@ pub fn BrandingEditor(#[prop(optional)] on_close: Option<Callback<()>>) -> impl 
                     <Show when=move || validation_errors.get().is_some()>
                         <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                             <div class="flex items-start">
-                                <svg class="w-5 h-5 text-red-600 dark:text-red-500 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                <svg
+                                    class="w-5 h-5 text-red-600 dark:text-red-500 mt-0.5 mr-3"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd"
+                                    />
                                 </svg>
                                 <div class="flex-1">
                                     <h3 class="text-sm font-medium text-red-800 dark:text-red-200 mb-1">
                                         "Accessibility Errors"
                                     </h3>
                                     <ul class="text-sm text-red-700 dark:text-red-300 space-y-1">
-                                        {move || validation_errors.get().unwrap_or_default().into_iter().map(|error| {
-                                            view! {
-                                                <li>"• " {error}</li>
-                                            }
-                                        }).collect_view()}
+                                        {move || {
+                                            validation_errors
+                                                .get()
+                                                .unwrap_or_default()
+                                                .into_iter()
+                                                .map(|error| {
+                                                    view! { <li>"• " {error}</li> }
+                                                })
+                                                .collect_view()
+                                        }}
                                     </ul>
                                 </div>
                             </div>

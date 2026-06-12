@@ -210,19 +210,25 @@ pub fn PermitCreationPage() -> impl IntoView {
                 "Buat Izin Pemakaian BMN"
             </h1>
 
-            {move || error.get().map(|e| view! {
-                <Alert message=e variant=AlertVariant::Error />
-            })}
+            {move || error.get().map(|e| view! { <Alert message=e variant=AlertVariant::Error /> })}
 
-            {move || success_message.get().map(|msg| view! {
-                <Alert message=msg variant=AlertVariant::Success />
-            })}
+            {move || {
+                success_message
+                    .get()
+                    .map(|msg| view! { <Alert message=msg variant=AlertVariant::Success /> })
+            }}
 
-            {move || loading.get().then(|| view! {
-                <div class="flex justify-center py-4">
-                    <Spinner size="lg" />
-                </div>
-            })}
+            {move || {
+                loading
+                    .get()
+                    .then(|| {
+                        view! {
+                            <div class="flex justify-center py-4">
+                                <Spinner size="lg" />
+                            </div>
+                        }
+                    })
+            }}
 
             <div class="space-y-6">
                 // Step 1: Select Pegawai
@@ -239,142 +245,216 @@ pub fn PermitCreationPage() -> impl IntoView {
                         })
                     >
                         <option value="">"-- Pilih Pegawai --"</option>
-                        {move || pegawai_list.get().into_iter().map(|p| view! {
-                            <option value=p.nip.clone()>
-                                {format!("{} - {}", p.nip, p.nama)}
-                            </option>
-                        }).collect_view()}
+                        {move || {
+                            pegawai_list
+                                .get()
+                                .into_iter()
+                                .map(|p| {
+                                    view! {
+                                        <option value=p
+                                            .nip
+                                            .clone()>{format!("{} - {}", p.nip, p.nama)}</option>
+                                    }
+                                })
+                                .collect_view()
+                        }}
                     </Select>
 
-                    {move || selected_pegawai.get().map(|p| view! {
-                        <div class="mt-4 p-4 bg-gray-50 rounded-lg">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="text-sm font-medium text-gray-700">"NIP"</label>
-                                    <p class="text-gray-900">{p.nip.clone()}</p>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-700">"Nama"</label>
-                                    <p class="text-gray-900">{p.nama.clone()}</p>
-                                </div>
-                                {p.jabatan.as_ref().map(|j| view! {
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">"Jabatan"</label>
-                                        <p class="text-gray-900">{j.clone()}</p>
+                    {move || {
+                        selected_pegawai
+                            .get()
+                            .map(|p| {
+                                view! {
+                                    <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "NIP"
+                                                </label>
+                                                <p class="text-gray-900">{p.nip.clone()}</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-gray-700">
+                                                    "Nama"
+                                                </label>
+                                                <p class="text-gray-900">{p.nama.clone()}</p>
+                                            </div>
+                                            {p
+                                                .jabatan
+                                                .as_ref()
+                                                .map(|j| {
+                                                    view! {
+                                                        <div>
+                                                            <label class="text-sm font-medium text-gray-700">
+                                                                "Jabatan"
+                                                            </label>
+                                                            <p class="text-gray-900">{j.clone()}</p>
+                                                        </div>
+                                                    }
+                                                })}
+                                            {p
+                                                .pangkat
+                                                .as_ref()
+                                                .map(|pk| {
+                                                    view! {
+                                                        <div>
+                                                            <label class="text-sm font-medium text-gray-700">
+                                                                "Pangkat"
+                                                            </label>
+                                                            <p class="text-gray-900">{pk.clone()}</p>
+                                                        </div>
+                                                    }
+                                                })}
+                                        </div>
                                     </div>
-                                })}
-                                {p.pangkat.as_ref().map(|pk| view! {
-                                    <div>
-                                        <label class="text-sm font-medium text-gray-700">"Pangkat"</label>
-                                        <p class="text-gray-900">{pk.clone()}</p>
-                                    </div>
-                                })}
-                            </div>
-                        </div>
-                    })}
+                                }
+                            })
+                    }}
                 </Card>
 
                 // Step 2: Select BMN Items
-                {move || selected_pegawai.get().is_some().then(|| view! {
-                    <Card title="2. Pilih BMN (REQ-P002)">
-                        <p class="text-sm text-gray-600 mb-4">
-                            "Pilih BMN yang akan digunakan. Sistem akan memvalidasi ketersediaan (REQ-P003, REQ-P004)"
-                        </p>
+                {move || {
+                    selected_pegawai
+                        .get()
+                        .is_some()
+                        .then(|| {
+                            view! {
+                                <Card title="2. Pilih BMN (REQ-P002)">
+                                    <p class="text-sm text-gray-600 mb-4">
+                                        "Pilih BMN yang akan digunakan. Sistem akan memvalidasi ketersediaan (REQ-P003, REQ-P004)"
+                                    </p>
 
-                        <div class="space-y-4">
-                            {move || available_bmn.get().into_iter().map(|bmn| {
-                                let nup = bmn.nup.clone();
-                                let is_selected = selected_bmn.get().iter().any(|b| b.nup == nup);
-                                let bmn_for_click = bmn.clone();
-                                let bmn_is_available = bmn.is_available;
+                                    <div class="space-y-4">
+                                        {move || {
+                                            available_bmn
+                                                .get()
+                                                .into_iter()
+                                                .map(|bmn| {
+                                                    let nup = bmn.nup.clone();
+                                                    let is_selected = selected_bmn
+                                                        .get()
+                                                        .iter()
+                                                        .any(|b| b.nup == nup);
+                                                    let bmn_for_click = bmn.clone();
+                                                    let bmn_is_available = bmn.is_available;
 
-                                view! {
-                                    <div class="border rounded-lg p-4 flex justify-between items-center">
-                                        <div class="flex-1">
-                                            <h4 class="font-semibold text-gray-900">{bmn.nama_barang.clone()}</h4>
-                                            <p class="text-sm text-gray-600">"NUP: " {bmn.nup.clone()}</p>
-                                            <p class="text-sm text-gray-600">"Kondisi: " {bmn.kondisi.clone()}</p>
-                                            {if bmn.is_available {
-                                                view! {
-                                                    <Badge label="Tersedia" variant=BadgeVariant::Success />
-                                                }.into_any()
-                                            } else {
-                                                view! {
-                                                    <Badge label="Sedang Digunakan" variant=BadgeVariant::Warning />
-                                                }.into_any()
-                                            }}
-                                        </div>
-                                        <Button
-                                            variant=if is_selected { ButtonVariant::Secondary } else { ButtonVariant::Primary }
-                                            on_click=Box::new(move || {
-                                                if is_selected {
-                                                    remove_bmn(nup.clone());
-                                                } else {
-                                                    add_bmn(bmn_for_click.clone());
-                                                }
-                                            })
-                                            disabled=!bmn_is_available
-                                        >
-                                            {if is_selected { "Hapus" } else { "Pilih" }}
-                                        </Button>
+                                                    view! {
+                                                        <div class="border rounded-lg p-4 flex justify-between items-center">
+                                                            <div class="flex-1">
+                                                                <h4 class="font-semibold text-gray-900">
+                                                                    {bmn.nama_barang.clone()}
+                                                                </h4>
+                                                                <p class="text-sm text-gray-600">
+                                                                    "NUP: " {bmn.nup.clone()}
+                                                                </p>
+                                                                <p class="text-sm text-gray-600">
+                                                                    "Kondisi: " {bmn.kondisi.clone()}
+                                                                </p>
+                                                                {if bmn.is_available {
+                                                                    view! {
+                                                                        <Badge label="Tersedia" variant=BadgeVariant::Success />
+                                                                    }
+                                                                        .into_any()
+                                                                } else {
+                                                                    view! {
+                                                                        <Badge
+                                                                            label="Sedang Digunakan"
+                                                                            variant=BadgeVariant::Warning
+                                                                        />
+                                                                    }
+                                                                        .into_any()
+                                                                }}
+                                                            </div>
+                                                            <Button
+                                                                variant=if is_selected {
+                                                                    ButtonVariant::Secondary
+                                                                } else {
+                                                                    ButtonVariant::Primary
+                                                                }
+                                                                on_click=Box::new(move || {
+                                                                    if is_selected {
+                                                                        remove_bmn(nup.clone());
+                                                                    } else {
+                                                                        add_bmn(bmn_for_click.clone());
+                                                                    }
+                                                                })
+                                                                disabled=!bmn_is_available
+                                                            >
+                                                                {if is_selected { "Hapus" } else { "Pilih" }}
+                                                            </Button>
+                                                        </div>
+                                                    }
+                                                })
+                                                .collect_view()
+                                        }}
                                     </div>
-                                }
-                            }).collect_view()}
-                        </div>
 
-                        <div class="mt-4 p-4 bg-emerald-50 rounded-lg">
-                            <p class="font-medium text-emerald-900">
-                                "BMN Terpilih: " {move || selected_bmn.get().len()} " item"
-                            </p>
-                        </div>
-                    </Card>
-                })}
+                                    <div class="mt-4 p-4 bg-emerald-50 rounded-lg">
+                                        <p class="font-medium text-emerald-900">
+                                            "BMN Terpilih: " {move || selected_bmn.get().len()} " item"
+                                        </p>
+                                    </div>
+                                </Card>
+                            }
+                        })
+                }}
 
                 // Step 3: Set Period
-                {move || (!selected_bmn.get().is_empty()).then(|| view! {
-                    <Card title="3. Tentukan Periode Pemakaian (REQ-P005)">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                                label="Tanggal Mulai"
-                                input_type="date"
-                                value=start_date.get()
-                                on_input=Box::new(move |v| set_start_date.set(v))
-                                required=true
-                            />
-                            <Input
-                                label="Tanggal Selesai"
-                                input_type="date"
-                                value=end_date.get()
-                                on_input=Box::new(move |v| set_end_date.set(v))
-                                required=true
-                            />
-                        </div>
-                    </Card>
-                })}
+                {move || {
+                    (!selected_bmn.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <Card title="3. Tentukan Periode Pemakaian (REQ-P005)">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Input
+                                            label="Tanggal Mulai"
+                                            input_type="date"
+                                            value=start_date.get()
+                                            on_input=Box::new(move |v| set_start_date.set(v))
+                                            required=true
+                                        />
+                                        <Input
+                                            label="Tanggal Selesai"
+                                            input_type="date"
+                                            value=end_date.get()
+                                            on_input=Box::new(move |v| set_end_date.set(v))
+                                            required=true
+                                        />
+                                    </div>
+                                </Card>
+                            }
+                        })
+                }}
 
                 // Submit Button
-                {move || (!selected_bmn.get().is_empty() && !start_date.get().is_empty() && !end_date.get().is_empty()).then(|| view! {
-                    <Card>
-                        <div class="flex justify-end space-x-4">
-                            <Button
-                                variant=ButtonVariant::Secondary
-                                on_click=Box::new(move || {
-                                    web_sys::window().unwrap().history().unwrap().back().ok();
-                                })
-                            >
-                                "Batal"
-                            </Button>
-                            <Button
-                                variant=ButtonVariant::Primary
-                                size=ButtonSize::Large
-                                on_click=Box::new(create_permit)
-                                disabled=loading.get()
-                            >
-                                "Buat Izin Pemakaian"
-                            </Button>
-                        </div>
-                    </Card>
-                })}
+                {move || {
+                    (!selected_bmn.get().is_empty() && !start_date.get().is_empty()
+                        && !end_date.get().is_empty())
+                        .then(|| {
+                            view! {
+                                <Card>
+                                    <div class="flex justify-end space-x-4">
+                                        <Button
+                                            variant=ButtonVariant::Secondary
+                                            on_click=Box::new(move || {
+                                                web_sys::window().unwrap().history().unwrap().back().ok();
+                                            })
+                                        >
+                                            "Batal"
+                                        </Button>
+                                        <Button
+                                            variant=ButtonVariant::Primary
+                                            size=ButtonSize::Large
+                                            on_click=Box::new(create_permit)
+                                            disabled=loading.get()
+                                        >
+                                            "Buat Izin Pemakaian"
+                                        </Button>
+                                    </div>
+                                </Card>
+                            }
+                        })
+                }}
             </div>
         </div>
     }

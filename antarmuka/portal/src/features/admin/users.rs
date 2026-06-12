@@ -169,7 +169,9 @@ pub fn UsersManagementPage() -> impl IntoView {
                 <div class="flex items-center justify-between mb-6">
                     <div>
                         <nav class="text-sm text-gray-500 mb-1">
-                            <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                            <a href="/portal/admin" class="hover:text-primary-600">
+                                "Admin"
+                            </a>
                             " / Pengguna"
                         </nav>
                         <h1 class="text-2xl font-bold text-gray-900">"Manajemen Pengguna"</h1>
@@ -182,12 +184,8 @@ pub fn UsersManagementPage() -> impl IntoView {
                     </button>
                 </div>
 
-                {move || success.get().map(|msg| view! {
-                    <SuccessBanner message=msg />
-                })}
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 // Search bar
                 <form on:submit=handle_search class="mb-6">
@@ -199,7 +197,10 @@ pub fn UsersManagementPage() -> impl IntoView {
                             placeholder="Cari pengguna..."
                             class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                         />
-                        <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                        >
                             "🔍 Cari"
                         </button>
                     </div>
@@ -209,18 +210,26 @@ pub fn UsersManagementPage() -> impl IntoView {
                 <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <Show
                         when=move || !loading.get()
-                        fallback=|| view! {
-                            <LoadingPanel message="Memuat data pengguna..." />
-                        }
+                        fallback=|| view! { <LoadingPanel message="Memuat data pengguna..." /> }
                     >
                         <table class="w-full">
                             <thead class="bg-gray-50 border-b">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Username"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Email"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Nama"</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">"Status"</th>
-                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">"Aksi"</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Username"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Email"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Nama"
+                                    </th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        "Status"
+                                    </th>
+                                    <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                        "Aksi"
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-200">
@@ -234,22 +243,27 @@ pub fn UsersManagementPage() -> impl IntoView {
 
                                         view! {
                                             <tr class="hover:bg-gray-50">
-                                                <td class="px-4 py-3 font-medium text-gray-900">{user.username.clone()}</td>
-                                                <td class="px-4 py-3 text-gray-600">{user.email.clone()}</td>
+                                                <td class="px-4 py-3 font-medium text-gray-900">
+                                                    {user.username.clone()}
+                                                </td>
                                                 <td class="px-4 py-3 text-gray-600">
-                                                    {format!("{} {}",
+                                                    {user.email.clone()}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-600">
+                                                    {format!(
+                                                        "{} {}",
                                                         user.first_name.as_deref().unwrap_or(""),
-                                                        user.last_name.as_deref().unwrap_or("")
-                                                    ).trim().to_string()}
+                                                        user.last_name.as_deref().unwrap_or(""),
+                                                    )
+                                                        .trim()
+                                                        .to_string()}
                                                 </td>
                                                 <td class="px-4 py-3">
-                                                    <span class={if is_enabled {
+                                                    <span class=if is_enabled {
                                                         "inline-flex px-2 py-0.5 text-xs rounded-full bg-green-100 text-green-700"
                                                     } else {
                                                         "inline-flex px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700"
-                                                    }}>
-                                                        {if is_enabled { "Aktif" } else { "Nonaktif" }}
-                                                    </span>
+                                                    }>{if is_enabled { "Aktif" } else { "Nonaktif" }}</span>
                                                 </td>
                                                 <td class="px-4 py-3 text-right">
                                                     <button
@@ -261,7 +275,7 @@ pub fn UsersManagementPage() -> impl IntoView {
                                                         {if is_enabled { "Nonaktifkan" } else { "Aktifkan" }}
                                                     </button>
                                                     <a
-                                                        href={format!("/portal/admin/users/{}", uid2)}
+                                                        href=format!("/portal/admin/users/{}", uid2)
                                                         class="text-sm text-gray-500 hover:text-gray-700"
                                                     >
                                                         "Detail"
@@ -287,20 +301,28 @@ pub fn UsersManagementPage() -> impl IntoView {
                         <Show when=move || { total_pages.get() > 1 }>
                             <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
                                 <button
-                                    on:click=move |_| set_page.set(page.get().saturating_sub(1).max(1))
+                                    on:click=move |_| {
+                                        set_page.set(page.get().saturating_sub(1).max(1))
+                                    }
                                     disabled=move || page.get() <= 1
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "← Sebelumnya"
                                 </button>
                                 <span class="text-sm text-gray-600">
-                                    "Halaman " {move || page.get()} " dari " {move || total_pages.get()}
+                                    "Halaman " {move || page.get()} " dari "
+                                    {move || total_pages.get()}
                                 </span>
                                 <button
-                                    on:click=move |_| set_page.set((page.get() + 1).min(total_pages.get()))
-                                    disabled=move || page.get() >= total_pages.get()
-                                    class="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    on:click=move |_| {
+                                        set_page.set((page.get() + 1).min(total_pages.get()))
+                                    }
+                                    disabled=move || page.get()
                                 >
+                                    = total_pages.get()
+                                    class=
+                                    "px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    >
                                     "Selanjutnya →"
                                 </button>
                             </div>
@@ -312,44 +334,68 @@ pub fn UsersManagementPage() -> impl IntoView {
                 <Show when=move || show_create_modal.get()>
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-                            <h2 class="text-lg font-bold text-gray-900 mb-4">"Tambah Pengguna Baru"</h2>
-                            <form on:submit=move |ev: web_sys::SubmitEvent| { ev.prevent_default(); set_create_trigger.set(create_trigger.get() + 1); } class="space-y-4">
+                            <h2 class="text-lg font-bold text-gray-900 mb-4">
+                                "Tambah Pengguna Baru"
+                            </h2>
+                            <form
+                                on:submit=move |ev: web_sys::SubmitEvent| {
+                                    ev.prevent_default();
+                                    set_create_trigger.set(create_trigger.get() + 1);
+                                }
+                                class="space-y-4"
+                            >
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Username *"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Username *"
+                                    </label>
                                     <input
                                         type="text"
                                         prop:value=new_username
-                                        on:input=move |ev| set_new_username.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_new_username.set(event_target_value(&ev))
+                                        }
                                         required=true
                                         class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Email *"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Email *"
+                                    </label>
                                     <input
                                         type="email"
                                         prop:value=new_email
-                                        on:input=move |ev| set_new_email.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_new_email.set(event_target_value(&ev))
+                                        }
                                         required=true
                                         class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                     />
                                 </div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Depan"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            "Nama Depan"
+                                        </label>
                                         <input
                                             type="text"
                                             prop:value=new_first_name
-                                            on:input=move |ev| set_new_first_name.set(event_target_value(&ev))
+                                            on:input=move |ev| {
+                                                set_new_first_name.set(event_target_value(&ev))
+                                            }
                                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Belakang"</label>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                                            "Nama Belakang"
+                                        </label>
                                         <input
                                             type="text"
                                             prop:value=new_last_name
-                                            on:input=move |ev| set_new_last_name.set(event_target_value(&ev))
+                                            on:input=move |ev| {
+                                                set_new_last_name.set(event_target_value(&ev))
+                                            }
                                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
@@ -367,7 +413,9 @@ pub fn UsersManagementPage() -> impl IntoView {
                                         disabled=move || creating.get()
                                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
-                                        {move || if creating.get() { "Membuat..." } else { "Buat Pengguna" }}
+                                        {move || {
+                                            if creating.get() { "Membuat..." } else { "Buat Pengguna" }
+                                        }}
                                     </button>
                                 </div>
                             </form>

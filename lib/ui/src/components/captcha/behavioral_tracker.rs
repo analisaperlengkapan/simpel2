@@ -222,23 +222,33 @@ pub fn BehavioralMetricsDisplay(
                             view! {
                                 <div class="space-y-1 text-gray-500 dark:text-gray-500">
                                     <div>"Mouse events: " {metrics_data.mouse_events.len()}</div>
-                                    <div>"Keystroke events: " {metrics_data.keystroke_events.len()}</div>
-                                    <div>"Avg velocity: " {format!("{:.1}", metrics_data.mouse_velocity_avg)} " px/s"</div>
-                                    <div>"Rhythm score: " {format!("{:.2}", metrics_data.typing_rhythm_score)}</div>
+                                    <div>
+                                        "Keystroke events: " {metrics_data.keystroke_events.len()}
+                                    </div>
+                                    <div>
+                                        "Avg velocity: "
+                                        {format!("{:.1}", metrics_data.mouse_velocity_avg)} " px/s"
+                                    </div>
+                                    <div>
+                                        "Rhythm score: "
+                                        {format!("{:.2}", metrics_data.typing_rhythm_score)}
+                                    </div>
                                 </div>
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-
                             ().into_any()
                         }}
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             } else {
                 view! {
                     <div class="behavioral-metrics text-xs text-gray-500 dark:text-gray-500">
                         "Initializing behavioral analysis..."
                     </div>
-                }.into_any()
+                }
+                    .into_any()
             }
         }}
     }

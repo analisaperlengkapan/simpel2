@@ -139,7 +139,9 @@ pub fn PemakaianBmnList() -> impl IntoView {
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">"Jenis BMN"</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            "Jenis BMN"
+                        </label>
                         <select
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                             prop:value=move || jenis_bmn_filter.get()
@@ -166,7 +168,9 @@ pub fn PemakaianBmnList() -> impl IntoView {
                                 set_page.set(1);
                             }
                         >
-                            <span class="mr-2"><AppIcon icon=ARROW_CLOCKWISE /></span>
+                            <span class="mr-2">
+                                <AppIcon icon=ARROW_CLOCKWISE />
+                            </span>
                             "Reset Filter"
                         </button>
                     </div>
@@ -175,109 +179,139 @@ pub fn PemakaianBmnList() -> impl IntoView {
 
             // Permits List
             <div class="bg-white rounded-lg shadow-sm border border-gray-100">
-                <Suspense fallback=move || view! { <LoadingState /> }>
+                <Suspense fallback=move || {
+                    view! { <LoadingState /> }
+                }>
                     {move || {
-                        permits_resource.get().flatten().map(|response| {
-                            if response.data.is_empty() {
-                                view! {
-                                    <EmptyState
-                                        title="Belum ada data izin pemakaian"
-                                        description="Klik tombol 'Ajukan Izin Baru' untuk membuat permohonan"
-                                        icon_class="fas fa-clipboard-list"
-                                    />
-                                }.into_any()
-                            } else {
-                                view! {
-                                    <div>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full">
-                                                <thead class="bg-gray-50 border-b border-gray-200">
-                                                    <tr>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"Nomor Izin"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"Pemohon"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"BMN"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"Periode"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"Status"</th>
-                                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">"Aksi"</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y divide-gray-200">
-                                                    <For
-                                                        each=move || response.data.clone()
-                                                        key=|permit| permit.id.clone()
-                                                        children=move |permit: IzinPemakaianBmn| {
-                                                            let status_class = get_status_badge_class(&permit.status);
-                                                            let status_label = get_status_label(&permit.status);
+                        permits_resource
+                            .get()
+                            .flatten()
+                            .map(|response| {
+                                if response.data.is_empty() {
+                                    view! {
+                                        <EmptyState
+                                            title="Belum ada data izin pemakaian"
+                                            description="Klik tombol 'Ajukan Izin Baru' untuk membuat permohonan"
+                                            icon_class="fas fa-clipboard-list"
+                                        />
+                                    }
+                                        .into_any()
+                                } else {
+                                    view! {
+                                        <div>
+                                            <div class="overflow-x-auto">
+                                                <table class="w-full">
+                                                    <thead class="bg-gray-50 border-b border-gray-200">
+                                                        <tr>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "Nomor Izin"
+                                                            </th>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "Pemohon"
+                                                            </th>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "BMN"
+                                                            </th>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "Periode"
+                                                            </th>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "Status"
+                                                            </th>
+                                                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                                                "Aksi"
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody class="divide-y divide-gray-200">
+                                                        <For
+                                                            each=move || response.data.clone()
+                                                            key=|permit| permit.id.clone()
+                                                            children=move |permit: IzinPemakaianBmn| {
+                                                                let status_class = get_status_badge_class(&permit.status);
+                                                                let status_label = get_status_label(&permit.status);
 
-                                                            view! {
-                                                                <tr class="hover:bg-gray-50 transition-colors">
-                                                                    <td class="px-4 py-3">
-                                                                        <div class="font-medium text-gray-900">
-                                                                            {permit.nomor_izin.clone().unwrap_or_else(|| "-".to_string())}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td class="px-4 py-3">
-                                                                        <div class="text-sm">
-                                                                            <div class="font-medium text-gray-900">{permit.pegawai_nama.clone()}</div>
-                                                                            <div class="text-gray-500">{permit.pegawai_nip.clone()}</div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td class="px-4 py-3">
-                                                                        <div class="text-sm">
-                                                                            <div class="font-medium text-gray-900">{permit.bmn_nama_barang.clone()}</div>
-                                                                            <div class="text-gray-500">{permit.bmn_nup.clone()}</div>
-                                                                        </div>
-                                                                    </td>
-                                                                    <td class="px-4 py-3">
-                                                                        <div class="text-sm text-gray-900">
-                                                                            {permit.tanggal_mulai.clone()} " - " {permit.tanggal_selesai.clone()}
-                                                                        </div>
-                                                                    </td>
-                                                                    <td class="px-4 py-3">
-                                                                        <span class={format!("px-2 py-1 rounded-full text-xs font-medium {}", status_class)}>
-                                                                            {status_label}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td class="px-4 py-3">
-                                                                        <div class="flex gap-2">
-                                                                            <a
-                                                                                href={format!("/perlengkapan/pemakaian-bmn/{}", permit.id)}
-                                                                                class="text-blue-600 hover:text-blue-800"
-                                                                                title="Detail"
-                                                                            >
-                                                                                <AppIcon icon=EYE />
-                                                                            </a>
-                                                                            <Show when=move || permit.status == "ACTIVE">
-                                                                                <button
-                                                                                    class="text-green-600 hover:text-green-800"
-                                                                                    title="Perpanjang"
+                                                                view! {
+                                                                    <tr class="hover:bg-gray-50 transition-colors">
+                                                                        <td class="px-4 py-3">
+                                                                            <div class="font-medium text-gray-900">
+                                                                                {permit
+                                                                                    .nomor_izin
+                                                                                    .clone()
+                                                                                    .unwrap_or_else(|| "-".to_string())}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td class="px-4 py-3">
+                                                                            <div class="text-sm">
+                                                                                <div class="font-medium text-gray-900">
+                                                                                    {permit.pegawai_nama.clone()}
+                                                                                </div>
+                                                                                <div class="text-gray-500">
+                                                                                    {permit.pegawai_nip.clone()}
+                                                                                </div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td class="px-4 py-3">
+                                                                            <div class="text-sm">
+                                                                                <div class="font-medium text-gray-900">
+                                                                                    {permit.bmn_nama_barang.clone()}
+                                                                                </div>
+                                                                                <div class="text-gray-500">{permit.bmn_nup.clone()}</div>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td class="px-4 py-3">
+                                                                            <div class="text-sm text-gray-900">
+                                                                                {permit.tanggal_mulai.clone()} " - "
+                                                                                {permit.tanggal_selesai.clone()}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td class="px-4 py-3">
+                                                                            <span class=format!(
+                                                                                "px-2 py-1 rounded-full text-xs font-medium {}",
+                                                                                status_class,
+                                                                            )>{status_label}</span>
+                                                                        </td>
+                                                                        <td class="px-4 py-3">
+                                                                            <div class="flex gap-2">
+                                                                                <a
+                                                                                    href=format!("/perlengkapan/pemakaian-bmn/{}", permit.id)
+                                                                                    class="text-blue-600 hover:text-blue-800"
+                                                                                    title="Detail"
                                                                                 >
-                                                                                    <AppIcon icon=ARROW_CLOCKWISE />
-                                                                                </button>
-                                                                            </Show>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
+                                                                                    <AppIcon icon=EYE />
+                                                                                </a>
+                                                                                <Show when=move || permit.status == "ACTIVE">
+                                                                                    <button
+                                                                                        class="text-green-600 hover:text-green-800"
+                                                                                        title="Perpanjang"
+                                                                                    >
+                                                                                        <AppIcon icon=ARROW_CLOCKWISE />
+                                                                                    </button>
+                                                                                </Show>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                }
                                                             }
-                                                        }
-                                                    />
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                                        />
+                                                    </tbody>
+                                                </table>
+                                            </div>
 
-                                        <div class="px-4 py-3 border-t border-gray-200">
-                                            <PaginationControls
-                                                current_page=response.page
-                                                total_pages=response.total_pages
-                                                total_items=Some(response.total)
-                                                on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
-                                                on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
-                                            />
+                                            <div class="px-4 py-3 border-t border-gray-200">
+                                                <PaginationControls
+                                                    current_page=response.page
+                                                    total_pages=response.total_pages
+                                                    total_items=Some(response.total)
+                                                    on_prev=Callback::new(move |_| set_page.update(|p| *p -= 1))
+                                                    on_next=Callback::new(move |_| set_page.update(|p| *p += 1))
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
-                                }.into_any()
-                            }
-                        })
+                                    }
+                                        .into_any()
+                                }
+                            })
                     }}
                 </Suspense>
             </div>

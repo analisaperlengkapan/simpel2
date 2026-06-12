@@ -45,8 +45,13 @@ where
             let align = col.align;
             let label = col.header;
             view! {
-                <th class=format!("px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 {}", align)
-                    scope="col">
+                <th
+                    class=format!(
+                        "px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400 {}",
+                        align,
+                    )
+                    scope="col"
+                >
                     {label}
                 </th>
             }
@@ -62,11 +67,7 @@ where
                 .map(|col| {
                     let align = col.align;
                     let content = (col.cell)(row);
-                    view! {
-                        <td class=format!("px-4 py-3 text-sm text-slate-200 {}", align)>
-                            {content}
-                        </td>
-                    }
+                    view! { <td class=format!("px-4 py-3 text-sm text-slate-200 {}", align)>{content}</td> }
                 })
                 .collect_view();
             let bg = if idx % 2 == 0 {
@@ -74,11 +75,7 @@ where
             } else {
                 "bg-white/[0.015]"
             };
-            view! {
-                <tr class=format!("border-b border-white/[0.04] {}", bg)>
-                    {cells}
-                </tr>
-            }
+            view! { <tr class=format!("border-b border-white/[0.04] {}", bg)>{cells}</tr> }
         })
         .collect_view();
 
@@ -91,16 +88,19 @@ where
                     </thead>
                     <tbody>
                         {body_rows}
-                        {is_empty.then(|| view! {
-                            <tr>
-                                <td
-                                    class="px-4 py-8 text-center text-sm text-slate-500"
-                                    colspan=col_count.to_string()
-                                >
-                                    {empty_label}
-                                </td>
-                            </tr>
-                        })}
+                        {is_empty
+                            .then(|| {
+                                view! {
+                                    <tr>
+                                        <td
+                                            class="px-4 py-8 text-center text-sm text-slate-500"
+                                            colspan=col_count.to_string()
+                                        >
+                                            {empty_label}
+                                        </td>
+                                    </tr>
+                                }
+                            })}
                     </tbody>
                 </table>
             </div>

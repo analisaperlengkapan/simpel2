@@ -167,7 +167,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                     class="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2.5 text-sm font-bold text-navy-950 shadow-sm transition hover:opacity-90"
                     on:click=move |_| set_show_form.update(|v| *v = !*v)
                 >
-                    <span class="text-xs"><AppIcon icon=PLUS /></span>
+                    <span class="text-xs">
+                        <AppIcon icon=PLUS />
+                    </span>
                     "Buat Pengajuan"
                 </button>
             </div>
@@ -203,9 +205,18 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     }
                                 >
                                     <option value="">"— Semua / Pilih jenis —"</option>
-                                    {move || jenis_resource.get().unwrap_or_default().into_iter().map(|j| {
-                                        view! { <option value=j.id.clone()>{j.nama.clone()}</option> }
-                                    }).collect_view()}
+                                    {move || {
+                                        jenis_resource
+                                            .get()
+                                            .unwrap_or_default()
+                                            .into_iter()
+                                            .map(|j| {
+                                                view! {
+                                                    <option value=j.id.clone()>{j.nama.clone()}</option>
+                                                }
+                                            })
+                                            .collect_view()
+                                    }}
                                 </select>
                             </FormField>
                             <FormField label="Tanggal Mulai">
@@ -213,7 +224,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     type="date"
                                     class=input_class
                                     prop:value=move || form_tgl_mulai.get()
-                                    on:input=move |ev| set_form_tgl_mulai.set(event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        set_form_tgl_mulai.set(event_target_value(&ev))
+                                    }
                                     required=true
                                 />
                             </FormField>
@@ -222,7 +235,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     type="date"
                                     class=input_class
                                     prop:value=move || form_tgl_selesai.get()
-                                    on:input=move |ev| set_form_tgl_selesai.set(event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        set_form_tgl_selesai.set(event_target_value(&ev))
+                                    }
                                     required=true
                                 />
                             </FormField>
@@ -230,38 +245,55 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
 
                         // Spesifikasi multi-select
                         <div class="mt-5">
-                            <FormField label="Spesifikasi Pakaian (pilih satu atau lebih)" full_width=true>
+                            <FormField
+                                label="Spesifikasi Pakaian (pilih satu atau lebih)"
+                                full_width=true
+                            >
                                 <div class="flex flex-wrap gap-2">
                                     {move || {
                                         let specs = spesifikasi_resource.get().unwrap_or_default();
                                         if specs.is_empty() {
-                                            view! { <span class="text-xs text-slate-500">"Tidak ada spesifikasi untuk jenis ini."</span> }.into_any()
+                                            view! {
+                                                <span class="text-xs text-slate-500">
+                                                    "Tidak ada spesifikasi untuk jenis ini."
+                                                </span>
+                                            }
+                                                .into_any()
                                         } else {
-                                            specs.into_iter().map(|s| {
-                                                let sid = s.id.clone();
-                                                let sid_check = sid.clone();
-                                                let checked = move || form_spesifikasi_ids.get().contains(&sid_check);
-                                                view! {
-                                                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-slate-200">
-                                                        <input
-                                                            type="checkbox"
-                                                            class="h-4 w-4"
-                                                            prop:checked=checked
-                                                            on:change={
-                                                                let sid = sid.clone();
-                                                                move |_| form_spesifikasi_ids.update(|v| {
-                                                                    if let Some(pos) = v.iter().position(|x| x == &sid) {
-                                                                        v.remove(pos);
-                                                                    } else {
-                                                                        v.push(sid.clone());
+                                            specs
+                                                .into_iter()
+                                                .map(|s| {
+                                                    let sid = s.id.clone();
+                                                    let sid_check = sid.clone();
+                                                    let checked = move || {
+                                                        form_spesifikasi_ids.get().contains(&sid_check)
+                                                    };
+                                                    view! {
+                                                        <label class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-1.5 text-sm text-slate-200">
+                                                            <input
+                                                                type="checkbox"
+                                                                class="h-4 w-4"
+                                                                prop:checked=checked
+                                                                on:change={
+                                                                    let sid = sid.clone();
+                                                                    move |_| {
+                                                                        form_spesifikasi_ids
+                                                                            .update(|v| {
+                                                                                if let Some(pos) = v.iter().position(|x| x == &sid) {
+                                                                                    v.remove(pos);
+                                                                                } else {
+                                                                                    v.push(sid.clone());
+                                                                                }
+                                                                            })
                                                                     }
-                                                                })
-                                                            }
-                                                        />
-                                                        {s.nama.clone()}
-                                                    </label>
-                                                }
-                                            }).collect_view().into_any()
+                                                                }
+                                                            />
+                                                            {s.nama.clone()}
+                                                        </label>
+                                                    }
+                                                })
+                                                .collect_view()
+                                                .into_any()
                                         }
                                     }}
                                 </div>
@@ -302,12 +334,21 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     <select
                                         class=input_class
                                         prop:value=move || form_wilayah.get()
-                                        on:change=move |ev| form_wilayah.set(event_target_value(&ev))
+                                        on:change=move |ev| {
+                                            form_wilayah.set(event_target_value(&ev))
+                                        }
                                     >
                                         <option value="">"— Pilih wilayah —"</option>
-                                        {move || wilayah_resource.get().unwrap_or_default().into_iter().map(|w| {
-                                            view! { <option value=w.clone()>{w.clone()}</option> }
-                                        }).collect_view()}
+                                        {move || {
+                                            wilayah_resource
+                                                .get()
+                                                .unwrap_or_default()
+                                                .into_iter()
+                                                .map(|w| {
+                                                    view! { <option value=w.clone()>{w.clone()}</option> }
+                                                })
+                                                .collect_view()
+                                        }}
                                     </select>
                                 </FormField>
                             </div>
@@ -319,7 +360,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     class=format!("min-h-[80px] resize-y {}", input_class)
                                     placeholder="Keterangan tambahan (opsional)"
                                     prop:value=move || form_keterangan.get()
-                                    on:input=move |ev| set_form_keterangan.set(event_target_value(&ev))
+                                    on:input=move |ev| {
+                                        set_form_keterangan.set(event_target_value(&ev))
+                                    }
                                 ></textarea>
                             </FormField>
                         </div>
@@ -344,7 +387,9 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                 </SectionCard>
             </Show>
 
-            <Suspense fallback=move || view! { <LoadingState /> }>
+            <Suspense fallback=move || {
+                view! { <LoadingState /> }
+            }>
                 {move || match data_resource.get() {
                     None => view! { <LoadingState /> }.into_any(),
                     Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
@@ -356,9 +401,17 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                     title="Belum Ada Pengajuan"
                                     description="Klik tombol \"Buat Pengajuan\" untuk membuat periode baru."
                                 />
-                            }.into_any()
+                            }
+                                .into_any()
                         } else {
-                            render_pengajuan_cards(response.data, response.total, response.total_pages, page, set_page, refresh_trigger)
+                            render_pengajuan_cards(
+                                response.data,
+                                response.total,
+                                response.total_pages,
+                                page,
+                                set_page,
+                                refresh_trigger,
+                            )
                         }
                     }
                 }}
@@ -388,9 +441,10 @@ fn status_badge(status: String, is_open: bool) -> impl IntoView {
         }
     };
     view! {
-        <span class=format!("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}", class)>
-            {text}
-        </span>
+        <span class=format!(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}",
+            class,
+        )>{text}</span>
     }
 }
 
@@ -436,25 +490,37 @@ fn render_pengajuan_cards(
                         <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-5 transition hover:border-white/10">
                             <div class="flex items-start justify-between mb-3">
                                 <div>
-                                    <h3 class="text-sm font-semibold text-slate-100">{item.nama}</h3>
-                                    <p class="text-xs text-slate-400">"Tahun: " {item.tahun.to_string()}</p>
+                                    <h3 class="text-sm font-semibold text-slate-100">
+                                        {item.nama}
+                                    </h3>
+                                    <p class="text-xs text-slate-400">
+                                        "Tahun: " {item.tahun.to_string()}
+                                    </p>
                                 </div>
                                 {status_badge(status_str, is_open)}
                             </div>
 
                             <div class="space-y-1 text-xs text-slate-400">
                                 <p>
-                                    <span class="mr-1.5 text-success-400 w-3.5"><AppIcon icon=CALENDAR_CHECK /></span>
-                                    "Buka: " {item.tgl_open.unwrap_or_else(|| "-".to_string())}
+                                    <span class="mr-1.5 text-success-400 w-3.5">
+                                        <AppIcon icon=CALENDAR_CHECK />
+                                    </span>
+                                    "Buka: "
+                                    {item.tgl_open.unwrap_or_else(|| "-".to_string())}
                                 </p>
                                 <p>
-                                    <span class="mr-1.5 text-danger-400 w-3.5"><AppIcon icon=CALENDAR_X /></span>
-                                    "Tutup: " {item.tgl_close.unwrap_or_else(|| "-".to_string())}
+                                    <span class="mr-1.5 text-danger-400 w-3.5">
+                                        <AppIcon icon=CALENDAR_X />
+                                    </span>
+                                    "Tutup: "
+                                    {item.tgl_close.unwrap_or_else(|| "-".to_string())}
                                 </p>
                             </div>
 
                             <Show when=move || has_keterangan>
-                                <p class="mt-2 text-xs italic text-slate-500">{keterangan.clone()}</p>
+                                <p class="mt-2 text-xs italic text-slate-500">
+                                    {keterangan.clone()}
+                                </p>
                             </Show>
 
                             <div class="mt-4 flex gap-2 border-t border-white/[0.04] pt-3">
@@ -462,14 +528,18 @@ fn render_pengajuan_cards(
                                     href=crate::routes::url::pakaian_satker_list(&item_id)
                                     class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-info-500/30 bg-info-500/10 px-3 py-1.5 text-xs font-medium text-info-300 transition hover:bg-info-500/20"
                                 >
-                                    <span class="text-2xs"><AppIcon icon=BUILDING /></span>
+                                    <span class="text-2xs">
+                                        <AppIcon icon=BUILDING />
+                                    </span>
                                     "Satker"
                                 </a>
                                 <button
                                     class="inline-flex items-center justify-center rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-1.5 text-xs text-danger-300 transition hover:bg-danger-500/20"
                                     on:click=move |_| on_delete(item_id_for_delete.clone())
                                 >
-                                    <span class="text-2xs"><AppIcon icon=TRASH /></span>
+                                    <span class="text-2xs">
+                                        <AppIcon icon=TRASH />
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -493,9 +563,11 @@ fn render_pengajuan_cards(
                 </button>
                 <button
                     class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || page.get() >= total_pages
-                    on:click=move |_| set_page.update(|p| *p += 1)
+                    prop:disabled=move || page.get()
                 >
+                    = total_pages
+                    on:click=move |_| set_page.update(|p| *p += 1)
+                    >
                     "Selanjutnya"
                 </button>
             </div>

@@ -153,11 +153,15 @@ pub fn GroupsManagementPage() -> impl IntoView {
                 <div class="flex items-center justify-between mb-6">
                     <div>
                         <nav class="text-sm text-gray-500 mb-1">
-                            <a href="/portal/admin" class="hover:text-primary-600">"Admin"</a>
+                            <a href="/portal/admin" class="hover:text-primary-600">
+                                "Admin"
+                            </a>
                             " / Grup"
                         </nav>
                         <h1 class="text-2xl font-bold text-gray-900">"Manajemen Grup"</h1>
-                        <p class="text-sm text-gray-500 mt-1">"Kelola hierarki grup dan keanggotaan pengguna"</p>
+                        <p class="text-sm text-gray-500 mt-1">
+                            "Kelola hierarki grup dan keanggotaan pengguna"
+                        </p>
                     </div>
                     <button
                         on:click=move |_| set_show_create_modal.set(true)
@@ -167,12 +171,8 @@ pub fn GroupsManagementPage() -> impl IntoView {
                     </button>
                 </div>
 
-                {move || success.get().map(|msg| view! {
-                    <SuccessBanner message=msg />
-                })}
-                {move || error.get().map(|msg| view! {
-                    <ErrorBanner message=msg />
-                })}
+                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
+                {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     // Left panel - Group tree
@@ -195,9 +195,7 @@ pub fn GroupsManagementPage() -> impl IntoView {
 
                             <Show
                                 when=move || !loading.get()
-                                fallback=|| view! {
-                                    <LoadingPanel message="Memuat data grup..." />
-                                }
+                                fallback=|| view! { <LoadingPanel message="Memuat data grup..." /> }
                             >
                                 <div class="divide-y divide-gray-100 max-h-96 overflow-y-auto">
                                     <For
@@ -207,21 +205,31 @@ pub fn GroupsManagementPage() -> impl IntoView {
                                             let gid = group.id.clone();
                                             let g_clone = group.clone();
                                             let is_selected = move || {
-                                                selected_group.get().as_ref().map(|s| s.id == gid).unwrap_or(false)
+                                                selected_group
+                                                    .get()
+                                                    .as_ref()
+                                                    .map(|s| s.id == gid)
+                                                    .unwrap_or(false)
                                             };
 
                                             view! {
                                                 <button
-                                                    on:click=move |_| set_selected_group.set(Some(g_clone.clone()))
-                                                    class=move || if is_selected() {
-                                                        "w-full text-left px-4 py-3 bg-primary-50 border-l-4 border-primary-600 transition-colors"
-                                                    } else {
-                                                        "w-full text-left px-4 py-3 hover:bg-gray-50 border-l-4 border-transparent transition-colors"
+                                                    on:click=move |_| {
+                                                        set_selected_group.set(Some(g_clone.clone()))
+                                                    }
+                                                    class=move || {
+                                                        if is_selected() {
+                                                            "w-full text-left px-4 py-3 bg-primary-50 border-l-4 border-primary-600 transition-colors"
+                                                        } else {
+                                                            "w-full text-left px-4 py-3 hover:bg-gray-50 border-l-4 border-transparent transition-colors"
+                                                        }
                                                     }
                                                 >
                                                     <div class="flex items-center justify-between">
                                                         <div>
-                                                            <p class="font-medium text-gray-900 text-sm">{group.name.clone()}</p>
+                                                            <p class="font-medium text-gray-900 text-sm">
+                                                                {group.name.clone()}
+                                                            </p>
                                                             <p class="text-xs text-gray-500 mt-0.5">
                                                                 {group.member_count} " anggota"
                                                                 {if group.subgroup_count > 0 {
@@ -255,108 +263,138 @@ pub fn GroupsManagementPage() -> impl IntoView {
                     <div class="lg:col-span-2">
                         <Show
                             when=move || selected_group.get().is_some()
-                            fallback=|| view! {
-                                <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
-                                    <p class="text-5xl mb-4">"👥"</p>
-                                    <h3 class="text-lg font-semibold text-gray-700 mb-2">"Pilih Grup"</h3>
-                                    <p class="text-sm text-gray-500">"Pilih grup dari panel kiri untuk melihat detail dan anggota."</p>
-                                </div>
-                            }
-                        >
-                            {move || selected_group.get().map(|group| {
-                                let gid = group.id.clone();
-                                let gid2 = group.id.clone();
-
+                            fallback=|| {
                                 view! {
-                                    <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                                        // Header
-                                        <div class="px-6 py-4 bg-gradient-to-r from-primary-50 to-blue-50 border-b">
-                                            <div class="flex items-center justify-between">
-                                                <div>
-                                                    <h2 class="text-lg font-bold text-gray-900">{group.name.clone()}</h2>
-                                                    <p class="text-sm text-gray-500 mt-1">
-                                                        {group.description.clone().unwrap_or_else(|| "Tidak ada deskripsi".to_string())}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    on:click=move |_| {
-                                                        set_delete_trigger.set(Some(gid.clone()));
-                                                    }
-                                                    class="px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                                                >
-                                                    "🗑 Hapus"
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        // Stats cards
-                                        <div class="grid grid-cols-3 gap-4 p-6 border-b">
-                                            <div class="bg-blue-50 rounded-lg p-4 text-center">
-                                                <p class="text-2xl font-bold text-blue-700">{group.member_count}</p>
-                                                <p class="text-xs text-blue-600 mt-1">"Anggota"</p>
-                                            </div>
-                                            <div class="bg-purple-50 rounded-lg p-4 text-center">
-                                                <p class="text-2xl font-bold text-purple-700">{group.subgroup_count}</p>
-                                                <p class="text-xs text-purple-600 mt-1">"Sub-grup"</p>
-                                            </div>
-                                            <div class="bg-green-50 rounded-lg p-4 text-center">
-                                                <p class="text-2xl font-bold text-green-700">"—"</p>
-                                                <p class="text-xs text-green-600 mt-1">"Peran"</p>
-                                            </div>
-                                        </div>
-
-                                        // Tabs
-                                        <div class="border-b">
-                                            <nav class="flex px-6">
-                                                <button class="px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
-                                                    "Detail"
-                                                </button>
-                                                <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                                    "Anggota"
-                                                </button>
-                                                <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                                    "Sub-grup"
-                                                </button>
-                                                <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                                    "Atribut"
-                                                </button>
-                                            </nav>
-                                        </div>
-
-                                        // Detail content
-                                        <div class="p-6">
-                                            <dl class="space-y-4">
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"ID"</dt>
-                                                    <dd class="text-sm font-mono text-gray-900">{gid2}</dd>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"Nama"</dt>
-                                                    <dd class="text-sm font-semibold text-gray-900">{group.name.clone()}</dd>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"Realm"</dt>
-                                                    <dd class="text-sm text-gray-700">{group.realm_id.clone()}</dd>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"Induk"</dt>
-                                                    <dd class="text-sm text-gray-700">
-                                                        {group.parent_id.clone().unwrap_or_else(|| "—  (root)".to_string())}
-                                                    </dd>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"Dibuat"</dt>
-                                                    <dd class="text-sm text-gray-700">{group.created_at.clone()}</dd>
-                                                </div>
-                                                <div class="flex justify-between">
-                                                    <dt class="text-sm text-gray-500">"Diperbarui"</dt>
-                                                    <dd class="text-sm text-gray-700">{group.updated_at.clone()}</dd>
-                                                </div>
-                                            </dl>
-                                        </div>
+                                    <div class="bg-white rounded-xl border border-gray-200 p-12 text-center">
+                                        <p class="text-5xl mb-4">"👥"</p>
+                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
+                                            "Pilih Grup"
+                                        </h3>
+                                        <p class="text-sm text-gray-500">
+                                            "Pilih grup dari panel kiri untuk melihat detail dan anggota."
+                                        </p>
                                     </div>
                                 }
-                            })}
+                            }
+                        >
+                            {move || {
+                                selected_group
+                                    .get()
+                                    .map(|group| {
+                                        let gid = group.id.clone();
+                                        let gid2 = group.id.clone();
+
+                                        view! {
+                                            <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                                                // Header
+                                                <div class="px-6 py-4 bg-gradient-to-r from-primary-50 to-blue-50 border-b">
+                                                    <div class="flex items-center justify-between">
+                                                        <div>
+                                                            <h2 class="text-lg font-bold text-gray-900">
+                                                                {group.name.clone()}
+                                                            </h2>
+                                                            <p class="text-sm text-gray-500 mt-1">
+                                                                {group
+                                                                    .description
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "Tidak ada deskripsi".to_string())}
+                                                            </p>
+                                                        </div>
+                                                        <button
+                                                            on:click=move |_| {
+                                                                set_delete_trigger.set(Some(gid.clone()));
+                                                            }
+                                                            class="px-3 py-1.5 text-sm text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                                                        >
+                                                            "🗑 Hapus"
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                // Stats cards
+                                                <div class="grid grid-cols-3 gap-4 p-6 border-b">
+                                                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                                                        <p class="text-2xl font-bold text-blue-700">
+                                                            {group.member_count}
+                                                        </p>
+                                                        <p class="text-xs text-blue-600 mt-1">"Anggota"</p>
+                                                    </div>
+                                                    <div class="bg-purple-50 rounded-lg p-4 text-center">
+                                                        <p class="text-2xl font-bold text-purple-700">
+                                                            {group.subgroup_count}
+                                                        </p>
+                                                        <p class="text-xs text-purple-600 mt-1">"Sub-grup"</p>
+                                                    </div>
+                                                    <div class="bg-green-50 rounded-lg p-4 text-center">
+                                                        <p class="text-2xl font-bold text-green-700">"—"</p>
+                                                        <p class="text-xs text-green-600 mt-1">"Peran"</p>
+                                                    </div>
+                                                </div>
+
+                                                // Tabs
+                                                <div class="border-b">
+                                                    <nav class="flex px-6">
+                                                        <button class="px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600">
+                                                            "Detail"
+                                                        </button>
+                                                        <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                                                            "Anggota"
+                                                        </button>
+                                                        <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                                                            "Sub-grup"
+                                                        </button>
+                                                        <button class="px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700">
+                                                            "Atribut"
+                                                        </button>
+                                                    </nav>
+                                                </div>
+
+                                                // Detail content
+                                                <div class="p-6">
+                                                    <dl class="space-y-4">
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"ID"</dt>
+                                                            <dd class="text-sm font-mono text-gray-900">{gid2}</dd>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"Nama"</dt>
+                                                            <dd class="text-sm font-semibold text-gray-900">
+                                                                {group.name.clone()}
+                                                            </dd>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"Realm"</dt>
+                                                            <dd class="text-sm text-gray-700">
+                                                                {group.realm_id.clone()}
+                                                            </dd>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"Induk"</dt>
+                                                            <dd class="text-sm text-gray-700">
+                                                                {group
+                                                                    .parent_id
+                                                                    .clone()
+                                                                    .unwrap_or_else(|| "—  (root)".to_string())}
+                                                            </dd>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"Dibuat"</dt>
+                                                            <dd class="text-sm text-gray-700">
+                                                                {group.created_at.clone()}
+                                                            </dd>
+                                                        </div>
+                                                        <div class="flex justify-between">
+                                                            <dt class="text-sm text-gray-500">"Diperbarui"</dt>
+                                                            <dd class="text-sm text-gray-700">
+                                                                {group.updated_at.clone()}
+                                                            </dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+                                            </div>
+                                        }
+                                    })
+                            }}
                         </Show>
                     </div>
                 </div>
@@ -366,9 +404,17 @@ pub fn GroupsManagementPage() -> impl IntoView {
                     <div class="fixed inset-0 z-modal flex items-center justify-center bg-black/50">
                         <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
                             <h2 class="text-lg font-bold text-gray-900 mb-4">"Buat Grup Baru"</h2>
-                            <form on:submit=move |ev: web_sys::SubmitEvent| { ev.prevent_default(); set_create_trigger.set(create_trigger.get() + 1); } class="space-y-4">
+                            <form
+                                on:submit=move |ev: web_sys::SubmitEvent| {
+                                    ev.prevent_default();
+                                    set_create_trigger.set(create_trigger.get() + 1);
+                                }
+                                class="space-y-4"
+                            >
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Nama Grup *"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Nama Grup *"
+                                    </label>
                                     <input
                                         type="text"
                                         prop:value=new_name
@@ -379,10 +425,14 @@ pub fn GroupsManagementPage() -> impl IntoView {
                                     />
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">"Deskripsi"</label>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        "Deskripsi"
+                                    </label>
                                     <textarea
                                         prop:value=new_description
-                                        on:input=move |ev| set_new_description.set(event_target_value(&ev))
+                                        on:input=move |ev| {
+                                            set_new_description.set(event_target_value(&ev))
+                                        }
                                         rows=3
                                         placeholder="Deskripsi opsional..."
                                         class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
@@ -401,7 +451,9 @@ pub fn GroupsManagementPage() -> impl IntoView {
                                         disabled=move || creating.get()
                                         class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
                                     >
-                                        {move || if creating.get() { "Membuat..." } else { "Buat Grup" }}
+                                        {move || {
+                                            if creating.get() { "Membuat..." } else { "Buat Grup" }
+                                        }}
                                     </button>
                                 </div>
                             </form>
