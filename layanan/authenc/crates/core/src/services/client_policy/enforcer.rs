@@ -4,8 +4,7 @@
 //! Evaluates client policies during authorization and token requests.
 
 use crate::services::client_policy::{
-    ClientPolicy, ClientPolicyCondition, ClientPolicyContext, ClientPolicyExecutor,
-    ClientPolicyManager, ClientProfile, store::ClientPolicyStore,
+    ClientPolicy, ClientPolicyContext, ClientPolicyManager, ClientProfile, store::ClientPolicyStore,
 };
 use authenc_types::Result;
 use authenc_types::domain::client_policy::ClientPolicyModel;
@@ -19,6 +18,8 @@ use uuid::Uuid;
 /// Orchestrates policy evaluation for OAuth2/OIDC clients during authentication flows.
 pub struct ClientPolicyEnforcer {
     policy_store: Arc<ClientPolicyStore>,
+    /// Planned: consulted for executor-based policy evaluation.
+    #[allow(dead_code)]
     policy_manager: ClientPolicyManager,
 }
 

@@ -105,6 +105,7 @@ pub use auth_flow::{
 pub use authentication_service::AuthenticationServiceImpl;
 pub use brute_force_protector::{BruteForceConfig, BruteForceProtectorImpl};
 pub use oauth2_service::OAuth2ServiceImpl;
+#[allow(deprecated)] // re-exports OrganizationRole pending DynamicRoleStore migration
 pub use organization::{
     OrganizationInvitation, OrganizationRole, OrganizationService, OrganizationSettings,
     OrganizationUpdate,
@@ -173,19 +174,26 @@ pub use cache_invalidation_listener::*;
 pub use cache_utils::*;
 
 // Identity Broker service exports
+// Overlapping convenience names (e.g. UserInfo) across enterprise modules;
+// callers use direct paths, so the glob ambiguity is benign here.
+#[allow(ambiguous_glob_reexports)]
 pub use broker::*;
 
 // Federation service exports
 #[cfg(feature = "oidc-federation")]
+#[allow(ambiguous_glob_reexports)]
 pub use advanced_federation::*;
 pub use federation::*;
 pub use federation_manager::*;
 pub use federation_provider::*;
 
 // Advanced service exports (Enterprise features)
+#[allow(ambiguous_glob_reexports)]
 pub use authorization::*;
 pub use client_policy::*;
+#[allow(ambiguous_glob_reexports)]
 pub use clustering::*;
+#[allow(ambiguous_glob_reexports)]
 pub use compliance::*;
 pub use config_manager::*;
 pub use database_optimizer::*;

@@ -57,6 +57,8 @@ pub struct OtpCredentialData {
 }
 
 /// OTP credential provider
+// Default algorithm/digits/period retained for planned config-driven defaults.
+#[allow(dead_code)]
 pub struct OtpCredentialProvider {
     /// Default algorithm for new OTP credentials
     default_algorithm: OtpAlgorithm,

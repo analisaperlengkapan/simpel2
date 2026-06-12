@@ -17,7 +17,6 @@ use authenc_types::{
     result::Result,
     traits::*,
 };
-use uuid::Uuid;
 
 /// Implementation of the user management service
 ///
@@ -653,6 +652,7 @@ mod tests {
     use async_trait::async_trait;
     use std::collections::HashMap;
     use tokio::sync::Mutex;
+    use uuid::Uuid;
 
     // Mock implementations for testing
 

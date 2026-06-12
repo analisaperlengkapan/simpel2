@@ -84,6 +84,7 @@ pub use migration::{
     DefaultMigrationProviderFactory, MigrationModel, MigrationProvider, MigrationSpi,
     MigrationStatus, MigrationType,
 };
+#[allow(deprecated)] // re-exports OrganizationRole pending DynamicRoleStore migration
 pub use organization::{
     DefaultOrganizationProviderFactory, OrganizationMemberModel, OrganizationModel,
     OrganizationProvider, OrganizationRole, OrganizationSpi,
@@ -168,7 +169,7 @@ pub trait ProviderFactory<T: Provider + ?Sized>: Send + Sync {
     fn create(&self, config: &ProviderConfig) -> Result<Box<T>, SpiError>;
 
     /// Initialize the factory
-    fn init(&mut self, config: &ProviderConfig) -> Result<(), SpiError> {
+    fn init(&mut self, _config: &ProviderConfig) -> Result<(), SpiError> {
         Ok(())
     }
 
@@ -422,8 +423,8 @@ impl SpiManager {
     }
 
     /// Initialize all registered SPIs
-    pub async fn init(&mut self, config: &ProviderConfig) -> Result<(), SpiError> {
-        for spi in self.spis.values_mut() {
+    pub async fn init(&mut self, _config: &ProviderConfig) -> Result<(), SpiError> {
+        for _spi in self.spis.values_mut() {
             // SPI initialization logic would go here
             // For now, this is a placeholder
         }

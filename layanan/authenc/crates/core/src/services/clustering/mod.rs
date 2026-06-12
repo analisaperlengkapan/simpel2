@@ -174,6 +174,8 @@ impl ClusterCommunication for InMemoryClusterCommunication {
 }
 
 /// JGroups-based cluster communication
+// Stub HA transport: fields populated for the planned JGroups wiring.
+#[allow(dead_code)]
 pub struct JGroupsClusterCommunication {
     /// Name of the JGroups channel
     channel_name: String,
@@ -341,6 +343,8 @@ pub trait DistributedConsensus: Send + Sync {
 }
 
 /// Raft-based consensus
+// Stub consensus: commit_index/last_applied tracked for the planned Raft loop.
+#[allow(dead_code)]
 pub struct RaftConsensus {
     /// Unique identifier for this node
     node_id: String,
@@ -364,6 +368,8 @@ pub struct RaftConsensus {
     heartbeat_interval: Duration,
 }
 
+// `term` retained for the planned Raft log-replication path.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct RaftLogEntry {
     term: u64,
@@ -425,7 +431,7 @@ impl RaftConsensus {
     async fn start_election(&self) {
         let mut current_term = self.current_term.write().await;
         *current_term += 1;
-        let term = *current_term;
+        let _term = *current_term;
 
         let mut voted_for = self.voted_for.write().await;
         *voted_for = Some(self.node_id.clone());
@@ -453,7 +459,7 @@ impl RaftConsensus {
 
 #[async_trait]
 impl DistributedConsensus for RaftConsensus {
-    async fn propose(&self, key: &str, value: &[u8]) -> Result<bool> {
+    async fn propose(&self, _key: &str, value: &[u8]) -> Result<bool> {
         let state = self.state.read().await;
         if *state != RaftState::Leader {
             return Ok(false);
@@ -470,7 +476,7 @@ impl DistributedConsensus for RaftConsensus {
         Ok(true)
     }
 
-    async fn get_consensus_value(&self, key: &str) -> Result<Option<Vec<u8>>> {
+    async fn get_consensus_value(&self, _key: &str) -> Result<Option<Vec<u8>>> {
         let log = self.log.read().await;
         if log.len() > 1 {
             Ok(Some(log.last().unwrap().command.clone()))
@@ -1213,7 +1219,7 @@ impl NodeHealthMonitor {
                 let now = chrono::Utc::now();
                 let mut health = node_health.write().await;
 
-                for (node_id, status) in health.iter_mut() {
+                for (_node_id, status) in health.iter_mut() {
                     let elapsed = now.signed_duration_since(status.last_heartbeat);
                     if elapsed > chrono::Duration::from_std(timeout_threshold).unwrap() {
                         status.is_healthy = false;

@@ -132,6 +132,8 @@ pub struct WebAuthnAllowedCredential {
 }
 
 /// WebAuthn credential provider with full attestation support
+// rp_name/rp_origin retained for planned attestation-response construction.
+#[allow(dead_code)]
 pub struct WebAuthnCredentialProvider {
     /// Relying party ID (domain)
     rp_id: String,
@@ -227,10 +229,10 @@ impl WebAuthnCredentialProvider {
 
         // Convert user_id to UUID bytes
         let user_uuid = Uuid::parse_str(user_id).unwrap_or_else(|_| Uuid::new_v4());
-        let user_id_bytes = user_uuid.as_bytes().to_vec();
+        let _user_id_bytes = user_uuid.as_bytes().to_vec();
 
         // Determine authenticator attachment
-        let auth_attachment = match (
+        let _auth_attachment = match (
             self.allow_platform_authenticators,
             self.allow_cross_platform_authenticators,
         ) {
@@ -243,7 +245,7 @@ impl WebAuthnCredentialProvider {
         let exclude_credentials: Vec<CredentialID> = existing_credentials;
 
         // Determine user verification policy
-        let user_verification = if self.require_user_verification {
+        let _user_verification = if self.require_user_verification {
             UserVerificationPolicy::Required
         } else {
             UserVerificationPolicy::Preferred
@@ -310,7 +312,7 @@ impl WebAuthnCredentialProvider {
     /// Extract attestation data from registration response
     fn extract_attestation_data(
         &self,
-        response: &RegisterPublicKeyCredential,
+        _response: &RegisterPublicKeyCredential,
         passkey: &Passkey,
     ) -> Result<AttestationData> {
         // Best-effort extraction of a stable identifier from the credential id.

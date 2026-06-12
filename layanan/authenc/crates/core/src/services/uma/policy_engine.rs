@@ -8,13 +8,10 @@
 //! - JavaScript policy execution
 //! - Policy aggregation and combination
 
-use crate::services::resource_store::ResourceStoreTrait;
-use authenc_storage::Database;
 use authenc_types::Result;
 use chrono::{Datelike, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
 use uuid::Uuid;
 
 /// Policy evaluation context
@@ -550,8 +547,8 @@ impl PolicyEngine {
     /// Evaluate aggregate policy
     async fn evaluate_aggregate_policy(
         &self,
-        context: &PolicyEvaluationContext,
-        config: &PolicyConfig,
+        _context: &PolicyEvaluationContext,
+        _config: &PolicyConfig,
     ) -> Result<PolicyDecision> {
         // Aggregate policy combines other policies
         // For now, return NotApplicable

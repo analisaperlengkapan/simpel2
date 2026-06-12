@@ -303,7 +303,7 @@ impl ProtocolMapperService {
     fn evaluate_user_group_mapper(
         &self,
         mapper: &ProtocolMapper,
-        user: &User,
+        _user: &User,
     ) -> Result<HashMap<String, serde_json::Value>> {
         let mut claims = HashMap::new();
 

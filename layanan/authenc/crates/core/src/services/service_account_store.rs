@@ -2,7 +2,6 @@ use authenc_storage::Database;
 use authenc_types::domain::{ServiceAccount, ServiceAccountListItem};
 use authenc_types::{AuthencError, Result};
 use std::sync::Arc;
-use tracing::{error, info};
 use uuid::Uuid;
 
 /// Service Account Store
@@ -145,6 +144,7 @@ impl ServiceAccountStore {
     }
 
     /// Generate a secure random client secret (32 characters)
+    #[allow(dead_code)] // planned: used when service-account secret rotation is wired
     fn generate_client_secret() -> String {
         use rand::Rng;
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

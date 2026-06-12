@@ -51,7 +51,8 @@ impl CacheEntry {
 pub struct InMemoryCache {
     /// The cache storage
     cache: Arc<Mutex<LruCache<String, CacheEntry>>>,
-    /// Maximum number of entries
+    /// Maximum number of entries (planned: enforced separately from LruCache cap)
+    #[allow(dead_code)]
     max_size: usize,
     /// Default TTL for entries
     default_ttl: Duration,

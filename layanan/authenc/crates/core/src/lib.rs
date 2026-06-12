@@ -1,14 +1,3 @@
-// Many services and SPI modules contain placeholder/stub implementations
-// with unused variables, dead code, and deprecated type references that
-// will be cleaned up incrementally.  Suppress these crate-wide for now.
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
-#![allow(unused_assignments)]
-#![allow(unreachable_code)]
-#![allow(deprecated)]
-#![allow(ambiguous_glob_reexports)]
-
 //! # authenc-core
 //!
 //! Core business logic for Authenc identity provider.
@@ -197,6 +186,8 @@ pub use config::{AppConfig, MfaFallbackConfig};
 // pub use init::{initialize_database, initialize_services};
 
 // Re-export all service types from services module
+// (re-exports the deprecated-but-still-used OrganizationRole; see DynamicRoleStore migration)
+#[allow(deprecated)]
 pub use services::{
     AnomalyDetector,
     AnomalyDetectorTrait,

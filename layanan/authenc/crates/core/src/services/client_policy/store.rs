@@ -184,7 +184,6 @@ impl ClientPolicyStore {
         if let Some(priority) = &request.priority {
             updates.push(format!("priority = ${}", param_count));
             params.push(priority);
-            param_count += 1;
         }
 
         if updates.is_empty() {
@@ -424,7 +423,6 @@ impl ClientPolicyStore {
         if let Some(policy_ids) = &request.policy_ids {
             updates.push(format!("policy_ids = ${}", param_count));
             params.push(policy_ids);
-            param_count += 1;
         }
 
         if updates.is_empty() {

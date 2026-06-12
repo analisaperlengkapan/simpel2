@@ -15,7 +15,8 @@ use tracing::debug;
 pub struct CacheInvalidationListener {
     /// Cache invalidation service
     invalidation_service: Arc<CacheInvalidationService>,
-    /// Listener name
+    /// Listener name (planned: used for listener identification/metrics)
+    #[allow(dead_code)]
     name: String,
 }
 

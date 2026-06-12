@@ -844,6 +844,8 @@ impl TokenExchangeService {
 }
 
 /// Helper struct for user information
+// `id` retained for diagnostics; not read on the current exchange path.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct UserInfo {
     id: Uuid,

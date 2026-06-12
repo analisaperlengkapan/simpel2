@@ -306,7 +306,7 @@ impl ProductionClientRegistrationService {
     fn request_to_client(
         &self,
         request: &ClientRegistrationRequest,
-        client_secret: &str,
+        _client_secret: &str,
         client_secret_hash: &str,
         policy: &authenc_types::domain::oauth2::ClientRegistrationPolicy,
     ) -> OAuth2Client {
@@ -593,6 +593,9 @@ impl ClientRegistrationService for ProductionClientRegistrationService {
         Ok(self.client_to_response(&client, None, registration_access_token))
     }
 
+    // Stub: returns "not implemented" early; `request` is consumed by the
+    // (currently unreachable) planned update path below.
+    #[allow(unused_variables)]
     async fn update_client_configuration(
         &self,
         client_id: &str,
