@@ -11,7 +11,7 @@ FROM chef as builder
 WORKDIR /workspace
 
 # Install cmake and build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config libssl-dev protobuf-compiler \
     cmake clang libclang-dev perl \
     libc6-dev libc6-dev-i386 llvm lld \
@@ -62,7 +62,11 @@ ENV AUTHENC_URL=$AUTHENC_URL
 RUN trunk build --release --public-url "/portal/"
 
 # Stage 2: Nginx untuk serving hasil build - LISTEN ON PORT 8080
-FROM nginx:alpine
+# nginx-unprivileged runs as non-root (uid 101) and listens on 8080 by default —
+# matches our port and clears Trivy DS-0002 (no root container). pid relocated to
+# /tmp in nginx.conf; html chowned so the entrypoint can write config.json.
+FROM nginxinc/nginx-unprivileged:alpine
+USER root
 
 # Copy portal-specific nginx config
 COPY antarmuka/portal/nginx.conf /etc/nginx/nginx.conf
@@ -72,6 +76,11 @@ COPY --from=builder /workspace/antarmuka/portal/dist /usr/share/nginx/html
 
 # Copy entrypoint script
 COPY antarmuka/portal/entrypoint.sh /docker-entrypoint.sh
+
+# Make the web root writable (entrypoint writes config.json at runtime) and the
+# entrypoint executable, then drop back to the non-root nginx user.
+RUN chown -R nginx:nginx /usr/share/nginx/html && chmod +x /docker-entrypoint.sh
+USER nginx
 
 # Expose port 8080 (match K8s deployment)
 EXPOSE 8080

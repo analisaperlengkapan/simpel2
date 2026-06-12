@@ -33,12 +33,18 @@ FROM debian:bookworm-slim
 
 WORKDIR /usr/app
 
-RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/src/app/target/release/layanan-integrasi-server /usr/app/layanan-integrasi
 COPY --from=builder /usr/src/app/target/release/integrasi-migrate /usr/app/integrasi-migrate
 
-RUN mkdir -p output
+# Run as a non-root system user (Trivy DS-0002). The server binds 8080/50051
+# (>1024, no privilege needed) and only writes under /usr/app/output.
+RUN mkdir -p output \
+    && groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --no-create-home app \
+    && chown -R app:app /usr/app
+USER app
 
 ENV RUST_LOG=info
 ENV GRPC_HOST=0.0.0.0

@@ -85,6 +85,43 @@ jobs:
       - name: cargo audit
         run: cargo audit
 
+  # PHP dependency audit for the legacy simpelv1 monolith (composer.lock).
+  # Defense-in-depth alongside trivy-fs (which already parses composer.lock):
+  # `composer audit` queries the PHP-native Packagist advisory DB, which can
+  # carry advisories/timing that the Trivy DB does not. Advisory but VISIBLE —
+  # no continue-on-error, so the job conclusion reflects the real result and
+  # shows ⚠️ FINDINGS in the Security Summary without blocking the merge (the
+  # summary still gates only on gitleaks). Path-gated to the simpelv1 composer
+  # manifests so unrelated PRs skip the container pull.
+  composer-audit:
+    name: composer-audit (simpelv1)
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect composer changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            composer:
+              - 'monolith/simpelv1/composer.json'
+              - 'monolith/simpelv1/composer.lock'
+              - '.github/workflows/security.yml'
+      - name: composer audit (--locked, no install)
+        if: steps.filter.outputs.composer == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # serversideup/php:8.2-cli bundles composer; --locked audits the
+          # lockfile directly (no `composer install`/vendor needed). COMPOSER_HOME
+          # points at a writable tmp dir for the advisory-DB cache.
+          docker run --rm \
+            -v "${{ github.workspace }}/monolith/simpelv1:/app" \
+            -w /app \
+            -e COMPOSER_HOME=/tmp/composer \
+            serversideup/php:8.2-cli \
+            composer audit --locked --no-interaction
+
   cargo-deny:
     name: cargo-deny
     runs-on: arc-simpel
@@ -130,23 +167,18 @@ jobs:
           # synthetic-key false positives). Keeps findings to OUR actionable code.
           trivy-config: "infra/lint/trivy.yaml"
           trivyignores: "infra/lint/.trivyignore.yaml"
-          format: "sarif"
-          output: "trivy-fs.sarif"
+          # Render findings as a TABLE to the job log (NOT sarif). Code scanning
+          # is not enabled on this repo, so an uploaded SARIF can't be viewed —
+          # the table makes findings visible inline, so a red job is actionable
+          # (you can see WHAT failed) instead of an opaque exit code.
+          format: "table"
           severity: "HIGH,CRITICAL"
           # Advisory but VISIBLE: fail the job on fixable HIGH/CRITICAL so it
           # shows red (a green check gets overlooked). Non-blocking for merges —
-          # the Security Summary only gates on gitleaks. SARIF still uploads
-          # (next step is if: always()) so findings also land in the Security tab.
+          # the Security Summary only gates on gitleaks.
           exit-code: "1"
           ignore-unfixed: "true"
           scanners: "vuln,secret,misconfig"
-      - name: Upload Trivy SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-fs.sarif
-          category: trivy-fs
-        continue-on-error: true
 
   # Verifikasi formal Verus — SCAFFOLD untuk masa depan.
   # Verus hanya bisa memverifikasi kode yang ditulis dalam subset Verus, yaitu
@@ -278,6 +310,7 @@ jobs:
     if: always()
     needs:
       - cargo-audit
+      - composer-audit
       - cargo-deny
       - gitleaks
       - helm-lint
