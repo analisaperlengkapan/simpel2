@@ -114,10 +114,24 @@ jobs:
           fmt_exit=0; fix_exit=0; clippy_exit=0
           cargo fmt --all || fmt_exit=$?
           if [ $fmt_exit -ne 0 ]; then echo "::warning::cargo fmt exit code: $fmt_exit"; fi
+          # FE crates (perlengkapan-microfrontend, portal-microfrontend) are
+          # EXCLUDED from the semantic fixers. They are dual-cfg (browser
+          # `#[cfg(target_arch = "wasm32")]` + ~189 host `#[cfg(not(...))]`
+          # stubs), and `cargo fix`/`clippy --fix` only ever evaluate ONE cfg
+          # configuration — they strip whatever is gated to the OTHER config as
+          # "dead". Run on host (as here) they mangle wasm-only items (this broke
+          # PR #526); run with `--target wasm32` they would instead silently
+          # mangle the host stubs (uncaught — no CI builds these crates for host).
+          # No single target is safe, so FE lints are left to the clippy GATE in
+          # ci.yml (which runs them on wasm32) for a human to fix cfg-correctly.
+          # `cargo fmt --all` above stays workspace-wide (formatting is
+          # cfg-agnostic, so it is safe for the FE crates).
           cargo fix --workspace --all-targets --all-features \
+            --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --allow-dirty --allow-staged || fix_exit=$?
           if [ $fix_exit -ne 0 ]; then echo "::warning::cargo fix exit code: $fix_exit"; fi
           cargo clippy --workspace --all-targets --all-features \
+            --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --fix --allow-dirty --allow-staged -- -W clippy::all || clippy_exit=$?
           if [ $clippy_exit -ne 0 ]; then echo "::warning::cargo clippy --fix exit code: $clippy_exit"; fi
           # Final fmt pass untuk reformat hasil fix/clippy.
@@ -495,10 +509,16 @@ jobs:
         shell: bash
         run: |
           set +e
-          # Rust
+          # Rust — FE crates excluded from the semantic fixers (dual-cfg; see the
+          # detailed note in the non-fork "Apply cargo fmt + fix + clippy --fix"
+          # step). `cargo fmt --all` stays workspace-wide (cfg-agnostic, safe).
           cargo fmt --all
-          cargo fix --workspace --all-targets --allow-dirty --allow-staged
-          cargo clippy --workspace --all-targets --fix --allow-dirty --allow-staged -- -W clippy::all
+          cargo fix --workspace --all-targets \
+            --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
+            --allow-dirty --allow-staged
+          cargo clippy --workspace --all-targets \
+            --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
+            --fix --allow-dirty --allow-staged -- -W clippy::all
           cargo fmt --all
           python3 ./infra/scripts/check-cargo-versioning.py fix
           # TOML
