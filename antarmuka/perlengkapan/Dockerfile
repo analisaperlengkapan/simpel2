@@ -11,7 +11,7 @@ FROM chef as builder
 WORKDIR /workspace
 
 # Install cmake and build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config libssl-dev protobuf-compiler \
     cmake clang libclang-dev perl \
     libc6-dev libc6-dev-i386 llvm lld \
@@ -57,7 +57,11 @@ RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN trunk build --release --public-url "/perlengkapan/simpel/v2/"
 
 # Stage 2: Nginx for serving build output - LISTEN ON PORT 8080
-FROM nginx:alpine
+# nginx-unprivileged runs as non-root (uid 101) on 8080 — clears Trivy DS-0002.
+# pid relocated to /tmp in nginx.conf; the html chown below (already present)
+# lets the entrypoint write config.json. USER root only for the setup RUNs.
+FROM nginxinc/nginx-unprivileged:alpine
+USER root
 
 # Copy perlengkapan-specific nginx config
 COPY antarmuka/perlengkapan/nginx.conf /etc/nginx/nginx.conf
@@ -85,6 +89,9 @@ RUN chown -R nginx:nginx /usr/share/nginx/html
 # Copy entrypoint script
 COPY antarmuka/perlengkapan/entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
+
+# Drop back to the non-root nginx user (uid 101) for runtime.
+USER nginx
 
 # Expose port 8080 (match K8s deployment)
 EXPOSE 8080

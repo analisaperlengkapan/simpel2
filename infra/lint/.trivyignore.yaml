@@ -1,6 +1,31 @@
-# Trivy misconfiguration ignores (referenced by security.yml::trivy-fs).
-# Path-scoped FALSE POSITIVES only — each must justify why it is not real.
+# Trivy ignores (referenced by security.yml::trivy-fs).
+# FALSE POSITIVES / non-exposures only — each must justify why it is not real.
+vulnerabilities:
+  - id: GHSA-82j2-j2ch-gfr8
+    paths:
+      - "Cargo.lock"
+    statement: >-
+      rustls-webpki 0.101.7 is an ORPHAN lock entry (stale rustls 0.21 island via
+      old hyper-rustls 0.24 / tokio-rustls 0.24 / aws-smithy-http-client) — NOT in
+      the active build graph (`cargo tree -i` cannot reach it), so it is never
+      compiled or shipped. The live path uses rustls-webpki 0.103.13. A surgical
+      `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
+      dependabot's weekly cargo bumps will prune it. Not an exposure.
+
 misconfigurations:
+  # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
+  # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
+  # nginx images + integrasi backend ARE fixed at image level (non-root).
+  # These two are coupled to runtime verification:
+  - id: AVD-DS-0002
+    paths:
+      - "monolith/simpelv1/Dockerfile"
+      - "antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e"
+    statement: >-
+      simpelv1 runs php-fpm+nginx — non-root needs php-fpm pool + nginx pid
+      rework that must be deploy-verified (tracked with #46 Helm runAsNonRoot).
+      Dockerfile.e2e is an ephemeral CI Playwright runner, never deployed.
+
   - id: AVD-KSV-0109
     paths:
       - "tests/load/k8s-load-test-job.yaml"
