@@ -9,8 +9,8 @@ FROM rust:1.96-slim-bookworm AS builder
 WORKDIR /workspace
 
 # Install build dependencies (including protobuf for gRPC)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && \
+    apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends \
     build-essential \
     g++ \
     gcc \
@@ -53,8 +53,8 @@ RUN if [ "$CAPTCHA_DEBUG" = "1" ]; then \
 FROM ubuntu:26.04
 
 # Install runtime dependencies only (including curl for healthcheck)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && \
+    apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y --no-install-recommends \
     ca-certificates \
     libssl3 \
     curl && \

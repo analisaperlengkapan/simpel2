@@ -11,7 +11,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 FROM chef AS builder
 COPY --from=planner /usr/src/app/recipe.json recipe.json
 # Install build dependencies
-RUN apt-get update && apt-get install -y pkg-config libssl-dev protobuf-compiler && rm -rf /var/lib/apt/lists/*
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y pkg-config libssl-dev protobuf-compiler && rm -rf /var/lib/apt/lists/*
 # Cook dependencies
 RUN cargo chef cook --release --recipe-path recipe.json
 
@@ -33,7 +33,7 @@ FROM debian:bookworm-slim
 
 WORKDIR /usr/app
 
-RUN apt-get update && apt-get install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 update && apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20 install -y libssl3 ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/src/app/target/release/layanan-integrasi-server /usr/app/layanan-integrasi
 COPY --from=builder /usr/src/app/target/release/integrasi-migrate /usr/app/integrasi-migrate

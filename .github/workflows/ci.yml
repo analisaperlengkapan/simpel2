@@ -1060,13 +1060,24 @@ jobs:
       # Building first, then wrapping only the (fast) start + migrate phase in
       # `timeout`, converts a hang into a prompt, self-diagnosing failure
       # (`ps -a` + `logs` dumped inline so the culprit container is visible).
+      # The image build itself can HANG (observed: `apt-get` in a runtime stage
+      # stalling on a flaky Debian-mirror fetch from inside the dind sidecar —
+      # apt has no connection timeout, so it blocks forever). Without a bound
+      # here a stuck build burns the whole runner slot (~6h) with no diagnostics,
+      # since the `if: failure()` log step never fires on a hang. Bound it: a
+      # legit cold build of all 5 images is ~50min, so 90min (5400s) catches a
+      # true hang while leaving generous headroom under host contention. (The
+      # apt fetches are also hardened with retries+timeouts in the Dockerfiles.)
       - name: Build e2e images
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-            authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan
+          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+              authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan; then
+            echo "::error::e2e image build failed or timed out after 5400s (a Dockerfile step — often an apt-get fetch in dind — likely hung; see build log above)"
+            exit 1
+          fi
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
