@@ -1,0 +1,16 @@
+# Trivy secret-scanning config (referenced by infra/lint/trivy.yaml).
+#
+# allow-rules suppress FALSE POSITIVES only. Each entry must document why the
+# match is not a real leaked credential.
+allow-rules:
+  # secreton's GCP secrets-engine *scaffold* builds a service-account-key JSON
+  # structure at runtime with SYNTHETIC placeholder key material — there is no
+  # real credential committed:
+  #   - dynamic/mod.rs : literal "-----BEGIN PRIVATE KEY-----\n[GENERATED_KEY]\n..."
+  #   - secrets/gcp.rs : generate_private_key() -> base64("GENERATED_KEY_<uuid>")
+  # Trivy's gcp-service-account rule matches the "private_key" JSON field + PEM
+  # markers regardless. Allow by path (these files legitimately deal with secret
+  # *generation*, so they will always trip the heuristic).
+  - id: secreton-gcp-scaffold-synthetic-key
+    description: secreton GCP secrets-engine scaffold emits synthetic placeholder SA keys (no real creds)
+    path: 'layanan/secreton/crates/core/src/services/(dynamic/mod|secrets/gcp)\.rs$'

@@ -262,10 +262,20 @@ spec:
         test-type: dashboard
     spec:
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: k6
         image: grafana/k6:latest
         command: ["k6", "run", "/scripts/dashboard-load-test.js"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         - name: BASE_URL
           value: "http://layanan-perlengkapan:3020"
@@ -308,10 +318,20 @@ spec:
         test-type: api
     spec:
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: k6
         image: grafana/k6:latest
         command: ["k6", "run", "/scripts/api-load-test.js"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         - name: BASE_URL
           value: "http://layanan-perlengkapan:3020"
@@ -354,10 +374,20 @@ spec:
         test-type: search
     spec:
       restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 12345
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: k6
         image: grafana/k6:latest
         command: ["k6", "run", "/scripts/search-load-test.js"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         env:
         - name: BASE_URL
           value: "http://layanan-perlengkapan:3020"

@@ -124,6 +124,12 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
+          # Scope + secret allow-rules live in infra/lint/trivy.yaml (skips build
+          # artifacts target/, vendored vendor/node_modules, dist/, and helm —
+          # which kube-linter owns — and allow-lists the secreton GCP-scaffold
+          # synthetic-key false positives). Keeps findings to OUR actionable code.
+          trivy-config: "infra/lint/trivy.yaml"
+          trivyignores: "infra/lint/.trivyignore.yaml"
           format: "sarif"
           output: "trivy-fs.sarif"
           severity: "HIGH,CRITICAL"
