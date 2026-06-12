@@ -240,34 +240,50 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # `scope` controls the lint surface per crate. Backend crates lint the
+        # full graph (`--all-targets --all-features`). The wasm CSR frontends
+        # lint only the shipped target (`--lib --bins`, default = csr feature):
+        # `--all-targets` would compile their test/dev targets for wasm32 (which
+        # pull native tokio → `mio`, doesn't build on wasm), and `--all-features`
+        # would turn on server-side features (ssr/hydrate) that are never shipped.
         include:
           - name: lib-core
             packages: "-p lib-core"
+            scope: "--all-targets --all-features"
           - name: lib-backend
             packages: "-p lib-backend"
+            scope: "--all-targets --all-features"
           - name: lib-crypto
             packages: "-p lib-crypto"
+            scope: "--all-targets --all-features"
           - name: lib-perlengkapan
             packages: "-p lib-perlengkapan"
+            scope: "--all-targets --all-features"
           - name: lib-ui
             packages: "-p lib-ui"
-            features: "--features ssr"
+            scope: "--all-targets --all-features"
           - name: antarmuka-portal
             packages: "-p portal-microfrontend"
             targets: "wasm32-unknown-unknown"
             extra_args: "--target wasm32-unknown-unknown"
+            scope: "--lib --bins"
           - name: antarmuka-perlengkapan
             packages: "-p perlengkapan-microfrontend"
             targets: "wasm32-unknown-unknown"
             extra_args: "--target wasm32-unknown-unknown"
+            scope: "--lib --bins"
           - name: layanan-authenc
             packages: "-p authenc-types -p authenc-core -p authenc-crypto -p authenc-storage -p authenc-api -p authenc-iam-api -p authenc-grpc -p authenc-mfa -p authenc-federation -p authenc-webauthn"
+            scope: "--all-targets --all-features"
           - name: layanan-perlengkapan
             packages: "-p layanan-perlengkapan"
+            scope: "--all-targets --all-features"
           - name: layanan-integrasi
             packages: "-p layanan-integrasi"
+            scope: "--all-targets --all-features"
           - name: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            scope: "--all-targets --all-features"
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-rust
@@ -282,14 +298,12 @@ jobs:
       # Clippy split per-crate so the 20-runner ARC budget runs them in parallel
       # and failures pinpoint the offending crate. Toolchain is pinned (setup-rust
       # → 1.96.0) so the lint set is reproducible.
-      # TEMP (F-CI): NON-BLOCKING. There is a pre-existing workspace-wide lint
-      # backlog (incl. plain rustc warnings: unexpected_cfgs, deprecated-API,
-      # dead_code) that `-D warnings` would turn into hard failures. The cleanup
-      # is tracked separately; once green, restore `-- -D warnings` +
-      # `continue-on-error: false` to make this a hard gate.
+      # HARD GATE (#29): `-- -D warnings` + `continue-on-error: false`. The whole
+      # workspace was brought to zero warnings per crate (gates p4–p7 + portal
+      # cleanup) before flipping this on. FE crates fixed by hand cfg-aware (the
+      # autofix bot excludes them — see autofix.yml / antarmuka/AGENTS.md).
       - name: cargo clippy (${{ matrix.name }})
-        continue-on-error: true
-        run: cargo clippy ${{ matrix.packages }} ${{ matrix.features || '' }} ${{ matrix.extra_args || '' }} --all-targets --all-features
+        run: cargo clippy ${{ matrix.packages }} ${{ matrix.features || '' }} ${{ matrix.extra_args || '' }} ${{ matrix.scope }} -- -D warnings
 
   lint-php:
     name: Lint PHP (Pint + Larastan)
