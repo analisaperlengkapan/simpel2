@@ -72,7 +72,7 @@ fn build_export_url(
     url
 }
 
-fn open_url(url: &str) {
+fn open_url(_url: &str) {
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(window) = web_sys::window() {

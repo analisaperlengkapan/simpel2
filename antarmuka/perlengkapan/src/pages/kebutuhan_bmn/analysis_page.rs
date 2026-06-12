@@ -321,7 +321,7 @@ fn LaporanAnalisisSection(satker_id: Uuid) -> impl IntoView {
         "/api/v1/perlengkapan/kebutuhan-bmn/satker/{}/laporan/download?format=pdf",
         satker_id
     );
-    let download_url_for_click = download_url.clone();
+    let _download_url_for_click = download_url.clone();
     let preview_for_iframe = preview_url.clone();
 
     view! {

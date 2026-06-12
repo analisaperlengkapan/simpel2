@@ -6,7 +6,6 @@
 //! But if Perlengkapan is the only open tab, nobody else refreshes the JWT and the
 //! user gets booted the moment `exp` passes. This monitor closes that gap.
 
-use crate::features::auth::AuthService;
 use leptos::prelude::*;
 
 /// Spawn a long-lived task that refreshes the JWT before it expires and
