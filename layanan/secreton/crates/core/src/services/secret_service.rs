@@ -767,9 +767,6 @@ pub struct HashResult {
 mod tests {
     use super::*;
     use crate::audit::{AuditBackend, AuditLogger, MemoryBackend as AuditMemoryBackend};
-    use crate::config::api::AuthConfig;
-    use crate::services::auth_service::AuthService;
-    use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 
     #[tokio::test]

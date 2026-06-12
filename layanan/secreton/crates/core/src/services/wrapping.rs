@@ -50,6 +50,8 @@ use crate::utils::encoding::{base64_decode, base64_encode};
 const MAX_WRAPPED_DATA_SIZE: usize = 1024 * 1024;
 
 /// Default TTL for wrapped tokens (5 minutes)
+// Planned: apply as the fallback when a wrap request omits an explicit TTL.
+#[allow(dead_code)]
 const DEFAULT_TTL_SECONDS: i64 = 300;
 
 /// Maximum TTL for wrapped tokens (24 hours)

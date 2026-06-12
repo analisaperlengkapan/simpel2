@@ -650,15 +650,10 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
                     // Calculate replication lag for followers
                     let replication_lag = if !is_leader
-                        && status.last_log_index.is_some()
-                        && status.last_applied.is_some()
+                        && let Some(last_log_index) = status.last_log_index
+                        && let Some(last_applied) = status.last_applied
                     {
-                        Some(
-                            status
-                                .last_log_index
-                                .unwrap()
-                                .saturating_sub(status.last_applied.unwrap()),
-                        )
+                        Some(last_log_index.saturating_sub(last_applied))
                     } else {
                         None
                     };

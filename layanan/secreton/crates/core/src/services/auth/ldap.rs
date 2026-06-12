@@ -139,6 +139,8 @@ pub struct LdapAuth {
 }
 
 /// LDAP connection (simulated)
+// `url`/`connected_at` retained for the real LDAP connection wiring.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct LdapConnection {
     url: String,
@@ -378,8 +380,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_case_sensitivity() {
-        let mut config = LdapConfig::default();
-        config.case_sensitive_names = false;
+        let config = LdapConfig {
+            case_sensitive_names: false,
+            ..Default::default()
+        };
         let ldap = LdapAuth::new(config);
 
         let user1 = ldap.authenticate("TestUser", "password123").await.unwrap();

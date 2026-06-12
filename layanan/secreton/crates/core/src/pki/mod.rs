@@ -7,6 +7,7 @@
 //! Note: This module was renamed from 'crypto' to 'pki' in v1.1.0 to better reflect
 //! its actual purpose (PKI operations, not general cryptography).
 
+#[allow(clippy::module_inception)] // pki submodule under pki/; rename not worth the churn
 pub mod pki;
 
 pub use pki::{Certificate, PrivateKey, SignatureAlgorithm};

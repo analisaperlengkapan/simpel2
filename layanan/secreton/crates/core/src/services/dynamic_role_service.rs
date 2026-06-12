@@ -12,7 +12,7 @@
 
 use crate::models::dynamic_role::{
     AuthMethodType, Capability, DynamicRoleStore, EffectiveCapabilities, EngineRoleType,
-    PathAccessResult, PolicyEffect, PolicyRule, SshKeyType, TokenType, UserRoleType,
+    PathAccessResult, SshKeyType, TokenType, UserRoleType,
 };
 use chrono::Utc;
 use std::collections::HashSet;
@@ -568,7 +568,6 @@ impl<B: DynamicRoleBackend + 'static> DynamicRoleStore for PostgresDynamicRoleSe
             .await?;
 
         for row in rows {
-            let policy_id: i64 = row.get(0);
             let policy_name: String = row.get(1);
             let effect: String = row.get(2);
             let capabilities: Vec<String> =

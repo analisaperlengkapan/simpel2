@@ -9,12 +9,6 @@ use secreton_core::services::classification::{
 use secreton_core::services::mfa::MfaService;
 use std::sync::Arc;
 
-// Helper to setup test service with MFA
-async fn setup_test_service_with_mfa() -> Arc<InMemoryClassificationService> {
-    let mfa_service = Arc::new(MfaService::new());
-    Arc::new(InMemoryClassificationService::with_mfa(mfa_service))
-}
-
 // Helper to setup test service without MFA
 async fn setup_test_service() -> Arc<InMemoryClassificationService> {
     Arc::new(InMemoryClassificationService::new())

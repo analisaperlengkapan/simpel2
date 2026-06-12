@@ -13,6 +13,7 @@ use crate::config::CliConfig;
 use crate::http_client::AuthenticatedClient;
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)] // clap subcommand enum; boxing complicates the derive
 pub enum AutoUnsealCommand {
     /// Configure auto-unseal provider
     Configure {

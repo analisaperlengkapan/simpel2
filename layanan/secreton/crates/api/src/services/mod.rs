@@ -389,6 +389,7 @@ impl ServiceContainer {
     }
 
     /// Initialize secrets engines and policy services
+    #[allow(clippy::type_complexity)]
     fn initialize_secrets_engines(
         pool: deadpool_postgres::Pool,
     ) -> (
@@ -556,8 +557,10 @@ impl ServiceContainer {
                         .and_then(|v| v.parse::<u64>().ok())
                         .unwrap_or(config.storage.raft.node_id);
 
-                    let mut raft_config = RaftClusterConfig::default();
-                    raft_config.node_id = node_id;
+                    let mut raft_config = RaftClusterConfig {
+                        node_id,
+                        ..Default::default()
+                    };
 
                     // Parse peer list from config or environment
                     let peers_str = std::env::var("SECRETON_RAFT_PEERS").ok().or_else(|| {
@@ -752,8 +755,10 @@ impl ServiceContainer {
             cfg.password = Some(config.database.password.clone());
         }
 
-        let mut pool_cfg = deadpool_postgres::PoolConfig::default();
-        pool_cfg.max_size = config.database.max_connections as usize;
+        let mut pool_cfg = deadpool_postgres::PoolConfig {
+            max_size: config.database.max_connections as usize,
+            ..Default::default()
+        };
         pool_cfg.timeouts.wait = Some(std::time::Duration::from_secs(
             config.database.connection_timeout,
         ));

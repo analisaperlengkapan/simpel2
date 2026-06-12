@@ -23,6 +23,7 @@ pub enum Capability {
 
 impl Capability {
     /// Parse capability from string
+    #[allow(clippy::should_implement_trait)] // returns Option, not FromStr's Result
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "read" => Some(Capability::Read),

@@ -1382,12 +1382,14 @@ mod tests {
 
     async fn create_test_manager() -> (BackupManager, TempDir) {
         let temp_dir = TempDir::new().unwrap();
-        let mut config = BackupConfig::default();
-        config.storage_config = crate::types::StorageConfig::Local(LocalStorageConfig {
-            path: temp_dir.path().to_string_lossy().to_string(),
-        });
-        // Set a mock database URL for testing
-        config.database_url = Some("postgresql://test:test@localhost:5432/test".to_string());
+        let config = BackupConfig {
+            storage_config: crate::types::StorageConfig::Local(LocalStorageConfig {
+                path: temp_dir.path().to_string_lossy().to_string(),
+            }),
+            // Mock database URL for testing
+            database_url: Some("postgresql://test:test@localhost:5432/test".to_string()),
+            ..Default::default()
+        };
 
         let manager = BackupManager::new(config).await.unwrap();
         (manager, temp_dir)

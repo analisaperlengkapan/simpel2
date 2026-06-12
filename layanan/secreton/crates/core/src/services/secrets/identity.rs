@@ -228,6 +228,8 @@ pub struct TokenResponse {
 }
 
 /// Stored token for tracking
+// `token_id` is recorded for planned token revocation/cleanup.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct StoredToken {
     token_id: String,
@@ -247,7 +249,8 @@ pub struct IdentityEngine {
 
     // OIDC-specific state
     tokens: Arc<RwLock<HashMap<String, StoredToken>>>,
-    authorization_codes: Arc<RwLock<HashMap<String, (String, DateTime<Utc>)>>>, // code -> (entity_id, expiry)
+    #[allow(clippy::type_complexity)] // code -> (entity_id, expiry) map
+    authorization_codes: Arc<RwLock<HashMap<String, (String, DateTime<Utc>)>>>,
     jwks: Arc<RwLock<Jwks>>,
     current_kid: Arc<RwLock<String>>,
 }

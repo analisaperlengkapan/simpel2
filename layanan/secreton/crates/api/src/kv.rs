@@ -104,12 +104,8 @@ impl KVEngine {
         }
         .await;
 
-        // Audit log
-        let event_type = if result.is_ok() {
-            crate::audit::AuditEventType::SecretCreated
-        } else {
-            crate::audit::AuditEventType::SecretCreated
-        };
+        // Audit log (same event type regardless of outcome)
+        let event_type = crate::audit::AuditEventType::SecretCreated;
 
         let mut event = crate::audit::AuditEvent::new(
             event_type,

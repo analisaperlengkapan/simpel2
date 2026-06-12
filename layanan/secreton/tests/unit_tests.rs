@@ -110,19 +110,6 @@ impl MockMfaSystem {
             .ok_or_else(|| anyhow!("User not found"))?;
         Ok(user_state.backup_codes.len())
     }
-
-    fn reset_failed_attempts(&self, user_id: &str) -> Result<()> {
-        let mut users = self.users.lock().unwrap();
-        let user_state = users
-            .get_mut(user_id)
-            .ok_or_else(|| anyhow!("User not found"))?;
-
-        user_state.failed_attempts = 0;
-        user_state.last_failed_attempt = None;
-        user_state.is_locked = false;
-
-        Ok(())
-    }
 }
 
 #[test]

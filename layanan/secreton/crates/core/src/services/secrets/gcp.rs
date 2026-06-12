@@ -63,6 +63,7 @@ pub enum GcpCredentialType {
 }
 
 impl GcpCredentialType {
+    #[allow(clippy::should_implement_trait)] // domain-specific error type, not FromStr
     pub fn from_str(s: &str) -> Result<Self, GcpError> {
         match s.to_lowercase().as_str() {
             "service_account" => Ok(Self::ServiceAccount),
@@ -229,6 +230,8 @@ pub struct GcpCredentials {
 }
 
 /// Tracked service account for cleanup
+// `key_id`/`created_at` are recorded for planned service-account cleanup.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct TrackedServiceAccount {
     email: String,

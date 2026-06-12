@@ -252,7 +252,7 @@ impl BackupStorage for S3Storage {
         }
 
         // Sort by timestamp (newest first)
-        metadata_list.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        metadata_list.sort_by_key(|m| std::cmp::Reverse(m.timestamp));
 
         Ok(metadata_list)
     }

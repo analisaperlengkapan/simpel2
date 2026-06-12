@@ -241,6 +241,7 @@ pub struct KmipEngine {
     server_config: Arc<RwLock<Option<KmipServerConfig>>>,
     keys: Arc<RwLock<HashMap<String, KmipKeyObject>>>,
     roles: Arc<RwLock<HashMap<String, KmipRole>>>,
+    #[allow(dead_code)] // planned: connection pool for real KMIP server ops
     pool: Option<Pool>,
 }
 

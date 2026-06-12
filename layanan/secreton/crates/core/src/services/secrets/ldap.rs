@@ -190,6 +190,7 @@ pub struct LdapCredential {
 #[derive(Debug, Clone)]
 struct LdapConnection {
     url: String,
+    #[allow(dead_code)] // planned: bind DN used once real LDAP bind is wired
     bind_dn: String,
     connected: bool,
 }
@@ -269,6 +270,7 @@ pub struct LdapEngine {
     config: Arc<RwLock<Option<LdapConfig>>>,
     roles: Arc<RwLock<HashMap<String, LdapRole>>>,
     credentials: Arc<RwLock<HashMap<String, LdapCredential>>>,
+    #[allow(dead_code)] // planned: connection pool for real LDAP ops
     pool: Option<Pool>,
 }
 

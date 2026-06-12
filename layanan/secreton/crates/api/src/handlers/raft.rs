@@ -181,8 +181,6 @@ fn calculate_peer_info(node_id: u64, status: &secreton_storage::raft::RaftStatus
     let is_leader = Some(node_id) == status.leader_id;
     let state = if is_leader {
         "Leader".to_string()
-    } else if node_id == status.node_id {
-        "Follower".to_string()
     } else {
         "Follower".to_string()
     };
@@ -194,13 +192,10 @@ fn calculate_peer_info(node_id: u64, status: &secreton_storage::raft::RaftStatus
         Some(*lag)
     } else if node_id == status.node_id {
         // Local lag
-        if status.last_log_index.is_some() && status.last_applied.is_some() {
-            Some(
-                status
-                    .last_log_index
-                    .unwrap()
-                    .saturating_sub(status.last_applied.unwrap()),
-            )
+        if let (Some(last_log_index), Some(last_applied)) =
+            (status.last_log_index, status.last_applied)
+        {
+            Some(last_log_index.saturating_sub(last_applied))
         } else {
             None
         }
@@ -209,9 +204,7 @@ fn calculate_peer_info(node_id: u64, status: &secreton_storage::raft::RaftStatus
     };
 
     // Determine peer health
-    let health = if node_id == status.node_id {
-        NodeHealthStatus::Healthy
-    } else if is_leader {
+    let health = if node_id == status.node_id || is_leader {
         NodeHealthStatus::Healthy
     } else if let Some(lag) = replication_lag {
         if lag > 10000 {

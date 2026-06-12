@@ -324,6 +324,8 @@ impl From<&KafkaCredentials> for KafkaCredentialInfo {
 }
 
 /// Simulated Kafka Admin client for prototyping
+// Connection fields retained for the real kafka-admin-client wiring (simulated today).
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct KafkaAdminClient {
     bootstrap_servers: String,
@@ -391,6 +393,7 @@ impl KafkaAdminClient {
     }
 
     /// Simulate checking if user exists
+    #[allow(dead_code)] // planned: used once real SCRAM credential lookup is wired
     async fn user_exists(&self, username: &str) -> Result<bool, KafkaError> {
         debug!("Simulated: Checking if Kafka user '{}' exists", username);
         // In production, this would query Kafka for SCRAM credentials
@@ -404,6 +407,7 @@ pub struct KafkaEngine {
     roles: Arc<RwLock<HashMap<String, KafkaRole>>>,
     credentials: Arc<RwLock<HashMap<String, KafkaCredentials>>>,
     admin_client: Arc<RwLock<Option<KafkaAdminClient>>>,
+    #[allow(dead_code)] // planned: connection pool for real broker admin ops
     pool: Option<Pool>,
 }
 

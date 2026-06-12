@@ -340,6 +340,8 @@ impl CertAuth {
 mod tests {
     use super::*;
 
+    // Retained for planned client-certificate parsing/validation tests.
+    #[allow(dead_code)]
     const TEST_CERT_PEM: &str = r#"-----BEGIN CERTIFICATE-----
 MIICljCCAX4CCQCKz8Vv3PuGmDANBgkqhkiG9w0BAQsFADANMQswCQYDVQQGEwJV
 UzAeFw0yNTAxMDEwMDAwMDBaFw0yNjAxMDEwMDAwMDBaMA0xCzAJBgNVBAYTAlVT

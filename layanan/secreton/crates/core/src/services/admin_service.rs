@@ -689,7 +689,6 @@ mod tests {
     use super::*;
     use crate::audit::api_audit::AuditLogger;
     use crate::config::api::AuthConfig;
-    use secreton_crypto::SecurityParams;
     use secreton_storage::MemoryBackend;
 
     // Mock implementation of LeaseCleaner for testing

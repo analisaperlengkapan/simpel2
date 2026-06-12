@@ -90,11 +90,13 @@ fn bench_transit_sign(c: &mut Criterion) {
     let message = b"The quick brown fox jumps over the lazy dog";
 
     for (key_name, key_type) in &sign_key_types {
-        let mut key_options = KeyOptions::default();
-        key_options.usage = vec![
-            secreton_crypto::transit::keys::KeyUsage::Sign,
-            secreton_crypto::transit::keys::KeyUsage::Verify,
-        ];
+        let key_options = KeyOptions {
+            usage: vec![
+                secreton_crypto::transit::keys::KeyUsage::Sign,
+                secreton_crypto::transit::keys::KeyUsage::Verify,
+            ],
+            ..Default::default()
+        };
 
         let key =
             TransitKey::new(format!("sign-{}", key_name), key_type.clone(), key_options).unwrap();
@@ -114,8 +116,10 @@ fn bench_transit_sign(c: &mut Criterion) {
 fn bench_key_derivation(c: &mut Criterion) {
     let mut group = c.benchmark_group("key_derivation");
 
-    let mut key_options = KeyOptions::default();
-    key_options.usage = vec![secreton_crypto::transit::keys::KeyUsage::Derive];
+    let key_options = KeyOptions {
+        usage: vec![secreton_crypto::transit::keys::KeyUsage::Derive],
+        ..Default::default()
+    };
 
     let key = TransitKey::new("kdf-key".to_string(), KeyType::Aes256Gcm, key_options).unwrap();
 

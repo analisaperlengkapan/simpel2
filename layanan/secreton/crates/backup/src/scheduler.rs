@@ -153,11 +153,12 @@ mod tests {
     #[tokio::test]
     async fn test_scheduler_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let mut config = BackupConfig::default();
-        config.storage_config =
-            crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
+        let config = BackupConfig {
+            storage_config: crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-            });
+            }),
+            ..Default::default()
+        };
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
 
@@ -173,11 +174,12 @@ mod tests {
     #[tokio::test]
     async fn test_next_backup_time() {
         let temp_dir = TempDir::new().unwrap();
-        let mut config = BackupConfig::default();
-        config.storage_config =
-            crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
+        let config = BackupConfig {
+            storage_config: crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-            });
+            }),
+            ..Default::default()
+        };
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
         let scheduler = BackupScheduler::new("0 0 2 * * *", manager).unwrap();
@@ -192,11 +194,12 @@ mod tests {
     #[tokio::test]
     async fn test_scheduler_start_stop() {
         let temp_dir = TempDir::new().unwrap();
-        let mut config = BackupConfig::default();
-        config.storage_config =
-            crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
+        let config = BackupConfig {
+            storage_config: crate::types::StorageConfig::Local(crate::types::LocalStorageConfig {
                 path: temp_dir.path().to_string_lossy().to_string(),
-            });
+            }),
+            ..Default::default()
+        };
 
         let manager = Arc::new(BackupManager::new(config).await.unwrap());
         let scheduler = BackupScheduler::new("0 0 2 * * *", manager).unwrap();

@@ -176,14 +176,15 @@ pub enum StorageBackend {
     Memory,
 }
 
-impl ToString for StorageBackend {
-    fn to_string(&self) -> String {
-        match self {
-            StorageBackend::Raft => "raft".to_string(),
-            StorageBackend::File => "file".to_string(),
-            StorageBackend::Postgres => "postgres".to_string(),
-            StorageBackend::Memory => "memory".to_string(),
-        }
+impl std::fmt::Display for StorageBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            StorageBackend::Raft => "raft",
+            StorageBackend::File => "file",
+            StorageBackend::Postgres => "postgres",
+            StorageBackend::Memory => "memory",
+        };
+        f.write_str(s)
     }
 }
 
@@ -314,6 +315,8 @@ pub struct ListenerConfig {
 }
 
 impl ListenerConfig {
+    // Planned: invoke from the top-level config validation pass during load.
+    #[allow(dead_code)]
     fn validate(&self) -> anyhow::Result<()> {
         self.http.validate()?;
         self.grpc.validate()?;
@@ -444,14 +447,15 @@ pub enum SealType {
     AzureKv,
 }
 
-impl ToString for SealType {
-    fn to_string(&self) -> String {
-        match self {
-            SealType::Shamir => "shamir".to_string(),
-            SealType::AwsKms => "aws-kms".to_string(),
-            SealType::GcpKms => "gcp-kms".to_string(),
-            SealType::AzureKv => "azure-kv".to_string(),
-        }
+impl std::fmt::Display for SealType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            SealType::Shamir => "shamir",
+            SealType::AwsKms => "aws-kms",
+            SealType::GcpKms => "gcp-kms",
+            SealType::AzureKv => "azure-kv",
+        };
+        f.write_str(s)
     }
 }
 

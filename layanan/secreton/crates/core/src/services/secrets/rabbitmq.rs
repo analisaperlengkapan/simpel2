@@ -256,6 +256,8 @@ impl From<&RabbitMqCredentials> for RabbitMqCredentialInfo {
 }
 
 /// Simulated RabbitMQ connection for prototyping
+// Connection fields retained for the real management-API wiring (simulated today).
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct RabbitMqConnection {
     management_uri: String,
@@ -312,6 +314,7 @@ impl RabbitMqConnection {
     }
 
     /// Simulate checking if user exists
+    #[allow(dead_code)] // planned: used once real management-API lookup is wired
     async fn user_exists(&self, username: &str) -> Result<bool, RabbitMqError> {
         debug!("Simulated: Checking if RabbitMQ user '{}' exists", username);
         // In production, this would call: GET /api/users/{username}
@@ -325,6 +328,7 @@ pub struct RabbitMqEngine {
     roles: Arc<RwLock<HashMap<String, RabbitMqRole>>>,
     credentials: Arc<RwLock<HashMap<String, RabbitMqCredentials>>>,
     connection: Arc<RwLock<Option<RabbitMqConnection>>>,
+    #[allow(dead_code)] // planned: connection pool for real broker admin ops
     pool: Option<Pool>,
 }
 

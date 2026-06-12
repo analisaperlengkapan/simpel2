@@ -56,6 +56,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)] // clap subcommand enum; boxing complicates the derive
 enum Commands {
     /// System health and status commands
     Status,

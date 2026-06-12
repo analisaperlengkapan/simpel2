@@ -58,6 +58,8 @@ impl Default for MemorySecretEngineConfig {
 }
 
 /// Simple LRU cache entry
+// `accessed_at` retained for planned LRU eviction policy.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct CacheEntry {
     secret: Secret,
@@ -70,9 +72,11 @@ pub struct MemorySecretEngine {
     storage: Arc<dyn StorageBackend>,
     /// Hybrid cryptography engine
     crypto: Arc<RwLock<HybridCrypto>>,
-    /// Post-quantum key manager
+    /// Post-quantum key manager (planned: PQ wrapping in the memory engine)
+    #[allow(dead_code)]
     pq_crypto: Arc<PostQuantumKeyManager>,
-    /// Authentication provider (optional)
+    /// Authentication provider (planned: per-engine auth enforcement)
+    #[allow(dead_code)]
     auth_provider: Option<Arc<AuthencAuthProvider>>,
     /// Audit logger (optional)
     audit_logger: Option<Arc<AuditLogger>>,
@@ -106,6 +110,12 @@ pub struct Credentials {
     pub username: String,
     pub password: String,
     pub metadata: HashMap<String, String>,
+}
+
+impl Default for MemorySecretEngine {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemorySecretEngine {
@@ -750,6 +760,7 @@ impl crate::services::secrets::SecretEngine for MemorySecretEngine {
         "memory"
     }
 }
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::storage::InMemoryStorage;

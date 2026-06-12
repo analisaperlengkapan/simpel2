@@ -238,6 +238,7 @@ impl Default for BackupConfig {
 
 impl ApplicationConfig {
     /// Create default configuration
+    #[allow(clippy::should_implement_trait)] // inherent constructor named default()
     pub fn default() -> Self {
         Self {
             auth: AuthConfig::default(),

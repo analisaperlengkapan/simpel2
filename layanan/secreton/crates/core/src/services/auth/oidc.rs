@@ -417,6 +417,7 @@ pub struct OidcAuthResponse {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)] // some items are defined after this module
 mod tests {
     use super::*;
 

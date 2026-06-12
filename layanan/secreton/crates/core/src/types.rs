@@ -260,11 +260,7 @@ impl Pagination {
 
     /// Get current page number (0-based)
     pub fn page(&self) -> u32 {
-        if self.limit == 0 {
-            0
-        } else {
-            self.offset / self.limit
-        }
+        self.offset.checked_div(self.limit).unwrap_or(0)
     }
 
     /// Get total pages
