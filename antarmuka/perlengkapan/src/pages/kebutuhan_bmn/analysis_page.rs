@@ -118,7 +118,7 @@ pub fn AnalysisPage() -> impl IntoView {
     let (selected_analysis, set_selected_analysis) = signal::<Option<AnalysisData>>(None);
     let (loading, set_loading) = signal(false);
     let (error, set_error) = signal::<Option<String>>(None);
-    let (success_message, set_success_message) = signal::<Option<String>>(None);
+    let (success_message, _set_success_message) = signal::<Option<String>>(None);
     let (_show_action_modal, _set_show_action_modal) = signal(false);
     let (_action_type, _set_action_type) = signal::<Option<String>>(None);
     let (_catatan, _set_catatan) = signal(String::new());
@@ -251,6 +251,10 @@ pub fn AnalysisPage() -> impl IntoView {
 }
 
 #[component]
+// `approved_quantities`/`set_approved_quantities` props are for the editable
+// approval-qty flow wired in F5-C (#33); callers pass them, so they can't be
+// `_`-prefixed (Leptos PropsBuilder).
+#[allow(unused_variables)]
 fn AnalysisContent(
     analysis: AnalysisData,
     approved_quantities: ReadSignal<HashMap<Uuid, i32>>,

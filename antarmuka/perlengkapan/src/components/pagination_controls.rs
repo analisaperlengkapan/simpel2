@@ -1,6 +1,9 @@
 use leptos::prelude::*;
 
 #[component]
+// `on_next` is declared for the Next action, wired in F5-C (#33); callers
+// already pass it, so it can't be `_`-prefixed (Leptos PropsBuilder).
+#[allow(unused_variables)]
 pub fn PaginationControls(
     #[prop(into)] current_page: Signal<i32>,
     #[prop(into)] total_pages: Signal<i32>,

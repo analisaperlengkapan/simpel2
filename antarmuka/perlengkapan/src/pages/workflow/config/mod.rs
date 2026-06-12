@@ -18,6 +18,5 @@ pub use config_json_preview::ConfigJsonPreview;
 pub use config_list_panel::ConfigListPanel;
 pub use delete_modal::DeleteConfigModal;
 pub use role_matrix::RoleMatrix;
-pub use sla_editor::SlaEditor;
 pub use step_editor_modal::StepEditorModal;
 pub use transition_matrix::TransitionMatrix;

@@ -3,12 +3,14 @@
 //! Dark navy + gold Kejaksaan theme, single-page application.
 
 #![recursion_limit = "512"]
-// Many API types and functions are defined for future use but not yet
-// wired into components.  Suppress dead-code and related errors
-// crate-wide until the remaining pages are connected.
+// Kept deliberately: this crate is mid-migration (feature-first, F0-B). It
+// forward-declares the FE↔BE API contract — ~220 request/response DTOs, fetch
+// helpers, and action/scope enum variants — for pages/components that F5-C
+// (#33) will wire. Those are intentional future-impl scaffolding, NOT cruft, so
+// a per-crate `dead_code` allow is the honest choice over ~220 item allows or
+// deleting the planned contract. `unused_imports`/`unused_variables` are NOT
+// suppressed (those were real cruft and have been cleaned up).
 #![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
 // Kept deliberately: both lints' suggested rewrites shorten the drop scope of
 // temporaries borrowed inside Leptos reactive closures, which fails the borrow
 // checker here (E0597) — collapsing nested `if`s into edition-2024 let-chains,
@@ -38,7 +40,6 @@ use pages::bank_aset::{
     BankAsetSebaranPage,
 };
 use pages::dashboard::DashboardHome;
-use pages::dashboard_perlengkapan::DashboardPerlengkapan;
 use pages::kebutuhan_bmn::PeriodManagement;
 use pages::login::LoginPage;
 use pages::not_found::NotFound;
@@ -46,7 +47,6 @@ use pages::notifikasi::NotifikasiInboxPage;
 use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
-use pages::placeholder::PlaceholderPage;
 use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
 use pages::workflow::delegation::WorkflowDelegationPage;

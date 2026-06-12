@@ -173,7 +173,6 @@ pub fn SkGenerationPage() -> impl IntoView {
                                     view! {
                                         <div class="space-y-2">
                                             {list.into_iter().map(|req| {
-                                                let req_id = req.id;
                                                 view! {
                                                     <div
                                                         class="p-4 border rounded-lg cursor-pointer hover:bg-gray-50"

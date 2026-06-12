@@ -8,6 +8,4 @@ pub mod list_page;
 pub mod permit_creation_page;
 
 pub use detail_page::*;
-pub use document_management_page::*;
 pub use list_page::*;
-pub use permit_creation_page::*;

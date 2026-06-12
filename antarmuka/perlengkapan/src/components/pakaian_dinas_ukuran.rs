@@ -8,10 +8,8 @@ use crate::api::{
     fetch_pegawai_ukuran, fetch_pegawai_with_sizes, upsert_pegawai_ukuran,
 };
 use crate::components::layout::{
-    DataTable, DataTableColumn, EmptyState, ErrorState, FormField, LoadingState, PageLayout,
-    SectionCard,
+    DataTable, DataTableColumn, EmptyState, ErrorState, LoadingState, PageLayout, SectionCard,
 };
-use crate::routes;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
@@ -71,7 +69,6 @@ pub fn UkuranPegawai(
     let (success_message, set_success_message) = signal(Option::<String>::None);
     let (error_message, set_error_message) = signal(Option::<String>::None);
 
-    let pegawai_id_clone = pegawai_id.clone();
     let client: QueryClient = expect_context();
 
     // Master ukuran shared across the app — single `()` cache slot.
@@ -349,7 +346,7 @@ pub fn UkuranPegawaiSatker(
 fn render_satker_table(
     data: Vec<PegawaiWithSizes>,
     total: i64,
-    total_pages: i32,
+    _total_pages: i32,
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
 ) -> AnyView {

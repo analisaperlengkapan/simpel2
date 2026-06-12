@@ -43,7 +43,6 @@ pub fn ConfigListPanel(
         .into_iter()
         .map(|workflow| {
             let name_view = workflow.name.clone();
-            let name_edit = workflow.name.clone();
             let name_delete = workflow.name.clone();
             let workflow_for_edit = workflow.clone();
             let (status_class, status_label) = match workflow.status.as_str() {

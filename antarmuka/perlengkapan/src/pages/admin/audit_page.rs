@@ -332,7 +332,7 @@ fn Pagination(
             }
         }
     };
-    let next_handler = {
+    let _next_handler = {
         let on_change = Rc::clone(&on_change);
         move |_: leptos::ev::MouseEvent| {
             let cur = page.get();
