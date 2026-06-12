@@ -303,7 +303,7 @@ jobs:
       # cleanup) before flipping this on. FE crates fixed by hand cfg-aware (the
       # autofix bot excludes them — see autofix.yml / antarmuka/AGENTS.md).
       - name: cargo clippy (${{ matrix.name }})
-        run: cargo clippy ${{ matrix.packages }} ${{ matrix.features || '' }} ${{ matrix.extra_args || '' }} ${{ matrix.scope }} -- -D warnings
+        run: cargo clippy ${{ matrix.packages }} ${{ matrix.extra_args || '' }} ${{ matrix.scope }} -- -D warnings
 
   lint-php:
     name: Lint PHP (Pint + Larastan)

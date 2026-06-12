@@ -27,7 +27,10 @@ RUN cargo chef cook --release --recipe-path recipe.json
 
 # Install WASM toolchain
 RUN rustup target add wasm32-unknown-unknown
-RUN cargo install trunk
+# Pin + --locked: an unlocked `cargo install trunk` on the nightly base resolves
+# trunk's transitive deps to latest, which currently pulls a broken `time` combo
+# (E0119 conflicting impl) and fails the build. --locked uses trunk's own lockfile.
+RUN cargo install trunk --version 0.21.14 --locked
 RUN cargo install wasm-bindgen-cli --version 0.2.100
 
 # Copy source code
