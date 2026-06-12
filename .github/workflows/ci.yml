@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       run_e2e:
-        description: "Run the Playwright e2e smoke stack (on-demand validation, independent of vars.E2E_ENABLED)"
+        description: "Run the Playwright e2e smoke stack (on-demand validation, independent of vars.E2E_PERLENGKAPAN_ENABLED)"
         type: boolean
         default: false
 
@@ -955,13 +955,13 @@ jobs:
   # STATUS: gated OFF until the e2e stack exists (F5). Today the suites cannot
   # pass — playwright.config.ts has `webServer` commented out, there is no
   # docker-compose stack, and baseURL points at a non-existent localhost:8080.
-  # The gate is the explicit `vars.E2E_ENABLED` repo variable (unset = skip),
+  # The gate is the explicit `vars.E2E_PERLENGKAPAN_ENABLED` repo variable (unset = skip),
   # NOT hidden in build-result logic, so the skip is intentional and visible.
   #
   # F5 TODO (tracked in the plan + memory): (1) wire a real stack — serve the
   # trunk-built dist via Playwright `webServer` (or a docker-compose) + run
   # authenc/perlengkapan + postgres, point baseURL at it; (2) set repo variable
-  # E2E_ENABLED=true. After that these become blocking via ci-summary.
+  # E2E_PERLENGKAPAN_ENABLED=true. After that these become blocking via ci-summary.
   e2e-portal:
     name: E2E Playwright (portal)
     # Portal smoke = portal FE + authenc only (login via real authenc, proxy
@@ -974,7 +974,7 @@ jobs:
     # NOTE: portal e2e has NO stack bring-up yet (the run step below points at an
     # empty baseURL — F5-C will wire a real compose stack like e2e-perlengkapan).
     # It is therefore gated by its OWN var `E2E_PORTAL_ENABLED` (kept unset →
-    # skipped → SKIP in ci-summary, non-blocking). `E2E_ENABLED` is reserved for
+    # skipped → SKIP in ci-summary, non-blocking). `E2E_PERLENGKAPAN_ENABLED` is reserved for
     # the validated, self-contained perlengkapan guards smoke (the #482 / F6
     # blocker) so flipping it to blocking does NOT activate this un-wired job.
     # Flip E2E_PORTAL_ENABLED=true only after F5-C wires the portal stack.
@@ -1017,7 +1017,7 @@ jobs:
     # build-* needs are fail-fast gates only (the job builds its own stack).
     needs: [detect, build-antarmuka-perlengkapan, build-backend]
     # Self-contained (compose builds the stack) — see e2e-portal note above.
-    # Blocking gate via E2E_ENABLED, but only when perlengkapan FE or any Rust
+    # Blocking gate via E2E_PERLENGKAPAN_ENABLED, but only when perlengkapan FE or any Rust
     # backend actually changed (skips → SKIP, non-blocking, on docs/infra-only
     # PRs so the ~50min stack build doesn't run for nothing). The on-demand
     # `run_e2e` dispatch path always runs regardless of the change filter.
@@ -1025,7 +1025,7 @@ jobs:
       !cancelled() &&
       (
         github.event.inputs.run_e2e == 'true' ||
-        (vars.E2E_ENABLED == 'true' &&
+        (vars.E2E_PERLENGKAPAN_ENABLED == 'true' &&
          (needs.detect.outputs.rust-frontend == 'true' ||
           needs.detect.outputs.rust-backend == 'true'))
       ) &&
