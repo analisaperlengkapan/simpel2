@@ -321,7 +321,10 @@ mod tests {
 
     #[test]
     fn classify_pusat_from_either_field() {
-        assert_eq!(classify_satker_type("Kejaksaan Agung", ""), SatkerType::Pusat);
+        assert_eq!(
+            classify_satker_type("Kejaksaan Agung", ""),
+            SatkerType::Pusat
+        );
         assert_eq!(classify_satker_type("", "kejagung"), SatkerType::Pusat);
         assert_eq!(classify_satker_type("Satker Pusat", ""), SatkerType::Pusat);
     }
