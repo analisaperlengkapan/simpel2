@@ -561,4 +561,167 @@ mod tests {
 
         assert!(can_access);
     }
+
+    // ── P1a denial / boundary coverage (#33 / F5-C) ─────────────────────────
+    // The happy paths above prove access is GRANTED; these prove it is DENIED
+    // where it must be — the security-relevant half that was missing.
+
+    fn role(name: &str, scope: &str, managed_by: Option<&str>) -> Role {
+        Role {
+            id: Uuid::new_v4(),
+            name: name.to_string(),
+            description: None,
+            scope: Some(scope.to_string()),
+            permissions: vec![],
+            managed_by: managed_by.map(|s| s.to_string()),
+            realm_id: None,
+            composite: false,
+            client_role: false,
+            client_id: None,
+            priority: 0,
+            active: true,
+            attributes: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        }
+    }
+
+    /// KEJAGUNG ─┬─ KEJATI_JABAR ── KEJARI_BANDUNG
+    ///           └─ KEJATI_JATIM ── KEJARI_SURABAYA
+    /// Codes deliberately do NOT share a prefix across wilayah, so descendant
+    /// checks exercise the hierarchy traversal, not `starts_with` shortcuts.
+    fn kejaksaan_tree() -> Vec<Satker> {
+        vec![
+            create_test_satker("KEJAGUNG", None, 0),
+            create_test_satker("KEJATI_JABAR", Some("KEJAGUNG"), 1),
+            create_test_satker("KEJARI_BANDUNG", Some("KEJATI_JABAR"), 2),
+            create_test_satker("KEJATI_JATIM", Some("KEJAGUNG"), 1),
+            create_test_satker("KEJARI_SURABAYA", Some("KEJATI_JATIM"), 2),
+        ]
+    }
+
+    #[tokio::test]
+    async fn test_operator_cannot_access_other_or_parent_satker() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        // A plain operator has no scoped role: only its own satker.
+        let user = create_test_user("KEJARI_BANDUNG", vec![]);
+
+        assert!(service.can_access_satker(&user, "KEJARI_BANDUNG").await.unwrap());
+        // sibling under a different wilayah
+        assert!(!service.can_access_satker(&user, "KEJARI_SURABAYA").await.unwrap());
+        // its OWN parent — an operator does not get upward access
+        assert!(!service.can_access_satker(&user, "KEJATI_JABAR").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_wilayah_scope_reaches_descendants_only() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        let user = create_test_user(
+            "KEJATI_JABAR",
+            vec![role("validator_wilayah", "wilayah:KEJATI_JABAR", None)],
+        );
+
+        // descendant within the wilayah
+        assert!(service.can_access_satker(&user, "KEJARI_BANDUNG").await.unwrap());
+        // another wilayah and its child are out of scope
+        assert!(!service.can_access_satker(&user, "KEJATI_JATIM").await.unwrap());
+        assert!(!service.can_access_satker(&user, "KEJARI_SURABAYA").await.unwrap());
+    }
+
+    #[tokio::test]
+    async fn test_get_accessible_satkers_pusat_returns_all() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        let user = create_test_user("KEJAGUNG", vec![role("admin", "pusat", Some("pusat"))]);
+
+        let mut accessible = service.get_accessible_satkers(&user).await.unwrap();
+        accessible.sort();
+        assert_eq!(
+            accessible,
+            vec![
+                "KEJAGUNG",
+                "KEJARI_BANDUNG",
+                "KEJARI_SURABAYA",
+                "KEJATI_JABAR",
+                "KEJATI_JATIM",
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_get_accessible_satkers_satker_scope_includes_descendants_only() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        let user = create_test_user(
+            "KEJATI_JABAR",
+            vec![role("manager", "satker:KEJATI_JABAR", None)],
+        );
+
+        let mut accessible = service.get_accessible_satkers(&user).await.unwrap();
+        accessible.sort();
+        assert_eq!(accessible, vec!["KEJARI_BANDUNG", "KEJATI_JABAR"]);
+    }
+
+    #[tokio::test]
+    async fn test_cross_satker_denied_when_source_not_user_satker() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        let user = create_test_user("KEJARI_BANDUNG", vec![]);
+
+        let result = service
+            .validate_cross_satker_operation(
+                &user,
+                "KEJARI_SURABAYA", // source ≠ user's satker
+                "KEJATI_JATIM",
+                "read",
+                "kebutuhan_bmn",
+            )
+            .await
+            .unwrap();
+
+        assert!(!result.allowed);
+        assert!(result.reason.contains("does not match source"));
+    }
+
+    #[tokio::test]
+    async fn test_cross_satker_denied_when_target_unknown() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+        let user = create_test_user("KEJARI_BANDUNG", vec![]);
+
+        let result = service
+            .validate_cross_satker_operation(
+                &user,
+                "KEJARI_BANDUNG",
+                "ZZZ_DOES_NOT_EXIST",
+                "read",
+                "kebutuhan_bmn",
+            )
+            .await
+            .unwrap();
+
+        assert!(!result.allowed);
+        assert!(result.reason.contains("not found"));
+    }
+
+    #[tokio::test]
+    async fn test_can_manage_satker_by_admin_level() {
+        let service = SatkerAuthorizationService::new(kejaksaan_tree());
+
+        // Non-admin role cannot manage anything.
+        let operator = create_test_user(
+            "KEJARI_BANDUNG",
+            vec![role("operator", "satker:KEJARI_BANDUNG", None)],
+        );
+        assert!(!service.can_manage_satker(&operator, "KEJARI_BANDUNG").await.unwrap());
+
+        // Pusat admin manages every satker.
+        let pusat_admin =
+            create_test_user("KEJAGUNG", vec![role("admin", "pusat", Some("pusat"))]);
+        assert!(service.can_manage_satker(&pusat_admin, "KEJARI_SURABAYA").await.unwrap());
+
+        // Satker-scoped admin manages its own subtree, not other wilayah.
+        let wilayah_admin = create_test_user(
+            "KEJATI_JABAR",
+            vec![role("admin_wilayah", "wilayah:KEJATI_JABAR", Some("satker:KEJATI_JABAR"))],
+        );
+        assert!(service.can_manage_satker(&wilayah_admin, "KEJARI_BANDUNG").await.unwrap());
+        assert!(!service.can_manage_satker(&wilayah_admin, "KEJARI_SURABAYA").await.unwrap());
+    }
 }
