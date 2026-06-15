@@ -214,7 +214,9 @@ postgres:
   containerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: false
+    # Read-only rootfs: postgres writes only to the PGDATA PVC + the
+    # postgres-run/tmp emptyDirs mounted in templates/infrastructure/postgres.yaml.
+    readOnlyRootFilesystem: true
     runAsNonRoot: true
   istioInjection: false
   init:
@@ -243,7 +245,9 @@ redis:
   containerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
-    readOnlyRootFilesystem: false
+    # Read-only rootfs: redis persists to the /data PVC; the /tmp emptyDir is
+    # mounted in templates/infrastructure/redis.yaml for any scratch writes.
+    readOnlyRootFilesystem: true
     runAsNonRoot: true
   istioInjection: false
   pdb: { enabled: false, maxUnavailable: 0 }

@@ -42,6 +42,12 @@ metadata:
   labels:
     app: postgres
     {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
+  annotations:
+    # The `role: replica` label is assigned to pods at RUNTIME by the HA
+    # controller (Patroni service account is wired), not statically at render
+    # time — so kube-linter's static view sees no matching pods. Read-replica
+    # routing is intentional; suppress the false dangling-service finding.
+    ignore-check.kube-linter.io/dangling-service: "replica role label is set at runtime by the HA controller, not in the rendered manifest"
 spec:
   type: ClusterIP
   ports:
@@ -83,6 +89,10 @@ spec:
       {{- include "simpel.tolerations" . | nindent 6 }}
       securityContext:
         {{- toYaml $cfg.podSecurityContext | nindent 8 }}
+      {{- with $cfg.podAntiAffinity }}
+      affinity:
+        {{- include "simpel.podAntiAffinity" (dict "name" "postgres" "type" .type) | nindent 8 }}
+      {{- end }}
       containers:
         - name: postgres
           image: {{ include "simpel.image" (dict "top" . "spec" $cfg.image) }}
@@ -110,6 +120,10 @@ spec:
             {{- end }}
           volumeMounts:
             - { name: postgres-data, mountPath: /var/lib/postgresql/data }
+            # Writable scratch for readOnlyRootFilesystem: the unix socket dir
+            # and /tmp (temp/sort files). PGDATA lives on the PVC above.
+            - { name: postgres-run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
             {{- if $cfg.init.enabled }}
             - { name: init-scripts, mountPath: /docker-entrypoint-initdb.d, readOnly: true }
             {{- end }}
@@ -125,13 +139,17 @@ spec:
               command: [/bin/sh, -c, pg_isready -U "$POSTGRES_USER"]
             initialDelaySeconds: 5
             periodSeconds: 5
-      {{- if $cfg.init.enabled }}
       volumes:
+        - name: postgres-run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        {{- if $cfg.init.enabled }}
         - name: init-scripts
           configMap:
             name: postgres-init-scripts
             defaultMode: 0755
-      {{- end }}
+        {{- end }}
   volumeClaimTemplates:
     - metadata:
         name: postgres-data
