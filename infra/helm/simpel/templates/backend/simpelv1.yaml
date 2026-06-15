@@ -97,14 +97,21 @@ spec:
                        /app-storage/framework/views \
                        /app-storage/framework/sessions \
                        /app-storage/framework/cache/data
-              chmod -R 0777 /var/lib/nginx /run-nginx /var-cache-nginx /var-run /tmp-mount /app-storage /bootstrap-cache
+          # Runs as the SAME uid (33) as the main container; the pod fsGroup (33)
+          # makes the emptyDir mounts group-writable, so dirs/symlinks created
+          # here are writable by the main container WITHOUT an 0777 chmod (which
+          # also required running as root). Writes go only to mounted emptyDirs,
+          # so readOnlyRootFilesystem is safe.
           securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
-            readOnlyRootFilesystem: false
-            allowPrivilegeEscalation: true
-          # Mount paths beda dari main container, lalu chown — agar tidak conflict
-          # dengan kebutuhan /run /tmp dst di alpine init container.
+            runAsUser: 33
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 64Mi }
           volumeMounts:
             - { name: nginx-lib,       mountPath: /var/lib/nginx }
             - { name: run,             mountPath: /run-nginx }
@@ -165,8 +172,21 @@ spec:
               valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_USERNAME } }
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: simpelv1-secrets, key: DB_PASSWORD } }
+            # psql/libpq scratch (history, temp) under the writable /tmp emptyDir.
+            - { name: HOME, value: /tmp }
           volumeMounts:
             - { name: db-backup, mountPath: /db-backup, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+          securityContext:
+            runAsUser: 999
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            seccompProfile: { type: RuntimeDefault }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 250m, memory: 256Mi }
         {{- end }}
       containers:
         - name: simpelv1

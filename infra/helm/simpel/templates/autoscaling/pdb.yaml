@@ -32,6 +32,10 @@ spec:
   {{- else if hasKey $pdb "maxUnavailable" }}
   maxUnavailable: {{ $pdb.maxUnavailable }}
   {{- end }}
+  # Never let a stuck (never-Ready) pod block a node drain / voluntary
+  # disruption (kube-linter pdb-unhealthy-pod-eviction-policy). AlwaysAllow is
+  # safe here: losing a not-yet-Ready replica during disruption is acceptable.
+  unhealthyPodEvictionPolicy: {{ default "AlwaysAllow" $pdb.unhealthyPodEvictionPolicy }}
   selector:
     matchLabels:
       {{- toYaml $w.selector | nindent 6 }}

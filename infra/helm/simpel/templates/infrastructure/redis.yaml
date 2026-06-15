@@ -101,8 +101,12 @@ spec:
             periodSeconds: 5
           volumeMounts:
             - { name: redis-data, mountPath: /data }
+            # Writable scratch for readOnlyRootFilesystem (data persists on PVC).
+            - { name: tmp, mountPath: /tmp }
       volumes:
         - name: redis-data
           persistentVolumeClaim:
             claimName: redis-pvc
+        - name: tmp
+          emptyDir: {}
 {{- end }}
