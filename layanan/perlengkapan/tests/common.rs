@@ -69,6 +69,26 @@ pub async fn setup_test_db() -> (Database, String) {
         .await
         .expect("Failed to connect to test DB");
 
+    // Cross-schema prerequisites for the squashed baseline (F5-B). perlengkapan
+    // V001 has an FK to `authenc.users(id)` and the deploy contract is
+    // integrasi → authenc → perlengkapan. These tests isolate perlengkapan, so
+    // we stand up the minimal upstream objects (stub) BEFORE applying the
+    // baseline — mirroring the deploy order without pulling in the full
+    // authenc/integrasi baselines. Without this the baseline aborts (one txn),
+    // every perlengkapan table is rolled back, and every test fails on a
+    // missing relation. (#33 / F5-C)
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .batch_execute(
+                "CREATE SCHEMA IF NOT EXISTS authenc; \
+                 CREATE TABLE IF NOT EXISTS authenc.users (id uuid PRIMARY KEY); \
+                 CREATE SCHEMA IF NOT EXISTS integrasi;",
+            )
+            .await
+            .expect("Failed to create cross-schema prerequisites");
+    }
+
     // Execute all SQL migrations from the migrations directory
     if let Ok(entries) = std::fs::read_dir("migrations") {
         let mut paths: Vec<_> = entries.filter_map(Result::ok).map(|e| e.path()).collect();

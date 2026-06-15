@@ -307,8 +307,9 @@ impl PenghapusanBmnRepository {
             param_count + 1
         );
 
-        params.push(Box::new(per_page));
-        params.push(Box::new(offset));
+        // Postgres infers LIMIT/OFFSET params as int8 (bigint); bind i64. (#33)
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
