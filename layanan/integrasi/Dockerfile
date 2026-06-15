@@ -55,4 +55,11 @@ ENV HTTP_PORT=8080
 EXPOSE 50051
 EXPOSE 8080
 
-ENTRYPOINT ["./layanan-integrasi"]
+# Use CMD (not ENTRYPOINT) so a one-shot override can REPLACE the default server
+# command. With ENTRYPOINT, docker-compose `command:` is only CMD (args appended
+# to the entrypoint), so the `integrasi-migrate` compose service ran the server +
+# an ignored arg instead of the migrate binary — it never exited, hanging the
+# `service_completed_successfully` gate and timing out the e2e stack bring-up.
+# Matches layanan/authenc/Dockerfile (`CMD ["./authenc"]`); Helm Jobs override via
+# k8s `command:` which replaces both ENTRYPOINT and CMD.
+CMD ["./layanan-integrasi"]
