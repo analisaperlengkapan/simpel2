@@ -182,6 +182,7 @@ layananIntegrasi:
 - Buat manifest plain YAML baru di luar chart (mis. `kubectl apply -f foo.yaml`). Pendekatan plain-yaml/standalone sudah dihapus saat migrasi dari Kustomize.
 - Hardcode tag image di template; set lewat `global.imageTag` atau `<komponen>.image.tag`.
 - **Pakai mutable image tag** (`latest`, `stag`, `prod`, kosong). Schema validation reject ini saat `helm lint`.
+- **Loloskan temuan `kube-linter`.** Job `Helm Lint & kube-linter` (`security.yml`) = **BLOCKING** (di set `BLOCKING` Security Summary, path-gated `infra/helm/**`): `helm lint` + `kube-linter` atas rendered manifest (staging+production) WAJIB 0 temuan. Tiap workload WAJIB liveness+readiness (boot-lambat → startupProbe via `_probes.tpl`+values), `resources.requests/limits`, securityContext non-root + `readOnlyRootFilesystem` (scratch via emptyDir) + drop ALL caps + seccomp, PDB ber-`unhealthyPodEvictionPolicy`, anti-affinity (soft di single-node), tanpa mutable tag. **False-positive di-suppress per-objek** via annotation `ignore-check.kube-linter.io/<check>: "alasan"` di template (BUKAN blanket `exclude` di `infra/lint/.kube-linter.yaml`). Cek lokal: `helm template … | kube-linter lint`.
 - **Pakai k8s Secret untuk APP_KEY / token API** saat `secretonAuth.enabled=true`. Secret production WAJIB dari Secreton.
 - **Deploy langsung ke production tanpa lewat staging.** Patuhi alur staging → promote → production (lihat "Pemisahan Lingkungan" → "Alur deploy WAJIB").
 
