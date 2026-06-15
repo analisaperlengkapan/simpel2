@@ -853,7 +853,7 @@ CREATE TABLE perlengkapan.izin_pemakaian_bmn (
     luas_tanah double precision,
     luas_bangunan double precision,
     serial_number character varying(100),
-    spesifikasi text,
+    spesifikasi jsonb,
     pegawai_nip character varying(30) NOT NULL,
     pegawai_nama character varying(255) NOT NULL,
     pegawai_jabatan character varying(255),
