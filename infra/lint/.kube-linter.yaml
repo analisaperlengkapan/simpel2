@@ -5,13 +5,16 @@
 # templates — so checks see actual probes, resource limits, securityContext,
 # image tags, etc.
 #
-# Status: ADVISORY (F5-A) — the CI job is `continue-on-error: true` to inventory
-# pre-existing findings. Once triaged/cleared, flip the job to blocking (F5/F6,
-# per plan F5-A.6 + F6-X) so chart regressions (missing probes, latest tags,
-# no resource limits) fail the build.
+# Status: BLOCKING — `helm-lint` is in the BLOCKING set of the Security Summary
+# (#46, after the inventory was cleared to 0 in #540). Any finding fails the
+# build, so chart regressions (missing probes, latest tags, no resource limits,
+# dropped securityContext) cannot merge. Per-object false positives are
+# suppressed in-template via `ignore-check.kube-linter.io/<check>` annotations
+# (with a rationale), not here; this `exclude` list stays empty unless a whole
+# check is intentionally retired chart-wide.
 checks:
   # Run kube-linter's default recommended check set.
   doNotAutoAddDefaults: false
-  # Triaged/accepted findings go here with a one-line rationale before we flip
-  # the job to blocking. Keep empty during the inventory pass.
+  # Chart-wide retired checks go here with a one-line rationale. Prefer
+  # per-object annotation suppression over a blanket exclude.
   exclude: []

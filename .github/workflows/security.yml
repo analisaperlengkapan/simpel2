@@ -284,7 +284,7 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: v3.20.2
-      - name: helm lint (advisory — visible)
+      - name: helm lint (blocking)
         if: steps.filter.outputs.helm == 'true'
         run: |
           helm lint infra/helm/simpel -f infra/helm/simpel/values-staging.yaml
@@ -297,7 +297,7 @@ jobs:
             -f infra/helm/simpel/values-staging.yaml > rendered/staging.yaml
           helm template simpel infra/helm/simpel \
             -f infra/helm/simpel/values-production.yaml > rendered/production.yaml
-      - name: kube-linter (advisory — visible; flip to blocking in F5/F6)
+      - name: kube-linter (blocking — fails on any finding)
         if: steps.filter.outputs.helm == 'true'
         uses: stackrox/kube-linter-action@v1.0.7
         with:
@@ -331,8 +331,15 @@ jobs:
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
 
           # Blocking = harus sukses. Advisory = boleh gagal (informational).
-          BLOCKING="gitleaks"
+          #   gitleaks   — tak boleh ada secret bocor.
+          #   helm-lint  — chart staging+production WAJIB lulus helm lint +
+          #                kube-linter (rendered manifest); temuan = chart
+          #                regression (probe/limit/securityContext hilang, tag
+          #                latest, dll). Path-gated → skip bila tak ada
+          #                perubahan infra/helm/** (job tetap success).
+          BLOCKING="gitleaks helm-lint"
           block_fail=0
+          block_failed_jobs=""
           advisory_fail=0
 
           PARSED=$(echo "$NEEDS_JSON" | python3 -c '
@@ -355,7 +362,7 @@ jobs:
               skipped) icon="⏭️ SKIP" ;;
               failure)
                 if echo " $BLOCKING " | grep -q " $job "; then
-                  icon="❌ FAIL"; block_fail=1
+                  icon="❌ FAIL"; block_fail=1; block_failed_jobs="$block_failed_jobs $job"
                 else
                   icon="⚠️ FINDINGS"; advisory_fail=1
                 fi
@@ -366,7 +373,7 @@ jobs:
                 # yang batal — tak bisa pastikan tak ada secret bocor. Job
                 # advisory yang batal = netral (bukan red palsu).
                 if echo " $BLOCKING " | grep -q " $job "; then
-                  icon="🚫 CANCEL"; block_fail=1
+                  icon="🚫 CANCEL"; block_fail=1; block_failed_jobs="$block_failed_jobs $job"
                 else
                   icon="🚫 CANCEL"
                 fi
@@ -382,7 +389,7 @@ jobs:
           fi
 
           if [[ $block_fail -ne 0 ]]; then
-            echo "::error::Blocking security check gagal (gitleaks). Pastikan tidak ada secret yang bocor."
+            echo "::error::Blocking security check gagal:${block_failed_jobs}. (gitleaks = secret scan; helm-lint = helm lint + kube-linter pada rendered chart)"
             exit 1
           fi
 
