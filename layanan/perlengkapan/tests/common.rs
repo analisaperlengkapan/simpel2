@@ -157,6 +157,19 @@ pub async fn setup_test_db() -> (Database, String) {
             id UUID PRIMARY KEY, kategori_aset VARCHAR, no_aset VARCHAR, ur_sskel VARCHAR, nama VARCHAR, kd_brg VARCHAR, merk VARCHAR, tipe VARCHAR, ur_kondisi VARCHAR, alamat VARCHAR, nama_satker VARCHAR, rph_aset VARCHAR, tgl_perlh VARCHAR, updated_at TIMESTAMPTZ DEFAULT NOW()
         )", &[]).await.unwrap();
 
+    // Cross-schema SoT stub for satker identity (integrasi owns it; perlengkapan
+    // reads it). Pakaian-dinas satker queries LEFT JOIN this for satker_nama/kode,
+    // and the wilayah resolver filters on `wilayah`. Minimal column set.
+    client
+        .execute(
+            "CREATE TABLE IF NOT EXISTS integrasi.mysimkari_satker (
+                id UUID PRIMARY KEY, kode VARCHAR, nama VARCHAR, wilayah VARCHAR
+            )",
+            &[],
+        )
+        .await
+        .unwrap();
+
     (db, db_name)
 }
 

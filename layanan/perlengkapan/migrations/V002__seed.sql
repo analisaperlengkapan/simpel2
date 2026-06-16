@@ -378,6 +378,22 @@ INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (29, 4008, 'REJECTED', 'Usulan penghapusan ditolak', 28, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (30, 4010, 'KONSEP_SK_WILAYAH_GENERATED', 'Konsep SK Wilayah telah digenerate', 29, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (31, 4011, 'SK_SIGNED_WILAYAH', 'SK Wilayah telah ditandatangani', 30, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+-- Pakaian dinas workflow codes (1000-1012). FK target for
+-- pengajuan_pakaian_dinas(.aktivitas_id), _satker(.aktivitas_id) and
+-- _satker_aktivitas(.aktivitas_id). Mirrors AktivitasStatus
+-- (pakaian_dinas/models/status.rs); kode/nama must stay in sync with the enum.
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (32, 1000, 'INPUT', 'Input', 31, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (33, 1001, 'SUBMIT_TO_VALIDATOR', 'Diajukan ke Validator', 32, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (34, 1003, 'REVISI_PELAKSANA', 'Revisi Pelaksana', 33, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (35, 1004, 'SUBMIT_TO_PUSAT', 'Diajukan ke Pusat', 34, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (36, 1005, 'REVISI_SATKER', 'Revisi Satker', 35, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (37, 1006, 'DITOLAK', 'Ditolak', 36, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (38, 1007, 'REVISI_WILAYAH', 'Revisi Wilayah', 37, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (39, 1008, 'SELESAI', 'Selesai', 38, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (40, 1009, 'START_KEJAGUNG', 'Mulai (Kejagung)', 39, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (41, 1010, 'SUBMIT_TO_PUSAT_FROM_WILAYAH', 'Diajukan ke Pusat dari Wilayah', 40, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (42, 1011, 'START_NON_KEJAGUNG', 'Mulai (Non-Kejagung)', 41, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (43, 1012, 'SUBMIT_TO_VALIDATOR_WILAYAH', 'Diajukan ke Validator Wilayah', 42, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
 
 
 --

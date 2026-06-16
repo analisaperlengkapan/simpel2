@@ -1652,14 +1652,16 @@ CREATE TABLE perlengkapan.pengajuan_pakaian_dinas (
     pilihan_satker character varying(20) NOT NULL,
     dengan_unit_kerja boolean DEFAULT false,
     jenis_pakaian_dinas_id uuid,
-    status_kode integer DEFAULT 1000 NOT NULL,
+    aktivitas_id integer DEFAULT 1000 NOT NULL,
+    scope_satker character varying(20),
+    wilayah_id character varying(50),
     created_by uuid,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     document_id uuid,
     document_url text,
     CONSTRAINT chk_pengajuan_pakaian_dinas_periode_order CHECK (((tgl_mulai IS NULL) OR (tgl_selesai IS NULL) OR (tgl_mulai <= tgl_selesai))),
-    CONSTRAINT pengajuan_pakaian_dinas_pilihan_satker_check CHECK (((pilihan_satker)::text = ANY ((ARRAY['all'::character varying, 'sebagian'::character varying])::text[])))
+    CONSTRAINT pengajuan_pakaian_dinas_pilihan_satker_check CHECK (((pilihan_satker)::text = ANY ((ARRAY['all'::character varying, 'semua'::character varying, 'sebagian'::character varying, 'wilayah'::character varying])::text[])))
 );
 
 
@@ -1763,7 +1765,7 @@ CREATE TABLE perlengkapan.pengajuan_pakaian_dinas_satker (
     id_kejati uuid,
     id_kejari uuid,
     id_cabjari uuid,
-    status_kode integer DEFAULT 1000 NOT NULL,
+    aktivitas_id integer DEFAULT 1000 NOT NULL,
     created_by uuid,
     updated_by uuid,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
@@ -1778,7 +1780,7 @@ CREATE TABLE perlengkapan.pengajuan_pakaian_dinas_satker (
 CREATE TABLE perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     pengajuan_satker_id uuid NOT NULL,
-    status_kode integer NOT NULL,
+    aktivitas_id integer NOT NULL,
     komentar text,
     nip character varying(30),
     nama character varying(500),
@@ -4085,7 +4087,7 @@ CREATE INDEX idx_pengajuan_pakaian_dinas_created_by ON perlengkapan.pengajuan_pa
 -- Name: idx_pengajuan_pakaian_dinas_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_pengajuan_pakaian_dinas_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (status_kode);
+CREATE INDEX idx_pengajuan_pakaian_dinas_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (aktivitas_id);
 
 
 --
@@ -4526,7 +4528,7 @@ CREATE INDEX idx_pkb_updated_at_desc ON perlengkapan.pengajuan_kebutuhan_bmn USI
 -- Name: idx_ppd_active_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_active_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (status_kode, created_at DESC) WHERE (status_kode <> ALL (ARRAY[2006, 2007, 2008, 2009]));
+CREATE INDEX idx_ppd_active_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (aktivitas_id, created_at DESC) WHERE (aktivitas_id <> ALL (ARRAY[1006, 1008]));
 
 
 --
@@ -4638,7 +4640,7 @@ CREATE INDEX idx_ppd_pegawai_satker_fk ON perlengkapan.pengajuan_pakaian_dinas_s
 -- Name: idx_ppd_satker_id_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_satker_id_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (satker_id, status_kode);
+CREATE INDEX idx_ppd_satker_id_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (satker_id, aktivitas_id);
 
 
 --
@@ -4673,7 +4675,7 @@ CREATE INDEX idx_ppd_satker_pengajuan_fk ON perlengkapan.pengajuan_pakaian_dinas
 -- Name: idx_ppd_satker_pengajuan_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_satker_pengajuan_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (pengajuan_id, status_kode);
+CREATE INDEX idx_ppd_satker_pengajuan_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (pengajuan_id, aktivitas_id);
 
 
 --
@@ -4687,7 +4689,7 @@ CREATE INDEX idx_ppd_satker_satker ON perlengkapan.pengajuan_pakaian_dinas_satke
 -- Name: idx_ppd_satker_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_satker_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (status_kode);
+CREATE INDEX idx_ppd_satker_status ON perlengkapan.pengajuan_pakaian_dinas_satker USING btree (aktivitas_id);
 
 
 --
@@ -4736,7 +4738,7 @@ CREATE INDEX idx_ppd_subspesifikasi_spec_fk ON perlengkapan.ms_subspesifikasi_pa
 -- Name: idx_ppd_tahun_covering; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_tahun_covering ON perlengkapan.pengajuan_pakaian_dinas USING btree (tahun, status_kode) INCLUDE (nama, created_at);
+CREATE INDEX idx_ppd_tahun_covering ON perlengkapan.pengajuan_pakaian_dinas USING btree (tahun, aktivitas_id) INCLUDE (nama, created_at);
 
 
 --
@@ -4750,7 +4752,7 @@ CREATE INDEX idx_ppd_tahun_created ON perlengkapan.pengajuan_pakaian_dinas USING
 -- Name: idx_ppd_tahun_status; Type: INDEX; Schema: perlengkapan; Owner: -
 --
 
-CREATE INDEX idx_ppd_tahun_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (tahun, status_kode);
+CREATE INDEX idx_ppd_tahun_status ON perlengkapan.pengajuan_pakaian_dinas USING btree (tahun, aktivitas_id);
 
 
 --
@@ -5289,7 +5291,7 @@ ALTER TABLE ONLY perlengkapan.batch_operation_log
 --
 
 ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas
-    ADD CONSTRAINT fk_ppd_aktivitas_status_kode FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
+    ADD CONSTRAINT fk_ppd_aktivitas_status_kode FOREIGN KEY (aktivitas_id) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
 
 
 --
@@ -5297,7 +5299,7 @@ ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas
 --
 
 ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas_satker
-    ADD CONSTRAINT fk_ppd_satker_status_kode FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
+    ADD CONSTRAINT fk_ppd_satker_status_kode FOREIGN KEY (aktivitas_id) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
 
 
 --
@@ -5305,7 +5307,7 @@ ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas_satker
 --
 
 ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas
-    ADD CONSTRAINT fk_ppd_status_kode FOREIGN KEY (status_kode) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
+    ADD CONSTRAINT fk_ppd_status_kode FOREIGN KEY (aktivitas_id) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
 
 
 --
@@ -5449,7 +5451,7 @@ ALTER TABLE ONLY perlengkapan.pengajuan_kebutuhan_bmn
 --
 
 ALTER TABLE ONLY perlengkapan.pengajuan_pakaian_dinas_aktivitas
-    ADD CONSTRAINT pengajuan_pakaian_dinas_aktivitas_aktivitas_id_fkey FOREIGN KEY (aktivitas_id) REFERENCES perlengkapan.ms_aktivitas_bmn(id);
+    ADD CONSTRAINT pengajuan_pakaian_dinas_aktivitas_aktivitas_id_fkey FOREIGN KEY (aktivitas_id) REFERENCES perlengkapan.ms_aktivitas_bmn(kode);
 
 
 --
