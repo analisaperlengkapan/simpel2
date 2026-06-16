@@ -354,6 +354,30 @@ INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (10, 2009, 'CANCELLED', 'Pengajuan dibatalkan', 10, true, '2026-06-09 12:09:51.426871+00', '2026-06-09 12:09:51.426871+00');
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (11, 3010, 'SUBMITTED_APPROVER_SATKER', 'Menunggu keputusan Approver Satker (setelah validasi internal)', 10, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
 INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (12, 3011, 'REVISI_OPERATOR', 'Dikembalikan ke Operator Satker untuk revisi (catatan wajib)', 11, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+-- Pemakaian BMN statuses (3000-3007). ms_aktivitas_bmn is the unified BMN
+-- workflow-state master (izin_pemakaian_bmn.status_kode FKs to it); 3010/3011
+-- were already present, the base statuses were missing.
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (13, 3000, 'DRAFT', 'Izin pemakaian baru dalam tahap penyusunan', 12, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (14, 3001, 'SUBMITTED', 'Diajukan ke Validator Satker', 13, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (15, 3002, 'APPROVED', 'Disetujui Approver Satker', 14, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (16, 3003, 'REJECTED', 'Ditolak', 15, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (17, 3004, 'ACTIVE', 'Izin pemakaian aktif', 16, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (18, 3005, 'EXPIRED', 'Izin pemakaian kadaluarsa', 17, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (19, 3006, 'REVOKED', 'Izin pemakaian dicabut', 18, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (20, 3007, 'CANCELLED', 'Izin pemakaian dibatalkan', 19, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+-- Penghapusan BMN statuses (4000-4011). penghapusan_bmn.status_kode is not
+-- FK-constrained, but seeding keeps the state master complete for labels/joins.
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (21, 4000, 'DRAFT', 'Usulan penghapusan dalam tahap penyusunan', 20, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (22, 4001, 'SUBMIT_WILAYAH', 'Diajukan ke Validator Wilayah', 21, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (23, 4002, 'RETURNED_TO_OPERATOR', 'Dikembalikan ke Operator Satker', 22, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (24, 4003, 'SUBMIT_PUSAT', 'Diteruskan ke Validator Pusat', 23, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (25, 4004, 'VERIFIKASI_PUSAT', 'Diverifikasi Validator Pusat', 24, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (26, 4005, 'KONSEP_SK_GENERATED', 'Konsep SK telah digenerate', 25, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (27, 4006, 'SK_SIGNED', 'SK telah ditandatangani', 26, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (28, 4007, 'COMPLETED', 'Proses penghapusan selesai', 27, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (29, 4008, 'REJECTED', 'Usulan penghapusan ditolak', 28, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (30, 4010, 'KONSEP_SK_WILAYAH_GENERATED', 'Konsep SK Wilayah telah digenerate', 29, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
+INSERT INTO perlengkapan.ms_aktivitas_bmn (id, kode, nama, deskripsi, urutan, is_active, created_at, updated_at) VALUES (31, 4011, 'SK_SIGNED_WILAYAH', 'SK Wilayah telah ditandatangani', 30, true, '2026-06-09 12:10:01.429501+00', '2026-06-09 12:10:01.429501+00');
 
 
 --

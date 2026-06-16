@@ -221,6 +221,28 @@ impl PemakaianBmnRepository {
         Ok(self.row_to_permit(row))
     }
 
+    /// Keep the denormalized `status_kode` aligned with `status`.
+    ///
+    /// The generic [`WorkflowEngine`] only writes the canonical `status`
+    /// (string) column. pemakaian additionally denormalizes `status_kode`
+    /// (int), and the internal-satker workflow methods gate on it
+    /// (`WHERE status_kode = 3001 / 3010`). Engine-driven transitions
+    /// (submit DRAFT→SUBMITTED, activate APPROVED→ACTIVE) therefore must
+    /// re-sync `status_kode`, or the next role action sees a stale code and
+    /// no-ops. Called right after the engine transition in
+    /// `transition_permit_status`.
+    pub async fn sync_status_kode(&self, id: Uuid, status_kode: i32) -> AppResult<()> {
+        let client = self.pool.client().await?;
+        client
+            .execute(
+                "UPDATE perlengkapan.izin_pemakaian_bmn SET status_kode = $1 WHERE id = $2",
+                &[&status_kode, &id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(())
+    }
+
     // ========================================================================
     // V035 (Fase 1.5): Internal-satker 3-step approval transitions.
     //

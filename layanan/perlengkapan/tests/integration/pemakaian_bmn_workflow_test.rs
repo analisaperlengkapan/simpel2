@@ -1,10 +1,17 @@
-//! Integration test for complete Pemakaian BMN workflow
+//! Integration test for complete Pemakaian BMN workflow.
+//!
+//! Exercises the REAL internal-satker lifecycle against a live Postgres:
+//!   operator: create (DRAFT) → submit (SUBMITTED)
+//!   validator_satker: forward (SUBMITTED → SUBMITTED_APPROVER_SATKER)
+//!   approver_satker: approve (→ APPROVED → auto ACTIVE)
+//!   then: renew (operator) / revoke (approver_satker)
+//! with per-step RBAC roles enforced server-side.
 
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::json;
 
-/// Helper to generate auth headers
+/// Helper to generate auth headers for a given role/user/satker.
 fn auth_headers(
     role: &str,
     user_id: &str,
@@ -34,6 +41,11 @@ fn auth_headers(
     ]
 }
 
+const OPERATOR: &str = "00000000-0000-0000-0000-000000000001";
+const VALIDATOR_SATKER: &str = "00000000-0000-0000-0000-000000000002";
+const APPROVER_SATKER: &str = "00000000-0000-0000-0000-000000000003";
+const SATKER: &str = "SKR001";
+
 fn create_permit_body(nup: &str) -> serde_json::Value {
     json!({
         "pegawai_nip": "198501012010011001",
@@ -52,74 +64,83 @@ fn create_permit_body(nup: &str) -> serde_json::Value {
     })
 }
 
+/// Drive a fresh permit through create → submit → forward → approve and
+/// return its id. On return the permit is ACTIVE.
+async fn drive_to_active(server: &TestServer, nup: &str) -> String {
+    // 1. operator creates → DRAFT (version 1)
+    let mut req = server.post("/pemakaian-bmn").json(&create_permit_body(nup));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 201, "create: {:?}", res.text());
+    let permit_id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // 2. operator submits DRAFT → SUBMITTED (generic transition)
+    let mut req = server
+        .post(&format!("/pemakaian-bmn/{}/transition", permit_id))
+        .json(&json!({"target_status": "SUBMITTED", "catatan": "Mohon validasi"}));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "submit: {:?}", res.text());
+
+    // 3. validator_satker forwards SUBMITTED → SUBMITTED_APPROVER_SATKER
+    //    (version still 1 at this point — submit does not bump version).
+    let mut req = server
+        .post(&format!(
+            "/pemakaian-bmn/{}/validator-satker-action",
+            permit_id
+        ))
+        .json(&json!({"action": "forward", "expected_version": 1, "catatan": "Diteruskan"}));
+    for (k, v) in auth_headers("validator_satker", VALIDATOR_SATKER, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "validator forward: {:?}", res.text());
+
+    // 4. approver_satker approves (→ APPROVED → auto ACTIVE). Forward bumped
+    //    version to 2.
+    let mut req = server
+        .post(&format!(
+            "/pemakaian-bmn/{}/approver-satker-action",
+            permit_id
+        ))
+        .json(&json!({"action": "approve", "expected_version": 2, "catatan": "Disetujui"}));
+    for (k, v) in auth_headers("approver_satker", APPROVER_SATKER, SATKER) {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    assert_eq!(res.status_code(), 200, "approver approve: {:?}", res.text());
+
+    permit_id
+}
+
 #[tokio::test]
 async fn test_complete_pemakaian_bmn_workflow() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
-    let satker_id = "SKR001";
+    let permit_id = drive_to_active(&server, "015").await;
 
-    // 1. Create permit
-    let mut req = server
-        .post("/pemakaian-bmn")
-        .json(&create_permit_body("015"));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
+    // Permit should now be ACTIVE.
+    let mut req = server.get(&format!("/pemakaian-bmn/{}", permit_id));
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
         req = req.add_header(k, v);
     }
     let res = req.await;
     let body = res.json::<serde_json::Value>();
-    println!(
-        "CREATE PERMIT RESPONSE (status={}): {:?}",
-        res.status_code(),
-        body
-    );
-    assert_eq!(res.status_code(), 201);
-    let permit_id = body["data"]["id"].as_str().unwrap().to_string();
-
-    // 2. Generate konsep surat
-    let mut req = server.post(&format!(
-        "/pemakaian-bmn/{}/generate-konsep-surat",
-        permit_id
-    ));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    let res = req.await;
-    println!(
-        "GENERATE KONSEP RESPONSE (status={}): {:?}",
-        res.status_code(),
-        res.json::<serde_json::Value>()
-    );
+    println!("FINAL PERMIT (status={}): {:?}", res.status_code(), body);
     assert_eq!(res.status_code(), 200);
-
-    // 3. Upload signed document
-    let mut req = server
-        .post(&format!("/pemakaian-bmn/{}/upload-signed-pdf", permit_id))
-        .json(&json!({"signed_pdf_url": "https://storage.example.com/signed.pdf"}));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    let res = req.await;
-    println!(
-        "UPLOAD SIGNED RESPONSE (status={}): {:?}",
-        res.status_code(),
-        res.json::<serde_json::Value>()
+    assert_eq!(body["data"]["status"].as_str(), Some("ACTIVE"));
+    assert!(
+        body["data"]["nomor_izin"].as_str().is_some(),
+        "active permit must have a nomor_izin"
     );
-    assert_eq!(res.status_code(), 200);
-
-    // 4. Activate permit
-    let mut req = server.post(&format!("/pemakaian-bmn/{}/activate", permit_id));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    let res = req.await;
-    println!(
-        "ACTIVATE RESPONSE (status={}): {:?}",
-        res.status_code(),
-        res.json::<serde_json::Value>()
-    );
-    assert_eq!(res.status_code(), 200);
 
     teardown_test_db(&db_name).await;
 }
@@ -129,46 +150,9 @@ async fn test_permit_renewal_workflow() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
-    let satker_id = "SKR001";
+    let permit_id = drive_to_active(&server, "016").await;
 
-    // Create + activate original permit
-    let mut req = server
-        .post("/pemakaian-bmn")
-        .json(&create_permit_body("016"));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    let res = req.await;
-    let permit_id = res.json::<serde_json::Value>()["data"]["id"]
-        .as_str()
-        .unwrap()
-        .to_string();
-
-    let mut req = server.post(&format!(
-        "/pemakaian-bmn/{}/generate-konsep-surat",
-        permit_id
-    ));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    let mut req = server
-        .post(&format!("/pemakaian-bmn/{}/upload-signed-pdf", permit_id))
-        .json(&json!({"signed_pdf_url": "https://storage.example.com/signed.pdf"}));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    let mut req = server.post(&format!("/pemakaian-bmn/{}/activate", permit_id));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    // Renew permit
+    // Renew the active permit (operator).
     let mut req = server
         .post(&format!("/pemakaian-bmn/{}/renew", permit_id))
         .json(&json!({
@@ -176,15 +160,11 @@ async fn test_permit_renewal_workflow() {
             "tanggal_selesai": "2027-12-31",
             "keperluan": "Perpanjangan pemakaian untuk tahun berikutnya"
         }));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
+    for (k, v) in auth_headers("operator_satker", OPERATOR, SATKER) {
         req = req.add_header(k, v);
     }
     let res = req.await;
-    println!(
-        "RENEW RESPONSE (status={}): {:?}",
-        res.status_code(),
-        res.json::<serde_json::Value>()
-    );
+    println!("RENEW RESPONSE (status={}): {:?}", res.status_code(), res.text());
     assert_eq!(res.status_code(), 201);
 
     teardown_test_db(&db_name).await;
@@ -195,58 +175,17 @@ async fn test_permit_revocation_workflow() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    let operator_satker_id = "00000000-0000-0000-0000-000000000001";
-    let satker_id = "SKR001";
+    let permit_id = drive_to_active(&server, "017").await;
 
-    // Create + activate
-    let mut req = server
-        .post("/pemakaian-bmn")
-        .json(&create_permit_body("017"));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    let res = req.await;
-    let permit_id = res.json::<serde_json::Value>()["data"]["id"]
-        .as_str()
-        .unwrap()
-        .to_string();
-
-    let mut req = server.post(&format!(
-        "/pemakaian-bmn/{}/generate-konsep-surat",
-        permit_id
-    ));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    let mut req = server
-        .post(&format!("/pemakaian-bmn/{}/upload-signed-pdf", permit_id))
-        .json(&json!({"signed_pdf_url": "https://storage.example.com/signed.pdf"}));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    let mut req = server.post(&format!("/pemakaian-bmn/{}/activate", permit_id));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
-        req = req.add_header(k, v);
-    }
-    req.await;
-
-    // Revoke
+    // Revoke the active permit — only Approver Satker is allowed.
     let mut req = server
         .post(&format!("/pemakaian-bmn/{}/revoke", permit_id))
         .json(&json!({"alasan": "BMN rusak berat dan tidak layak pakai lagi"}));
-    for (k, v) in auth_headers("operator_satker", operator_satker_id, satker_id) {
+    for (k, v) in auth_headers("approver_satker", APPROVER_SATKER, SATKER) {
         req = req.add_header(k, v);
     }
     let res = req.await;
-    println!(
-        "REVOKE RESPONSE (status={}): {:?}",
-        res.status_code(),
-        res.json::<serde_json::Value>()
-    );
+    println!("REVOKE RESPONSE (status={}): {:?}", res.status_code(), res.text());
     assert_eq!(res.status_code(), 200);
 
     teardown_test_db(&db_name).await;

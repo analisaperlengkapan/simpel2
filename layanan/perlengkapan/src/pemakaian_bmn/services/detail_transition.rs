@@ -117,6 +117,13 @@ impl PemakaianBmnService {
             .await
             .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
 
+        // The engine only writes the canonical `status`; re-sync the
+        // denormalized `status_kode` so the internal-satker workflow methods
+        // (which gate on status_kode) see the new state.
+        self.repository
+            .sync_status_kode(id, target_status.to_code())
+            .await?;
+
         // Get updated permit
         let updated = self.repository.get_by_id(id).await?;
 

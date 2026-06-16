@@ -900,20 +900,20 @@ CREATE TABLE perlengkapan.izin_pemakaian_bmn (
     konsep_surat_docx_path text,
     konsep_surat_pdf_path text,
     validator_satker_id uuid,
-    validator_satker_nama character varying(255),
+    validator_satker_nama text,
     tanggal_validasi_satker timestamp with time zone,
     catatan_validator_satker text,
     approver_satker_id uuid,
-    approver_satker_nama character varying(255),
+    approver_satker_nama text,
     tanggal_approval_satker timestamp with time zone,
     catatan_approver_satker text,
     approved_via_legacy_flow boolean DEFAULT false NOT NULL,
     version integer DEFAULT 1 NOT NULL,
     CONSTRAINT chk_housing_fields CHECK ((((jenis_bmn)::text <> 'RUMAH_DINAS'::text) OR (alamat IS NOT NULL))),
     CONSTRAINT chk_tanggal_valid CHECK ((tanggal_selesai >= tanggal_mulai)),
-    CONSTRAINT chk_vehicle_fields CHECK ((((jenis_bmn)::text <> 'KENDARAAN'::text) OR ((no_polisi IS NOT NULL) AND (no_bpkb IS NOT NULL)))),
-    CONSTRAINT izin_pemakaian_bmn_jenis_bmn_check CHECK (((jenis_bmn)::text = ANY ((ARRAY['KENDARAAN'::character varying, 'RUMAH_DINAS'::character varying, 'LAPTOP'::character varying, 'LAINNYA'::character varying])::text[]))),
-    CONSTRAINT izin_pemakaian_bmn_status_check CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'SUBMITTED'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'ACTIVE'::character varying, 'EXPIRED'::character varying, 'REVOKED'::character varying])::text[])))
+    CONSTRAINT chk_vehicle_fields CHECK ((((jenis_bmn)::text <> 'KENDARAAN_BERMOTOR'::text) OR ((no_polisi IS NOT NULL) AND (no_bpkb IS NOT NULL)))),
+    CONSTRAINT izin_pemakaian_bmn_jenis_bmn_check CHECK (((jenis_bmn)::text = ANY ((ARRAY['KENDARAAN_BERMOTOR'::character varying, 'RUMAH_NEGARA'::character varying, 'LAPTOP'::character varying, 'LAINNYA'::character varying])::text[]))),
+    CONSTRAINT izin_pemakaian_bmn_status_check CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'SUBMITTED'::character varying, 'SUBMITTED_APPROVER_SATKER'::character varying, 'REVISI_OPERATOR'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'ACTIVE'::character varying, 'EXPIRED'::character varying, 'REVOKED'::character varying, 'CANCELLED'::character varying])::text[])))
 );
 
 
