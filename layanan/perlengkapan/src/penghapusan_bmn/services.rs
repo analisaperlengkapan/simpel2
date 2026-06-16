@@ -329,6 +329,38 @@ impl PenghapusanBmnService {
         .await
     }
 
+    /// Validator Pusat verifies the asset and advances SubmitPusat →
+    /// VerifikasiPusat.
+    ///
+    /// This is the deliberate human gate the workflow describes: the Validator
+    /// Pusat consults the read-only SIMAN verification (`verifikasi-siman` GET)
+    /// and then confirms it here. The SIMAN match is advisory — the asset may
+    /// legitimately be absent from the replica — so verification stamps the
+    /// validator + timestamp and moves the status without hard-blocking on a
+    /// SIMAN hit (the read-only endpoint already surfaces any caution to the
+    /// reviewer).
+    pub async fn verifikasi_pusat(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        catatan: Option<String>,
+    ) -> AppResult<PenghapusanBmn> {
+        self.repository
+            .update_verifikasi_pusat(id, validator_id, catatan.clone())
+            .await?;
+
+        self.transition(
+            id,
+            PenghapusanBmnStatus::VerifikasiPusat
+                .to_state_name()
+                .to_string(),
+            validator_id,
+            catatan,
+            "verifikasi_pusat".to_string(),
+        )
+        .await
+    }
+
     /// Validator Wilayah returns to Operator Satker
     pub async fn return_to_operator(
         &self,

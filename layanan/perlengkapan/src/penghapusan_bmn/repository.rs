@@ -307,8 +307,9 @@ impl PenghapusanBmnRepository {
             param_count + 1
         );
 
-        params.push(Box::new(per_page));
-        params.push(Box::new(offset));
+        // Postgres infers LIMIT/OFFSET params as int8 (bigint); bind i64. (#33)
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
             .iter()
@@ -463,6 +464,32 @@ impl PenghapusanBmnRepository {
         Ok(())
     }
 
+    /// Record the Validator Pusat verification (Fase 2.3). Stamps the
+    /// verifying validator + verification timestamp; the SubmitPusat →
+    /// VerifikasiPusat status move itself is done by the workflow engine.
+    pub async fn update_verifikasi_pusat(
+        &self,
+        id: Uuid,
+        validator_id: Uuid,
+        catatan: Option<String>,
+    ) -> AppResult<()> {
+        let client = self.pool.get().await?;
+
+        let query = r#"
+            UPDATE perlengkapan.penghapusan_bmn
+            SET validator_pusat_id = $1,
+                catatan_validator_pusat = COALESCE($2, catatan_validator_pusat),
+                tanggal_verifikasi_pusat = NOW(),
+                updated_at = NOW()
+            WHERE id = $3
+        "#;
+
+        client
+            .execute(query, &[&validator_id, &catatan, &id])
+            .await?;
+        Ok(())
+    }
+
     /// Update both DOCX and PDF konsep SK URLs and their on-disk paths in
     /// one statement. This is the only konsep-SK write path — DOCX + PDF
     /// are always produced together.
@@ -515,7 +542,7 @@ impl PenghapusanBmnRepository {
         let query = r#"
             UPDATE perlengkapan.penghapusan_bmn
             SET signed_sk_pdf_url = $1,
-                signed_sk_uploaded_at = NOW(),
+                signed_sk_pdf_uploaded_at = NOW(),
                 is_completed = true,
                 updated_at = NOW()
             WHERE id = $2

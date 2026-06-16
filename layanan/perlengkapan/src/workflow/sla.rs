@@ -85,20 +85,25 @@ impl SlaMonitor {
     pub async fn check_sla(&self, entity_id: Uuid) -> Result<Option<SlaBreachInfo>, SlaError> {
         let client = self.db_pool.get().await?;
 
-        // Get current state and when it was entered
+        // Get current state and when it was entered. The workflow status lives
+        // on the per-satker row (`pengajuan_kebutuhan_bmn_satker`) as a numeric
+        // `status_kode`; the state-name string the SLA config is keyed on comes
+        // from the `ms_aktivitas_bmn` master. State-entry time is the latest
+        // activity row, falling back to row creation when there are none yet.
         let query = r#"
             SELECT
-                kb.status,
-                a.created_at as state_entered_at
-            FROM perlengkapan.kebutuhan_bmn kb
+                ma.nama AS status,
+                COALESCE(a.created_at, pks.created_at) AS state_entered_at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
+            JOIN perlengkapan.ms_aktivitas_bmn ma ON ma.kode = pks.status_kode
             LEFT JOIN LATERAL (
                 SELECT created_at
                 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                WHERE pengajuan_id = kb.id
+                WHERE pengajuan_satker_id = pks.id
                 ORDER BY created_at DESC
                 LIMIT 1
             ) a ON true
-            WHERE kb.id = $1
+            WHERE pks.id = $1
         "#;
 
         let row = client
@@ -151,21 +156,23 @@ impl SlaMonitor {
     pub async fn check_all_sla(&self) -> Result<Vec<SlaBreachInfo>, SlaError> {
         let client = self.db_pool.get().await?;
 
-        // Get all entities in non-terminal states
+        // Get all per-satker workflow rows in non-terminal states. See
+        // `check_sla` for the status_kode → ms_aktivitas_bmn name mapping.
         let query = r#"
             SELECT
-                kb.id,
-                kb.status,
-                a.created_at as state_entered_at
-            FROM perlengkapan.kebutuhan_bmn kb
+                pks.id,
+                ma.nama AS status,
+                COALESCE(a.created_at, pks.created_at) AS state_entered_at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
+            JOIN perlengkapan.ms_aktivitas_bmn ma ON ma.kode = pks.status_kode
             LEFT JOIN LATERAL (
                 SELECT created_at
                 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                WHERE pengajuan_id = kb.id
+                WHERE pengajuan_satker_id = pks.id
                 ORDER BY created_at DESC
                 LIMIT 1
             ) a ON true
-            WHERE kb.status NOT IN ('REJECTED', 'CANCELLED', 'COMPLETED')
+            WHERE ma.nama NOT IN ('REJECTED', 'CANCELLED', 'COMPLETED')
         "#;
 
         let rows = client.query(query, &[]).await?;
@@ -342,21 +349,21 @@ impl SlaMonitor {
 
         let query = r#"
             SELECT
-                kb.created_by as requester_id,
+                pks.created_by as requester_id,
                 COALESCE(
                     (SELECT user_id
                      FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                     WHERE pengajuan_id = kb.id
-                     AND aktivitas_id IN (
-                         SELECT id FROM perlengkapan.ms_aktivitas_bmn
-                         WHERE kode IN ('REVIEWED', 'APPROVED')
+                     WHERE pengajuan_satker_id = pks.id
+                     AND to_status_kode IN (
+                         SELECT kode FROM perlengkapan.ms_aktivitas_bmn
+                         WHERE nama IN ('ANALISIS_KELAYAKAN', 'APPROVED')
                      )
                      ORDER BY created_at DESC
                      LIMIT 1),
-                    kb.created_by
+                    pks.created_by
                 ) as approver_id
-            FROM perlengkapan.kebutuhan_bmn kb
-            WHERE kb.id = $1
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
+            WHERE pks.id = $1
         "#;
 
         let row = client
@@ -374,16 +381,22 @@ impl SlaMonitor {
     async fn log_sla_escalation(&self, breach: &SlaBreachInfo) -> Result<(), SlaError> {
         let client = self.db_pool.get().await?;
 
+        // Record the breach as an activity row on the satker workflow. The
+        // state is unchanged (to_status_kode = the row's current status_kode);
+        // `aksi` is NOT NULL so it carries the escalation marker.
         let query = r#"
             INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-            (pengajuan_id, aktivitas_id, user_id, catatan, created_at)
-            VALUES (
-                $1,
-                (SELECT id FROM perlengkapan.ms_aktivitas_bmn WHERE kode = 'SLA_BREACH' LIMIT 1),
+            (pengajuan_satker_id, from_status_kode, to_status_kode, user_id, aksi, komentar, created_at)
+            SELECT
+                pks.id,
+                pks.status_kode,
+                pks.status_kode,
                 '00000000-0000-0000-0000-000000000000'::uuid,
+                'SLA_ESCALATION',
                 $2,
                 NOW()
-            )
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
+            WHERE pks.id = $1
         "#;
 
         let catatan = format!(
@@ -429,20 +442,21 @@ impl SlaMonitor {
     pub async fn get_sla_status(&self, entity_id: Uuid) -> Result<SlaStatus, SlaError> {
         let client = self.db_pool.get().await?;
 
-        // Get current state and when it was entered
+        // Get current state and when it was entered (see `check_sla`).
         let query = r#"
             SELECT
-                kb.status,
-                a.created_at as state_entered_at
-            FROM perlengkapan.kebutuhan_bmn kb
+                ma.nama AS status,
+                COALESCE(a.created_at, pks.created_at) AS state_entered_at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
+            JOIN perlengkapan.ms_aktivitas_bmn ma ON ma.kode = pks.status_kode
             LEFT JOIN LATERAL (
                 SELECT created_at
                 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                WHERE pengajuan_id = kb.id
+                WHERE pengajuan_satker_id = pks.id
                 ORDER BY created_at DESC
                 LIMIT 1
             ) a ON true
-            WHERE kb.id = $1
+            WHERE pks.id = $1
         "#;
 
         let row = client

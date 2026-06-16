@@ -180,8 +180,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         let total: i64 = count_row.get(0);
 
         // Get paginated data
-        params.push(Box::new(per_page));
-        params.push(Box::new(offset));
+        // Postgres infers LIMIT/OFFSET params as int8 (bigint); bind i64 so
+        // tokio_postgres serialization matches the inferred type. (#33)
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
 
         let data_query = format!(
             r#"
@@ -518,8 +520,10 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         let total: i64 = count_row.get(0);
 
         // Get paginated data
-        params.push(Box::new(per_page));
-        params.push(Box::new(offset));
+        // Postgres infers LIMIT/OFFSET params as int8 (bigint); bind i64 so
+        // tokio_postgres serialization matches the inferred type. (#33)
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset as i64));
 
         let data_query = format!(
             r#"

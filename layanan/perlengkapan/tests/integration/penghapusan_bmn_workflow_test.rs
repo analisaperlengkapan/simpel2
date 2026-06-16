@@ -89,7 +89,7 @@ async fn test_complete_penghapusan_bmn_workflow() {
     // 3. Wilayah forwards to Pusat
     let mut req = server
         .post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
-        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+        .json(&json!({"aksi": "forward", "catatan": "Diteruskan ke Pusat"}));
     for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) {
         req = req.add_header(k, v);
     }
@@ -101,7 +101,22 @@ async fn test_complete_penghapusan_bmn_workflow() {
     );
     assert_eq!(res.status_code(), 200);
 
-    // 4. Generate Konsep SK
+    // 4. Validator Pusat verifies the asset (SubmitPusat → VerifikasiPusat)
+    let mut req = server
+        .post(&format!("/penghapusan-bmn/{}/verifikasi-pusat", usulan_id))
+        .json(&json!({"catatan": "Aset terverifikasi, lanjut terbitkan SK"}));
+    for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    println!(
+        "VERIFIKASI PUSAT RESPONSE (status={}): {:?}",
+        res.status_code(),
+        res.json::<serde_json::Value>()
+    );
+    assert_eq!(res.status_code(), 200);
+
+    // 5. Generate Konsep SK
     let mut req = server.post(&format!(
         "/penghapusan-bmn/{}/generate-konsep-sk",
         usulan_id
@@ -117,7 +132,7 @@ async fn test_complete_penghapusan_bmn_workflow() {
     );
     assert_eq!(res.status_code(), 200);
 
-    // 5. Upload Signed SK
+    // 6. Upload Signed SK
     let mut req = server
         .post(&format!("/penghapusan-bmn/{}/upload-signed-sk", usulan_id))
         .json(&json!({"signed_sk_pdf_url": "https://storage.example.com/sk-signed.pdf"}));
@@ -180,15 +195,31 @@ async fn test_penghapusan_bmn_rejection_workflow() {
     // Forward to pusat
     let mut req = server
         .post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
-        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+        .json(&json!({"aksi": "forward", "catatan": "Diteruskan ke Pusat"}));
     for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) {
         req = req.add_header(k, v);
     }
     req.await;
 
-    // Reject via transition (target_status is i32: 4008 = Rejected)
+    // Verifikasi Pusat (SubmitPusat → VerifikasiPusat) — reject is only
+    // reachable from VerifikasiPusat per the workflow state machine.
+    let mut req = server
+        .post(&format!("/penghapusan-bmn/{}/verifikasi-pusat", usulan_id))
+        .json(&json!({"catatan": "Ditelaah"}));
+    for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") {
+        req = req.add_header(k, v);
+    }
+    let res = req.await;
+    println!(
+        "VERIFIKASI PUSAT RESPONSE (status={}): {:?}",
+        res.status_code(),
+        res.json::<serde_json::Value>()
+    );
+    assert_eq!(res.status_code(), 200);
+
+    // Reject via generic transition (to_state is the state NAME: "REJECTED")
     let mut req = server.post(&format!("/penghapusan-bmn/{}/transition", usulan_id))
-        .json(&json!({"target_status": 4008, "catatan": "Tidak disetujui karena aset masih layak pakai"}));
+        .json(&json!({"to_state": "REJECTED", "catatan": "Tidak disetujui karena aset masih layak pakai"}));
     for (k, v) in auth_headers("validator_pusat", validator_pusat_id, "PUSAT001") {
         req = req.add_header(k, v);
     }

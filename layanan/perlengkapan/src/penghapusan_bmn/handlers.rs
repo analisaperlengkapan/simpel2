@@ -12,6 +12,7 @@
 //   DELETE /penghapusan-bmn/:id           - Delete (Draft only)
 //   POST   /penghapusan-bmn/:id/submit-wilayah    - Submit to Validator Wilayah
 //   POST   /penghapusan-bmn/:id/forward-pusat     - Forward to Validator Pusat
+//   POST   /penghapusan-bmn/:id/verifikasi-pusat  - Validator Pusat verifies (→ VerifikasiPusat)
 //   POST   /penghapusan-bmn/:id/return-operator   - Return to Operator
 //   POST   /penghapusan-bmn/:id/generate-sk       - Generate konsep SK DOCX
 //   POST   /penghapusan-bmn/:id/upload-signed-sk  - Upload signed SK PDF
@@ -290,6 +291,31 @@ pub async fn forward_to_pusat(
     Ok(Json(ApiResponse::success(
         penghapusan,
         "Pengajuan berhasil diteruskan ke Validator Pusat".to_string(),
+    )))
+}
+
+/// Request body for Validator Pusat verification
+#[derive(Debug, Deserialize)]
+pub struct VerifikasiPusatBody {
+    pub catatan: Option<String>,
+}
+
+/// Validator Pusat verifies the asset (against SIMAN) and advances the usulan
+/// SubmitPusat → VerifikasiPusat, unlocking konsep-SK generation.
+pub async fn verifikasi_pusat(
+    State(service): State<Arc<PenghapusanBmnService>>,
+    Path(id): Path<Uuid>,
+    claims: Claims,
+    Json(body): Json<VerifikasiPusatBody>,
+) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    claims.require_role("validator_pusat")?;
+    let penghapusan = service
+        .verifikasi_pusat(id, claims.user_id, body.catatan)
+        .await?;
+
+    Ok(Json(ApiResponse::success(
+        penghapusan,
+        "Usulan berhasil diverifikasi Validator Pusat".to_string(),
     )))
 }
 

@@ -19,7 +19,7 @@ impl PakaianDinasRepository {
 
         let count_row = client
             .query_one(
-                "SELECT COUNT(*) as total FROM pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1",
+                "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1",
                 &[&pengajuan_id],
             )
             .await
@@ -30,8 +30,8 @@ impl PakaianDinasRepository {
             .query(
                 r#"
                 SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
-                FROM pengajuan_pakaian_dinas_satker ps
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
+                FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                 LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
                 WHERE ps.pengajuan_id = $1
                 ORDER BY s.nama ASC
@@ -57,8 +57,8 @@ impl PakaianDinasRepository {
             .query_opt(
                 r#"
                 SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
-                FROM pengajuan_pakaian_dinas_satker ps
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
+                FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                 LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
                 WHERE ps.id = $1
                 "#,

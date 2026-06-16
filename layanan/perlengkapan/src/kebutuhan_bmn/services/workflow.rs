@@ -416,6 +416,25 @@ impl KebutuhanBmnService {
             KebutuhanBmnStatus::Rejected
         };
 
+        // Honor the config's mandatory feasibility-analysis gate
+        // (SUBMIT_PUSAT → ANALISIS_KELAYAKAN → decision). A keputusan issued while
+        // still in SubmitPusat first advances through AnalisisKelayakan so the
+        // analysis step is recorded in the audit trail before the final decision,
+        // rather than attempting the (intentionally) invalid SubmitPusat→Approved
+        // transition directly.
+        if current.status == KebutuhanBmnStatus::SubmitPusat {
+            self.transition_satker_status(
+                satker_id,
+                WorkflowTransitionRequest {
+                    target_status: KebutuhanBmnStatus::AnalisisKelayakan.to_code(),
+                    komentar: keputusan_alasan.clone(),
+                },
+                user_id,
+                user_info.clone(),
+            )
+            .await?;
+        }
+
         let transition_request = WorkflowTransitionRequest {
             target_status: target_status.to_code(),
             komentar: keputusan_alasan,

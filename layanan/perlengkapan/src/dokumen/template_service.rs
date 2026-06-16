@@ -10,7 +10,13 @@ pub struct TemplateService {
 impl TemplateService {
     pub fn new() -> Self {
         let mut handlebars = Handlebars::new();
-        handlebars.set_strict_mode(true);
+        // Non-strict: a missing/optional template variable renders as empty
+        // rather than failing the whole document. Office documents legitimately
+        // have optional fields (no STNK for non-vehicles, blank approval date on
+        // a draft, etc.); strict mode turned any such gap into a hard 500 on SK
+        // generation. Template authoring errors are caught by the per-template
+        // `variables` contract + tests, not by crashing live rendering.
+        handlebars.set_strict_mode(false);
 
         // Register custom helpers
         handlebars.register_helper("format_date", Box::new(format_date_helper));

@@ -17,7 +17,10 @@ impl PakaianDinasRepository {
         let offset = (page - 1) * per_page;
 
         let count_row = client
-            .query_one("SELECT COUNT(*) as total FROM ms_jenis_pakaian_dinas", &[])
+            .query_one(
+                "SELECT COUNT(*) as total FROM perlengkapan.ms_jenis_pakaian_dinas",
+                &[],
+            )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
         let total: i64 = count_row.get("total");
@@ -26,7 +29,7 @@ impl PakaianDinasRepository {
             .query(
                 r#"
                 SELECT id, nama, deskripsi, is_active, created_at, updated_at
-                FROM ms_jenis_pakaian_dinas
+                FROM perlengkapan.ms_jenis_pakaian_dinas
                 ORDER BY nama ASC
                 LIMIT $1 OFFSET $2
                 "#,
@@ -48,7 +51,7 @@ impl PakaianDinasRepository {
 
         let row = client
             .query_opt(
-                "SELECT id, nama, deskripsi, is_active, created_at, updated_at FROM ms_jenis_pakaian_dinas WHERE id = $1",
+                "SELECT id, nama, deskripsi, is_active, created_at, updated_at FROM perlengkapan.ms_jenis_pakaian_dinas WHERE id = $1",
                 &[&id],
             )
             .await
@@ -73,7 +76,7 @@ impl PakaianDinasRepository {
         let row = client
             .query_one(
                 r#"
-                INSERT INTO ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active, created_at, updated_at)
+                INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, $5)
                 RETURNING id, nama, deskripsi, is_active, created_at, updated_at
                 "#,
@@ -100,7 +103,7 @@ impl PakaianDinasRepository {
         let row = client
             .query_opt(
                 r#"
-                UPDATE ms_jenis_pakaian_dinas
+                UPDATE perlengkapan.ms_jenis_pakaian_dinas
                 SET nama = $2, deskripsi = $3, is_active = $4, updated_at = $5
                 WHERE id = $1
                 RETURNING id, nama, deskripsi, is_active, created_at, updated_at
@@ -128,7 +131,10 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         let result = client
-            .execute("DELETE FROM ms_jenis_pakaian_dinas WHERE id = $1", &[&id])
+            .execute(
+                "DELETE FROM perlengkapan.ms_jenis_pakaian_dinas WHERE id = $1",
+                &[&id],
+            )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
@@ -166,13 +172,13 @@ impl PakaianDinasRepository {
             Vec<&(dyn tokio_postgres::types::ToSql + Sync)>,
         ) = if let Some(jid) = jenis_id.as_ref() {
             (
-                    "SELECT COUNT(*) as total FROM ms_spesifikasi_pakaian_dinas WHERE jenis_pakaian_dinas_id = $1".to_string(),
+                    "SELECT COUNT(*) as total FROM perlengkapan.ms_spesifikasi_pakaian_dinas WHERE jenis_pakaian_dinas_id = $1".to_string(),
                     r#"
                     SELECT s.id, s.jenis_pakaian_dinas_id, s.nama, s.gender, s.ukuran_group,
                            s.deskripsi, s.is_active, s.created_at, s.updated_at,
                            j.nama as jenis_pakaian_nama
-                    FROM ms_spesifikasi_pakaian_dinas s
-                    LEFT JOIN ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
+                    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
                     WHERE s.jenis_pakaian_dinas_id = $1
                     ORDER BY s.nama ASC
                     LIMIT $2 OFFSET $3
@@ -181,13 +187,13 @@ impl PakaianDinasRepository {
                 )
         } else {
             (
-                "SELECT COUNT(*) as total FROM ms_spesifikasi_pakaian_dinas".to_string(),
+                "SELECT COUNT(*) as total FROM perlengkapan.ms_spesifikasi_pakaian_dinas".to_string(),
                 r#"
                     SELECT s.id, s.jenis_pakaian_dinas_id, s.nama, s.gender, s.ukuran_group,
                            s.deskripsi, s.is_active, s.created_at, s.updated_at,
                            j.nama as jenis_pakaian_nama
-                    FROM ms_spesifikasi_pakaian_dinas s
-                    LEFT JOIN ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
+                    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
                     ORDER BY j.nama ASC, s.nama ASC
                     LIMIT $1 OFFSET $2
                     "#
@@ -227,8 +233,8 @@ impl PakaianDinasRepository {
                 SELECT s.id, s.jenis_pakaian_dinas_id, s.nama, s.gender, s.ukuran_group,
                        s.deskripsi, s.is_active, s.created_at, s.updated_at,
                        j.nama as jenis_pakaian_nama
-                FROM ms_spesifikasi_pakaian_dinas s
-                LEFT JOIN ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
+                FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
                 WHERE s.id = $1
                 "#,
                 &[&id],
@@ -255,7 +261,7 @@ impl PakaianDinasRepository {
         let _row = client
             .query_one(
                 r#"
-                INSERT INTO ms_spesifikasi_pakaian_dinas
+                INSERT INTO perlengkapan.ms_spesifikasi_pakaian_dinas
                     (id, jenis_pakaian_dinas_id, nama, gender, ukuran_group, deskripsi, is_active, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
                 RETURNING id, jenis_pakaian_dinas_id, nama, gender, ukuran_group, deskripsi, is_active, created_at, updated_at
@@ -293,7 +299,7 @@ impl PakaianDinasRepository {
         let result = client
             .execute(
                 r#"
-                UPDATE ms_spesifikasi_pakaian_dinas
+                UPDATE perlengkapan.ms_spesifikasi_pakaian_dinas
                 SET jenis_pakaian_dinas_id = $2, nama = $3, gender = $4, ukuran_group = $5,
                     deskripsi = $6, is_active = $7, updated_at = $8
                 WHERE id = $1
@@ -330,7 +336,7 @@ impl PakaianDinasRepository {
 
         let result = client
             .execute(
-                "DELETE FROM ms_spesifikasi_pakaian_dinas WHERE id = $1",
+                "DELETE FROM perlengkapan.ms_spesifikasi_pakaian_dinas WHERE id = $1",
                 &[&id],
             )
             .await
@@ -363,7 +369,7 @@ impl PakaianDinasRepository {
         let (_count_query, total): (String, i64) = if let Some(sid) = spesifikasi_id {
             let row = client
                 .query_one(
-                    "SELECT COUNT(*) as total FROM ms_subspesifikasi_pakaian_dinas WHERE spesifikasi_id = $1",
+                    "SELECT COUNT(*) as total FROM perlengkapan.ms_subspesifikasi_pakaian_dinas WHERE spesifikasi_id = $1",
                     &[&sid],
                 )
                 .await
@@ -372,7 +378,7 @@ impl PakaianDinasRepository {
         } else {
             let row = client
                 .query_one(
-                    "SELECT COUNT(*) as total FROM ms_subspesifikasi_pakaian_dinas",
+                    "SELECT COUNT(*) as total FROM perlengkapan.ms_subspesifikasi_pakaian_dinas",
                     &[],
                 )
                 .await
@@ -386,8 +392,8 @@ impl PakaianDinasRepository {
                     r#"
                     SELECT ss.id, ss.spesifikasi_id, ss.nama, ss.gender, ss.is_active,
                            ss.created_at, ss.updated_at, s.nama as spesifikasi_nama
-                    FROM ms_subspesifikasi_pakaian_dinas ss
-                    LEFT JOIN ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
+                    FROM perlengkapan.ms_subspesifikasi_pakaian_dinas ss
+                    LEFT JOIN perlengkapan.ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
                     WHERE ss.spesifikasi_id = $1
                     ORDER BY ss.nama ASC
                     LIMIT $2 OFFSET $3
@@ -401,8 +407,8 @@ impl PakaianDinasRepository {
                     r#"
                     SELECT ss.id, ss.spesifikasi_id, ss.nama, ss.gender, ss.is_active,
                            ss.created_at, ss.updated_at, s.nama as spesifikasi_nama
-                    FROM ms_subspesifikasi_pakaian_dinas ss
-                    LEFT JOIN ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
+                    FROM perlengkapan.ms_subspesifikasi_pakaian_dinas ss
+                    LEFT JOIN perlengkapan.ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
                     ORDER BY s.nama ASC, ss.nama ASC
                     LIMIT $1 OFFSET $2
                     "#,
@@ -434,8 +440,8 @@ impl PakaianDinasRepository {
                 r#"
                 SELECT ss.id, ss.spesifikasi_id, ss.nama, ss.gender, ss.is_active,
                        ss.created_at, ss.updated_at, s.nama as spesifikasi_nama
-                FROM ms_subspesifikasi_pakaian_dinas ss
-                LEFT JOIN ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
+                FROM perlengkapan.ms_subspesifikasi_pakaian_dinas ss
+                LEFT JOIN perlengkapan.ms_spesifikasi_pakaian_dinas s ON ss.spesifikasi_id = s.id
                 WHERE ss.id = $1
                 "#,
                 &[&id],
@@ -462,7 +468,7 @@ impl PakaianDinasRepository {
         client
             .execute(
                 r#"
-                INSERT INTO ms_subspesifikasi_pakaian_dinas
+                INSERT INTO perlengkapan.ms_subspesifikasi_pakaian_dinas
                     (id, spesifikasi_id, nama, gender, is_active, created_at, updated_at)
                 VALUES ($1, $2, $3, $4, $5, $6, $6)
                 "#,
@@ -490,7 +496,7 @@ impl PakaianDinasRepository {
 
         let result = client
             .execute(
-                "DELETE FROM ms_subspesifikasi_pakaian_dinas WHERE id = $1",
+                "DELETE FROM perlengkapan.ms_subspesifikasi_pakaian_dinas WHERE id = $1",
                 &[&id],
             )
             .await
@@ -517,14 +523,14 @@ impl PakaianDinasRepository {
         let rows = if let Some(g) = group {
             client
                 .query(
-                    r#"SELECT ukuran, "group", urutan FROM ms_ukuran WHERE "group" = $1 ORDER BY urutan ASC"#,
+                    r#"SELECT ukuran, "group", urutan FROM perlengkapan.ms_ukuran WHERE "group" = $1 ORDER BY urutan ASC"#,
                     &[&g],
                 )
                 .await
         } else {
             client
                 .query(
-                    r#"SELECT ukuran, "group", urutan FROM ms_ukuran ORDER BY "group", urutan ASC"#,
+                    r#"SELECT ukuran, "group", urutan FROM perlengkapan.ms_ukuran ORDER BY "group", urutan ASC"#,
                     &[],
                 )
                 .await

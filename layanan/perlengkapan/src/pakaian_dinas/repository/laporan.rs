@@ -24,10 +24,10 @@ impl PakaianDinasRepository {
                 SUM(CASE WHEN psp.jenis_kelamin = 'L' THEN 1 ELSE 0 END) as jumlah_laki,
                 SUM(CASE WHEN psp.jenis_kelamin = 'P' THEN 1 ELSE 0 END) as jumlah_perempuan,
                 COUNT(*) as jumlah_total
-            FROM pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
-            JOIN pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
-            JOIN pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            JOIN pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
+            FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
+            JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = 1008
         "#
@@ -106,8 +106,8 @@ impl PakaianDinasRepository {
         let count_query = format!(
             r#"
             SELECT COUNT(*) as total
-            FROM pengajuan_pakaian_dinas_satker_pegawai psp
-            JOIN pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
+            FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             {}
             "#,
             where_clause
@@ -132,11 +132,11 @@ impl PakaianDinasRepository {
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'BAJU' THEN pu.ukuran END) as ukuran_baju,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'CELANA' THEN pu.ukuran END) as ukuran_celana,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'SEPATU' THEN pu.ukuran END) as ukuran_sepatu
-            FROM pengajuan_pakaian_dinas_satker_pegawai psp
-            JOIN pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
+            FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
-            LEFT JOIN pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
-            LEFT JOIN pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
+            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
+            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
             GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat,
                      psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
@@ -173,7 +173,7 @@ impl PakaianDinasRepository {
         let rows = client
             .query(
                 "SELECT DISTINCT spesifikasi_nama \
-                 FROM pengajuan_pakaian_dinas_pakaian \
+                 FROM perlengkapan.pengajuan_pakaian_dinas_pakaian \
                  WHERE pengajuan_id = $1 \
                  ORDER BY spesifikasi_nama",
                 &[&pengajuan_id],
@@ -228,11 +228,11 @@ impl PakaianDinasRepository {
                 psp.nip, psp.nama, psp.jabatan, psp.gol_kd, psp.jenis,
                 psp.jenis_kelamin, psp.with_hijab,
                 pp.spesifikasi_nama AS item_nama, pu.ukuran
-            FROM pengajuan_pakaian_dinas_satker_pegawai psp
-            JOIN pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
+            FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
-            LEFT JOIN pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
-            LEFT JOIN pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
+            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
+            LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
             ORDER BY s.nama, psp.nama, pp.spesifikasi_nama
             "#,
@@ -283,11 +283,11 @@ impl PakaianDinasRepository {
                 COALESCE(s.nama, '-') AS satker_nama,
                 pu.ukuran,
                 COUNT(*) AS jumlah
-            FROM pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
-            JOIN pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
-            JOIN pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
+            FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
+            JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
             LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
-            JOIN pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
+            JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = 1008
         "#

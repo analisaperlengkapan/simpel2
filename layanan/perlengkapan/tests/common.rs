@@ -1,3 +1,8 @@
+// Shared integration-test harness. Included via `mod common;` by several test
+// binaries; not every binary uses every helper (e.g. SLA tests use only
+// setup_test_db), so the standard tests/common allow applies.
+#![allow(dead_code)]
+
 use layanan_perlengkapan::shared::{
     cache::CacheManager,
     db::Database,
@@ -68,6 +73,26 @@ pub async fn setup_test_db() -> (Database, String) {
     let db = Database::new(&test_url_str)
         .await
         .expect("Failed to connect to test DB");
+
+    // Cross-schema prerequisites for the squashed baseline (F5-B). perlengkapan
+    // V001 has an FK to `authenc.users(id)` and the deploy contract is
+    // integrasi → authenc → perlengkapan. These tests isolate perlengkapan, so
+    // we stand up the minimal upstream objects (stub) BEFORE applying the
+    // baseline — mirroring the deploy order without pulling in the full
+    // authenc/integrasi baselines. Without this the baseline aborts (one txn),
+    // every perlengkapan table is rolled back, and every test fails on a
+    // missing relation. (#33 / F5-C)
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .batch_execute(
+                "CREATE SCHEMA IF NOT EXISTS authenc; \
+                 CREATE TABLE IF NOT EXISTS authenc.users (id uuid PRIMARY KEY); \
+                 CREATE SCHEMA IF NOT EXISTS integrasi;",
+            )
+            .await
+            .expect("Failed to create cross-schema prerequisites");
+    }
 
     // Execute all SQL migrations from the migrations directory
     if let Ok(entries) = std::fs::read_dir("migrations") {
@@ -161,36 +186,11 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
     let export_service = ExportService::new(Arc::new(db.clone()));
     let analisis_service =
         layanan_perlengkapan::analisis::AnalisisService::new(Arc::new(db.clone()));
-    let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
-    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
 
-    let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
-    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
-    let kebutuhan_bmn_service = KebutuhanBmnService::new(
-        kebutuhan_bmn_repo,
-        AuthencClient::dummy(),
-        kebutuhan_bmn_workflow,
-    );
-
-    let dashboard_service = DashboardService::new(db.pool().clone());
-    let roadmap_repo = RoadmapRepository::new(db.clone());
-    let roadmap_service = RoadmapService::new(roadmap_repo);
-
-    let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
-    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
-    let pemakaian_bmn_service =
-        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow);
-
-    let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone());
-    let penghapusan_bmn_service = Arc::new(PenghapusanBmnService::new(
-        db.pool().clone(),
-        Arc::new(penghapusan_bmn_workflow),
-    ));
-
-    let (dashboard_tx, _) = tokio::sync::broadcast::channel(100);
-
-    // Ports & adapters: stand up real DokumenService + NotifikasiService so
-    // the integration tests exercise the same trait surface production uses.
+    // Ports & adapters: stand up real DokumenService + NotifikasiService so the
+    // integration tests exercise the same trait surface production uses. Built
+    // BEFORE the workflow services so the DocumentGenerator can be wired into
+    // pemakaian/penghapusan (konsep SK generation), mirroring main.rs.
     let template_service =
         std::sync::Arc::new(layanan_perlengkapan::dokumen::TemplateService::new());
     let pdf_generator = std::sync::Arc::new(layanan_perlengkapan::dokumen::PdfGenerator::new(
@@ -213,6 +213,36 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         std::sync::Arc::new(
             layanan_perlengkapan::notifikasi::service::NotifikasiService::new(db.pool().clone()),
         );
+
+    let pakaian_dinas_repo = PakaianDinasRepository::new(db.pool().clone());
+    let pakaian_dinas_service = PakaianDinasService::new(pakaian_dinas_repo);
+
+    let kebutuhan_bmn_repo = PgKebutuhanBmnRepository::new(db.pool().clone());
+    let kebutuhan_bmn_workflow = WorkflowEngine::for_kebutuhan_bmn(db.pool().clone());
+    let kebutuhan_bmn_service = KebutuhanBmnService::new(
+        kebutuhan_bmn_repo,
+        AuthencClient::dummy(),
+        kebutuhan_bmn_workflow,
+    );
+
+    let dashboard_service = DashboardService::new(db.pool().clone());
+    let roadmap_repo = RoadmapRepository::new(db.clone());
+    let roadmap_service = RoadmapService::new(roadmap_repo);
+
+    let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
+    let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
+    let pemakaian_bmn_service =
+        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
+            .with_document_generator(docs.clone());
+
+    let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
+        .with_document_generator(docs.clone());
+    let penghapusan_bmn_service = Arc::new(
+        PenghapusanBmnService::new(db.pool().clone(), Arc::new(penghapusan_bmn_workflow))
+            .with_document_generator(docs.clone()),
+    );
+
+    let (dashboard_tx, _) = tokio::sync::broadcast::channel(100);
 
     let state = AppState {
         export_service,
