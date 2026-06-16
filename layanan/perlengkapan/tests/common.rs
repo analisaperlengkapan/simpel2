@@ -1,3 +1,8 @@
+// Shared integration-test harness. Included via `mod common;` by several test
+// binaries; not every binary uses every helper (e.g. SLA tests use only
+// setup_test_db), so the standard tests/common allow applies.
+#![allow(dead_code)]
+
 use layanan_perlengkapan::shared::{
     cache::CacheManager,
     db::Database,

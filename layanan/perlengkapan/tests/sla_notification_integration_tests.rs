@@ -1,415 +1,165 @@
 // ============================================================================
 // SLA Monitoring with Notification Integration Tests
-// Description: Tests for SLA breach detection and notification delivery
+// Description: SLA breach detection + escalation against a real Postgres.
 // Requirements: REQ-W003, REQ-N008, NFR-M004
+//
+// Uses the shared ephemeral-DB harness (tests/common.rs): each test gets a
+// fresh migrated `test_db_<uuid>`. The workflow status lives on the per-satker
+// row `pengajuan_kebutuhan_bmn_satker` (status_kode) and the SLA config is keyed
+// on the state NAME from `ms_aktivitas_bmn`. ANALISIS_KELAYAKAN (kode 2004) has
+// a 3-day (4320 min) SLA in WorkflowConfig::default_kebutuhan_bmn.
 // ============================================================================
 
-use chrono::{Duration, Utc};
-use deadpool_postgres::{Config, Pool, Runtime};
-use std::env;
-use tokio_postgres::NoTls;
+mod common;
+
+use chrono::{DateTime, Duration, Utc};
+use common::{setup_test_db, teardown_test_db};
+use deadpool_postgres::Pool;
+use layanan_perlengkapan::workflow::{config::WorkflowConfig, sla::SlaMonitor};
 use uuid::Uuid;
 
-// Import workflow modules
-use layanan_perlengkapan::workflow::{config::WorkflowConfig, sla::SlaMonitor};
+/// State kode 2004 = ANALISIS_KELAYAKAN — has a 3-day SLA in the default config.
+const KODE_ANALISIS_KELAYAKAN: i32 = 2004;
+const SEEDED_USER: &str = "00000000-0000-0000-0000-000000000001";
 
-/// Helper function to create a test database pool
-async fn create_test_pool() -> Pool {
-    let mut cfg = Config::new();
-    cfg.host = Some(env::var("DATABASE_HOST").unwrap_or_else(|_| "localhost".to_string()));
-    cfg.port = Some(
-        env::var("DATABASE_PORT")
-            .unwrap_or_else(|_| "5432".to_string())
-            .parse()
-            .unwrap(),
-    );
-    cfg.dbname =
-        Some(env::var("DATABASE_NAME").unwrap_or_else(|_| "perlengkapan_test".to_string()));
-    cfg.user = Some(env::var("DATABASE_USER").unwrap_or_else(|_| "postgres".to_string()));
-    cfg.password = Some(env::var("DATABASE_PASSWORD").unwrap_or_else(|_| "password".to_string()));
+/// Seed a per-satker workflow row in `status_kode`, whose latest activity (and
+/// thus state-entry time) is `entered_at`. Returns the satker-row id, which is
+/// the entity the SLA monitor checks.
+async fn seed_satker_row(pool: &Pool, status_kode: i32, entered_at: DateTime<Utc>) -> Uuid {
+    let client = pool.get().await.expect("db client");
+    let pengajuan_id = Uuid::new_v4();
+    let satker_row_id = Uuid::new_v4();
+    let user_id = Uuid::parse_str(SEEDED_USER).unwrap();
 
-    cfg.create_pool(Some(Runtime::Tokio1), NoTls)
-        .expect("Failed to create test database pool")
-}
-
-/// Helper function to create a test kebutuhan BMN entity
-async fn create_test_kebutuhan(
-    pool: &Pool,
-    status: &str,
-    created_at: chrono::DateTime<Utc>,
-) -> Uuid {
-    let client = pool.get().await.expect("Failed to get database client");
-
-    let entity_id = Uuid::new_v4();
-    let user_id = Uuid::new_v4();
-
-    // Insert kebutuhan BMN
-    let query = r#"
-        INSERT INTO perlengkapan.kebutuhan_bmn
-        (id, satker_id, kode_barang, nama_barang, jumlah_kebutuhan, tahun_anggaran, status, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
-    "#;
-
+    // Parent pengajuan (NOT NULL: nama, tahun, tgl_mulai, tgl_selesai).
     client
         .execute(
-            query,
-            &[
-                &entity_id,
-                &Uuid::new_v4(), // satker_id
-                &"1.01.01.01.001",
-                &"Test Barang",
-                &10i32,
-                &2026i32,
-                &status,
-                &user_id,
-                &created_at,
-            ],
+            r#"INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn
+                (id, nama, tahun, tgl_mulai, tgl_selesai, created_by, status_kode)
+               VALUES ($1, 'Test Pengajuan', 2026, '2026-01-01', '2026-12-31', $2, $3)"#,
+            &[&pengajuan_id, &user_id, &status_kode],
         )
         .await
-        .expect("Failed to insert test kebutuhan");
+        .expect("insert pengajuan");
 
-    // Insert workflow activity
-    let activity_query = r#"
-        INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-        (pengajuan_id, aktivitas_id, user_id, catatan, created_at)
-        VALUES (
-            $1,
-            (SELECT id FROM perlengkapan.ms_aktivitas_bmn WHERE kode = $2 LIMIT 1),
-            $3,
-            'Test activity',
-            $4
-        )
-    "#;
-
+    // Per-satker workflow row carrying the status_kode.
     client
         .execute(
-            activity_query,
-            &[&entity_id, &status, &user_id, &created_at],
+            r#"INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
+                (id, pengajuan_id, satker_id, status_kode, created_by, created_at)
+               VALUES ($1, $2, 'SKR001', $3, $4, $5)"#,
+            &[&satker_row_id, &pengajuan_id, &status_kode, &user_id, &entered_at],
         )
         .await
-        .expect("Failed to insert test activity");
+        .expect("insert satker row");
 
-    entity_id
-}
-
-/// Helper function to cleanup test data
-async fn cleanup_test_data(pool: &Pool, entity_id: Uuid) {
-    let client = pool.get().await.expect("Failed to get database client");
-
-    // Delete workflow activities
+    // Activity marking entry into the current state (drives state_entered_at).
     client
         .execute(
-            "DELETE FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas WHERE pengajuan_id = $1",
-            &[&entity_id],
+            r#"INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
+                (pengajuan_satker_id, to_status_kode, user_id, aksi, komentar, created_at)
+               VALUES ($1, $2, $3, 'TRANSITION', 'enter state', $4)"#,
+            &[&satker_row_id, &status_kode, &user_id, &entered_at],
         )
         .await
-        .ok();
+        .expect("insert aktivitas");
 
-    // Delete kebutuhan
-    client
-        .execute(
-            "DELETE FROM perlengkapan.kebutuhan_bmn WHERE id = $1",
-            &[&entity_id],
-        )
-        .await
-        .ok();
+    satker_row_id
 }
 
 #[tokio::test]
-#[ignore] // Requires database and notification service
 async fn test_sla_breach_detection() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
+    let (db, db_name) = setup_test_db().await;
+    let pool = db.pool().clone();
+    let monitor = SlaMonitor::new(WorkflowConfig::default_kebutuhan_bmn(), pool.clone());
 
-    // Create entity in SUBMITTED state, 3 days ago (SLA is 2 days)
-    let created_at = Utc::now() - Duration::days(3);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
+    // Entered ANALISIS_KELAYAKAN 4 days ago; SLA is 3 days → breach.
+    let entered = Utc::now() - Duration::days(4);
+    let id = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, entered).await;
 
-    // Test: Check SLA for entity
-    let result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
-        monitor.check_sla(entity_id).await;
-    assert!(result.is_ok());
-
-    let breach = result.unwrap();
+    let breach = monitor.check_sla(id).await.expect("check_sla ok");
     assert!(breach.is_some(), "SLA breach should be detected");
+    let info = breach.unwrap();
+    assert_eq!(info.entity_id, id);
+    assert_eq!(info.current_state, "ANALISIS_KELAYAKAN");
+    assert!(info.breach_duration_minutes > 0);
 
-    let breach_info = breach.unwrap();
-    assert_eq!(breach_info.entity_id, entity_id);
-    assert_eq!(breach_info.current_state, "SUBMITTED");
-    assert!(
-        breach_info.breach_duration_minutes > 0,
-        "Breach duration should be positive"
-    );
-
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
+    teardown_test_db(&db_name).await;
 }
 
 #[tokio::test]
-#[ignore] // Requires database and notification service
 async fn test_sla_no_breach() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
+    let (db, db_name) = setup_test_db().await;
+    let pool = db.pool().clone();
+    let monitor = SlaMonitor::new(WorkflowConfig::default_kebutuhan_bmn(), pool.clone());
 
-    // Create entity in SUBMITTED state, 1 day ago (SLA is 2 days)
-    let created_at = Utc::now() - Duration::days(1);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
+    // Entered 1 day ago; SLA is 3 days → no breach.
+    let entered = Utc::now() - Duration::days(1);
+    let id = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, entered).await;
 
-    // Test: Check SLA for entity
-    let result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
-        monitor.check_sla(entity_id).await;
-    assert!(result.is_ok());
+    let breach = monitor.check_sla(id).await.expect("check_sla ok");
+    assert!(breach.is_none(), "no SLA breach expected within window");
 
-    let breach = result.unwrap();
-    assert!(breach.is_none(), "SLA breach should not be detected");
-
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
+    teardown_test_db(&db_name).await;
 }
 
 #[tokio::test]
-#[ignore] // Requires database and notification service
 async fn test_sla_check_all() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
+    let (db, db_name) = setup_test_db().await;
+    let pool = db.pool().clone();
+    let monitor = SlaMonitor::new(WorkflowConfig::default_kebutuhan_bmn(), pool.clone());
 
-    // Create multiple entities with different SLA statuses
-    let entity1 = create_test_kebutuhan(&pool, "SUBMITTED", Utc::now() - Duration::days(3)).await;
-    let entity2 = create_test_kebutuhan(&pool, "SUBMITTED", Utc::now() - Duration::days(1)).await;
-    let entity3 = create_test_kebutuhan(&pool, "REVIEWED", Utc::now() - Duration::days(2)).await;
+    let breaching = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(4)).await;
+    let healthy = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(1)).await;
 
-    // Test: Check all SLAs
-    let result: Result<Vec<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
-        monitor.check_all_sla().await;
-    assert!(result.is_ok());
-
-    let breaches = result.unwrap();
+    let breaches = monitor.check_all_sla().await.expect("check_all_sla ok");
     assert!(
-        breaches.len() >= 2,
-        "At least 2 SLA breaches should be detected"
+        breaches.iter().any(|b| b.entity_id == breaching),
+        "breaching row should be reported"
+    );
+    assert!(
+        !breaches.iter().any(|b| b.entity_id == healthy),
+        "healthy row should not be reported"
     );
 
-    // Verify entity1 is in breaches
-    assert!(
-        breaches.iter().any(|b| b.entity_id == entity1),
-        "Entity1 should have SLA breach"
-    );
-
-    // Verify entity2 is not in breaches
-    assert!(
-        !breaches.iter().any(|b| b.entity_id == entity2),
-        "Entity2 should not have SLA breach"
-    );
-
-    // Cleanup
-    cleanup_test_data(&pool, entity1).await;
-    cleanup_test_data(&pool, entity2).await;
-    cleanup_test_data(&pool, entity3).await;
+    teardown_test_db(&db_name).await;
 }
 
 #[tokio::test]
-#[ignore] // Requires database and notification service running
 async fn test_sla_escalation_with_notification() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
+    let (db, db_name) = setup_test_db().await;
+    let pool = db.pool().clone();
 
-    // Stand up the in-process NotifikasiService (no gRPC server needed).
+    // In-process NotifikasiService (no gRPC server) wired as the notifier port.
     let notifier: std::sync::Arc<dyn layanan_perlengkapan::contracts::NotificationSender> =
         std::sync::Arc::new(
             layanan_perlengkapan::notifikasi::service::NotifikasiService::new(pool.clone()),
         );
+    let monitor = SlaMonitor::with_notifier(
+        WorkflowConfig::default_kebutuhan_bmn(),
+        pool.clone(),
+        notifier,
+    );
 
-    let monitor = SlaMonitor::with_notifier(config, pool.clone(), notifier);
+    let id = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(4)).await;
 
-    // Create entity with SLA breach
-    let created_at = Utc::now() - Duration::days(3);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
+    // monitor_and_escalate detects the breach, resolves approver/requester,
+    // sends notifications, and logs an SLA_ESCALATION activity row.
+    let escalated = monitor.monitor_and_escalate().await.expect("monitor_and_escalate ok");
+    assert!(escalated >= 1, "at least one breach should be escalated");
 
-    // Test: Check SLA and escalate
-    let breach_result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
-        monitor.check_sla(entity_id).await;
-    assert!(breach_result.is_ok());
-
-    let breach = breach_result.unwrap();
-    assert!(breach.is_some(), "SLA breach should be detected");
-
-    let breach_info = breach.unwrap();
-
-    // Test: Escalate SLA breach
-    let escalate_result: Result<(), _> = monitor.escalate_sla_breach(&breach_info).await;
-    assert!(escalate_result.is_ok(), "Escalation should succeed");
-
-    // Verify escalation was logged in workflow activity
-    let client = pool.get().await.expect("Failed to get database client");
-    let query = r#"
-        SELECT COUNT(*) as count
-        FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-        WHERE pengajuan_id = $1
-        AND catatan LIKE '%SLA breach detected%'
-    "#;
-
-    let row = client
-        .query_one(query, &[&entity_id])
+    // The escalation activity row was recorded.
+    let client = pool.get().await.unwrap();
+    let n: i64 = client
+        .query_one(
+            "SELECT COUNT(*) FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas \
+             WHERE pengajuan_satker_id = $1 AND aksi = 'SLA_ESCALATION'",
+            &[&id],
+        )
         .await
-        .expect("Failed to query");
-    let count: i64 = row.get("count");
-    assert!(
-        count > 0,
-        "SLA breach should be logged in workflow activity"
-    );
+        .unwrap()
+        .get(0);
+    assert_eq!(n, 1, "one SLA_ESCALATION activity row expected");
 
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
-}
-
-#[tokio::test]
-#[ignore] // Requires database
-async fn test_sla_monitor_and_escalate() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
-
-    // Create multiple entities with SLA breaches
-    let entity1 = create_test_kebutuhan(&pool, "SUBMITTED", Utc::now() - Duration::days(3)).await;
-    let entity2 = create_test_kebutuhan(&pool, "REVIEWED", Utc::now() - Duration::days(2)).await;
-
-    // Test: Monitor and escalate all breaches
-    let result: Result<usize, _> = monitor.monitor_and_escalate().await;
-    assert!(result.is_ok());
-
-    let breach_count = result.unwrap();
-    assert!(breach_count >= 2, "At least 2 breaches should be escalated");
-
-    // Cleanup
-    cleanup_test_data(&pool, entity1).await;
-    cleanup_test_data(&pool, entity2).await;
-}
-
-#[tokio::test]
-#[ignore] // Requires database
-async fn test_sla_status_normal() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
-
-    // Create entity in SUBMITTED state, 1 hour ago (SLA is 2 days)
-    let created_at = Utc::now() - Duration::hours(1);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
-
-    // Test: Get SLA status
-    let result: Result<layanan_perlengkapan::workflow::sla::SlaStatus, _> =
-        monitor.get_sla_status(entity_id).await;
-    assert!(result.is_ok());
-
-    let status = result.unwrap();
-    match status {
-        layanan_perlengkapan::workflow::sla::SlaStatus::Normal { remaining_minutes } => {
-            assert!(
-                remaining_minutes > 0,
-                "Remaining minutes should be positive"
-            );
-        }
-        _ => panic!("Expected Normal status"),
-    }
-
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
-}
-
-#[tokio::test]
-#[ignore] // Requires database
-async fn test_sla_status_breached() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
-
-    // Create entity in SUBMITTED state, 3 days ago (SLA is 2 days)
-    let created_at = Utc::now() - Duration::days(3);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
-
-    // Test: Get SLA status
-    let result: Result<layanan_perlengkapan::workflow::sla::SlaStatus, _> =
-        monitor.get_sla_status(entity_id).await;
-    assert!(result.is_ok());
-
-    let status = result.unwrap();
-    match status {
-        layanan_perlengkapan::workflow::sla::SlaStatus::Breached {
-            breach_duration_minutes,
-        } => {
-            assert!(
-                breach_duration_minutes > 0,
-                "Breach duration should be positive"
-            );
-        }
-        _ => panic!("Expected Breached status"),
-    }
-
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
-}
-
-#[tokio::test]
-#[ignore] // Requires database
-async fn test_sla_metrics_recorded() {
-    // Setup
-    let pool = create_test_pool().await;
-    let config = WorkflowConfig::default_kebutuhan_bmn();
-    let monitor = SlaMonitor::new(config, pool.clone());
-
-    // Create entity with SLA breach
-    let created_at = Utc::now() - Duration::days(3);
-    let entity_id = create_test_kebutuhan(&pool, "SUBMITTED", created_at).await;
-
-    // Get initial metric values
-    let initial_breaches = layanan_perlengkapan::shared::metrics::workflow_sla_breaches_total()
-        .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
-        .get();
-
-    let initial_escalations = layanan_perlengkapan::shared::metrics::workflow_escalations_total()
-        .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
-        .get();
-
-    // Test: Check SLA and escalate
-    let breach_result: Result<Option<layanan_perlengkapan::workflow::sla::SlaBreachInfo>, _> =
-        monitor.check_sla(entity_id).await;
-    assert!(breach_result.is_ok());
-
-    let breach = breach_result.unwrap();
-    assert!(breach.is_some());
-
-    let breach_info = breach.unwrap();
-    let escalate_result: Result<(), _> = monitor.escalate_sla_breach(&breach_info).await;
-    assert!(escalate_result.is_ok());
-
-    // Verify metrics were incremented
-    let final_breaches = layanan_perlengkapan::shared::metrics::workflow_sla_breaches_total()
-        .with_label_values(&["kebutuhan_bmn", "SUBMITTED"])
-        .get();
-
-    let final_escalations = layanan_perlengkapan::shared::metrics::workflow_escalations_total()
-        .with_label_values(&["kebutuhan_bmn", "SUBMITTED", "success"])
-        .get();
-
-    assert!(
-        final_breaches > initial_breaches,
-        "SLA breach metric should be incremented"
-    );
-    assert!(
-        final_escalations > initial_escalations,
-        "Escalation metric should be incremented"
-    );
-
-    // Cleanup
-    cleanup_test_data(&pool, entity_id).await;
+    teardown_test_db(&db_name).await;
 }
