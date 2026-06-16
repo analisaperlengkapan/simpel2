@@ -912,10 +912,16 @@ mod read_consistency_tests {
                     initial_sequence
                 );
 
-                // Should have waited at least the delay time
+                // Should have waited approximately the delay time. Allow a
+                // small tolerance: `elapsed` is `as_millis()` (floor) and
+                // tokio's timer granularity + scheduler jitter under CI load
+                // can leave the measured value a hair under `delay_ms`
+                // (observed 65ms vs 66ms). The property under test is "the read
+                // blocked until replication caught up", not sub-ms precision.
+                const TIMING_TOLERANCE_MS: u64 = 5;
                 assert!(
-                    elapsed >= delay_ms,
-                    "Should have waited at least {}ms, but only waited {}ms",
+                    elapsed + TIMING_TOLERANCE_MS >= delay_ms,
+                    "Should have waited ~{}ms, but only waited {}ms",
                     delay_ms,
                     elapsed
                 );
