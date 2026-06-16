@@ -297,3 +297,144 @@ impl IntegrasiGrpcClient {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! P1a read-model mapper coverage (#33 / F5-C). These lock the satker
+    //! identity derivation from MySIMKARI documented in memory
+    //! `project_p1a_satker_readmodel_assumptions`: the classification keyword
+    //! match (which field, which precedence) and the `parent_id -> api_id ->
+    //! kode_satker` adjacency resolution. Pure functions — no DB, no gRPC.
+    use super::*;
+
+    fn ms(kode: &str, api_id: &str, parent_id: &str) -> MysimkariSatker {
+        MysimkariSatker {
+            kode_satker: kode.to_string(),
+            nama_satker: format!("Satker {kode}"),
+            api_id: api_id.to_string(),
+            parent_id: parent_id.to_string(),
+            ..Default::default()
+        }
+    }
+
+    // ── classify_satker_type ────────────────────────────────────────────────
+
+    #[test]
+    fn classify_pusat_from_either_field() {
+        assert_eq!(
+            classify_satker_type("Kejaksaan Agung", ""),
+            SatkerType::Pusat
+        );
+        assert_eq!(classify_satker_type("", "kejagung"), SatkerType::Pusat);
+        assert_eq!(classify_satker_type("Satker Pusat", ""), SatkerType::Pusat);
+    }
+
+    #[test]
+    fn classify_tinggi() {
+        assert_eq!(
+            classify_satker_type("Kejaksaan Tinggi", ""),
+            SatkerType::KejaksaanTinggi
+        );
+        // classification may live in kategori_satker, not tipe_satker.
+        assert_eq!(
+            classify_satker_type("", "kejati"),
+            SatkerType::KejaksaanTinggi
+        );
+    }
+
+    #[test]
+    fn classify_negeri() {
+        assert_eq!(
+            classify_satker_type("Kejaksaan Negeri", ""),
+            SatkerType::KejaksaanNegeri
+        );
+        assert_eq!(
+            classify_satker_type("", "kejari"),
+            SatkerType::KejaksaanNegeri
+        );
+    }
+
+    #[test]
+    fn classify_cabang_takes_precedence_over_negeri() {
+        // A cabjari string contains both "cabang" and "negeri"; ordering MUST
+        // resolve it to Cabang (it sits under a kejari but is its own type).
+        assert_eq!(
+            classify_satker_type("Cabang Kejaksaan Negeri", ""),
+            SatkerType::Cabang
+        );
+        assert_eq!(classify_satker_type("cabjari", ""), SatkerType::Cabang);
+    }
+
+    #[test]
+    fn classify_unknown_falls_back_to_unit_khusus() {
+        assert_eq!(
+            classify_satker_type("Pusdiklat", "lainnya"),
+            SatkerType::UnitKhusus
+        );
+    }
+
+    // ── mysimkari_to_satker (adjacency resolution) ──────────────────────────
+
+    #[test]
+    fn maps_parent_id_via_api_id_to_kode_satker() {
+        // child.parent_id references the PARENT's api_id, not its kode_satker.
+        let map: HashMap<&str, &str> = [("API_PARENT", "KEJATI_JABAR")].into_iter().collect();
+        let child = ms("KEJARI_BANDUNG", "API_CHILD", "API_PARENT");
+
+        let satker = mysimkari_to_satker(&child, &map);
+
+        assert_eq!(satker.code, "KEJARI_BANDUNG");
+        assert_eq!(satker.parent_code.as_deref(), Some("KEJATI_JABAR"));
+        assert_eq!(satker.level, 0);
+        assert!(satker.active);
+    }
+
+    #[test]
+    fn empty_parent_id_yields_root() {
+        let map: HashMap<&str, &str> = HashMap::new();
+        let root = ms("KEJAGUNG", "API_ROOT", "");
+
+        let satker = mysimkari_to_satker(&root, &map);
+
+        assert!(satker.parent_code.is_none());
+    }
+
+    #[test]
+    fn unresolved_parent_id_falls_back_to_raw_value() {
+        // If parent_id isn't a known api_id it may already be a kode_satker.
+        let map: HashMap<&str, &str> = HashMap::new();
+        let child = ms("KEJARI_X", "API_X", "KEJATI_ALREADY_CODE");
+
+        let satker = mysimkari_to_satker(&child, &map);
+
+        assert_eq!(satker.parent_code.as_deref(), Some("KEJATI_ALREADY_CODE"));
+    }
+
+    #[test]
+    fn populates_attributes_and_description() {
+        let map: HashMap<&str, &str> = HashMap::new();
+        let mut record = ms("KEJARI_Y", "API_Y", "");
+        record.wilayah = "JABAR".to_string();
+        record.provinsi = "Jawa Barat".to_string();
+        record.kategori_satker = "kejari".to_string();
+        record.alamat = "Jl. Merdeka 1".to_string();
+
+        let satker = mysimkari_to_satker(&record, &map);
+
+        assert_eq!(satker.description.as_deref(), Some("Jl. Merdeka 1"));
+        assert_eq!(satker.satker_type, SatkerType::KejaksaanNegeri);
+        let attrs = satker.attributes.expect("attributes present");
+        assert_eq!(attrs["wilayah"], "JABAR");
+        assert_eq!(attrs["provinsi"], "Jawa Barat");
+        assert_eq!(attrs["kategori_satker"], "kejari");
+    }
+
+    #[test]
+    fn empty_alamat_yields_no_description() {
+        let map: HashMap<&str, &str> = HashMap::new();
+        let satker = mysimkari_to_satker(&ms("K", "A", ""), &map);
+        assert!(satker.description.is_none());
+        // No wilayah/provinsi/kategori → no attributes object at all.
+        assert!(satker.attributes.is_none());
+    }
+}
