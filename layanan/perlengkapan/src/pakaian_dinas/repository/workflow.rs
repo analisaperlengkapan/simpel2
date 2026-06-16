@@ -62,8 +62,8 @@ impl PakaianDinasRepository {
 
     /// Persist a per-satker workflow transition and record an activity row,
     /// atomically (#40). Replaces the previous no-op validator action: the new
-    /// `aktivitas_id` lands on `pengajuan_pakaian_dinas_satker` and an audit-
-    /// friendly row is appended to `pengajuan_pakaian_dinas_satker_aktivitas`
+    /// `aktivitas_id` lands on `perlengkapan.pengajuan_pakaian_dinas_satker` and an audit-
+    /// friendly row is appended to `perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas`
     /// so the per-satker timeline has real history.
     // Each arg is a distinct transition/activity column; a param struct would
     // only add indirection.
@@ -90,7 +90,7 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         tx.execute(
-            "UPDATE pengajuan_pakaian_dinas_satker \
+            "UPDATE perlengkapan.pengajuan_pakaian_dinas_satker \
              SET aktivitas_id = $1, updated_at = NOW() WHERE id = $2",
             &[&new_aktivitas_id, &satker_id],
         )
@@ -99,7 +99,7 @@ impl PakaianDinasRepository {
 
         let activity_id = Uuid::new_v4();
         tx.execute(
-            "INSERT INTO pengajuan_pakaian_dinas_satker_aktivitas \
+            "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas \
              (id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, jabatan, role, created_at) \
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())",
             &[
@@ -136,7 +136,7 @@ impl PakaianDinasRepository {
             .query(
                 "SELECT id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, \
                         pangkat, jabatan, role, created_at \
-                 FROM pengajuan_pakaian_dinas_satker_aktivitas \
+                 FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas \
                  WHERE pengajuan_satker_id = $1 \
                  ORDER BY created_at ASC",
                 &[&satker_id],

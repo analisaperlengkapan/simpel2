@@ -21,7 +21,7 @@ impl PakaianDinasRepository {
         let (_count_sql, data_sql, total): (String, String, i64) = if let Some(t) = tahun {
             let row = client
                 .query_one(
-                    "SELECT COUNT(*) as total FROM pengajuan_pakaian_dinas WHERE tahun = $1",
+                    "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas WHERE tahun = $1",
                     &[&t],
                 )
                 .await
@@ -30,11 +30,11 @@ impl PakaianDinasRepository {
                 "filtered".to_string(),
                 r#"
                     SELECT p.*, j.nama as jenis_pakaian_nama,
-                           (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
-                           (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker ps
+                           (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                           (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                             WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
-                    FROM pengajuan_pakaian_dinas p
-                    LEFT JOIN ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+                    FROM perlengkapan.pengajuan_pakaian_dinas p
+                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
                     WHERE p.tahun = $1
                     ORDER BY p.created_at DESC
                     LIMIT $2 OFFSET $3
@@ -43,18 +43,18 @@ impl PakaianDinasRepository {
             )
         } else {
             let row = client
-                .query_one("SELECT COUNT(*) as total FROM pengajuan_pakaian_dinas", &[])
+                .query_one("SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas", &[])
                 .await
                 .map_err(|e| bad_request(&e.to_string()))?;
             (
                 "all".to_string(),
                 r#"
                 SELECT p.*, j.nama as jenis_pakaian_nama,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker ps
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                         WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
-                FROM pengajuan_pakaian_dinas p
-                LEFT JOIN ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+                FROM perlengkapan.pengajuan_pakaian_dinas p
+                LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
                 ORDER BY p.created_at DESC
                 LIMIT $1 OFFSET $2
                 "#.to_string(),
@@ -89,11 +89,11 @@ impl PakaianDinasRepository {
             .query_opt(
                 r#"
                 SELECT p.*, j.nama as jenis_pakaian_nama,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
-                       (SELECT COUNT(*) FROM pengajuan_pakaian_dinas_satker ps
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                         WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
-                FROM pengajuan_pakaian_dinas p
-                LEFT JOIN ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+                FROM perlengkapan.pengajuan_pakaian_dinas p
+                LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
                 WHERE p.id = $1
                 "#,
                 &[&id],
@@ -123,7 +123,7 @@ impl PakaianDinasRepository {
         client
             .execute(
                 r#"
-                INSERT INTO pengajuan_pakaian_dinas
+                INSERT INTO perlengkapan.pengajuan_pakaian_dinas
                     (id, nama, deskripsi, tgl_mulai, tgl_selesai, is_reguler, tahun,
                      pilihan_satker, dengan_unit_kerja, jenis_pakaian_dinas_id, aktivitas_id,
                      created_by, created_at, updated_at, scope_satker, wilayah_id)
@@ -157,12 +157,12 @@ impl PakaianDinasRepository {
             client
                 .execute(
                     r#"
-                    INSERT INTO pengajuan_pakaian_dinas_pakaian
+                    INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
                         (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama,
                          spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
                     SELECT $1, $2, s.jenis_pakaian_dinas_id, j.nama, s.id, s.nama, s.ukuran_group
-                    FROM ms_spesifikasi_pakaian_dinas s
-                    LEFT JOIN ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
+                    FROM perlengkapan.ms_spesifikasi_pakaian_dinas s
+                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON s.jenis_pakaian_dinas_id = j.id
                     WHERE s.id = $3
                     "#,
                     &[&pakaian_id, &id, spec_id],
@@ -192,7 +192,7 @@ impl PakaianDinasRepository {
             client
                 .execute(
                     r#"
-                    INSERT INTO pengajuan_pakaian_dinas_satker_terpilih
+                    INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
                         (pengajuan_id, satker_id, is_show_in_form)
                     VALUES ($1, $2, true)
                     ON CONFLICT (pengajuan_id, satker_id) DO NOTHING
@@ -241,33 +241,33 @@ impl PakaianDinasRepository {
         }
 
         // Delete in order due to FK constraints
-        client.execute("DELETE FROM pengajuan_pakaian_dinas_satker_pegawai_ukuran WHERE pengajuan_satker_id IN (SELECT id FROM pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
-        client.execute("DELETE FROM pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id IN (SELECT id FROM pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
-        client.execute("DELETE FROM pengajuan_pakaian_dinas_satker_aktivitas WHERE pengajuan_satker_id IN (SELECT id FROM pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
+        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
+        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
+        client.execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas WHERE pengajuan_satker_id IN (SELECT id FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1)", &[&id]).await.ok();
         client
             .execute(
-                "DELETE FROM pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1",
+                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker WHERE pengajuan_id = $1",
                 &[&id],
             )
             .await
             .ok();
         client
             .execute(
-                "DELETE FROM pengajuan_pakaian_dinas_pakaian WHERE pengajuan_id = $1",
+                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_pakaian WHERE pengajuan_id = $1",
                 &[&id],
             )
             .await
             .ok();
         client
             .execute(
-                "DELETE FROM pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = $1",
+                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = $1",
                 &[&id],
             )
             .await
             .ok();
 
         let result = client
-            .execute("DELETE FROM pengajuan_pakaian_dinas WHERE id = $1", &[&id])
+            .execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1", &[&id])
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
