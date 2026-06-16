@@ -17,7 +17,10 @@ impl PakaianDinasRepository {
         let offset = (page - 1) * per_page;
 
         let count_row = client
-            .query_one("SELECT COUNT(*) as total FROM perlengkapan.ms_jenis_pakaian_dinas", &[])
+            .query_one(
+                "SELECT COUNT(*) as total FROM perlengkapan.ms_jenis_pakaian_dinas",
+                &[],
+            )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
         let total: i64 = count_row.get("total");
@@ -128,7 +131,10 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
 
         let result = client
-            .execute("DELETE FROM perlengkapan.ms_jenis_pakaian_dinas WHERE id = $1", &[&id])
+            .execute(
+                "DELETE FROM perlengkapan.ms_jenis_pakaian_dinas WHERE id = $1",
+                &[&id],
+            )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 

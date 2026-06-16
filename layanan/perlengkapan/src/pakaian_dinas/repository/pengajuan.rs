@@ -43,7 +43,10 @@ impl PakaianDinasRepository {
             )
         } else {
             let row = client
-                .query_one("SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas", &[])
+                .query_one(
+                    "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas",
+                    &[],
+                )
                 .await
                 .map_err(|e| bad_request(&e.to_string()))?;
             (
@@ -267,7 +270,10 @@ impl PakaianDinasRepository {
             .ok();
 
         let result = client
-            .execute("DELETE FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1", &[&id])
+            .execute(
+                "DELETE FROM perlengkapan.pengajuan_pakaian_dinas WHERE id = $1",
+                &[&id],
+            )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 

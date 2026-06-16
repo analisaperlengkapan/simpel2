@@ -102,7 +102,12 @@ async fn test_penghapusan_rbac_403() {
         Some(json!({})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "submit-wilayah as pusat: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "submit-wilayah as pusat: {:?}",
+        r.text()
+    );
 
     // forward-pusat is validator_wilayah-only → operator denied.
     let r = post(
@@ -113,7 +118,12 @@ async fn test_penghapusan_rbac_403() {
         Some(json!({"aksi": "forward"})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "forward-pusat as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "forward-pusat as operator: {:?}",
+        r.text()
+    );
 
     // verifikasi-pusat is validator_pusat-only → operator denied.
     let r = post(
@@ -124,7 +134,12 @@ async fn test_penghapusan_rbac_403() {
         Some(json!({})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "verifikasi-pusat as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "verifikasi-pusat as operator: {:?}",
+        r.text()
+    );
 
     // generate-konsep-sk is validator-only → operator denied.
     let r = post(
@@ -135,7 +150,12 @@ async fn test_penghapusan_rbac_403() {
         None,
     )
     .await;
-    assert_eq!(r.status_code(), 403, "generate-sk as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "generate-sk as operator: {:?}",
+        r.text()
+    );
 
     // delete is operator-only → validator_wilayah denied.
     let mut req = server.delete(&format!("/penghapusan-bmn/{}", id));
@@ -192,7 +212,12 @@ async fn test_pemakaian_rbac_403() {
         Some(json!({"action": "forward", "expected_version": 1})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "validator-action as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "validator-action as operator: {:?}",
+        r.text()
+    );
 
     // approver-satker-action is approver_satker-only → operator denied.
     let r = post(
@@ -203,7 +228,12 @@ async fn test_pemakaian_rbac_403() {
         Some(json!({"action": "approve", "expected_version": 1})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "approver-action as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "approver-action as operator: {:?}",
+        r.text()
+    );
 
     // revoke is approver_satker-only → operator denied …
     let r = post(
@@ -248,7 +278,12 @@ async fn test_kebutuhan_rbac_403() {
         Some(json!({"lampiran_surat_permohonan": "https://x/l.pdf", "lampiran_pendukung": []})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "kebutuhan submit as pusat: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "kebutuhan submit as pusat: {:?}",
+        r.text()
+    );
 
     // validator-wilayah is validator_wilayah-only → operator denied.
     let r = post(
@@ -259,7 +294,12 @@ async fn test_kebutuhan_rbac_403() {
         Some(json!({"aksi": "forward"})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "kebutuhan validator-wilayah as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "kebutuhan validator-wilayah as operator: {:?}",
+        r.text()
+    );
 
     // keputusan-pusat is validator_pusat-only → operator denied.
     let r = post(
@@ -270,7 +310,12 @@ async fn test_kebutuhan_rbac_403() {
         Some(json!({"is_approved": true})),
     )
     .await;
-    assert_eq!(r.status_code(), 403, "kebutuhan keputusan as operator: {:?}", r.text());
+    assert_eq!(
+        r.status_code(),
+        403,
+        "kebutuhan keputusan as operator: {:?}",
+        r.text()
+    );
 
     teardown_test_db(&db_name).await;
 }

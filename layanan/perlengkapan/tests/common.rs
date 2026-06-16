@@ -231,11 +231,12 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
 
     let pemakaian_bmn_repo = PemakaianBmnRepository::new(db.pool().clone());
     let pemakaian_bmn_workflow = WorkflowEngine::for_pemakaian_bmn(db.pool().clone());
-    let pemakaian_bmn_service = PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
-        .with_document_generator(docs.clone());
+    let pemakaian_bmn_service =
+        PemakaianBmnService::new(pemakaian_bmn_repo, pemakaian_bmn_workflow)
+            .with_document_generator(docs.clone());
 
-    let penghapusan_bmn_workflow =
-        WorkflowEngine::for_penghapusan_bmn(db.pool().clone()).with_document_generator(docs.clone());
+    let penghapusan_bmn_workflow = WorkflowEngine::for_penghapusan_bmn(db.pool().clone())
+        .with_document_generator(docs.clone());
     let penghapusan_bmn_service = Arc::new(
         PenghapusanBmnService::new(db.pool().clone(), Arc::new(penghapusan_bmn_workflow))
             .with_document_generator(docs.clone()),

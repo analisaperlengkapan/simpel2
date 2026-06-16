@@ -101,7 +101,12 @@ async fn drive_to_active(server: &TestServer, nup: &str) -> String {
         req = req.add_header(k, v);
     }
     let res = req.await;
-    assert_eq!(res.status_code(), 200, "validator forward: {:?}", res.text());
+    assert_eq!(
+        res.status_code(),
+        200,
+        "validator forward: {:?}",
+        res.text()
+    );
 
     // 4. approver_satker approves (→ APPROVED → auto ACTIVE). Forward bumped
     //    version to 2.
@@ -164,7 +169,11 @@ async fn test_permit_renewal_workflow() {
         req = req.add_header(k, v);
     }
     let res = req.await;
-    println!("RENEW RESPONSE (status={}): {:?}", res.status_code(), res.text());
+    println!(
+        "RENEW RESPONSE (status={}): {:?}",
+        res.status_code(),
+        res.text()
+    );
     assert_eq!(res.status_code(), 201);
 
     teardown_test_db(&db_name).await;
@@ -185,7 +194,11 @@ async fn test_permit_revocation_workflow() {
         req = req.add_header(k, v);
     }
     let res = req.await;
-    println!("REVOKE RESPONSE (status={}): {:?}", res.status_code(), res.text());
+    println!(
+        "REVOKE RESPONSE (status={}): {:?}",
+        res.status_code(),
+        res.text()
+    );
     assert_eq!(res.status_code(), 200);
 
     teardown_test_db(&db_name).await;

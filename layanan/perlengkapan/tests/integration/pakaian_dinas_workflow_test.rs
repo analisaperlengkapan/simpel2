@@ -96,7 +96,12 @@ async fn test_pakaian_dinas_master_crud_rbac() {
         }),
     )
     .await;
-    assert_eq!(res.status_code(), 201, "create spesifikasi: {:?}", res.text());
+    assert_eq!(
+        res.status_code(),
+        201,
+        "create spesifikasi: {:?}",
+        res.text()
+    );
     let spesifikasi_id = res.json::<serde_json::Value>()["data"]["id"]
         .as_str()
         .unwrap()
@@ -111,7 +116,12 @@ async fn test_pakaian_dinas_master_crud_rbac() {
         json!({"nama": "PDL", "is_active": true}),
     )
     .await;
-    assert_eq!(res.status_code(), 403, "create jenis as operator: {:?}", res.text());
+    assert_eq!(
+        res.status_code(),
+        403,
+        "create jenis as operator: {:?}",
+        res.text()
+    );
     let _ = spesifikasi_id; // used by the (ignored) pengajuan-create test below
 
     teardown_test_db(&db_name).await;
@@ -132,19 +142,45 @@ async fn test_pakaian_dinas_pengajuan_create() {
     let server = TestServer::new(app);
 
     // Seed reference data.
-    let res = post(&server, "/pakaian-dinas/jenis", "admin", ADMIN,
-        json!({"nama": "PDH", "is_active": true})).await;
-    let jenis_id = res.json::<serde_json::Value>()["data"]["id"].as_str().unwrap().to_string();
-    let res = post(&server, "/pakaian-dinas/spesifikasi", "admin", ADMIN, json!({
+    let res = post(
+        &server,
+        "/pakaian-dinas/jenis",
+        "admin",
+        ADMIN,
+        json!({"nama": "PDH", "is_active": true}),
+    )
+    .await;
+    let jenis_id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let res = post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        "admin",
+        ADMIN,
+        json!({
         "jenis_pakaian_dinas_id": jenis_id, "nama": "Baju PDH",
-        "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true})).await;
-    let spesifikasi_id = res.json::<serde_json::Value>()["data"]["id"].as_str().unwrap().to_string();
+        "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true}),
+    )
+    .await;
+    let spesifikasi_id = res.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
 
-    let res = post(&server, "/pakaian-dinas/pengajuan", "operator_satker", OPERATOR, json!({
+    let res = post(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "operator_satker",
+        OPERATOR,
+        json!({
         "nama": "Pengajuan PDH 2026", "tahun": 2026,
         "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
         "pilihan_satker": "sebagian", "spesifikasi_ids": [spesifikasi_id],
-        "satker_ids": ["00000000-0000-0000-0000-0000000000aa"]})).await;
+        "satker_ids": ["00000000-0000-0000-0000-0000000000aa"]}),
+    )
+    .await;
     assert_eq!(res.status_code(), 201, "create pengajuan: {:?}", res.text());
 
     teardown_test_db(&db_name).await;

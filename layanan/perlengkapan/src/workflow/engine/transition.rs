@@ -40,8 +40,7 @@ impl WorkflowEngine {
         let status_table = Self::status_table(entity_type)?;
 
         // Verify entity exists and current state matches.
-        let verify_query =
-            format!("SELECT status FROM perlengkapan.{status_table} WHERE id = $1");
+        let verify_query = format!("SELECT status FROM perlengkapan.{status_table} WHERE id = $1");
 
         let row = tx
             .query_opt(&verify_query, &[&request.entity_id])

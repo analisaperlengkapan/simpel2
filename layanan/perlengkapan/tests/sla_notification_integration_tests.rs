@@ -48,7 +48,13 @@ async fn seed_satker_row(pool: &Pool, status_kode: i32, entered_at: DateTime<Utc
             r#"INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
                 (id, pengajuan_id, satker_id, status_kode, created_by, created_at)
                VALUES ($1, $2, 'SKR001', $3, $4, $5)"#,
-            &[&satker_row_id, &pengajuan_id, &status_kode, &user_id, &entered_at],
+            &[
+                &satker_row_id,
+                &pengajuan_id,
+                &status_kode,
+                &user_id,
+                &entered_at,
+            ],
         )
         .await
         .expect("insert satker row");
@@ -109,8 +115,18 @@ async fn test_sla_check_all() {
     let pool = db.pool().clone();
     let monitor = SlaMonitor::new(WorkflowConfig::default_kebutuhan_bmn(), pool.clone());
 
-    let breaching = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(4)).await;
-    let healthy = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(1)).await;
+    let breaching = seed_satker_row(
+        &pool,
+        KODE_ANALISIS_KELAYAKAN,
+        Utc::now() - Duration::days(4),
+    )
+    .await;
+    let healthy = seed_satker_row(
+        &pool,
+        KODE_ANALISIS_KELAYAKAN,
+        Utc::now() - Duration::days(1),
+    )
+    .await;
 
     let breaches = monitor.check_all_sla().await.expect("check_all_sla ok");
     assert!(
@@ -141,11 +157,19 @@ async fn test_sla_escalation_with_notification() {
         notifier,
     );
 
-    let id = seed_satker_row(&pool, KODE_ANALISIS_KELAYAKAN, Utc::now() - Duration::days(4)).await;
+    let id = seed_satker_row(
+        &pool,
+        KODE_ANALISIS_KELAYAKAN,
+        Utc::now() - Duration::days(4),
+    )
+    .await;
 
     // monitor_and_escalate detects the breach, resolves approver/requester,
     // sends notifications, and logs an SLA_ESCALATION activity row.
-    let escalated = monitor.monitor_and_escalate().await.expect("monitor_and_escalate ok");
+    let escalated = monitor
+        .monitor_and_escalate()
+        .await
+        .expect("monitor_and_escalate ok");
     assert!(escalated >= 1, "at least one breach should be escalated");
 
     // The escalation activity row was recorded.
