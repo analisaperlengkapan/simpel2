@@ -1,5 +1,4 @@
 use super::*;
-use crate::workflow::config::WorkflowStateCode;
 use chrono::Utc;
 use uuid::Uuid;
 
@@ -32,17 +31,22 @@ impl WorkflowEngine {
         // 4. Start transaction
         let tx = client.transaction().await?;
 
-        // 5. Verify entity exists and current state matches
-        let verify_query = r#"
-            SELECT status
-            FROM perlengkapan.kebutuhan_bmn
-            WHERE id = $1
-        "#;
+        // Correlation id for this transition (audit metadata / event bus).
+        let transition_id = Uuid::new_v4();
+
+        // 5. Resolve the entity's status table by workflow type. The engine is
+        //    GENERIC: each workflow (kebutuhan/penghapusan/pemakaian) maps to its
+        //    own status table, and every one exposes a `status` state-name column.
+        let status_table = Self::status_table(entity_type)?;
+
+        // Verify entity exists and current state matches.
+        let verify_query =
+            format!("SELECT status FROM perlengkapan.{status_table} WHERE id = $1");
 
         let row = tx
-            .query_opt(verify_query, &[&request.entity_id])
+            .query_opt(&verify_query, &[&request.entity_id])
             .await?
-            .ok_or_else(|| WorkflowError::EntityNotFound(request.entity_id))?;
+            .ok_or(WorkflowError::EntityNotFound(request.entity_id))?;
 
         let current_status: String = row.get("status");
 
@@ -64,38 +68,19 @@ impl WorkflowEngine {
             });
         }
 
-        // 6. Update entity state
-        let update_query = r#"
-            UPDATE perlengkapan.kebutuhan_bmn
-            SET status = $1, updated_at = NOW()
-            WHERE id = $2
-        "#;
+        // 6. Update entity state (generic by resolved status table).
+        let update_query = format!(
+            "UPDATE perlengkapan.{status_table} SET status = $1, updated_at = NOW() WHERE id = $2"
+        );
 
-        tx.execute(update_query, &[&request.to_state, &request.entity_id])
+        tx.execute(&update_query, &[&request.to_state, &request.entity_id])
             .await?;
 
-        // 7. Get aktivitas_id for the new state
-        let aktivitas_id = self.get_aktivitas_id(&tx, &request.to_state).await?;
-
-        // 8. Record transition in activity log
-        let activity_record_id = Uuid::new_v4();
-        let insert_activity_query = r#"
-            INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-            (id, pengajuan_id, aktivitas_id, user_id, catatan, created_at)
-            VALUES ($1, $2, $3, $4, $5, NOW())
-        "#;
-
-        tx.execute(
-            insert_activity_query,
-            &[
-                &activity_record_id,
-                &request.entity_id,
-                &aktivitas_id,
-                &request.user_id,
-                &request.catatan,
-            ],
-        )
-        .await?;
+        // 7. Per-entity activity logging lives in each service's repository
+        //    (e.g. kebutuhan `create_aktivitas`); cross-cutting audit is emitted
+        //    generically below via `audit_sink` + `event_bus`. The engine no
+        //    longer writes a kebutuhan-specific activity row, so it stays generic
+        //    across all workflows.
 
         // 9. Commit transaction
         tx.commit().await?;
@@ -111,19 +96,8 @@ impl WorkflowEngine {
                 Ok((doc_id, doc_url)) => {
                     document_url = Some(doc_url.clone());
 
-                    // Update activity record with document metadata
-                    let update_doc_query = r#"
-                        UPDATE perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                        SET document_id = $1, document_url = $2
-                        WHERE id = $3
-                    "#;
-
-                    if let Ok(client) = self.db_pool.get().await {
-                        let _ = client
-                            .execute(update_doc_query, &[&doc_id, &doc_url, &activity_record_id])
-                            .await;
-                    }
-
+                    // Document metadata rides on the generic audit/domain event
+                    // below; there is no per-entity activity row to update here.
                     tracing::info!(
                         entity_id = %request.entity_id,
                         document_id = %doc_id,
@@ -216,7 +190,7 @@ impl WorkflowEngine {
                         "from_state": request.from_state,
                         "to_state": request.to_state,
                         "duration_ms": duration * 1000.0,
-                        "activity_id": activity_record_id,
+                        "transition_id": transition_id,
                     }));
             if let Err(e) = sink.log(event).await {
                 tracing::warn!(
@@ -255,7 +229,7 @@ impl WorkflowEngine {
             entity_id: request.entity_id,
             new_state: request.to_state,
             transitioned_at: Utc::now(),
-            activity_id: activity_record_id,
+            activity_id: transition_id,
         })
     }
     /// Validate that a transition is allowed by the workflow configuration
@@ -306,36 +280,20 @@ impl WorkflowEngine {
 
         Ok(())
     }
-    /// Get aktivitas_id from ms_aktivitas_bmn table based on state name
-    async fn get_aktivitas_id(
-        &self,
-        tx: &tokio_postgres::Transaction<'_>,
-        state_name: &str,
-    ) -> Result<i32> {
-        // Convert state name to state code
-        let state_code = WorkflowStateCode::from_state_name(state_name)
-            .ok_or_else(|| WorkflowError::InvalidState(state_name.to_string()))?;
-
-        // Query for aktivitas_id
-        let query = r#"
-            SELECT id
-            FROM perlengkapan.ms_aktivitas_bmn
-            WHERE kode = $1
-        "#;
-
-        let row = tx
-            .query_one(query, &[&state_code.code()])
-            .await
-            .map_err(|e| {
-                tracing::error!(
-                    state_name = %state_name,
-                    state_code = %state_code.code(),
-                    error = %e,
-                    "Failed to get aktivitas_id"
-                );
-                e
-            })?;
-
-        Ok(row.get("id"))
+    /// Map a workflow `entity_type` (the config `name`) to its status table.
+    /// The engine is generic across workflows; every status table exposes a
+    /// `status` state-name column that the transition reads/updates.
+    fn status_table(entity_type: &str) -> Result<&'static str> {
+        Ok(match entity_type {
+            "kebutuhan_bmn" => "pengajuan_kebutuhan_bmn",
+            "pemakaian_bmn" => "izin_pemakaian_bmn",
+            "penghapusan_bmn" => "penghapusan_bmn",
+            "pakaian_dinas" => "pengajuan_pakaian_dinas",
+            other => {
+                return Err(WorkflowError::InvalidState(format!(
+                    "unknown workflow entity_type '{other}': no status table mapping"
+                )));
+            }
+        })
     }
 }
