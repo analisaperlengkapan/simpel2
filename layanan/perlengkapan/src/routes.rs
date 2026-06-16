@@ -102,6 +102,10 @@ pub fn create_routes(state: AppState) -> Router {
             post(crate::penghapusan_bmn::forward_to_pusat),
         )
         .route(
+            "/penghapusan-bmn/{id}/verifikasi-pusat",
+            post(crate::penghapusan_bmn::verifikasi_pusat),
+        )
+        .route(
             "/penghapusan-bmn/{id}/return-operator",
             post(crate::penghapusan_bmn::return_to_operator),
         )
