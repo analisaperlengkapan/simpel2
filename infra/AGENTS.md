@@ -62,6 +62,43 @@ Urutan baku:
 
 Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `istio-system`, MetalLB IP pool (lihat section terkait di bawah).
 
+#### Release Train — kadens 3-lajur (TARGET-STATE; mekanik di-codify di P3/F-REL)
+
+> **Status:** kebijakan/model di bawah = keputusan arah (2026-06-16). **Mekanik
+> persis** (perubahan `release.yml`/`promote.yml`/`train.yml`) di-implement di
+> **P3/F-REL — SETELAH staging terbukti manual (P2/F5-E)**, mengikuti disiplin
+> *"automate the proven, jangan prove the automated"*. JANGAN tulis otomasi yang
+> menyentuh cluster sebelum jalur manualnya hijau sekali. Rilis pertama `v0.1.0`
+> tetap lewat jalur manual F5→F6.
+
+Tiga lajur, **kadens memicu, mekanik tetap tag/digest-driven** (kalender hidup di
+SATU tempat = "conductor" terjadwal, bukan tersebar di logika deploy):
+
+| Lajur | Kadens | Aksi | Namespace | Tag | Gagal-uji |
+|------|--------|------|-----------|-----|-----------|
+| **Nightly** | tiap push ke `main` **+** `schedule:@daily` | per-push = gerbang lantai-CI (blocking, `main` selalu buildable); harian = suite komprehensif (integration+e2e+docker) | — (TIDAK deploy) | — | gate merah = blokir merge / notifikasi |
+| **Beta (RC)** | `schedule:` ~2 minggu (conductor cut `vX.Y.Z-rcN` dari `main`) | `release.yml` build digest **D** sekali (cosign+SBOM+Trivy) → Velero backup → `helm upgrade` staging by-digest → uji komprehensif **+ destruktif** | `simpelv2-staging` | `vX.Y.Z-rcN` | **auto `helm rollback` staging** + TIDAK ada RC baru + notifikasi; retry manual dlm masa toleransi ≤1 minggu; tak sukses → tertunda ke periode berikut (alami: tak ada cut sukses = tak ada rilis) |
+| **Stable** | `schedule:` ~triwulan (conductor buka issue/dispatch promote) | `promote.yml` promote **digest D yang SAMA** (tanpa rebuild) → `helm upgrade` prod → uji komprehensif **non-destruktif** | `simpelv2-production` | `vX.Y.Z` (final, dibuat **TERAKHIR**) | **IMMEDIATE auto `helm rollback` prod** (DB restore = last-resort; expand/contract membuat rollback app tanpa restore) + TIDAK buat tag stable + toleransi ≤1 minggu → tak sukses → tunda triwulan berikut |
+
+Prinsip yang ditegakkan (selain "Alur deploy WAJIB" di atas):
+
+- **Build-once / promote-digest:** RC build digest D; prod pakai D identik, tanpa rebuild.
+- **Tag IMMUTABLE, tak pernah dihapus:** tag final `vX.Y.Z` = stempel SERTIFIKASI dibuat
+  HANYA setelah prod hijau (bukan trigger). Gagal = rollback + fix-forward tag baru.
+- **Auto-rollback = YA; auto-bikin-stable = TIDAK.** Kegagalan uji staging/prod →
+  `helm rollback` otomatis (deterministik). Tapi **menerbitkan stable baru WAJIB
+  human-gate** (GitHub Environment required reviewers) — `simpel.kejaksaan.go.id`
+  sistem pemerintah, jangan full-auto ke prod.
+- **Grace/defer TIDAK di-hardcode** sebagai logika kalender stateful di CI. Conductor
+  *attempt + notify*; sukses → artefak; gagal → tak ada artefak (defer alami). Retry =
+  dispatch manual dalam masa toleransi.
+- **Jalur hotfix off-cycle** WAJIB tetap ada (security tak menunggu triwulan).
+- "**nightly**" ≠ "tiap push": per-push = gerbang merge cepat; nightly = run terjadwal
+  komprehensif. Keduanya lokal/CI saja (tanpa deploy namespace).
+
+Prasyarat make-or-break: **Velero** (#50) terpasang; **disiplin migrasi expand/contract**
+(#52 ✅) agar `helm rollback` tak butuh restore DB.
+
 ### 4. Image Registry & Tag
 
 - **Registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>`. Pull dengan k8s Secret `ghcr-pull` (docker-registry type) per namespace; PAT scope `read:packages`.
