@@ -89,7 +89,7 @@ async fn test_complete_penghapusan_bmn_workflow() {
     // 3. Wilayah forwards to Pusat
     let mut req = server
         .post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
-        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+        .json(&json!({"aksi": "forward", "catatan": "Diteruskan ke Pusat"}));
     for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) {
         req = req.add_header(k, v);
     }
@@ -180,7 +180,7 @@ async fn test_penghapusan_bmn_rejection_workflow() {
     // Forward to pusat
     let mut req = server
         .post(&format!("/penghapusan-bmn/{}/forward-pusat", usulan_id))
-        .json(&json!({"catatan": "Diteruskan ke Pusat"}));
+        .json(&json!({"aksi": "forward", "catatan": "Diteruskan ke Pusat"}));
     for (k, v) in auth_headers("validator_wilayah", validator_wilayah_id, wilayah_id) {
         req = req.add_header(k, v);
     }
