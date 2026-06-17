@@ -867,10 +867,13 @@ jobs:
             test_args: ""
           - tier: layanan-perlengkapan
             packages: "-p layanan-perlengkapan"
-            # Fallback used only when the runner cannot reach the dind Postgres
-            # (see "Start Postgres" step below). When it CAN, the step overrides
-            # this with the empty arg so the `integration::` DB suite runs.
-            test_args: "-- --skip integration::"
+            # The `integration::` DB suite is a HARD gate: the "Start Postgres"
+            # step below stands up a dind Postgres and fails the job if it can't
+            # be reached, then exports TEST_ARGS="" so the suite runs. This
+            # matrix value is only a fallback for the (now-unreachable) case
+            # where the step is skipped; kept empty so nothing is silently
+            # filtered out.
+            test_args: ""
           - tier: layanan-integrasi
             packages: "-p layanan-integrasi"
             test_args: ""
@@ -893,13 +896,14 @@ jobs:
       # The perlengkapan `integration::` suite (workflow lifecycle, RBAC-403,
       # SLA) needs a real Postgres: the harness CREATEs an ephemeral
       # `test_db_<uuid>` per test, applies migrations, and drives HTTP. We start
-      # one via the dind sidecar. The open question on this ARC setup is whether
-      # the runner can reach a dind-published port over localhost (the e2e job
-      # deliberately uses the docker network + service names to dodge it). So we
-      # PROBE reachability and only enable the suite if it works; otherwise we
-      # fall back to the matrix `--skip integration::` and emit a warning — the
-      # job stays green either way, and the run tells us which path was taken.
-      # The harness hardcodes the password `simpel`, so the service must use it.
+      # one via the dind sidecar. Reachability of the dind-published port over
+      # localhost from the runner was PROVEN on run 27657785427 (job 81795773123:
+      # "Postgres reachable on localhost:5433 — integration suite ENABLED",
+      # 14 integration:: tests passed). So this is now a HARD prerequisite: if
+      # Postgres can't be started or reached we `exit 1` and FAIL the job rather
+      # than silently skipping the suite (a gate that can disable itself is not a
+      # gate). The harness hardcodes the password `simpel`, so the service must
+      # use it.
       - name: Start Postgres (perlengkapan integration suite)
         if: matrix.tier == 'layanan-perlengkapan'
         shell: bash
@@ -917,18 +921,18 @@ jobs:
             sleep 2
           done
           if [ -z "$ready" ]; then
-            echo "::warning::Postgres did not become ready — integration suite skipped"
-            echo "TEST_ARGS=-- --skip integration::" >> "$GITHUB_ENV"
-            exit 0
+            echo "::error::Postgres did not become ready — integration suite cannot run"
+            docker logs ci-test-pg 2>&1 | tail -50 || true
+            exit 1
           fi
-          # The real question: can THIS runner reach the dind-published port?
+          # Can THIS runner reach the dind-published port? (proven yes; fail hard if not)
           if timeout 5 bash -c 'exec 3<>/dev/tcp/localhost/5433' 2>/dev/null; then
             echo "DATABASE_URL=postgres://simpel:simpel@localhost:5433/postgres" >> "$GITHUB_ENV"
             echo "TEST_ARGS=" >> "$GITHUB_ENV"
             echo "Postgres reachable on localhost:5433 — integration suite ENABLED"
           else
-            echo "::warning::dind Postgres unreachable from runner over localhost:5433 — integration suite skipped (falling back to --skip integration::)"
-            echo "TEST_ARGS=-- --skip integration::" >> "$GITHUB_ENV"
+            echo "::error::dind Postgres unreachable from runner over localhost:5433 — integration suite cannot run"
+            exit 1
           fi
       - name: cargo test (${{ matrix.tier }})
         env:
