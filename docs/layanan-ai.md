@@ -1,5 +1,7 @@
 # layanan-ai
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan AI yang saat ini belum diimplementasikan secara penuh sebagai microservice terpisah. Implementasi saat ini mungkin masih tersebar di layanan lain atau dalam tahap perencanaan. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
 **Layanan AI SIMPEL** merupakan inti dari kemampuan kecerdasan buatan dalam sistem SIMPEL. Layanan ini menyediakan antarmuka API untuk berbagai fungsi seperti OCR, klasifikasi, rekomendasi, ringkasan teks, label dokumen, dan pemrosesan visual, yang diimplementasikan secara modular dan efisien.
 
 ---

@@ -1,6 +1,6 @@
-# README - layanan-aset
+# layanan-aset (bank_aset)
 
-**layanan-aset** adalah microservice utama yang mengelola master data aset Barang Milik Negara (BMN) dalam sistem SIMPEL. Layanan ini menjadi fondasi utama integritas data aset nasional, mulai dari identitas aset, status kepemilikan, klasifikasi, hingga histori mutasi.
+**layanan-aset** (diimplementasikan sebagai modul `bank_aset` dalam `layanan/perlengkapan`) adalah modul utama yang mengelola master data aset Barang Milik Negara (BMN) dalam sistem SIMPEL. Layanan ini menjadi fondasi utama integritas data aset nasional, mulai dari identitas aset, status kepemilikan, klasifikasi, hingga histori mutasi.
 
 ---
 
@@ -9,94 +9,42 @@
 - Menyediakan API CRUD untuk entitas aset BMN
 - Menjamin integritas dan konsistensi data aset
 - Menyediakan fitur validasi klasifikasi dan kondisi aset
-- Mendukung klasifikasi otomatis aset dengan AI
+- Mendukung klasifikasi otomatis aset dengan AI (terintegrasi)
 
 ---
 
 ## 🧱 Teknologi
 
-- **Bahasa**: Go (Gin framework)
-- **ORM/Query**: sqlc (typed SQL → Go)
+- **Bahasa**: Rust (menggantikan rencana awal Go)
+- **Framework**: Axum
 - **Database**: PostgreSQL (schema: `aset`)
-- **AI opsional**: LLM + rule-based untuk klasifikasi
-- **Testing**: Go test + TestContainer (opsional)
+- **ORM**: tokio-postgres / deadpool-postgres
+- **Testing**: Rust native test framework
 
 ---
 
-## 📦 Struktur Direktori
+## 📦 Struktur Direktori (Implementasi Saat Ini)
+
+Modul ini berada di `layanan/perlengkapan/src/bank_aset/`.
 
 ```
-layanan-aset/
-├── api/              # Handler HTTP dan routing
-├── db/               # Query SQL dan schema PostgreSQL
-├── model/            # Struct Go untuk entitas aset
-├── service/          # Logika bisnis & validasi
-├── middleware/       # Middleware khusus layanan aset
-├── ai/               # Opsional: klasifikasi AI untuk jenis/kondisi
-├── test/             # Unit test dan integrasi
-├── Dockerfile
-├── Makefile
-└── README.md
+layanan/perlengkapan/src/bank_aset/
+├── mod.rs          # Handler HTTP dan routing
+├── repository/     # Logika akses database
+├── service/        # Logika bisnis & validasi
+└── types/          # Definisi struct dan entitas
 ```
-
----
-
-## 📚 API Endpoint (Contoh)
-
-| Method | Endpoint               | Deskripsi                          |
-|--------|------------------------|-----------------------------------|
-| GET    | /aset                  | List semua aset                    |
-| POST   | /aset                  | Tambah aset baru                   |
-| GET    | /aset/:id              | Ambil detail aset berdasarkan ID  |
-| PUT    | /aset/:id              | Ubah data aset                     |
-| DELETE | /aset/:id              | Hapus aset                         |
-| POST   | /aset/klasifikasi-ai   | (Opsional) Klasifikasi AI          |
 
 ---
 
 ## 🔐 Keamanan
 
-- Middleware JWT untuk otentikasi antar layanan
-- Validasi input dan sanitasi data
-- Hanya pengguna dengan role `admin` atau `verifikator` dapat menghapus atau mengubah aset
+- Middleware JWT untuk otentikasi (via authenc)
+- Validasi input menggunakan `garde`
+- Role-based Access Control (RBAC)
 
 ---
 
-## 🧠 Fitur AI (Opsional)
+## 📝 Catatan Implementasi
 
-Jika AI diaktifkan, layanan ini mendukung:
-
-- Klasifikasi jenis aset berdasarkan nama dan deskripsi (LLM + rule-based)
-- Validasi kategori aset berdasarkan katalog BMN
-- Penilaian kondisi awal otomatis dari input gambar atau teks (butuh layanan-ai)
-
----
-
-## 🧪 Testing
-
-Jalankan unit test:
-
-```bash
-make test
-```
-
----
-
-## 📄 Environment
-
-Variabel penting:
-
-- `DB_URL` – URL koneksi database PostgreSQL
-- `JWT_SECRET` – secret key untuk validasi token
-- `AI_SERVICE_URL` – (opsional) endpoint layanan-ai untuk klasifikasi
-
----
-
-## 📝 Lisensi & Hak Akses
-
-Proyek ini bagian dari sistem internal Kejaksaan Republik Indonesia. Setiap pengakses wajib menjaga kerahasiaan data aset negara. Penyalahgunaan data dikenakan sanksi administratif dan pidana sesuai UU ITE dan peraturan pengelolaan BMN.
-
----
-
-> Untuk informasi integrasi, dokumentasi OpenAPI tersedia di: `/docs/openapi.yaml`
-> Kontak PIC layanan: `aset-support@kejaksaan.go.id`
+Dokumen ini telah diperbarui untuk mencerminkan transisi dari rencana microservice berbasis Go ke modul terintegrasi dalam monolit `layanan/perlengkapan` berbasis Rust untuk efisiensi resource dan konsistensi codebase.

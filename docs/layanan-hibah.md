@@ -1,5 +1,8 @@
 # Layanan Hibah - SIMPEL
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 Layanan ini bertanggung jawab atas pengajuan, penerimaan, pencatatan, dan pelaporan hibah Barang Milik Negara (BMN) dalam Sistem Informasi Manajemen Pengelolaan BMN Versi 2 (**SIMPEL**).
 
 ---

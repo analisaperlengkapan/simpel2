@@ -1,5 +1,8 @@
 # layanan-pengalihan
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 **Layanan Pengalihan** adalah komponen dari SIMPEL yang menangani proses pengalihan fungsi, penggunaan, atau pemanfaatan Barang Milik Negara (BMN) antar unit atau instansi. Layanan ini dirancang untuk memastikan pengalihan dilakukan secara tertib, akuntabel, dan sesuai kebijakan pengelolaan aset negara.
 
 ---

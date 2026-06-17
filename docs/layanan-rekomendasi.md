@@ -1,5 +1,8 @@
 # README.md - layanan-rekomendasi
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 **Layanan Rekomendasi** adalah salah satu komponen inti dalam SIMPEL yang bertanggung jawab untuk menghasilkan rekomendasi jumlah, spesifikasi, dan prioritas kebutuhan Barang Milik Negara (BMN) berdasarkan data historis, standar, dan konteks kebutuhan instansi.
 
 ---

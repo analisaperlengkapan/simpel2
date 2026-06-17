@@ -1,5 +1,8 @@
 # README - layanan-pemeliharaan
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 ## 🛠️ Layanan Pemeliharaan
 
 Layanan ini menangani proses **pemeliharaan aset BMN**, termasuk input rencana dan realisasi pemeliharaan, pencatatan siklus kerusakan, serta pelaporan kebutuhan anggaran pemeliharaan barang. Layanan ini juga terhubung dengan MONSAKTI untuk sinkronisasi realisasi anggaran.

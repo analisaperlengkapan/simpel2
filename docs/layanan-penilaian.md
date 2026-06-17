@@ -1,5 +1,8 @@
 # README - layanan-penilaian
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 **layanan-penilaian** adalah layanan mikro dalam SIMPEL yang bertanggung jawab mendokumentasikan hasil penilaian Barang Milik Negara (BMN) oleh penilai pemerintah. Layanan ini menyimpan, mengelola, dan menyajikan data hasil penilaian untuk kepentingan pengelolaan aset, laporan, serta akuntabilitas publik.
 
 ---

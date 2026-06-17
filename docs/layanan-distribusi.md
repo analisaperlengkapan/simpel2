@@ -1,5 +1,8 @@
 # Layanan Distribusi - SIMPEL
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 **Layanan Distribusi** bertanggung jawab atas proses pendistribusian fisik Barang Milik Negara (BMN) dari pusat ke satuan kerja (satker), antar satker, maupun ke pihak penerima yang berwenang.
 
 Layanan ini memfasilitasi permintaan distribusi, penjadwalan, pelacakan, dan dokumentasi distribusi barang secara efisien dan aman.

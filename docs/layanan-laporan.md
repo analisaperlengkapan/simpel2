@@ -1,5 +1,8 @@
 # README – layanan-laporan
 
+> **Catatan untuk Pengembangan Masa Depan:** Dokumen ini mendeskripsikan rencana pengembangan layanan ini yang saat ini belum diimplementasikan secara penuh dalam codebase. Dokumen ini dapat digunakan sebagai acuan untuk pengembangan ke depan agar tetap selaras dengan visi arsitektur SIMPEL v2 yang efektif, efisien, dan optimal.
+
+
 ## 🧾 Deskripsi Singkat
 
 `layanan-laporan` adalah layanan mikro dalam platform **SIMPEL** yang bertanggung jawab atas penyusunan laporan berkala, rekapitulasi lintas layanan, dan pelaporan tematik atas aktivitas pengelolaan Barang Milik Negara (BMN). Laporan ini mendukung pengambilan keputusan strategis, pemantauan kinerja, dan kepatuhan regulasi.
