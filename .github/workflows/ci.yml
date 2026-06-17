@@ -867,10 +867,13 @@ jobs:
             test_args: ""
           - tier: layanan-perlengkapan
             packages: "-p layanan-perlengkapan"
-            # `e2e_integration_tests` butuh PostgreSQL real; skip di CI
-            # unit-test job. Untuk run integration test, butuh pg service
-            # container atau jalankan manual dengan --include-ignored.
-            test_args: "-- --skip integration::"
+            # The `integration::` DB suite is a HARD gate: the "Start Postgres"
+            # step below stands up a dind Postgres and fails the job if it can't
+            # be reached, then exports TEST_ARGS="" so the suite runs. This
+            # matrix value is only a fallback for the (now-unreachable) case
+            # where the step is skipped; kept empty so nothing is silently
+            # filtered out.
+            test_args: ""
           - tier: layanan-integrasi
             packages: "-p layanan-integrasi"
             test_args: ""
@@ -890,13 +893,61 @@ jobs:
         # but previous job's stale target/ stays. Wipe explicitly to
         # avoid 'could not parse/generate dep info' from stale .d files.
         run: rm -rf target
+      # The perlengkapan `integration::` suite (workflow lifecycle, RBAC-403,
+      # SLA) needs a real Postgres: the harness CREATEs an ephemeral
+      # `test_db_<uuid>` per test, applies migrations, and drives HTTP. We start
+      # one via the dind sidecar. Reachability of the dind-published port over
+      # localhost from the runner was PROVEN on run 27657785427 (job 81795773123:
+      # "Postgres reachable on localhost:5433 — integration suite ENABLED",
+      # 14 integration:: tests passed). So this is now a HARD prerequisite: if
+      # Postgres can't be started or reached we `exit 1` and FAIL the job rather
+      # than silently skipping the suite (a gate that can disable itself is not a
+      # gate). The harness hardcodes the password `simpel`, so the service must
+      # use it.
+      - name: Start Postgres (perlengkapan integration suite)
+        if: matrix.tier == 'layanan-perlengkapan'
+        shell: bash
+        run: |
+          docker rm -f ci-test-pg >/dev/null 2>&1 || true
+          docker run -d --name ci-test-pg -p 5433:5432 \
+            -e POSTGRES_USER=simpel -e POSTGRES_PASSWORD=simpel -e POSTGRES_DB=postgres \
+            postgres:15-alpine >/dev/null
+          # Readiness: container-internal (does NOT depend on host networking).
+          ready=
+          for _ in $(seq 1 30); do
+            if docker exec ci-test-pg pg_isready -U simpel -d postgres >/dev/null 2>&1; then
+              ready=1; break
+            fi
+            sleep 2
+          done
+          if [ -z "$ready" ]; then
+            echo "::error::Postgres did not become ready — integration suite cannot run"
+            docker logs ci-test-pg 2>&1 | tail -50 || true
+            exit 1
+          fi
+          # Can THIS runner reach the dind-published port? (proven yes; fail hard if not)
+          if timeout 5 bash -c 'exec 3<>/dev/tcp/localhost/5433' 2>/dev/null; then
+            echo "DATABASE_URL=postgres://simpel:simpel@localhost:5433/postgres" >> "$GITHUB_ENV"
+            echo "TEST_ARGS=" >> "$GITHUB_ENV"
+            echo "Postgres reachable on localhost:5433 — integration suite ENABLED"
+          else
+            echo "::error::dind Postgres unreachable from runner over localhost:5433 — integration suite cannot run"
+            exit 1
+          fi
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
         # `--all-targets` skip doctests. authenc-federation dan
         # authenc-storage punya beberapa doctest outdated (compile fail)
         # yang perlu di-rewrite. Unit/integration tests tetap jalan.
-        run: cargo test ${{ matrix.packages }} --all-targets --no-fail-fast ${{ matrix.test_args }}
+        # TEST_ARGS is set (possibly empty) by the Postgres step for the
+        # perlengkapan tier; for every other tier it is unset, so we fall back
+        # to the matrix value. Use ${VAR-default} (no colon) so a deliberate
+        # empty value (integration enabled) is preserved, not overridden.
+        run: |
+          ARGS="${TEST_ARGS-${{ matrix.test_args }}}"
+          echo "test args: [$ARGS]"
+          cargo test ${{ matrix.packages }} --all-targets --no-fail-fast $ARGS
 
   # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
   # INTEGRATION contract tests only (authenc/secreton via Http::fake): they
