@@ -1,20 +1,24 @@
 //! Pakaian Dinas integration tests (#33 / F5-C).
 //!
-//! Covers the *working* pakaian-dinas surface end-to-end against a real
-//! Postgres: admin master CRUD (jenis → spesifikasi) and operator pengajuan
-//! create → fetch (the create path exercises the spesifikasi FK join +
-//! satker_terpilih insert).
+//! Exercises the pakaian-dinas surface end-to-end against a real Postgres:
+//!   1. admin master CRUD (jenis → spesifikasi) + RBAC,
+//!   2. operator pengajuan create → spesifikasi FK join + satker_terpilih insert,
+//!   3. the per-satker validator workflow (Input → SubmitToValidator →
+//!      SubmitToPusat → Selesai) with the real state-machine + RBAC guard and
+//!      activity logging.
 //!
-//! NOT covered (deliberately): the per-satker validator workflow
-//! (`/pakaian-dinas/validator-action`). Its rows (`pengajuan_pakaian_dinas_satker`)
-//! are never created by the current code, and the satker list joins
-//! `integrasi.mysimkari_satker` — i.e. the validator flow is half-implemented
-//! ("Contract Drift Pakaian Dinas"). It needs a focused fix before it can be
-//! exercised; faking it here would assert nothing real.
+//! The pakaian header/satker status column is `aktivitas_id` (FK →
+//! `ms_aktivitas_bmn.kode`), matching the code + FE contract; the squashed
+//! baseline was reconciled to it (was `status_kode`) and the pakaian codes
+//! 1000-1012 are now seeded. The per-satker workflow row
+//! (`pengajuan_pakaian_dinas_satker`) has no API creator yet (no "submit"
+//! materializes it from satker_terpilih), so the validator test seeds that one
+//! row directly — legitimate setup — then drives the real transition logic.
 
 use crate::common::{setup_test_app, teardown_test_db};
 use axum_test::TestServer;
 use serde_json::json;
+use uuid::Uuid;
 
 type Headers = Vec<(reqwest::header::HeaderName, reqwest::header::HeaderValue)>;
 
@@ -102,10 +106,6 @@ async fn test_pakaian_dinas_master_crud_rbac() {
         "create spesifikasi: {:?}",
         res.text()
     );
-    let spesifikasi_id = res.json::<serde_json::Value>()["data"]["id"]
-        .as_str()
-        .unwrap()
-        .to_string();
 
     // 3. Non-admin is rejected from master CRUD (RBAC enforced server-side).
     let res = post(
@@ -122,21 +122,14 @@ async fn test_pakaian_dinas_master_crud_rbac() {
         "create jenis as operator: {:?}",
         res.text()
     );
-    let _ = spesifikasi_id; // used by the (ignored) pengajuan-create test below
 
     teardown_test_db(&db_name).await;
 }
 
-/// Pengajuan create + fetch. BLOCKED on baseline↔code drift in
-/// `pengajuan_pakaian_dinas`: the create INSERT writes `aktivitas_id`,
-/// `scope_satker`, `wilayah_id` (the #19 wilayah feature), but the squashed
-/// baseline has none of them (it has `status_kode` instead). Resolving this
-/// needs a focused pakaian-dinas reconcile (add the columns / align the
-/// `status_kode`↔`aktivitas_id` naming, and create the
-/// `pengajuan_pakaian_dinas_satker` workflow rows that no code path produces
-/// today). Un-ignore once that lands. See memory project-pakaian-dinas-contract-drift.
+/// Operator creates a pengajuan: exercises the spesifikasi FK join, the
+/// `aktivitas_id` default (Input/1000, FK → ms_aktivitas_bmn), the new
+/// `scope_satker`/`wilayah_id` columns (#19), and the satker_terpilih insert.
 #[tokio::test]
-#[ignore = "blocked on pengajuan_pakaian_dinas column drift (aktivitas_id/scope_satker/wilayah_id) — focused pakaian-dinas reconcile (#33)"]
 async fn test_pakaian_dinas_pengajuan_create() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
@@ -182,6 +175,155 @@ async fn test_pakaian_dinas_pengajuan_create() {
     )
     .await;
     assert_eq!(res.status_code(), 201, "create pengajuan: {:?}", res.text());
+    let body = res.json::<serde_json::Value>();
+    // Fresh pengajuan starts at Input (1000).
+    assert_eq!(
+        body["data"]["aktivitas_id"], 1000,
+        "initial status: {:?}",
+        body
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// Per-satker validator workflow: drive the real state machine through
+/// Input → SubmitToValidator → SubmitToPusat → Selesai, asserting each
+/// transition persists and that an illegal (status, action, role) combo is
+/// rejected. The `pengajuan_pakaian_dinas_satker` row is seeded directly (no
+/// API submit materializes it yet); everything else is the production path
+/// (`/pakaian-dinas/validator-action` → determine_next_status →
+/// transition_satker_with_activity → activity log, FK → ms_aktivitas_bmn).
+#[tokio::test]
+async fn test_pakaian_dinas_validator_workflow() {
+    let (app, db, db_name) = setup_test_app().await;
+    let server = TestServer::new(app);
+
+    // Seed reference data + create a parent pengajuan (operator).
+    let r = post(
+        &server,
+        "/pakaian-dinas/jenis",
+        "admin",
+        ADMIN,
+        json!({"nama": "PDH", "is_active": true}),
+    )
+    .await;
+    let jenis_id = r.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let r = post(
+        &server,
+        "/pakaian-dinas/spesifikasi",
+        "admin",
+        ADMIN,
+        json!({"jenis_pakaian_dinas_id": jenis_id, "nama": "Baju PDH",
+               "gender": "SEMUA", "ukuran_group": "BAJU", "is_active": true}),
+    )
+    .await;
+    let spec_id = r.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let r = post(
+        &server,
+        "/pakaian-dinas/pengajuan",
+        "operator_satker",
+        OPERATOR,
+        json!({"nama": "Pengajuan PDH 2026", "tahun": 2026,
+               "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
+               "pilihan_satker": "sebagian", "spesifikasi_ids": [spec_id],
+               "satker_ids": ["00000000-0000-0000-0000-0000000000aa"]}),
+    )
+    .await;
+    assert_eq!(r.status_code(), 201, "create pengajuan: {:?}", r.text());
+    let pengajuan_id = r.json::<serde_json::Value>()["data"]["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // Seed one per-satker workflow row at Input (1000). No API path creates it.
+    let satker_row_id = Uuid::new_v4();
+    {
+        let client = db.pool().get().await.unwrap();
+        client
+            .execute(
+                "INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker \
+                 (id, pengajuan_id, satker_id, aktivitas_id, created_by) \
+                 VALUES ($1, $2, $3, 1000, $4)",
+                &[
+                    &satker_row_id,
+                    &Uuid::parse_str(&pengajuan_id).unwrap(),
+                    &Uuid::new_v4(),
+                    &Uuid::parse_str(OPERATOR).unwrap(),
+                ],
+            )
+            .await
+            .expect("seed pengajuan_pakaian_dinas_satker row");
+    }
+
+    // Helper: call validator-action with a given role/aksi.
+    let action = |role: &'static str, aksi: &'static str| {
+        let server = &server;
+        let id = satker_row_id;
+        async move {
+            post(
+                server,
+                "/pakaian-dinas/validator-action",
+                role,
+                "00000000-0000-0000-0000-000000000002",
+                json!({"pengajuan_satker_id": id, "aksi": aksi, "komentar": "ok"}),
+            )
+            .await
+        }
+    };
+
+    // Illegal: approve at Input by validator_pusat → 400 (state-machine guard).
+    let res = action("validator_pusat", "approve").await;
+    assert_eq!(
+        res.status_code(),
+        400,
+        "illegal transition should be rejected: {:?}",
+        res.text()
+    );
+
+    // 1. Pelaksana submits: Input(1000) → SubmitToValidator(1001).
+    let res = action("pelaksana", "submit").await;
+    assert_eq!(res.status_code(), 200, "submit: {:?}", res.text());
+    assert_eq!(
+        res.json::<serde_json::Value>()["data"]["aktivitas_id"],
+        1001
+    );
+
+    // 2. Validator wilayah approves: SubmitToValidator(1001) → SubmitToPusat(1004).
+    let res = action("validator_wilayah", "approve").await;
+    assert_eq!(res.status_code(), 200, "wilayah approve: {:?}", res.text());
+    assert_eq!(
+        res.json::<serde_json::Value>()["data"]["aktivitas_id"],
+        1004
+    );
+
+    // 3. Validator pusat approves: SubmitToPusat(1004) → Selesai(1008).
+    let res = action("validator_pusat", "approve").await;
+    assert_eq!(res.status_code(), 200, "pusat approve: {:?}", res.text());
+    assert_eq!(
+        res.json::<serde_json::Value>()["data"]["aktivitas_id"],
+        1008
+    );
+
+    // Each successful transition logged an activity row (3 total).
+    let n: i64 = {
+        let client = db.pool().get().await.unwrap();
+        client
+            .query_one(
+                "SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas \
+                 WHERE pengajuan_satker_id = $1",
+                &[&satker_row_id],
+            )
+            .await
+            .unwrap()
+            .get(0)
+    };
+    assert_eq!(n, 3, "three activity rows expected (submit + 2 approvals)");
 
     teardown_test_db(&db_name).await;
 }
