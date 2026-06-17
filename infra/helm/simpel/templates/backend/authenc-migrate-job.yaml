@@ -57,6 +57,13 @@ spec:
         # postgres pod may not be Ready yet when this hook fires).
         - name: wait-for-postgres
           image: postgres:15-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70            # postgres uid in the alpine image
+            capabilities:
+              drop: [ALL]
           command:
             - /bin/sh
             - -c

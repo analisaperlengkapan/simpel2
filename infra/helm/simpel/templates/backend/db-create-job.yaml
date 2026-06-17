@@ -50,6 +50,13 @@ spec:
       containers:
         - name: db-create
           image: postgres:15-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70            # postgres uid in the alpine image
+            capabilities:
+              drop: [ALL]
           env:
             - name: PGHOST
               value: postgres
