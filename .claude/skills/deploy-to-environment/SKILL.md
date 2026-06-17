@@ -65,7 +65,7 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
 > `project-helm-namespace-footgun-safety`. Required reading before F6-A prod bootstrap.
 
 1. **Pre-flight:** `helm uninstall` of this chart **cascade-deletes the whole namespace
-   + data** (chart renders a Helm-managed `namespace.yaml`; now guarded by
+   and its data** (chart renders a Helm-managed `namespace.yaml`; now guarded by
    `resource-policy: keep` + PVC retention, but **lifecycle is upgrade-only** — never
    routine-uninstall a live env). Before ANY uninstall, check if the chart templates the
    namespace. Production uninstall is guarded: `SIMPEL_CONFIRM_DESTROY=yes`.

@@ -66,7 +66,7 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
 
 > **`helm uninstall` = OPERASI BERBAHAYA, bukan rutin.** Insiden 2026-06-17:
 > `helm uninstall simpel -n simpelv2-staging` meng-cascade-delete SELURUH namespace
-> + semua data (chart me-render `templates/namespace.yaml` sbg Namespace ber-manage
+> dan semua data (chart me-render `templates/namespace.yaml` sbg Namespace ber-manage
 > Helm → hapus ns → cascade semua PVC/Secret; Longhorn reclaim=`Delete`; tanpa Velero
 > → **tak terpulihkan**). Lihat memori `project-helm-namespace-footgun-safety`.
 
@@ -91,7 +91,7 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
 > **Status:** kebijakan/model di bawah = keputusan arah (2026-06-16). **Mekanik
 > persis** (perubahan `release.yml`/`promote.yml`/`train.yml`) di-implement di
 > **P3/F-REL — SETELAH staging terbukti manual (P2/F5-E)**, mengikuti disiplin
-> *"automate the proven, jangan prove the automated"*. JANGAN tulis otomasi yang
+> _"automate the proven, jangan prove the automated"_. JANGAN tulis otomasi yang
 > menyentuh cluster sebelum jalur manualnya hijau sekali. Rilis pertama `v0.1.0`
 > tetap lewat jalur manual F5→F6.
 
@@ -114,7 +114,7 @@ Prinsip yang ditegakkan (selain "Alur deploy WAJIB" di atas):
   human-gate** (GitHub Environment required reviewers) — `simpel.kejaksaan.go.id`
   sistem pemerintah, jangan full-auto ke prod.
 - **Grace/defer TIDAK di-hardcode** sebagai logika kalender stateful di CI. Conductor
-  *attempt + notify*; sukses → artefak; gagal → tak ada artefak (defer alami). Retry =
+  _attempt + notify_; sukses → artefak; gagal → tak ada artefak (defer alami). Retry =
   dispatch manual dalam masa toleransi.
 - **Jalur hotfix off-cycle** WAJIB tetap ada (security tak menunggu triwulan).
 - "**nightly**" ≠ "tiap push": per-push = gerbang merge cepat; nightly = run terjadwal
