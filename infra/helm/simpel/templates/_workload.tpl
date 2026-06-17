@@ -51,6 +51,12 @@ spec:
   {{- else }}
   replicas: {{ default 1 $values.replicas }}
   serviceName: {{ default $name $values.service.headlessName }}
+  # SAFETY: retain the data PVC if this StatefulSet is deleted/scaled down — data
+  # must outlive the workload object (e.g. Secreton seal-state). Defense-in-depth
+  # with the namespace `resource-policy: keep`.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   {{- with $values.updateStrategy }}
   updateStrategy:
     {{- toYaml . | nindent 4 }}

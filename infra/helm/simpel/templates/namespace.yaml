@@ -19,6 +19,13 @@ metadata:
     pod-security.kubernetes.io/warn: {{ .Values.namespace.podSecurityWarn }}
     {{- end }}
   annotations:
+    # SAFETY (incident 2026-06-17): the namespace is a Helm-managed resource, so a
+    # `helm uninstall` would otherwise DELETE the Namespace object and Kubernetes
+    # would cascade-delete EVERYTHING inside it (PVCs, Secrets, data) — irreversible
+    # with Longhorn reclaimPolicy=Delete and no Velero backup. `resource-policy: keep`
+    # makes uninstall/prune NEVER delete the namespace, so data survives. Going
+    # forward the lifecycle is upgrade-only; teardown must be explicit + backed up.
+    "helm.sh/resource-policy": keep
     simpelv2.kejaksaan.go.id/managed: "true"
     simpelv2.kejaksaan.go.id/environment: {{ .Values.global.environment | quote }}
     {{- range $k, $v := .Values.namespace.annotations }}

@@ -15,7 +15,9 @@ SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
+-- REMOVED `SELECT pg_catalog.set_config('search_path', '', false);` — see the
+-- note in V001__baseline.sql. Clearing search_path session-wide breaks refinery's
+-- `refinery_schema_history` insert (and any unqualified seed INSERT). Safe to drop.
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;

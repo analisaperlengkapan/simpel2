@@ -62,6 +62,30 @@ Urutan baku:
 
 Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `istio-system`, MetalLB IP pool (lihat section terkait di bawah).
 
+#### 🛡️ Keamanan data & lifecycle (WAJIB — insiden 2026-06-17)
+
+> **`helm uninstall` = OPERASI BERBAHAYA, bukan rutin.** Insiden 2026-06-17:
+> `helm uninstall simpel -n simpelv2-staging` meng-cascade-delete SELURUH namespace
+> + semua data (chart me-render `templates/namespace.yaml` sbg Namespace ber-manage
+> Helm → hapus ns → cascade semua PVC/Secret; Longhorn reclaim=`Delete`; tanpa Velero
+> → **tak terpulihkan**). Lihat memori `project-helm-namespace-footgun-safety`.
+
+- **Lifecycle = UPGRADE-ONLY.** Perubahan environment lewat `helm upgrade`; `helm
+  uninstall` hanya eksepsional, **selalu didahului backup (Velero/`pg_dump`)**, dan
+  untuk production **di-guard** (`deploy.sh uninstall` menolak prod tanpa
+  `SIMPEL_CONFIRM_DESTROY=yes`).
+- **Sebelum `helm uninstall` apa pun, cek apakah chart me-render Namespace** —
+  kalau ya, ns + isinya akan ke-cascade-delete.
+- **Proteksi data ber-lapis di chart (sudah terpasang):** namespace.yaml + redis-pvc
+  `helm.sh/resource-policy: keep`; postgres+secreton STS
+  `persistentVolumeClaimRetentionPolicy: {whenDeleted: Retain, whenScaled: Retain}`.
+- **TODO max-mitigasi:** Longhorn default SC `reclaimPolicy=Delete` → sediakan SC
+  **Retain**; **Velero (#50) WAJIB** terpasang sebelum uji destruktif lanjutan &
+  MANDATORY pra-prod.
+- **Data eksternal:** staging pakai data **mock/sintetis** (seed `integrasi.*`,
+  sync OFF); token asli MySIMKARI/SIMAN/Monsakti **HANYA di production** (lihat
+  memori `project-staging-mock-external-data` + `layanan/integrasi/AGENTS.md`).
+
 #### Release Train — kadens 3-lajur (TARGET-STATE; mekanik di-codify di P3/F-REL)
 
 > **Status:** kebijakan/model di bawah = keputusan arah (2026-06-16). **Mekanik
