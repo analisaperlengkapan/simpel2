@@ -85,6 +85,17 @@ case "$ACTION" in
     helm rollback "$RELEASE" -n "$NAMESPACE" "${EXTRA_ARGS[@]}"
     ;;
   uninstall)
+    # SAFETY (incident 2026-06-17): `helm uninstall` tears down ALL workloads.
+    # The namespace + data PVCs are retained (chart `resource-policy: keep` +
+    # PVC retention policy), but the environment goes DOWN. Routine lifecycle is
+    # upgrade-only; uninstall is exceptional. Refuse on production unless the
+    # operator explicitly confirms (and has a fresh Velero backup).
+    if [ "$ENV" = "production" ] && [ "${SIMPEL_CONFIRM_DESTROY:-}" != "yes" ]; then
+      echo "REFUSED: uninstall on PRODUCTION requires SIMPEL_CONFIRM_DESTROY=yes" >&2
+      echo "  Namespace + PVCs are retained, but ALL workloads will be torn down." >&2
+      echo "  Take a Velero backup first, then re-run with SIMPEL_CONFIRM_DESTROY=yes." >&2
+      exit 3
+    fi
     helm uninstall "$RELEASE" -n "$NAMESPACE" "${EXTRA_ARGS[@]}"
     ;;
   metallb-install)

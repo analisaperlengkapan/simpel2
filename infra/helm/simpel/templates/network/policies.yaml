@@ -62,6 +62,9 @@ spec:
   ingress:
     - from:
         - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        # `identity` covers authenc AND the authenc-migrate hook Job (component
+        # identity, name authenc-migrate) — the migrate Job must reach postgres.
+        - podSelector: { matchLabels: { app.kubernetes.io/component: identity } }
         - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
         - podSelector: { matchLabels: { app.kubernetes.io/name: secreton } }
         # simpelv1 (Laravel monolith) butuh akses postgres untuk session,
@@ -190,6 +193,50 @@ spec:
       ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
+{{- end }}
+{{- if .Values.networkPolicies.inclusterEgress }}
+---
+# In-cluster egress to backend dependencies. allow-dns-egress +
+# allow-istio-control-plane-egress use podSelector:{} (ALL pods) with policyType
+# Egress, which turns every pod egress-restricted — without an explicit allow,
+# backend/identity/simpelv1 pods AND the migrate hook Jobs cannot reach
+# postgres:5432 (silent TCP timeout). Ingress policies (allow-backend-to-postgres
+# etc.) remain the per-service least-privilege gate; this only opens egress to the
+# in-cluster service ports. podSelector:{} keeps it simple — frontends gaining
+# egress to these ports is harmless because the destination ingress still gates.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-incluster-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: postgres } }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: secreton } }
+      ports:
+        - { protocol: TCP, port: 8200 }
+        - { protocol: TCP, port: 9000 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: redis } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: authenc } }
+      ports:
+        - { protocol: TCP, port: 8088 }
+        - { protocol: TCP, port: 9088 }
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: layanan-integrasi } }
+      ports:
+        - { protocol: TCP, port: 50053 }
 {{- end }}
 {{- if .Values.networkPolicies.allowIstioControlPlaneEgress }}
 ---

@@ -105,6 +105,12 @@ networkPolicies:
   defaultDenyEgress: false                 # production override: true (zero-trust egress)
   allowDnsEgress: true
   allowIstioControlPlaneEgress: true
+  # In-cluster egress to backend deps (postgres/secreton/redis/authenc/integrasi).
+  # REQUIRED: allowDnsEgress/allowIstioControlPlaneEgress use podSelector:{} which
+  # selects ALL pods for Egress → every pod becomes egress-restricted. Without this,
+  # backend/identity/simpelv1 pods + migrate hook Jobs cannot reach postgres:5432
+  # (silent TCP timeout). Ingress policies remain the per-service least-privilege gate.
+  inclusterEgress: true
   allowSecretonAccess: true                # restrict Secreton :8200/:9000 ke SA service tertentu
   allowIngressGateway:
     enabled: true
@@ -221,6 +227,12 @@ postgres:
   istioInjection: false
   init:
     enabled: true                          # render postgres-init-scripts ConfigMap
+  # Patroni bootstraps PG itself and SKIPS /docker-entrypoint-initdb.d, so the
+  # init ConfigMap above never runs on a fresh volume → only dbsimpelv2 (POSTGRES_DB)
+  # gets created. This post-install/post-upgrade hook Job creates dbsimpelv1 +
+  # secreton idempotently (templates/backend/db-create-job.yaml).
+  dbCreateJob:
+    enabled: true
   pdb: { enabled: false, minAvailable: 0 }
 
 redis:

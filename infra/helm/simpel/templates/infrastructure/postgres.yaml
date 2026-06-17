@@ -68,6 +68,13 @@ metadata:
 spec:
   serviceName: postgres
   replicas: {{ $cfg.replicas }}
+  # SAFETY: never auto-delete the data PVC when the StatefulSet is deleted or
+  # scaled down — data outlives the workload object (defense-in-depth alongside
+  # the namespace `resource-policy: keep`). Recreate the STS → it re-binds the
+  # existing postgres-data-* PVC.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels:
       app: postgres

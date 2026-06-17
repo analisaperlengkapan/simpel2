@@ -34,7 +34,14 @@ SET lock_timeout = 0;
 SET idle_in_transaction_session_timeout = 0;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
-SELECT pg_catalog.set_config('search_path', '', false);
+-- NOTE: pg_dump emits `SELECT pg_catalog.set_config('search_path', '', false);`
+-- here. REMOVED on purpose: it clears search_path session-wide, so after this
+-- migration's (schema-qualified) DDL runs, refinery's bookkeeping
+-- `INSERT INTO refinery_schema_history` (unqualified) fails with
+-- `relation "refinery_schema_history" does not exist` → the whole migration tx
+-- rolls back (0 tables). All objects below are schema-qualified, so dropping this
+-- line is safe. (Surfaced @staging 2026-06-17; psql-loop local validation never
+-- exercised refinery's history insert, so it stayed latent.)
 SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;

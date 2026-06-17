@@ -58,6 +58,46 @@ MetalLB IP pool, `secretonAuth.enabled=true`. From F2H (when activating): gRPC m
 cert (or `GRPC_ALLOW_INSECURE=true`), Secreton DB role for dynamic creds, Stakater
 Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
 
+## Fresh-environment bootstrap (first-ever install ≠ steady-state upgrade)
+
+> Proven @staging 2026-06-17. A first install on an EMPTY namespace exposed bugs an
+> upgrade never hits (the DBs/secrets/ns pre-existed). Root causes + detail: memory
+> `project-helm-namespace-footgun-safety`. Required reading before F6-A prod bootstrap.
+
+1. **Pre-flight:** `helm uninstall` of this chart **cascade-deletes the whole namespace
+   and its data** (chart renders a Helm-managed `namespace.yaml`; now guarded by
+   `resource-policy: keep` + PVC retention, but **lifecycle is upgrade-only** — never
+   routine-uninstall a live env). Before ANY uninstall, check if the chart templates the
+   namespace. Production uninstall is guarded: `SIMPEL_CONFIRM_DESTROY=yes`.
+2. **Pre-create what the chart does NOT manage** (needed before image pulls / hooks):
+   - `kubectl create ns simpelv2-<env>` + labels `istio-injection=enabled`,
+     `pod-security.kubernetes.io/{enforce=privileged,audit=baseline,warn=baseline}`
+     (then install with `--set namespace.create=false`), and
+   - `ghcr-pull` image-pull Secret — copy from ns `arc-runners`
+     (`kubectl get secret ghcr-pull -n arc-runners -o json | jq 'del(.metadata.namespace,
+     .metadata.resourceVersion,.metadata.uid,.metadata.creationTimestamp,.metadata.ownerReferences,
+     .metadata.managedFields)' | kubectl apply -n simpelv2-<env> -f -`).
+3. **Secrets:** install with `--set secrets.bootstrap=true -f values-secrets.yaml`
+   (gitignored, OUTSIDE the repo tree). Staging = fresh-generated postgres/simpelv1 +
+   **MOCK** integration (`.invalid` URLs, sync off — real gov-API tokens are prod-only,
+   see `layanan/integrasi/AGENTS.md`). Use a **URL-safe** pg password (`openssl rand -hex 24`).
+4. **Install (no `--wait`):** `helm upgrade --install simpel infra/helm/simpel -f
+   values-<env>.yaml -f values-secrets.yaml --set global.imageTag=vX.Y.Z-rcN
+   --set namespace.create=false -n simpelv2-<env> --timeout 20m`. Skip `--wait`:
+   secreton-0 comes up **sealed** (no auto-unseal); with `secretonAuth.enabled=false`
+   nothing depends on it so apps still boot from k8s secrets. `deploy.sh` forces
+   `--wait 5m` → would time out; call `helm` directly here.
+   - **post-install hooks run in order:** `db-create` (creates `dbsimpelv1`+`secreton` —
+     the Patroni image SKIPS `/docker-entrypoint-initdb.d`, so only `dbsimpelv2` exists
+     otherwise) → `integrasi-migrate` → `authenc-migrate` (each waits-for-postgres).
+     perlengkapan self-migrates on boot AFTER authenc+integrasi schemas exist (may
+     crashloop briefly — tolerated by its startupProbe).
+5. **Secreton:** bootstrap + unseal fresh (skill `secreton-ops`; **new** Shamir keys —
+   any prior offline keys are void once the PVC is gone), then `--set
+   secretonAuth.enabled=true` and `helm upgrade`.
+6. **Verify:** `dbsimpelv2` has `authenc`+`integrasi`+`perlengkapan` schemas; all pods
+   Ready; login HTTP 200. Seed `integrasi.*` synthetic fixtures for staging.
+
 ## Gotchas
 
 - `release.yml` / `promote.yml` run on ARC ephemeral runners; heavy image+docker

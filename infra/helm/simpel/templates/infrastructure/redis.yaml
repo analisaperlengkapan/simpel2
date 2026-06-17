@@ -7,6 +7,11 @@ metadata:
   namespace: {{ include "simpel.namespace" . }}
   labels:
     {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 4 }}
+  annotations:
+    # SAFETY: keep this PVC across `helm uninstall`/prune (defense-in-depth with
+    # the namespace `resource-policy: keep`). Redis holds sessions/cache — losing
+    # it logs everyone out but is recoverable; protect it anyway.
+    "helm.sh/resource-policy": keep
 spec:
   accessModes: {{ toYaml $cfg.storage.accessModes | nindent 4 }}
   storageClassName: {{ default .Values.global.storageClass $cfg.storage.storageClassName }}

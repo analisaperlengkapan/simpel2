@@ -21,9 +21,13 @@ metadata:
   labels:
     {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-migrate" "component" "identity") | nindent 4 }}
   annotations:
-    # Run before workloads on both install and upgrade; clean up old hook Job
-    # first, and remove on success (keep failed Jobs for debugging).
-    "helm.sh/hook": pre-install,pre-upgrade
+    # post-* (NOT pre-*): on a fresh `helm install` postgres + postgres-credentials
+    # are normal resources created BEFORE post-* hooks, so they exist here; a
+    # pre-install hook would deadlock (postgres/secret not yet created). The
+    # wait-for-postgres init tolerates postgres not being Ready yet. Weight -5 →
+    # after db-create (-20) + integrasi-migrate (-6). On upgrades this runs
+    # post-rollout — safe under the expand/contract migration discipline.
+    "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
@@ -48,6 +52,25 @@ spec:
       {{- . | nindent 6 }}
       {{- end }}
       {{- include "simpel.podSecurityContext" $values | nindent 6 }}
+      initContainers:
+        # Wait for postgres to accept connections (post-install ordering — the
+        # postgres pod may not be Ready yet when this hook fires).
+        - name: wait-for-postgres
+          image: postgres:15-alpine
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70            # postgres uid in the alpine image
+            capabilities:
+              drop: [ALL]
+          command:
+            - /bin/sh
+            - -c
+            - until pg_isready -h postgres -U {{ .Values.secrets.postgresCredentials.username | quote }} >/dev/null 2>&1; do echo "waiting for postgres"; sleep 2; done
+          resources:
+            requests: { cpu: 50m, memory: 32Mi }
+            limits:   { cpu: 200m, memory: 64Mi }
       containers:
         - name: authenc-migrate
           image: {{ include "simpel.image" (dict "top" $ctx "spec" $values.image) }}

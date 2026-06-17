@@ -16,6 +16,16 @@
 - **MySIMKARI**: Sistem Informasi Manajemen Kepegawaian Kejaksaan RI
 - **SIMAN v2.0**: Sistem Informasi Manajemen Aset Negara (Kemenkeu)
 
+> **🔒 Token eksternal per-environment (keputusan 2026-06-17):** token API asli
+> (MySIMKARI/SIMAN/MonSAKTI) **HANYA di production**. **Staging pakai data
+> MOCK/sintetis** — seed tabel `integrasi.*` dgn fixtures (satker/pegawai/aset),
+> external **sync OFF** (tanpa BASE_URL/token nyata). Alasan: blast-radius (kredensial
+> prod tak boleh di env lower-trust yg di-uji destruktif) + hindari rate-limit/block
+> token yg dipakai prod akibat loop tes staging + determinisme. gRPC handler tetap
+> melayani data seeded → konsumen (perlengkapan/authenc) jalan normal. **Mock TIDAK
+> memvalidasi bentuk-API nyata** (P1a) — validasi itu one-shot terkontrol/prod
+> bring-up. Detail: memori `project-staging-mock-external-data`.
+
 ## 🔑 Tech Stack
 
 | Component | Technology | Version |
