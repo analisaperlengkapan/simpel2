@@ -70,6 +70,13 @@ must keep working on the new schema.
 - Naming: `satker_id`/`satker_nama`/`satker_pusat_id`, `nama_barang`/`nama_pegawai`.
 - Fresh-apply baselines exist (F5-B): authenc `001_baseline`+`002_seed`, perlengkapan
   `V001__baseline`+`V002__seed`. Pre-prod may squash; post-prod append only.
+- ⚠️ **When squashing a baseline via `pg_dump --schema-only`, DELETE the
+  `SELECT pg_catalog.set_config('search_path', '', false);` line it emits.** It clears
+  search_path session-wide, so after the (schema-qualified) DDL, refinery's unqualified
+  `INSERT INTO refinery_schema_history` fails (`relation ... does not exist`) → the WHOLE
+  migration rolls back (0 tables). A `psql`-loop local check does NOT catch this (it never
+  runs refinery's history insert) — only the real embedded migration does. (Hit @staging
+  2026-06-17 on perlengkapan V001/V002; applies to any future pg_dump-based squash.)
 
 ## Common pitfalls
 
