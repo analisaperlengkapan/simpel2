@@ -71,6 +71,22 @@ must keep working on the new schema.
 - Fresh-apply baselines exist (F5-B): authenc `001_baseline`+`002_seed`, perlengkapan
   `V001__baseline`+`V002__seed`. Pre-prod may squash; post-prod append only.
 
+### ⛔ Single-transaction runner — fresh-apply anti-patterns (CI-guarded)
+
+Each runner applies ONE migration file in ONE implicit transaction (authenc/integrasi
+`batch_execute`, perlengkapan refinery). These constructs silently break fresh-apply and
+are flagged by **`infra/lint/check-sql-migrations.sh`** (CI job `Lint SQL Migrations`):
+- **No `CREATE/DROP INDEX … CONCURRENTLY`** — can't run inside a txn; pointless on a fresh DB.
+- **No top-level `BEGIN`/`COMMIT`/`ROLLBACK`** — the runner owns the transaction (PL/pgSQL
+  `DO $$ BEGIN … END $$` is fine; it has no trailing `;` on `BEGIN`).
+- **No `SELECT … set_config('search_path','',…)`** — `pg_dump` emits this by DEFAULT; left in,
+  it resets `search_path` so the runner's unqualified history INSERT fails → migration rolls
+  back. **Strip it when squashing a baseline from `pg_dump`.**
+- **No `ALTER DATABASE CURRENT …`** — invalid syntax (there is no `CURRENT` keyword for
+  `ALTER DATABASE`); set `search_path` via the connection/role instead.
+Waive a single line only with a trailing `-- guard:allow` + a reason. Check locally:
+`./infra/lint/check-sql-migrations.sh`.
+
 ## Common pitfalls
 
 - Forgetting a route registration → handler compiles but 404s.

@@ -54,6 +54,7 @@ jobs:
       markdown: ${{ steps.changes.outputs.markdown }}
       shell: ${{ steps.changes.outputs.shell }}
       toml: ${{ steps.changes.outputs.toml }}
+      sql: ${{ steps.changes.outputs.sql }}
       workflows: ${{ steps.changes.outputs.workflows }}
       image-portal: ${{ steps.changes.outputs.image-portal }}
       image-perlengkapan-ui: ${{ steps.changes.outputs.image-perlengkapan-ui }}
@@ -523,6 +524,27 @@ jobs:
       - name: taplo fmt --check
         shell: bash
         run: taplo fmt --check
+
+  lint-sql:
+    name: Lint SQL Migrations
+    needs: detect
+    # Run on .sql changes, and on changes to the guard itself / detect-changes so
+    # the check is exercised when the tooling is touched.
+    if: needs.detect.outputs.sql == 'true' || needs.detect.outputs.workflows == 'true'
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v6
+      - name: SQL migration anti-pattern guard
+        shell: bash
+        # ADVISORY for now (mirrors the kube-linter advisory→blocking maturation,
+        # tasks #32→#46): `main` currently carries known findings being resolved
+        # elsewhere — the perlengkapan baseline search_path reset (fixed in the
+        # in-flight F5-B PR) and the secreton `ALTER DATABASE CURRENT` in two
+        # unwired migration files (follow-up). Findings still surface as
+        # annotations on every run. Flip to blocking by removing this
+        # `continue-on-error` once both are clean.
+        continue-on-error: true
+        run: ./infra/lint/check-sql-migrations.sh
 
   # ─────────────────────────────────────────────────────
   # Phase 3 — Build artefak (agresif)
@@ -1226,6 +1248,7 @@ jobs:
       - lint-markdown
       - lint-shell
       - lint-toml
+      - lint-sql
       - build-antarmuka-portal
       - build-antarmuka-perlengkapan
       - build-backend
