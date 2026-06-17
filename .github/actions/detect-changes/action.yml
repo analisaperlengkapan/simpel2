@@ -50,6 +50,9 @@ outputs:
   toml:
     description: 'true jika TOML berubah'
     value: ${{ steps.filter.outputs.toml }}
+  sql:
+    description: 'true jika file .sql berubah (migrasi/seed/skema)'
+    value: ${{ steps.filter.outputs.sql }}
   workflows:
     description: 'true jika .github/workflows atau .github/actions berubah'
     value: ${{ steps.filter.outputs.workflows }}
@@ -153,6 +156,8 @@ runs:
             - 'infra/scripts/**'
           toml:
             - '**/*.toml'
+          sql:
+            - '**/*.sql'
           workflows:
             - '.github/workflows/**'
             - '.github/actions/**'

@@ -90,6 +90,13 @@ Backend SIMPEL terbagi menjadi dua jenis layanan:
 - **Penamaan kolom (standar F5-B):** satker → `satker_id` / `satker_nama` /
   `satker_pusat_id` (BUKAN `ms_satker_id`/`nm_satker`); hindari `nama` generik →
   `nama_barang` / `nama_pegawai`.
+- **Anti-pattern fresh-apply (runner = 1 file → 1 transaksi; di-gate CI `Lint SQL
+  Migrations` via `infra/lint/check-sql-migrations.sh`):** TANPA `CREATE/DROP INDEX …
+  CONCURRENTLY`, TANPA `BEGIN`/`COMMIT`/`ROLLBACK` top-level (runner yang pegang
+  transaksi; `DO $$ BEGIN … END $$` aman), TANPA `SELECT … set_config('search_path','',…)`
+  (default `pg_dump` — buang saat squash baseline; mematahkan INSERT history unqualified),
+  TANPA `ALTER DATABASE CURRENT …` (sintaks ilegal — set search_path lewat koneksi/role).
+  Waive 1 baris hanya dgn `-- guard:allow` + alasan. Detail: Skill `add-backend-feature`.
 
 ⛔ **DO NOT USE SQLx**. Gunakan `tokio-postgres`, `deadpool-postgres`, dan `refinery`/
 runner embed untuk semua interaksi database.
