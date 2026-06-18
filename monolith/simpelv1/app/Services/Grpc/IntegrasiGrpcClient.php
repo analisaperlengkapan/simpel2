@@ -112,19 +112,33 @@ class IntegrasiGrpcClient
      * SIMAN Asset Categories (matching integrasi.proto enum)
      */
     public const SIMAN_CAT_TANAH = 1;
+
     public const SIMAN_CAT_GEDUNG_BANGUNAN = 2;
+
     public const SIMAN_CAT_ALAT_BESAR = 3;
+
     public const SIMAN_CAT_ANGKUTAN_BERMOTOR = 4;
+
     public const SIMAN_CAT_ALAT_PERSENJATAAN = 5;
+
     public const SIMAN_CAT_TAK_BERWUJUD = 6;
+
     public const SIMAN_CAT_TETAP_LAINNYA = 7;
+
     public const SIMAN_CAT_BANGUNAN_AIR = 8;
+
     public const SIMAN_CAT_INSTALASI_JARINGAN = 9;
+
     public const SIMAN_CAT_JALAN_JEMBATAN = 10;
+
     public const SIMAN_CAT_KDP = 11;
+
     public const SIMAN_CAT_KHUSUS_TIK = 12;
+
     public const SIMAN_CAT_NON_TIK = 13;
+
     public const SIMAN_CAT_RUMAH = 14;
+
     public const SIMAN_CAT_TETAP_RENOVASI = 15;
 
     /**
