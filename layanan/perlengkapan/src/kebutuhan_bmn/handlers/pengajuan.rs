@@ -143,13 +143,14 @@ pub async fn transition_pengajuan_status(
     info!(
         "Transitioning pengajuan {} to status {}",
         id, request.target_status
+    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat", "admin"])?;
     );
 
     let user_id = Some(claims.user_id);
     let user_info = Some(extract_user_info(&claims));
 
     let pengajuan = service
-        .transition_pengajuan_status(id, request, user_id, user_info, ip)
+        .transition_pengajuan_status(id, request, user_id, user_info, claims.role.clone(), ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

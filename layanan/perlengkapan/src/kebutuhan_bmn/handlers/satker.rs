@@ -72,6 +72,7 @@ pub async fn transition_satker_status(
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
     info!(
         "Transitioning satker {} to status {}",
+    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat", "admin"])?;
         satker_id, request.target_status
     );
 
@@ -79,7 +80,7 @@ pub async fn transition_satker_status(
     let user_info = Some(extract_user_info(&claims));
 
     let satker = service
-        .transition_satker_status(satker_id, request, user_id, user_info)
+        .transition_satker_status(satker_id, request, user_id, user_info, claims.role.clone())
         .await?;
 
     Ok(Json(ApiResponse::success(

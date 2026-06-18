@@ -21,9 +21,8 @@ impl WorkflowEngine {
         // 1. Validate transition is allowed
         self.validate_transition(&request.from_state, &request.to_state)?;
 
-        // 2. Validate user has required role (would call Authenc in production)
-        // For now, we'll skip this validation as it requires Authenc integration
-        // self.validate_approver_role(request.user_id, &request.to_state).await?;
+        // 2. Validate user has required role
+        self.validate_approver_role(&request.user_role, &request.to_state)?;
 
         // 3. Get database connection
         let mut client = self.db_pool.get().await?;
@@ -243,41 +242,32 @@ impl WorkflowEngine {
         Ok(())
     }
     /// Validate that the user has the required role for the transition
-    ///
-    /// In production, this would call Authenc gRPC service to verify user roles
-    /// For now, this is a placeholder that always succeeds
-    #[allow(dead_code)]
-    async fn validate_approver_role(&self, user_id: Uuid, to_state: &str) -> Result<()> {
+    pub(crate) fn validate_approver_role(&self, user_role: &str, to_state: &str) -> Result<()> {
         // Get required role from configuration
-        let required_role = self
-            .config
-            .get_required_role(to_state)
-            .ok_or_else(|| WorkflowError::InvalidState(to_state.to_string()))?;
+        let required_role = self.config.get_required_role(to_state);
 
-        // In production, call Authenc gRPC service:
-        // let response = self.authenc_client
-        //     .get_user_roles(GetUserRolesRequest {
-        //         user_id: user_id.to_string(),
-        //     })
-        //     .await
-        //     .map_err(|e| WorkflowError::AuthencError(e.to_string()))?;
-        //
-        // let roles: Vec<String> = response.into_inner().roles;
-        //
-        // if !roles.contains(&required_role.to_string()) {
-        //     return Err(WorkflowError::InsufficientPermissions {
-        //         required_role: required_role.to_string(),
-        //     });
-        // }
+        // If no role is required for this state, anyone can transition (uncommon)
+        let Some(required) = required_role else {
+            return Ok(());
+        };
 
-        tracing::debug!(
-            user_id = %user_id,
-            required_role = %required_role,
-            to_state = %to_state,
-            "Role validation (placeholder - would call Authenc in production)"
-        );
+        // Admin/Superadmin bypass
+        let normalized_role = user_role.to_ascii_lowercase();
+        if matches!(
+            normalized_role.as_str(),
+            "admin" | "superadmin" | "admin_pusat" | "system"
+        ) {
+            return Ok(());
+        }
 
-        Ok(())
+        // Case-insensitive role comparison
+        if normalized_role == required.to_ascii_lowercase() {
+            Ok(())
+        } else {
+            Err(WorkflowError::InsufficientPermissions {
+                required_role: required.to_string(),
+            })
+        }
     }
     /// Map a workflow `entity_type` (the config `name`) to its status table.
     /// The engine is generic across workflows; every status table exposes a
