@@ -916,8 +916,10 @@ impl IntegrasiServiceImpl {
         );
 
         // Count total
-        let mut count_query = "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1".to_string();
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![Box::new(jenis_aset.to_string())];
+        let mut count_query =
+            "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1".to_string();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
+            vec![Box::new(jenis_aset.to_string())];
 
         if !req.kode_satker.is_empty() {
             count_query.push_str(" AND kode_satker = $2");
@@ -927,7 +929,10 @@ impl IntegrasiServiceImpl {
         let total_items: i64 = match self
             .state
             .db_client
-            .query_one(&count_query, &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
+            .query_one(
+                &count_query,
+                &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>(),
+            )
             .await
         {
             Ok(row) => row.try_get(0).unwrap_or(0),
@@ -943,7 +948,8 @@ impl IntegrasiServiceImpl {
                    nilai_perolehan, nilai_buku, kondisi, tahun_perolehan, lokasi, status_penggunaan
             FROM integrasi.siman_aset
             WHERE jenis_aset = $1
-        "#.to_string();
+        "#
+        .to_string();
 
         if !req.kode_satker.is_empty() {
             query.push_str(" AND kode_satker = $2");
@@ -961,7 +967,10 @@ impl IntegrasiServiceImpl {
         let items: Vec<SimanAsset> = match self
             .state
             .db_client
-            .query(&query, &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
+            .query(
+                &query,
+                &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>(),
+            )
             .await
         {
             Ok(rows) => rows
