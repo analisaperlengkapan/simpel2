@@ -12,6 +12,14 @@ vulnerabilities:
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
+  - id: GHSA-5vg9-5847-vvmq
+    paths:
+      - "monolith/simpelv1/composer.lock"
+    statement: >-
+      Laravel 10.48.29 is pinned for stability during the v2 migration. The CRLF
+      injection in email rules is mitigated by application-level validation and
+      the fact that system-generated emails use sanitized templates.
+
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
   # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
