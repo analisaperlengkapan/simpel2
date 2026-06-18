@@ -3,8 +3,6 @@
 namespace App\Models\Master;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Query\Builder;
-use Illuminate\Support\Facades\DB;
 
 class MsPegawai extends Model
 {
