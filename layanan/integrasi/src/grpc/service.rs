@@ -916,11 +916,18 @@ impl IntegrasiServiceImpl {
         );
 
         // Count total
-        let count_query = "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1";
+        let mut count_query = "SELECT COUNT(*) FROM integrasi.siman_aset WHERE jenis_aset = $1".to_string();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![Box::new(jenis_aset.to_string())];
+
+        if !req.kode_satker.is_empty() {
+            count_query.push_str(" AND kode_satker = $2");
+            params.push(Box::new(req.kode_satker.clone()));
+        }
+
         let total_items: i64 = match self
             .state
             .db_client
-            .query_one(count_query, &[&jenis_aset.to_string()])
+            .query_one(&count_query, &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
             .await
         {
             Ok(row) => row.try_get(0).unwrap_or(0),
@@ -931,22 +938,30 @@ impl IntegrasiServiceImpl {
         };
 
         // Query data
-        let query = r#"
+        let mut query = r#"
             SELECT id, nup, kode_barang, nama_barang, kode_satker, nama_satker,
                    nilai_perolehan, nilai_buku, kondisi, tahun_perolehan, lokasi, status_penggunaan
             FROM integrasi.siman_aset
             WHERE jenis_aset = $1
-            ORDER BY id
-            LIMIT $2 OFFSET $3
-        "#;
+        "#.to_string();
+
+        if !req.kode_satker.is_empty() {
+            query.push_str(" AND kode_satker = $2");
+        }
+
+        query.push_str(&format!(
+            " ORDER BY id LIMIT ${} OFFSET ${}",
+            params.len() + 1,
+            params.len() + 2
+        ));
+
+        params.push(Box::new(per_page as i64));
+        params.push(Box::new(offset));
 
         let items: Vec<SimanAsset> = match self
             .state
             .db_client
-            .query(
-                query,
-                &[&jenis_aset.to_string(), &(per_page as i64), &offset],
-            )
+            .query(&query, &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
             .await
         {
             Ok(rows) => rows

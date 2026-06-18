@@ -29,7 +29,8 @@ env:
   # runners on simple02 each spawning many rustc procs concurrently
   # exhausted memory/FDs, causing intermittent "could not parse/
   # generate dep info at: target/.../X.d: No such file" errors.
-  CARGO_BUILD_JOBS: "4"
+  # Reduced to 2 to further mitigate OOM/Lost communication on simple02.
+  CARGO_BUILD_JOBS: "2"
 
 jobs:
   # ─────────────────────────────────────────────────────
@@ -697,6 +698,7 @@ jobs:
   test-lib-core:
     name: Test Rust (lib-core)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -719,6 +721,7 @@ jobs:
   test-lib-backend:
     name: Test Rust (lib-backend)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -741,6 +744,7 @@ jobs:
   test-lib-crypto:
     name: Test Rust (lib-crypto)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -763,6 +767,7 @@ jobs:
   test-lib-perlengkapan:
     name: Test Rust (lib-perlengkapan)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -785,6 +790,7 @@ jobs:
   test-lib-ui:
     name: Test Rust (lib-ui)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -824,6 +830,7 @@ jobs:
   test-antarmuka-portal:
     name: Test Rust (antarmuka-portal)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -850,6 +857,7 @@ jobs:
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
+    if: needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -873,6 +881,7 @@ jobs:
   test-services:
     name: Test Rust (${{ matrix.tier }})
     needs: detect
+    if: needs.detect.outputs.rust-backend == 'true' || needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     strategy:
       fail-fast: false
