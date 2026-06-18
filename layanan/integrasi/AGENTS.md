@@ -510,16 +510,38 @@ konsumen fetch-at-read/baca cross-schema, dilarang duplikasi.
    - ⚠️ Tabel split lama `siman_aset_{tanah,gedung_bangunan,alat_besar,angkutan_bermotor}`
      = **LEGACY/duplikat** (jangan dibuat ulang) → migrasi ke `siman_aset WHERE jenis_aset=…`.
 
-5. **Cross-ref satker (#43) — integrasi = pemilik mapping**
+5. **Cross-ref satker (#43/#65) — integrasi = pemilik mapping, SIMAN-FIRST**
    - **`satker_code_map`** — cross-ref kanonik MySIMKARI `kode_satker` ↔ SIMAN
-     `kdsatker_keu` (dua sistem kode BEDA; hanya `nama_satker` yang sama). integrasi
-     memiliki kedua sumber → mapping = SoT di sini.
-   - View `v_satker_code_map_auto` = kandidat best-effort by `nama_satker` ternormalisasi;
-     `v_satker_code_map` = manual-verified ∪ auto. **Konsumen (perlengkapan `bank_aset`
-     scoping BMN per-satker) JOIN via `v_satker_code_map`, BUKAN match string `nama_satker`.**
-   - ⚠️ **Validasi nilai nyata di staging (P2/F5-E)** — apakah kode benar-benar beda &
-     name-match resolve bersih; promote baris ke `satker_code_map` (`verified=true`) saat
-     dikonfirmasi (additive, jangan ubah migrasi).
+     `kdsatker_keu`. integrasi memiliki kedua sumber → mapping = SoT di sini.
+   - **Kode BENAR-BENAR berbeda (tervalidasi real-data 2026-06-17):** MySIMKARI
+     `kode_satker` = bertitik (`02.28`); SIMAN `kdsatker_keu` = kode keuangan
+     Kemenkeu/SAKTI 20-char `006 01 WWWW SSSSSS AAA KP/KD` — **0 match exact** →
+     `nama_satker` ternormalisasi adalah satu-satunya kunci join.
+   - **Decode `kdsatker_keu`** (diajarkan user, tervalidasi): `006`=kode KL ·
+     `01`=eselon1 · **digits 6-9 = `wilayah_kode`** (kode wilayah Kejati, mis. `0100`
+     DKI; `0199` = pusat) · 6-digit satker · digits 16-18 = anak satker (`000`=induk) ·
+     suffix `KP`=kantor pusat / `KD`=kantor daerah. **`wilayah_kode` =
+     `substring(kdsatker_keu FROM 6 FOR 4)` → dipakai untuk scoping RBAC tingkat-wilayah
+     (#66)** tanpa perlu tabel mapping tambahan.
+   - **View SIMAN-FIRST** (anchor pada daftar satker pembawa-aset SIMAN, arahan user):
+     `v_satker_code_map_auto` = setiap satker SIMAN distinct LEFT JOIN MySIMKARI by
+     `nama_satker` ternormalisasi (`integrasi.satker_nama_norm()`); `kode_satker IS NULL`
+     menandai **SIMAN-only** (punya BMN, tak ada di hierarki org/personel MySIMKARI).
+     `v_satker_code_map` = manual-verified ∪ auto; mengekspos `wilayah_kode` + `is_pusat`.
+     **Konsumen (perlengkapan `bank_aset`) JOIN via `v_satker_code_map`, BUKAN match
+     string `nama_satker`.**
+   - **Name-match = alat seed, BUKAN otoritas runtime.** Exact-normalized aman (tanpa
+     false-positive) tapi parsial (real-data: 553 satker SIMAN → 488 match / 65 SIMAN-only
+     [13 pusat genuine + 52 varian-nama daerah] / 35 wilayah). pg_trgm fuzzy menaikkan
+     cakupan TAPI bisa salah (KEJATI SUMUT→ACEH) → khusus review/seeding; promote hanya
+     pasangan terkonfirmasi ke `satker_code_map` (`verified=true`, additive — jangan ubah
+     migrasi).
+   - ⚠️ **#17 (utang ingest):** scheduler produksi menulis SIMAN via path dinamis
+     `db::save_to_database` (schema-on-write, isi field `kode_satker` mentah) dan **TIDAK**
+     mengisi `siman_aset.kdsatker_keu` → view auto kosong tanpa backfill. Rekonsiliasi dua
+     path ingest (curated `transform.rs` vs dinamis) = integrasi rebuild (#17); sampai itu,
+     `kdsatker_keu` diisi out-of-band (seed staging). Lihat memori
+     `project_p1a_satker_readmodel_assumptions`.
 
 **Migrasi:** runner **`integrasi-migrate`** (`src/bin/migrate.rs`, embed
 `001_init_schema.sql` + `002_enhance_integration_schema.sql` +
