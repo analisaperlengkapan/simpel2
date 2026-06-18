@@ -161,6 +161,27 @@ class Master extends Model
 
     public static function getPegawaiByNip($nip)
     {
+        /** @var \App\Services\Grpc\IntegrasiGrpcClient $client */
+        $client = app('integrasi.gateway');
+        $employee = $client->fetchEmployeeFromMySIMKARI($nip);
+
+        if ($employee) {
+            // Map integration API response to legacy MsPegawai structure
+            return (object) [
+                'peg_nip_baru' => $employee['nip'],
+                'nama' => $employee['nama'],
+                'pns_mail' => $employee['email'] ?? '',
+                'pangkat' => $employee['pangkat'] ?? '',
+                'jabatan' => $employee['jabatan'] ?? '',
+                'inst_satkerkd' => $employee['kode_satker'] ?? '',
+                'satker' => $employee['unit_kerja'] ?? '',
+                'foto' => $employee['foto'] ?? '',
+                'mapped_unit_kerja' => $employee['kode_satker'] ?? '', // Fallback mapping
+                'mapped_unit_kerja_nama' => $employee['unit_kerja'] ?? '',
+            ];
+        }
+
+        // Fallback to DB if API fails or record not found
         return DB::selectOne("SELECT a.*
         , case when c.eselon_simple in('3', '4') then c.eselon2 else c.id end as mapped_unit_kerja
         , d.akronim  as mapped_unit_kerja_nama
@@ -169,7 +190,6 @@ class Master extends Model
         left join unit_kerja c on a.unitkerja_kd  = c.id
         left join unit_kerja d on  case when c.eselon_simple in('3', '4') then c.eselon2 else c.id end = d.id
         WHERE a.peg_nip_baru = ? ", [$nip]);
-        // return DB::table('mv_curr_pegawai_all')->where(['peg_nip_baru' => $nip])->first();
     }
 
     public function gridDataPegawaiDashboard($paging, $search = [], $filter = [])

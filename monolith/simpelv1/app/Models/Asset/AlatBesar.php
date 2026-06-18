@@ -49,87 +49,61 @@ class AlatBesar extends Model
 
     public function getDataGrid($paging, $search = [], $select = [])
     {
-        $query = DB::table($this->table.' as a');
-        if (! empty($select)) {
-            $query->select($select, 'b.inst_nama');
-        } else {
-            $query->select('a.*', 'b.inst_nama');
-        }
-        $query->leftJoin('ms_satker as b', 'a.id_satker_keu', '=', 'b.kdsatker_keu');
+        /** @var \App\Services\Grpc\IntegrasiGrpcClient $client */
+        $client = app('integrasi.gateway');
 
-        $roleSatker = session('userData.current_role.ms_satker_id');
-        $roleSadmin = session('userData.current_role.ms_role_id');
+        $params = [
+            'page' => ($paging['start'] / $paging['length']) + 1,
+            'per_page' => $paging['length'],
+        ];
 
-        // return $roleSatker;exit;
-
-        if ($roleSatker != '00' && $roleSadmin != '3') {
-            $query->where('b.inst_satkerkd', 'like', "{$roleSatker}%");
-        }
-        if (! empty($search)) {
-            $searchVal = $search['columns'];
-            $query->where(function (Builder $q) use ($searchVal) {
-                foreach ($searchVal as $k => $v) {
-                    $value = $v['search']['value'];
-                    $columnName = $v['data'];
-                    $tableName = $this->table;
-                    if ($value) {
-                        $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
-                        if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
-                            $q->where($columnName, '=', $value);
-                        } elseif (in_array($dataType, ['timestamp without time zone', 'timestamp', 'date'])) {
-                            if (strtotime($value)) {
-                                $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                            }
-                        } else {
-                            $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                        }
+        if (! empty($search) && isset($search['columns'])) {
+            foreach ($search['columns'] as $col) {
+                if (! empty($col['search']['value'])) {
+                    if ($col['data'] === 'kdsatker_keu') {
+                        $params['kode_satker'] = $col['search']['value'];
                     }
                 }
-            });
+            }
         }
-        $query->orderByDesc('tanggal_perolehan');
-        $total = $query->count();
-        $data = $query->limit($paging['length'])->skip($paging['start'])->get();
 
-        return ['total' => $total, 'data' => $data];
+        $result = $client->getAssets($client::SIMAN_CAT_ALAT_BESAR, $params);
+
+        if ($result && isset($result['items'])) {
+            $items = collect($result['items'])->map(function ($item) {
+                return (object) [
+                    'id' => $item['id'],
+                    'kdsatker_keu' => $item['kode_satker'],
+                    'nm_satker' => $item['nama_satker'],
+                    'kode_barang' => $item['kode_barang'],
+                    'nm_barang' => $item['nama_barang'],
+                    'nup' => $item['nup'],
+                    'kondisi' => $item['kondisi'],
+                    'nilai_perolehan' => $item['nilai_perolehan'],
+                    'nilai_buku' => $item['nilai_buku'],
+                    'tahun_perolehan' => $item['tahun_perolehan'],
+                    'alamat' => $item['lokasi'],
+                    'status_penggunaan' => $item['status_penggunaan'],
+                    'inst_nama' => $item['nama_satker'],
+                ];
+            });
+
+            return [
+                'total' => $result['pagination']['total_items'] ?? count($items),
+                'data' => $items,
+            ];
+        }
+
+        return ['total' => 0, 'data' => []];
     }
 
     public function getDataExport($search = [], $defColumn = null)
     {
-        $select = ['a.kdsatker_keu', 'a.nm_satker', 'a.kode_barang', 'a.nm_barang', 'a.nup', 'a.kondisi', 'a.merk', 'a.tgl_rekam_pertama', 'a.tgl_perolehan',
-            'a.nilai_perolehan_pertama', 'a.nilai_mutasi', 'a.nilai_perolehan', 'a.nilai_penyusutan', 'a.nilai_buku', 'a.kuantitas',
-            'a.jml_foto', 'a.status_penggunaan', 'a.status_pengelolaan', 'a.no_psp', 'a.tgl_psp', 'a.jml_kib'];
-        if ($defColumn) {
-            $select = array_intersect_key($select, array_flip($defColumn));
-        }
-        $query = DB::table($this->table.' as a');
-        $query->select($select);
-        if (! empty($search)) {
-            $searchVal = $search['columns'];
-            $query->where(function (Builder $q) use ($searchVal) {
-                foreach ($searchVal as $k => $v) {
-                    $value = $v['search']['value'];
-                    $columnName = $v['data'];
-                    $tableName = $this->table;
-                    if ($value) {
-                        $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
-                        if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
-                            $q->where($columnName, '=', $value);
-                        } elseif (in_array($dataType, ['timestamp without time zone', 'timestamp', 'date'])) {
-                            if (strtotime($value)) {
-                                $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                            }
-                        } else {
-                            $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                        }
-                    }
-                }
-            });
-        }
-        $query->orderByDesc('a.created_at');
-        $data = $query->get();
+        // For export, we fetch a larger chunk from the API
+        $paging = ['start' => 0, 'length' => 1000];
+        $result = $this->getDataGrid($paging, $search);
 
-        return ['data' => $data];
+        return ['data' => $result['data']];
     }
 
     public static function findOne($id)

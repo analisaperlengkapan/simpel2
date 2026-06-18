@@ -36,128 +36,66 @@ class MsPegawai extends Model
 
     public function getDataGrid($paging, $search = [], $select = [])
     {
-        // Check if select contains alias 'a.'
-        $hasAlias = false;
-        if (! empty($select)) {
-            foreach ($select as $col) {
-                if (strpos($col, 'a.') === 0) {
-                    $hasAlias = true;
-                    break;
+        /** @var \App\Services\Grpc\IntegrasiGrpcClient $client */
+        $client = app('integrasi.gateway');
+
+        $params = [
+            'page' => ($paging['start'] / $paging['length']) + 1,
+            'per_page' => $paging['length'],
+        ];
+
+        // Map DataTables search parameters to API filters
+        if (! empty($search) && isset($search['columns'])) {
+            foreach ($search['columns'] as $col) {
+                if (! empty($col['search']['value'])) {
+                    if ($col['data'] === 'peg_nip_baru') {
+                        $params['nip_filter'] = $col['search']['value'];
+                    } elseif ($col['data'] === 'nama') {
+                        $params['nama_filter'] = $col['search']['value'];
+                    } elseif ($col['data'] === 'inst_satkerkd') {
+                        $params['kode_satker'] = $col['search']['value'];
+                    }
                 }
             }
         }
 
-        if ($hasAlias) {
-            $query = DB::table($this->table.' as a');
-        } else {
-            $query = DB::table($this->table);
-        }
+        $result = $client->getEmployees($params);
 
-        // Handle select columns
-        if (! empty($select)) {
-            $query->select($select);
-        } else {
-            $query->select('*');
-        }
-
-        // Handle search/filter
-        if (! empty($search) && isset($search['columns'])) {
-            $searchVal = $search['columns'];
-            $query->where(function (Builder $q) use ($searchVal, $hasAlias) {
-                foreach ($searchVal as $k => $v) {
-                    $value = $v['search']['value'];
-                    $columnName = $v['data'];
-                    $tableName = $this->table;
-                    if ($value) {
-                        try {
-                            $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
-                            if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
-                                if ($hasAlias) {
-                                    $q->where('a.'.$columnName, '=', $value);
-                                } else {
-                                    $q->where($columnName, '=', $value);
-                                }
-                            } elseif (in_array($dataType, ['timestamp without time zone', 'timestamp', 'date'])) {
-                                if (strtotime($value)) {
-                                    if ($hasAlias) {
-                                        $q->whereDate('a.'.$columnName, '=', date('Y-m-d', strtotime($value)));
-                                    } else {
-                                        $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                                    }
-                                }
-                            } else {
-                                if ($hasAlias) {
-                                    $q->where(DB::raw("lower(a.{$columnName})"), 'like', strtolower("%{$value}%"));
-                                } else {
-                                    $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                                }
-                            }
-                        } catch (\Exception $e) {
-                            // If we can't determine data type, use string comparison
-                            if ($hasAlias) {
-                                $q->where(DB::raw("lower(a.{$columnName})"), 'like', strtolower("%{$value}%"));
-                            } else {
-                                $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                            }
-                        }
-                    }
-                }
+        if ($result && isset($result['items'])) {
+            // Map API response to match v1 structure
+            $items = collect($result['items'])->map(function ($item) {
+                return (object) [
+                    'peg_nip_baru' => $item['nip'],
+                    'nama' => $item['nama'],
+                    'pns_mail' => $item['email'] ?? '',
+                    'pangkat' => $item['pangkat'] ?? '',
+                    'jabatan' => $item['jabatan'] ?? '',
+                    'inst_satkerkd' => $item['kode_satker'] ?? '',
+                    'satker' => $item['unit_kerja'] ?? '',
+                    'jenis_kelamin' => $item['jk'] ?? '',
+                    'agama' => $item['agama'] ?? '',
+                    'tempat_lahir' => $item['tempat_lahir'] ?? '',
+                    'tgl_lahir' => $item['tgl_lahir'] ?? '',
+                    'unitkerja_nama' => $item['unit_kerja'] ?? '',
+                ];
             });
+
+            return [
+                'total' => $result['pagination']['total_items'] ?? count($items),
+                'data' => $items,
+            ];
         }
 
-        // Get total count
-        $total = $query->count();
-
-        // Apply pagination
-        if (isset($paging['length']) && $paging['length'] > 0) {
-            $query->limit($paging['length'])->skip($paging['start']);
-        }
-
-        $data = $query->get();
-
-        return ['total' => $total, 'data' => $data];
+        // Fallback to empty if API fails
+        return ['total' => 0, 'data' => []];
     }
 
     public function getDataExport($search = [], $defColumns = [])
     {
-        $select = ['a.peg_nip_baru', 'a.nama', 'a.pns_mail', 'a.pangkat', 'a.jabatan', 'a.alamat', 'a.satker', 'a.jenis_kelamin', 'a.agama', 'a.tempat_lahir', 'a.tgl_lahir', 'a.jenis', 'a.unitkerja_nama'];
-        if ($defColumns) {
-            $select = array_intersect_key($select, array_flip($defColumns));
-        }
+        // For export, we fetch a larger chunk from the API
+        $paging = ['start' => 0, 'length' => 1000];
+        $result = $this->getDataGrid($paging, $search);
 
-        $query = DB::table($this->table.' as a');
-        $query->select($select);
-
-        if (! empty($search) && isset($search['columns'])) {
-            $searchVal = $search['columns'];
-            $query->where(function (Builder $q) use ($searchVal) {
-                foreach ($searchVal as $k => $v) {
-                    $value = $v['search']['value'];
-                    $columnName = $v['data'];
-                    $tableName = $this->table;
-                    if ($value) {
-                        try {
-                            $dataType = DB::table('information_schema.columns')->select('data_type')->where('table_name', $tableName)->where('column_name', $columnName)->value('data_type');
-                            if (in_array($dataType, ['integer', 'numeric', 'smallint', 'bigint'])) {
-                                $q->where($columnName, '=', $value);
-                            } elseif (in_array($dataType, ['timestamp without time zone', 'timestamp', 'date'])) {
-                                if (strtotime($value)) {
-                                    $q->whereDate($columnName, '=', date('Y-m-d', strtotime($value)));
-                                }
-                            } else {
-                                $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                            }
-                        } catch (\Exception $e) {
-                            // If we can't determine data type, use string comparison
-                            $q->where(DB::raw("lower({$columnName})"), 'like', strtolower("%{$value}%"));
-                        }
-                    }
-                }
-            });
-        }
-
-        $data = $query->get();
-
-        return ['data' => $data];
+        return ['data' => $result['data']];
     }
 }

@@ -62,6 +62,25 @@ class IntegrasiGrpcClient
     }
 
     /**
+     * Get list of employees from MySIMKARI with filtering and pagination
+     */
+    public function getEmployees(array $params = []): ?array
+    {
+        try {
+            $response = $this->http()->get("{$this->baseUrl}/v1/mysimkari/employees", $params);
+            if (! $response->successful()) {
+                return null;
+            }
+
+            return $response->json();
+        } catch (Throwable $th) {
+            Log::warning("Failed to get employees from MySIMKARI: {$th->getMessage()}");
+
+            return null;
+        }
+    }
+
+    /**
      * Fetch employee data from MySIMKARI
      */
     public function fetchEmployeeFromMySIMKARI(string $nip): ?array
@@ -71,6 +90,12 @@ class IntegrasiGrpcClient
                 "{$this->baseUrl}/v1/mysimkari/employees/".rawurlencode($nip)
             );
             if (! $response->successful()) {
+                // Fallback to searching if exact match fails
+                $search = $this->getEmployees(['nip_filter' => $nip, 'per_page' => 1]);
+                if (! empty($search['items'])) {
+                    return $search['items'][0];
+                }
+
                 return null;
             }
             $data = $response->json();
@@ -78,6 +103,45 @@ class IntegrasiGrpcClient
             return is_array($data) ? $data : null;
         } catch (Throwable $th) {
             Log::warning("Failed to fetch employee from MySIMKARI: {$th->getMessage()}");
+
+            return null;
+        }
+    }
+
+    /**
+     * SIMAN Asset Categories (matching integrasi.proto enum)
+     */
+    public const SIMAN_CAT_TANAH = 1;
+    public const SIMAN_CAT_GEDUNG_BANGUNAN = 2;
+    public const SIMAN_CAT_ALAT_BESAR = 3;
+    public const SIMAN_CAT_ANGKUTAN_BERMOTOR = 4;
+    public const SIMAN_CAT_ALAT_PERSENJATAAN = 5;
+    public const SIMAN_CAT_TAK_BERWUJUD = 6;
+    public const SIMAN_CAT_TETAP_LAINNYA = 7;
+    public const SIMAN_CAT_BANGUNAN_AIR = 8;
+    public const SIMAN_CAT_INSTALASI_JARINGAN = 9;
+    public const SIMAN_CAT_JALAN_JEMBATAN = 10;
+    public const SIMAN_CAT_KDP = 11;
+    public const SIMAN_CAT_KHUSUS_TIK = 12;
+    public const SIMAN_CAT_NON_TIK = 13;
+    public const SIMAN_CAT_RUMAH = 14;
+    public const SIMAN_CAT_TETAP_RENOVASI = 15;
+
+    /**
+     * Get list of assets from SIMAN with filtering and pagination
+     */
+    public function getAssets(int $category, array $params = []): ?array
+    {
+        try {
+            $params['category'] = $category;
+            $response = $this->http()->get("{$this->baseUrl}/v1/siman/assets", $params);
+            if (! $response->successful()) {
+                return null;
+            }
+
+            return $response->json();
+        } catch (Throwable $th) {
+            Log::warning("Failed to get assets from SIMAN: {$th->getMessage()}");
 
             return null;
         }
