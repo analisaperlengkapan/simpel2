@@ -78,8 +78,7 @@ impl PenghapusanBmnService {
             }
             Ok(None) => {
                 return Err(AppError::BadRequest(format!(
-                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN. \
-                     Pastikan kode_barang & NUP cocok dgn data SIMAN.",
+                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN.                      Pastikan kode_barang & NUP cocok dgn data SIMAN.",
                     request.nup, request.kode_barang
                 )));
             }
@@ -135,7 +134,7 @@ impl PenghapusanBmnService {
     /// Verifikasi aset usulan ke SIMAN (Fase 2.3).
     ///
     /// Dipakai validator (Wilayah/Pusat) saat menelaah usulan: memastikan
-    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, dan menampilkan
+    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, and menampilkan
     /// kondisi terkini (BAIK/RR/RB) + nilai perolehan. Tujuan: mencegah
     /// penerbitan SK penghapusan atas aset yg sudah tidak ada / tidak cocok.
     /// Bersifat read-only & best-effort — sumber: replika `integrasi.siman_aset`.
@@ -291,6 +290,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         user_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.transition(
@@ -299,6 +299,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             user_id,
+            user_role,
             catatan,
             "submit_to_wilayah".to_string(),
         )
@@ -310,6 +311,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         // Update validator wilayah info
@@ -323,6 +325,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "forward_to_pusat".to_string(),
         )
@@ -343,6 +346,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.repository
@@ -355,6 +359,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "verifikasi_pusat".to_string(),
         )
@@ -366,6 +371,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.repository
@@ -378,6 +384,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "return_to_operator".to_string(),
         )
@@ -392,13 +399,14 @@ impl PenghapusanBmnService {
 
     /// Validator Pusat generates konsep SK in BOTH DOCX (editable) and PDF
     /// (final) formats. Files land under
-    /// `${DOCUMENT_STORAGE_PATH}/penghapusan-bmn/{id}/konsep-sk.{ext}`; the
+    /// ${DOCUMENT_STORAGE_PATH}/penghapusan-bmn/{id}/konsep-sk.${ext}; the
     /// public download URLs are persisted in `konsep_sk_url` (DOCX) and
     /// `konsep_sk_pdf_url` (PDF).
     pub async fn generate_konsep_sk(
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
@@ -500,6 +508,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string()),
             "generate_konsep_sk".to_string(),
         )
@@ -511,6 +520,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         signed_sk_pdf_url: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
@@ -532,6 +542,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::SKSigned.to_state_name().to_string(),
             validator_id,
+            user_role.clone(),
             Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
             "upload_signed_sk".to_string(),
         )
@@ -542,6 +553,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
+            user_role,
             Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
         )
@@ -559,6 +571,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
         if penghapusan.kewenangan_penetap_sk.to_uppercase() != "WILAYAH" {
@@ -569,7 +582,7 @@ impl PenghapusanBmnService {
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
         if !matches!(status, PenghapusanBmnStatus::SubmitWilayah) {
             return Err(crate::shared::error::AppError::WorkflowError(
-                "Konsep SK Wilayah hanya bisa digenerate dari status SubmitWilayah".into(),
+                "Konsep SK Wilayah hanya bisa digenerate from status SubmitWilayah".into(),
             ));
         }
 
@@ -592,6 +605,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
             "generate_konsep_sk_wilayah".into(),
         )
@@ -604,6 +618,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         signed_sk_pdf_url: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
@@ -625,6 +640,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role.clone(),
             Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
             "upload_signed_sk_wilayah".into(),
         )
@@ -633,6 +649,7 @@ impl PenghapusanBmnService {
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
+            user_role,
             Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
             "complete_wilayah".into(),
         )
@@ -645,6 +662,7 @@ impl PenghapusanBmnService {
         id: Uuid,
         to_state: String,
         user_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
         ip_address: String,
     ) -> AppResult<PenghapusanBmn> {
@@ -655,6 +673,7 @@ impl PenghapusanBmnService {
             from_state: penghapusan.status.clone(),
             to_state: to_state.clone(),
             user_id,
+            user_role,
             catatan,
             ip_address,
         };
