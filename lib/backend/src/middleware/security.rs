@@ -7,11 +7,13 @@
 //! - Input validation
 
 use axum::{
+    body::Body,
     extract::{Request, State},
     http::{HeaderMap, HeaderValue, StatusCode, header},
     middleware::Next,
     response::Response,
 };
+use http_body_util::Limited;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -20,7 +22,7 @@ use tokio::sync::RwLock;
 /// Security headers middleware
 /// Adds essential security headers to all responses
 pub async fn security_headers_middleware(
-    request: Request,
+    request: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
     let mut response = next.run(request).await;
@@ -136,7 +138,7 @@ impl RateLimiter {
 /// Limits requests per IP address
 pub async fn rate_limit_middleware(
     State(limiter): State<Arc<RateLimiter>>,
-    request: Request,
+    request: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Extract client IP from headers or connection info
@@ -160,7 +162,7 @@ pub async fn rate_limit_middleware(
 /// Validates CSRF token from X-CSRF-Token header
 pub async fn csrf_validation_middleware(
     headers: HeaderMap,
-    request: Request,
+    request: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
     // Skip CSRF validation for GET, HEAD, OPTIONS
@@ -209,27 +211,35 @@ fn constant_time_compare(a: &str, b: &str) -> bool {
     result == 0
 }
 
+/// Maximum request body size (10MB)
+pub const MAX_REQUEST_BODY_SIZE: usize = 10 * 1024 * 1024;
+
 /// Input validation middleware
-/// Validates request body size and content type
+/// Validates request body size and content type robustly
 pub async fn input_validation_middleware(
-    headers: HeaderMap,
-    request: Request,
+    request: Request<Body>,
     next: Next,
 ) -> Result<Response, StatusCode> {
-    // Check Content-Length header
+    let method = request.method().clone();
+    let headers = request.headers();
+
+    // 1. Pre-emptive check: Check Content-Length header if present
     if let Some(length) = headers
         .get(header::CONTENT_LENGTH)
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<usize>().ok())
     {
-        // Limit request body size to 10MB
-        if length > 10 * 1024 * 1024 {
+        if length > MAX_REQUEST_BODY_SIZE {
+            tracing::warn!(
+                "Request body too large (Content-Length): {} bytes (max: {} bytes)",
+                length,
+                MAX_REQUEST_BODY_SIZE
+            );
             return Err(StatusCode::PAYLOAD_TOO_LARGE);
         }
     }
 
-    // Validate Content-Type for POST/PUT/PATCH
-    let method = request.method();
+    // 2. Validate Content-Type for POST/PUT/PATCH
     if method == "POST" || method == "PUT" || method == "PATCH" {
         if let Some(content_type) = headers.get(header::CONTENT_TYPE) {
             let content_type_str = content_type.to_str().unwrap_or("");
@@ -246,17 +256,25 @@ pub async fn input_validation_middleware(
         }
     }
 
+    // 3. Stream-time check: Wrap body with a limit to handle missing Content-Length/chunked encoding
+    // This is the primary defense against bodies that lie about their size or use chunked encoding.
+    let (parts, body) = request.into_parts();
+    let limited_body = Body::new(Limited::new(body, MAX_REQUEST_BODY_SIZE));
+    let request = Request::from_parts(parts, limited_body);
+
     Ok(next.run(request).await)
 }
 
 /// Combine all security middleware
-pub fn security_middleware_stack()
--> impl tower::Layer<tower::util::BoxService<Request, Response, axum::Error>> {
+pub fn security_middleware_stack<S>() -> impl tower::Layer<S>
+where
+    S: Send + 'static,
+{
     tower::ServiceBuilder::new()
-        .layer(axum::middleware::from_fn::<_, axum::body::Body>(
+        .layer(axum::middleware::from_fn::<_, Body>(
             security_headers_middleware,
         ))
-        .layer(axum::middleware::from_fn::<_, axum::body::Body>(
+        .layer(axum::middleware::from_fn::<_, Body>(
             input_validation_middleware,
         ))
 }
@@ -286,5 +304,46 @@ mod tests {
 
         // Different IP should succeed
         assert!(limiter.check("other_ip").await);
+    }
+
+    #[tokio::test]
+    async fn test_input_validation_body_limit_exceeded() {
+        use axum::{Router, http::Request, middleware, routing::post};
+        use tower::ServiceExt;
+
+        let app = Router::new()
+            .route("/test", post(|_body: String| async { "OK" }))
+            .layer(middleware::from_fn(input_validation_middleware));
+
+        // Create a body that exceeds 10MB
+        let large_body = "x".repeat(MAX_REQUEST_BODY_SIZE + 1);
+
+        // Case 1: Exceeds limit via Content-Length header
+        let request = Request::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "application/json")
+            .header("content-length", large_body.len())
+            .body(Body::from(large_body.clone()))
+            .unwrap();
+
+        let response = app.clone().oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+
+        // Case 2: Exceeds limit WITHOUT Content-Length header (simulating chunked)
+        // Note: Axum/Hyper will still enforce the limit during body reading because of the Limited wrapper.
+        // We use a body that doesn't have a content-length header.
+        let request_no_len = Request::builder()
+            .method("POST")
+            .uri("/test")
+            .header("content-type", "application/json")
+            .body(Body::from(large_body))
+            .unwrap();
+
+        let response = app.oneshot(request_no_len).await.unwrap();
+        // Since we are reading the whole body into a String in the handler,
+        // the Limited body will return an error when it reaches the limit,
+        // and Axum's String extractor will return 413 Payload Too Large.
+        assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
     }
 }
