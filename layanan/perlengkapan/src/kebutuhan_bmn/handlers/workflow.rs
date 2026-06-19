@@ -23,7 +23,13 @@ pub async fn validator_wilayah_action(
     claims.require_role("validator_wilayah")?;
     let user_info = extract_user_info(&claims);
     let satker = service
-        .validator_wilayah_action(satker_id, request, Some(claims.user_id), Some(user_info), claims.role.clone())
+        .validator_wilayah_action(
+            satker_id,
+            request,
+            Some(claims.user_id),
+            Some(user_info),
+            claims.role.clone(),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -42,7 +48,13 @@ pub async fn validator_pusat_keputusan(
     claims.require_role("validator_pusat")?;
     let user_info = extract_user_info(&claims);
     let satker = service
-        .validator_pusat_keputusan(satker_id, request, Some(claims.user_id), Some(user_info), claims.role.clone())
+        .validator_pusat_keputusan(
+            satker_id,
+            request,
+            Some(claims.user_id),
+            Some(user_info),
+            claims.role.clone(),
+        )
         .await?;
 
     let message = if satker.status == KebutuhanBmnStatus::Approved {

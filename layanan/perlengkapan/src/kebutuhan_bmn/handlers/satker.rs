@@ -71,7 +71,12 @@ pub async fn transition_satker_status(
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
     // RBAC: Restricted to authorized roles.
-    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat", "admin"])?;
+    claims.require_any_role(&[
+        "operator_satker",
+        "validator_wilayah",
+        "validator_pusat",
+        "admin",
+    ])?;
 
     info!(
         "Transitioning satker {} to status {}",
@@ -119,7 +124,13 @@ pub async fn submit_satker_to_wilayah(
     claims.require_role("operator_satker")?;
     let user_info = extract_user_info(&claims);
     let satker = service
-        .submit_satker_to_wilayah(satker_id, request, Some(claims.user_id), Some(user_info), claims.role.clone())
+        .submit_satker_to_wilayah(
+            satker_id,
+            request,
+            Some(claims.user_id),
+            Some(user_info),
+            claims.role.clone(),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
