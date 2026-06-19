@@ -336,7 +336,8 @@ mod tests {
 
     #[test]
     fn test_sanitize_html_enforces_whitelist() {
-        let input = "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
+        let input =
+            "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
         let output = sanitize_html(input);
         assert!(output.contains("<div><p>Safe</p></div>"));
         assert!(!output.contains("<script"));
