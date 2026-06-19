@@ -228,14 +228,15 @@ pub async fn input_validation_middleware(
         .get(header::CONTENT_LENGTH)
         .and_then(|h| h.to_str().ok())
         .and_then(|s| s.parse::<usize>().ok())
-        && length > MAX_REQUEST_BODY_SIZE
     {
-        tracing::warn!(
-            "Request body too large (Content-Length): {} bytes (max: {} bytes)",
-            length,
-            MAX_REQUEST_BODY_SIZE
-        );
-        return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        if length > MAX_REQUEST_BODY_SIZE {
+            tracing::warn!(
+                "Request body too large (Content-Length): {} bytes (max: {} bytes)",
+                length,
+                MAX_REQUEST_BODY_SIZE
+            );
+            return Err(StatusCode::PAYLOAD_TOO_LARGE);
+        }
     }
 
     // 2. Validate Content-Type for POST/PUT/PATCH
