@@ -15,7 +15,17 @@
   would deadlock (postgres/secret not created yet). The init wait-loop tolerates
   postgres not being Ready yet. Weight -20 → before the migrate hooks (-6/-5).
 */ -}}
-{{- if and .Values.postgres.enabled (ne (default true .Values.postgres.dbCreateJob.enabled) false) }}
+{{- /*
+  Nil-safe, absent-vs-false-aware gate. `and` does NOT short-circuit in Go
+  templates, so this test runs even when postgres is disabled. On a
+  `helm upgrade --reuse-values` from a chart revision whose coalesced values
+  predate `postgres.dbCreateJob`, that key is absent → a direct
+  `.dbCreateJob.enabled` would panic (nil pointer). `dig` traverses safely and
+  returns the `true` default ONLY when a key in the path is MISSING — unlike
+  sprig `default`, which treats an explicit `enabled: false` as empty and would
+  wrongly re-enable the job. So: absent → enabled; `false` → disabled.
+*/ -}}
+{{- if and .Values.postgres.enabled (ne (dig "dbCreateJob" "enabled" true .Values.postgres) false) }}
 {{- $ctx := . -}}
 apiVersion: batch/v1
 kind: Job

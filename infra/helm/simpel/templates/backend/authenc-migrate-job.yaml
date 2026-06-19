@@ -10,7 +10,9 @@
   Gate: .Values.authenc.enabled and .Values.authenc.migrationJob.enabled
   (default true when authenc is enabled).
 */ -}}
-{{- if and .Values.authenc.enabled (ne .Values.authenc.migrationJob.enabled false) }}
+{{- /* dig: nil-safe on --reuse-values (absent migrationJob block) + honors an
+   explicit `enabled: false`, which sprig `default` would treat as empty. */ -}}
+{{- if and .Values.authenc.enabled (ne (dig "migrationJob" "enabled" true .Values.authenc) false) }}
 {{- $ctx := . -}}
 {{- $values := .Values.authenc -}}
 apiVersion: batch/v1

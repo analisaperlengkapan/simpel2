@@ -20,7 +20,9 @@
   Gate: .Values.layananIntegrasi.enabled and .Values.layananIntegrasi.migrationJob.enabled
   (default true when layananIntegrasi is enabled).
 */ -}}
-{{- if and .Values.layananIntegrasi.enabled (ne .Values.layananIntegrasi.migrationJob.enabled false) }}
+{{- /* dig: nil-safe on --reuse-values (absent migrationJob block) + honors an
+   explicit `enabled: false`, which sprig `default` would treat as empty. */ -}}
+{{- if and .Values.layananIntegrasi.enabled (ne (dig "migrationJob" "enabled" true .Values.layananIntegrasi) false) }}
 {{- $ctx := . -}}
 {{- $values := .Values.layananIntegrasi -}}
 apiVersion: batch/v1
