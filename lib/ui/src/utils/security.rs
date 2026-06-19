@@ -6,29 +6,32 @@ use std::collections::HashMap;
 /// HTML sanitization for user-generated content
 /// Uses a whitelist approach to allow only safe HTML tags and attributes
 pub fn sanitize_html(input: &str) -> String {
-    // Define allowed tags
-    let allowed_tags = vec![
-        "p",
-        "br",
-        "strong",
-        "em",
-        "u",
-        "a",
-        "ul",
-        "ol",
-        "li",
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "blockquote",
-        "code",
-        "pre",
-        "span",
-        "div",
-    ];
+    // Define allowed tags and their safe attributes
+    let allowed: HashMap<&str, Vec<&str>> = [
+        ("p", vec![]),
+        ("br", vec![]),
+        ("strong", vec![]),
+        ("em", vec![]),
+        ("u", vec![]),
+        ("a", vec!["href", "title", "target"]),
+        ("ul", vec![]),
+        ("ol", vec![]),
+        ("li", vec![]),
+        ("h1", vec![]),
+        ("h2", vec![]),
+        ("h3", vec![]),
+        ("h4", vec![]),
+        ("h5", vec![]),
+        ("h6", vec![]),
+        ("blockquote", vec![]),
+        ("code", vec![]),
+        ("pre", vec![]),
+        ("span", vec!["class"]),
+        ("div", vec!["class"]),
+        ("img", vec!["src", "alt", "width", "height"]),
+    ]
+    .into_iter()
+    .collect();
 
     // Basic HTML sanitization using regex.
     // SECURITY NOTE: Regex-based sanitization is inherently fragile and can be bypassed.
@@ -41,25 +44,39 @@ pub fn sanitize_html(input: &str) -> String {
         .replace_all(&sanitized, "")
         .to_string();
 
-    // 2. Remove ALL event handlers (onclick, onerror, etc.), including unquoted values.
-    // Pattern catches: onEvent="...", onEvent='...', and onEvent=unquotedValue
-    sanitized = regex::Regex::new(r#"(?i)\s*on\w+\s*=\s*(?:["'][^"']*["']|[^\s>]+)"#)
-        .unwrap()
-        .replace_all(&sanitized, "")
-        .to_string();
-
-    // 3. Remove dangerous protocols that can execute code
+    // 2. Remove dangerous protocols that can execute code
     sanitized = regex::Regex::new(r"(?i)(?:javascript|data|vbscript):")
         .unwrap()
         .replace_all(&sanitized, "")
         .to_string();
 
-    // 4. Enforce tag whitelist: strip any tag not in the allowed list.
-    let tag_re = regex::Regex::new(r"(?i)</?([a-z1-6]+)\b[^>]*>").unwrap();
+    // 3. Enforce tag and attribute whitelist.
+    // This regex catches tags and captures (1: tag name, 2: all attributes).
+    let tag_re = regex::Regex::new(r#"(?i)</?([a-z1-6]+)(\b[^>]*)?>"#).unwrap();
+    let attr_re = regex::Regex::new(r#"(?i)\b([a-z-]+)\s*=\s*(?:["']([^"']*)["']|([^\s>]+))"#).unwrap();
+
     let result = tag_re.replace_all(&sanitized, |caps: &regex::Captures| {
         let tag_name = caps.get(1).unwrap().as_str().to_lowercase();
-        if allowed_tags.contains(&tag_name.as_str()) {
-            caps.get(0).unwrap().as_str().to_string()
+
+        if let Some(allowed_attrs) = allowed.get(tag_name.as_str()) {
+            let is_closing = caps.get(0).unwrap().as_str().starts_with("</");
+            if is_closing {
+                return format!("</{}>", tag_name);
+            }
+
+            // Rebuild opening tag with only whitelisted attributes
+            let mut cleaned_tag = format!("<{}", tag_name);
+            if let Some(attrs_raw) = caps.get(2) {
+                for attr_caps in attr_re.captures_iter(attrs_raw.as_str()) {
+                    let attr_name = attr_caps.get(1).unwrap().as_str().to_lowercase();
+                    if allowed_attrs.contains(&attr_name.as_str()) {
+                        let value = attr_caps.get(2).or_else(|| attr_caps.get(3)).unwrap().as_str();
+                        cleaned_tag.push_str(&format!(r#" {}="{}""#, attr_name, value));
+                    }
+                }
+            }
+            cleaned_tag.push('>');
+            cleaned_tag
         } else {
             String::new()
         }
@@ -332,16 +349,27 @@ mod tests {
         let output = sanitize_html(input);
         assert!(!output.contains("onerror"));
         assert!(!output.contains("alert"));
+        // Check that allowed attributes are kept while event handlers are stripped
+        assert!(output.contains("<img src=\"x\">"));
     }
 
     #[test]
     fn test_sanitize_html_enforces_whitelist() {
-        let input =
-            "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
+        let input = "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
         let output = sanitize_html(input);
         assert!(output.contains("<div><p>Safe</p></div>"));
         assert!(!output.contains("<script"));
         assert!(!output.contains("<iframe"));
+    }
+
+    #[test]
+    fn test_sanitize_html_whitelists_attributes() {
+        let input = r#"<a href="https://example.com" target="_blank" style="color:red" rel="nofollow">Link</a>"#;
+        let output = sanitize_html(input);
+        assert!(output.contains("href=\"https://example.com\""));
+        assert!(output.contains("target=\"_blank\""));
+        assert!(!output.contains("style=\"color:red\""));
+        assert!(!output.contains("rel=\"nofollow\""));
     }
 
     #[test]
