@@ -149,22 +149,17 @@ impl KebutuhanBmnService {
             target_status.label()
         );
 
-        // Execute transition through workflow engine
-        let _transition_result = self
-            .workflow_engine
-            .transition(TransitionRequest {
-                entity_id: satker_id,
-                from_state: from_state.to_string(),
-                to_state: to_state.to_string(),
-                user_id: user_id.unwrap_or_else(Uuid::nil),
-                user_role,
-                catatan: request.komentar.clone(),
-                ip_address: "internal".to_string(),
-            })
-            .await
-            .map_err(|e| AppError::Internal(format!("Workflow transition failed: {}", e)))?;
+        // Authorize the transition by role. NOTE: the satker-level status lives
+        // in `pengajuan_kebutuhan_bmn_satker` and is updated below via the
+        // satker-specific repository — we must NOT drive the DB write through the
+        // generic engine, whose `status_table` maps `kebutuhan_bmn` to the PARENT
+        // `pengajuan_kebutuhan_bmn` table (the satker id isn't there, so the
+        // engine's SELECT/UPDATE errors out). Validate the role directly instead.
+        self.workflow_engine
+            .validate_approver_role(&user_role, to_state)
+            .map_err(|e| AppError::WorkflowError(e.to_string()))?;
 
-        // Update status
+        // Update status (satker-specific table)
         let updated = self
             .repository
             .update_satker_status(satker_id, target_status.to_code(), user_id)

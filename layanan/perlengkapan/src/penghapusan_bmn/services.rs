@@ -538,23 +538,26 @@ impl PenghapusanBmnService {
             .update_signed_sk(id, &signed_sk_pdf_url)
             .await?;
 
-        // Transition to SKSigned then Completed
+        // The validator's signing action transitions to SK_SIGNED under their own
+        // role (config: SK_SIGNED → validator_pusat).
         self.transition(
             id,
             PenghapusanBmnStatus::SKSigned.to_state_name().to_string(),
             validator_id,
-            user_role.clone(),
+            user_role,
             Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
             "upload_signed_sk".to_string(),
         )
         .await?;
 
-        // Auto-complete
+        // Auto-complete is a SYSTEM-initiated continuation (not a separate admin
+        // decision), so it runs as "system" — otherwise COMPLETED's required role
+        // (admin_pusat) would reject the validator who just signed the SK.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
-            user_role,
+            "system".to_string(),
             Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
         )
@@ -634,23 +637,27 @@ impl PenghapusanBmnService {
             .update_signed_sk_wilayah(id, &signed_sk_pdf_url)
             .await?;
 
-        // Audit + auto-complete
+        // Kepala Kejati's signing action transitions to SK_SIGNED_WILAYAH under
+        // their own role (config: SK_SIGNED_WILAYAH → validator_wilayah).
         self.transition(
             id,
             PenghapusanBmnStatus::SKSignedWilayah
                 .to_state_name()
                 .to_string(),
             validator_id,
-            user_role.clone(),
+            user_role,
             Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
             "upload_signed_sk_wilayah".into(),
         )
         .await?;
+        // Auto-complete = SYSTEM continuation (see upload_signed_sk): run as
+        // "system" so COMPLETED's admin_pusat requirement doesn't reject the
+        // validator who just signed the SK.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
-            user_role,
+            "system".to_string(),
             Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
             "complete_wilayah".into(),
         )
