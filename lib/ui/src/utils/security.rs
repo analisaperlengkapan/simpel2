@@ -53,7 +53,8 @@ pub fn sanitize_html(input: &str) -> String {
     // 3. Enforce tag and attribute whitelist.
     // This regex catches tags and captures (1: tag name, 2: all attributes).
     let tag_re = regex::Regex::new(r#"(?i)</?([a-z1-6]+)(\b[^>]*)?>"#).unwrap();
-    let attr_re = regex::Regex::new(r#"(?i)\b([a-z-]+)\s*=\s*(?:["']([^"']*)["']|([^\s>]+))"#).unwrap();
+    let attr_re =
+        regex::Regex::new(r#"(?i)\b([a-z-]+)\s*=\s*(?:["']([^"']*)["']|([^\s>]+))"#).unwrap();
 
     let result = tag_re.replace_all(&sanitized, |caps: &regex::Captures| {
         let tag_name = caps.get(1).unwrap().as_str().to_lowercase();
@@ -70,7 +71,11 @@ pub fn sanitize_html(input: &str) -> String {
                 for attr_caps in attr_re.captures_iter(attrs_raw.as_str()) {
                     let attr_name = attr_caps.get(1).unwrap().as_str().to_lowercase();
                     if allowed_attrs.contains(&attr_name.as_str()) {
-                        let value = attr_caps.get(2).or_else(|| attr_caps.get(3)).unwrap().as_str();
+                        let value = attr_caps
+                            .get(2)
+                            .or_else(|| attr_caps.get(3))
+                            .unwrap()
+                            .as_str();
                         cleaned_tag.push_str(&format!(r#" {}="{}""#, attr_name, value));
                     }
                 }
@@ -355,7 +360,8 @@ mod tests {
 
     #[test]
     fn test_sanitize_html_enforces_whitelist() {
-        let input = "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
+        let input =
+            "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
         let output = sanitize_html(input);
         assert!(output.contains("<div><p>Safe</p></div>"));
         assert!(!output.contains("<script"));
