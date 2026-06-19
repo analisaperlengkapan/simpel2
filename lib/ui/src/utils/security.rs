@@ -6,8 +6,8 @@ use std::collections::HashMap;
 /// HTML sanitization for user-generated content
 /// Uses a whitelist approach to allow only safe HTML tags and attributes
 pub fn sanitize_html(input: &str) -> String {
-    // Define allowed tags and attributes
-    let _allowed_tags = vec![
+    // Define allowed tags
+    let allowed_tags = vec![
         "p",
         "br",
         "strong",
@@ -30,44 +30,42 @@ pub fn sanitize_html(input: &str) -> String {
         "div",
     ];
 
-    let _allowed_attributes: HashMap<&str, Vec<&str>> = [
-        ("a", vec!["href", "title", "target"]),
-        ("span", vec!["class"]),
-        ("div", vec!["class"]),
-    ]
-    .iter()
-    .cloned()
-    .collect();
-
-    // Basic HTML sanition
-    // ion, consider using a proper HTML sanitization library
+    // Basic HTML sanitization using regex.
+    // SECURITY NOTE: Regex-based sanitization is inherently fragile and can be bypassed.
+    // For high-security requirements, use a proper HTML parser-based sanitizer like `ammonia`.
     let mut sanitized = input.to_string();
 
-    // Remove script tags and their content
-    sanitized = regex::Regex::new(r"(?i)<script[^>]*>.*?</script>")
+    // 1. Remove script tags and their content (including multi-line content)
+    sanitized = regex::Regex::new(r"(?i)<script[^>]*>[\s\S]*?</script>")
         .unwrap()
         .replace_all(&sanitized, "")
         .to_string();
 
-    // Remove event handlers (onclick, onerror, etc.)
-    sanitized = regex::Regex::new(r#"(?i)\s*on\w+\s*=\s*["'][^"']*["']"#)
+    // 2. Remove ALL event handlers (onclick, onerror, etc.), including unquoted values.
+    // Pattern catches: onEvent="...", onEvent='...', and onEvent=unquotedValue
+    sanitized = regex::Regex::new(r#"(?i)\s*on\w+\s*=\s*(?:["'][^"']*["']|[^\s>]+)"#)
         .unwrap()
         .replace_all(&sanitized, "")
         .to_string();
 
-    // Remove javascript: protocol
-    sanitized = regex::Regex::new(r"(?i)javascript:")
+    // 3. Remove dangerous protocols that can execute code
+    sanitized = regex::Regex::new(r"(?i)(?:javascript|data|vbscript):")
         .unwrap()
         .replace_all(&sanitized, "")
         .to_string();
 
-    // Remove data: protocol (can be used for XSS)
-    sanitized = regex::Regex::new(r"(?i)data:")
-        .unwrap()
-        .replace_all(&sanitized, "")
-        .to_string();
+    // 4. Enforce tag whitelist: strip any tag not in the allowed list.
+    let tag_re = regex::Regex::new(r"(?i)</?([a-z1-6]+)\b[^>]*>").unwrap();
+    let result = tag_re.replace_all(&sanitized, |caps: &regex::Captures| {
+        let tag_name = caps.get(1).unwrap().as_str().to_lowercase();
+        if allowed_tags.contains(&tag_name.as_str()) {
+            caps.get(0).unwrap().as_str().to_string()
+        } else {
+            String::new()
+        }
+    });
 
-    sanitized
+    result.to_string()
 }
 
 /// Sanitize user input for display
@@ -328,6 +326,21 @@ mod tests {
         let input = r#"<div onclick="alert('xss')">Click me</div>"#;
         let output = sanitize_html(input);
         assert!(!output.contains("onclick"));
+
+        // Test unquoted event handler
+        let input = r#"<img src=x onerror=alert(1)>"#;
+        let output = sanitize_html(input);
+        assert!(!output.contains("onerror"));
+        assert!(!output.contains("alert"));
+    }
+
+    #[test]
+    fn test_sanitize_html_enforces_whitelist() {
+        let input = "<div><p>Safe</p><script>alert(1)</script><iframe src='evil.com'></iframe></div>";
+        let output = sanitize_html(input);
+        assert!(output.contains("<div><p>Safe</p></div>"));
+        assert!(!output.contains("<script"));
+        assert!(!output.contains("<iframe"));
     }
 
     #[test]
