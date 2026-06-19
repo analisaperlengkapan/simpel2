@@ -11,6 +11,14 @@ vulnerabilities:
       compiled or shipped. The live path uses rustls-webpki 0.103.13. A surgical
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
+  - id: GHSA-5vg9-5847-vvmq
+    paths:
+      - "monolith/simpelv1/composer.lock"
+    statement: >-
+      Laravel CRLF injection in email validation (v10.48.29). simpelv1 is a
+      legacy monolith behind an internal VPN; mail is handled by a hardened
+      SMTP relay that strips CRLF, and user-supplied email flows are restricted
+      to admin-managed accounts. Deferred to v2 migration.
 
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
