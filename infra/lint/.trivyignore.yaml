@@ -12,16 +12,6 @@ vulnerabilities:
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
-  - id: GHSA-5vg9-5847-vvmq
-    paths:
-      - "monolith/simpelv1/composer.lock"
-    statement: >-
-      Laravel CRLF injection in default email rule. Simpelv1 is a legacy component
-      locked to Laravel 10.x. A fix is only available in Laravel 12.60.0 and 13.10.0+.
-      Upgrade to v12/v13 is a breaking change for this monolith. Risk is mitigated
-      by custom validation in controllers and the fact that this monolith is
-      scheduled for decommissioning once Simpelv2 parity is reached.
-
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
   # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
