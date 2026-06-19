@@ -399,7 +399,9 @@ pub async fn generate_konsep_sk(
     // (lihat plan §6.3); di sini cukup pastikan caller adalah salah
     // satu dari kedua role.
     claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
-    let penghapusan = service.generate_konsep_sk(id, claims.user_id, claims.role.clone()).await?;
+    let penghapusan = service
+        .generate_konsep_sk(id, claims.user_id, claims.role.clone())
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -468,7 +470,12 @@ pub async fn upload_signed_sk(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service
-        .upload_signed_sk(id, claims.user_id, claims.role.clone(), body.signed_sk_pdf_url)
+        .upload_signed_sk(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.signed_sk_pdf_url,
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -661,7 +668,12 @@ pub async fn upload_signed_sk_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
     let penghapusan = service
-        .upload_signed_sk_wilayah(id, claims.user_id, claims.role.clone(), body.signed_sk_pdf_url)
+        .upload_signed_sk_wilayah(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.signed_sk_pdf_url,
+        )
         .await?;
     Ok(Json(ApiResponse::success(
         penghapusan,

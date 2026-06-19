@@ -282,14 +282,8 @@ impl KebutuhanBmnService {
             komentar: request.catatan_satker.clone(),
         };
 
-        self.transition_satker_status(
-            satker_id,
-            transition_request,
-            user_id,
-            user_info,
-            user_role,
-        )
-        .await
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
+            .await
     }
 
     /// Validator Wilayah action: forward to pusat or return to operator
@@ -480,14 +474,8 @@ impl KebutuhanBmnService {
             komentar: keputusan_alasan,
         };
 
-        self.transition_satker_status(
-            satker_id,
-            transition_request,
-            user_id,
-            user_info,
-            user_role,
-        )
-        .await
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
+            .await
     }
 
     fn is_admin_user(user_info: &Option<UserInfo>) -> bool {
