@@ -15,7 +15,6 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchApproveRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -54,7 +53,6 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
-                    user_role.clone(),
                     client_ip.clone(),
                 )
                 .await
@@ -119,7 +117,6 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchRejectRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -158,7 +155,6 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
-                    user_role.clone(),
                     client_ip.clone(),
                 )
                 .await
@@ -223,7 +219,6 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchUpdateStatusRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -268,7 +263,6 @@ impl KebutuhanBmnService {
                     &request.komentar,
                     user_id,
                     user_info.clone(),
-                    user_role.clone(),
                     client_ip.clone(),
                 )
                 .await
@@ -338,7 +332,6 @@ impl KebutuhanBmnService {
         komentar: &Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
@@ -351,7 +344,6 @@ impl KebutuhanBmnService {
             transition_request,
             user_id,
             user_info,
-            user_role,
             client_ip,
         )
         .await?;
@@ -366,7 +358,6 @@ impl KebutuhanBmnService {
         komentar: &str,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
@@ -379,7 +370,6 @@ impl KebutuhanBmnService {
             transition_request,
             user_id,
             user_info,
-            user_role,
             client_ip,
         )
         .await?;
@@ -395,7 +385,6 @@ impl KebutuhanBmnService {
         komentar: &Option<String>,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
-        user_role: String,
         client_ip: String,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
@@ -408,7 +397,6 @@ impl KebutuhanBmnService {
             transition_request,
             user_id,
             user_info,
-            user_role,
             client_ip,
         )
         .await?;
