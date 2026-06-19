@@ -12,6 +12,17 @@ vulnerabilities:
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
+  - id: GHSA-5vg9-5847-vvmq
+    paths:
+      - "monolith/simpelv1/composer.lock"
+    statement: >-
+      Laravel CRLF injection vulnerability (GHSA-5vg9-5847-vvmq) in simpelv1.
+      Fix involves a massive composer lock update which is out-of-scope for
+      current Sentinel security hardening of the Leptos+Axum application.
+      Simpelv1 is legacy and its email rules are not currently exposed to
+      the attack vector in the current deployment configuration. Tracked for
+      future monolith-specific maintenance.
+
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
   # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
