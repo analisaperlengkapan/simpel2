@@ -487,6 +487,13 @@ async fn main() -> anyhow::Result<()> {
     let cache_manager = Arc::new(CacheManager::new());
     info!("Cache manager initialized");
 
+    // Load max request size from environment
+    let max_request_size = std::env::var("MAX_REQUEST_SIZE_MB")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .map(|m| m * 1024 * 1024)
+        .unwrap_or(layanan_perlengkapan::shared::middleware::size_limit::DEFAULT_MAX_SIZE);
+
     // Create rate limiter
     let rate_limit_config = RateLimitConfig::from_env();
     let rate_limiter = Arc::new(RateLimiter::new(rate_limit_config));
@@ -522,6 +529,7 @@ async fn main() -> anyhow::Result<()> {
         audit_sink,
         document_storage,
         boot_time: std::time::Instant::now(),
+        max_request_size,
         integrasi_client: integrasi_client_for_health,
     };
 
@@ -587,6 +595,10 @@ fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(health_routes)
         .nest("/api/v1/perlengkapan", api_routes)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::size_limit::request_size_limit_middleware,
+        ))
         .layer(axum::middleware::from_fn(
             middleware::metrics::track_metrics,
         ))
