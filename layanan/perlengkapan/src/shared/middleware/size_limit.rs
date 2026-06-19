@@ -28,23 +28,21 @@ pub async fn request_size_limit_middleware(
     next: Next,
 ) -> Result<Response, Response> {
     // 1. Pre-emptive check: Content-Length header
-    if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH) {
-        if let Ok(length_str) = content_length.to_str() {
-            if let Ok(length) = length_str.parse::<usize>() {
-                if length > max_size {
-                    tracing::warn!(
-                        "Request body too large (Content-Length): {} bytes (max: {} bytes)",
-                        length,
-                        max_size
-                    );
-                    return Err(AppError::PayloadTooLarge(format!(
-                        "Request body too large. Maximum size is {} bytes",
-                        max_size
-                    ))
-                    .into_response());
-                }
-            }
-        }
+    if let Some(content_length) = request.headers().get(http::header::CONTENT_LENGTH)
+        && let Ok(length_str) = content_length.to_str()
+        && let Ok(length) = length_str.parse::<usize>()
+        && length > max_size
+    {
+        tracing::warn!(
+            "Request body too large (Content-Length): {} bytes (max: {} bytes)",
+            length,
+            max_size
+        );
+        return Err(AppError::PayloadTooLarge(format!(
+            "Request body too large. Maximum size is {} bytes",
+            max_size
+        ))
+        .into_response());
     }
 
     // 2. Stream-level enforcement: Wrap body with Limited
@@ -75,9 +73,13 @@ mod tests {
     #[tokio::test]
     async fn test_size_limit_within_bounds() {
         let max_size = MaxRequestSize(1024 * 1024); // 1MB
-        let app = Router::new()
-            .route("/test", post(test_handler))
-            .layer(middleware::from_fn_with_state(max_size, request_size_limit_middleware));
+        let app =
+            Router::new()
+                .route("/test", post(test_handler))
+                .layer(middleware::from_fn_with_state(
+                    max_size,
+                    request_size_limit_middleware,
+                ));
 
         let body = "a".repeat(1024); // 1KB
         let request = Request::builder()
@@ -94,9 +96,13 @@ mod tests {
     #[tokio::test]
     async fn test_size_limit_exceeded_via_header() {
         let max_size = MaxRequestSize(100); // 100 bytes
-        let app = Router::new()
-            .route("/test", post(test_handler))
-            .layer(middleware::from_fn_with_state(max_size, request_size_limit_middleware));
+        let app =
+            Router::new()
+                .route("/test", post(test_handler))
+                .layer(middleware::from_fn_with_state(
+                    max_size,
+                    request_size_limit_middleware,
+                ));
 
         let body = "x".repeat(101);
         let request = Request::builder()
@@ -113,9 +119,13 @@ mod tests {
     #[tokio::test]
     async fn test_size_limit_exceeded_streaming() {
         let max_size = MaxRequestSize(1024); // 1KB
-        let app = Router::new()
-            .route("/test", post(test_handler))
-            .layer(middleware::from_fn_with_state(max_size, request_size_limit_middleware));
+        let app =
+            Router::new()
+                .route("/test", post(test_handler))
+                .layer(middleware::from_fn_with_state(
+                    max_size,
+                    request_size_limit_middleware,
+                ));
 
         let size = 2048;
         let request = Request::builder()
