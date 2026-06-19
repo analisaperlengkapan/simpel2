@@ -70,14 +70,13 @@ pub async fn transition_satker_status(
     claims: Claims,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
-    // RBAC: Restricted to authorized roles.
+    // Coarse-grained gate; the workflow engine enforces the per-state required role.
     claims.require_any_role(&[
         "operator_satker",
         "validator_wilayah",
         "validator_pusat",
         "admin",
     ])?;
-
     info!(
         "Transitioning satker {} to status {}",
         satker_id, request.target_status

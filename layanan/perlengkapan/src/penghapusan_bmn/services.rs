@@ -78,7 +78,8 @@ impl PenghapusanBmnService {
             }
             Ok(None) => {
                 return Err(AppError::BadRequest(format!(
-                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN.                      Pastikan kode_barang & NUP cocok dgn data SIMAN.",
+                    "BMN dgn NUP {} (kode_barang {}) tidak ditemukan di SIMAN. \
+                     Pastikan kode_barang & NUP cocok dgn data SIMAN.",
                     request.nup, request.kode_barang
                 )));
             }
@@ -134,7 +135,7 @@ impl PenghapusanBmnService {
     /// Verifikasi aset usulan ke SIMAN (Fase 2.3).
     ///
     /// Dipakai validator (Wilayah/Pusat) saat menelaah usulan: memastikan
-    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, and menampilkan
+    /// NUP masih terdaftar di SIMAN, kode_barang konsisten, dan menampilkan
     /// kondisi terkini (BAIK/RR/RB) + nilai perolehan. Tujuan: mencegah
     /// penerbitan SK penghapusan atas aset yg sudah tidak ada / tidak cocok.
     /// Bersifat read-only & best-effort — sumber: replika `integrasi.siman_aset`.
@@ -399,7 +400,7 @@ impl PenghapusanBmnService {
 
     /// Validator Pusat generates konsep SK in BOTH DOCX (editable) and PDF
     /// (final) formats. Files land under
-    /// ${DOCUMENT_STORAGE_PATH}/penghapusan-bmn/{id}/konsep-sk.${ext}; the
+    /// `${DOCUMENT_STORAGE_PATH}/penghapusan-bmn/{id}/konsep-sk.{ext}`; the
     /// public download URLs are persisted in `konsep_sk_url` (DOCX) and
     /// `konsep_sk_pdf_url` (PDF).
     pub async fn generate_konsep_sk(
@@ -582,7 +583,7 @@ impl PenghapusanBmnService {
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
         if !matches!(status, PenghapusanBmnStatus::SubmitWilayah) {
             return Err(crate::shared::error::AppError::WorkflowError(
-                "Konsep SK Wilayah hanya bisa digenerate from status SubmitWilayah".into(),
+                "Konsep SK Wilayah hanya bisa digenerate dari status SubmitWilayah".into(),
             ));
         }
 

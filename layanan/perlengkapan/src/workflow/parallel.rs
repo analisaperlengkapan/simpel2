@@ -371,11 +371,11 @@ impl ParallelApprovalEngine {
             // Transition entity to target state
             // Use a system user ID (nil UUID) for automatic transitions
             let transition_request = TransitionRequest {
-                user_role: "system".to_string(),
                 entity_id,
                 from_state: current_state,
                 to_state: target_state,
-                user_id: Uuid::nil(), // System user
+                user_id: Uuid::nil(),            // System user
+                user_role: "system".to_string(), // System transition; engine bypasses role check
                 catatan: Some(format!(
                     "Parallel approval threshold reached ({}/{})",
                     approved_count, required_approvals

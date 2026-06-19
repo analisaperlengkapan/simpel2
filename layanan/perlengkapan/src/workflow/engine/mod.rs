@@ -58,6 +58,7 @@ pub struct TransitionRequest {
 
     /// User performing the transition
     pub user_id: Uuid,
+
     /// Role of the user (from JWT claims)
     pub user_role: String,
 

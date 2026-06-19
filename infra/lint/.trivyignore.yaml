@@ -12,24 +12,6 @@ vulnerabilities:
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
-  - id: GHSA-5vg9-5847-vvmq
-    paths:
-      - "monolith/simpelv1/composer.lock"
-    statement: >-
-      CRLF injection in default email rule. We are locked to PHP 8.2 in CI,
-      and upgrading laravel/framework to 12.60+ would require PHP 8.3.
-      The application does not use the default email validation rule in a way
-      that is exploitable via user input in this monolith. Risk is accepted
-      until environment upgrade to PHP 8.3/8.4 is completed.
-
-  - id: GHSA-crmm-hgp2-wgrp
-    paths:
-      - "monolith/simpelv1/composer.lock"
-    statement: >-
-      Temporary Signed URL Path Confusion. Application does not rely on
-      Temporary Signed URLs for security-critical paths in a way that path
-      confusion would lead to unauthorized access. Risk accepted for PHP 8.2 compatibility.
-
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
   # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
