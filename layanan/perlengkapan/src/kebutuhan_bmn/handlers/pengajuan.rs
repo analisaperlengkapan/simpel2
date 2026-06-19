@@ -141,12 +141,7 @@ pub async fn transition_pengajuan_status(
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
     // RBAC: Restricted to authorized roles.
-    claims.require_any_role(&[
-        "operator_satker",
-        "validator_wilayah",
-        "validator_pusat",
-        "admin",
-    ])?;
+    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat", "admin"])?;
 
     info!(
         "Transitioning pengajuan {} to status {}",
