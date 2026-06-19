@@ -536,14 +536,13 @@ jobs:
       - uses: actions/checkout@v6
       - name: SQL migration anti-pattern guard
         shell: bash
-        # ADVISORY for now (mirrors the kube-linter advisory→blocking maturation,
-        # tasks #32→#46): `main` currently carries known findings being resolved
-        # elsewhere — the perlengkapan baseline search_path reset (fixed in the
-        # in-flight F5-B PR) and the secreton `ALTER DATABASE CURRENT` in two
-        # unwired migration files (follow-up). Findings still surface as
-        # annotations on every run. Flip to blocking by removing this
-        # `continue-on-error` once both are clean.
-        continue-on-error: true
+        # BLOCKING (#63 — matured advisory→blocking, mirroring kube-linter
+        # #32→#46). The two prior known findings are cleared: the perlengkapan
+        # baseline search_path reset (#553) and the secreton `ALTER DATABASE
+        # CURRENT` duplicates (removed in #63 — dead files never wired to a
+        # runner, not shipped in the image, superseded by programmatic schema
+        # creation). A failure now fails the job and the required CI Summary.
+        # Waive a single line with `-- guard:allow` (plus a reason) if needed.
         run: ./infra/lint/check-sql-migrations.sh
 
   # ─────────────────────────────────────────────────────
