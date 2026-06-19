@@ -263,7 +263,7 @@ pub async fn submit_to_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_role("operator_satker")?;
     let penghapusan = service
-        .submit_to_wilayah(id, claims.user_id, body.catatan)
+        .submit_to_wilayah(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -285,7 +285,7 @@ pub async fn forward_to_pusat(
     }
 
     let penghapusan = service
-        .forward_to_pusat(id, claims.user_id, body.catatan)
+        .forward_to_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -310,7 +310,7 @@ pub async fn verifikasi_pusat(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_role("validator_pusat")?;
     let penghapusan = service
-        .verifikasi_pusat(id, claims.user_id, body.catatan)
+        .verifikasi_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -338,7 +338,7 @@ pub async fn return_to_operator(
     }
 
     let penghapusan = service
-        .return_to_operator(id, claims.user_id, body.catatan)
+        .return_to_operator(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -358,7 +358,7 @@ pub async fn validator_wilayah_action(
     match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service
-                .forward_to_pusat(id, claims.user_id, body.catatan)
+                .forward_to_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
                 .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
@@ -372,7 +372,7 @@ pub async fn validator_wilayah_action(
                 ));
             }
             let penghapusan = service
-                .return_to_operator(id, claims.user_id, body.catatan)
+                .return_to_operator(id, claims.user_id, claims.role.clone(), body.catatan)
                 .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
@@ -399,7 +399,9 @@ pub async fn generate_konsep_sk(
     // (lihat plan §6.3); di sini cukup pastikan caller adalah salah
     // satu dari kedua role.
     claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
-    let penghapusan = service.generate_konsep_sk(id, claims.user_id).await?;
+    let penghapusan = service
+        .generate_konsep_sk(id, claims.user_id, claims.role.clone())
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -468,7 +470,12 @@ pub async fn upload_signed_sk(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
     let penghapusan = service
-        .upload_signed_sk(id, claims.user_id, body.signed_sk_pdf_url)
+        .upload_signed_sk(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.signed_sk_pdf_url,
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -644,7 +651,7 @@ pub async fn generate_konsep_sk_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
     let penghapusan = service
-        .generate_konsep_sk_wilayah(id, claims.user_id)
+        .generate_konsep_sk_wilayah(id, claims.user_id, claims.role.clone())
         .await?;
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -661,7 +668,12 @@ pub async fn upload_signed_sk_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
     let penghapusan = service
-        .upload_signed_sk_wilayah(id, claims.user_id, body.signed_sk_pdf_url)
+        .upload_signed_sk_wilayah(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.signed_sk_pdf_url,
+        )
         .await?;
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -696,6 +708,7 @@ pub async fn transition_penghapusan_bmn(
             id,
             request.to_state,
             claims.user_id,
+            claims.role.clone(),
             request.catatan,
             ip_address,
         )

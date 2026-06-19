@@ -52,6 +52,7 @@ impl PemakaianBmnService {
         id: Uuid,
         request: WorkflowTransitionRequest,
         user_id: Uuid,
+        user_role: String,
         client_ip: String,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
@@ -106,6 +107,7 @@ impl PemakaianBmnService {
             from_state: from_state.to_string(),
             to_state: to_state.to_string(),
             user_id,
+            user_role,
             catatan: request.catatan.clone(),
             ip_address: client_ip.clone(),
         };

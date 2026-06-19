@@ -37,7 +37,7 @@ pub async fn batch_approve_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_approve_kebutuhan(request, user_id, user_info, ip)
+        .batch_approve_kebutuhan(request, user_id, user_info, claims.role.clone(), ip)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -70,7 +70,7 @@ pub async fn batch_reject_kebutuhan(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_reject_kebutuhan(request, user_id, user_info, ip)
+        .batch_reject_kebutuhan(request, user_id, user_info, claims.role.clone(), ip)
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -104,7 +104,7 @@ pub async fn batch_update_status(
     let user_info = Some(extract_user_info(&claims));
 
     let response = service
-        .batch_update_status(request, user_id, user_info, ip)
+        .batch_update_status(request, user_id, user_info, claims.role.clone(), ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

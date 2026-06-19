@@ -140,10 +140,16 @@ pub async fn transition_pengajuan_status(
     ClientIp(ip): ClientIp,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmn>>, AppError> {
+    // Coarse-grained gate; the workflow engine enforces the per-state required role.
+    claims.require_any_role(&[
+        "operator_satker",
+        "validator_wilayah",
+        "validator_pusat",
+        "admin",
+    ])?;
     info!(
         "Transitioning pengajuan {} to status {}",
         id, request.target_status
-    claims.require_any_role(&["operator_satker", "validator_wilayah", "validator_pusat", "admin"])?;
     );
 
     let user_id = Some(claims.user_id);
