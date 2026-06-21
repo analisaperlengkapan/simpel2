@@ -73,9 +73,14 @@ pub struct Claims {
     pub name: Option<String>,
     pub nama: Option<String>,
     pub jabatan: Option<String>,
-    /// Satker code ("kdsatker_keu") extracted from the `satker:` scope.
-    /// Used for satker-level authorization — handlers must reject writes to
-    /// other satker's data unless the caller holds an admin/pusat role.
+    /// Caller's MySIMKARI `kode_satker` (Kejaksaan-internal org code, dotted —
+    /// e.g. "02.28"), sourced from authenc's `satker_code` claim / the `satker:`
+    /// scope. NOTE: this is NOT the SIMAN finance code `kdsatker_keu` (the two
+    /// systems are disjoint — see integrasi `003_satker_code_mapping.sql`). Used
+    /// for satker-level authorization — handlers must reject writes to other
+    /// satker's data unless the caller holds an admin/pusat role. For SIMAN-asset
+    /// (bank_aset) data scoping it is mapped to `kdsatker_keu` via
+    /// `integrasi.v_satker_code_map` (see [`crate::bank_aset::AsetScope`]).
     pub satker_code: Option<String>,
 }
 

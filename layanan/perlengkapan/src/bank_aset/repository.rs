@@ -4,7 +4,19 @@ use tokio_postgres::Row;
 use uuid::Uuid;
 
 use super::models::*;
+use super::scope::AsetScope;
 use crate::shared::error::{AppError, AppResult, not_found};
+
+/// Boxed bind parameter for the dynamic-SQL builders below.
+type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+
+/// Borrow a boxed-param vec as the `&[&dyn ToSql]` slice tokio-postgres wants.
+fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
+    params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect()
+}
 
 #[derive(Clone)]
 pub struct BankAsetRepository {
@@ -16,7 +28,11 @@ impl BankAsetRepository {
         Self { pool }
     }
 
-    pub async fn list(&self, filter: ListFilter) -> AppResult<(Vec<BankAsetItem>, i64)> {
+    pub async fn list(
+        &self,
+        filter: ListFilter,
+        scope: &AsetScope,
+    ) -> AppResult<(Vec<BankAsetItem>, i64)> {
         let client = self
             .pool
             .get()
@@ -24,7 +40,13 @@ impl BankAsetRepository {
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
         let mut conditions: Vec<String> = Vec::new();
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+        let mut params: Vec<BoxedParam> = Vec::new();
+
+        // RBAC data-visibility predicate first (its `$n` index is resolved by
+        // `push_condition`, so ordering vs the user filters below is irrelevant).
+        if let Some(cond) = scope.push_condition(&mut params) {
+            conditions.push(cond);
+        }
 
         if let Some(jenis) = &filter.jenis {
             params.push(Box::new(jenis.clone()));
@@ -122,22 +144,31 @@ impl BankAsetRepository {
     /// form to auto-fill `kode_barang` + `nama_barang` (+ a few extras the
     /// UI may want to display) the moment the user types a NUP. Returns
     /// `None` when no asset with that NUP exists.
-    pub async fn find_lookup_by_nup(&self, nup: &str) -> AppResult<Option<BankAsetLookup>> {
+    pub async fn find_lookup_by_nup(
+        &self,
+        nup: &str,
+        scope: &AsetScope,
+    ) -> AppResult<Option<BankAsetLookup>> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        let mut params: Vec<BoxedParam> = vec![Box::new(nup.to_string())];
+        let scope_clause = match scope.push_condition(&mut params) {
+            Some(cond) => format!(" AND {cond}"),
+            None => String::new(),
+        };
+        let sql = format!(
+            "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
+                    (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE NULL END) AS nilai_perolehan
+             FROM integrasi.siman_aset
+             WHERE nup = $1{scope_clause}
+             LIMIT 1"
+        );
         let row = client
-            .query_opt(
-                "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
-                        (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE NULL END) AS nilai_perolehan
-                 FROM integrasi.siman_aset
-                 WHERE nup = $1
-                 LIMIT 1",
-                &[&nup],
-            )
+            .query_opt(&sql, &as_sql_params(&params))
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -171,8 +202,9 @@ impl BankAsetRepository {
         &self,
         nup: &str,
         kode_barang: Option<&str>,
+        scope: &AsetScope,
     ) -> AppResult<Option<f64>> {
-        let lookup = self.find_lookup_by_nup(nup).await?;
+        let lookup = self.find_lookup_by_nup(nup, scope).await?;
         let Some(l) = lookup else {
             return Ok(None);
         };
@@ -187,21 +219,26 @@ impl BankAsetRepository {
         Ok(l.nilai_perolehan)
     }
 
-    pub async fn get(&self, id: Uuid) -> AppResult<BankAsetItem> {
+    pub async fn get(&self, id: Uuid, scope: &AsetScope) -> AppResult<BankAsetItem> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let scope_clause = match scope.push_condition(&mut params) {
+            Some(cond) => format!(" AND {cond}"),
+            None => String::new(),
+        };
+        let sql = format!(
+            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
+             (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
+             tgl_perlh, updated_at
+             FROM integrasi.siman_aset WHERE id = $1{scope_clause}"
+        );
         let row = client
-            .query_opt(
-                "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
-                 (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
-                 tgl_perlh, updated_at
-                 FROM integrasi.siman_aset WHERE id = $1",
-                &[&id],
-            )
+            .query_opt(&sql, &as_sql_params(&params))
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -209,22 +246,39 @@ impl BankAsetRepository {
             .ok_or_else(|| not_found("Aset", &id.to_string()))
     }
 
-    pub async fn dashboard(&self) -> AppResult<BankAsetDashboard> {
+    pub async fn dashboard(&self, scope: &AsetScope) -> AppResult<BankAsetDashboard> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        // RBAC scope predicate (references `$1` when present); shared by every
+        // aggregate below. `where_clause` for queries without a WHERE, `and_clause`
+        // for the one that already has one.
+        let mut scope_params: Vec<BoxedParam> = Vec::new();
+        let scope_cond = scope.push_condition(&mut scope_params);
+        let where_clause = scope_cond
+            .as_ref()
+            .map(|c| format!(" WHERE {c}"))
+            .unwrap_or_default();
+        let and_clause = scope_cond
+            .as_ref()
+            .map(|c| format!(" AND {c}"))
+            .unwrap_or_default();
+        let p = as_sql_params(&scope_params);
+
         let totals = client
             .query_one(
-                "SELECT
+                &format!(
+                    "SELECT
                     COUNT(*)::BIGINT AS total_aset,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS total_nilai,
                     COUNT(DISTINCT nama_satker)::BIGINT AS total_satker,
                     COUNT(DISTINCT kategori_aset)::BIGINT AS total_kategori
-                 FROM integrasi.siman_aset",
-                &[],
+                 FROM integrasi.siman_aset{where_clause}"
+                ),
+                &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -236,11 +290,13 @@ impl BankAsetRepository {
 
         let kondisi_rows = client
             .query(
-                "SELECT COALESCE(ur_kondisi, 'TIDAK DIKETAHUI') AS kondisi, COUNT(*)::BIGINT AS count
-                 FROM integrasi.siman_aset
+                &format!(
+                    "SELECT COALESCE(ur_kondisi, 'TIDAK DIKETAHUI') AS kondisi, COUNT(*)::BIGINT AS count
+                 FROM integrasi.siman_aset{where_clause}
                  GROUP BY COALESCE(ur_kondisi, 'TIDAK DIKETAHUI')
-                 ORDER BY count DESC",
-                &[],
+                 ORDER BY count DESC"
+                ),
+                &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -254,13 +310,15 @@ impl BankAsetRepository {
 
         let kat_rows = client
             .query(
-                "SELECT kategori_aset,
+                &format!(
+                    "SELECT kategori_aset,
                     COUNT(*)::BIGINT AS count,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai
-                 FROM integrasi.siman_aset
+                 FROM integrasi.siman_aset{where_clause}
                  GROUP BY kategori_aset
-                 ORDER BY count DESC",
-                &[],
+                 ORDER BY count DESC"
+                ),
+                &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -275,14 +333,16 @@ impl BankAsetRepository {
 
         let satker_rows = client
             .query(
-                "SELECT COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS satker,
+                &format!(
+                    "SELECT COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS satker,
                     COUNT(*)::BIGINT AS count,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai
-                 FROM integrasi.siman_aset
+                 FROM integrasi.siman_aset{where_clause}
                  GROUP BY COALESCE(nama_satker, 'TIDAK DIKETAHUI')
                  ORDER BY count DESC
-                 LIMIT 10",
-                &[],
+                 LIMIT 10"
+                ),
+                &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -297,15 +357,17 @@ impl BankAsetRepository {
 
         let tahun_rows = client
             .query(
-                "SELECT
+                &format!(
+                    "SELECT
                     NULLIF(SUBSTRING(tgl_perlh FROM 1 FOR 4), '')::INT AS tahun,
                     COUNT(*)::BIGINT AS count
                  FROM integrasi.siman_aset
-                 WHERE tgl_perlh IS NOT NULL AND SUBSTRING(tgl_perlh FROM 1 FOR 4) ~ '^[0-9]{4}$'
+                 WHERE tgl_perlh IS NOT NULL AND SUBSTRING(tgl_perlh FROM 1 FOR 4) ~ '^[0-9]{{4}}$'{and_clause}
                  GROUP BY tahun
                  ORDER BY tahun DESC
-                 LIMIT 20",
-                &[],
+                 LIMIT 20"
+                ),
+                &p,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -332,26 +394,34 @@ impl BankAsetRepository {
         })
     }
 
-    pub async fn sebaran(&self) -> AppResult<BankAsetSebaran> {
+    pub async fn sebaran(&self, scope: &AsetScope) -> AppResult<BankAsetSebaran> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        let mut scope_params: Vec<BoxedParam> = Vec::new();
+        let where_clause = scope
+            .push_condition(&mut scope_params)
+            .map(|c| format!(" WHERE {c}"))
+            .unwrap_or_default();
+
         let rows = client
             .query(
-                "SELECT
+                &format!(
+                    "SELECT
                     kdsatker_keu AS kode_satker,
                     COALESCE(nama_satker, 'TIDAK DIKETAHUI') AS nama_satker,
                     COUNT(*)::BIGINT AS total_aset,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai_perolehan,
                     COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) = 'BAIK')::BIGINT AS aset_baik,
                     COUNT(*) FILTER (WHERE UPPER(COALESCE(ur_kondisi, '')) LIKE 'RUSAK%')::BIGINT AS aset_rusak
-                 FROM integrasi.siman_aset
+                 FROM integrasi.siman_aset{where_clause}
                  GROUP BY kdsatker_keu, COALESCE(nama_satker, 'TIDAK DIKETAHUI')
-                 ORDER BY total_aset DESC",
-                &[],
+                 ORDER BY total_aset DESC"
+                ),
+                &as_sql_params(&scope_params),
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -371,18 +441,26 @@ impl BankAsetRepository {
         Ok(BankAsetSebaran { satker })
     }
 
-    pub async fn last_sync(&self) -> AppResult<LastSyncInfo> {
+    pub async fn last_sync(&self, scope: &AsetScope) -> AppResult<LastSyncInfo> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        let mut scope_params: Vec<BoxedParam> = Vec::new();
+        let where_clause = scope
+            .push_condition(&mut scope_params)
+            .map(|c| format!(" WHERE {c}"))
+            .unwrap_or_default();
+
         let row = client
             .query_one(
-                "SELECT MAX(updated_at) AS last_sync, COUNT(*)::BIGINT AS total
-                 FROM integrasi.siman_aset",
-                &[],
+                &format!(
+                    "SELECT MAX(updated_at) AS last_sync, COUNT(*)::BIGINT AS total
+                 FROM integrasi.siman_aset{where_clause}"
+                ),
+                &as_sql_params(&scope_params),
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -400,29 +478,40 @@ impl BankAsetRepository {
     /// Distinct values (with counts) for the filterable columns, so the FE can
     /// populate filter dropdowns DYNAMICALLY from the actual data instead of
     /// hard-coded lists. Columns are a fixed allow-list (no arbitrary-column SQL).
-    pub async fn filter_options(&self) -> AppResult<BankAsetFilterOptions> {
+    pub async fn filter_options(&self, scope: &AsetScope) -> AppResult<BankAsetFilterOptions> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
+        // RBAC scope predicate (references `$1` when present): only offer filter
+        // values that exist within the caller's visible asset set.
+        let mut scope_params: Vec<BoxedParam> = Vec::new();
+        let and_clause = scope
+            .push_condition(&mut scope_params)
+            .map(|c| format!(" AND {c}"))
+            .unwrap_or_default();
+        let scope_p = as_sql_params(&scope_params);
+
         // (label_expr, column) — column names are a hard-coded allow-list.
         async fn distinct(
             client: &deadpool_postgres::Object,
             col: &str,
+            and_clause: &str,
+            scope_p: &[&(dyn tokio_postgres::types::ToSql + Sync)],
         ) -> AppResult<Vec<FilterOption>> {
             // `col` is from the fixed allow-list below, never user input.
             let sql = format!(
                 "SELECT {col} AS value, COUNT(*)::BIGINT AS count
                  FROM integrasi.siman_aset
-                 WHERE {col} IS NOT NULL AND {col} <> ''
+                 WHERE {col} IS NOT NULL AND {col} <> ''{and_clause}
                  GROUP BY {col}
                  ORDER BY count DESC, value ASC
                  LIMIT 500"
             );
             let rows = client
-                .query(&sql, &[])
+                .query(&sql, scope_p)
                 .await
                 .map_err(|e| AppError::Database(e.to_string()))?;
             Ok(rows
@@ -435,10 +524,10 @@ impl BankAsetRepository {
         }
 
         Ok(BankAsetFilterOptions {
-            jenis: distinct(&client, "jenis_aset").await?,
-            kategori: distinct(&client, "kategori_aset").await?,
-            kondisi: distinct(&client, "ur_kondisi").await?,
-            satker: distinct(&client, "nama_satker").await?,
+            jenis: distinct(&client, "jenis_aset", &and_clause, &scope_p).await?,
+            kategori: distinct(&client, "kategori_aset", &and_clause, &scope_p).await?,
+            kondisi: distinct(&client, "ur_kondisi", &and_clause, &scope_p).await?,
+            satker: distinct(&client, "nama_satker", &and_clause, &scope_p).await?,
         })
     }
 }

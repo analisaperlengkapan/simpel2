@@ -8,6 +8,7 @@ use uuid::Uuid;
 use super::{
     models::*,
     repository::{BankAsetRepository, ListFilter},
+    scope::AsetScope,
 };
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::middleware::Claims;
@@ -48,9 +49,10 @@ fn validate_query(q: &ListQuery) -> AppResult<()> {
 pub async fn list_bank_aset(
     State(state): State<AppState>,
     Query(query): Query<ListQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<BankAsetItem>>, AppError> {
     validate_query(&query)?;
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
     let filter = ListFilter {
         page: query.page,
@@ -62,7 +64,7 @@ pub async fn list_bank_aset(
         search: query.search,
         sort: query.sort,
     };
-    let (items, total) = repo.list(filter).await?;
+    let (items, total) = repo.list(filter, &scope).await?;
     Ok(Json(PaginatedResponse::new(
         items,
         total,
@@ -75,10 +77,11 @@ pub async fn list_bank_aset(
 pub async fn get_bank_aset_detail(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetDetail>>, AppError> {
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let item = repo.get(id).await?;
+    let item = repo.get(id, &scope).await?;
     let detail = BankAsetDetail {
         item,
         riwayat_pemakaian: Vec::new(),
@@ -104,13 +107,14 @@ pub struct LookupQuery {
 pub async fn lookup_bank_aset(
     State(state): State<AppState>,
     Query(q): Query<LookupQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetLookup>>, AppError> {
     if q.nup.trim().is_empty() {
         return Err(bad_request("nup query parameter is required"));
     }
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    match repo.find_lookup_by_nup(q.nup.trim()).await? {
+    match repo.find_lookup_by_nup(q.nup.trim(), &scope).await? {
         Some(item) => Ok(Json(ApiResponse::success(
             item,
             "BMN lookup retrieved successfully".to_string(),
@@ -124,10 +128,11 @@ pub async fn lookup_bank_aset(
 
 pub async fn get_bank_aset_dashboard(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetDashboard>>, AppError> {
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.dashboard().await?;
+    let data = repo.dashboard(&scope).await?;
     Ok(Json(ApiResponse::success(
         data,
         "Dashboard bank aset retrieved successfully".to_string(),
@@ -136,10 +141,11 @@ pub async fn get_bank_aset_dashboard(
 
 pub async fn get_bank_aset_sebaran(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetSebaran>>, AppError> {
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.sebaran().await?;
+    let data = repo.sebaran(&scope).await?;
     Ok(Json(ApiResponse::success(
         data,
         "Sebaran bank aset retrieved successfully".to_string(),
@@ -148,10 +154,11 @@ pub async fn get_bank_aset_sebaran(
 
 pub async fn get_bank_aset_last_sync(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<LastSyncInfo>>, AppError> {
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.last_sync().await?;
+    let data = repo.last_sync(&scope).await?;
     Ok(Json(ApiResponse::success(
         data,
         "Last sync info retrieved successfully".to_string(),
@@ -162,10 +169,11 @@ pub async fn get_bank_aset_last_sync(
 /// the FE filter dropdowns dynamically from real data.
 pub async fn get_bank_aset_filter_options(
     State(state): State<AppState>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetFilterOptions>>, AppError> {
+    let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.filter_options().await?;
+    let data = repo.filter_options(&scope).await?;
     Ok(Json(ApiResponse::success(
         data,
         "Filter options retrieved successfully".to_string(),

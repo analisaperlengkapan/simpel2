@@ -69,8 +69,14 @@ impl PenghapusanBmnService {
         );
 
         let bank_repo = BankAsetRepository::new(self.pool.clone());
+        // Authoritative SIMAN value lookup — unscoped on purpose; satker
+        // ownership of the BMN is enforced by the penghapusan workflow.
         match bank_repo
-            .find_nilai_perolehan(&request.nup, Some(&request.kode_barang))
+            .find_nilai_perolehan(
+                &request.nup,
+                Some(&request.kode_barang),
+                &crate::bank_aset::AsetScope::All,
+            )
             .await
         {
             Ok(Some(nilai)) => {
@@ -142,7 +148,11 @@ impl PenghapusanBmnService {
     pub async fn verify_asset_siman(&self, id: Uuid) -> AppResult<SimanAssetVerification> {
         let record = self.repository.get_by_id(id).await?;
         let bank_repo = BankAsetRepository::new(self.pool.clone());
-        let lookup = bank_repo.find_lookup_by_nup(&record.nup).await?;
+        // Authoritative SIMAN cross-check — unscoped on purpose; the penghapusan
+        // record's satker ownership was validated when it was created.
+        let lookup = bank_repo
+            .find_lookup_by_nup(&record.nup, &crate::bank_aset::AsetScope::All)
+            .await?;
 
         let verification = match lookup {
             Some(asset) => {
