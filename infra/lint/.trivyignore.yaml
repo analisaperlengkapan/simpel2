@@ -12,16 +12,6 @@ vulnerabilities:
       `cargo update -p` won't drop it and a full `cargo update` churns 70+ crates;
       dependabot's weekly cargo bumps will prune it. Not an exposure.
 
-  - id: GHSA-5vg9-5847-vvmq
-    statement: >-
-      Laravel CRLF injection in default email rule (CVE-2026-48019). Simpelv1 is
-      a legacy monolith using Laravel 10 (EOL). Fixes are only in v12/v13.
-      Risk is mitigated by custom input sanitization in controllers.
-
-  - id: CVE-2026-48019
-    statement: >-
-      Duplicate ignore for CVE corresponding to GHSA-5vg9-5847-vvmq.
-
 misconfigurations:
   # DS-0002 (non-root USER) for two images deferred to #46 (Helm pod
   # securityContext runAsNonRoot, deploy-verified). The portal/perlengkapan
