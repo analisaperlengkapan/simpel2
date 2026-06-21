@@ -70,6 +70,13 @@ pub async fn transition_satker_status(
     claims: Claims,
     Json(request): Json<WorkflowTransitionRequest>,
 ) -> Result<Json<ApiResponse<PengajuanKebutuhanBmnSatker>>, AppError> {
+    // Coarse-grained gate; the workflow engine enforces the per-state required role.
+    claims.require_any_role(&[
+        "operator_satker",
+        "validator_wilayah",
+        "validator_pusat",
+        "admin",
+    ])?;
     info!(
         "Transitioning satker {} to status {}",
         satker_id, request.target_status
@@ -79,7 +86,7 @@ pub async fn transition_satker_status(
     let user_info = Some(extract_user_info(&claims));
 
     let satker = service
-        .transition_satker_status(satker_id, request, user_id, user_info)
+        .transition_satker_status(satker_id, request, user_id, user_info, claims.role.clone())
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -116,7 +123,13 @@ pub async fn submit_satker_to_wilayah(
     claims.require_role("operator_satker")?;
     let user_info = extract_user_info(&claims);
     let satker = service
-        .submit_satker_to_wilayah(satker_id, request, Some(claims.user_id), Some(user_info))
+        .submit_satker_to_wilayah(
+            satker_id,
+            request,
+            Some(claims.user_id),
+            Some(user_info),
+            claims.role.clone(),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(

@@ -128,7 +128,13 @@ impl PemakaianBmnService {
         // is unambiguous about the originator. Any human-driven transition
         // arrives through the handler with a real ClientIp.
         let mut permit = self
-            .transition_permit_status(id, transition_request, user_id, "system".to_string())
+            .transition_permit_status(
+                id,
+                transition_request,
+                user_id,
+                "system".to_string(),
+                "system".to_string(),
+            )
             .await?;
 
         // Generate permit document (REQ-P006)

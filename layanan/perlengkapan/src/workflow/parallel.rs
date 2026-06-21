@@ -374,7 +374,8 @@ impl ParallelApprovalEngine {
                 entity_id,
                 from_state: current_state,
                 to_state: target_state,
-                user_id: Uuid::nil(), // System user
+                user_id: Uuid::nil(),            // System user
+                user_role: "system".to_string(), // System transition; engine bypasses role check
                 catatan: Some(format!(
                     "Parallel approval threshold reached ({}/{})",
                     approved_count, required_approvals

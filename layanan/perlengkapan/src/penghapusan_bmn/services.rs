@@ -291,6 +291,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         user_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.transition(
@@ -299,6 +300,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             user_id,
+            user_role,
             catatan,
             "submit_to_wilayah".to_string(),
         )
@@ -310,6 +312,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         // Update validator wilayah info
@@ -323,6 +326,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "forward_to_pusat".to_string(),
         )
@@ -343,6 +347,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.repository
@@ -355,6 +360,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "verifikasi_pusat".to_string(),
         )
@@ -366,6 +372,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         self.repository
@@ -378,6 +385,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             catatan,
             "return_to_operator".to_string(),
         )
@@ -399,6 +407,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
@@ -500,6 +509,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string()),
             "generate_konsep_sk".to_string(),
         )
@@ -511,6 +521,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         signed_sk_pdf_url: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
@@ -527,21 +538,26 @@ impl PenghapusanBmnService {
             .update_signed_sk(id, &signed_sk_pdf_url)
             .await?;
 
-        // Transition to SKSigned then Completed
+        // The validator's signing action transitions to SK_SIGNED under their own
+        // role (config: SK_SIGNED → validator_pusat).
         self.transition(
             id,
             PenghapusanBmnStatus::SKSigned.to_state_name().to_string(),
             validator_id,
+            user_role,
             Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
             "upload_signed_sk".to_string(),
         )
         .await?;
 
-        // Auto-complete
+        // Auto-complete is a SYSTEM-initiated continuation (not a separate admin
+        // decision), so it runs as "system" — otherwise COMPLETED's required role
+        // (admin_pusat) would reject the validator who just signed the SK.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
+            "system".to_string(),
             Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
             "complete".to_string(),
         )
@@ -559,6 +575,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
         if penghapusan.kewenangan_penetap_sk.to_uppercase() != "WILAYAH" {
@@ -592,6 +609,7 @@ impl PenghapusanBmnService {
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
             "generate_konsep_sk_wilayah".into(),
         )
@@ -604,6 +622,7 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         validator_id: Uuid,
+        user_role: String,
         signed_sk_pdf_url: String,
     ) -> AppResult<PenghapusanBmn> {
         let penghapusan = self.repository.get_by_id(id).await?;
@@ -618,21 +637,27 @@ impl PenghapusanBmnService {
             .update_signed_sk_wilayah(id, &signed_sk_pdf_url)
             .await?;
 
-        // Audit + auto-complete
+        // Kepala Kejati's signing action transitions to SK_SIGNED_WILAYAH under
+        // their own role (config: SK_SIGNED_WILAYAH → validator_wilayah).
         self.transition(
             id,
             PenghapusanBmnStatus::SKSignedWilayah
                 .to_state_name()
                 .to_string(),
             validator_id,
+            user_role,
             Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
             "upload_signed_sk_wilayah".into(),
         )
         .await?;
+        // Auto-complete = SYSTEM continuation (see upload_signed_sk): run as
+        // "system" so COMPLETED's admin_pusat requirement doesn't reject the
+        // validator who just signed the SK.
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
             validator_id,
+            "system".to_string(),
             Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
             "complete_wilayah".into(),
         )
@@ -645,6 +670,7 @@ impl PenghapusanBmnService {
         id: Uuid,
         to_state: String,
         user_id: Uuid,
+        user_role: String,
         catatan: Option<String>,
         ip_address: String,
     ) -> AppResult<PenghapusanBmn> {
@@ -655,6 +681,7 @@ impl PenghapusanBmnService {
             from_state: penghapusan.status.clone(),
             to_state: to_state.clone(),
             user_id,
+            user_role,
             catatan,
             ip_address,
         };

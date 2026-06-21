@@ -105,7 +105,7 @@ pub async fn transition_permit_status(
     );
 
     let permit = service
-        .transition_permit_status(id, request, claims.user_id, ip)
+        .transition_permit_status(id, request, claims.user_id, claims.role.clone(), ip)
         .await?;
 
     Ok(Json(ApiResponse::success(

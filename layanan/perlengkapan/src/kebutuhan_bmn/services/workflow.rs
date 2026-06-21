@@ -22,6 +22,7 @@ impl KebutuhanBmnService {
         request: WorkflowTransitionRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
         client_ip: String,
     ) -> AppResult<PengajuanKebutuhanBmn> {
         let current = self.repository.get_pengajuan_by_id(id).await?;
@@ -70,6 +71,7 @@ impl KebutuhanBmnService {
             from_state: from_state.to_string(),
             to_state: to_state.to_string(),
             user_id: user_id.unwrap_or_else(Uuid::nil),
+            user_role: user_role.clone(),
             catatan: request.komentar.clone(),
             ip_address: client_ip.clone(),
         };
@@ -117,6 +119,7 @@ impl KebutuhanBmnService {
         request: WorkflowTransitionRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let current = self.repository.get_satker_by_id(satker_id).await?;
         let target_status = KebutuhanBmnStatus::from_code(request.target_status)
@@ -146,7 +149,17 @@ impl KebutuhanBmnService {
             target_status.label()
         );
 
-        // Update status
+        // Authorize the transition by role. NOTE: the satker-level status lives
+        // in `pengajuan_kebutuhan_bmn_satker` and is updated below via the
+        // satker-specific repository — we must NOT drive the DB write through the
+        // generic engine, whose `status_table` maps `kebutuhan_bmn` to the PARENT
+        // `pengajuan_kebutuhan_bmn` table (the satker id isn't there, so the
+        // engine's SELECT/UPDATE errors out). Validate the role directly instead.
+        self.workflow_engine
+            .validate_approver_role(&user_role, to_state)
+            .map_err(|e| AppError::WorkflowError(e.to_string()))?;
+
+        // Update status (satker-specific table)
         let updated = self
             .repository
             .update_satker_status(satker_id, target_status.to_code(), user_id)
@@ -207,6 +220,7 @@ impl KebutuhanBmnService {
         request: SubmitKebutuhanSatkerRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let current = self.repository.get_satker_by_id(satker_id).await?;
 
@@ -263,7 +277,7 @@ impl KebutuhanBmnService {
             komentar: request.catatan_satker.clone(),
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
             .await
     }
 
@@ -274,6 +288,7 @@ impl KebutuhanBmnService {
         request: ValidatorWilayahActionRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let current = self.repository.get_satker_by_id(satker_id).await?;
 
@@ -299,8 +314,14 @@ impl KebutuhanBmnService {
                     target_status: KebutuhanBmnStatus::SubmitPusat.to_code(),
                     komentar: request.catatan,
                 };
-                self.transition_satker_status(satker_id, transition_request, user_id, user_info)
-                    .await
+                self.transition_satker_status(
+                    satker_id,
+                    transition_request,
+                    user_id,
+                    user_info,
+                    user_role,
+                )
+                .await
             }
             "return" => {
                 if request.catatan.is_none() {
@@ -316,8 +337,14 @@ impl KebutuhanBmnService {
                     target_status: KebutuhanBmnStatus::RevisiSatker.to_code(),
                     komentar: request.catatan,
                 };
-                self.transition_satker_status(satker_id, transition_request, user_id, user_info)
-                    .await
+                self.transition_satker_status(
+                    satker_id,
+                    transition_request,
+                    user_id,
+                    user_info,
+                    user_role,
+                )
+                .await
             }
             _ => Err(AppError::BadRequest(
                 "Action harus 'forward' atau 'return'".to_string(),
@@ -333,6 +360,7 @@ impl KebutuhanBmnService {
         request: ValidatorPusatKeputusanRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let current = self.repository.get_satker_by_id(satker_id).await?;
 
@@ -431,6 +459,7 @@ impl KebutuhanBmnService {
                 },
                 user_id,
                 user_info.clone(),
+                user_role.clone(),
             )
             .await?;
         }
@@ -440,7 +469,7 @@ impl KebutuhanBmnService {
             komentar: keputusan_alasan,
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info)
+        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
             .await
     }
 

@@ -5,6 +5,18 @@ use crate::shared::error::{AppError, AppResult};
 use tracing::{info, warn};
 use uuid::Uuid;
 
+/// Actor context for an audited batch action — who is acting (`user_id`/info),
+/// under what role, and from which client IP. These four always travel together
+/// through the per-item batch helpers; bundling them keeps those helpers within a
+/// sane argument count (and is cheap to `clone` per item).
+#[derive(Clone)]
+struct ActionContext {
+    user_id: Option<Uuid>,
+    user_info: Option<UserInfo>,
+    user_role: String,
+    client_ip: String,
+}
+
 impl KebutuhanBmnService {
     /// Batch approve multiple kebutuhan
     ///
@@ -15,6 +27,7 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchApproveRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -46,15 +59,16 @@ impl KebutuhanBmnService {
         let mut successful_count = 0;
         let mut failed_count = 0;
 
+        let ctx = ActionContext {
+            user_id,
+            user_info,
+            user_role,
+            client_ip,
+        };
+
         for kebutuhan_id in &request.kebutuhan_ids {
             let result = match self
-                .process_single_approval(
-                    *kebutuhan_id,
-                    &request.komentar,
-                    user_id,
-                    user_info.clone(),
-                    client_ip.clone(),
-                )
+                .process_single_approval(*kebutuhan_id, &request.komentar, ctx.clone())
                 .await
             {
                 Ok(_) => {
@@ -117,6 +131,7 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchRejectRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -148,15 +163,16 @@ impl KebutuhanBmnService {
         let mut successful_count = 0;
         let mut failed_count = 0;
 
+        let ctx = ActionContext {
+            user_id,
+            user_info,
+            user_role,
+            client_ip,
+        };
+
         for kebutuhan_id in &request.kebutuhan_ids {
             let result = match self
-                .process_single_rejection(
-                    *kebutuhan_id,
-                    &request.komentar,
-                    user_id,
-                    user_info.clone(),
-                    client_ip.clone(),
-                )
+                .process_single_rejection(*kebutuhan_id, &request.komentar, ctx.clone())
                 .await
             {
                 Ok(_) => {
@@ -219,6 +235,7 @@ impl KebutuhanBmnService {
         request: crate::kebutuhan_bmn::models::BatchUpdateStatusRequest,
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
+        user_role: String,
         client_ip: String,
     ) -> AppResult<crate::kebutuhan_bmn::models::BatchOperationResponse> {
         use crate::kebutuhan_bmn::models::{BatchOperationItemResult, BatchOperationResponse};
@@ -255,15 +272,20 @@ impl KebutuhanBmnService {
         let mut successful_count = 0;
         let mut failed_count = 0;
 
+        let ctx = ActionContext {
+            user_id,
+            user_info,
+            user_role,
+            client_ip,
+        };
+
         for kebutuhan_id in &request.kebutuhan_ids {
             let result = match self
                 .process_single_status_update(
                     *kebutuhan_id,
                     request.target_status,
                     &request.komentar,
-                    user_id,
-                    user_info.clone(),
-                    client_ip.clone(),
+                    ctx.clone(),
                 )
                 .await
             {
@@ -330,9 +352,7 @@ impl KebutuhanBmnService {
         &self,
         kebutuhan_id: Uuid,
         komentar: &Option<String>,
-        user_id: Option<Uuid>,
-        user_info: Option<UserInfo>,
-        client_ip: String,
+        ctx: ActionContext,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status: KebutuhanBmnStatus::Approved.to_code(),
@@ -342,9 +362,10 @@ impl KebutuhanBmnService {
         self.transition_pengajuan_status(
             kebutuhan_id,
             transition_request,
-            user_id,
-            user_info,
-            client_ip,
+            ctx.user_id,
+            ctx.user_info,
+            ctx.user_role,
+            ctx.client_ip,
         )
         .await?;
 
@@ -356,9 +377,7 @@ impl KebutuhanBmnService {
         &self,
         kebutuhan_id: Uuid,
         komentar: &str,
-        user_id: Option<Uuid>,
-        user_info: Option<UserInfo>,
-        client_ip: String,
+        ctx: ActionContext,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status: KebutuhanBmnStatus::Rejected.to_code(),
@@ -368,9 +387,10 @@ impl KebutuhanBmnService {
         self.transition_pengajuan_status(
             kebutuhan_id,
             transition_request,
-            user_id,
-            user_info,
-            client_ip,
+            ctx.user_id,
+            ctx.user_info,
+            ctx.user_role,
+            ctx.client_ip,
         )
         .await?;
 
@@ -383,9 +403,7 @@ impl KebutuhanBmnService {
         kebutuhan_id: Uuid,
         target_status: i32,
         komentar: &Option<String>,
-        user_id: Option<Uuid>,
-        user_info: Option<UserInfo>,
-        client_ip: String,
+        ctx: ActionContext,
     ) -> AppResult<()> {
         let transition_request = WorkflowTransitionRequest {
             target_status,
@@ -395,9 +413,10 @@ impl KebutuhanBmnService {
         self.transition_pengajuan_status(
             kebutuhan_id,
             transition_request,
-            user_id,
-            user_info,
-            client_ip,
+            ctx.user_id,
+            ctx.user_info,
+            ctx.user_role,
+            ctx.client_ip,
         )
         .await?;
 

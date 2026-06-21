@@ -206,8 +206,8 @@ pub async fn get_user_by_email(db: &Database, email: &str) -> Result<Option<User
         WHERE email = $1 AND deleted_at IS NULL
     "#;
 
-    let row = db.query_one(query, &[&email]).await?;
-    Ok(Some(row_to_user(&row)))
+    let row = db.query_opt(query, &[&email]).await?;
+    Ok(row.map(|r| row_to_user(&r)))
 }
 
 pub async fn update_user(
