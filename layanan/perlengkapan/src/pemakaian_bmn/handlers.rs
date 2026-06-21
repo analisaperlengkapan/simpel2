@@ -43,7 +43,12 @@ pub async fn create_permit(
     info!("Creating new permit for BMN {}", request.bmn_nup);
 
     let permit = service
-        .create_permit(request, claims.user_id, claims.username.clone())
+        .create_permit(
+            request,
+            claims.user_id,
+            claims.username.clone(),
+            claims.satker_code.clone(),
+        )
         .await?;
 
     Ok((
@@ -80,9 +85,10 @@ pub async fn update_permit(
 pub async fn list_permits(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<ListPermitsQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PaginatedPermitsResponse>>, AppError> {
-    let response = service.list_permits(query).await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let response = service.list_permits(query, &scope).await?;
 
     Ok(Json(ApiResponse::success(
         response,
@@ -330,7 +336,13 @@ pub async fn renew_permit(
     info!("Renewing permit {}", id);
 
     let permit = service
-        .renew_permit(id, request, claims.user_id, claims.username.clone())
+        .renew_permit(
+            id,
+            request,
+            claims.user_id,
+            claims.username.clone(),
+            claims.satker_code.clone(),
+        )
         .await?;
 
     Ok((

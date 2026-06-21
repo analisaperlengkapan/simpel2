@@ -41,4 +41,5 @@ pub mod policy;
 pub mod rate_limit;
 pub mod repo;
 pub mod resilience;
+pub mod satker_scope;
 pub mod search_db;

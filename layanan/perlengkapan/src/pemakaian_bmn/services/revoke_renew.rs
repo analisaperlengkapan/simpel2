@@ -50,6 +50,8 @@ impl PemakaianBmnService {
         request: RenewPermitRequest,
         user_id: Uuid,
         user_nama: String,
+        // Renewing operator's MySIMKARI satker_code (from JWT claims, #66).
+        satker_code: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
         let current = self.repository.get_by_id(id).await?;
 
@@ -125,7 +127,7 @@ impl PemakaianBmnService {
 
         let new_permit = self
             .repository
-            .create(create_request, user_id, user_nama)
+            .create(create_request, user_id, user_nama, satker_code)
             .await?;
 
         Ok(new_permit)

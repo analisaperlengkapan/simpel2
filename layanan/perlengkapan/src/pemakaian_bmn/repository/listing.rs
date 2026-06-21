@@ -4,9 +4,18 @@ use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
 
 impl PemakaianBmnRepository {
-    /// List permits with pagination and filters
+    /// List permits with pagination and filters.
+    ///
+    /// `scope` enforces tiered RBAC data visibility on the authoritative
+    /// `satker_code` column (#66): operator/validator_satker see their own
+    /// satker, validator_wilayah their wilayah, pusat/admin everything, and an
+    /// unidentified caller sees nothing (fail-closed).
     /// Requirements: REQ-P001, REQ-P011
-    pub async fn list(&self, query: ListPermitsQuery) -> AppResult<PaginatedPermitsResponse> {
+    pub async fn list(
+        &self,
+        query: ListPermitsQuery,
+        scope: &crate::shared::satker_scope::SatkerScope,
+    ) -> AppResult<PaginatedPermitsResponse> {
         let client = self.pool.client().await?;
 
         let page = query.page.unwrap_or(1).max(1);
@@ -14,8 +23,12 @@ impl PemakaianBmnRepository {
         let offset = (page - 1) * per_page;
 
         let mut where_clauses = vec![];
-        let mut param_count = 1;
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
+        // RBAC data-visibility predicate on the authoritative satker_code (#66).
+        if let Some(cond) = scope.push_condition("satker_code", &mut params) {
+            where_clauses.push(cond);
+        }
+        let mut param_count = params.len() + 1;
 
         if let Some(ref status) = query.status {
             where_clauses.push(format!("status = ${}", param_count));

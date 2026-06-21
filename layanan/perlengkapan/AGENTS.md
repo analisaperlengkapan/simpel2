@@ -219,6 +219,12 @@ flowchart TB
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &
   authenc migrate selesai (urutan bring-up). Penamaan: `satker_id`/`satker_nama`/
   `nama_barang`/`nama_pegawai` (bukan `ms_satker_id`/`nm_satker`/`nama` generik).
+- **Scoping list workflow (#66 part 2):** `izin_pemakaian_bmn` + `penghapusan_bmn` punya
+  kolom `satker_code` (MySIMKARI, V003) yang **di-derive dari claims saat create** (bukan
+  client `satker_id` UUID yg tak ber-FK). List endpoint memakai `shared::satker_scope::SatkerScope`
+  (sibling `bank_aset::AsetScope`, tier sama: operator=satker sendiri, validator_wilayah=wilayah
+  via `integrasi.mysimkari_satker.wilayah`, pusat/admin=semua, tanpa identitas=fail-closed).
+  Baris lama ber-`satker_code` NULL hanya terlihat role pusat/admin (default aman).
 - Use prepared statements for frequently executed queries
 - Implement proper transaction handling
 

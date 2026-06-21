@@ -46,8 +46,9 @@ impl PemakaianBmnService {
     pub async fn list_permits(
         &self,
         query: ListPermitsQuery,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<PaginatedPermitsResponse> {
-        self.repository.list(query).await
+        self.repository.list(query, scope).await
     }
 
     // ========================================================================

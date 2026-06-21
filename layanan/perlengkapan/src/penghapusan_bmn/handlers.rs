@@ -115,7 +115,10 @@ pub async fn create_penghapusan_bmn(
 ) -> Result<(StatusCode, Json<ApiResponse<PenghapusanBmn>>), AppError> {
     request.validate()?;
 
-    let penghapusan = service.create(request, claims.user_id).await?;
+    // Derive the authoritative satker from identity (#66), not from client input.
+    let penghapusan = service
+        .create(request, claims.user_id, claims.satker_code.clone())
+        .await?;
 
     Ok((
         StatusCode::CREATED,
@@ -183,8 +186,9 @@ pub struct ListPenghapusanQuery {
 pub async fn list_penghapusan_bmn(
     State(service): State<Arc<PenghapusanBmnService>>,
     Query(query): Query<ListPenghapusanQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<PenghapusanBmn>>, AppError> {
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let filters = PenghapusanBmnFilters {
         satker_id: query.satker_id,
         status: query.status,
@@ -196,7 +200,7 @@ pub async fn list_penghapusan_bmn(
     let page = query.page.unwrap_or(1);
     let per_page = query.per_page.unwrap_or(20);
 
-    let (penghapusan, total) = service.list(filters, page, per_page).await?;
+    let (penghapusan, total) = service.list(filters, page, per_page, &scope).await?;
 
     Ok(Json(PaginatedResponse::new(
         penghapusan,

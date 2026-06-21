@@ -12,6 +12,10 @@ impl PemakaianBmnRepository {
         request: CreateIzinPemakaianRequest,
         created_by: Uuid,
         created_by_nama: String,
+        // Authoritative MySIMKARI satker_code of the creating operator (from JWT
+        // claims, #66) — persisted for RBAC scoping; NOT the client-supplied
+        // pegawai_satker_id UUID.
+        satker_code: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
         let client = self.pool.client().await?;
 
@@ -27,7 +31,7 @@ impl PemakaianBmnRepository {
                 serial_number, spesifikasi,
                 tanggal_mulai, tanggal_selesai, keperluan, lokasi_pemakaian,
                 is_renewal, previous_permit_id, file_pendukung,
-                status, created_by, created_by_nama, created_at, updated_at
+                status, created_by, created_by_nama, satker_code, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6,
                 $7, $8, $9, $10, $11, $12,
@@ -36,7 +40,7 @@ impl PemakaianBmnRepository {
                 $21, $22,
                 $23, $24, $25, $26,
                 $27, $28, $29,
-                'DRAFT', $30, $31, NOW(), NOW()
+                'DRAFT', $30, $31, $32, NOW(), NOW()
             )
             RETURNING *
         "#;
@@ -76,6 +80,7 @@ impl PemakaianBmnRepository {
                     &request.file_pendukung,
                     &created_by,
                     &created_by_nama,
+                    &satker_code,
                 ],
             )
             .await
