@@ -3,6 +3,7 @@
 //! JWT token validation and user authentication using Authenc Service
 
 pub mod metrics;
+pub mod size_limit;
 
 use axum::{
     extract::{FromRef, FromRequestParts},

@@ -54,6 +54,9 @@ pub enum AppError {
 
     #[error("Workflow error: {0}")]
     WorkflowError(String),
+
+    #[error("Payload too large: {0}")]
+    PayloadTooLarge(String),
 }
 
 // Implement From for common error types
@@ -178,6 +181,15 @@ impl IntoResponse for AppError {
             AppError::WorkflowError(msg) => {
                 tracing::error!("Workflow error: {}", msg);
                 (StatusCode::BAD_REQUEST, "WORKFLOW_ERROR", msg.clone(), None)
+            }
+            AppError::PayloadTooLarge(msg) => {
+                tracing::warn!("Payload too large: {}", msg);
+                (
+                    StatusCode::PAYLOAD_TOO_LARGE,
+                    "PAYLOAD_TOO_LARGE",
+                    msg.clone(),
+                    None,
+                )
             }
         };
 

@@ -44,6 +44,9 @@ pub struct AppState {
     /// the health endpoints as `uptime_seconds`. Cheap to clone (`Instant`
     /// is `Copy`).
     pub boot_time: std::time::Instant,
+    /// Maximum request body size in bytes. Loaded from `MAX_REQUEST_SIZE_MB`
+    /// at startup.
+    pub max_request_size: usize,
     /// Optional gRPC client to `layanan-integrasi`. Holds the same
     /// `Arc`-shared circuit breakers as the clones injected into the
     /// pakaian-dinas & kebutuhan-bmn services, so the health endpoint can
@@ -152,5 +155,15 @@ impl FromRef<AppState> for Arc<dyn DocumentStorage> {
 impl FromRef<AppState> for Option<IntegrasiClient> {
     fn from_ref(state: &AppState) -> Self {
         state.integrasi_client.clone()
+    }
+}
+
+/// Helper for passing size limit to middleware without full AppState dependency.
+#[derive(Clone, Copy)]
+pub struct MaxRequestSize(pub usize);
+
+impl FromRef<AppState> for MaxRequestSize {
+    fn from_ref(state: &AppState) -> Self {
+        MaxRequestSize(state.max_request_size)
     }
 }
