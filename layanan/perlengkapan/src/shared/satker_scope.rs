@@ -169,7 +169,11 @@ mod tests {
     #[test]
     fn push_condition_all_is_none() {
         let mut p: Vec<BoxedParam> = Vec::new();
-        assert!(SatkerScope::All.push_condition("satker_code", &mut p).is_none());
+        assert!(
+            SatkerScope::All
+                .push_condition("satker_code", &mut p)
+                .is_none()
+        );
         assert_eq!(p.len(), 0);
     }
 
@@ -177,7 +181,9 @@ mod tests {
     fn push_condition_denied_is_false() {
         let mut p: Vec<BoxedParam> = Vec::new();
         assert_eq!(
-            SatkerScope::Denied.push_condition("satker_code", &mut p).as_deref(),
+            SatkerScope::Denied
+                .push_condition("satker_code", &mut p)
+                .as_deref(),
             Some("FALSE")
         );
         assert_eq!(p.len(), 0);
