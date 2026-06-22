@@ -282,6 +282,8 @@ pub async fn setup_test_app() -> (axum::Router, Database, String) {
         // #36: integrasi client utk circuit-breaker health — tidak dipakai di test.
         integrasi_client: None,
         boot_time: std::time::Instant::now(),
+        // #564: body size limit (prod loads from MAX_REQUEST_SIZE_MB); 10 MiB in tests.
+        max_request_size: 10 * 1024 * 1024,
     };
 
     let app = layanan_perlengkapan::routes::create_routes(state);
