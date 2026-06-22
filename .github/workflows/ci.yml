@@ -66,7 +66,7 @@ jobs:
       docker-matrix: ${{ steps.docker-matrix.outputs.matrix }}
       docker-has-images: ${{ steps.docker-matrix.outputs.has-images }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - id: changes
         uses: ./.github/actions/detect-changes
       - id: docker-matrix
@@ -121,7 +121,7 @@ jobs:
     name: Enforce Structure
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate repo structure
         shell: bash
         run: |
@@ -210,7 +210,7 @@ jobs:
     if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Validate Cargo versioning
         shell: bash
         run: python3 ./infra/scripts/check-cargo-versioning.py check
@@ -224,7 +224,7 @@ jobs:
     if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           components: rustfmt
@@ -286,7 +286,7 @@ jobs:
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
             scope: "--all-targets --all-features"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           components: clippy
@@ -312,7 +312,7 @@ jobs:
     if: needs.detect.outputs.monolith-php == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # shivammathur/setup-php@v2 butuh sudo NOPASSWD untuk install PHP +
       # extensions di self-hosted runner; tanpa itu prompt password dan
       # job hang ~2 jam. Pakai serversideup/php image yang bundle PHP
@@ -364,7 +364,7 @@ jobs:
     if: needs.detect.outputs.monolith-blade == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node
         with:
           working-directory: monolith/simpelv1
@@ -378,7 +378,7 @@ jobs:
     if: needs.detect.outputs.docker == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Hadolint
         uses: hadolint/hadolint-action@v3.3.0
         with:
@@ -392,7 +392,7 @@ jobs:
     if: needs.detect.outputs.yaml == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # Self-hosted runner tidak punya pipx / yamllint / actionlint pre-
       # installed, dan Python 3 di Ubuntu 24.04 sengaja tidak ship `pip`
       # (PEP 668 + externally-managed). Action `raven-actions/actionlint`
@@ -437,7 +437,7 @@ jobs:
     if: needs.detect.outputs.markdown == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: markdownlint
         uses: DavidAnson/markdownlint-cli2-action@v23
         with:
@@ -508,7 +508,7 @@ jobs:
     if: needs.detect.outputs.shell == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: shellcheck
         uses: ludeeus/action-shellcheck@2.0.0
         with:
@@ -521,7 +521,7 @@ jobs:
     if: needs.detect.outputs.toml == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Install taplo
         shell: bash
         run: |
@@ -544,7 +544,7 @@ jobs:
     if: needs.detect.outputs.sql == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: SQL migration anti-pattern guard
         shell: bash
         # BLOCKING (#63 — matured advisory→blocking, mirroring kube-linter
@@ -567,7 +567,7 @@ jobs:
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
@@ -597,7 +597,7 @@ jobs:
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
@@ -646,7 +646,7 @@ jobs:
             package: secreton-api
             extra_args: "--bin api_server --features raft-consensus"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-build-${{ matrix.name }}
@@ -667,7 +667,7 @@ jobs:
     if: needs.detect.outputs.monolith-assets == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node
         with:
           working-directory: monolith/simpelv1
@@ -688,7 +688,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect.outputs.docker-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/docker-build
         with:
           image: ${{ matrix.image }}
@@ -709,7 +709,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-lib-core
@@ -731,7 +731,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-lib-backend
@@ -753,7 +753,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-lib-crypto
@@ -775,7 +775,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-lib-perlengkapan
@@ -797,7 +797,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           # NOTE: Tidak ada `targets: wasm32-unknown-unknown` di sini.
@@ -836,7 +836,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
@@ -862,7 +862,7 @@ jobs:
     needs: detect
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
@@ -913,7 +913,7 @@ jobs:
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
             test_args: ""
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
         with:
           cache-key: ci-test-${{ matrix.tier }}
@@ -994,7 +994,7 @@ jobs:
     if: needs.detect.outputs.monolith-any == 'true'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # Sama seperti lint-php — pakai serversideup/php image (PHP 8.2 +
       # composer + Laravel extensions). Lebih stabil daripada setup-php
       # @v2 yang butuh sudo dan ngehang di self-hosted runner.
@@ -1083,7 +1083,7 @@ jobs:
       needs.build-backend.result == 'success'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node
         with:
           working-directory: antarmuka/portal/tests/e2e
@@ -1130,7 +1130,7 @@ jobs:
       needs.build-backend.result != 'failure'
     runs-on: arc-simpel
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # The custom ARC runner image ships the docker CLI (talks to the dind
       # sidecar) but NOT the `docker compose` v2 plugin — install it per-job into
       # the user's cli-plugins dir (no image rebuild). Pinned version.
