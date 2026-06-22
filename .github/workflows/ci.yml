@@ -454,6 +454,11 @@ jobs:
             !**/target/**
             !**/dist/**
             !monolith/simpelv1/storage/**
+            # Laravel public web-root = vendored 3rd-party JS-lib READMEs
+            # (gmaps, prismjs, moment, …), not authored docs — exclude like
+            # node_modules/vendor. Without this, any PR that touches a .md
+            # trips ~1800 lint errors in these shipped libraries.
+            !monolith/simpelv1/public/**
             !monolith/simpelv1/public/assets/libs/**
             !**/CHANGELOG.md
       - name: Lychee link check
