@@ -432,7 +432,9 @@ jobs:
   lint-markdown:
     name: Lint Markdown
     needs: detect
-    if: needs.detect.outputs.markdown == 'true'
+    # Also run when the workflow/globs change so glob/exclude edits self-validate
+    # (mirrors lint-sql). markdownlint lints the whole tree, not just the diff.
+    if: needs.detect.outputs.markdown == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v6
@@ -460,6 +462,10 @@ jobs:
             # trips ~1800 lint errors in these shipped libraries.
             !monolith/simpelv1/public/**
             !monolith/simpelv1/public/assets/libs/**
+            # .kiro/ = Kiro IDE spec artifacts (requirements/design/tasks), not
+            # authored prose, and in the do-not-hand-edit set (CLAUDE.md). Exclude
+            # from the style gate rather than reformat them.
+            !.kiro/**
             !**/CHANGELOG.md
       - name: Lychee link check
         uses: lycheeverse/lychee-action@v2
