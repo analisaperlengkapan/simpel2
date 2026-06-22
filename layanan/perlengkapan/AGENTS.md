@@ -211,10 +211,17 @@ flowchart TB
   mis. `batch_operation_log.user_id → authenc.users`). JANGAN duplikasi data master —
   fetch-at-read/baca cross-schema (SSoT). Sub-domain `dokumen`/`notifikasi`/`cache`
   dibuat oleh migrasi perlengkapan. Lihat `layanan/AGENTS.md` → Database Architecture.
-- **Scoping BMN per-satker (#43):** `bank_aset` saat ini mencocokkan satker via string
-  `nama_satker` (rapuh — MySIMKARI `kode_satker` ≠ SIMAN `kdsatker_keu`). Target: JOIN via
-  `integrasi.v_satker_code_map` (mapping kanonik, pemilik = integrasi), **bukan** name-match.
-  Migrasi konsumen ini menunggu mapping ter-verifikasi di staging (P2/F5-E).
+- **Scoping BMN per-satker (#43/#66):** `bank_aset` membaca `integrasi.siman_aset` (keyed
+  `kdsatker_keu`). RBAC data-visibility ditegakkan **server-side** via
+  `bank_aset::AsetScope` (`bank_aset/scope.rs`), diturunkan dari `Claims` di tiap handler dan
+  diteruskan ke SEMUA query repository. Tier: cross-satker role (`is_cross_satker_role`) =
+  `All` (tanpa filter); `validator_wilayah` = `Wilayah` (cocokkan `substring(kdsatker_keu,6,4)`);
+  operator/`validator_satker` = `Satker` (cocokkan `kdsatker_keu`); tanpa satker identity =
+  `Denied` (**fail-closed**, 0 baris). Pemetaan dari caller `kode_satker` (MySIMKARI) → SIMAN
+  `kdsatker_keu`/`wilayah_kode` lewat `integrasi.v_satker_code_map` (mapping kanonik, pemilik =
+  integrasi) — **bukan** name-match. Satker yg belum ter-mapping ⇒ fail-closed (butuh override
+  `verified` di staging, P2/F5-E). Enrichment read internal (pemakaian/penghapusan auto-fill)
+  sengaja pakai `AsetScope::All` — kepemilikan satker BMN dijaga oleh workflow, bukan lookup ini.
 - Migrasi `refinery embed_migrations!` (self-migrate saat boot, `main.rs`); baseline
   `V001__baseline.sql` + `V002__seed.sql`. Boot perlengkapan **setelah** integrasi &
   authenc migrate selesai (urutan bring-up). Penamaan: `satker_id`/`satker_nama`/

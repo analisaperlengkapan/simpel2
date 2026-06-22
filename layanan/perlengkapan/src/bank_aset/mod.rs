@@ -8,5 +8,7 @@
 pub mod handlers;
 pub mod models;
 pub mod repository;
+pub mod scope;
 
 pub use handlers::*;
+pub use scope::AsetScope;

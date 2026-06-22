@@ -73,7 +73,12 @@ impl PemakaianBmnService {
         // Lookup BMN info dari SIMAN cache via BankAsetRepository — reuse
         // helper yg sudah ada agar konsisten dgn `/bank-aset/lookup`.
         let bank_repo = crate::bank_aset::repository::BankAsetRepository::new(pool.clone());
-        let lookup = bank_repo.find_lookup_by_nup(bmn_nup).await?;
+        // Authoritative SIMAN enrichment read (BMN reference info) — unscoped on
+        // purpose; satker ownership of the BMN is enforced by the pemakaian
+        // workflow, not this lookup.
+        let lookup = bank_repo
+            .find_lookup_by_nup(bmn_nup, &crate::bank_aset::AsetScope::All)
+            .await?;
         let bmn_info = lookup.map(|l| BmnRefInfo {
             nup: l.nup.clone(),
             kode_barang: l.kode_barang,
