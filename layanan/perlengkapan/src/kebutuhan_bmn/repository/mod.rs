@@ -36,6 +36,9 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         page: i32,
         per_page: i32,
         filter: Option<PengajuanFilter>,
+        // Campaign-visibility scope (#66): restricts the list to RKBMN campaigns
+        // that target the caller's satker/wilayah; cross-satker roles see all.
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<KebutuhanBmnSummary>, i64)>;
 
     async fn update_pengajuan(

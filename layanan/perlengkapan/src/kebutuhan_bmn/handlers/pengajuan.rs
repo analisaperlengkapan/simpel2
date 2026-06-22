@@ -45,8 +45,9 @@ pub async fn create_pengajuan(
 pub async fn get_all_pengajuan(
     State(service): State<KebutuhanBmnService>,
     Query(params): Query<PengajuanQueryParams>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<KebutuhanBmnSummary>>, AppError> {
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let pagination = PaginationQuery {
         page: params.page,
         per_page: params.per_page,
@@ -69,7 +70,7 @@ pub async fn get_all_pengajuan(
     };
 
     let (data, total) = service
-        .get_all_pengajuan(params.page, params.per_page, filter)
+        .get_all_pengajuan(params.page, params.per_page, filter, &scope)
         .await?;
 
     Ok(Json(PaginatedResponse::new(

@@ -25,6 +25,7 @@ pub mod handlers;
 pub mod models;
 pub mod pdf_laporan;
 pub mod repository;
+pub mod scope;
 pub mod services;
 pub mod siman_integration;
 
