@@ -33,3 +33,22 @@ services:
         CAPTCHA_DEBUG: "1"
     ports:
       - "18088:8088" # REST API for e2e real-auth + captcha-debug
+
+  # One-shot multi-satker fixture loader (#33 / F5-C). Runs psql against the
+  # already-migrated dbsimpelv2 to seed integrasi (satkers/assets/mapping) +
+  # authenc (per-role users) so the Playwright suite can assert tiered RBAC
+  # data-scoping. `profiles: [seed]` keeps it OUT of `up`; invoke explicitly:
+  #   docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm \
+  #     e2e-seed -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+  #     < tests/fixtures/e2e/seed-multisatker.sql
+  # The SQL is piped via STDIN (not a bind mount) because CI runs under dind,
+  # where host bind-mounts resolve against the dind daemon, not the checkout.
+  e2e-seed:
+    image: postgres:15-alpine
+    profiles: ["seed"]
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?e2e-seed needs POSTGRES_PASSWORD}
+    entrypoint: ["psql"]
+    command: ["-h", "postgres", "-U", "postgres", "-d", "dbsimpelv2", "-c", "SELECT 1"]
+    networks:
+      - simpel-network
