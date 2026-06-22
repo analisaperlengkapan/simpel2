@@ -18,6 +18,14 @@
 
 BEGIN;
 
+-- Resolve unqualified names against the service schemas. authenc/integrasi
+-- objects live in their own schemas; triggers on authenc.users (e.g. the MFA
+-- stats maintainer referencing `mfa_statistics`) resolve unqualified relations
+-- via the session search_path, which defaults to `public` under a plain
+-- `psql -d dbsimpelv2` — without this the first authenc.users INSERT errors
+-- with `relation "mfa_statistics" does not exist`.
+SET search_path TO authenc, integrasi, public;
+
 -- ----------------------------------------------------------------------------
 -- 1. integrasi: satker master (MySIMKARI). Two wilayah: DKI JAKARTA (2 satkers)
 --    + JAWA BARAT (1). PUSAT entry backs the validator_pusat / existing seed user.
