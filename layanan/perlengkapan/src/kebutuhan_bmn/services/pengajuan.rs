@@ -65,9 +65,10 @@ impl KebutuhanBmnService {
         page: i32,
         per_page: i32,
         filter: Option<PengajuanFilter>,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<KebutuhanBmnSummary>, i64)> {
         self.repository
-            .get_all_pengajuan(page, per_page, filter)
+            .get_all_pengajuan(page, per_page, filter, scope)
             .await
     }
 

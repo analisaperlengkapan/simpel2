@@ -130,13 +130,21 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         page: i32,
         per_page: i32,
         filter: Option<PengajuanFilter>,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<KebutuhanBmnSummary>, i64)> {
         let client = self.get_client().await?;
         let offset = (page - 1) * per_page;
 
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
-        let mut param_idx = 1;
+        // Campaign-visibility predicate first (#66); its `$n` is resolved by
+        // pushing onto `params`, so `param_idx` is seeded from the count below.
+        if let Some(cond) =
+            crate::kebutuhan_bmn::scope::campaign_visibility_condition(scope, &mut params)
+        {
+            conditions.push(cond);
+        }
+        let mut param_idx = params.len() + 1;
 
         if let Some(ref f) = filter {
             if let Some(tahun) = f.tahun {
