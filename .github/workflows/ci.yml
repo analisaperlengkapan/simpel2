@@ -1193,6 +1193,17 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # Seed multi-satker fixtures (#33/F5-C) so the suite can assert tiered
+      # RBAC data-scoping. Piped via STDIN (not a bind mount) — CI runs under
+      # dind. ON_ERROR_STOP=1 fails this step if the fixture SQL errors.
+      - name: Seed e2e multi-satker fixtures
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
       # Build the smoke image (context shipped to dind — a bind-mount would
       # resolve against the dind daemon, not the runner checkout, so the tests
       # wouldn't be present), then run it on the compose network.
