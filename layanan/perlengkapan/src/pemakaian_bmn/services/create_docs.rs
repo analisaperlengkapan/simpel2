@@ -14,6 +14,9 @@ impl PemakaianBmnService {
         request: CreateIzinPemakaianRequest,
         user_id: Uuid,
         user_nama: String,
+        // Authoritative MySIMKARI satker_code of the creating operator (from JWT
+        // claims, #66), persisted for RBAC scoping.
+        satker_code: Option<String>,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
         request
@@ -55,7 +58,7 @@ impl PemakaianBmnService {
         // Create permit
         let mut permit = self
             .repository
-            .create(request.clone(), user_id, user_nama)
+            .create(request.clone(), user_id, user_nama, satker_code)
             .await?;
 
         // Create additional BMN items if any (multi-BMN support)

@@ -62,6 +62,9 @@ impl PenghapusanBmnService {
         &self,
         mut request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
+        // Authoritative MySIMKARI satker_code of the creating operator (from JWT
+        // claims, #66) — persisted for RBAC scoping; NOT the client satker_id.
+        satker_code: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         info!(
             "Creating Usulan SK Penghapusan BMN for asset: {}",
@@ -97,7 +100,9 @@ impl PenghapusanBmnService {
             }
         }
 
-        self.repository.create(request, created_by).await
+        self.repository
+            .create(request, created_by, satker_code)
+            .await
     }
 
     /// Get penghapusan BMN by ID
@@ -210,14 +215,17 @@ impl PenghapusanBmnService {
         Ok(verification)
     }
 
-    /// List penghapusan BMN with filters and pagination
+    /// List penghapusan BMN with filters and pagination.
+    ///
+    /// `scope` enforces tiered RBAC data visibility (#66).
     pub async fn list(
         &self,
         filters: PenghapusanBmnFilters,
         page: i32,
         per_page: i32,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<PenghapusanBmn>, i64)> {
-        self.repository.list(filters, page, per_page).await
+        self.repository.list(filters, page, per_page, scope).await
     }
 
     // ========================================================================

@@ -23,6 +23,9 @@ impl PenghapusanBmnRepository {
         &self,
         request: CreatePenghapusanBmnRequest,
         created_by: Uuid,
+        // Authoritative MySIMKARI satker_code of the creating operator, derived
+        // from JWT claims (#66) — NOT the client-supplied request.satker_id UUID.
+        satker_code: Option<String>,
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
@@ -44,13 +47,13 @@ impl PenghapusanBmnRepository {
                 status, status_kode, lampiran_persyaratan, lampiran_pendukung,
                 catatan_operator, is_completed,
                 kewenangan_penetap_sk, penetap_sk_jabatan,
-                created_by, created_at, updated_at
+                created_by, satker_code, created_at, updated_at
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 false,
                 $11, $12, $13, $14, $15, false,
                 $16, $17,
-                $18, NOW(), NOW()
+                $18, $19, NOW(), NOW()
             )
             RETURNING *
         "#;
@@ -81,6 +84,7 @@ impl PenghapusanBmnRepository {
                     &kewenangan,
                     &request.penetap_sk_jabatan,
                     &created_by,
+                    &satker_code,
                 ],
             )
             .await?;
@@ -229,18 +233,28 @@ impl PenghapusanBmnRepository {
         Ok(PenghapusanBmn::from_row(&row))
     }
 
-    /// List penghapusan BMN with filters and pagination
+    /// List penghapusan BMN with filters and pagination.
+    ///
+    /// `scope` enforces tiered RBAC data visibility on the authoritative
+    /// `satker_code` column (#66): operator/validator_satker see their own
+    /// satker, validator_wilayah their wilayah, pusat/admin everything, and an
+    /// unidentified caller sees nothing (fail-closed).
     pub async fn list(
         &self,
         filters: PenghapusanBmnFilters,
         page: i32,
         per_page: i32,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<PenghapusanBmn>, i64)> {
         let client = self.pool.get().await?;
 
         let mut where_clauses = vec!["1=1".to_string()];
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
-        let mut param_count = 1;
+        // RBAC data-visibility predicate on the authoritative satker_code (#66).
+        if let Some(cond) = scope.push_condition("satker_code", &mut params) {
+            where_clauses.push(cond);
+        }
+        let mut param_count = params.len() + 1;
 
         if let Some(ref satker_id) = filters.satker_id {
             where_clauses.push(format!("satker_id = ${}", param_count));
