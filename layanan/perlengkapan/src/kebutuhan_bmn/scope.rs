@@ -95,9 +95,8 @@ mod tests {
     #[test]
     fn satker_targets_semua_wilayah_and_children() {
         let mut p: Vec<BoxedParam> = Vec::new();
-        let cond =
-            campaign_visibility_condition(&SatkerScope::Satker("02.28".to_string()), &mut p)
-                .unwrap();
+        let cond = campaign_visibility_condition(&SatkerScope::Satker("02.28".to_string()), &mut p)
+            .unwrap();
         assert!(cond.contains("scope_satker = 'semua'"));
         assert!(cond.contains("p.scope_satker = 'wilayah'"));
         assert!(cond.contains("pengajuan_kebutuhan_bmn_satker ps"));
