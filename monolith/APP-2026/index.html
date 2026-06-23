@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>APP Kejati 2026</title>
+  <link rel="icon" type="image/x-icon" href="/APP-2026/favicon.ico">
+  <style>
+    /* Reset & Base */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #eaeaea;
+      transition: background-color .4s ease, color .4s ease;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      background-color: #0f0f0f;
+      background-image: 
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-attachment: fixed;
+    }
+
+    /* Light Mode */
+    body.light-mode {
+      background-color: #d3d9dc;
+      background-image: 
+        linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+      color: #222;
+    }
+    body.light-mode header h1 { color: #111; }
+    body.light-mode header p { color: #444; }
+    body.light-mode .btn {
+      background: #e0e3e5; 
+      color: #222;
+      border: 1px solid #bbb;
+    }
+    body.light-mode .btn:hover {
+      background: #cfd3d6;
+      color: #000;
+      border-color: #999;
+    }
+
+    body.light-mode .btn1 {
+      background: #aed1e8; 
+      color: #222;
+      border: 1px solid #bbb;
+    }
+    body.light-mode .btn1:hover {
+      background: #cfd3d6;
+      color: #000;
+      border-color: #999;
+    }
+
+
+    body.light-mode footer { background: #c3c8cb; color: #333; }
+
+    /* Layout */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 60px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      gap: 24px;
+    }
+    header { text-align: center; }
+
+    /* Foto profil */
+    #profile-pic {
+      position: relative;
+      width: 154px;
+      height: 154px;
+      object-fit: cover;
+      border-radius: 50%;
+      margin-bottom: 20px;
+      border: 3px solid #2a2a2a;
+      transition: width .4s ease, height .4s ease, transform .4s ease,
+                  box-shadow .4s ease, border-color .4s ease, bottom .4s ease, right .4s ease;
+    }
+    #profile-pic.floating {
+      position: fixed;
+      width: 72px;
+      height: 72px;
+      bottom: 20px;
+      right: 20px;
+      margin: 0;
+      border: 2px solid #3a3a3a;
+      z-index: 999;
+      box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    header p {
+      font-size: 1.1rem;
+      max-width: 610px;
+      margin: 0 auto;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    /* Tombol */
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+      max-width: 600px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px clamp(24px, 10vw, 120px);
+      text-align: center;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 400;
+      background: #1a1a1a;
+      color: #9e9e9e;
+      border: 1px solid #2a2a2a;
+      border-radius: 50px;
+      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
+    }
+    .btn:hover {
+      background: #2a2a2a;
+      transform: translateY(-2px);
+      color: #eaeaea;
+      border-color: #3a3a3a;
+    }
+
+    .btn1 {
+      display: block;
+      width: 100%;
+      padding: 18px clamp(24px, 10vw, 120px);
+      text-align: center;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 400;
+      background: #012224;
+      color: #9e9e9e;
+      border: 1px solid #2a2a2a;
+      border-radius: 50px;
+      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
+    }
+    .btn1:hover {
+      background: #2a2a2a;
+      transform: translateY(-2px);
+      color: #eaeaea;
+      border-color: #3a3a3a;
+    }
+
+    footer {
+      background: #111;
+      color: #777;
+      text-align: center;
+      padding: 20px;
+      font-size: .9rem;
+    }
+
+    /* Dark/Light toggle button */
+    #toggle-mode {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: #1a1a1a;
+      color: #fff;
+      border: 1px solid #333;
+      padding: 10px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background .3s, color .3s;
+    }
+    #toggle-mode:hover {
+      background: #333;
+    }
+    body.light-mode #toggle-mode {
+      background: #e0e3e5;
+      color: #222;
+      border: 1px solid #aaa;
+    }
+    body.light-mode #toggle-mode:hover {
+      background: #cfd3d6;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #profile-pic, .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <button id="toggle-mode">🌙</button>
+
+  <main>
+    <header id="site-header">
+      <img src="/APP-2026/anbut.jpg" alt="Foto Profil Kejati" id="profile-pic" />
+      <h1>PERMINTAAN APP 2026</h1>
+      <p>Permintaan Data Pegawai Untuk Rencana Pengadaan Alat Perlengkapan Personil (APP) Tahun 2026 berupa PDH dan PDL</p>
+    </header>
+
+    <section>
+      <div class="btn-group">
+        <a href="https://drive.google.com/drive/u/1/folders/1wHN9CK7hgQOffMfKGV2E1OGTweJ71V5N" class="btn1">Size Chart PDL</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=848198304#gid=848198304" class="btn">01 Aceh</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=361289247#gid=361289247" class="btn">02 Sumatera Utara</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1009820739#gid=1009820739" class="btn">03 Sumatera Barat</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=332470053#gid=332470053" class="btn">04 Riau</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=751007337#gid=751007337" class="btn">05 Kepulauan Riau</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1578326693#gid=1578326693" class="btn">06 Jambi</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1134108482#gid=1134108482" class="btn">07 Sumatera Selatan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=445456741#gid=445456741" class="btn">08 Kep. Bangka Belitung</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=2038214563#gid=2038214563" class="btn">09 Bengkulu</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1386166277#gid=1386166277" class="btn">10 Lampung</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=51049243#gid=51049243" class="btn">11 DKI Jakarta</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=169930044#gid=169930044" class="btn">12 Jawa Barat</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1878323572#gid=1878323572" class="btn">13 Banten</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=2100671824#gid=2100671824" class="btn">14 Jawa Tengah</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=24411432#gid=24411432" class="btn">15 DI Yogyakarta</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1348432300#gid=1348432300" class="btn">16 Jawa Timur</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=708771298#gid=708771298" class="btn">17 Kalimantan Barat</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1747495027#gid=1747495027" class="btn">18 Kalimantan Tengah</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1159008281#gid=1159008281" class="btn">19 Kalimantan Selatan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=549570664#gid=549570664" class="btn">20 Kalimantan Timur</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=580348782#gid=580348782" class="btn">21 Kalimantan Utara</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=566006079#gid=566006079" class="btn">22 Sulawesi Utara</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1943265068#gid=1943265068" class="btn">23 Gorontalo</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=657922229#gid=657922229" class="btn">24 Sulawesi Tengah</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=473427806#gid=473427806" class="btn">25 Sulawesi Tenggara</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=1711110516#gid=1711110516" class="btn">26 Sulawesi Selatan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=566183465#gid=566183465" class="btn">27 Sulawesi Barat</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=68461655#gid=68461655" class="btn">28 Bali</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=253619081#gid=253619081" class="btn">29 NTB</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=927213295#gid=927213295" class="btn">30 NTT</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=230187772#gid=230187772" class="btn">31 Maluku Utara</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=538630243#gid=538630243" class="btn">32 Papua</a>
+        <a href="https://docs.google.com/spreadsheets/d/1rqiyp0lhL1gtgW3knkfQFJaeahWYGUGPPOYcK9Is6gs/edit?gid=2068326865#gid=2068326865" class="btn">33 Papua Barat</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+      <p>© 2026 ANALISIS KEBUTUHAN - BIRO PERLENGKAPAN</p>
+
+  </footer>
+
+  <script>
+    // Floating profile pic
+    (function() {
+      const header = document.getElementById('site-header');
+      const pic = document.getElementById('profile-pic');
+      if (!('IntersectionObserver' in window)) {
+        window.addEventListener('scroll', () => {
+          const trigger = 100;
+          if (window.scrollY > trigger) pic.classList.add('floating');
+          else pic.classList.remove('floating');
+        });
+        return;
+      }
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) pic.classList.remove('floating');
+            else pic.classList.add('floating');
+          });
+        },
+        { threshold: 0 }
+      );
+      io.observe(header);
+    })();
+
+    // Dark/Light toggle
+    const toggleBtn = document.getElementById("toggle-mode");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-mode");
+      toggleBtn.textContent = document.body.classList.contains("light-mode") ? "☀️" : "🌙";
+    });
+  </script>
+</body>
+
+
+
+<!-- sastrous©2026 -->
+</html>

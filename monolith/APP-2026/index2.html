@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>APP Kejagung 2026</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <style>
+    /* Reset & Base */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      color: #eaeaea;
+      transition: background-color .4s ease, color .4s ease;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      background-color: #0f0f0f;
+      background-image: 
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-attachment: fixed;
+    }
+
+    /* Light Mode */
+    body.light-mode {
+      background-color: #d3d9dc;
+      background-image: 
+        linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+      color: #222;
+    }
+    body.light-mode header h1 { color: #111; }
+    body.light-mode header p { color: #444; }
+    body.light-mode .btn {
+      background: #e0e3e5; 
+      color: #222;
+      border: 1px solid #bbb;
+    }
+    body.light-mode .btn:hover {
+      background: #cfd3d6;
+      color: #000;
+      border-color: #999;
+    }
+
+    body.light-mode .btn1 {
+      background: #aed1e8; 
+      color: #222;
+      border: 1px solid #bbb;
+    }
+    body.light-mode .btn1:hover {
+      background: #cfd3d6;
+      color: #000;
+      border-color: #999;
+    }
+
+
+    body.light-mode footer { background: #c3c8cb; color: #333; }
+    body.light-mode .section-label {
+      color: #555;
+      border-top-color: #bbb;
+      border-bottom-color: #bbb;
+    }
+
+    /* Layout */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 60px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      gap: 24px;
+    }
+    header { text-align: center; }
+
+    /* Foto profil */
+    #profile-pic {
+      position: relative;
+      width: 154px;
+      height: 154px;
+      object-fit: cover;
+      border-radius: 50%;
+      margin-bottom: 20px;
+      border: 3px solid #2a2a2a;
+      transition: width .4s ease, height .4s ease, transform .4s ease,
+                  box-shadow .4s ease, border-color .4s ease, bottom .4s ease, right .4s ease;
+    }
+    #profile-pic.floating {
+      position: fixed;
+      width: 72px;
+      height: 72px;
+      bottom: 20px;
+      right: 20px;
+      margin: 0;
+      border: 2px solid #3a3a3a;
+      z-index: 999;
+      box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    header p {
+      font-size: 1.1rem;
+      max-width: 610px;
+      margin: 0 auto;
+      color: #aaa;
+      line-height: 1.6;
+    }
+
+    /* Tombol */
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+      max-width: 600px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px clamp(24px, 10vw, 120px);
+      text-align: center;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 400;
+      background: #1a1a1a;
+      color: #9e9e9e;
+      border: 1px solid #2a2a2a;
+      border-radius: 50px;
+      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
+    }
+    .btn:hover {
+      background: #2a2a2a;
+      transform: translateY(-2px);
+      color: #eaeaea;
+      border-color: #3a3a3a;
+    }
+
+    .btn1 {
+      display: block;
+      width: 100%;
+      padding: 18px clamp(24px, 10vw, 120px);
+      text-align: center;
+      text-decoration: none;
+      font-size: 1rem;
+      font-weight: 400;
+      background: #012224;
+      color: #9e9e9e;
+      border: 1px solid #2a2a2a;
+      border-radius: 50px;
+      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
+    }
+    .btn1:hover {
+      background: #2a2a2a;
+      transform: translateY(-2px);
+      color: #eaeaea;
+      border-color: #3a3a3a;
+    }
+
+
+
+
+    /* Section label pemisah */
+    .section-label {
+      width: 100%;
+      text-align: center;
+      font-size: rem;
+      font-weight: bold;
+      color: #9e9e9e;
+      border-top: 1px solid #2a2a2a;
+      padding-top: 10px;
+      margin-top: 2px;
+
+      border-bottom: 1px solid #2a2a2a;
+      padding-bottom: 10px;
+      margin-bottom: 2px;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      letter-spacing: 0.01em;
+    }
+
+    footer {
+      background: #111;
+      color: #777;
+      text-align: center;
+      padding: 20px;
+      font-size: .9rem;
+    }
+
+    /* Dark/Light toggle button */
+    #toggle-mode {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: #1a1a1a;
+      color: #fff;
+      border: 1px solid #333;
+      padding: 10px 16px;
+      border-radius: 30px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background .3s, color .3s;
+    }
+    #toggle-mode:hover {
+      background: #333;
+    }
+    body.light-mode #toggle-mode {
+      background: #e0e3e5;
+      color: #222;
+      border: 1px solid #aaa;
+    }
+    body.light-mode #toggle-mode:hover {
+      background: #cfd3d6;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #profile-pic, .btn { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <button id="toggle-mode">🌙</button>
+
+  <main>
+    <header id="site-header">
+      <img src="anbut.jpg" alt="Foto Profil Kejati" id="profile-pic" />
+      <h1>APP KEJAKSAAN AGUNG 2026</h1>
+      <p>Permintaan Data Pegawai Untuk Rencana Pengadaan Alat Perlengkapan Personil (APP) Tahun 2026 berupa PDH dan PDL</p>
+    </header>
+
+    <section>
+      <div class="btn-group">
+        <a href="https://drive.google.com/drive/u/1/folders/1wHN9CK7hgQOffMfKGV2E1OGTweJ71V5N" class="btn1">Size Chart PDL</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=400589586#gid=400589586" class="btn">JAM Intelijen</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1161002865#gid=1161002865" class="btn">JAM Tindak Pidana Umum</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2050242348#gid=2050242348" class="btn">JAM Tindak Pidana Khusus</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=165367569#gid=165367569" class="btn">JAM Perdata dan TUN</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=207467212#gid=207467212" class="btn">JAM Pengawasan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1751322935#gid=1751322935" class="btn">JAM Tindak Pidana Militer</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1743411883#gid=1743411883" class="btn">Badan Diklat Kejaksaan RI</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2014668427#gid=2014668427" class="btn">Badan Pemulihan Aset</a>
+
+        <span class="section-label">JAM Pembinaan</span>
+
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1180561800#gid=1180561800" class="btn">Ses JAM Pembinaan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=496744290#gid=496744290" class="btn">Biro Perencanaan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=294566795#gid=294566795" class="btn">Biro Umum</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1443696580#gid=1443696580" class="btn">Biro Kepegawaian</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1438950296#gid=1438950296" class="btn">Biro Keuangan</a>   
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=695727064#gid=695727064" class="btn">Biro Perlengkapan</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1671546681#gid=1671546681" class="btn">Biro Hukum dan Hub Luar Negeri</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=853492143#gid=853492143" class="btn">Pusat Strategi Kebijakan Penegakan Hukum</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1140295424#gid=1140295424" class="btn">Pusat Daskrimti</a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=733875083#gid=733875083" class="btn">Pusat Kesehatan Yustisial</a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=895756626#gid=895756626" class="btn">Pegawai Dikaryakan</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2026 ANALISIS KEBUTUHAN - BIRO PERLENGKAPAN</p>
+  </footer>
+
+  <script>
+    // Floating profile pic
+    (function() {
+      const header = document.getElementById('site-header');
+      const pic = document.getElementById('profile-pic');
+      if (!('IntersectionObserver' in window)) {
+        window.addEventListener('scroll', () => {
+          const trigger = 100;
+          if (window.scrollY > trigger) pic.classList.add('floating');
+          else pic.classList.remove('floating');
+        });
+        return;
+      }
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) pic.classList.remove('floating');
+            else pic.classList.add('floating');
+          });
+        },
+        { threshold: 0 }
+      );
+      io.observe(header);
+    })();
+
+    // Dark/Light toggle
+    const toggleBtn = document.getElementById("toggle-mode");
+    toggleBtn.addEventListener("click", () => {
+      document.body.classList.toggle("light-mode");
+      toggleBtn.textContent = document.body.classList.contains("light-mode") ? "☀️" : "🌙";
+    });
+  </script>
+</body>
+
+<!-- sastrous©2026 -->
+</html>

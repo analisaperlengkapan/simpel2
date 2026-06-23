@@ -13,6 +13,7 @@ Pemisahan ini berfungsi untuk memastikan *engineer* dan *build tools* lingkungan
 Saat ini, proyek monolitik utama yang aktif berada di:
 
 - 🐘 `monolith/simpelv1/`: Versi pertama dari sistem web SIMPEL (dibangun menggunakan framework PHP Laravel).
+- 🌐 `monolith/APP-2026/`: Halaman statis permintaan data pegawai untuk rencana pengadaan Alat Perlengkapan Personil (APP) Tahun 2026. Dibangun dengan HTML/CSS/JS murni, di-serve via Nginx, dan diakses di path `/APP-2026` pada domain produksi.
 
 Untuk regulasi implementasi teknis spesifik pada proyek-proyek di dalam sub-folder ini, Anda **DIWAJIBKAN** membaca file `AGENTS.md` yang berada tepat di dalam tiap proyek (contoh: `monolith/simpelv1/AGENTS.md`).
 
