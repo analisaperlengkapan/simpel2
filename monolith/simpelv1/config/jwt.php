@@ -1,9 +1,5 @@
 <?php
 
-use Tymon\JWTAuth\Providers\Auth\Illuminate;
-use Tymon\JWTAuth\Providers\JWT\Lcobucci;
-use Tymon\JWTAuth\Providers\JWT\Provider;
-
 /*
  * This file is part of jwt-auth.
  *
@@ -135,7 +131,7 @@ return [
     |
     */
 
-    'algo' => env('JWT_ALGO', Provider::ALGO_HS256),
+    'algo' => env('JWT_ALGO', Tymon\JWTAuth\Providers\JWT\Provider::ALGO_HS256),
 
     /*
     |--------------------------------------------------------------------------
@@ -276,7 +272,7 @@ return [
         |
         */
 
-        'jwt' => Lcobucci::class,
+        'jwt' => Tymon\JWTAuth\Providers\JWT\Lcobucci::class,
 
         /*
         |--------------------------------------------------------------------------
@@ -287,7 +283,7 @@ return [
         |
         */
 
-        'auth' => Illuminate::class,
+        'auth' => Tymon\JWTAuth\Providers\Auth\Illuminate::class,
 
         /*
         |--------------------------------------------------------------------------

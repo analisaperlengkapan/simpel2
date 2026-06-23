@@ -76,7 +76,7 @@ Route::middleware(['auth:api', 'token2session'])->group(function () {
     Route::get('/pengguna/gridData', [PenggunaController::class, 'gridData']);
     Route::get('/pengguna/aktifitas', [AktifitasController::class, 'gridData']);
     Route::post('pengguna/review', [ReviewController::class, 'store']);
-    Route::post('pengguna/change-pp', [ProfilController::class, 'changePP']);
+    route::post('pengguna/change-pp', [ProfilController::class, 'changePP']);
 
     Route::get('/analisis-kebutuhan/pakaian-dinas/pengajuan/gridDataSatker', [PengajuanController::class, 'gridDataSatker']);
     Route::get('/analisis-kebutuhan/pakaian-dinas/pengajuan', [PengajuanController::class, 'gridData']);

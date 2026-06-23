@@ -1,6 +1,5 @@
 <?php
 
-use Maatwebsite\Excel\DefaultValueBinder;
 use Maatwebsite\Excel\Excel;
 
 return [
@@ -209,7 +208,7 @@ return [
     |
     */
     'value_binder' => [
-        'default' => DefaultValueBinder::class,
+        'default' => Maatwebsite\Excel\DefaultValueBinder::class,
     ],
 
     'cache' => [

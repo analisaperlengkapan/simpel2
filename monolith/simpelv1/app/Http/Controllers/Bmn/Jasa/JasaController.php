@@ -58,7 +58,7 @@ class JasaController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Jasa;
+        $model = new jasa;
         $pagingParams = $request->only(['start', 'length']);
         // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
@@ -79,7 +79,7 @@ class JasaController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = Jasa::where('id', $id)->first();
+            $model = jasa::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -178,7 +178,7 @@ class JasaController extends Controller
                 $data['status'] = 'On Proses';
             }
 
-            Jasa::updateOrCreate(['id' => $id], $data);
+            jasa::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
 
@@ -215,7 +215,7 @@ class JasaController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Jasa $hakcipta)
+    public function update(Request $request, jasa $hakcipta)
     {
         //
     }
@@ -227,7 +227,7 @@ class JasaController extends Controller
     {
         try {
             DB::beginTransaction();
-            Jasa::destroy($id);
+            jasa::destroy($id);
             DB::commit();
 
             return $this->resSuccess('Berhasil Dihapus!');

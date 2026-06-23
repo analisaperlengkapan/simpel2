@@ -48,7 +48,7 @@ class PerawatanController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Perawatan;
+        $model = new perawatan;
         $pagingParams = $request->only(['start', 'length']);
         // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
@@ -69,7 +69,7 @@ class PerawatanController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = Perawatan::where('id', $id)->first();
+            $model = perawatan::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -168,7 +168,7 @@ class PerawatanController extends Controller
                 $data['status'] = 'On Proses';
             }
 
-            Perawatan::updateOrCreate(['id' => $id], $data);
+            perawatan::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
 
@@ -205,7 +205,7 @@ class PerawatanController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Perawatan $hakcipta)
+    public function update(Request $request, perawatan $hakcipta)
     {
         //
     }
@@ -217,7 +217,7 @@ class PerawatanController extends Controller
     {
         try {
             DB::beginTransaction();
-            Perawatan::destroy($id);
+            perawatan::destroy($id);
             DB::commit();
 
             return $this->resSuccess('Berhasil Dihapus!');

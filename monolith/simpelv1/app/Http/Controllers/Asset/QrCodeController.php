@@ -8,7 +8,6 @@ use App\Models\Asset\QrCode;
 use App\Models\Files;
 use App\Models\Master;
 use App\Models\Master\MsJenisAset;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
@@ -103,7 +102,7 @@ class QrCodeController extends Controller
             // $dataqr = $request['id_jenis_asset'] . '*' . $row->kdsatker_keu . "*" . $row->kode_barang . "*" . $row->nup;
             $dataqr = $row->kdsatker_keu.'*'.$row->kode_barang.'*'.$row->nup;
             $dateString = $row->tgl_perolehan;
-            $date = Carbon::parse($dateString);
+            $date = \Carbon\Carbon::parse($dateString);
             $year = $date->year;
             $jmlKata = str_word_count($row->deskripsi);
             $qrCodeImage = MyHelper::generateQrCode($dataqr);
