@@ -23,7 +23,7 @@ class BantuanController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new bantuan;
+        $model = new Bantuan;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['search', 'filterBy']);
         $data = $model->getDataGrid($pagingParams, $searchParams);
@@ -42,7 +42,7 @@ class BantuanController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = bantuan::where('id', $id)->first();
+            $model = Bantuan::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -105,7 +105,7 @@ class BantuanController extends Controller
                 $data['file_panduan'] = $filesave;
             }
 
-            bantuan::updateOrCreate(['id' => $id], $data);
+            Bantuan::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
 
@@ -142,7 +142,7 @@ class BantuanController extends Controller
     {
         try {
             DB::beginTransaction();
-            bantuan::destroy($id);
+            Bantuan::destroy($id);
             DB::commit();
 
             return $this->resSuccess('Berhasil Dihapus!');
