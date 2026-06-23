@@ -3,307 +3,606 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>APP Kejagung 2026</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <title>APP Kejagung 2026 - Biro Perlengkapan Kejaksaan RI</title>
+  <meta name="description" content="Portal Permintaan Data Pegawai untuk Rencana Pengadaan Alat Perlengkapan Personil (APP) Kejaksaan Agung RI Tahun 2026." />
+  <link rel="icon" type="image/x-icon" href="/APP-2026/favicon.ico?v=2" sizes="48x48 32x32 16x16">
+  <link rel="shortcut icon" href="/APP-2026/favicon.ico?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    /* Reset & Base */
+    /* Reset & CSS Variables */
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    :root {
+      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      
+      /* Dark mode colors (default) - Yellow/Gold Theme */
+      --bg-color: #060913;
+      --bg-gradient: radial-gradient(circle at top, #181c2b 0%, #060913 100%);
+      --card-bg: rgba(17, 24, 39, 0.45);
+      --card-border: rgba(255, 255, 255, 0.05);
+      --card-hover-bg: rgba(245, 158, 11, 0.05);
+      --card-hover-border: rgba(245, 158, 11, 0.45);
+      
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --text-muted: #6b7280;
+      
+      --accent-gold: #fbbf24;
+      --accent-gold-dark: #d97706;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-accent: 0 0 25px rgba(245, 158, 11, 0.12);
+      
+      --glass-blur: blur(12px);
+      --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.light-mode {
+      /* Light mode colors - Amber/Yellow Theme */
+      --bg-gradient: radial-gradient(circle at top, #fffbeb 0%, #f3f4f6 100%);
+      --bg-color: #f3f4f6;
+      --card-bg: rgba(255, 255, 255, 0.75);
+      --card-border: rgba(0, 0, 0, 0.06);
+      --card-hover-bg: rgba(245, 158, 11, 0.04);
+      --card-hover-border: rgba(217, 119, 6, 0.6);
+      
+      --text-primary: #111827;
+      --text-secondary: #4b5563;
+      --text-muted: #9ca3af;
+      
+      --accent-gold: #d97706;
+      --accent-gold-dark: #b45309;
+      
+      --shadow-accent: 0 0 25px rgba(217, 119, 6, 0.08);
+    }
+
+    /* Layout & Base Styles */
     html, body {
       height: 100%;
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      color: #eaeaea;
-      transition: background-color .4s ease, color .4s ease;
+      font-family: var(--font-family);
+      -webkit-font-smoothing: antialiased;
     }
+
     body {
+      background-color: var(--bg-color);
+      background-image: var(--bg-gradient);
+      color: var(--text-primary);
       display: flex;
       flex-direction: column;
-      background-color: #0f0f0f;
-      background-image: 
-        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(255,255,255,0.04) 1px, transparent 1px);
-      background-size: 40px 40px;
+      min-height: 100vh;
+      overflow-x: hidden;
       background-attachment: fixed;
+      transition: background-color var(--transition-normal), color var(--transition-normal);
     }
 
-    /* Light Mode */
-    body.light-mode {
-      background-color: #d3d9dc;
+    /* Subtle background grid pattern overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
       background-image: 
-        linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px),
-        linear-gradient(180deg, rgba(0,0,0,0.05) 1px, transparent 1px);
-      color: #222;
-    }
-    body.light-mode header h1 { color: #111; }
-    body.light-mode header p { color: #444; }
-    body.light-mode .btn {
-      background: #e0e3e5; 
-      color: #222;
-      border: 1px solid #bbb;
-    }
-    body.light-mode .btn:hover {
-      background: #cfd3d6;
-      color: #000;
-      border-color: #999;
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 30px 30px;
+      pointer-events: none;
+      z-index: 1;
     }
 
-    body.light-mode .btn1 {
-      background: #aed1e8; 
-      color: #222;
-      border: 1px solid #bbb;
-    }
-    body.light-mode .btn1:hover {
-      background: #cfd3d6;
-      color: #000;
-      border-color: #999;
+    body.light-mode::before {
+      background-image: 
+        linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(0,0,0,0.02) 1px, transparent 1px);
     }
 
-
-    body.light-mode footer { background: #c3c8cb; color: #333; }
-    body.light-mode .section-label {
-      color: #555;
-      border-top-color: #bbb;
-      border-bottom-color: #bbb;
+    /* Floating toggle button */
+    #toggle-mode {
+      position: fixed;
+      top: 1.5rem;
+      right: 1.5rem;
+      z-index: 1000;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-primary);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      backdrop-filter: var(--glass-blur);
+      transition: all var(--transition-fast);
+    }
+    #toggle-mode:hover {
+      transform: scale(1.05);
+      border-color: var(--accent-gold);
+      box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
     }
 
-    /* Layout */
     main {
       flex: 1;
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem;
+      position: relative;
+      z-index: 2;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      padding: 60px 20px;
-      max-width: 900px;
-      margin: 0 auto;
-      gap: 24px;
+      gap: 2rem;
     }
-    header { text-align: center; }
 
-    /* Foto profil */
+    /* Header styling */
+    header {
+      text-align: center;
+      max-width: 720px;
+    }
+
+    .profile-container {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 1.5rem;
+    }
+
+    .profile-ring {
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-gold) 0%, #f59e0b 50%, #b45309 100%);
+      padding: 3px;
+      animation: spin-glow 12s linear infinite;
+    }
+
     #profile-pic {
       position: relative;
-      width: 154px;
-      height: 154px;
+      width: 130px;
+      height: 130px;
       object-fit: cover;
       border-radius: 50%;
-      margin-bottom: 20px;
-      border: 3px solid #2a2a2a;
-      transition: width .4s ease, height .4s ease, transform .4s ease,
-                  box-shadow .4s ease, border-color .4s ease, bottom .4s ease, right .4s ease;
-    }
-    #profile-pic.floating {
-      position: fixed;
-      width: 72px;
-      height: 72px;
-      bottom: 20px;
-      right: 20px;
-      margin: 0;
-      border: 2px solid #3a3a3a;
-      z-index: 999;
-      box-shadow: 0 6px 18px rgba(0,0,0,.45);
+      display: block;
+      border: 4px solid var(--bg-color);
+      transition: border-color var(--transition-normal);
     }
 
     header h1 {
       font-size: 2.2rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #fff;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-gold) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.75rem;
     }
+
     header p {
-      font-size: 1.1rem;
-      max-width: 610px;
-      margin: 0 auto;
-      color: #aaa;
+      font-size: 1.05rem;
+      color: var(--text-secondary);
       line-height: 1.6;
+      font-weight: 400;
     }
 
-    /* Tombol */
-    .btn-group {
+    /* Size Chart Hero Card */
+    .size-chart-hero {
+      width: 100%;
+      max-width: 680px;
+      background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(15, 23, 42, 0.3) 100%);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 20px;
+      padding: 1.5rem 2rem;
       display: flex;
-      flex-direction: column;
-      gap: 18px;
-      width: 100%;
-      max-width: 600px;
-    }
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 18px clamp(24px, 10vw, 120px);
-      text-align: center;
+      align-items: center;
+      gap: 1.5rem;
       text-decoration: none;
-      font-size: 1rem;
-      font-weight: 400;
-      background: #1a1a1a;
-      color: #9e9e9e;
-      border: 1px solid #2a2a2a;
-      border-radius: 50px;
-      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
+      color: inherit;
+      box-shadow: var(--shadow-md), var(--shadow-accent);
+      transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+      backdrop-filter: var(--glass-blur);
+      margin-bottom: 1rem;
     }
-    .btn:hover {
-      background: #2a2a2a;
-      transform: translateY(-2px);
-      color: #eaeaea;
-      border-color: #3a3a3a;
+    
+    body.light-mode .size-chart-hero {
+      background: linear-gradient(135deg, rgba(254, 243, 199, 0.8) 0%, rgba(255, 255, 255, 0.9) 100%);
+      border-color: rgba(217, 119, 6, 0.3);
     }
 
-    .btn1 {
-      display: block;
+    .size-chart-hero:hover {
+      transform: translateY(-3px);
+      border-color: var(--accent-gold);
+      box-shadow: var(--shadow-lg), 0 0 25px rgba(245, 158, 11, 0.35);
+    }
+
+    .hero-icon-container {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--accent-gold);
+    }
+
+    .hero-text-container {
+      flex: 1;
+    }
+
+    .hero-tag {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--accent-gold);
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .hero-arrow {
+      color: var(--accent-gold);
+      transition: transform var(--transition-fast);
+    }
+
+    .size-chart-hero:hover .hero-arrow {
+      transform: translateX(5px);
+    }
+
+    /* Category Section */
+    .category-section {
       width: 100%;
-      padding: 18px clamp(24px, 10vw, 120px);
-      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .category-header {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent-gold);
+      margin-bottom: 1.25rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--card-border);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: border-color var(--transition-normal);
+    }
+
+    /* Link Cards Grid */
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.25rem;
+      width: 100%;
+    }
+
+    .card {
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+      padding: 1.25rem;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
       text-decoration: none;
-      font-size: 1rem;
-      font-weight: 400;
-      background: #012224;
-      color: #9e9e9e;
-      border: 1px solid #2a2a2a;
-      border-radius: 50px;
-      transition: background .25s ease, transform .25s ease, border-color .25s ease, color .25s ease;
-    }
-    .btn1:hover {
-      background: #2a2a2a;
-      transform: translateY(-2px);
-      color: #eaeaea;
-      border-color: #3a3a3a;
+      color: inherit;
+      transition: all var(--transition-fast);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: var(--glass-blur);
     }
 
-
-
-
-    /* Section label pemisah */
-    .section-label {
-      width: 100%;
-      text-align: center;
-      font-size: rem;
-      font-weight: bold;
-      color: #9e9e9e;
-      border-top: 1px solid #2a2a2a;
-      padding-top: 10px;
-      margin-top: 2px;
-
-      border-bottom: 1px solid #2a2a2a;
-      padding-bottom: 10px;
-      margin-bottom: 2px;
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
-      letter-spacing: 0.01em;
+    .card:hover {
+      transform: translateY(-3px);
+      background: var(--card-hover-bg);
+      border-color: var(--card-hover-border);
+      box-shadow: var(--shadow-lg), 0 4px 20px rgba(245, 158, 11, 0.08);
     }
 
-    footer {
-      background: #111;
-      color: #777;
-      text-align: center;
-      padding: 20px;
-      font-size: .9rem;
+    .card-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--accent-gold);
+      flex-shrink: 0;
+      transition: background var(--transition-fast), color var(--transition-fast);
     }
 
-    /* Dark/Light toggle button */
-    #toggle-mode {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
-      background: #1a1a1a;
+    .card:hover .card-icon {
+      background: var(--accent-gold);
+      color: #060913;
+    }
+    
+    body.light-mode .card:hover .card-icon {
       color: #fff;
-      border: 1px solid #333;
-      padding: 10px 16px;
-      border-radius: 30px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: background .3s, color .3s;
     }
-    #toggle-mode:hover {
-      background: #333;
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
     }
-    body.light-mode #toggle-mode {
-      background: #e0e3e5;
-      color: #222;
-      border: 1px solid #aaa;
+
+    .card-chevron {
+      margin-left: auto;
+      color: var(--text-muted);
+      transition: transform var(--transition-fast), color var(--transition-fast);
     }
-    body.light-mode #toggle-mode:hover {
-      background: #cfd3d6;
+
+    .card:hover .card-chevron {
+      color: var(--accent-gold);
+      transform: translateX(4px);
+    }
+
+    /* Footer */
+    footer {
+      background: rgba(6, 9, 19, 0.8);
+      border-top: 1px solid var(--card-border);
+      color: var(--text-muted);
+      text-align: center;
+      padding: 1.5rem;
+      font-size: 0.85rem;
+      font-weight: 500;
+      letter-spacing: 0.025em;
+      position: relative;
+      z-index: 2;
+      backdrop-filter: var(--glass-blur);
+      transition: background-color var(--transition-normal), border-color var(--transition-normal);
+    }
+
+    body.light-mode footer {
+      background: rgba(243, 244, 246, 0.8);
+      color: var(--text-secondary);
+    }
+
+    /* Animations */
+    @keyframes spin-glow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #profile-pic, .btn { transition: none; }
+      .profile-ring { animation: none; }
+      .card, .size-chart-hero, #toggle-mode { transition: none !important; }
+      .card:hover, .size-chart-hero:hover { transform: none !important; }
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 3rem 1rem;
+        gap: 1.5rem;
+      }
+      header h1 {
+        font-size: 1.8rem;
+      }
+      .size-chart-hero {
+        padding: 1.25rem;
+        flex-direction: column;
+        text-align: center;
+      }
+      .hero-arrow {
+        transform: rotate(90deg);
+      }
+      .size-chart-hero:hover .hero-arrow {
+        transform: translateY(5px) rotate(90deg);
+      }
     }
   </style>
 </head>
 <body>
-  <button id="toggle-mode">🌙</button>
+  <button id="toggle-mode" aria-label="Toggle Dark/Light Mode">🌙</button>
 
   <main>
     <header id="site-header">
-      <img src="anbut.jpg" alt="Foto Profil Kejati" id="profile-pic" />
+      <div class="profile-container">
+        <div class="profile-ring"></div>
+        <img src="/APP-2026/anbut.jpg" alt="Logo Kejaksaan RI" id="profile-pic" />
+      </div>
       <h1>APP KEJAKSAAN AGUNG 2026</h1>
       <p>Permintaan Data Pegawai Untuk Rencana Pengadaan Alat Perlengkapan Personil (APP) Tahun 2026 berupa PDH dan PDL</p>
     </header>
 
-    <section>
-      <div class="btn-group">
-        <a href="https://drive.google.com/drive/u/1/folders/1wHN9CK7hgQOffMfKGV2E1OGTweJ71V5N" class="btn1">Size Chart PDL</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=400589586#gid=400589586" class="btn">JAM Intelijen</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1161002865#gid=1161002865" class="btn">JAM Tindak Pidana Umum</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2050242348#gid=2050242348" class="btn">JAM Tindak Pidana Khusus</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=165367569#gid=165367569" class="btn">JAM Perdata dan TUN</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=207467212#gid=207467212" class="btn">JAM Pengawasan</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1751322935#gid=1751322935" class="btn">JAM Tindak Pidana Militer</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1743411883#gid=1743411883" class="btn">Badan Diklat Kejaksaan RI</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2014668427#gid=2014668427" class="btn">Badan Pemulihan Aset</a>
+    <!-- Prominent Size Chart Card -->
+    <a href="https://drive.google.com/drive/u/1/folders/1wHN9CK7hgQOffMfKGV2E1OGTweJ71V5N" class="size-chart-hero" id="size-chart-btn">
+      <div class="hero-icon-container">
+        <!-- Shirt icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 1.7a2 2 0 0 0-1.48 0l-4.4 1.76a2 2 0 0 1-1.48 0L4.2 1.7A2 2 0 0 0 2 3.5v17a2 2 0 0 0 2.2 2l8-1.6a2 2 0 0 1 1.6 0l8 1.6a2 2 0 0 0 2.2-2v-17a2 2 0 0 0-1.62-2.04z"/><path d="M12 3v15"/><path d="M12 11h8"/><path d="M12 7h8"/><path d="M4 11h8"/><path d="M4 7h8"/></svg>
+      </div>
+      <div class="hero-text-container">
+        <div class="hero-tag">Panduan Ukuran</div>
+        <div class="hero-title">Size Chart PDL</div>
+        <div class="hero-desc">Klik di sini untuk melihat acuan standardisasi ukuran Pakaian Dinas Lapangan</div>
+      </div>
+      <svg class="hero-arrow" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </a>
 
-        <span class="section-label">JAM Pembinaan</span>
+    <!-- Category 1: Jaksa Agung Muda & Badan -->
+    <section class="category-section" id="section-jam-badan">
+      <h2 class="category-header">Jaksa Agung Muda & Badan</h2>
+      <div class="grid-container">
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=400589586#gid=400589586" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <span class="card-title">JAM Intelijen</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1161002865#gid=1161002865" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          </div>
+          <span class="card-title">JAM Tindak Pidana Umum</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2050242348#gid=2050242348" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4 4 4-4 4z"/><path d="M4 20h16"/><path d="M4 4h16"/><path d="M4 4v16"/><path d="M20 4v16"/></svg>
+          </div>
+          <span class="card-title">JAM Tindak Pidana Khusus</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=165367569#gid=165367569" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22h9a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-9"/><path d="M12 2H3a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h9"/><path d="M12 2v20"/><path d="M17 12h-2"/></svg>
+          </div>
+          <span class="card-title">JAM Perdata dan TUN</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=207467212#gid=207467212" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <span class="card-title">JAM Pengawasan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1751322935#gid=1751322935" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <span class="card-title">JAM Tindak Pidana Militer</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=1743411883#gid=1743411883" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>
+          </div>
+          <span class="card-title">Badan Diklat Kejaksaan RI</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=2014668427#gid=2014668427" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2v9"/><path d="M8 5h8"/></svg>
+          </div>
+          <span class="card-title">Badan Pemulihan Aset</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
+    </section>
 
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1180561800#gid=1180561800" class="btn">Ses JAM Pembinaan</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=496744290#gid=496744290" class="btn">Biro Perencanaan</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=294566795#gid=294566795" class="btn">Biro Umum</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1443696580#gid=1443696580" class="btn">Biro Kepegawaian</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1438950296#gid=1438950296" class="btn">Biro Keuangan</a>   
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=695727064#gid=695727064" class="btn">Biro Perlengkapan</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1671546681#gid=1671546681" class="btn">Biro Hukum dan Hub Luar Negeri</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=853492143#gid=853492143" class="btn">Pusat Strategi Kebijakan Penegakan Hukum</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1140295424#gid=1140295424" class="btn">Pusat Daskrimti</a>
-        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=733875083#gid=733875083" class="btn">Pusat Kesehatan Yustisial</a>
-        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=895756626#gid=895756626" class="btn">Pegawai Dikaryakan</a>
+    <!-- Category 2: JAM Pembinaan -->
+    <section class="category-section" id="section-jam-pembinaan">
+      <h2 class="category-header">Jaksa Agung Muda Bidang Pembinaan</h2>
+      <div class="grid-container">
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1180561800#gid=1180561800" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="card-title">Ses JAM Pembinaan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=496744290#gid=496744290" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          </div>
+          <span class="card-title">Biro Perencanaan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=294566795#gid=294566795" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>
+          </div>
+          <span class="card-title">Biro Umum</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1443696580#gid=1443696580" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><circle cx="10" cy="13" r="2"/><path d="M14 17a4 4 0 0 0-8 0"/></svg>
+          </div>
+          <span class="card-title">Biro Kepegawaian</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1438950296#gid=1438950296" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <span class="card-title">Biro Keuangan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=695727064#gid=695727064" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <span class="card-title">Biro Perlengkapan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1671546681#gid=1671546681" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
+          <span class="card-title">Biro Hukum dan Hub Luar Negeri</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=853492143#gid=853492143" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+          </div>
+          <span class="card-title">Pusat Strategi Kebijakan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=1140295424#gid=1140295424" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </div>
+          <span class="card-title">Pusat Daskrimti</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1kYCU95hWbVQosazQltgjGyons0EbxlstrQhHGvo2cd0/edit?gid=733875083#gid=733875083" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <span class="card-title">Pusat Kesehatan Yustisial</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="https://docs.google.com/spreadsheets/d/1HGUjE8dmtqpDlLHKg0R8ELdKuCjAX1uR1ymn6dIaEnM/edit?gid=895756626#gid=895756626" class="card">
+          <div class="card-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <span class="card-title">Pegawai Dikaryakan</span>
+          <svg class="card-chevron" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
       </div>
     </section>
   </main>
 
   <footer>
-    <p>© 2026 ANALISIS KEBUTUHAN - BIRO PERLENGKAPAN</p>
+    <p>© 2026 Analisis Kebutuhan - Biro Perlengkapan</p>
   </footer>
 
   <script>
-    // Floating profile pic
-    (function() {
-      const header = document.getElementById('site-header');
-      const pic = document.getElementById('profile-pic');
-      if (!('IntersectionObserver' in window)) {
-        window.addEventListener('scroll', () => {
-          const trigger = 100;
-          if (window.scrollY > trigger) pic.classList.add('floating');
-          else pic.classList.remove('floating');
-        });
-        return;
-      }
-      const io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) pic.classList.remove('floating');
-            else pic.classList.add('floating');
-          });
-        },
-        { threshold: 0 }
-      );
-      io.observe(header);
-    })();
-
     // Dark/Light toggle
     const toggleBtn = document.getElementById("toggle-mode");
     toggleBtn.addEventListener("click", () => {
       document.body.classList.toggle("light-mode");
-      toggleBtn.textContent = document.body.classList.contains("light-mode") ? "☀️" : "🌙";
+      const isLight = document.body.classList.contains("light-mode");
+      toggleBtn.textContent = isLight ? "☀️" : "🌙";
+      localStorage.setItem("app2026_theme", isLight ? "light" : "dark");
     });
+
+    // Restore theme on load
+    const savedTheme = localStorage.getItem("app2026_theme");
+    if (savedTheme === "light") {
+      document.body.classList.add("light-mode");
+      toggleBtn.textContent = "☀️";
+    }
   </script>
 </body>
-
-<!-- sastrous©2026 -->
 </html>
