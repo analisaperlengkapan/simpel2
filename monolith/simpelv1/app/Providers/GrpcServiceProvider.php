@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Grpc\AuthencGrpcClient;
 use App\Services\Grpc\IntegrasiGrpcClient;
 use App\Services\Grpc\SecrethonGrpcClient;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -43,6 +44,6 @@ class GrpcServiceProvider extends ServiceProvider
 
     public function boot()
     {
-        \Illuminate\Support\Facades\Log::debug('Backend gateway clients registered');
+        Log::debug('Backend gateway clients registered');
     }
 }
