@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\AIDataService;
 use App\Services\LLMProvider;
 use App\Services\OllamaLLMProvider;
 use Illuminate\Support\Facades\URL;
@@ -15,7 +16,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(LLMProvider::class, OllamaLLMProvider::class);
-        $this->app->singleton(\App\Services\AIDataService::class);
+        $this->app->singleton(AIDataService::class);
     }
 
     /**

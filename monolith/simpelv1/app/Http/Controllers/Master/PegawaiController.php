@@ -8,6 +8,7 @@ use App\Models\Master\MsPegawai;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class PegawaiController extends Controller
@@ -354,7 +355,7 @@ class PegawaiController extends Controller
             $filename = str_replace(' ', '_', strtolower($judul)).'.pdf';
 
             // Use LaravelMpdf with minimal configuration
-            $pdf = \Mccarlosen\LaravelMpdf\Facades\LaravelMpdf::loadView('exports.asset', [
+            $pdf = LaravelMpdf::loadView('exports.asset', [
                 'headers' => $selectedColumns,
                 'rows' => $pdfData,
                 'judul' => $judul,
@@ -376,7 +377,7 @@ class PegawaiController extends Controller
 
             // Fallback with even simpler configuration
             try {
-                $pdf = \Mccarlosen\LaravelMpdf\Facades\LaravelMpdf::loadView('exports.asset', [
+                $pdf = LaravelMpdf::loadView('exports.asset', [
                     'headers' => $selectedColumns,
                     'rows' => $pdfData,
                     'judul' => $judul,
