@@ -1,20 +1,7 @@
 <?php
 
-use App\Helpers\MyHelper;
-use App\Providers\AppServiceProvider;
-use App\Providers\AuthServiceProvider;
-use App\Providers\EventServiceProvider;
-use App\Providers\GrpcServiceProvider;
-use App\Providers\RouteServiceProvider;
-use App\Providers\ViewServiceProvider;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\ServiceProvider;
-use Maatwebsite\Excel\ExcelServiceProvider;
-use Maatwebsite\Excel\Facades\Excel;
-use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
-use Mccarlosen\LaravelMpdf\LaravelMpdfServiceProvider;
-use Riskihajar\Terbilang\Facades\Terbilang;
-use Riskihajar\Terbilang\TerbilangServiceProvider;
 
 return [
 
@@ -199,16 +186,16 @@ return [
         /*
              * Application Service Providers...
              */
-        AppServiceProvider::class,
-        AuthServiceProvider::class,
+        App\Providers\AppServiceProvider::class,
+        App\Providers\AuthServiceProvider::class,
         // App\Providers\BroadcastServiceProvider::class,
-        EventServiceProvider::class,
-        RouteServiceProvider::class,
-        ViewServiceProvider::class,
-        GrpcServiceProvider::class,
-        ExcelServiceProvider::class,
-        LaravelMpdfServiceProvider::class,
-        TerbilangServiceProvider::class,
+        App\Providers\EventServiceProvider::class,
+        App\Providers\RouteServiceProvider::class,
+        App\Providers\ViewServiceProvider::class,
+        App\Providers\GrpcServiceProvider::class,
+        Maatwebsite\Excel\ExcelServiceProvider::class,
+        Mccarlosen\LaravelMpdf\LaravelMpdfServiceProvider::class,
+        Riskihajar\Terbilang\TerbilangServiceProvider::class,
     ])->toArray(),
 
     /*
@@ -223,10 +210,10 @@ return [
     */
 
     'aliases' => Facade::defaultAliases()->merge([
-        'MyHelper' => MyHelper::class,
-        'Excel' => Excel::class,
-        'LaravelMpdf' => LaravelMpdf::class,
-        'Terbilang' => Terbilang::class,
+        'MyHelper' => App\Helpers\MyHelper::class,
+        'Excel' => Maatwebsite\Excel\Facades\Excel::class,
+        'LaravelMpdf' => Mccarlosen\LaravelMpdf\Facades\LaravelMpdf::class,
+        'Terbilang' => Riskihajar\Terbilang\Facades\Terbilang::class,
     ])->toArray(),
 
 ];

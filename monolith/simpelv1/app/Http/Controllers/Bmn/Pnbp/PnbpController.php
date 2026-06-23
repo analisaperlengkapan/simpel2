@@ -55,7 +55,7 @@ class PnbpController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Pnbp;
+        $model = new pnbp;
         $pagingParams = $request->only(['start', 'length']);
         // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
@@ -75,7 +75,7 @@ class PnbpController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = Pnbp::where('id', $id)->first();
+            $model = pnbp::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -157,7 +157,7 @@ class PnbpController extends Controller
                 'realisasi' => $request->input('realisasi'),
             ];
 
-            Pnbp::updateOrCreate(['id' => $id], $data);
+            pnbp::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
 
@@ -194,7 +194,7 @@ class PnbpController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Pnbp $hakcipta)
+    public function update(Request $request, pnbp $hakcipta)
     {
         //
     }
@@ -206,7 +206,7 @@ class PnbpController extends Controller
     {
         try {
             DB::beginTransaction();
-            Pnbp::destroy($id);
+            pnbp::destroy($id);
             DB::commit();
 
             return $this->resSuccess('Berhasil Dihapus!');

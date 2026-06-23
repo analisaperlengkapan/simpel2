@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AskAIRequest;
 use App\Services\AIService;
-use Illuminate\Http\JsonResponse;
 
 class AIController extends Controller
 {
@@ -19,7 +18,7 @@ class AIController extends Controller
      * Endpoint utama untuk chat/ask AI
      *
      * @param  Request  $request
-     * @return JsonResponse
+     * @return \Illuminate\Http\JsonResponse
      */
     public function ask(AskAIRequest $request)
     {

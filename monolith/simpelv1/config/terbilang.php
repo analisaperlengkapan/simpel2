@@ -1,7 +1,5 @@
 <?php
 
-use Riskihajar\Terbilang\Enums\DistanceDate;
-
 // config for Riskihajar/Terbilang
 return [
     /*
@@ -42,7 +40,7 @@ return [
     | default template FULL, available template FULL, YEAR, MONTH, DAY, HOUR, MINUTE, SECOND
     */
     'distance' => [
-        'type' => DistanceDate::Day,
+        'type' => \Riskihajar\Terbilang\Enums\DistanceDate::Day,
         'template' => '{YEAR} {MONTH} {DAY} {HOUR} {MINUTE} {SECOND}',
         'hide_zero_value' => true,
         'separator' => ' ',

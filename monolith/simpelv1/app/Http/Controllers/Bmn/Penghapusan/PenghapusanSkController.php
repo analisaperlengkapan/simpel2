@@ -28,7 +28,7 @@ class PenghapusanSkController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new PenghapusanSk;
+        $model = new penghapusanSk;
         $pagingParams = $request->only(['start', 'length']);
         $searchParams = $request->only(['columns']);
         $data = $model->getDataGrid($pagingParams, $searchParams);

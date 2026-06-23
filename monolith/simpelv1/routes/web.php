@@ -173,23 +173,23 @@ Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session', 'authenc-r
     Route::post('/auth/resetPassword', [AuthController::class, 'resetPassword']);
     Route::get('/auth/changeRole/{roleId}', [AuthController::class, 'changeRole']);
 
-    Route::get('/pengguna/pengguna/gridData', [PenggunaController::class, 'gridData']);
-    Route::resource('pengguna/pengguna', PenggunaController::class);
-    Route::post('pengguna/profil/change-pp', [ProfilController::class, 'changePP']);
-    Route::resource('pengguna/profil', ProfilController::class);
-    Route::get('/profil', [ProfilController::class, 'index'])->name('profil');
+    route::get('/pengguna/pengguna/gridData', [PenggunaController::class, 'gridData']);
+    route::resource('pengguna/pengguna', PenggunaController::class);
+    route::post('pengguna/profil/change-pp', [ProfilController::class, 'changePP']);
+    route::resource('pengguna/profil', ProfilController::class);
+    route::get('/profil', [ProfilController::class, 'index'])->name('profil');
 
-    Route::get('/pengguna/superadmin/gridData', [SuperadminController::class, 'gridData']);
-    Route::resource('/pengguna/superadmin', SuperadminController::class);
+    route::get('/pengguna/superadmin/gridData', [SuperadminController::class, 'gridData']);
+    route::resource('/pengguna/superadmin', SuperadminController::class);
 
-    Route::get('/pengguna/level/gridData', [LevelController::class, 'gridData']);
-    Route::resource('/pengguna/level', LevelController::class);
+    route::get('/pengguna/level/gridData', [LevelController::class, 'gridData']);
+    route::resource('/pengguna/level', LevelController::class);
 
-    Route::get('/pengguna/aktifitas/gridData', [AktifitasController::class, 'gridData']);
-    Route::resource('/pengguna/aktifitas', AktifitasController::class);
+    route::get('/pengguna/aktifitas/gridData', [AktifitasController::class, 'gridData']);
+    route::resource('/pengguna/aktifitas', AktifitasController::class);
 
-    Route::get('/pengguna/review/gridData', [ReviewController::class, 'gridData']);
-    Route::resource('/pengguna/review', ReviewController::class);
+    route::get('/pengguna/review/gridData', [ReviewController::class, 'gridData']);
+    route::resource('/pengguna/review', ReviewController::class);
 
     Route::get('/dashboard', [MainController::class, 'index']);
     Route::post('/dashboard', [MainController::class, 'dashboard']);
@@ -488,7 +488,7 @@ Route::middleware(['token2oauth', 'auth', '2fa', 'cross-tab-session', 'authenc-r
     Route::get('/suport/faq/gridData', [FaqController::class, 'gridData']);
     Route::resource('/suport/faq', FaqController::class);
 
-    Route::get('/suport/buku-panduan', [App\Http\Controllers\Suport\BukuPanduanController::class, 'index']);
+    Route::get('/suport/buku-panduan', [\App\Http\Controllers\Suport\BukuPanduanController::class, 'index']);
     Route::get('/suport/bantuan/gridData', [Bantuan::class, 'gridData']);
     Route::resource('/suport/bantuan', Bantuan::class);
 

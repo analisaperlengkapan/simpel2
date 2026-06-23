@@ -50,7 +50,7 @@ class HibahController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Hibah;
+        $model = new hibah;
         $pagingParams = $request->only(['start', 'length']);
         // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
@@ -71,7 +71,7 @@ class HibahController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = Hibah::where('id', $id)->first();
+            $model = hibah::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -171,7 +171,7 @@ class HibahController extends Controller
             } else {
                 $data['status'] = 'On Proses';
             }
-            Hibah::updateOrCreate(['id' => $id], $data);
+            hibah::updateOrCreate(['id' => $id], $data);
 
             $hibahFile = HibahFile::where('id_hibah', $id)->get();
             $fileIds = $hibahFile->map(function ($item) {
@@ -251,7 +251,7 @@ class HibahController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Hibah $hakcipta)
+    public function update(Request $request, hibah $hakcipta)
     {
         //
     }
@@ -271,7 +271,7 @@ class HibahController extends Controller
                     File::delete($filePath);
                 }
             }
-            Hibah::destroy($id);
+            hibah::destroy($id);
             DB::commit();
 
             return $this->resSuccess('Berhasil Dihapus!');
