@@ -32,5 +32,6 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="APP_KEY" value="base64:3fS8oGvIu6zKkXp8N7U5fT9V3W2Y4Z6a7b8c9d0e1f2="/>
     </php>
 </phpunit>
