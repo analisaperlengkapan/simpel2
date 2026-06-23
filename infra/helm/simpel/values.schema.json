@@ -108,6 +108,7 @@
     "simpelv1": { "$ref": "#/definitions/workload" },
     "portal": { "$ref": "#/definitions/workload" },
     "perlengkapan": { "$ref": "#/definitions/workload" },
+    "app-2026": { "$ref": "#/definitions/workload" },
     "postgres": { "$ref": "#/definitions/workload" },
     "redis": { "$ref": "#/definitions/workload" }
   },

@@ -1,0 +1,9 @@
+{{- /*
+  app-2026 — Static HTML site for APP Kejati 2026.
+  Served via Nginx (port 8080), no Istio sidecar.
+  Image built from monolith/APP-2026/ Dockerfile.
+*/ -}}
+{{- $values := (index .Values "app-2026") -}}
+{{- if $values }}
+{{- include "simpel.workload" (dict "ctx" . "name" "app-2026" "values" $values) }}
+{{- end }}
