@@ -660,7 +660,7 @@ app-2026:
   component: static-site
   image:
     repository: localhost:32000/app-2026      # local MicroK8s registry
-    tag: v3
+    tag: v4
     pullPolicy: IfNotPresent
   replicas: 1
   service:
