@@ -354,7 +354,7 @@ class PokjaPemilihanController extends Controller
             return $this->resError('Pegawai harus diisi');
         }
         if ($ms_aktifitas_id == 1009) {
-            $filesk = FILE::getDetail($id, 'sk_penetapan');
+            $filesk = File::getDetail($id, 'sk_penetapan');
             if ($filesk->isEmpty()) {
                 return $this->resError('SK Penetapan masing-masing pegawai harus diupload');
             }

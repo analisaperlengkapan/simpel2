@@ -301,7 +301,7 @@ class AuthController extends Controller
         Pengguna::where(['id' => $request->input('user_id')])->update(['password' => $password]);
 
         // Log aktivitas ganti password
-        \App\Models\Pengguna\Aktifitas::create([
+        Aktifitas::create([
             'username' => $user->username,
             'operation' => 'GANTI_PASSWORD',
             'table' => 'users',
@@ -328,7 +328,7 @@ class AuthController extends Controller
             $user->update(['password' => $password]);
 
             // Log aktivitas reset password
-            \App\Models\Pengguna\Aktifitas::create([
+            Aktifitas::create([
                 'username' => $user->username,
                 'operation' => 'RESET_PASSWORD',
                 'table' => 'users',
