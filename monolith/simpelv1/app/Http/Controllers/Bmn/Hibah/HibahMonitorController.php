@@ -48,7 +48,7 @@ class HibahMonitorController extends Controller
 
     public function gridData(Request $request)
     {
-        $model = new Hibah;
+        $model = new hibah;
         $pagingParams = $request->only(['start', 'length']);
         // $searchParams =  $request->only(['search',  'filterBy']);
         $searchParams = $request->only(['columns']);
@@ -68,7 +68,7 @@ class HibahMonitorController extends Controller
         $breadcum = 'Tambah';
         if ($id) {
             $breadcum = 'Ubah';
-            $model = Hibah::where('id', $id)->first();
+            $model = hibah::where('id', $id)->first();
             if (! $model) {
                 throw new NotFoundHttpException('Data Tidak Ditemukan');
             }
@@ -158,7 +158,7 @@ class HibahMonitorController extends Controller
                 $file->move($filepath, $fileName);
                 $data['file_sk'] = $filesave;
             }
-            Hibah::updateOrCreate(['id' => $id], $data);
+            hibah::updateOrCreate(['id' => $id], $data);
 
             DB::commit();
 
