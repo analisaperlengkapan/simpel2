@@ -83,6 +83,9 @@ outputs:
   image-monolith:
     description: 'true jika image monolith Laravel harus di-rebuild'
     value: ${{ steps.filter.outputs.image-monolith }}
+  image-app-2026:
+    description: 'true jika image statis APP-2026 harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-app-2026 }}
 
 runs:
   using: "composite"
@@ -214,3 +217,5 @@ runs:
             - 'layanan/secreton/**'
           image-monolith:
             - 'monolith/simpelv1/**'
+          image-app-2026:
+            - 'monolith/APP-2026/**'

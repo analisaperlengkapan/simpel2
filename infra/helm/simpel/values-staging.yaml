@@ -91,6 +91,12 @@ perlengkapan:
   replicas: 1
   hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 75, memoryUtilization: 80 }
 
+# ─── Static Sites ──────────────────────────────────────────────────────────────
+# Enable di staging dulu (WAJIB staging → promote → production); image = digest
+# yang sama dengan production (build-once). Route /APP-2026 ada di bawah.
+app-2026:
+  enabled: true
+
 istio:
   gateway:
     name: simpelv2-gateway              # shared gateway untuk staging & production (per AGENTS.md)
@@ -208,3 +214,7 @@ istio:
       - match: { prefix: /daskrimti/ }
         rewrite: /
         destination: { host: portal, port: 8080 }
+      # Static site APP-2026 (Kejati + Kejagung). Mirror production route.
+      - match: { prefix: /APP-2026 }
+        rewrite: /
+        destination: { host: app-2026, port: 8080 }

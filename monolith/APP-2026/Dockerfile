@@ -3,14 +3,15 @@ FROM nginx:1.27-alpine
 # Remove default nginx config
 RUN rm -rf /etc/nginx/conf.d/default.conf
 
-# Copy static files
-COPY index.html /usr/share/nginx/html/index.html
-COPY index2.html /usr/share/nginx/html/index2.html
-COPY anbut.jpg /usr/share/nginx/html/anbut.jpg
-COPY favicon.ico /usr/share/nginx/html/favicon.ico
+# Build context is the repo root (see release.yml / ci.yml docker matrix:
+# context "." for every image), so COPY paths are repo-root-relative.
+COPY monolith/APP-2026/index.html /usr/share/nginx/html/index.html
+COPY monolith/APP-2026/index2.html /usr/share/nginx/html/index2.html
+COPY monolith/APP-2026/anbut.jpg /usr/share/nginx/html/anbut.jpg
+COPY monolith/APP-2026/favicon.ico /usr/share/nginx/html/favicon.ico
 
 # Custom nginx config for serving under subpath
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY monolith/APP-2026/nginx.conf /etc/nginx/nginx.conf
 
 # Use non-root user
 RUN chown -R nginx:nginx /usr/share/nginx/html && \

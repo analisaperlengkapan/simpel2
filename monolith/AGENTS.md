@@ -13,7 +13,7 @@ Pemisahan ini berfungsi untuk memastikan *engineer* dan *build tools* lingkungan
 Saat ini, proyek monolitik utama yang aktif berada di:
 
 - 🐘 `monolith/simpelv1/`: Versi pertama dari sistem web SIMPEL (dibangun menggunakan framework PHP Laravel).
-- 🌐 `monolith/APP-2026/`: Halaman statis permintaan data pegawai untuk rencana pengadaan Alat Perlengkapan Personil (APP) Tahun 2026. Dibangun dengan HTML/CSS/JS murni, di-serve via Nginx, dan diakses di path `/APP-2026` pada domain produksi.
+- 🌐 `monolith/APP-2026/`: Halaman statis permintaan data pegawai untuk rencana pengadaan Alat Perlengkapan Personil (APP) Tahun 2026 (dua halaman: `index.html` = Kejati, `index2.html` = Kejagung). Dibangun dengan HTML/CSS/JS murni, di-serve via Nginx, diakses di path `/APP-2026`. **Image-nya mengikuti pipeline rilis yang sama dengan service lain** — di-build oleh `release.yml`/`ci.yml` dari `monolith/APP-2026/Dockerfile` (context = repo root) ke `ghcr.io/<owner>/simpelv2-app-2026` dengan tag SemVer immutable (`global.imageTag`), lalu di-deploy **staging → promote → production** via Helm (`app-2026` di `values*.yaml`). DILARANG registry lokal / tag mutable.
 
 Untuk regulasi implementasi teknis spesifik pada proyek-proyek di dalam sub-folder ini, Anda **DIWAJIBKAN** membaca file `AGENTS.md` yang berada tepat di dalam tiap proyek (contoh: `monolith/simpelv1/AGENTS.md`).
 

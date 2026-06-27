@@ -653,14 +653,16 @@ simpelv1:
   pdb: { enabled: false, minAvailable: 0 }
 
 # ─── Static Sites ──────────────────────────────────────────────────────────────
-# APP-2026: Halaman statis permintaan data APP Tahun 2026.
-# Image di-build dari monolith/APP-2026/ dan di-push ke local MicroK8s registry.
+# APP-2026: Halaman statis permintaan data APP Tahun 2026 (Kejati + Kejagung).
+# Image di-build oleh release.yml/ci.yml dari monolith/APP-2026/Dockerfile →
+# ghcr.io/<owner>/simpelv2-app-2026, mengikuti build-once/promote-digest seperti
+# service lain (BUKAN registry lokal / tag mutable).
 app-2026:
-  enabled: false                             # default OFF; aktifkan di production
+  enabled: false                             # default OFF; di-enable per-env (staging→production)
   component: static-site
   image:
-    repository: localhost:32000/app-2026      # local MicroK8s registry
-    tag: v4
+    name: app-2026                            # → <global.registry>/simpelv2-app-2026
+    tag: ""                                   # fallback ke global.imageTag (SemVer immutable)
     pullPolicy: IfNotPresent
   replicas: 1
   service:
