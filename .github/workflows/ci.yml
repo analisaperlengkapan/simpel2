@@ -487,6 +487,7 @@ jobs:
             --accept 200..=299,301,302,304,307,308,400,401,403,404,405,410,429,500,502,503
             --exclude 'github\.com/.*/(issues|pull)/'
             --exclude '\.kejaksaan\.go\.id'
+            --exclude '\.kemenkeu\.go\.id'
             --exclude '^https?://captcha-[a-z]+:'
             --exclude '^https?://monitoring\.internal'
             --exclude '^https?://wiki\.'
@@ -500,6 +501,7 @@ jobs:
             --exclude-path 'node_modules'
             --exclude-path 'target'
             --exclude-path 'dist'
+            --exclude-path '.kiro'
             './**/*.md'
           fail: true
 
