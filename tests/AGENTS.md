@@ -59,10 +59,14 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   **client-side**. Jangan tulis UI-data e2e yang mengandalkan FE→BE di CI.
 - **Portal e2e (real-auth):** job `e2e-portal` bawa stack compose (portal FE +
   authenc captcha-debug) seperti `e2e-perlengkapan`; spec mem-proxy `/api/**` ke
-  authenc via Playwright `page.route()` (TIDAK butuh proxy nginx portal). Gate =
-  project `portal-chromium` (spec real-auth: login+captcha+integrasi); project
-  `portal-screenshots` = artefak visual on-demand, DI LUAR gate. Aktifkan via
-  `E2E_PORTAL_ENABLED=true` atau dispatch `run_e2e`.
+  authenc via Playwright `page.route()` (TIDAK butuh proxy nginx portal). **Gate
+  = project `portal-chromium` = HANYA `portal-auth-e2e`** (alur login FE portal
+  nyata: captcha+login+token; cukup portal+authenc). Spec lain di-pisah ke
+  project NON-gate karena butuh layanan lain — JANGAN masukkan ke gate tanpa
+  layanannya: `portal-cross-app` (auth-login-flow, butuh FE perlengkapan → SSO
+  cross-app @staging), `portal-integration` (integrasi-authenc, butuh
+  layanan-integrasi gRPC), `portal-screenshots` (artefak visual). Aktifkan gate
+  via `E2E_PORTAL_ENABLED=true` atau dispatch `run_e2e`.
 
 ### 2. Integration Testing
 
