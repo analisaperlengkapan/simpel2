@@ -19,4 +19,10 @@ ignore = [
   "RUSTSEC-2026-0098", # rustls-webpki - URI name constraints
   "RUSTSEC-2026-0099", # rustls-webpki - wildcard name constraints
   "RUSTSEC-2026-0104", # rustls-webpki - panic in CRL parsing
+  # lopdf stack overflow on PDF PARSE (Document::load_mem, deeply-nested
+  # objects). Transitive via printpdf 0.9.1 → lopdf 0.39 (no printpdf release
+  # uses lopdf >=0.42 yet). Not reachable: perlengkapan only GENERATES PDFs,
+  # never parses untrusted ones. Un-ignore when printpdf bumps lopdf >=0.42.
+  # Mirror dengan deny.toml ignore.
+  "RUSTSEC-2026-0187", # lopdf (stack overflow on PDF parse) - not reachable (generate-only)
 ]
