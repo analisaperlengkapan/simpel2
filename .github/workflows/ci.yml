@@ -81,6 +81,7 @@ jobs:
           INTEGRASI: ${{ steps.changes.outputs.image-integrasi }}
           SECRETON: ${{ steps.changes.outputs.image-secreton }}
           MONOLITH: ${{ steps.changes.outputs.image-monolith }}
+          APP_2026: ${{ steps.changes.outputs.image-app-2026 }}
         run: |
           set -euo pipefail
           declare -A IMAGES=(
@@ -98,6 +99,7 @@ jobs:
             # release.yml matrix, which already uses `.` for every image.
             [layanan-secreton]="layanan/secreton/Dockerfile|.|$SECRETON"
             [simpelv1]="monolith/simpelv1/Dockerfile|.|$MONOLITH"
+            [app-2026]="monolith/APP-2026/Dockerfile|.|$APP_2026"
           )
           entries=()
           for name in "${!IMAGES[@]}"; do

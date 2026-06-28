@@ -97,6 +97,7 @@ serviceAccounts:
     - portal
     - perlengkapan
     - simpelv1
+    - app-2026                               # Static site APP Kejati 2026
     - postgres-patroni                     # Postgres butuh izin patch endpoints
 
 networkPolicies:
@@ -648,6 +649,46 @@ simpelv1:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
   istioInjection: false
+  hpa: { enabled: false }
+  pdb: { enabled: false, minAvailable: 0 }
+
+# ─── Static Sites ──────────────────────────────────────────────────────────────
+# APP-2026: Halaman statis permintaan data APP Tahun 2026 (Kejati + Kejagung).
+# Image di-build oleh release.yml/ci.yml dari monolith/APP-2026/Dockerfile →
+# ghcr.io/<owner>/simpelv2-app-2026, mengikuti build-once/promote-digest seperti
+# service lain (BUKAN registry lokal / tag mutable).
+app-2026:
+  enabled: false                             # default OFF; di-enable per-env (staging→production)
+  component: static-site
+  image:
+    name: app-2026                            # → <global.registry>/simpelv2-app-2026
+    tag: ""                                   # fallback ke global.imageTag (SemVer immutable)
+    pullPolicy: IfNotPresent
+  replicas: 1
+  service:
+    ports:
+      - { name: http, port: 8080 }
+  resources:
+    requests: { cpu: 10m,  memory: 32Mi }
+    limits:   { cpu: 100m, memory: 64Mi }
+  podSecurityContext: {}
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities: { drop: [ALL] }
+  probes:
+    liveness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 5
+      periodSeconds: 10
+    readiness:
+      type: http
+      path: /health
+      port: 8080
+      initialDelaySeconds: 3
+      periodSeconds: 5
+  istioInjection: false                      # static site, no sidecar
   hpa: { enabled: false }
   pdb: { enabled: false, minAvailable: 0 }
 

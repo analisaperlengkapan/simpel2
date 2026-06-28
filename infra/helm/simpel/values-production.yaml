@@ -187,6 +187,10 @@ perlengkapan:
     maxReplicas: 10
     cpuUtilization: 70
 
+# ─── Static Sites ──────────────────────────────────────────────────────────────
+app-2026:
+  enabled: true
+
 # ─── Istio routing ─────────────────────────────────────────────────────────────
 istio:
   gateway:
@@ -224,6 +228,9 @@ istio:
         timeout: 30s
       - match: { prefix: /pembinaan/perlengkapan }
         destination: { host: perlengkapan, port: 8080 }
+      - match: { prefix: /APP-2026 }
+        rewrite: /
+        destination: { host: app-2026, port: 8080 }
       - match: { prefix: /daskrimti }
         destination: { host: portal, port: 8080 }
       - match: { prefix: / }
