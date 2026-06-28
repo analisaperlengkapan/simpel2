@@ -55,14 +55,24 @@ export default defineConfig({
 
   /* Configure projects by test category */
   projects: [
+    // CI gate: the REAL-auth specs (login via authenc, captcha via debug
+    // endpoint, /api/** proxied to authenc by page.route). Screenshots are
+    // excluded — they are visual artifacts, not assertions.
     {
       name: 'portal-chromium',
       use: { ...devices['Desktop Chrome'] },
       testMatch: [
-        '**/portal-*.spec.ts',
-        '**/auth-*.spec.ts',
-        '**/integrasi-authenc*.spec.ts'
+        '**/portal-auth-e2e.spec.ts',
+        '**/auth-login-flow.spec.ts',
+        '**/integrasi-authenc-e2e.spec.ts',
       ],
+    },
+    // On-demand visual capture (NOT part of the CI gate): run explicitly with
+    // `--project=portal-screenshots`.
+    {
+      name: 'portal-screenshots',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/portal-screenshots-e2e.spec.ts'],
     },
   ],
 

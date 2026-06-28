@@ -57,6 +57,12 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   assert data lewat UI = **@staging** (port benar via Helm); di CI assert
   scoping **server-side via API backend langsung** (lihat di atas) + guard
   **client-side**. Jangan tulis UI-data e2e yang mengandalkan FE→BE di CI.
+- **Portal e2e (real-auth):** job `e2e-portal` bawa stack compose (portal FE +
+  authenc captcha-debug) seperti `e2e-perlengkapan`; spec mem-proxy `/api/**` ke
+  authenc via Playwright `page.route()` (TIDAK butuh proxy nginx portal). Gate =
+  project `portal-chromium` (spec real-auth: login+captcha+integrasi); project
+  `portal-screenshots` = artefak visual on-demand, DI LUAR gate. Aktifkan via
+  `E2E_PORTAL_ENABLED=true` atau dispatch `run_e2e`.
 
 ### 2. Integration Testing
 

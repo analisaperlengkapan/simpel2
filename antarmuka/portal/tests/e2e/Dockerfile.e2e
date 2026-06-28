@@ -1,0 +1,27 @@
+# Portal E2E runner image (F5-C). Built in CI and run on the compose network so
+# Playwright reaches services by name (portal:8080, authenc:8088).
+#
+# Why an image instead of `docker run -v <workspace>`: under ARC dind, a bind
+# mount resolves against the dind DAEMON's filesystem, not the runner checkout —
+# so the tests wouldn't be present. `docker build` ships the context to the
+# daemon, so the COPY'd files are actually there.
+#
+# Tag must match the project's resolved @playwright/test version (1.60.0) so the
+# baked-in browsers match.
+FROM mcr.microsoft.com/playwright:v1.60.0-jammy
+
+# Browsers are already in the image; don't re-download during npm ci.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    CI=true
+
+WORKDIR /e2e
+
+# Install deps first (layer cache) — needs the lockfile present in the context.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+
+# Then the specs / config / helpers.
+COPY . .
+
+# Default: run the portal real-auth project. Override at `docker run` if needed.
+CMD ["npx", "playwright", "test", "--project=portal-chromium"]
