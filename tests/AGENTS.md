@@ -31,6 +31,32 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
     ```
 
   - Di **production**, CronJob aktif → suite read-only boleh dijalankan tanpa trigger manual.
+- **RBAC data-scoping (WAJIB di-assert server-side, bukan via UI):** penegakan
+  scoping berjenjang (`operator_satker`/`validator_wilayah`/`validator_pusat`/
+  `admin`) **dibuktikan di BACKEND**, bukan sekadar "tombol disembunyikan di FE".
+  Pola acuan = `antarmuka/perlengkapan/tests/e2e/rbac-scoping.spec.ts` (project
+  `perlengkapan-rbac`, pure-API via fixture `request`): login per-peran nyata →
+  panggil API backend → assert (a) JWT memuat `role`+`satker_code` benar, (b)
+  jumlah baris ter-scope **persis**, (c) isolasi per-baris (tak ada kebocoran
+  lintas-satker), (d) object-level fail-closed (404), (e) tanpa token → 401.
+  - Data deterministik dari `tests/fixtures/e2e/seed-multisatker.sql` (FRESH
+    dbsimpelv2). Hitungan persis (operator=2/2, wilayah=4, pusat=5) hanya berlaku
+    di stack CI (DB kosong + seed ini); di staging (snapshot nyata) pakai
+    invarian isolasi per-baris, bukan hitungan absolut.
+  - Fixtures/expected-scope per-peran di-pusat-kan di
+    `helpers/real-auth.ts` (`TEST_USERS`) — perbarui seiring perubahan seed/role.
+- **Guard (RoleGate/SatkerGate) per-peran:** `auth.setup.ts` login tiap peran
+  nyata → tulis **storageState per-peran** (`results/.auth/<key>.json`, helper
+  `storageStatePath`); spec ber-browser pakai `test.use({ storageState })`. Pola
+  acuan `guards-rbac.spec.ts` (#482): peran non-admin DITOLAK di `/admin/*`
+  (ForbiddenPage), admin lolos. Guard = **client-side JWT-claim** (`is_admin`),
+  jadi jalan di stack compose CI **tanpa** jalur FE→BE.
+- **Catatan jalur FE→BE @CI:** di compose, nginx FE meng-upstream port K8s
+  (`layanan-perlengkapan:8093`/`authenc:8091`) sedangkan backend compose di
+  `:3020`/`:8088` → jalur data FE→BE TIDAK tersambung di CI. Karena itu
+  assert data lewat UI = **@staging** (port benar via Helm); di CI assert
+  scoping **server-side via API backend langsung** (lihat di atas) + guard
+  **client-side**. Jangan tulis UI-data e2e yang mengandalkan FE→BE di CI.
 
 ### 2. Integration Testing
 

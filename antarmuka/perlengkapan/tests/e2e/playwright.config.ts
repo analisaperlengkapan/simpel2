@@ -74,6 +74,26 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/guards-smoke.spec.ts'],
     },
+    // F5-C per-role RoleGate regression (#482 guard dedup, beyond the
+    // single-route AuthGate smoke). Browser-driven: each test reuses a per-role
+    // storageState (real JWT) and asserts the /admin/* gate (client-side
+    // is_admin check). Depends on `setup` for the per-role storageState files.
+    {
+      name: 'perlengkapan-guards-rbac',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/guards-rbac.spec.ts'],
+    },
+    // F5-C RBAC data-scoping — server-side enforcement (#66 / #565 / #566).
+    // Pure API (no browser, no storageState): each test logs the relevant
+    // per-role seed user in against authenc and asserts the backend scopes
+    // `bank_aset` correctly. Runs against the real e2e stack with the
+    // multi-satker fixture loaded. No `setup` dependency (does its own logins).
+    {
+      name: 'perlengkapan-rbac',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/rbac-scoping.spec.ts'],
+    },
     // LEGACY mock UI specs — kept for the F5-C comprehensive rewrite. They use
     // the dead mock session and are NOT part of the smoke gate; do not run them
     // against the real stack until rewritten (F5-C / task #33).
