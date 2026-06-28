@@ -1,0 +1,5 @@
+# Generated Playwright artifacts — never commit (reporters + per-run output +
+# the per-role storageState the `setup` project writes under results/.auth/).
+playwright-report/
+results/
+test-results/
