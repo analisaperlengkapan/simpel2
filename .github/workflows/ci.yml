@@ -1231,6 +1231,20 @@ jobs:
             -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
             -e AUTHENC_URL=http://authenc:8088 \
             simpel-e2e-smoke
+      # F5-C RBAC data-scoping: server-side enforcement on the perlengkapan
+      # BACKEND (#66/#565/#566). Pure-API — reuses the smoke image, overriding
+      # the project. Talks to authenc (login) + layanan-perlengkapan (bank-aset)
+      # by compose service name; the multi-satker fixture seeded above supplies
+      # the deterministic per-role row counts it asserts.
+      - name: Run Playwright RBAC scoping (perlengkapan-rbac)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-rbac
       - name: e2e stack logs (on failure)
         if: failure()
         env:
