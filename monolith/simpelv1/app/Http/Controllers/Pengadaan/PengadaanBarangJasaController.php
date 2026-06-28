@@ -14,6 +14,7 @@ use App\Models\Pengadaan\PengadaanBarangJasa\PengadaanBarangJasanNodis;
 use App\Models\Pengadaan\PengadaanBarangJasa\PengadaanBarangJasaRingkasan;
 use App\Models\Pengadaan\PengadaanBarangJasa\PengadaanBarangJasaSkppbj;
 use App\Models\Pengadaan\PengadaanBarangJasa\PengadaanBarangJasaSpk;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Mccarlosen\LaravelMpdf\Facades\LaravelMpdf;
@@ -694,7 +695,7 @@ class PengadaanBarangJasaController extends Controller
             }
             $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
-        $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
+        $carbonDate = Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
             'spk' => $spk,
@@ -739,7 +740,7 @@ class PengadaanBarangJasaController extends Controller
             }
             $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
-        $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
+        $carbonDate = Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
             'bast' => $bast,
@@ -785,7 +786,7 @@ class PengadaanBarangJasaController extends Controller
             }
             $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
-        $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
+        $carbonDate = Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
             'bast' => $bast,
@@ -832,7 +833,7 @@ class PengadaanBarangJasaController extends Controller
             }
             $nilai_spk = ($subtotal * 0.11) + $subtotal;
         }
-        $carbonDate = \Carbon\Carbon::parse($ringkasan['tgl_dipa']);
+        $carbonDate = Carbon::parse($ringkasan['tgl_dipa']);
         $year = $carbonDate->format('Y');
         $data = [
             'nodis' => $nodis,

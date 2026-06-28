@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Pengguna\Pengguna;
+
 return [
 
     /*
@@ -66,7 +68,7 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Pengguna\Pengguna::class,
+            'model' => Pengguna::class,
         ],
 
         // 'users' => [

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Pengguna\Aktifitas;
 use App\Models\Pengguna\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -52,7 +53,7 @@ class TwoFAController extends Controller
         $user->save();
 
         // Log aktivitas aktivasi 2FA
-        \App\Models\Pengguna\Aktifitas::create([
+        Aktifitas::create([
             'username' => $user->username,
             'operation' => 'AKTIVASI_2FA',
             'table' => 'users',
@@ -131,7 +132,7 @@ class TwoFAController extends Controller
         session()->forget('2fa_verified');
 
         // Log aktivitas nonaktifkan 2FA
-        \App\Models\Pengguna\Aktifitas::create([
+        Aktifitas::create([
             'username' => $user->username,
             'operation' => 'NONAKTIFKAN_2FA',
             'table' => 'users',
@@ -157,14 +158,14 @@ class TwoFAController extends Controller
         if (! $admin || empty($admin->is_superadmin) || $admin->is_superadmin != 1) {
             abort(403, 'Hanya superadmin yang boleh menonaktifkan 2FA user lain.');
         }
-        $user = \App\Models\Pengguna\Pengguna::find($id);
+        $user = Pengguna::find($id);
         if (! $user) {
             return back()->with('error', 'User tidak ditemukan.');
         }
         $user->google2fa_secret = null;
         $user->save();
         // Log aktivitas nonaktifkan 2FA oleh superadmin
-        \App\Models\Pengguna\Aktifitas::create([
+        Aktifitas::create([
             'username' => $admin->username,
             'operation' => 'NONAKTIFKAN_2FA_USER_LAIN',
             'table' => 'users',
