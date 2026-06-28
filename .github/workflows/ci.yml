@@ -1273,6 +1273,18 @@ jobs:
             -e AUTHENC_URL=http://authenc:8088 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-ui-rbac
+      # F5-C route-coverage: every feature-module route mounts the authenticated
+      # app shell per role (replaces the deleted legacy MOCK ui-*.spec.ts).
+      - name: Run Playwright route-coverage (perlengkapan-nav)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-nav
       - name: e2e stack logs (on failure)
         if: failure()
         env:

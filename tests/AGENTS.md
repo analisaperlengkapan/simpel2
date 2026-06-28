@@ -56,6 +56,13 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   navigasi `/bank-aset/daftar` per-peran (storageState), assert NUP seed yang
   boleh tampil + yang TIDAK (E2E-A/B/C). Pelengkap bukti server-side
   (`perlengkapan-rbac`).
+- **Route-coverage / reachability:** `nav-access.spec.ts` (project
+  `perlengkapan-nav`) — tiap rute modul fitur (path `routes.rs`) WAJIB mount
+  shell ter-autentikasi (`app_chrome` header "SIMPEL") per-peran; signal
+  data-independent (tak butuh FE→BE). Spec MOCK lama (`ui-*.spec.ts`,
+  `helpers/session.ts`) DIHAPUS (token mati + rute pra-v2 usang) — JANGAN
+  hidupkan kembali pola mock; pakai real-auth storageState. Workflow PENUH
+  per-fitur (buat→ajukan→setujui, SK, export) = pass komprehensif **@staging**.
 - **Catatan jalur FE→BE @compose:** WASM memanggil API **origin-relative**
   (`api/client.rs` API_BASE=`/api/v1/perlengkapan`) → di-proxy nginx FE ke
   backend. Upstream host:port nginx **env-overridable** (entrypoint substitusi;
