@@ -83,8 +83,10 @@ COPY --from=builder /workspace/antarmuka/perlengkapan/dist /usr/share/nginx/html
 COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/index.html
 COPY antarmuka/perlengkapan/redirect-to-v2.html /usr/share/nginx/html/perlengkapan/simpel/index.html
 
-# Change ownership so entrypoint can write to config.json
-RUN chown -R nginx:nginx /usr/share/nginx/html
+# Change ownership so the entrypoint (uid 101) can write config.json and
+# substitute the upstream placeholders in nginx.conf in place.
+RUN chown -R nginx:nginx /usr/share/nginx/html \
+    && chown nginx:nginx /etc/nginx/nginx.conf
 
 # Copy entrypoint script
 COPY antarmuka/perlengkapan/entrypoint.sh /docker-entrypoint.sh
