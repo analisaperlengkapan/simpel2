@@ -1259,6 +1259,20 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-rbac
+      # F5-C UI-layer data-scoping (Layer-3): the FE bank-aset list renders only
+      # in-scope rows. Browser-driven against the FE (perlengkapan:8080), whose
+      # nginx now proxies origin-relative /api to the compose backend (the
+      # FE→BE upstream fix in this PR). Reuses per-role storageState from `setup`.
+      - name: Run Playwright UI scoping (perlengkapan-ui-rbac)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-ui-rbac
       - name: e2e stack logs (on failure)
         if: failure()
         env:

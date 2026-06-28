@@ -51,12 +51,19 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   acuan `guards-rbac.spec.ts` (#482): peran non-admin DITOLAK di `/admin/*`
   (ForbiddenPage), admin lolos. Guard = **client-side JWT-claim** (`is_admin`),
   jadi jalan di stack compose CI **tanpa** jalur FE→BE.
-- **Catatan jalur FE→BE @CI:** di compose, nginx FE meng-upstream port K8s
-  (`layanan-perlengkapan:8093`/`authenc:8091`) sedangkan backend compose di
-  `:3020`/`:8088` → jalur data FE→BE TIDAK tersambung di CI. Karena itu
-  assert data lewat UI = **@staging** (port benar via Helm); di CI assert
-  scoping **server-side via API backend langsung** (lihat di atas) + guard
-  **client-side**. Jangan tulis UI-data e2e yang mengandalkan FE→BE di CI.
+- **UI-layer data-scoping (Layer-3):** `rbac-scoping-ui.spec.ts` (project
+  `perlengkapan-ui-rbac`) membuktikan FE me-RENDER hanya baris in-scope —
+  navigasi `/bank-aset/daftar` per-peran (storageState), assert NUP seed yang
+  boleh tampil + yang TIDAK (E2E-A/B/C). Pelengkap bukti server-side
+  (`perlengkapan-rbac`).
+- **Catatan jalur FE→BE @compose:** WASM memanggil API **origin-relative**
+  (`api/client.rs` API_BASE=`/api/v1/perlengkapan`) → di-proxy nginx FE ke
+  backend. Upstream host:port nginx **env-overridable** (entrypoint substitusi;
+  default = port K8s `8093`/`8091`; docker-compose set `:3020`/`:8088`). Tanpa
+  override ini jalur data FE→BE putus di compose (hanya AuthGate jalan karena
+  decode JWT client-side). Dengan fix, UI-data e2e jalan **di CI** — tetap
+  utamakan bukti scoping **server-side via API** (deterministik, tak rapuh
+  selector); UI-layer = pelengkap render.
 
 ### 2. Integration Testing
 

@@ -94,6 +94,15 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: ['**/rbac-scoping.spec.ts'],
     },
+    // F5-C UI-layer data-scoping (Layer-3): the FE bank-aset list must RENDER
+    // only the in-scope rows. Browser-driven, per-role storageState; needs the
+    // compose FE→BE upstream fix so the WASM's origin-relative API call resolves.
+    {
+      name: 'perlengkapan-ui-rbac',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/rbac-scoping-ui.spec.ts'],
+    },
     // LEGACY mock UI specs — kept for the F5-C comprehensive rewrite. They use
     // the dead mock session and are NOT part of the smoke gate; do not run them
     // against the real stack until rewritten (F5-C / task #33).
