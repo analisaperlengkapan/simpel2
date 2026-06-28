@@ -190,6 +190,15 @@ export function credsFor(user: ScopedTestUser): SeedCredentials {
   return { username: user.username, password: user.username };
 }
 
+/**
+ * storageState file for a given role key (written by `auth.setup.ts`, reused by
+ * authenticated specs via `test.use({ storageState })`). The all-role seed user
+ * (admin-capable) lives under the key `admin`; per-role users under their `key`.
+ */
+export function storageStatePath(key: string): string {
+  return `results/.auth/${key}.json`;
+}
+
 /** Shape of `PaginatedResponse<T>` returned by `lib_perlengkapan::response`. */
 export interface PaginatedResponse<T> {
   success: boolean;

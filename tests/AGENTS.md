@@ -45,6 +45,18 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
     invarian isolasi per-baris, bukan hitungan absolut.
   - Fixtures/expected-scope per-peran di-pusat-kan di
     `helpers/real-auth.ts` (`TEST_USERS`) — perbarui seiring perubahan seed/role.
+- **Guard (RoleGate/SatkerGate) per-peran:** `auth.setup.ts` login tiap peran
+  nyata → tulis **storageState per-peran** (`results/.auth/<key>.json`, helper
+  `storageStatePath`); spec ber-browser pakai `test.use({ storageState })`. Pola
+  acuan `guards-rbac.spec.ts` (#482): peran non-admin DITOLAK di `/admin/*`
+  (ForbiddenPage), admin lolos. Guard = **client-side JWT-claim** (`is_admin`),
+  jadi jalan di stack compose CI **tanpa** jalur FE→BE.
+- **Catatan jalur FE→BE @CI:** di compose, nginx FE meng-upstream port K8s
+  (`layanan-perlengkapan:8093`/`authenc:8091`) sedangkan backend compose di
+  `:3020`/`:8088` → jalur data FE→BE TIDAK tersambung di CI. Karena itu
+  assert data lewat UI = **@staging** (port benar via Helm); di CI assert
+  scoping **server-side via API backend langsung** (lihat di atas) + guard
+  **client-side**. Jangan tulis UI-data e2e yang mengandalkan FE→BE di CI.
 
 ### 2. Integration Testing
 

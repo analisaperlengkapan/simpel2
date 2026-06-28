@@ -1231,6 +1231,20 @@ jobs:
             -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
             -e AUTHENC_URL=http://authenc:8088 \
             simpel-e2e-smoke
+      # F5-C per-role RoleGate regression (#482): the four single-role seed users
+      # are denied /admin/*, the all-role user is allowed. Browser-driven, reuses
+      # the smoke image; the `setup` project (dependency) writes the per-role
+      # storageState from real authenc logins.
+      - name: Run Playwright RoleGate regression (perlengkapan-guards-rbac)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-guards-rbac
       # F5-C RBAC data-scoping: server-side enforcement on the perlengkapan
       # BACKEND (#66/#565/#566). Pure-API — reuses the smoke image, overriding
       # the project. Talks to authenc (login) + layanan-perlengkapan (bank-aset)
