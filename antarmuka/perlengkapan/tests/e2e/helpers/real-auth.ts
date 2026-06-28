@@ -264,6 +264,25 @@ export async function bankAsetDetail(
   );
 }
 
+/**
+ * Call `GET /api/v1/perlengkapan/admin/master` with an optional Bearer token.
+ * The backend `/admin/*` endpoints enforce `require_admin` = `is_cross_satker_role`
+ * server-side: cross-satker roles (admin/pusat/validator_pusat) → 200; satker-bound
+ * roles → 403; no token → 401. NOTE this differs from the FE `/admin/*` UI guard,
+ * which uses the narrower `is_admin()` (so validator_pusat is denied the UI but
+ * allowed the API).
+ */
+export async function adminMasterList(
+  request: APIRequestContext,
+  token: string | null,
+) {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return request.get(`${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/admin/master`, {
+    headers,
+  });
+}
+
 /** Decoded JWT identity claims relevant to RBAC scoping. */
 export interface JwtIdentity {
   /** `custom.satker_code` (or legacy `satker`) — the caller MySIMKARI code. */

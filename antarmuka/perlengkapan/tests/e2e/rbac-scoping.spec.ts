@@ -27,6 +27,7 @@ import {
   bankAsetList,
   bankAsetListJson,
   bankAsetDetail,
+  adminMasterList,
   decodeJwtIdentity,
 } from './helpers/real-auth';
 
@@ -112,6 +113,35 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
   // ── No anonymous access ───────────────────────────────────────────────────
   test('bank-aset rejects an unauthenticated request (401)', async ({ request }) => {
     const resp = await bankAsetList(request, null);
+    expect(resp.status(), 'no Bearer token → unauthorized').toBe(401);
+  });
+});
+
+test.describe('Perlengkapan admin API authZ — server-side (cross-satker required)', () => {
+  // The backend `/admin/*` gate is `require_admin` = `is_cross_satker_role`, so
+  // satker-bound roles get 403 while validator_pusat (cross-satker) is allowed —
+  // intentionally WIDER than the FE `/admin` UI guard (`is_admin`, which denies
+  // validator_pusat). Asserting both halves keeps that asymmetry from drifting.
+  for (const user of TEST_USERS.filter((u) => u.role !== 'validator_pusat')) {
+    test(`${user.key} (${user.role}) is forbidden (403) at the admin API`, async ({ request }) => {
+      const { accessToken } = await apiLogin(request, credsFor(user));
+      const resp = await adminMasterList(request, accessToken);
+      expect(resp.status(), `${user.key} must be forbidden at /admin/master`).toBe(403);
+    });
+  }
+
+  test('validator_pusat (cross-satker) is allowed (200) at the admin API', async ({ request }) => {
+    const pusat = TEST_USERS.find((u) => u.key === 'validator_pusat')!;
+    const { accessToken } = await apiLogin(request, credsFor(pusat));
+    const resp = await adminMasterList(request, accessToken);
+    expect(
+      resp.status(),
+      'validator_pusat is cross-satker → allowed at the admin API (unlike the FE UI)',
+    ).toBe(200);
+  });
+
+  test('admin API rejects an unauthenticated request (401)', async ({ request }) => {
+    const resp = await adminMasterList(request, null);
     expect(resp.status(), 'no Bearer token → unauthorized').toBe(401);
   });
 });
