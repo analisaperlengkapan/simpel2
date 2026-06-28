@@ -1,0 +1,4 @@
+# Generated Playwright artifacts — never commit.
+playwright-report/
+results/
+test-results/
