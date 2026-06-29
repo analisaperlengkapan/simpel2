@@ -52,7 +52,12 @@ const EXPECTED_NIP_PROFILE = {
 
 // ── gRPC Client Setup ──────────────────────────────────────────────────────
 
-const PROTO_PATH = path.resolve(__dirname, '../../../layanan/integrasi/proto/integrasi.proto');
+// Default: the proto in the repo tree (works when run from the checkout). In the
+// containerized e2e-integrasi-authenc CI job the proto is copied into the e2e
+// image and located via INTEGRASI_PROTO_PATH (the repo tree is not in that image).
+const PROTO_PATH =
+  process.env.INTEGRASI_PROTO_PATH ||
+  path.resolve(__dirname, '../../../layanan/integrasi/proto/integrasi.proto');
 
 function createIntegrasiClient(): Promise<any> {
   return new Promise((resolve, reject) => {

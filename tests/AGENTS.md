@@ -78,9 +78,15 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   nyata: captcha+login+token; cukup portal+authenc). Spec lain di-pisah ke
   project NON-gate karena butuh layanan lain — JANGAN masukkan ke gate tanpa
   layanannya: `portal-cross-app` (auth-login-flow, butuh FE perlengkapan → SSO
-  cross-app @staging), `portal-integration` (integrasi-authenc, butuh
-  layanan-integrasi gRPC), `portal-screenshots` (artefak visual). Aktifkan gate
+  cross-app @staging), `portal-integration` (integrasi-authenc, browser-free
+  grpc-js+REST), `portal-screenshots` (artefak visual). Aktifkan gate
   via `E2E_PORTAL_ENABLED=true` atau dispatch `run_e2e`.
+- **Integrasi↔Authenc e2e (backend):** job `e2e-integrasi-authenc` (project
+  `portal-integration`) — stack `authenc`+`secreton`+`layanan-integrasi` (BUKAN
+  FE); uji gRPC `IntegrasiService` (`layanan-integrasi:50052`) + authenc REST.
+  Proto integrasi ADA DI LUAR konteks image e2e → di-copy ke build context +
+  `INTEGRASI_PROTO_PATH` (env-override di spec). Gate `E2E_INTEGRATION_ENABLED`
+  / dispatch `run_e2e`.
 
 ### 2. Integration Testing
 

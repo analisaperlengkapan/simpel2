@@ -2,3 +2,6 @@
 playwright-report/
 results/
 test-results/
+# Proto copied into the build context by the e2e-integrasi-authenc CI job
+# (canonical copy lives in layanan/integrasi/proto/).
+integrasi.proto
