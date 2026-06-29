@@ -53,16 +53,39 @@ export default defineConfig({
     navigationTimeout: 30000,
   },
 
-  /* Configure projects by test category */
+  /* Configure projects by test category.
+   *
+   * Only `portal-chromium` is the CI gate (e2e-portal job): the genuine portal
+   * FE real-auth login flow (captcha via debug endpoint, /api/** proxied to
+   * authenc by page.route) — needs only portal + authenc. The other specs need
+   * MORE than the portal stack and are split into their own non-gating projects
+   * so the gate's stack matches what it runs:
+   *   - portal-cross-app  (auth-login-flow): SSO redirect → needs the
+   *     PERLENGKAPAN FE too; belongs to the @staging cross-app SSO pass.
+   *   - portal-integration (integrasi-authenc-e2e): gRPC against
+   *     layanan-integrasi → needs that service up (backend integration).
+   *   - portal-screenshots: visual artifacts, not assertions.
+   */
   projects: [
     {
       name: 'portal-chromium',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: [
-        '**/portal-*.spec.ts',
-        '**/auth-*.spec.ts',
-        '**/integrasi-authenc*.spec.ts'
-      ],
+      testMatch: ['**/portal-auth-e2e.spec.ts'],
+    },
+    {
+      name: 'portal-cross-app',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/auth-login-flow.spec.ts'],
+    },
+    {
+      name: 'portal-integration',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/integrasi-authenc-e2e.spec.ts'],
+    },
+    {
+      name: 'portal-screenshots',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/portal-screenshots-e2e.spec.ts'],
     },
   ],
 
