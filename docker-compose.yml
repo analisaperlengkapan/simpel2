@@ -218,6 +218,38 @@ services:
       - simpel-network
 
   # =====================================================
+  # REST→gRPC gateway sidecar for simpelv1
+  # =====================================================
+  # The PHP gateway clients (Authenc/Secrethon/Integrasi GrpcClient) speak REST
+  # over localhost to this sidecar, which holds long-lived gRPC channels to the
+  # core services and reshapes responses to the contract simpelv1 expects (see
+  # layanan/gateway/AGENTS.md). In compose it's a normal service; in K8s it's a
+  # localhost sidecar in the simpelv1 pod.
+  gateway:
+    build:
+      context: .
+      dockerfile: layanan/gateway/Dockerfile
+    image: simpel2-gateway:local
+    container_name: gateway
+    ports:
+      - "8090:8090"
+    environment:
+      RUST_LOG: debug
+      GATEWAY_PORT: "8090"
+      AUTHENC_GRPC_URL: http://authenc:50051
+      SECRETON_GRPC_URL: http://secreton:50053
+      INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
+    depends_on:
+      authenc:
+        condition: service_started
+      secreton:
+        condition: service_started
+      layanan-integrasi:
+        condition: service_started
+    networks:
+      - simpel-network
+
+  # =====================================================
   # Legacy Application (SIMPEL v1)
   # =====================================================
   simpelv1:
@@ -244,22 +276,20 @@ services:
       APP_KEY: ${SIMPELV1_APP_KEY:?SIMPELV1_APP_KEY must be set in .env (use `php artisan key:generate --show`)}
       PORTAL_URL: http://localhost:3000/portal
       # The PHP gateway clients read *_GATEWAY_URL (see
-      # `monolith/simpelv1/app/Services/Grpc/*GrpcClient.php`), not
-      # *_GRPC_URL. Per `monolith/simpelv1/AGENTS.md`, Laravel talks to
-      # the Rust services through an HTTP/REST gateway sidecar, not
-      # direct gRPC. Until a sidecar is added to this compose file,
-      # these env vars are deliberately left unset so the PHP clients
-      # fall back to their `http://127.0.0.1:808[1-3]` defaults — any
-      # code path that actually invokes the gateway will then fail fast
-      # with a connection refused, rather than silently hanging on DNS
-      # resolution for a hostname (e.g. `authenc-gateway`) that isn't a
-      # service in this compose file.
+      # `monolith/simpelv1/app/Services/Grpc/*GrpcClient.php`) and speak REST to
+      # the `gateway` sidecar, which holds the gRPC channels upstream. All three
+      # point at the single gateway port (8090); in K8s these become 127.0.0.1.
+      AUTHENC_GATEWAY_URL: http://gateway:8090
+      INTEGRASI_GATEWAY_URL: http://gateway:8090
+      SECRETON_GATEWAY_URL: http://gateway:8090
       SESSION_DRIVER: file
       CACHE_DRIVER: file
     depends_on:
       postgres:
         condition: service_healthy
       authenc:
+        condition: service_started
+      gateway:
         condition: service_started
     networks:
       - simpel-network

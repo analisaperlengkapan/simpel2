@@ -86,6 +86,9 @@ outputs:
   image-app-2026:
     description: 'true jika image statis APP-2026 harus di-rebuild'
     value: ${{ steps.filter.outputs.image-app-2026 }}
+  image-gateway:
+    description: 'true jika image gateway sidecar harus di-rebuild'
+    value: ${{ steps.filter.outputs.image-gateway }}
 
 runs:
   using: "composite"
@@ -219,3 +222,12 @@ runs:
             - 'monolith/simpelv1/**'
           image-app-2026:
             - 'monolith/APP-2026/**'
+          # The gateway compiles the authenc/secreton/integrasi protos, so a
+          # proto change must rebuild it too (keeps wire types in lockstep).
+          image-gateway:
+            - 'layanan/gateway/**'
+            - 'layanan/authenc/proto/**'
+            - 'layanan/secreton/proto/**'
+            - 'layanan/integrasi/proto/**'
+            - 'Cargo.toml'
+            - 'Cargo.lock'

@@ -630,9 +630,28 @@ simpelv1:
     REDIS_HOST: ""                         # default: redis.<ns>.svc.cluster.local
     REDIS_PORT: "6379"
     PORTAL_URL: "http://portal:3000/portal"
-    AUTHENC_GATEWAY_URL: "http://127.0.0.1:8081"
-    INTEGRASI_GATEWAY_URL: "http://127.0.0.1:8082"
-    SECRETON_GATEWAY_URL: "http://127.0.0.1:8083"
+    # All three point at the single gateway sidecar (127.0.0.1:8090); the sidecar
+    # fans out to the right upstream gRPC service per path. See simpelv1.gateway.
+    AUTHENC_GATEWAY_URL: "http://127.0.0.1:8090"
+    INTEGRASI_GATEWAY_URL: "http://127.0.0.1:8090"
+    SECRETON_GATEWAY_URL: "http://127.0.0.1:8090"
+  # REST→gRPC gateway sidecar (layanan/gateway). Reuses backend-config gRPC URLs.
+  gateway:
+    enabled: true
+    image:
+      name: gateway
+      tag: ""
+    logLevel: info
+    resources:
+      requests: { cpu: 25m, memory: 32Mi }
+      limits:   { cpu: 100m, memory: 128Mi }
+    containerSecurityContext:
+      runAsNonRoot: true
+      runAsUser: 10001
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities: { drop: [ALL] }
+      seccompProfile: { type: RuntimeDefault }
   dbBackup:
     # source: configMap | secret | none
     # Staging pakai configMap (small dump checked-in), production pakai secret (gitignored).
