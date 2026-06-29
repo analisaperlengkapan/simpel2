@@ -328,6 +328,15 @@ services:
       # instead of silently hitting a staging IP. Replace with a real
       # gateway URL once a sidecar/proxy is added to compose.
       AUTHENC_URL: /api/v1/auth
+      # nginx upstream host:port overrides (entrypoint substitutes these into
+      # nginx.conf; defaults are the K8s Service ports). In compose the backend
+      # listens on :3020, so without this override the in-browser FE->BE data
+      # path (origin-relative /api/v1/perlengkapan/* proxied by this nginx) dials
+      # the K8s port :8093 that nothing binds here → 502. authenc REST is only
+      # published by the e2e overlay (:8088); in the base stack the /api/v1/auth
+      # proxy still has no REST target (unchanged), so login uses the e2e overlay.
+      PERLENGKAPAN_API_UPSTREAM: layanan-perlengkapan:3020
+      AUTHENC_API_UPSTREAM: authenc:8088
     networks:
       - simpel-network
 
