@@ -94,16 +94,23 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
       testMatch: ['**/rbac-scoping.spec.ts'],
     },
-    // LEGACY mock UI specs — kept for the F5-C comprehensive rewrite. They use
-    // the dead mock session and are NOT part of the smoke gate; do not run them
-    // against the real stack until rewritten (F5-C / task #33).
+    // F5-C UI-layer data-scoping (Layer-3): the FE bank-aset list must RENDER
+    // only the in-scope rows. Browser-driven, per-role storageState; needs the
+    // compose FE→BE upstream fix so the WASM's origin-relative API call resolves.
     {
-      name: 'perlengkapan-chromium',
+      name: 'perlengkapan-ui-rbac',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: [
-        '**/ui-*.spec.ts',
-        '**/dashboard-navigation.spec.ts'
-      ],
+      dependencies: ['setup'],
+      testMatch: ['**/rbac-scoping-ui.spec.ts'],
+    },
+    // F5-C route-coverage / navigation reachability (replaces the deleted legacy
+    // MOCK ui-*.spec.ts). Real per-role storageState; asserts the authenticated
+    // app shell mounts on every feature-module route.
+    {
+      name: 'perlengkapan-nav',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/nav-access.spec.ts'],
     },
   ],
 
