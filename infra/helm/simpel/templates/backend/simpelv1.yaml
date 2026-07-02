@@ -252,6 +252,47 @@ spec:
             {{- if $secretonAuthEnabled }}
             - { name: runtime,        mountPath: /app/runtime, readOnly: true }
             {{- end }}
+        {{- if $cfg.gateway.enabled }}
+        # REST→gRPC gateway sidecar. simpelv1's PHP clients hit it on
+        # 127.0.0.1:8090 (AUTHENC/INTEGRASI/SECRETON_GATEWAY_URL); it holds
+        # long-lived gRPC channels to the core services (mTLS via the Istio
+        # sidecar) and reshapes responses to the contract simpelv1 expects.
+        # Upstream endpoints are reused from the shared backend-config ConfigMap.
+        - name: gateway
+          image: {{ include "simpel.image" (dict "top" . "spec" $cfg.gateway.image) }}
+          imagePullPolicy: {{ default (include "simpel.imagePullPolicy" .) $cfg.gateway.image.pullPolicy }}
+          securityContext:
+            {{- toYaml $cfg.gateway.containerSecurityContext | nindent 12 }}
+          ports:
+            - { name: gw, containerPort: 8090, protocol: TCP }
+          env:
+            - { name: RUST_LOG, value: {{ $cfg.gateway.logLevel | quote }} }
+            - { name: GATEWAY_PORT, value: "8090" }
+            - name: AUTHENC_GRPC_URL
+              valueFrom: { configMapKeyRef: { name: backend-config, key: AUTHENC_GRPC_URL, optional: true } }
+            - name: SECRETON_GRPC_URL
+              valueFrom: { configMapKeyRef: { name: backend-config, key: SECRETON_GRPC_URL, optional: true } }
+            - name: INTEGRASI_GRPC_URL
+              valueFrom: { configMapKeyRef: { name: backend-config, key: INTEGRASI_GRPC_URL, optional: true } }
+          resources:
+            {{- toYaml $cfg.gateway.resources | nindent 12 }}
+          startupProbe:
+            httpGet: { path: /healthz, port: gw, scheme: HTTP }
+            periodSeconds: 5
+            failureThreshold: 24
+          livenessProbe:
+            httpGet: { path: /healthz, port: gw, scheme: HTTP }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet: { path: /healthz, port: gw, scheme: HTTP }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+        {{- end }}
       volumes:
         {{- if eq $cfg.dbBackup.source "configMap" }}
         - name: db-backup

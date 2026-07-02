@@ -82,6 +82,7 @@ jobs:
           SECRETON: ${{ steps.changes.outputs.image-secreton }}
           MONOLITH: ${{ steps.changes.outputs.image-monolith }}
           APP_2026: ${{ steps.changes.outputs.image-app-2026 }}
+          GATEWAY: ${{ steps.changes.outputs.image-gateway }}
         run: |
           set -euo pipefail
           declare -A IMAGES=(
@@ -100,6 +101,7 @@ jobs:
             [layanan-secreton]="layanan/secreton/Dockerfile|.|$SECRETON"
             [simpelv1]="monolith/simpelv1/Dockerfile|.|$MONOLITH"
             [app-2026]="monolith/APP-2026/Dockerfile|.|$APP_2026"
+            [layanan-gateway]="layanan/gateway/Dockerfile|.|$GATEWAY"
           )
           entries=()
           for name in "${!IMAGES[@]}"; do
@@ -287,6 +289,9 @@ jobs:
             scope: "--all-targets --all-features"
           - name: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            scope: "--all-targets --all-features"
+          - name: layanan-gateway
+            packages: "-p layanan-gateway"
             scope: "--all-targets --all-features"
     steps:
       - uses: actions/checkout@v7
@@ -650,6 +655,8 @@ jobs:
             # is `secreton-api::api_server` — mirror layanan/secreton/Dockerfile.
             package: secreton-api
             extra_args: "--bin api_server --features raft-consensus"
+          - name: layanan-gateway
+            package: layanan-gateway
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -916,6 +923,9 @@ jobs:
             test_args: ""
           - tier: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            test_args: ""
+          - tier: layanan-gateway
+            packages: "-p layanan-gateway"
             test_args: ""
     steps:
       - uses: actions/checkout@v7

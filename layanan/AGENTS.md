@@ -10,6 +10,7 @@ Jika Anda bekerja di subdirektori spesifik, baca aturan detailnya di sini:
 - 🔗 **Integrasi**: Baca `layanan/integrasi/AGENTS.md` (MonSAKTI, MySIMKARI, SIMAN).
 - 🔐 **Authenc**: Baca `layanan/authenc/AGENTS.md` (OAuth2, OIDC, MFA, Identity).
 - 🔒 **Secreton**: Baca `layanan/secreton/AGENTS.md` (Secrets Vault, Transit, PKI).
+- 🚪 **Gateway**: Baca `layanan/gateway/AGENTS.md` (sidecar REST→gRPC utk **simpelv1**; menerjemahkan ke authenc/secreton/integrasi).
 
 ## 📑 Daftar Isi (Table of Contents)
 

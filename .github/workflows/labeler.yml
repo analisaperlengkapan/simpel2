@@ -74,6 +74,7 @@ jobs:
             authenc
             integrasi
             secreton
+            gateway
             portal
             monolith
             shared

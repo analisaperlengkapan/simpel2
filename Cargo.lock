@@ -5870,6 +5870,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "layanan-gateway"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "prost",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tonic-prost-build",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "layanan-integrasi"
 version = "0.1.0"
 dependencies = [

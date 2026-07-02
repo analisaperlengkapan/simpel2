@@ -21,6 +21,9 @@ members = [
   "layanan/perlengkapan",
   "layanan/integrasi",
 
+  # REST→gRPC gateway sidecar (simpelv1 ↔ authenc/secreton/integrasi)
+  "layanan/gateway",
+
   # Infrastructure Services
   # "layanan/authenc",  # Legacy - migrated to crates/
   "layanan/secreton",
@@ -58,6 +61,7 @@ default-members = [
   "antarmuka/portal",
   "antarmuka/perlengkapan",
   "layanan/perlengkapan",
+  "layanan/gateway",
 ]
 
 [workspace.package]
