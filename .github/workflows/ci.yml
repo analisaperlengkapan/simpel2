@@ -923,7 +923,12 @@ jobs:
             test_args: ""
           - tier: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
-            test_args: ""
+            # Heaviest tier (13 crates, PG property tests). Test binaries
+            # default --test-threads to ncpus (dozens on the ARC host class),
+            # which resource-kills the runner with no assertion output — the
+            # job dies identically on main and PRs (e.g. run 28557595484).
+            # Cap intra-binary test parallelism as mitigation.
+            test_args: "-- --test-threads=4"
           - tier: layanan-gateway
             packages: "-p layanan-gateway"
             test_args: ""
@@ -1115,13 +1120,18 @@ jobs:
       # SIMPELV1_APP_KEY is required by compose interpolation (the simpelv1
       # service declares ${SIMPELV1_APP_KEY:?...}) even though we do NOT bring
       # simpelv1 up here — set a throwaway value so `docker compose` can load.
-      - name: Build e2e images (authenc + portal)
+      - name: Build e2e images (authenc + portal + integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
+          # layanan-integrasi must be built too: the `up` below starts
+          # integrasi-migrate, which runs `image: simpel2-integrasi:local`
+          # (shared with the layanan-integrasi service). Without it the
+          # bring-up dies with "simpel2-integrasi:local: not found" — proven
+          # on the first real run of this job (CI run 28557595484).
           if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc portal; then
+              authenc portal layanan-integrasi; then
             echo "::error::portal e2e image build failed or timed out after 5400s"
             exit 1
           fi
@@ -1450,6 +1460,19 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # Profile tests need a /auth/me-capable user: the base NIP seed user is
+      # require_password_change=true BY DESIGN (portal guard suite) → /auth/me
+      # 403s for it, and the baseline `admin` user carries a placeholder hash
+      # no password verifies against. The multi-satker fixture provides real
+      # login-able users (require_password_change=false, shared seed password).
+      - name: Seed e2e multi-satker fixtures
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
       # The integrasi proto is in the repo tree, OUTSIDE the e2e image context —
       # copy it into the build context, then locate it via INTEGRASI_PROTO_PATH.
       # Reuse the portal e2e image (it has grpc-js + the spec); run the

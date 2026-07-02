@@ -30,24 +30,49 @@ import * as path from 'path';
 const AUTHENC_URL = process.env.AUTHENC_URL || 'http://localhost:18088';
 const INTEGRASI_GRPC_URL = process.env.INTEGRASI_GRPC_URL || 'localhost:18051';
 
-/** NIP test user — seeded via authenc migration 044 */
+/**
+ * NIP test user — the base authenc seed (002_seed.sql). NOTE: this user is
+ * seeded with `require_password_change = true` BY DESIGN (the portal guard
+ * suite asserts the change-password redirect), so `GET /api/v1/auth/me`
+ * answers 403 `password_change_required` for it. Use it ONLY for login/JWT
+ * shape tests — profile tests use PROFILE_USER below (proven on the first
+ * real run of this job, CI run 28557595484).
+ */
 const NIP_USER = {
   username: '199203142014031001',
   password: '199203142014031001',
 };
 
-const ADMIN_USER = {
-  username: 'admin',
+/**
+ * Profile-capable user from the multi-satker fixture
+ * (tests/fixtures/e2e/seed-multisatker.sql, applied by the CI job):
+ * `require_password_change = false`, so /auth/me works. ALL fixture users
+ * share the base seed password (the fixture reuses the one known Argon2id
+ * hash, which verifies exactly "199203142014031001").
+ */
+const PROFILE_USER = {
+  username: '200000000000000001',
   password: '199203142014031001',
 };
 
-/** Expected NIP user profile fields (from migration 044 seed data) */
-const EXPECTED_NIP_PROFILE = {
-  username: '199203142014031001',
-  email: '199203142014031001@kejaksaan.go.id',
-  name: 'Pegawai Perlengkapan',
-  first_name: 'Pegawai',
-  last_name: 'Perlengkapan',
+/**
+ * Second live user (validator_pusat from the multi-satker fixture). The
+ * baseline DOES seed a literal `admin` user, but with a placeholder hash no
+ * password verifies against — it is a bootstrap artifact, not a login-able
+ * account.
+ */
+const ADMIN_USER = {
+  username: '200000000000000004',
+  password: '199203142014031001',
+};
+
+/** Expected PROFILE_USER fields (from the multi-satker fixture). */
+const EXPECTED_PROFILE = {
+  username: '200000000000000001',
+  email: '200000000000000001@kejaksaan.go.id',
+  // /auth/me builds `name` from first/last name, falling back to `nama`;
+  // fixture users have first/last NULL, so `nama` is the display name.
+  name: 'E2E Operator Jakpus',
 };
 
 // ── gRPC Client Setup ──────────────────────────────────────────────────────
@@ -310,13 +335,15 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
     });
 
     test('NIP user profile matches expected employee data', async ({ request }) => {
-      // Login to get token
+      // PROFILE_USER (multi-satker fixture): the base NIP seed user is
+      // require_password_change=true by design → /auth/me answers 403 for it.
       const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
         data: {
-          username: NIP_USER.username,
-          password: NIP_USER.password,
+          username: PROFILE_USER.username,
+          password: PROFILE_USER.password,
         },
       });
+      expect(loginResp.ok()).toBeTruthy();
       const { access_token } = await loginResp.json();
 
       // Get user profile
@@ -328,16 +355,9 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       const profile: UserProfile = await profileResp.json();
 
       // Verify NIP employee data contract
-      expect(profile.username).toBe(EXPECTED_NIP_PROFILE.username);
-      expect(profile.email).toBe(EXPECTED_NIP_PROFILE.email);
-      expect(profile.name).toBe(EXPECTED_NIP_PROFILE.name);
-      // first_name/last_name may not be returned by the API (name is the combined field)
-      if (profile.first_name !== undefined) {
-        expect(profile.first_name).toBe(EXPECTED_NIP_PROFILE.first_name);
-      }
-      if (profile.last_name !== undefined) {
-        expect(profile.last_name).toBe(EXPECTED_NIP_PROFILE.last_name);
-      }
+      expect(profile.username).toBe(EXPECTED_PROFILE.username);
+      expect(profile.email).toBe(EXPECTED_PROFILE.email);
+      expect(profile.name).toBe(EXPECTED_PROFILE.name);
       expect(profile.email_verified).toBe(true);
       expect(profile.id).toBeTruthy();
 
@@ -369,7 +389,9 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       console.log(`  JWT: sub=${payload.sub}, iss=${payload.iss}, scope=${payload.scope}`);
     });
 
-    test('admin user can also login and access profile', async ({ request }) => {
+    test('second seeded user (validator_pusat) can also login and access profile', async ({
+      request,
+    }) => {
       const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
         data: {
           username: ADMIN_USER.username,
@@ -385,8 +407,8 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       expect(profileResp.ok()).toBeTruthy();
 
       const profile: UserProfile = await profileResp.json();
-      expect(profile.username).toBe('admin');
-      expect(profile.email).toBe('admin@authenc.local');
+      expect(profile.username).toBe(ADMIN_USER.username);
+      expect(profile.email).toBe(`${ADMIN_USER.username}@kejaksaan.go.id`);
     });
 
     test('expired/invalid token is rejected', async ({ request }) => {
@@ -430,8 +452,11 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
         data: { source: 'mysimkari' },
       });
 
-      // 200 = working, 501 = not_implemented, 404 = route not configured yet
-      expect([200, 404, 501]).toContain(resp.status());
+      // Endpoint-EXISTENCE check, not an RBAC assertion: 200 = working,
+      // 501 = not_implemented, 404 = route not configured yet, 401/403 =
+      // route exists but denies the fixture user (validator_pusat, not an
+      // IAM admin — the baseline has no login-able admin account).
+      expect([200, 401, 403, 404, 501]).toContain(resp.status());
       console.log(`  Federation sync: HTTP ${resp.status()}`);
     });
 
@@ -442,7 +467,8 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
 
-      expect([200, 404, 501]).toContain(resp.status());
+      // Endpoint-existence check (see federation sync above for the statuses).
+      expect([200, 401, 403, 404, 501]).toContain(resp.status());
       console.log(`  Federation stats: HTTP ${resp.status()}`);
     });
   });
@@ -463,10 +489,12 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
        *   - Name → name/first_name/last_name (authenc)
        *   - Email → email format: nip{NIP}@kejaksaan.go.id (authenc)
        */
+      // PROFILE_USER: /auth/me-capable (the base NIP seed user is
+      // require_password_change=true by design → 403 on /auth/me).
       const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
         data: {
-          username: NIP_USER.username,
-          password: NIP_USER.password,
+          username: PROFILE_USER.username,
+          password: PROFILE_USER.password,
         },
       });
       expect(loginResp.ok()).toBeTruthy();
@@ -475,18 +503,19 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       const profileResp = await request.get(`${AUTHENC_URL}/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${access_token}` },
       });
+      expect(profileResp.ok()).toBeTruthy();
       const profile: UserProfile = await profileResp.json();
 
       // Data contract validations:
 
       // 1. NIP is the username
-      expect(profile.username).toBe(NIP_USER.username);
+      expect(profile.username).toBe(PROFILE_USER.username);
 
       // 2. NIP is an 18-digit Indonesian civil servant number
       expect(profile.username).toMatch(/^\d{18}$/);
 
       // 3. Email follows the NIP-based pattern
-      expect(profile.email).toBe(`${NIP_USER.username}@kejaksaan.go.id`);
+      expect(profile.email).toBe(`${PROFILE_USER.username}@kejaksaan.go.id`);
 
       // 4. User has a name
       expect(profile.name).toBeTruthy();
@@ -555,11 +584,12 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
        * 4. Refresh token works
        */
 
-      // Step 1: Login
+      // Step 1: Login (PROFILE_USER — /auth/me-capable; the base NIP seed
+      // user is require_password_change=true by design → 403 on /auth/me)
       const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
         data: {
-          username: NIP_USER.username,
-          password: NIP_USER.password,
+          username: PROFILE_USER.username,
+          password: PROFILE_USER.password,
         },
       });
       expect(loginResp.ok()).toBeTruthy();
@@ -573,7 +603,7 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       const profile: UserProfile = await profileResp.json();
 
       // Step 3: Verify consistency
-      expect(profile.username).toBe(NIP_USER.username);
+      expect(profile.username).toBe(PROFILE_USER.username);
       expect(profile.id).toBeTruthy();
 
       // Step 4: Refresh token

@@ -61,8 +61,11 @@ for k in "${KEYS[@]:0:${THRESHOLD}}"; do
     -H 'Content-Type: application/json' \
     -d "$(jq -nc --arg key "$k" '{key:$key}')" >/dev/null || die "unseal request failed"
 done
-sealed=$(curl -fsS "${SECRETON_ADDR}/v1/sys/seal-status" | jq -r '.sealed // true')
-[ "$sealed" = "false" ] || die "engine still sealed after ${THRESHOLD} shares"
+# NOTE: no `// true` fallback here — jq's `//` treats `false` itself as empty,
+# so `.sealed // true` returns "true" exactly when unseal SUCCEEDED (sealed=false).
+# Plain `.sealed` keeps fail-closed semantics: a missing key prints "null" ≠ "false".
+sealed=$(curl -fsS "${SECRETON_ADDR}/v1/sys/seal-status" | jq -r '.sealed')
+[ "$sealed" = "false" ] || die "engine still sealed after ${THRESHOLD} shares (seal-status .sealed=${sealed})"
 log "    unsealed ✓"
 
 # ── 4. Seed a secret THROUGH THE GATEWAY (gRPC write == gRPC read) ────────────

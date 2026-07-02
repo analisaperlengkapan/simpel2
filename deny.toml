@@ -15,6 +15,7 @@ ignore = [
   "RUSTSEC-2023-0019", # kuchiki (unmaintained) - transitive (HTML parsing)
   "RUSTSEC-2024-0370", # proc-macro-error (unmaintained) - transitive macro dep
   "RUSTSEC-2026-0173", # proc-macro-error2 (unmaintained fork of the above) - transitive macro dep, maintenance-status only
+  "RUSTSEC-2026-0192", # ttf-parser (unmaintained) - transitive via printpdf→lopdf (perlengkapan PDF/SK export); no vuln, no upstream fix; revisit if printpdf moves off lopdf
   # rustls-webpki 0.101.7 advisories — transitive via aws-smithy-http-client
   # 1.1.12 (latest) → rustls 0.21.12. AWS SDK has not yet upgraded to
   # rustls 0.22+. Vulnerable code path only triggers when validating TLS
