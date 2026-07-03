@@ -127,13 +127,13 @@ async fn main() -> anyhow::Result<()> {
     // secreton 50053.
 
     // Secreton Integration
-    let secreton_url = std::env::var("SECRETON_GRPC_URL")
-        .unwrap_or_else(|_| "http://localhost:50053".to_string());
+    let secreton_url =
+        std::env::var("SECRETON_GRPC_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
     let mut database_url = std::env::var("DATABASE_URL").ok();
 
     // Authenc Integration
-    let authenc_url = std::env::var("AUTHENC_GRPC_URL")
-        .unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let authenc_url =
+        std::env::var("AUTHENC_GRPC_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     // Integrasi Integration
     let integrasi_url = std::env::var("INTEGRASI_GRPC_URL")

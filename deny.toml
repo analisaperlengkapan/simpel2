@@ -48,6 +48,16 @@ ignore = [
   # Upgrade/un-ignore when printpdf ships a lopdf >=0.42 release.
   # Track: https://github.com/fschutt/printpdf
   "RUSTSEC-2026-0187", # lopdf (stack overflow on PDF parse) - not reachable (generate-only)
+  # quick-xml < 0.41 DoS on PARSING untrusted XML (quadratic duplicate-attribute
+  # check / unbounded namespace allocation). Our direct dependency (authenc SAML,
+  # which DOES parse untrusted XML) is upgraded to 0.41. The only remaining
+  # <0.41 copy is quick-xml 0.36 pinned by docx-rs 0.4.20 (latest release; no
+  # upstream upgrade path), used exclusively to GENERATE .docx (SK exporters,
+  # dokumen/docx_generator.rs — Docx::new + write, no read/parse of untrusted
+  # documents), so the vulnerable parse paths are unreachable. Un-ignore when
+  # docx-rs ships a release on quick-xml >= 0.41.
+  "RUSTSEC-2026-0194", # quick-xml <0.41 quadratic attr check - residual docx-rs island, generate-only
+  "RUSTSEC-2026-0195", # quick-xml <0.41 namespace alloc DoS - residual docx-rs island, generate-only
 ]
 
 [licenses]
