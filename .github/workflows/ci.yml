@@ -1621,6 +1621,122 @@ jobs:
         run: |
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
 
+  # ── simpelv1 ↔ gateway LIVE integration (F-GW PR-C) ──
+  # Runs simpelv1's real *GrpcClient classes (NOT Http::fake) against a live
+  # gateway → authenc + secreton + layanan-integrasi. Proves the REST→gRPC path
+  # simpelv1 depends on actually works: secreton secret round-trip (seeded by the
+  # bootstrap), authenc fail-closed token rejection, and integrasi SIMAN asset +
+  # MySIMKARI employee reads (seeded) + MonSAKTI-dormant 501. Gated by
+  # E2E_INTEGRATION_ENABLED / run_e2e. NOT in ci-summary.needs (opt-in).
+  e2e-simpelv1-integration:
+    name: E2E simpelv1 ↔ gateway (authenc + secreton + integrasi, live)
+    needs: [detect, build-backend]
+    if: |
+      !cancelled() &&
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (vars.E2E_INTEGRATION_ENABLED == 'true' &&
+         (needs.detect.outputs.rust-backend == 'true' ||
+          needs.detect.outputs.monolith-php == 'true' ||
+          needs.detect.outputs.e2e == 'true'))
+      ) &&
+      needs.build-backend.result != 'failure'
+    runs-on: arc-simpel
+    env:
+      POSTGRES_PASSWORD: e2e_test_pw
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Docker Compose v2 plugin
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      - name: Build images (authenc + secreton + layanan-integrasi + gateway)
+        run: |
+          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+              authenc secreton layanan-integrasi gateway; then
+            echo "::error::simpelv1-integration image build failed or timed out after 5400s"
+            exit 1
+          fi
+      - name: Bring up core stack (bounded)
+        run: |
+          if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
+              postgres secreton integrasi-migrate authenc-migrate authenc layanan-integrasi gateway; then
+            echo "::error::simpelv1-integration stack bring-up failed or timed out after 600s"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
+            exit 1
+          fi
+      - name: Wait for gateway + backends
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" busybox:1.36 sh -c '
+            for i in $(seq 1 60); do
+              if nc -z gateway 8090 && nc -z authenc 8088 && nc -z layanan-integrasi 50052 && nc -z secreton 8200; then
+                echo "gateway + backends ready after $i tries"; exit 0; fi
+              sleep 5
+            done
+            echo "stack did not become ready"; exit 1'
+      - name: Bootstrap secreton (init/unseal + seed secret via gateway)
+        run: |
+          if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+              run --rm --no-deps secreton-bootstrap; then
+            echo "::error::secreton bootstrap failed — simpelv1↔secreton test cannot pass"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton gateway || true
+            exit 1
+          fi
+      - name: Seed integrasi + authenc fixtures (dbsimpelv2)
+        run: |
+          for f in tests/fixtures/e2e/seed-multisatker.sql tests/fixtures/e2e/seed-simpelv1-live.sql; do
+            echo ">>> applying $f"
+            if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+                run --rm -T e2e-seed \
+                -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - < "$f"; then
+              echo "::error::seed $f failed"; exit 1
+            fi
+          done
+      - name: composer install (simpelv1)
+        working-directory: monolith/simpelv1
+        run: |
+          docker run --rm \
+            -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
+            -e COMPOSER_HOME=/tmp/composer \
+            --entrypoint composer serversideup/php:8.2-cli \
+            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
+      - name: Prepare sqlite test DB
+        run: |
+          rm -f /tmp/simpelv1-test.sqlite
+          touch /tmp/simpelv1-test.sqlite
+          chmod 666 /tmp/simpelv1-test.sqlite
+      - name: PHPUnit IntegrationLive (real gateway)
+        working-directory: monolith/simpelv1
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -v "$PWD":/app \
+            -v /tmp/simpelv1-test.sqlite:/tmp/simpelv1-test.sqlite \
+            -w /app -u "$(id -u):$(id -g)" \
+            -e AUTHENC_GATEWAY_URL=http://gateway:8090 \
+            -e SECRETON_GATEWAY_URL=http://gateway:8090 \
+            -e INTEGRASI_GATEWAY_URL=http://gateway:8090 \
+            --entrypoint vendor/bin/phpunit serversideup/php:8.2-cli \
+            --testsuite IntegrationLive --no-coverage
+      - name: Stack logs (on failure)
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=200 || true
+      - name: Tear down stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
+
   # ─────────────────────────────────────────────────────
   # Phase 5 — Summary (single required check)
   # ─────────────────────────────────────────────────────

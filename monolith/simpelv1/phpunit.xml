@@ -12,6 +12,14 @@
         <testsuite name="Integration">
             <directory suffix="Test.php">./tests/Feature/Integration</directory>
         </testsuite>
+        <!-- F-GW PR-C: LIVE integration against a real gateway → authenc +
+             secreton + layanan-integrasi (NOT Http::fake). Runs only in the
+             `e2e-simpelv1-integration` CI job (which brings up the stack and
+             sets *_GATEWAY_URL); each test skips if its gateway URL is unset,
+             so a plain `phpunit` run without a stack does not fail. -->
+        <testsuite name="IntegrationLive">
+            <directory suffix="Test.php">./tests/Feature/IntegrationLive</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
