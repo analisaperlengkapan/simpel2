@@ -104,6 +104,11 @@ impl PostgresRevocationStore {
     ) -> Result<bool> {
         // Empty string never matches a real sid (sids are non-empty).
         let sid = sid.unwrap_or("");
+        // to_timestamp(double precision): Postgres infers $4 as float8, so an
+        // i64 bind fails with "error serializing parameter 3" — which made
+        // EVERY gRPC ValidateToken fail closed (Token validation failed).
+        // Bind the issued-at as f64 to match the inferred type.
+        let iat = iat as f64;
         let sql = r#"
             SELECT EXISTS (
                 SELECT 1 FROM authenc.token_revocations r

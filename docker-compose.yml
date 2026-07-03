@@ -210,9 +210,11 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsimpelv2
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
-      AUTHENC_GRPC_URL: authenc:50051
-      SECRETON_GRPC_URL: secreton:50053
-      INTEGRASI_GRPC_URL: layanan-integrasi:50052
+      # http:// scheme is required — tonic parses these as URIs (scheme-less
+      # values fail to connect, same as the gateway service's entries below).
+      AUTHENC_GRPC_URL: http://authenc:50051
+      SECRETON_GRPC_URL: http://secreton:50053
+      INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
     depends_on:
       postgres:
         condition: service_healthy

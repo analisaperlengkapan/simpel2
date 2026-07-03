@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use tokio_postgres::Row;
-use uuid::Uuid;
 
 use super::models::*;
 use super::scope::AsetScope;
@@ -173,7 +172,7 @@ impl BankAsetRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         Ok(row.map(|r| BankAsetLookup {
-            id: r.get::<_, Uuid>("id"),
+            id: r.get::<_, i64>("id").to_string(),
             nup: r
                 .try_get::<_, Option<String>>("nup")
                 .ok()
@@ -219,7 +218,7 @@ impl BankAsetRepository {
         Ok(l.nilai_perolehan)
     }
 
-    pub async fn get(&self, id: Uuid, scope: &AsetScope) -> AppResult<BankAsetItem> {
+    pub async fn get(&self, id: i64, scope: &AsetScope) -> AppResult<BankAsetItem> {
         let client = self
             .pool
             .get()
@@ -543,11 +542,24 @@ pub struct ListFilter {
     pub sort: Option<String>,
 }
 
+// The release profile builds with panic=abort, so ANY decode panic here kills
+// the whole process (observed: e2e run 28566784769 — `id` decoded as Uuid
+// against the BIGSERIAL column aborted the service mid-request). Every column
+// of integrasi.siman_aset except id/jenis_aset is nullable, so decode
+// defensively: no bare row.get() on nullable columns.
 fn row_to_item(row: &Row) -> BankAsetItem {
     BankAsetItem {
-        id: row.get("id"),
-        kategori_aset: row.get("kategori_aset"),
-        no_aset: row.get("no_aset"),
+        id: row.get::<_, i64>("id").to_string(),
+        kategori_aset: row
+            .try_get::<_, Option<String>>("kategori_aset")
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
+        no_aset: row
+            .try_get::<_, Option<String>>("no_aset")
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
         nama_aset: row
             .try_get("ur_sskel")
             .ok()

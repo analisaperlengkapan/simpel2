@@ -118,18 +118,26 @@ async fn main() -> anyhow::Result<()> {
         .parse::<u16>()
         .expect("SERVER_PORT must be a valid port number");
 
+    // Upstream gRPC endpoints. Canonical env names = the *_GRPC_URL family —
+    // the names docker-compose.yml and the Helm chart actually set. This
+    // binary used to read AUTHENC_URL/SECRETON_URL/INTEGRASI_URL (with
+    // cross-scrambled port defaults), so under compose/Helm every connect
+    // failed and token validation silently fell back to the accept-all dev
+    // dummy (e2e run 28566784769). Ports: authenc 50051, integrasi 50052,
+    // secreton 50053.
+
     // Secreton Integration
-    let secreton_url =
-        std::env::var("SECRETON_URL").unwrap_or_else(|_| "http://localhost:50051".to_string());
+    let secreton_url = std::env::var("SECRETON_GRPC_URL")
+        .unwrap_or_else(|_| "http://localhost:50053".to_string());
     let mut database_url = std::env::var("DATABASE_URL").ok();
 
     // Authenc Integration
-    let authenc_url =
-        std::env::var("AUTHENC_URL").unwrap_or_else(|_| "http://localhost:50052".to_string());
+    let authenc_url = std::env::var("AUTHENC_GRPC_URL")
+        .unwrap_or_else(|_| "http://localhost:50051".to_string());
 
     // Integrasi Integration
-    let integrasi_url =
-        std::env::var("INTEGRASI_URL").unwrap_or_else(|_| "http://localhost:50053".to_string());
+    let integrasi_url = std::env::var("INTEGRASI_GRPC_URL")
+        .unwrap_or_else(|_| "http://localhost:50052".to_string());
 
     // Connect to Secreton once and keep the handle around so we can fetch
     // both the DB URL (boot-time) and runtime credentials (SMTP for the

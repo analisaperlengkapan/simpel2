@@ -928,6 +928,12 @@ jobs:
             # which resource-kills the runner with no assertion output — the
             # job dies identically on main and PRs (e.g. run 28557595484).
             # Cap intra-binary test parallelism as mitigation.
+            # target_args: secreton has criterion benches (harness = false);
+            # under --all-targets `cargo test` executes those bench binaries
+            # too, and they reject the forwarded `--test-threads` (run
+            # 28566784769). Restrict to lib/bins/tests so benches build in CI
+            # via clippy --all-targets but only run under `cargo bench`.
+            target_args: "--lib --bins --tests"
             test_args: "-- --test-threads=4"
           - tier: layanan-gateway
             packages: "-p layanan-gateway"
@@ -998,8 +1004,9 @@ jobs:
         # empty value (integration enabled) is preserved, not overridden.
         run: |
           ARGS="${TEST_ARGS-${{ matrix.test_args }}}"
-          echo "test args: [$ARGS]"
-          cargo test ${{ matrix.packages }} --all-targets --no-fail-fast $ARGS
+          TARGETS="${{ matrix.target_args || '--all-targets' }}"
+          echo "test args: [$TARGETS] [$ARGS]"
+          cargo test ${{ matrix.packages }} $TARGETS --no-fail-fast $ARGS
 
   # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
   # INTEGRATION contract tests only (authenc/secreton via Http::fake): they
