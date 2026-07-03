@@ -131,6 +131,18 @@ async fn setup_test_audit_system() -> (Arc<AdvancedAuditSystem>, Arc<MockAuditSt
     (audit_system, storage)
 }
 
+/// Batch flushing is asynchronous — poll (bounded, ~15s) for the expected
+/// number of stored entries instead of a fixed sleep, which is racy on a
+/// loaded CI host (run 28671009311).
+async fn wait_for_entries(storage: &MockAuditStorage, min: usize) {
+    for _ in 0..60 {
+        if storage.get_entries().len() >= min {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+}
+
 // Strategy for generating audit events
 fn audit_event_strategy() -> impl Strategy<Value = AuditEvent> {
     (
@@ -184,8 +196,8 @@ proptest! {
 
             prop_assert!(!event_id.is_nil(), "Event ID should not be nil");
 
-            // Wait for batch processing
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            // Wait for batch processing (bounded poll — see wait_for_entries)
+            wait_for_entries(&storage, 1).await;
 
             // Retrieve the stored entry
             let entries = storage.get_entries();
@@ -281,8 +293,8 @@ mod chain_integrity_tests {
             audit_system.log_event(event).await.unwrap();
         }
 
-        // Wait for batch processing
-        tokio::time::sleep(Duration::from_secs(6)).await;
+        // Wait for batch processing (bounded poll — see wait_for_entries)
+        wait_for_entries(&storage, 3).await;
 
         // Retrieve all entries
         let entries = storage.get_entries();
@@ -414,7 +426,7 @@ mod audit_edge_cases {
             handle.await.unwrap();
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        wait_for_entries(&storage, 10).await;
 
         let entries = storage.get_entries();
         assert_eq!(entries.len(), 10, "Should have 10 entries");
@@ -476,14 +488,22 @@ proptest! {
                     .expect("Event logging should succeed");
             }
 
-            // Wait for batch processing
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            // Wait for batch processing. A fixed sleep is racy on a loaded CI
+            // host (flush landed after 2s in run 28671009311) — poll until the
+            // batch has flushed instead, bounded so a real regression still
+            // fails fast.
+            let query = AuditQuery::new().with_actor(&actor);
+            let mut results = Vec::new();
+            for _ in 0..60 {
+                results = audit_system.search(&query).await
+                    .expect("Search should succeed");
+                if results.len() >= 2 {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(250)).await;
+            }
 
             // Property 1: Filter by actor - should only return events from that actor
-            let query = AuditQuery::new().with_actor(&actor);
-            let results = audit_system.search(&query).await
-                .expect("Search should succeed");
-
             prop_assert!(results.len() >= 2,
                 "Should find at least 2 events for actor {}", actor);
 
@@ -576,7 +596,19 @@ mod query_filtering_tests {
         };
         audit_system.log_event(event).await.unwrap();
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
+        // Bounded poll for the async batch flush BEFORE taking end_time, so
+        // the time-range query is guaranteed to bracket the flushed event.
+        for _ in 0..60 {
+            if !audit_system
+                .search(&AuditQuery::new())
+                .await
+                .unwrap()
+                .is_empty()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
 
         let end_time = Utc::now();
 
@@ -623,11 +655,17 @@ mod query_filtering_tests {
             audit_system.log_event(event).await.unwrap();
         }
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
-
-        // Empty query should return all events
+        // Empty query should return all events (bounded poll for the async
+        // batch flush; fixed sleeps are racy on a loaded CI host).
         let query = AuditQuery::new();
-        let results = audit_system.search(&query).await.unwrap();
+        let mut results = Vec::new();
+        for _ in 0..60 {
+            results = audit_system.search(&query).await.unwrap();
+            if results.len() >= 3 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
 
         assert!(results.len() >= 3, "Empty query should return all events");
     }
