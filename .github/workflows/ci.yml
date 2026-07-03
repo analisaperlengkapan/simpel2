@@ -1166,6 +1166,19 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # The full-login-flow specs need a dashboard-capable user: the baseline
+      # NIP seed user is require_password_change=true BY DESIGN (portal guard
+      # suite → lands on /portal/password, never /dashboard) and the baseline
+      # `admin` user carries a placeholder hash no password verifies against.
+      # The multi-satker fixture provides real login-able users.
+      - name: Seed e2e multi-satker fixtures
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
       # Build the portal e2e image (context shipped to dind) and run it on the
       # compose network. The specs reach portal:8080 (FE) and authenc:8088 (REST
       # + captcha-debug) by service name; page.route() proxies /api/** to authenc.

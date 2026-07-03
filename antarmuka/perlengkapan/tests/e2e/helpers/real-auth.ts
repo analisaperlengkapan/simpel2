@@ -220,8 +220,10 @@ export interface PaginatedResponse<T> {
 export interface BankAsetItem {
   id: string;
   nup: string;
-  nama_satker: string;
-  kdsatker_keu: string;
+  /** API name for the FE `satker` display field (DB `nama_satker`). */
+  satker: string | null;
+  /** The SIMAN `kdsatker_keu` value — the API serializes it as `kode_satker`. */
+  kode_satker: string | null;
 }
 
 /**

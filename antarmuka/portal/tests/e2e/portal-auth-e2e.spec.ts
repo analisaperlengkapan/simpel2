@@ -19,14 +19,27 @@ import { test, expect, Page, Route } from '@playwright/test';
 const PORTAL_URL = process.env.PORTAL_URL || 'http://localhost:18080';
 const AUTHENC_URL = process.env.AUTHENC_URL || 'http://localhost:18088';
 
-// Test credentials
+// Test credentials.
+// NIP_USER = the BASELINE seed user (002_seed.sql): require_password_change=true
+// BY DESIGN, so a successful login lands on /portal/password — used for the
+// credential/captcha mechanics, NOT for dashboard-flow assertions.
 const NIP_USER = {
   username: '199203142014031001',
   password: '199203142014031001',
 };
 
-const ADMIN_USER = {
-  username: 'admin',
+// Dashboard-capable users come from the multi-satker fixture
+// (tests/fixtures/e2e/seed-multisatker.sql, seeded by the e2e-portal job):
+// real login-able users with require_password_change=false and the shared
+// seed password. The baseline `admin` user is NOT login-able (placeholder
+// hash), so the "second user" flow uses the fixture validator_pusat.
+const OPERATOR_USER = {
+  username: '200000000000000001',
+  password: '199203142014031001',
+};
+
+const VALIDATOR_PUSAT_USER = {
+  username: '200000000000000004',
   password: '199203142014031001',
 };
 
@@ -404,13 +417,18 @@ test.describe('Portal Authentication - Real E2E', () => {
     expect(result.challengeId).toBeTruthy();
     expect(result.answer).toBeTruthy();
     expect(result.answer.length).toBeGreaterThanOrEqual(3);
+    // The verification token is an opaque server-issued value (currently a
+    // UUID) — login accepts it as-is, so only assert it is a non-empty string,
+    // not a specific format.
     expect(result.token).toBeTruthy();
-    expect(result.token).toMatch(/^captcha_/);
+    expect(typeof result.token).toBe('string');
   });
 
-  // ────────── Test 4: Full login flow with NIP user ──────────
+  // ────────── Test 4: Full login flow (fixture operator → dashboard) ──────────
 
-  test('NIP user can login with captcha solving', async ({ page }) => {
+  test('fixture operator can login with captcha solving and reach the dashboard', async ({
+    page,
+  }) => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
@@ -419,9 +437,11 @@ test.describe('Portal Authentication - Real E2E', () => {
     // Wait for captcha answer to be extracted from the intercepted response
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
-    // Fill credentials FIRST (doesn't depend on captcha)
-    await page.locator('#username').fill(NIP_USER.username);
-    await page.locator('#password').fill(NIP_USER.password);
+    // Fill credentials FIRST (doesn't depend on captcha). Fixture user: the
+    // baseline NIP user would land on /portal/password (forced change), not
+    // /dashboard.
+    await page.locator('#username').fill(OPERATOR_USER.username);
+    await page.locator('#password').fill(OPERATOR_USER.password);
 
     // Solve captcha in the UI and confirm verify response
     await solveCaptchaInUI(page, getCaptchaAnswer()!);
@@ -446,18 +466,18 @@ test.describe('Portal Authentication - Real E2E', () => {
     await expect(page).toHaveURL(/dashboard/);
   });
 
-  // ────────── Test 5: Full login flow with admin user ──────────
+  // ────────── Test 5: Full login flow (fixture validator_pusat) ──────────
 
-  test('admin user can login with captcha solving', async ({ page }) => {
+  test('fixture validator_pusat can login with captcha solving', async ({ page }) => {
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
     await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
     await expect.poll(() => getCaptchaAnswer(), { timeout: 10000 }).toBeTruthy();
 
-    // Fill credentials
-    await page.locator('#username').fill(ADMIN_USER.username);
-    await page.locator('#password').fill(ADMIN_USER.password);
+    // Fill credentials (fixture user — the baseline `admin` is not login-able)
+    await page.locator('#username').fill(VALIDATOR_PUSAT_USER.username);
+    await page.locator('#password').fill(VALIDATOR_PUSAT_USER.password);
 
     // Solve captcha
     await solveCaptchaInUI(page, getCaptchaAnswer()!);

@@ -57,7 +57,7 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
       expect(body.data.length, `rows returned to ${user.key}`).toBe(user.expectedAsetCount);
 
       // Per-row isolation: every visible asset belongs to an allowed satker.
-      const seen = [...new Set(body.data.map((a) => a.kdsatker_keu))].sort();
+      const seen = [...new Set(body.data.map((a) => a.kode_satker))].sort();
       for (const kd of seen) {
         expect(
           user.allowedKdsatkerKeu,
@@ -74,8 +74,8 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
     const tokA = (await apiLogin(request, credsFor(opA))).accessToken;
     const tokB = (await apiLogin(request, credsFor(opB))).accessToken;
 
-    const kdA = new Set((await bankAsetListJson(request, tokA)).data.map((a) => a.kdsatker_keu));
-    const kdB = new Set((await bankAsetListJson(request, tokB)).data.map((a) => a.kdsatker_keu));
+    const kdA = new Set((await bankAsetListJson(request, tokA)).data.map((a) => a.kode_satker));
+    const kdB = new Set((await bankAsetListJson(request, tokB)).data.map((a) => a.kode_satker));
 
     expect(kdA.size, 'operator_a should see at least one satker').toBeGreaterThan(0);
     expect(kdB.size, 'operator_b should see at least one satker').toBeGreaterThan(0);
@@ -95,8 +95,8 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
 
     // validator_pusat sees everything → use it to discover concrete asset ids.
     const all = (await bankAsetListJson(request, tokPusat)).data;
-    const own = all.find((a) => opA.allowedKdsatkerKeu.includes(a.kdsatker_keu));
-    const foreign = all.find((a) => !opA.allowedKdsatkerKeu.includes(a.kdsatker_keu));
+    const own = all.find((a) => opA.allowedKdsatkerKeu.includes(a.kode_satker));
+    const foreign = all.find((a) => !opA.allowedKdsatkerKeu.includes(a.kode_satker));
     expect(own, 'seed must contain an operator_a-owned asset').toBeTruthy();
     expect(foreign, 'seed must contain an asset outside operator_a').toBeTruthy();
 
