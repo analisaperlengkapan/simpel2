@@ -654,63 +654,82 @@ impl IntegrasiService for IntegrasiServiceImpl {
         let offset = ((page - 1) * per_page) as i64;
 
         info!(
-            "GetMysimkariPegawai for satker: {}, page: {}",
-            req.kode_satker, page
+            "GetMysimkariPegawai satker: {}, nip: {}, page: {}",
+            req.kode_satker, req.nip_filter, page
         );
 
-        // Count total
-        let total_items: i64 = if req.kode_satker.is_empty() {
-            let count_query = "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai";
-            match self.state.db_client.query_one(count_query, &[]).await {
-                Ok(row) => row.try_get(0).unwrap_or(0),
-                Err(e) => {
-                    error!("Failed to count mysimkari_pegawai: {}", e);
-                    0
-                }
-            }
+        // Column mapping: the proto's normalized field names are ALIASED from
+        // the MySIMKARI-native columns actually in the DDL (001_init_schema) —
+        // the previous SELECT referenced columns that never existed
+        // (pangkat/golongan/unit_kerja/kode_satker/telepon/status), so the
+        // query errored and this RPC ALWAYS returned an empty list (proven
+        // against a fresh-apply schema, 2026-07-02).
+        const PEGAWAI_COLS: &str = r#"
+                nip, nama, jabatan,
+                COALESCE(golpang, '')                AS pangkat,
+                COALESCE(gol_kd, '')                 AS golongan,
+                COALESCE(nama_satker, '')            AS unit_kerja,
+                COALESCE(satker_id, '')              AS kode_satker,
+                COALESCE(email, email_dinas, '')     AS email,
+                COALESCE(no_hp, '')                  AS telepon,
+                status_pegawai                       AS status
+        "#;
+
+        // Filter precedence mirrors the request shape: an exact-NIP lookup
+        // (used by the simpelv1 gateway employee-by-NIP endpoint) wins over
+        // the satker listing. `nip_filter` was previously IGNORED entirely.
+        let (where_clause, filter): (&str, Option<&str>) = if !req.nip_filter.is_empty() {
+            ("WHERE nip = $1", Some(req.nip_filter.as_str()))
+        } else if !req.kode_satker.is_empty() {
+            ("WHERE satker_id = $1", Some(req.kode_satker.as_str()))
         } else {
-            let count_query =
-                "SELECT COUNT(*) FROM integrasi.mysimkari_pegawai WHERE kode_satker = $1";
-            match self
-                .state
-                .db_client
-                .query_one(count_query, &[&req.kode_satker])
-                .await
-            {
-                Ok(row) => row.try_get(0).unwrap_or(0),
-                Err(e) => {
-                    error!("Failed to count mysimkari_pegawai: {}", e);
-                    0
-                }
+            ("", None)
+        };
+
+        // Count total
+        let count_query =
+            format!("SELECT COUNT(*) FROM integrasi.mysimkari_pegawai {where_clause}");
+        let count_res = match filter {
+            Some(f) => self.state.db_client.query_one(&count_query, &[&f]).await,
+            None => self.state.db_client.query_one(&count_query, &[]).await,
+        };
+        let total_items: i64 = match count_res {
+            Ok(row) => row.try_get(0).unwrap_or(0),
+            Err(e) => {
+                error!("Failed to count mysimkari_pegawai: {}", e);
+                0
             }
         };
 
         // Query data
-        let result = if req.kode_satker.is_empty() {
-            let query = r#"
-                SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
-                       kode_satker, email, telepon, status
-                FROM integrasi.mysimkari_pegawai
-                ORDER BY nama
-                LIMIT $1 OFFSET $2
-            "#;
-            self.state
-                .db_client
-                .query(query, &[&(per_page as i64), &offset])
-                .await
-        } else {
-            let query = r#"
-                SELECT nip, nama, jabatan, pangkat, golongan, unit_kerja,
-                       kode_satker, email, telepon, status
-                FROM integrasi.mysimkari_pegawai
-                WHERE kode_satker = $1
-                ORDER BY nama
-                LIMIT $2 OFFSET $3
-            "#;
-            self.state
-                .db_client
-                .query(query, &[&req.kode_satker, &(per_page as i64), &offset])
-                .await
+        let (limit_params, query) = match filter {
+            Some(_) => (
+                "$2 OFFSET $3",
+                format!(
+                    "SELECT {PEGAWAI_COLS} FROM integrasi.mysimkari_pegawai {where_clause} ORDER BY nama LIMIT "
+                ),
+            ),
+            None => (
+                "$1 OFFSET $2",
+                format!(
+                    "SELECT {PEGAWAI_COLS} FROM integrasi.mysimkari_pegawai ORDER BY nama LIMIT "
+                ),
+            ),
+        };
+        let query = format!("{query}{limit_params}");
+        let result = match filter {
+            Some(f) => {
+                self.state
+                    .db_client
+                    .query(&query, &[&f, &(per_page as i64), &offset])
+                    .await
+            }
+            None => {
+                self.state
+                    .db_client
+                    .query(&query, &[&(per_page as i64), &offset])
+                    .await
+            }
         };
 
         let items: Vec<MysimkariPegawai> = match result {
@@ -930,10 +949,30 @@ impl IntegrasiServiceImpl {
             }
         };
 
-        // Query data
+        // Query data. The proto's normalized fields are ALIASED from the
+        // SIMAN-native columns actually present in the DDL — the previous
+        // SELECT referenced kode_satker/nilai_perolehan/nilai_buku/
+        // tahun_perolehan/lokasi/status_penggunaan, none of which exist, so
+        // the query errored and this RPC ALWAYS returned an empty list
+        // (proven against a fresh-apply schema, 2026-07-02). Mapping follows
+        // the bank_aset precedent (`kdsatker_keu AS kode_satker`):
+        //   nilai_perolehan ← rph_aset (TEXT rupiah; digits-only safe cast)
+        //   nilai_buku      ← no source column in SIMAN ingest → 0
+        //   tahun_perolehan ← tgl_perlh 'YYYY-MM-DD' prefix
+        //   lokasi          ← alamat
+        //   status_penggunaan ← no source column in SIMAN ingest → ''
         let query = r#"
-            SELECT id, nup, kode_barang, nama_barang, kode_satker, nama_satker,
-                   nilai_perolehan, nilai_buku, kondisi, tahun_perolehan, lokasi, status_penggunaan
+            SELECT id, nup,
+                   COALESCE(kode_barang, kd_brg, '')   AS kode_barang,
+                   COALESCE(nama_barang, nama, '')     AS nama_barang,
+                   COALESCE(kdsatker_keu, '')          AS kode_satker,
+                   COALESCE(nama_satker, '')           AS nama_satker,
+                   COALESCE(NULLIF(regexp_replace(rph_aset, '[^0-9.]', '', 'g'), '')::float8, 0) AS nilai_perolehan,
+                   0::float8                           AS nilai_buku,
+                   COALESCE(kondisi, ur_kondisi, '')   AS kondisi,
+                   COALESCE(substring(tgl_perlh from 1 for 4), '') AS tahun_perolehan,
+                   COALESCE(alamat, '')                AS lokasi,
+                   ''::text                            AS status_penggunaan
             FROM integrasi.siman_aset
             WHERE jenis_aset = $1
             ORDER BY id
