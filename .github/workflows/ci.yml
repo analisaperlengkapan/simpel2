@@ -992,6 +992,23 @@ jobs:
             echo "::error::dind Postgres unreachable from runner over localhost:5433 — integration suite cannot run"
             exit 1
           fi
+      - name: Reduce compile memory (heaviest tier)
+        if: matrix.tier == 'layanan-secreton'
+        shell: bash
+        # This tier compiles 13 crates + their test harnesses (heavy crypto
+        # deps: pqcrypto / aws-sdk). target/ is wiped each job, so every run
+        # does a full debug compile+link, and the parallel rustc/link burst
+        # peaks the ARC runner pod's memory → it gets OOM-evicted, surfacing
+        # as "runner lost communication" (repeatedly on run 28690432031 and,
+        # per the note above, identically on main). --test-threads already caps
+        # RUNTIME parallelism; the peak is at COMPILE time. Halve compile
+        # parallelism and drop test-profile debuginfo to line-tables (keeps
+        # backtrace line numbers, drops the biggest link-memory consumer) so
+        # the peak fits. Set via GITHUB_ENV so the other four tiers are
+        # untouched (no cache churn).
+        run: |
+          echo "CARGO_BUILD_JOBS=2" >> "$GITHUB_ENV"
+          echo "CARGO_PROFILE_TEST_DEBUG=line-tables-only" >> "$GITHUB_ENV"
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
