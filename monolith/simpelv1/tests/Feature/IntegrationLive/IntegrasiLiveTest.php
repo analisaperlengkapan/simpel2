@@ -15,7 +15,8 @@ use Tests\TestCase;
  * (integrasi.mysimkari_pegawai). NOTE the SIMAN assertion uses the "Tanah" asset
  * E2E-B-2: the gateway's by-id inventory scan only queries the Tanah /
  * GedungBangunan / AlatBesar / AngkutanBermotor categories, so the seeded
- * "Peralatan dan Mesin" rows (E2E-A-*/C-*) are intentionally NOT reachable by id.
+ * "Peralatan dan Mesin" rows (E2E-A-x and E2E-C-x) are intentionally NOT
+ * reachable by id.
  */
 class IntegrasiLiveTest extends TestCase
 {
