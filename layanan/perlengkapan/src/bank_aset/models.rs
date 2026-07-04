@@ -4,7 +4,9 @@ use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BankAsetItem {
-    pub id: Uuid,
+    /// `integrasi.siman_aset.id` (BIGSERIAL). Serialized as a string because
+    /// the FE contract types `id` as String.
+    pub id: String,
     pub kategori_aset: String,
     pub no_aset: String,
     pub nama_aset: Option<String>,
@@ -25,7 +27,8 @@ pub struct BankAsetItem {
 /// NUP — the frontend auto-fills `bmn_kode_barang` + `bmn_nama_barang`.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BankAsetLookup {
-    pub id: Uuid,
+    /// `integrasi.siman_aset.id` (BIGSERIAL), string-typed per the FE contract.
+    pub id: String,
     pub nup: String,
     pub kode_barang: Option<String>,
     pub nama_barang: Option<String>,

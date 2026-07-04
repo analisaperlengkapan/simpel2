@@ -270,7 +270,9 @@ x509-parser = "0.18.1"
 dashmap = { version = "6.2.1", features = ["raw-api"] }
 serde_qs = "1.1.2"
 ldap3 = "0.12.1"
-quick-xml = { version = "0.39.4", features = ["serialize"] }
+# >=0.41: RUSTSEC-2026-0194/0195 (quadratic attribute check + unbounded
+# namespace allocation) — authenc parses untrusted SAML XML with this.
+quick-xml = { version = "0.41.0", features = ["serialize"] }
 rustls = { version = "0.23.40" }
 rustls-pemfile = "2.2.0"
 rustls-native-certs = "0.8.4"

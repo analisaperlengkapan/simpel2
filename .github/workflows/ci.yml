@@ -923,7 +923,18 @@ jobs:
             test_args: ""
           - tier: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
-            test_args: ""
+            # Heaviest tier (13 crates, PG property tests). Test binaries
+            # default --test-threads to ncpus (dozens on the ARC host class),
+            # which resource-kills the runner with no assertion output — the
+            # job dies identically on main and PRs (e.g. run 28557595484).
+            # Cap intra-binary test parallelism as mitigation.
+            # target_args: secreton has criterion benches (harness = false);
+            # under --all-targets `cargo test` executes those bench binaries
+            # too, and they reject the forwarded `--test-threads` (run
+            # 28566784769). Restrict to lib/bins/tests so benches build in CI
+            # via clippy --all-targets but only run under `cargo bench`.
+            target_args: "--lib --bins --tests"
+            test_args: "-- --test-threads=4"
           - tier: layanan-gateway
             packages: "-p layanan-gateway"
             test_args: ""
@@ -993,8 +1004,9 @@ jobs:
         # empty value (integration enabled) is preserved, not overridden.
         run: |
           ARGS="${TEST_ARGS-${{ matrix.test_args }}}"
-          echo "test args: [$ARGS]"
-          cargo test ${{ matrix.packages }} --all-targets --no-fail-fast $ARGS
+          TARGETS="${{ matrix.target_args || '--all-targets' }}"
+          echo "test args: [$TARGETS] [$ARGS]"
+          cargo test ${{ matrix.packages }} $TARGETS --no-fail-fast $ARGS
 
   # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
   # INTEGRATION contract tests only (authenc/secreton via Http::fake): they
@@ -1115,13 +1127,18 @@ jobs:
       # SIMPELV1_APP_KEY is required by compose interpolation (the simpelv1
       # service declares ${SIMPELV1_APP_KEY:?...}) even though we do NOT bring
       # simpelv1 up here — set a throwaway value so `docker compose` can load.
-      - name: Build e2e images (authenc + portal)
+      - name: Build e2e images (authenc + portal + integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
+          # layanan-integrasi must be built too: the `up` below starts
+          # integrasi-migrate, which runs `image: simpel2-integrasi:local`
+          # (shared with the layanan-integrasi service). Without it the
+          # bring-up dies with "simpel2-integrasi:local: not found" — proven
+          # on the first real run of this job (CI run 28557595484).
           if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc portal; then
+              authenc portal layanan-integrasi; then
             echo "::error::portal e2e image build failed or timed out after 5400s"
             exit 1
           fi
@@ -1149,6 +1166,19 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # The full-login-flow specs need a dashboard-capable user: the baseline
+      # NIP seed user is require_password_change=true BY DESIGN (portal guard
+      # suite → lands on /portal/password, never /dashboard) and the baseline
+      # `admin` user carries a placeholder hash no password verifies against.
+      # The multi-satker fixture provides real login-able users.
+      - name: Seed e2e multi-satker fixtures
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
       # Build the portal e2e image (context shipped to dind) and run it on the
       # compose network. The specs reach portal:8080 (FE) and authenc:8088 (REST
       # + captcha-debug) by service name; page.route() proxies /api/** to authenc.
@@ -1450,6 +1480,19 @@ jobs:
               sleep 5
             done
             echo "stack did not become ready"; exit 1'
+      # Profile tests need a /auth/me-capable user: the base NIP seed user is
+      # require_password_change=true BY DESIGN (portal guard suite) → /auth/me
+      # 403s for it, and the baseline `admin` user carries a placeholder hash
+      # no password verifies against. The multi-satker fixture provides real
+      # login-able users (require_password_change=false, shared seed password).
+      - name: Seed e2e multi-satker fixtures
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
       # The integrasi proto is in the repo tree, OUTSIDE the e2e image context —
       # copy it into the build context, then locate it via INTEGRASI_PROTO_PATH.
       # Reuse the portal e2e image (it has grpc-js + the spec); run the
@@ -1492,6 +1535,91 @@ jobs:
             antarmuka/portal/tests/e2e/playwright-report
             antarmuka/portal/tests/e2e/results
           retention-days: 7
+
+  # ── Secreton bootstrap ↔ Gateway (F-GW PR-B) ──
+  # Proves the secreton secret path simpelv1 depends on actually works end to
+  # end: the one-shot `secreton-bootstrap` runs REAL Shamir init+unseal against
+  # secreton's REST API, seeds a secret THROUGH THE GATEWAY (gateway → secreton
+  # gRPC StoreSecret), then reads it back through the gateway and asserts the
+  # value matches. The bootstrap's exit code IS the assertion (real state, not
+  # mock). Shared prereq for the simpelv1 live suite (PR-C). Gated by
+  # E2E_INTEGRATION_ENABLED; the run_e2e dispatch always runs. NOT in
+  # ci-summary.needs (opt-in integration job, mirrors e2e-integrasi-authenc).
+  e2e-secreton-gateway:
+    name: E2E Secreton bootstrap ↔ Gateway (init/unseal/seed)
+    needs: [detect, build-backend]
+    if: |
+      !cancelled() &&
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (vars.E2E_INTEGRATION_ENABLED == 'true' &&
+         (needs.detect.outputs.rust-backend == 'true' ||
+          needs.detect.outputs.e2e == 'true'))
+      ) &&
+      needs.build-backend.result != 'failure'
+    runs-on: arc-simpel
+    env:
+      POSTGRES_PASSWORD: e2e_test_pw
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Docker Compose v2 plugin
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      - name: Build images (secreton + gateway + authenc + layanan-integrasi)
+        run: |
+          # gateway depends_on authenc + layanan-integrasi (service_started), so
+          # they must exist even though the bootstrap only exercises the secreton
+          # channel (gateway gRPC channels are lazy — connect_lazy).
+          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+              secreton gateway authenc layanan-integrasi; then
+            echo "::error::secreton-gateway e2e image build failed or timed out after 5400s"
+            exit 1
+          fi
+      - name: Bring up core stack (bounded)
+        run: |
+          if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
+              postgres secreton integrasi-migrate authenc-migrate authenc layanan-integrasi gateway; then
+            echo "::error::secreton-gateway stack bring-up failed or timed out after 600s"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
+            exit 1
+          fi
+      - name: Wait for secreton REST + gateway
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" busybox:1.36 sh -c '
+            for i in $(seq 1 60); do
+              if nc -z secreton 8200 && nc -z gateway 8090; then
+                echo "secreton REST + gateway ready after $i tries"; exit 0; fi
+              sleep 5
+            done
+            echo "secreton/gateway did not become ready"; exit 1'
+      - name: Run secreton bootstrap (exit code = assertion)
+        run: |
+          # The one-shot init+unseal+seed-via-gateway+verify-readback. A non-zero
+          # exit means the secreton⇄gateway secret round-trip broke.
+          if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+              run --rm --no-deps secreton-bootstrap; then
+            echo "::error::secreton bootstrap failed — secret did not round-trip secreton⇄gateway"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton gateway || true
+            exit 1
+          fi
+      - name: Stack logs (on failure)
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=200 || true
+      - name: Tear down stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
 
   # ─────────────────────────────────────────────────────
   # Phase 5 — Summary (single required check)

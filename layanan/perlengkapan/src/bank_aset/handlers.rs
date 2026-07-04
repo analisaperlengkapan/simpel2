@@ -3,7 +3,6 @@ use axum::{
     extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use uuid::Uuid;
 
 use super::{
     models::*,
@@ -76,7 +75,9 @@ pub async fn list_bank_aset(
 
 pub async fn get_bank_aset_detail(
     State(state): State<AppState>,
-    Path(id): Path<Uuid>,
+    // `integrasi.siman_aset.id` is BIGSERIAL, not uuid — a Path<Uuid> here can
+    // never match a real asset id.
+    Path(id): Path<i64>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetDetail>>, AppError> {
     let scope = AsetScope::from_claims(&claims);

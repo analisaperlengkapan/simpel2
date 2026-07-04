@@ -250,7 +250,10 @@ pub async fn captcha_debug_answer_handler(
 
     let row_opt = match client
         .query_opt(
-            "SELECT challenge_type, raw_data FROM captcha_challenges WHERE id = $1",
+            // The raw challenge payload lives in `encrypted_data` (the column
+            // name predates the F5-B baseline; store_captcha_challenge writes
+            // the plaintext SVG/JSON there). There is no `raw_data` column.
+            "SELECT challenge_type, encrypted_data AS raw_data FROM captcha_challenges WHERE id = $1",
             &[&challenge_uuid],
         )
         .await

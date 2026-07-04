@@ -119,6 +119,17 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsecretion
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsecretion
+    # /health is the top-level, seal-INDEPENDENT liveness route (whitelisted in
+    # middleware.rs `is_whitelisted`) — it stays 200 while the engine is sealed,
+    # so `service_healthy` does NOT deadlock the secreton-bootstrap one-shot,
+    # which must run WHILE sealed to init+unseal. Do NOT switch this to
+    # /v1/health (that path is behind seal_check_middleware → 503 while sealed).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8200/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -199,9 +210,11 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       DB_NAME: dbsimpelv2
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
-      AUTHENC_GRPC_URL: authenc:50051
-      SECRETON_GRPC_URL: secreton:50053
-      INTEGRASI_GRPC_URL: layanan-integrasi:50052
+      # http:// scheme is required — tonic parses these as URIs (scheme-less
+      # values fail to connect, same as the gateway service's entries below).
+      AUTHENC_GRPC_URL: http://authenc:50051
+      SECRETON_GRPC_URL: http://secreton:50053
+      INTEGRASI_GRPC_URL: http://layanan-integrasi:50052
     depends_on:
       postgres:
         condition: service_healthy
@@ -245,6 +258,36 @@ services:
       secreton:
         condition: service_started
       layanan-integrasi:
+        condition: service_started
+    networks:
+      - simpel-network
+
+  # =====================================================
+  # Secreton CI bootstrap (one-shot)
+  # =====================================================
+  # Runs the REAL Shamir init+unseal against secreton's REST API, then seeds a
+  # demo secret THROUGH THE GATEWAY (gateway → secreton gRPC StoreSecret) so the
+  # write path matches the gRPC read path simpelv1 uses. Exits 0 on success;
+  # simpelv1's live integration test (F-GW PR-C) gates on
+  # `service_completed_successfully`. CI-only — the unseal keys are throwaway
+  # (fresh DB every run); production keys are captured offline (see secreton-ops).
+  secreton-bootstrap:
+    image: alpine:3.20
+    container_name: secreton-bootstrap
+    restart: "no"
+    environment:
+      SECRETON_ADDR: http://secreton:8200
+      GATEWAY_ADDR: http://gateway:8090
+      SECRETON_SEED_PATH: simpelv1-app-key
+      SECRETON_SEED_VALUE: ci-bootstrap-secret
+    volumes:
+      - ./infra/scripts/secreton-ci-bootstrap.sh:/bootstrap.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["apk add --no-cache bash curl jq >/dev/null 2>&1 && exec bash /bootstrap.sh"]
+    depends_on:
+      secreton:
+        condition: service_healthy
+      gateway:
         condition: service_started
     networks:
       - simpel-network

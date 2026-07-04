@@ -25,4 +25,12 @@ ignore = [
   # never parses untrusted ones. Un-ignore when printpdf bumps lopdf >=0.42.
   # Mirror dengan deny.toml ignore.
   "RUSTSEC-2026-0187", # lopdf (stack overflow on PDF parse) - not reachable (generate-only)
+  # quick-xml <0.41 DoS pada PARSE XML untrusted. Dependency langsung kita
+  # (authenc SAML — memang parse XML untrusted) sudah di-upgrade ke 0.41.
+  # Sisa satu copy 0.36 dipin docx-rs 0.4.20 (rilis terakhir, tak ada jalur
+  # upgrade) yang HANYA dipakai GENERATE .docx (SK exporter) — path parse
+  # vulnerable tidak reachable. Un-ignore saat docx-rs pindah quick-xml >=0.41.
+  # Mirror dengan deny.toml ignore.
+  "RUSTSEC-2026-0194", # quick-xml <0.41 quadratic attr check - residual docx-rs, generate-only
+  "RUSTSEC-2026-0195", # quick-xml <0.41 namespace alloc DoS - residual docx-rs, generate-only
 ]

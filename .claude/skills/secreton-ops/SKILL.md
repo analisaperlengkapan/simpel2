@@ -23,6 +23,25 @@ secreton operator unseal <key>   # × 3 (threshold)
 - A restarted/rescheduled `secreton-0` comes up **sealed** → must be unsealed again
   (auto-unseal via KMS is the F6 hardening).
 
+## CI / docker-compose bootstrap (ephemeral, no CLI/kubectl)
+
+The runtime image ships **only `api_server`** (no `secreton` CLI), so the k8s
+`operator init/unseal` path above does **not** work in compose. CI instead drives
+the **REST API on :8200** (`/v1/sys/init` → `{keys[], root_token}`,
+`/v1/sys/unseal {key}`, `/v1/sys/seal-status {initialized, sealed}` — all
+whitelisted while sealed in `middleware.rs::is_whitelisted`). The `/health`
+route is seal-independent; `/v1/health` is behind `seal_check_middleware`.
+
+- Script: `infra/scripts/secreton-ci-bootstrap.sh` (real Shamir init+unseal).
+- One-shot compose service `secreton-bootstrap` + secreton `/health` healthcheck.
+- CI job `e2e-secreton-gateway` (gated `E2E_INTEGRATION_ENABLED` / `run_e2e`).
+- **Seed via the gateway `PUT /v1/secrets/{path}`**, not secreton REST: REST
+  `put_secret` (`state.engine`) and gRPC `get_secret` (`self.storage`,
+  `HashMap<String,String>` envelope) are different code paths — seeding through
+  the gateway (→ gRPC `StoreSecret`) guarantees the write matches the gRPC read
+  simpelv1 uses. **CI-only** — keys are throwaway (fresh DB per run), never
+  offline-captured secrets.
+
 ## Bootstrap auth backend + roles + policies
 
 ```bash

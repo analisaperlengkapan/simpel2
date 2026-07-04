@@ -15,6 +15,7 @@ ignore = [
   "RUSTSEC-2023-0019", # kuchiki (unmaintained) - transitive (HTML parsing)
   "RUSTSEC-2024-0370", # proc-macro-error (unmaintained) - transitive macro dep
   "RUSTSEC-2026-0173", # proc-macro-error2 (unmaintained fork of the above) - transitive macro dep, maintenance-status only
+  "RUSTSEC-2026-0192", # ttf-parser (unmaintained) - transitive via printpdf→lopdf (perlengkapan PDF/SK export); no vuln, no upstream fix; revisit if printpdf moves off lopdf
   # rustls-webpki 0.101.7 advisories — transitive via aws-smithy-http-client
   # 1.1.12 (latest) → rustls 0.21.12. AWS SDK has not yet upgraded to
   # rustls 0.22+. Vulnerable code path only triggers when validating TLS
@@ -47,6 +48,16 @@ ignore = [
   # Upgrade/un-ignore when printpdf ships a lopdf >=0.42 release.
   # Track: https://github.com/fschutt/printpdf
   "RUSTSEC-2026-0187", # lopdf (stack overflow on PDF parse) - not reachable (generate-only)
+  # quick-xml < 0.41 DoS on PARSING untrusted XML (quadratic duplicate-attribute
+  # check / unbounded namespace allocation). Our direct dependency (authenc SAML,
+  # which DOES parse untrusted XML) is upgraded to 0.41. The only remaining
+  # <0.41 copy is quick-xml 0.36 pinned by docx-rs 0.4.20 (latest release; no
+  # upstream upgrade path), used exclusively to GENERATE .docx (SK exporters,
+  # dokumen/docx_generator.rs — Docx::new + write, no read/parse of untrusted
+  # documents), so the vulnerable parse paths are unreachable. Un-ignore when
+  # docx-rs ships a release on quick-xml >= 0.41.
+  "RUSTSEC-2026-0194", # quick-xml <0.41 quadratic attr check - residual docx-rs island, generate-only
+  "RUSTSEC-2026-0195", # quick-xml <0.41 namespace alloc DoS - residual docx-rs island, generate-only
 ]
 
 [licenses]

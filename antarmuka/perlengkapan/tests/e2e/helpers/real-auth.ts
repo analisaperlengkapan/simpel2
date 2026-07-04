@@ -185,9 +185,15 @@ export const TEST_USERS: ScopedTestUser[] = [
   },
 ];
 
-/** Credentials for a scoped test user (password == username, seed convention). */
+/**
+ * Credentials for a scoped test user. ALL multi-satker users share the base
+ * seed password — the fixture reuses the one known Argon2id hash (verifying
+ * exactly "199203142014031001") for every user, so `password == username`
+ * 401s for everyone except the base seed user (proven on the first real run
+ * of this suite, CI run 28557595484).
+ */
 export function credsFor(user: ScopedTestUser): SeedCredentials {
-  return { username: user.username, password: user.username };
+  return { username: user.username, password: SEED_USER.password };
 }
 
 /**
@@ -214,8 +220,10 @@ export interface PaginatedResponse<T> {
 export interface BankAsetItem {
   id: string;
   nup: string;
-  nama_satker: string;
-  kdsatker_keu: string;
+  /** API name for the FE `satker` display field (DB `nama_satker`). */
+  satker: string | null;
+  /** The SIMAN `kdsatker_keu` value — the API serializes it as `kode_satker`. */
+  kode_satker: string | null;
 }
 
 /**

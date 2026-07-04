@@ -278,8 +278,9 @@ impl SamlIdentityProvider {
                             in_subject = true;
                         }
                         b"saml:NameID" | b"NameID" if in_subject => {
+                            // quick-xml 0.41: read_text returns BytesText, not Cow<str>
                             let text = reader.read_text(e.name())?;
-                            assertion.name_id = text.to_string();
+                            assertion.name_id = String::from_utf8(text.to_vec())?;
                         }
                         b"saml:Conditions" | b"Conditions" => {
                             in_conditions = true;
@@ -312,7 +313,7 @@ impl SamlIdentityProvider {
                                     || e.name().as_ref() == b"Audience")
                             {
                                 let text = reader.read_text(e.name())?;
-                                assertion.audience = Some(text.to_string());
+                                assertion.audience = Some(String::from_utf8(text.to_vec())?);
                             }
                         }
                         b"saml:AttributeStatement" | b"AttributeStatement" => {
@@ -335,7 +336,7 @@ impl SamlIdentityProvider {
                                     .attributes
                                     .entry(current_attribute_name.clone())
                                     .or_insert_with(Vec::new)
-                                    .push(text.to_string());
+                                    .push(String::from_utf8(text.to_vec())?);
                             }
                         }
                         b"saml:AuthnStatement" | b"AuthnStatement" if in_assertion => {

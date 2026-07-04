@@ -74,6 +74,14 @@ COPY antarmuka/portal/nginx.conf /etc/nginx/nginx.conf
 # Copy build output ke Nginx html dir
 COPY --from=builder /workspace/antarmuka/portal/dist /usr/share/nginx/html
 
+# trunk builds with --public-url /portal/ (see above), so index.html requests
+# every hashed asset as /portal/<file> — but the dist is copied flat into the
+# web root. Without this link nginx 404s the .js/.wasm and the Leptos app
+# never mounts (e2e run 28566784769). The self-symlink makes /portal/<file>
+# resolve to the same flat files, matching the /portal prefix used behind the
+# cluster ingress as well.
+RUN ln -sn . /usr/share/nginx/html/portal
+
 # Copy entrypoint script
 COPY antarmuka/portal/entrypoint.sh /docker-entrypoint.sh
 

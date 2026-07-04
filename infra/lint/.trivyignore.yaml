@@ -21,10 +21,12 @@ misconfigurations:
     paths:
       - "monolith/simpelv1/Dockerfile"
       - "antarmuka/perlengkapan/tests/e2e/Dockerfile.e2e"
+      - "antarmuka/portal/tests/e2e/Dockerfile.e2e"
     statement: >-
       simpelv1 runs php-fpm+nginx — non-root needs php-fpm pool + nginx pid
       rework that must be deploy-verified (tracked with #46 Helm runAsNonRoot).
-      Dockerfile.e2e is an ephemeral CI Playwright runner, never deployed.
+      The two Dockerfile.e2e are ephemeral CI Playwright runners, never
+      deployed (the portal one was added in #607 and missed here).
 
   - id: AVD-KSV-0109
     paths:
