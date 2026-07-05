@@ -60,8 +60,11 @@ export default defineConfig({
    * authenc by page.route) — needs only portal + authenc. The other specs need
    * MORE than the portal stack and are split into their own non-gating projects
    * so the gate's stack matches what it runs:
-   *   - portal-cross-app  (auth-login-flow): SSO redirect → needs the
-   *     PERLENGKAPAN FE too; belongs to the @staging cross-app SSO pass.
+   *   - portal-cross-app  (auth-login-flow): REAL cross-app SSO (portal login
+   *     → perlengkapan dashboard via the same-origin JWT). Runs in the
+   *     e2e-portal-cross-app job against the single-origin `cross-app-ingress`
+   *     (both FEs + /api on one origin, mirroring the prod Istio VS); baseURL
+   *     is that ingress (BASE_URL env).
    *   - portal-integration (integrasi-authenc-e2e): gRPC against
    *     layanan-integrasi → needs that service up (backend integration).
    *   - portal-screenshots: visual artifacts, not assertions.

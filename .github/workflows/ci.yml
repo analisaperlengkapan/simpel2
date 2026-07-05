@@ -1434,6 +1434,116 @@ jobs:
             antarmuka/perlengkapan/tests/e2e/results
           retention-days: 7
 
+  # ── Cross-app SSO (portal ↔ perlengkapan), REAL, single-origin (F-GW PR-E) ──
+  # Prod serves both FEs under ONE host (Istio VS), which is what makes SSO work:
+  # portal writes localStorage["auth_token"] then redirects to /perlengkapan/…,
+  # which reads the SAME-ORIGIN token. The compose stack has two origins, so this
+  # job adds `cross-app-ingress` (nginx mirroring the VS) and points Playwright's
+  # `portal-cross-app` project at it. Opt-in (run_e2e / E2E_INTEGRATION_ENABLED),
+  # NOT in ci-summary.needs. Needs BOTH FE builds + the backend.
+  e2e-portal-cross-app:
+    name: E2E Cross-app SSO (portal ↔ perlengkapan, single-origin)
+    needs: [detect, build-antarmuka-portal, build-antarmuka-perlengkapan, build-backend]
+    if: |
+      !cancelled() &&
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (vars.E2E_INTEGRATION_ENABLED == 'true' &&
+         (needs.detect.outputs.rust-frontend == 'true' ||
+          needs.detect.outputs.rust-backend == 'true' ||
+          needs.detect.outputs.e2e == 'true'))
+      ) &&
+      needs.build-antarmuka-portal.result != 'failure' &&
+      needs.build-antarmuka-perlengkapan.result != 'failure' &&
+      needs.build-backend.result != 'failure'
+    runs-on: arc-simpel
+    env:
+      POSTGRES_PASSWORD: e2e_test_pw
+      SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Docker Compose v2 plugin
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      - name: Build e2e images (both FEs + backend)
+        run: |
+          # authenc built with captcha-debug (e2e overlay) so the real login can
+          # solve the captcha headlessly. layanan-integrasi is needed because
+          # layanan-perlengkapan depends_on it (boot-race fix).
+          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+              authenc layanan-integrasi layanan-perlengkapan perlengkapan portal; then
+            echo "::error::cross-app e2e image build failed or timed out after 5400s"
+            exit 1
+          fi
+      - name: Bring up single-origin stack (bounded)
+        run: |
+          # --profile cross-app pulls in the cross-app-ingress service.
+          if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml --profile cross-app up -d \
+              postgres redis authenc layanan-integrasi layanan-perlengkapan perlengkapan portal cross-app-ingress; then
+            echo "::error::cross-app stack bring-up failed or timed out after 600s"
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml ps -a || true
+            docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
+            exit 1
+          fi
+      - name: Wait for the ingress to route both FEs + authenc
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          # Both FE bundles reachable THROUGH the ingress + authenc healthy
+          # behind it (the /api/captcha routes to authenc); proves the single
+          # origin serves everything the SSO flow needs.
+          docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
+            for i in $(seq 1 60); do
+              if curl -sf http://cross-app-ingress:8080/health >/dev/null \
+                 && curl -sf http://cross-app-ingress:8080/portal/ >/dev/null \
+                 && curl -sf http://cross-app-ingress:8080/perlengkapan/ >/dev/null \
+                 && curl -sf http://authenc:8088/health >/dev/null; then
+                echo "ingress routing both FEs after $i tries"; exit 0; fi
+              sleep 5
+            done
+            echo "cross-app ingress did not become ready"; exit 1'
+      - name: Seed e2e multi-satker fixtures
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml run -T --rm e2e-seed \
+            -v ON_ERROR_STOP=1 -h postgres -U postgres -d dbsimpelv2 -f - \
+            < tests/fixtures/e2e/seed-multisatker.sql
+      - name: Run Playwright cross-app SSO (portal-cross-app)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker build -t simpel-e2e-portal \
+            -f antarmuka/portal/tests/e2e/Dockerfile.e2e \
+            antarmuka/portal/tests/e2e
+          # baseURL = the single-origin ingress; the spec uses relative /portal,
+          # /perlengkapan and /api paths so the SSO handoff stays same-origin.
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://cross-app-ingress:8080 \
+            simpel-e2e-portal \
+            npx playwright test --project=portal-cross-app
+      - name: Stack logs (on failure)
+        if: failure()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=250 || true
+      - name: Tear down stack
+        if: always()
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml --profile cross-app down -v || true
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-cross-app
+          path: |
+            antarmuka/portal/tests/e2e/playwright-report
+            antarmuka/portal/tests/e2e/results
+          retention-days: 7
+
   e2e-integrasi-authenc:
     name: E2E Integrasi ↔ Authenc (gRPC + REST)
     # Backend integration e2e (NOT a FE gate): integrasi gRPC + authenc REST.

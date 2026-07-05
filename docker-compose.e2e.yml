@@ -43,6 +43,31 @@ services:
     environment:
       GATEWAY_ENABLE_DB_ADMIN: "1"
 
+  # Single-origin reverse proxy for the cross-app SSO e2e (F-GW PR-E). Mirrors
+  # the prod Istio VirtualService (one host: /portal, /perlengkapan, /api/*) so
+  # the portal→perlengkapan JWT handoff (same-origin localStorage["auth_token"])
+  # is exercised in CI — the compose stack otherwise exposes the two FEs as
+  # separate origins where localStorage isn't shared. Not brought up in the base
+  # e2e flows; only the e2e-portal-cross-app job starts it. `profiles` keeps it
+  # out of a bare `up`.
+  cross-app-ingress:
+    image: nginxinc/nginx-unprivileged:alpine
+    container_name: cross-app-ingress
+    profiles: ["cross-app"]
+    volumes:
+      - ./infra/nginx/e2e-cross-app-ingress.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      authenc:
+        condition: service_started
+      portal:
+        condition: service_started
+      perlengkapan:
+        condition: service_started
+      layanan-perlengkapan:
+        condition: service_started
+    networks:
+      - simpel-network
+
   # One-shot multi-satker fixture loader (#33 / F5-C). Runs psql against the
   # already-migrated dbsimpelv2 to seed integrasi (satkers/assets/mapping) +
   # authenc (per-role users) so the Playwright suite can assert tiered RBAC

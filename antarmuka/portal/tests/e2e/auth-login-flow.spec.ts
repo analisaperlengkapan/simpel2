@@ -1,16 +1,94 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /**
- * E2E Test: Authentication & Login Flow
+ * Cross-app SSO — REAL end-to-end (F-GW PR-E), no mock token.
  *
- * Tests the complete authentication flow:
- * 1. Landing page shows perlengkapan login page
- * 2. Clicking login redirects to /portal/login (SSO)
- * 3. After successful SSO login, redirects back to /dashboard
- * 4. Role switcher is visible in the header
- * 5. Logout button works
+ * Runs against the single-origin `cross-app-ingress` (mirrors the prod Istio
+ * VirtualService: `/portal`, `/perlengkapan`, `/api/*` on ONE origin). That
+ * single origin is what makes SSO work: the portal login writes the JWT to
+ * `localStorage["auth_token"]` and redirects to `/perlengkapan/…`, which reads
+ * the SAME-ORIGIN token and derives its whole session by decoding that JWT
+ * (perlengkapan intentionally no longer reads any legacy session object — see
+ * antarmuka/perlengkapan/src/features/auth.rs). The compose two-origin stack
+ * can't exercise this (localStorage isn't shared), so this suite is its own
+ * project (`portal-cross-app`) with the ingress as baseURL.
+ *
+ * Flow asserted:
+ *   1. Unauthenticated `/perlengkapan/` → redirect to `/portal/login?redirect_uri=…`.
+ *   2. REAL portal login (authenc + captcha via the debug endpoint) as a
+ *      dashboard-capable fixture user.
+ *   3. Portal redirects back to the perlengkapan dashboard; perlengkapan mounts
+ *      from the same-origin JWT and its authed API calls succeed (the backend
+ *      validated the SAME token) → the app chrome renders.
+ *   4. Logout clears the session and returns to the perlengkapan login page.
  */
-test.describe('Authentication & Login Flow', () => {
+
+// Dashboard-capable fixture user (seed-multisatker.sql): validator_pusat,
+// require_password_change=false, shared Argon2id password = the NIP string.
+const USER = { username: '200000000000000004', password: '199203142014031001' };
+
+/** Perform a real portal-UI login on the current (login) page. Captures the
+ *  captcha challenge the WASM issues, resolves it via the debug endpoint, then
+ *  submits credentials. Assumes the page is already on `/portal/login`. */
+async function loginViaPortalUI(page: Page): Promise<void> {
+  // Collect captcha challenge ids as the WASM requests them (same-origin — the
+  // ingress proxies /api/captcha to authenc, so no page.route proxy is needed).
+  const challengeIds: string[] = [];
+  page.on('response', async (resp) => {
+    if (resp.url().includes('/api/captcha/challenge') && resp.request().method() === 'POST') {
+      try {
+        const body = await resp.json();
+        if (body?.challenge_id) challengeIds.push(body.challenge_id);
+      } catch {
+        /* ignore non-JSON */
+      }
+    }
+  });
+
+  await expect(page.getByText('Masuk ke Sistem')).toBeVisible({ timeout: 30000 });
+  const passwordToggle = page.getByText('Atau masuk dengan password');
+  if (await passwordToggle.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await passwordToggle.click();
+  }
+
+  const captchaInput = page.locator('input[placeholder="Masukkan teks..."]');
+  await expect(captchaInput).toBeVisible({ timeout: 15000 });
+
+  // Wait for the WASM's captcha challenge to have landed, then fetch its answer.
+  await expect.poll(() => challengeIds.length, { timeout: 10000 }).toBeGreaterThan(0);
+  const challengeId = challengeIds[challengeIds.length - 1];
+  const dbg = await page.request.get(`/api/captcha/debug/${challengeId}`);
+  expect(dbg.ok()).toBeTruthy();
+  const answer = (await dbg.json()).answer as string;
+  expect(answer).toBeTruthy();
+
+  await page.locator('#username').fill(USER.username);
+  await page.locator('#password').fill(USER.password);
+  await captchaInput.fill(answer);
+
+  const [verify] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/captcha/verify') && r.request().method() === 'POST',
+      { timeout: 15000 },
+    ),
+    page.locator('.captcha-container button', { hasText: 'Kirim' }).click(),
+  ]);
+  expect(verify.status()).toBe(200);
+  await page.waitForTimeout(500); // let the captcha_token signal propagate
+
+  const loginBtn = page.getByRole('button', { name: /Masuk ke Portal/i });
+  await expect(loginBtn).toBeEnabled({ timeout: 10000 });
+  const [loginResp] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/login') && r.request().method() === 'POST',
+      { timeout: 15000 },
+    ),
+    loginBtn.click(),
+  ]);
+  expect(loginResp.status()).toBe(200);
+}
+
+test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.clear();
@@ -18,93 +96,46 @@ test.describe('Authentication & Login Flow', () => {
     });
   });
 
-  test('should show landing page with login button', async ({ page }) => {
+  test('unauthenticated perlengkapan redirects to the portal login with a redirect_uri back', async ({
+    page,
+  }) => {
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    await page.waitForURL(/\/perlengkapan\/login/, { timeout: 30000 });
-    await expect(page.getByRole('heading', { name: /masuk untuk melanjutkan/i })).toBeVisible({
-      timeout: 30000,
-    });
-    await expect(page.getByRole('link', { name: /masuk via portal|masuk/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/, { timeout: 30000 });
+    await expect(page).toHaveURL(/redirect_uri=.*perlengkapan/);
   });
 
-  test('should redirect to portal login on click', async ({ page }) => {
+  test('real portal login carries the JWT cross-app and mounts the perlengkapan dashboard', async ({
+    page,
+  }) => {
+    // 1. Land on perlengkapan → bounced to the portal login (same origin).
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    const loginLink = page.getByRole('link', { name: /masuk via portal|masuk/i });
-    await loginLink.click();
-    // Should redirect to portal login with redirect_uri target to perlengkapan dashboard.
-    await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/);
-    await expect(page).toHaveURL(/%2Fperlengkapan%2Fdashboard/);
-  });
+    await expect(page).toHaveURL(/\/portal\/login/, { timeout: 30000 });
 
-  test('should show dashboard after successful login', async ({ page }) => {
-    // Set mock perlengkapan session via addInitScript so it is available
-    // before app initialization.
-    const session = JSON.stringify({
-      username: '199203142014031001',
-      role: 'admin',
-      access_token: 'mock-jwt-token-for-e2e',
-    });
-    await page.addInitScript((session) => {
-      localStorage.setItem('perlengkapan_user_session', session);
-      localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
-      localStorage.setItem('active_role', 'admin');
-    }, session);
+    // 2. Real login (authenc + captcha-debug).
+    await loginViaPortalUI(page);
 
-    // Navigate to dashboard
-    await page.goto('/perlengkapan/dashboard');
-    await page.waitForLoadState('networkidle');
-    await expect(page).toHaveURL(/\/perlengkapan\/dashboard/);
+    // 3. Portal saved auth_token (same origin) and redirected back to the
+    //    perlengkapan dashboard, which mounts from that JWT and calls its API
+    //    with it (backend validates the SAME token).
+    await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
     await expect(page.locator('button[title="Profil"]')).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText('SIMPEL Perlengkapan')).not.toBeVisible();
+    // The same-origin token is present for perlengkapan's authed API calls.
+    const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+    expect(token, 'perlengkapan sees the portal-issued JWT same-origin').toBeTruthy();
+    expect(token).not.toBe('mock-jwt-token-for-e2e');
   });
 
-  test('should show role switcher in dashboard header', async ({ page }) => {
-    const session = JSON.stringify({
-      username: '199203142014031001',
-      role: 'admin',
-      access_token: 'mock-jwt-token-for-e2e',
-    });
-    await page.addInitScript((session) => {
-      localStorage.setItem('perlengkapan_user_session', session);
-      localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
-      localStorage.setItem('active_role', 'admin');
-    }, session);
+  test('logout from perlengkapan clears the session and returns to its login', async ({ page }) => {
+    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/portal\/login/, { timeout: 30000 });
+    await loginViaPortalUI(page);
+    await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
 
-    await page.goto('/perlengkapan/dashboard');
-    await page.waitForLoadState('networkidle');
-    // Open profile dropdown first, then role switcher content should appear.
-    await page.locator('button[title="Profil"]').click();
-    await expect(page.getByText('Ganti Role')).toBeVisible({ timeout: 30000 });
-    await expect(
-      page
-        .locator('div:has-text("Ganti Role")')
-        .getByRole('button', { name: /admin/i })
-        .first(),
-    ).toBeVisible({ timeout: 30000 });
-  });
-
-  test('should logout and redirect to landing page', async ({ page }) => {
-    const session = JSON.stringify({
-      username: '199203142014031001',
-      role: 'operator_satker',
-      access_token: 'mock-jwt-token-for-e2e',
-    });
-    await page.addInitScript((session) => {
-      localStorage.setItem('perlengkapan_user_session', session);
-      localStorage.setItem('auth_token', 'mock-jwt-token-for-e2e');
-      localStorage.setItem('active_role', 'operator_satker');
-    }, session);
-
-    await page.goto('/perlengkapan/dashboard');
-    await page.waitForLoadState('networkidle');
-    await expect(page.locator('button[title="Profil"]')).toBeVisible({ timeout: 30000 });
-
-    // Click logout
     await page.locator('button[title="Profil"]').click();
     await page.getByRole('button', { name: /keluar/i }).click();
 
-    // Logout clears session and redirects to perlengkapan login page.
     await page.waitForURL(/\/perlengkapan\/login/, { timeout: 30000 });
-    await expect(page).toHaveURL(/\/perlengkapan\/login/, { timeout: 30000 });
+    const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+    expect(token, 'logout cleared the JWT').toBeFalsy();
   });
 });
