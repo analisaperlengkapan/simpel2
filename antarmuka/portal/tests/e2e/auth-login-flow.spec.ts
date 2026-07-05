@@ -101,12 +101,12 @@ async function loginViaPortalUI(page: Page): Promise<void> {
 }
 
 test.describe('Cross-app SSO (real, single-origin ingress)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      localStorage.clear();
-      sessionStorage.clear();
-    });
-  });
+  // NOTE: do NOT clear storage with page.addInitScript — that init script re-runs
+  // on EVERY navigation, so it would wipe the portal-issued auth_token on the hard
+  // redirect into the perlengkapan dashboard (window.location.set_href), booting
+  // the session the instant it lands. Playwright already isolates each test in a
+  // fresh context, so localStorage starts empty; the SSO handoff must be allowed
+  // to persist the token across the portal→perlengkapan navigation.
 
   /** Land on perlengkapan unauthenticated → its own login page → follow the
    *  "Masuk via Portal" link to the portal login. Leaves the page on the portal
