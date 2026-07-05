@@ -178,8 +178,11 @@ services:
       # `integrasi.*` cross-schema (same DB as authenc + perlengkapan).
       DB_NAME: dbsimpelv2
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
-      AUTHENC_GRPC_URL: authenc:50051
-      SECRETON_GRPC_URL: secreton:50053
+      # NOTE: layanan-integrasi is a leaf data-source server — it calls NEITHER
+      # authenc NOR secreton (the real direction is authenc→integrasi: authenc's
+      # federation resolves satker via integrasi gRPC). Its config binds only
+      # GRPC_*/DB_*/monsakti|mysimkari|siman URLs, so the old AUTHENC_GRPC_URL /
+      # SECRETON_GRPC_URL here were vestigial (0 code refs) and are removed.
     depends_on:
       postgres:
         condition: service_healthy
