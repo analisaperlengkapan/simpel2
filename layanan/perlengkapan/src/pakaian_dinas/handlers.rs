@@ -347,14 +347,19 @@ pub async fn get_all_ukuran(
 pub async fn get_all_pengajuan_pakaian(
     State(service): State<PakaianDinasService>,
     Query(query): Query<PengajuanFilterQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<PengajuanPakaianDinas>>, AppError> {
     query.pagination.validate()?;
+    // Tiered-RBAC visibility (#72): pusat/admin see all campaigns; validator_wilayah
+    // sees campaigns touching their wilayah; operator/validator_satker see only
+    // campaigns targeting their satker; no satker identity → fail-closed.
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let (items, total) = service
         .get_all_pengajuan(
             query.pagination.page,
             query.pagination.per_page,
             query.tahun,
+            &scope,
         )
         .await?;
 

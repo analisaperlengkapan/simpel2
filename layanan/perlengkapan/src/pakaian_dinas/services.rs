@@ -332,9 +332,10 @@ impl PakaianDinasService {
         page: i32,
         per_page: i32,
         tahun: Option<i32>,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<PengajuanPakaianDinas>, i64)> {
         self.repository
-            .get_all_pengajuan(page, per_page, tahun)
+            .get_all_pengajuan(page, per_page, tahun, scope)
             .await
     }
 

@@ -1,15 +1,24 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
+use crate::pakaian_dinas::scope::campaign_visibility_condition;
 use crate::shared::error::{AppError, AppResult, bad_request};
+use crate::shared::satker_scope::SatkerScope;
 use chrono::Datelike;
+use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
+type BoxedParam = Box<dyn ToSql + Sync + Send>;
+
 impl PakaianDinasRepository {
+    /// List pakaian-dinas campaigns, tiered-RBAC scoped to what the caller may
+    /// see (#72). The same visibility predicate is applied to BOTH the COUNT and
+    /// the data query so pagination totals match the rows returned.
     pub async fn get_all_pengajuan(
         &self,
         page: i32,
         per_page: i32,
         tahun: Option<i32>,
+        scope: &SatkerScope,
     ) -> AppResult<(Vec<PengajuanPakaianDinas>, i64)> {
         let client = self
             .pool
@@ -18,63 +27,66 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let offset = (page - 1) * per_page;
 
-        let (_count_sql, data_sql, total): (String, String, i64) = if let Some(t) = tahun {
-            let row = client
-                .query_one(
-                    "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas WHERE tahun = $1",
-                    &[&t],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?;
-            (
-                "filtered".to_string(),
-                r#"
-                    SELECT p.*, j.nama as jenis_pakaian_nama,
-                           (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
-                           (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                            WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
-                    FROM perlengkapan.pengajuan_pakaian_dinas p
-                    LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
-                    WHERE p.tahun = $1
-                    ORDER BY p.created_at DESC
-                    LIMIT $2 OFFSET $3
-                    "#.to_string(),
-                row.get("total"),
-            )
+        // Shared predicate: optional year filter + campaign-visibility scope.
+        // Built with positional binds so COUNT and data stay in lockstep.
+        let mut params: Vec<BoxedParam> = Vec::new();
+        let mut conds: Vec<String> = Vec::new();
+        if let Some(t) = tahun {
+            params.push(Box::new(t));
+            conds.push(format!("p.tahun = ${}", params.len()));
+        }
+        if let Some(cond) = campaign_visibility_condition(scope, &mut params) {
+            conds.push(cond);
+        }
+        let where_clause = if conds.is_empty() {
+            String::new()
         } else {
-            let row = client
-                .query_one(
-                    "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas",
-                    &[],
-                )
-                .await
-                .map_err(|e| bad_request(&e.to_string()))?;
-            (
-                "all".to_string(),
-                r#"
-                SELECT p.*, j.nama as jenis_pakaian_nama,
-                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
-                       (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                        WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
-                FROM perlengkapan.pengajuan_pakaian_dinas p
-                LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
-                ORDER BY p.created_at DESC
-                LIMIT $1 OFFSET $2
-                "#.to_string(),
-                row.get("total"),
-            )
+            format!("WHERE {}", conds.join(" AND "))
         };
 
-        let rows = if let Some(tahun) = tahun {
+        // COUNT with the same predicate. Scoped in a block so the immutable
+        // borrow of `params` ends before we extend it with LIMIT/OFFSET below.
+        let count_sql = format!(
+            "SELECT COUNT(*) as total FROM perlengkapan.pengajuan_pakaian_dinas p {where_clause}"
+        );
+        let total: i64 = {
+            let count_refs: Vec<&(dyn ToSql + Sync)> = params
+                .iter()
+                .map(|b| b.as_ref() as &(dyn ToSql + Sync))
+                .collect();
             client
-                .query(&data_sql, &[&tahun, &(per_page as i64), &(offset as i64)])
+                .query_one(&count_sql, &count_refs)
                 .await
-        } else {
-            client
-                .query(&data_sql, &[&(per_page as i64), &(offset as i64)])
-                .await
-        }
-        .map_err(|e| bad_request(&e.to_string()))?;
+                .map_err(|e| bad_request(&e.to_string()))?
+                .get("total")
+        };
+
+        // Data query: same predicate + LIMIT/OFFSET appended.
+        params.push(Box::new(per_page as i64));
+        let limit_idx = params.len();
+        params.push(Box::new(offset as i64));
+        let offset_idx = params.len();
+        let data_sql = format!(
+            r#"
+            SELECT p.*, j.nama as jenis_pakaian_nama,
+                   (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
+                   (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
+                    WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
+            FROM perlengkapan.pengajuan_pakaian_dinas p
+            LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+            {where_clause}
+            ORDER BY p.created_at DESC
+            LIMIT ${limit_idx} OFFSET ${offset_idx}
+            "#
+        );
+        let data_refs: Vec<&(dyn ToSql + Sync)> = params
+            .iter()
+            .map(|b| b.as_ref() as &(dyn ToSql + Sync))
+            .collect();
+        let rows = client
+            .query(&data_sql, &data_refs)
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
 
         let items: Vec<PengajuanPakaianDinas> =
             rows.iter().map(PengajuanPakaianDinas::from_row).collect();
