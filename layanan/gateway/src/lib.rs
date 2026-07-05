@@ -88,6 +88,12 @@ pub struct AppState {
     pub authenc: AuthencServiceClient<Channel>,
     pub secreton: SecretonServiceClient<Channel>,
     pub integrasi: IntegrasiServiceClient<Channel>,
+    /// When true, mount the privileged database secrets-engine provisioning
+    /// routes (`/v1/database/config/*`, `/v1/database/roles/*`). Off by default
+    /// (production simpelv1 sidecar), enabled via GATEWAY_ENABLE_DB_ADMIN=1 for
+    /// the e2e bootstrap. These accept an admin DSN + raw SQL, so they must not
+    /// be reachable in the production localhost sidecar.
+    pub enable_db_admin: bool,
 }
 
 impl AppState {
@@ -99,6 +105,9 @@ impl AppState {
             authenc: AuthencServiceClient::new(authenc_ch),
             secreton: SecretonServiceClient::new(secreton_ch),
             integrasi: IntegrasiServiceClient::new(integrasi_ch),
+            enable_db_admin: std::env::var("GATEWAY_ENABLE_DB_ADMIN")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
         })
     }
 }
@@ -109,7 +118,7 @@ pub fn build_router(state: AppState) -> axum::Router {
     use axum::routing::{delete, get, post, put};
     use tower_http::trace::TraceLayer;
 
-    axum::Router::new()
+    let mut router = axum::Router::new()
         .route("/healthz", get(handlers::healthz))
         .route("/health", get(handlers::healthz))
         // authenc
@@ -133,7 +142,23 @@ pub fn build_router(state: AppState) -> axum::Router {
             "/v1/siman/inventory/{id}",
             get(handlers::get_siman_inventory),
         )
-        .route("/v1/monsakti/{*rest}", get(handlers::monsakti_unavailable))
-        .layer(TraceLayer::new_for_http())
-        .with_state(state)
+        .route("/v1/monsakti/{*rest}", get(handlers::monsakti_unavailable));
+
+    // Privileged database secrets-engine provisioning — only mounted when
+    // explicitly enabled (see AppState::enable_db_admin). Kept off the router
+    // entirely (not just 403'd) in production so the surface simply doesn't
+    // exist on the simpelv1 localhost sidecar.
+    if state.enable_db_admin {
+        router = router
+            .route(
+                "/v1/database/config/{name}",
+                post(handlers::configure_database_connection),
+            )
+            .route(
+                "/v1/database/roles/{role}",
+                post(handlers::create_database_role),
+            );
+    }
+
+    router.layer(TraceLayer::new_for_http()).with_state(state)
 }
