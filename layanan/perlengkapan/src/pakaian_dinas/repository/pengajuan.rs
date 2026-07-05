@@ -79,8 +79,10 @@ impl PakaianDinasRepository {
             LIMIT ${limit_idx} OFFSET ${offset_idx}
             "#
         );
-        let data_refs: Vec<&(dyn ToSql + Sync)> =
-            params.iter().map(|b| b.as_ref() as &(dyn ToSql + Sync)).collect();
+        let data_refs: Vec<&(dyn ToSql + Sync)> = params
+            .iter()
+            .map(|b| b.as_ref() as &(dyn ToSql + Sync))
+            .collect();
         let rows = client
             .query(&data_sql, &data_refs)
             .await
