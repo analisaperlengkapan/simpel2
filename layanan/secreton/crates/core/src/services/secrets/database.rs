@@ -2096,3 +2096,87 @@ async fn test_revoke_credentials_with_lease_integration() {
         }
     }
 }
+
+#[cfg(test)]
+mod dynamic_lease_pg_it {
+    use super::*;
+    use tokio_postgres::NoTls;
+
+    /// Real-Postgres integration for the dynamic database secrets engine:
+    /// configure a live admin connection, create a role, generate short-lived
+    /// credentials, and confirm those leased credentials actually authenticate
+    /// against Postgres and can query. Ignored by default (needs a database);
+    /// run with:
+    ///   SECRETON_IT_DB_URL=postgres://simpel:simpel@localhost:55450/dbsimpelv2 \
+    ///     cargo test -p secreton-core dynamic_lease_pg_it -- --ignored --nocapture
+    #[tokio::test]
+    #[ignore]
+    async fn generate_and_use_dynamic_postgres_credentials() {
+        let admin_url = std::env::var("SECRETON_IT_DB_URL")
+            .expect("set SECRETON_IT_DB_URL to a Postgres admin DSN");
+
+        let engine = DatabaseSecretsEngine::new();
+
+        engine
+            .configure_connection(DatabaseConnection {
+                name: "e2e".to_string(),
+                db_type: DatabaseType::PostgreSQL,
+                connection_url: admin_url.clone(),
+                verify_connection: true,
+                ..Default::default()
+            })
+            .await
+            .expect("configure_connection against live Postgres");
+
+        engine
+            .create_role(DatabaseRole {
+                name: "perlengkapan-dyn".to_string(),
+                db_name: "e2e".to_string(),
+                default_ttl: 60,
+                max_ttl: 3600,
+                // SUPERUSER keeps the leased user able to run every consumer
+                // query/migration in the ephemeral e2e database; production uses
+                // a scoped grant instead.
+                creation_statements: vec![
+                    "CREATE ROLE \"{{username}}\" WITH LOGIN SUPERUSER PASSWORD '{{password}}';"
+                        .to_string(),
+                ],
+                revocation_statements: vec!["DROP ROLE IF EXISTS \"{{username}}\";".to_string()],
+                ..Default::default()
+            })
+            .await
+            .expect("create_role");
+
+        let creds = engine
+            .generate_credentials("perlengkapan-dyn", Some(60))
+            .await
+            .expect("generate_credentials");
+        let dsn = creds
+            .connection_url
+            .clone()
+            .expect("connection_url present");
+        assert_ne!(creds.username, "simpel", "leased user must be distinct");
+
+        // The leased credentials must actually authenticate + query.
+        let (client, conn) = tokio_postgres::connect(&dsn, NoTls)
+            .await
+            .expect("connect with leased credentials");
+        tokio::spawn(async move {
+            let _ = conn.await;
+        });
+        let row = client.query_one("SELECT 1", &[]).await.expect("SELECT 1");
+        let one: i32 = row.get(0);
+        assert_eq!(one, 1);
+
+        // Renewal extends the lease expiry in place (no credential change).
+        let before = creds.expires_at;
+        let renewed = engine
+            .renew_lease(&creds.id, 120)
+            .await
+            .expect("renew_lease");
+        assert!(renewed.expires_at >= before);
+
+        // Best-effort cleanup: drop the leased role.
+        let _ = engine.revoke_credentials(&creds.id).await;
+    }
+}

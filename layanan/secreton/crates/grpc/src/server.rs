@@ -12,6 +12,10 @@ use tonic::{Request, Response, Status, transport::Server};
 use tracing::error;
 use tracing::{info, instrument, warn};
 
+use secreton_core::services::secrets::database::{
+    DatabaseConnection, DatabaseError, DatabaseRole, DatabaseSecretsEngine,
+    DatabaseType as CoreDatabaseType,
+};
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::StorageBackend;
 
@@ -33,6 +37,11 @@ pub struct SecretonGrpcService {
     transit: Arc<TransitEngine>,
     /// gRPC request counter
     request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
+    /// Dynamic database secrets engine (Vault-style). Holds its own
+    /// connection/role/credential state internally (all `Arc<RwLock<…>>`), so a
+    /// single shared instance serves every gRPC call. Configured at runtime via
+    /// `configure_database_connection` + `create_database_role`.
+    db_engine: Arc<DatabaseSecretsEngine>,
     // TODO: Re-enable when ServiceContainer is available in grpc crate
     // /// Service container for namespace and other services
     // services: Arc<ServiceContainer>,
@@ -49,6 +58,7 @@ impl SecretonGrpcService {
             storage,
             transit,
             request_counter,
+            db_engine: Arc::new(DatabaseSecretsEngine::new()),
             // TODO: Re-enable when ServiceContainer is available
             // services: Arc::new(ServiceContainer::new_mock(storage, pool)),
         }
@@ -131,6 +141,31 @@ impl SecretonGrpcService {
             .await?;
 
         Ok(())
+    }
+}
+
+/// Map a database secrets-engine error to a gRPC status. Not-found →
+/// `NotFound`; bad input / already-exists → `InvalidArgument`; everything else
+/// (connection, credential generation, revocation, rotation) → `Internal`.
+fn db_err_to_status(e: DatabaseError) -> Status {
+    match e {
+        DatabaseError::RoleNotFound(_) => Status::not_found(e.to_string()),
+        DatabaseError::InvalidConfig(_) | DatabaseError::RoleAlreadyExists(_) => {
+            Status::invalid_argument(e.to_string())
+        }
+        _ => Status::internal(e.to_string()),
+    }
+}
+
+/// Map the proto `DatabaseType` enum (i32) to the core engine's type. Only
+/// PostgreSQL is exercised by SIMPEL; the rest map through for completeness.
+fn proto_db_type(v: i32) -> CoreDatabaseType {
+    match DatabaseType::try_from(v).unwrap_or(DatabaseType::Postgresql) {
+        DatabaseType::Mysql => CoreDatabaseType::MySQL,
+        DatabaseType::Mongodb => CoreDatabaseType::MongoDB,
+        DatabaseType::Redis => CoreDatabaseType::Redis,
+        // POSTGRESQL and UNSPECIFIED both fall back to Postgres.
+        _ => CoreDatabaseType::PostgreSQL,
     }
 }
 
@@ -1108,13 +1143,32 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         ));
     }
 
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn renew_lease(
         &self,
-        _request: Request<RenewLeaseRequest>,
+        request: Request<RenewLeaseRequest>,
     ) -> Result<Response<RenewLeaseResponse>, Status> {
-        // TODO: Implement when ServiceContainer is available
-        Err(Status::unimplemented("Lease management not yet available"))
+        self.increment_request_count();
+        let req = request.into_inner();
+        // Default increment 1h when unspecified; the engine re-runs the role's
+        // renew statements and extends the credential's expiry in place, so the
+        // caller's existing pool keeps working with the same username/password.
+        let increment = req.increment.unwrap_or(3600).max(0) as u32;
+        let creds = self
+            .db_engine
+            .renew_lease(&req.lease_id, increment)
+            .await
+            .map_err(db_err_to_status)?;
+        Ok(Response::new(RenewLeaseResponse {
+            lease_id: req.lease_id,
+            expired_at: creds.expires_at.timestamp(),
+            lease_duration: increment as i64,
+            renewable: true,
+            // The engine renews indefinitely (no per-lease counter/cap); report
+            // 0/None so consumers renew on TTL rather than exiting on a cap.
+            renew_count: 0,
+            max_renewals: None,
+        }))
     }
 
     #[instrument(skip(self, _request))]
@@ -1290,24 +1344,63 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
     // Database Secrets Engine Methods (Stub implementations for future tasks)
     // ============================================================================
 
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn generate_database_credentials(
         &self,
-        _request: Request<GenerateDatabaseCredentialsRequest>,
+        request: Request<GenerateDatabaseCredentialsRequest>,
     ) -> Result<Response<GenerateDatabaseCredentialsResponse>, Status> {
-        Err(Status::unimplemented(
-            "Database secrets engine not yet implemented",
-        ))
+        self.increment_request_count();
+        let req = request.into_inner();
+        // Issues a fresh, short-lived Postgres role from the configured
+        // connection + named role, registers it under a lease id, and returns a
+        // ready-to-use connection_url. The lease is kept alive via renew_lease.
+        let creds = self
+            .db_engine
+            .generate_credentials(&req.role_name, req.ttl_seconds)
+            .await
+            .map_err(db_err_to_status)?;
+        let lease_duration = (creds.expires_at - creds.created_at).num_seconds();
+        Ok(Response::new(GenerateDatabaseCredentialsResponse {
+            lease_id: creds.id,
+            lease_duration,
+            renewable: true,
+            credentials: Some(DatabaseCredentials {
+                username: creds.username,
+                password: creds.password,
+                connection_url: creds.connection_url,
+                database: creds.db_name,
+                role: creds.role_name,
+            }),
+        }))
     }
 
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn create_database_role(
         &self,
-        _request: Request<CreateDatabaseRoleRequest>,
+        request: Request<CreateDatabaseRoleRequest>,
     ) -> Result<Response<CreateDatabaseRoleResponse>, Status> {
-        Err(Status::unimplemented(
-            "Database secrets engine not yet implemented",
-        ))
+        self.increment_request_count();
+        let req = request.into_inner();
+        let role = DatabaseRole {
+            name: req.role_name.clone(),
+            db_name: req.db_name.clone(),
+            default_ttl: req.default_ttl,
+            max_ttl: req.max_ttl,
+            creation_statements: req.creation_statements,
+            revocation_statements: req.revocation_statements,
+            rotation_statements: req.rotation_statements,
+            renew_statements: req.renew_statements,
+        };
+        self.db_engine
+            .create_role(role)
+            .await
+            .map_err(db_err_to_status)?;
+        Ok(Response::new(CreateDatabaseRoleResponse {
+            name: req.role_name,
+            db_name: req.db_name,
+            default_ttl: req.default_ttl,
+            max_ttl: req.max_ttl,
+        }))
     }
 
     #[instrument(skip(self, _request))]
@@ -1350,14 +1443,39 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         ))
     }
 
-    #[instrument(skip(self, _request))]
+    #[instrument(skip(self, request))]
     async fn configure_database_connection(
         &self,
-        _request: Request<ConfigureDatabaseConnectionRequest>,
+        request: Request<ConfigureDatabaseConnectionRequest>,
     ) -> Result<Response<ConfigureDatabaseConnectionResponse>, Status> {
-        Err(Status::unimplemented(
-            "Database secrets engine not yet implemented",
-        ))
+        self.increment_request_count();
+        let req = request.into_inner();
+        let db_type = req.db_type;
+        // The admin/root credentials ride in `connection_url` (e.g.
+        // postgres://user:pass@host:5432/db); the engine uses this connection to
+        // run each role's creation/revocation statements.
+        let conn = DatabaseConnection {
+            name: req.name.clone(),
+            db_type: proto_db_type(db_type),
+            connection_url: req.connection_url,
+            max_open_connections: req.max_open_connections,
+            max_idle_connections: req.max_idle_connections,
+            max_connection_lifetime: req.max_connection_lifetime,
+            verify_connection: req.verify_connection,
+            root_rotation_statements: req.root_rotation_statements,
+            username: None,
+            password: None,
+        };
+        let verified = conn.verify_connection;
+        self.db_engine
+            .configure_connection(conn)
+            .await
+            .map_err(db_err_to_status)?;
+        Ok(Response::new(ConfigureDatabaseConnectionResponse {
+            name: req.name,
+            db_type,
+            verified,
+        }))
     }
 
     // ============================================================================
