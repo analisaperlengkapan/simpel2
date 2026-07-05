@@ -85,4 +85,50 @@ got=$(curl -fsS "${GATEWAY_ADDR}/v1/secrets/${SEED_PATH}" | jq -r '.value // emp
   || die "readback GET via gateway failed"
 [ "$got" = "$SEED_VALUE" ] || die "readback mismatch (secreton⇄gateway round-trip broke)"
 
+# ── 6. (opt-in) provision the dynamic DB secrets engine + verify a lease ──────
+# Enabled with SECRETON_DB_PROVISION=1 (needs the gateway started with
+# GATEWAY_ENABLE_DB_ADMIN=1). Configures the admin connection Secreton uses to
+# mint roles, creates the role perlengkapan leases, issues ONE short-lived
+# credential, and proves it actually authenticates against Postgres — the full
+# gateway → secreton gRPC → database-engine → real CREATE ROLE path. Exit code
+# is the assertion, same as the secret round-trip above.
+if [ "${SECRETON_DB_PROVISION:-}" = "1" ]; then
+  log "[6/6] provisioning dynamic DB engine + verifying a leased credential ..."
+  apk add --no-cache postgresql-client >/dev/null 2>&1 \
+    || die "apk add postgresql-client failed"
+  ADMIN_URL="${SECRETON_DB_ADMIN_URL:?SECRETON_DB_ADMIN_URL required when SECRETON_DB_PROVISION=1}"
+  ROLE="${SECRETON_DB_ROLE:-perlengkapan-dyn}"
+  CONN_NAME="${SECRETON_DB_CONN:-perlengkapan}"
+
+  log "    configuring admin connection '${CONN_NAME}' ..."
+  curl -fsS -X POST "${GATEWAY_ADDR}/v1/database/config/${CONN_NAME}" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg url "$ADMIN_URL" '{connection_url:$url}')" >/dev/null \
+    || die "configure database connection failed (is GATEWAY_ENABLE_DB_ADMIN=1 on the gateway?)"
+
+  # SUPERUSER only because the ephemeral e2e database is throwaway and the leased
+  # user must run every consumer query + migration; production uses a scoped
+  # GRANT instead (see secreton-ops).
+  create_sql='CREATE ROLE "{{username}}" WITH LOGIN SUPERUSER PASSWORD '\''{{password}}'\'';'
+  revoke_sql='DROP ROLE IF EXISTS "{{username}}";'
+  log "    creating role '${ROLE}' ..."
+  curl -fsS -X POST "${GATEWAY_ADDR}/v1/database/roles/${ROLE}" \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg db "$CONN_NAME" --arg c "$create_sql" --arg r "$revoke_sql" \
+          '{db_name:$db, default_ttl:60, max_ttl:3600, creation_statements:[$c], revocation_statements:[$r]}')" \
+    >/dev/null \
+    || die "create database role failed"
+
+  log "    leasing a credential + authenticating it against Postgres ..."
+  creds=$(curl -fsS "${GATEWAY_ADDR}/v1/database-credentials/${ROLE}") \
+    || die "generate database credentials failed"
+  dsn=$(printf '%s' "$creds" | jq -r '.credentials.connection_url // empty')
+  [ -n "$dsn" ] || die "leased credential missing connection_url: ${creds}"
+  # The leased user must be able to connect AND query — proves CREATE ROLE ran
+  # for real, not that the RPC merely returned 200.
+  [ "$(psql "$dsn" -tAc 'SELECT 1' 2>/dev/null | tr -d '[:space:]')" = "1" ] \
+    || die "leased dynamic credential could not authenticate/query Postgres"
+  log "    dynamic DB lease issued + verified ✓"
+fi
+
 log "✓ secreton bootstrap complete — Shamir unsealed + secret round-trips secreton⇄gateway"

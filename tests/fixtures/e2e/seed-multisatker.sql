@@ -52,6 +52,20 @@ VALUES
 ON CONFLICT (kode_satker) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
+-- 2b. integrasi: MySIMKARI pegawai — one per DKI satker + one Bandung. Makes the
+--     gRPC GetMysimkariPegawai read path (nip_filter / kode_satker filter, the
+--     one perlengkapan's IntegrasiClient exercises) assert against REAL rows
+--     instead of an always-empty result. satker_id is the MySIMKARI code (TEXT).
+-- ----------------------------------------------------------------------------
+INSERT INTO integrasi.mysimkari_pegawai
+  (nip, nama, satker_id, nama_satker, jabatan, golpang, gol_kd, jk, email, no_hp, status_pegawai)
+VALUES
+  ('200000000000000001', 'E2E Operator Jakpus',  '0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',   'Operator Satker',   'Penata Muda', 'III/a', 'L', '200000000000000001@kejaksaan.go.id', '081200000001', 'aktif'),
+  ('200000000000000002', 'E2E Operator Jaksel',  '0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN', 'Operator Satker',   'Penata Muda', 'III/a', 'P', '200000000000000002@kejaksaan.go.id', '081200000002', 'aktif'),
+  ('200000000000000009', 'E2E Pegawai Bandung',  '0300010', 'KEJAKSAAN NEGERI BANDUNG',         'Operator Satker',   'Penata',      'III/c', 'L', '200000000000000009@kejaksaan.go.id', '081200000009', 'aktif')
+ON CONFLICT (nip) DO NOTHING;
+
+-- ----------------------------------------------------------------------------
 -- 3. integrasi: SIMAN assets — 2 for satker A, 2 for B (both DKI), 1 for C
 --    (Bandung). Total 5. Expected scoped counts:
 --      operator_a (0200010)        -> 2   (own satker)

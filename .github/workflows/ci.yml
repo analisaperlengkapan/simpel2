@@ -1618,13 +1618,18 @@ jobs:
               sleep 5
             done
             echo "secreton/gateway did not become ready"; exit 1'
-      - name: Run secreton bootstrap (exit code = assertion)
+      - name: Run secreton bootstrap + dynamic-DB provisioning (exit code = assertion)
         run: |
-          # The one-shot init+unseal+seed-via-gateway+verify-readback. A non-zero
-          # exit means the secreton⇄gateway secret round-trip broke.
+          # The one-shot init+unseal+seed-via-gateway+verify-readback, PLUS (with
+          # SECRETON_DB_PROVISION=1) the dynamic database secrets-engine flow:
+          # configure the admin connection, create the leased role, issue one
+          # short-lived credential via the gateway, and prove it authenticates
+          # against Postgres. A non-zero exit means either the secret round-trip
+          # OR the dynamic-lease path broke. The gateway carries
+          # GATEWAY_ENABLE_DB_ADMIN=1 from docker-compose.e2e.yml.
           if ! docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-              run --rm --no-deps secreton-bootstrap; then
-            echo "::error::secreton bootstrap failed — secret did not round-trip secreton⇄gateway"
+              run --rm --no-deps -e SECRETON_DB_PROVISION=1 secreton-bootstrap; then
+            echo "::error::secreton bootstrap failed — secret round-trip or dynamic-DB lease broke"
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=200 secreton gateway || true
             exit 1
           fi

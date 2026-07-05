@@ -34,6 +34,15 @@ services:
     ports:
       - "18088:8088" # REST API for e2e real-auth + captcha-debug
 
+  # Enable the gateway's privileged database secrets-engine provisioning routes
+  # (/v1/database/config/*, /v1/database/roles/*) so the secreton bootstrap can
+  # configure Secreton's DB engine + create the leased role. OFF in the base
+  # compose and in production (Helm) — the routes accept an admin DSN + raw SQL,
+  # so they must not exist on the production simpelv1 localhost sidecar.
+  gateway:
+    environment:
+      GATEWAY_ENABLE_DB_ADMIN: "1"
+
   # One-shot multi-satker fixture loader (#33 / F5-C). Runs psql against the
   # already-migrated dbsimpelv2 to seed integrasi (satkers/assets/mapping) +
   # authenc (per-role users) so the Playwright suite can assert tiered RBAC

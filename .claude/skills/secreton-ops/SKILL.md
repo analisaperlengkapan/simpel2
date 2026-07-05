@@ -65,6 +65,26 @@ Vault-style leases instead of a static `DATABASE_URL`:
    boundary the pod exits and k8s restarts it with fresh creds (see
    `layanan/perlengkapan/src/main.rs` `spawn_db_lease_renewal`).
 
+**Status/impl (F-GW PR-D):** the gRPC handlers for
+`ConfigureDatabaseConnection` / `CreateDatabaseRole` / `GenerateDatabaseCredentials` /
+`RenewLease` are LIVE — `SecretonGrpcService` (`layanan/secreton/crates/grpc/src/server.rs`)
+delegates to the real engine `secreton-core …/secrets/database.rs` (creates a
+Postgres role via `CREATE ROLE … PASSWORD` templated on `{{username}}`/`{{password}}`,
+`SECRETON_DB_TLS_MODE=disable` for plaintext PG). A single shared engine instance
+holds the connection/role/lease state, so provisioning + issuance MUST hit the
+**same** secreton process.
+- **Provisioning path:** steps 1–2 are gRPC-only. Reach them from a script via the
+  gateway's env-gated admin routes `POST /v1/database/config/{name}` +
+  `POST /v1/database/roles/{role}` — mounted **only** when the gateway runs with
+  `GATEWAY_ENABLE_DB_ADMIN=1` (off in the prod simpelv1 sidecar; on in e2e). Prod
+  provisioning is an operator action, not a runtime sidecar capability.
+- **e2e:** `infra/scripts/secreton-ci-bootstrap.sh` step 6 (opt-in
+  `SECRETON_DB_PROVISION=1`) configures the connection, creates the role, leases a
+  credential, and proves it authenticates against PG. The engine↔PG path also has
+  an `#[ignore]` integration test `dynamic_lease_pg_it` (run with `SECRETON_IT_DB_URL`).
+- **Prod caveat:** e2e uses a `SUPERUSER` creation statement (throwaway DB); prod
+  MUST use a scoped `GRANT` in the role's `creation_statements`.
+
 ## Incident playbook
 
 - **Pods CrashLoop "sealed"/can't fetch secret** → `secreton-0` is sealed (restart?)

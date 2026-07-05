@@ -238,6 +238,32 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
       }
     });
 
+    test('gRPC: GetMysimkariPegawai returns the seeded pegawai (nip_filter — validates the integrasi SQL-drift fix)', async () => {
+      test.skip(!client, 'Integrasi gRPC not reachable');
+
+      // Seeded by seed-multisatker.sql (integrasi.mysimkari_pegawai). Before the
+      // integrasi gRPC SQL-drift fix, GetMysimkariPegawai ALWAYS returned [] —
+      // its SELECT referenced columns that never existed and the handler
+      // swallowed the error — and nip_filter was ignored entirely. This asserts
+      // the read now returns REAL rows and that nip_filter scopes to exactly the
+      // requested NIP (the perlengkapan IntegrasiClient exercises this RPC).
+      const seededNip = '200000000000000001';
+      const response = await grpcCall<{
+        items: Array<{ nip: string; nama: string; kode_satker: string }>;
+      }>(client, 'GetMysimkariPegawai', {
+        nip_filter: seededNip,
+        pagination: { page: 1, per_page: 10 },
+      });
+
+      expect(response.items.length).toBeGreaterThanOrEqual(1);
+      expect(response.items.every((p) => p.nip === seededNip)).toBe(true);
+      const pegawai = response.items[0];
+      expect(pegawai.nip).toBe(seededNip);
+      // satker_id (MySIMKARI code) is aliased to kode_satker by the RPC.
+      expect(pegawai.kode_satker).toBe('0200010');
+      expect(pegawai.nama).toBe('E2E Operator Jakpus');
+    });
+
     test('gRPC: GetMysimkariSatker — schema validation', async () => {
       test.skip(!client, 'Integrasi gRPC not reachable');
 
