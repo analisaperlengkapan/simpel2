@@ -227,6 +227,12 @@ services:
         condition: service_completed_successfully
       authenc:
         condition: service_started
+      # The IntegrasiClient connects EAGERLY at boot with only a short retry
+      # window; start the integrasi gRPC server first so the MySIMKARI/SIMAN
+      # read paths (analisis rekap, pakaian-dinas) are wired rather than
+      # silently disabled on a boot race.
+      layanan-integrasi:
+        condition: service_started
     networks:
       - simpel-network
 
@@ -280,6 +286,13 @@ services:
       GATEWAY_ADDR: http://gateway:8090
       SECRETON_SEED_PATH: simpelv1-app-key
       SECRETON_SEED_VALUE: ci-bootstrap-secret
+      # Dynamic DB secrets-engine provisioning inputs. Inert unless the job runs
+      # this one-shot with `-e SECRETON_DB_PROVISION=1` (and the gateway has
+      # GATEWAY_ENABLE_DB_ADMIN=1) — then step 6 of the bootstrap configures the
+      # admin connection + creates the leased role.
+      SECRETON_DB_ROLE: perlengkapan-dyn
+      SECRETON_DB_CONN: perlengkapan
+      SECRETON_DB_ADMIN_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/dbsimpelv2
     volumes:
       - ./infra/scripts/secreton-ci-bootstrap.sh:/bootstrap.sh:ro
     entrypoint: ["/bin/sh", "-c"]

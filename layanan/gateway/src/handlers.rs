@@ -20,8 +20,8 @@ use crate::proto::integrasi::v1::{
     GetMysimkariPegawaiRequest, GetSimanAssetsRequest, Pagination, SimanAssetCategory,
 };
 use crate::proto::secreton::v1::{
-    DeleteSecretRequest, GenerateDatabaseCredentialsRequest, GetSecretRequest, GetSecretResponse,
-    StoreSecretRequest,
+    ConfigureDatabaseConnectionRequest, CreateDatabaseRoleRequest, DeleteSecretRequest,
+    GenerateDatabaseCredentialsRequest, GetSecretRequest, GetSecretResponse, StoreSecretRequest,
 };
 
 // ── pure mapping helpers (unit-tested) ────────────────────────────────────
@@ -218,6 +218,105 @@ pub async fn get_database_credentials(
                 })),
             )
                 .into_response()
+        }
+        Err(s) => upstream_error("secreton", s),
+    }
+}
+
+// ── database secrets-engine provisioning (ADMIN — env-gated) ──────────────
+// These configure Secreton's database secrets engine (connection + role) so
+// consumers can later lease short-lived credentials. They accept privileged
+// input (admin DSN, raw SQL), so `build_router` only mounts them when
+// GATEWAY_ENABLE_DB_ADMIN=1 — off in the production simpelv1 sidecar, on for
+// the e2e bootstrap. Both proxy straight to Secreton gRPC, hitting the SAME
+// engine instance that `get_database_credentials` leases from.
+
+#[derive(serde::Deserialize)]
+pub struct ConfigureDbConnectionBody {
+    /// Admin/root DSN, e.g. postgres://user:pass@postgres:5432/dbsimpelv2.
+    pub connection_url: String,
+    /// Proto DatabaseType int (1 = POSTGRESQL); defaults to Postgres.
+    #[serde(default)]
+    pub db_type: Option<i32>,
+}
+
+pub async fn configure_database_connection(
+    State(st): State<AppState>,
+    Path(name): Path<String>,
+    Json(body): Json<ConfigureDbConnectionBody>,
+) -> Response {
+    let mut client = st.secreton.clone();
+    let req = ConfigureDatabaseConnectionRequest {
+        name,
+        db_type: body.db_type.unwrap_or(1),
+        connection_url: body.connection_url,
+        max_open_connections: 4,
+        max_idle_connections: 2,
+        max_connection_lifetime: 3600,
+        verify_connection: true,
+        root_rotation_statements: vec![],
+    };
+    match client
+        .configure_database_connection(tonic::Request::new(req))
+        .await
+    {
+        Ok(resp) => {
+            let inner = resp.into_inner();
+            (
+                StatusCode::OK,
+                Json(json!({ "name": inner.name, "verified": inner.verified })),
+            )
+                .into_response()
+        }
+        Err(s) => upstream_error("secreton", s),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct CreateDbRoleBody {
+    /// Name of a configured connection this role provisions against.
+    pub db_name: String,
+    #[serde(default = "default_role_ttl")]
+    pub default_ttl: u32,
+    #[serde(default = "default_role_max_ttl")]
+    pub max_ttl: u32,
+    /// SQL run to create the leased user; supports {{username}}/{{password}}.
+    pub creation_statements: Vec<String>,
+    /// SQL run to revoke it (engine requires at least one).
+    pub revocation_statements: Vec<String>,
+    #[serde(default)]
+    pub rotation_statements: Vec<String>,
+    #[serde(default)]
+    pub renew_statements: Vec<String>,
+}
+
+fn default_role_ttl() -> u32 {
+    3600
+}
+fn default_role_max_ttl() -> u32 {
+    86400
+}
+
+pub async fn create_database_role(
+    State(st): State<AppState>,
+    Path(role): Path<String>,
+    Json(body): Json<CreateDbRoleBody>,
+) -> Response {
+    let mut client = st.secreton.clone();
+    let req = CreateDatabaseRoleRequest {
+        role_name: role,
+        db_name: body.db_name,
+        default_ttl: body.default_ttl,
+        max_ttl: body.max_ttl,
+        creation_statements: body.creation_statements,
+        revocation_statements: body.revocation_statements,
+        rotation_statements: body.rotation_statements,
+        renew_statements: body.renew_statements,
+    };
+    match client.create_database_role(tonic::Request::new(req)).await {
+        Ok(resp) => {
+            let inner = resp.into_inner();
+            (StatusCode::OK, Json(json!({ "name": inner.name }))).into_response()
         }
         Err(s) => upstream_error("secreton", s),
     }

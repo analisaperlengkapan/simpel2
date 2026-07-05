@@ -35,6 +35,15 @@ ada) + tetap tak cover #1–#4. Gateway = ~komponen kecil, **0 perubahan PHP**.
 | `GET /v1/siman/inventory/{id}` | integrasi `GetSimanAssets` (+filter) |
 | `GET /v1/monsakti/*` | **501** (dormant) |
 | `GET /healthz` | liveness |
+| `POST /v1/database/config/{name}` † | secreton `ConfigureDatabaseConnection` |
+| `POST /v1/database/roles/{role}` † | secreton `CreateDatabaseRole` |
+
+† **Privileged, env-gated.** These provisioning routes are mounted **only** when
+the gateway runs with `GATEWAY_ENABLE_DB_ADMIN=1` (`AppState::enable_db_admin`) —
+OFF in the base compose and in production, ON only for the e2e secreton bootstrap.
+They accept an admin DSN + raw SQL, so they must not exist on the production
+simpelv1 localhost sidecar; when disabled the routes are absent from the router
+(404), not merely 403'd. See `secreton-ops` SKILL for the dynamic-DB flow.
 
 ## Struktur
 
