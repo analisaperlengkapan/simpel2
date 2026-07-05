@@ -13,14 +13,26 @@ import { test, expect, type Page } from '@playwright/test';
  * can't exercise this (localStorage isn't shared), so this suite is its own
  * project (`portal-cross-app`) with the ingress as baseURL.
  *
+ * The handoff is a TWO-HOP delegation (this is the real FE design, not a direct
+ * bounce): perlengkapan does NOT redirect unauthenticated users straight to the
+ * portal. It renders its OWN login page (`/perlengkapan/simpel/v2/login`, see
+ * antarmuka/perlengkapan/src/pages/login.rs) that carries a single "Masuk via
+ * Portal" link → `/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fv2%2Fdashboard`.
+ * The portal login honors that `redirect_uri` (only when it starts with
+ * `/perlengkapan`, see resolve_perlengkapan_redirect_target in
+ * antarmuka/portal/src/features/auth/pages/login.rs) and hard-redirects back
+ * after a successful login. Logout in perlengkapan clears the token and sends the
+ * user to `{origin}/portal/login` (profile_menu.rs), NOT its own login page.
+ *
  * Flow asserted:
- *   1. Unauthenticated `/perlengkapan/` → redirect to `/portal/login?redirect_uri=…`.
- *   2. REAL portal login (authenc + captcha via the debug endpoint) as a
- *      dashboard-capable fixture user.
- *   3. Portal redirects back to the perlengkapan dashboard; perlengkapan mounts
- *      from the same-origin JWT and its authed API calls succeed (the backend
- *      validated the SAME token) → the app chrome renders.
- *   4. Logout clears the session and returns to the perlengkapan login page.
+ *   1. Unauthenticated `/perlengkapan/` → perlengkapan's own login page, which
+ *      offers a "Masuk via Portal" link with a `redirect_uri` back to perlengkapan.
+ *   2. Follow that link → portal login → REAL login (authenc + captcha via the
+ *      debug endpoint) as a dashboard-capable fixture user.
+ *   3. Portal honors the redirect_uri → lands back on the perlengkapan dashboard;
+ *      perlengkapan mounts from the same-origin JWT and its authed API calls
+ *      succeed (the backend validated the SAME token) → the app chrome renders.
+ *   4. Logout clears the session and returns to the portal login page.
  */
 
 // Dashboard-capable fixture user (seed-multisatker.sql): validator_pusat,
@@ -96,27 +108,49 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
     });
   });
 
-  test('unauthenticated perlengkapan redirects to the portal login with a redirect_uri back', async ({
+  /** Land on perlengkapan unauthenticated → its own login page → follow the
+   *  "Masuk via Portal" link to the portal login. Leaves the page on the portal
+   *  login with the `redirect_uri` back to the perlengkapan dashboard. */
+  async function reachPortalLoginViaPerlengkapan(page: Page): Promise<void> {
+    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
+    // Perlengkapan bounces the unauthenticated user to ITS OWN login page
+    // (it delegates auth to the portal rather than redirecting there directly).
+    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/v2\/login/, { timeout: 30000 });
+    // Follow the single SSO entry point (a hard <a href> navigation).
+    await page.getByRole('link', { name: /Masuk via Portal/i }).click();
+    await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/, { timeout: 30000 });
+  }
+
+  test('unauthenticated perlengkapan shows its login with a portal SSO link carrying a redirect_uri back', async ({
     page,
   }) => {
     await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/portal\/login\?redirect_uri=/, { timeout: 30000 });
-    await expect(page).toHaveURL(/redirect_uri=.*perlengkapan/);
+    // Its own login page, not a direct bounce to the portal.
+    await expect(page).toHaveURL(/\/perlengkapan\/simpel\/v2\/login/, { timeout: 30000 });
+
+    // The "Masuk via Portal" link is the SSO entry point; its href hands the
+    // portal a redirect_uri that points back to the perlengkapan dashboard.
+    const portalLink = page.getByRole('link', { name: /Masuk via Portal/i });
+    await expect(portalLink).toBeVisible({ timeout: 15000 });
+    const href = await portalLink.getAttribute('href');
+    expect(href, 'portal SSO link present').toBeTruthy();
+    expect(href).toMatch(/\/portal\/login\?redirect_uri=/);
+    // redirect_uri is URL-encoded but must resolve back into perlengkapan.
+    expect(decodeURIComponent(href!)).toMatch(/redirect_uri=\/perlengkapan/);
   });
 
   test('real portal login carries the JWT cross-app and mounts the perlengkapan dashboard', async ({
     page,
   }) => {
-    // 1. Land on perlengkapan → bounced to the portal login (same origin).
-    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/portal\/login/, { timeout: 30000 });
+    // 1. perlengkapan → its own login → follow the SSO link to the portal login.
+    await reachPortalLoginViaPerlengkapan(page);
 
     // 2. Real login (authenc + captcha-debug).
     await loginViaPortalUI(page);
 
-    // 3. Portal saved auth_token (same origin) and redirected back to the
-    //    perlengkapan dashboard, which mounts from that JWT and calls its API
-    //    with it (backend validates the SAME token).
+    // 3. Portal honored the redirect_uri: it saved auth_token (same origin) and
+    //    redirected back to the perlengkapan dashboard, which mounts from that
+    //    JWT and calls its API with it (backend validates the SAME token).
     await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
     await expect(page.locator('button[title="Profil"]')).toBeVisible({ timeout: 30000 });
     // The same-origin token is present for perlengkapan's authed API calls.
@@ -125,16 +159,18 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
     expect(token).not.toBe('mock-jwt-token-for-e2e');
   });
 
-  test('logout from perlengkapan clears the session and returns to its login', async ({ page }) => {
-    await page.goto('/perlengkapan/', { waitUntil: 'domcontentloaded' });
-    await expect(page).toHaveURL(/\/portal\/login/, { timeout: 30000 });
+  test('logout from perlengkapan clears the session and returns to the portal login', async ({
+    page,
+  }) => {
+    await reachPortalLoginViaPerlengkapan(page);
     await loginViaPortalUI(page);
     await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
 
     await page.locator('button[title="Profil"]').click();
     await page.getByRole('button', { name: /keluar/i }).click();
 
-    await page.waitForURL(/\/perlengkapan\/login/, { timeout: 30000 });
+    // Perlengkapan logout hard-redirects to the portal login (not its own).
+    await page.waitForURL(/\/portal\/login/, { timeout: 30000 });
     const token = await page.evaluate(() => localStorage.getItem('auth_token'));
     expect(token, 'logout cleared the JWT').toBeFalsy();
   });
