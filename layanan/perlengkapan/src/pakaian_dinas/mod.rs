@@ -13,6 +13,7 @@ pub mod handlers;
 pub mod models;
 pub mod pdf_export;
 pub mod repository;
+pub mod scope;
 pub mod services;
 pub mod xlsx_export;
 
