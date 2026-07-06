@@ -121,4 +121,45 @@ VALUES
   ('4444bbbb-0000-4000-8000-000000000044', '44444444-4444-4444-8444-444444444444', 'satker_code', '0100000',          now())
 ON CONFLICT (id) DO NOTHING;
 
+-- ----------------------------------------------------------------------------
+-- 5. perlengkapan: Kebutuhan BMN workflow preconditions (F-E2E E-1).
+--    ONE open campaign (periode, status 2000) + per-satker response rows seeded
+--    at DISTINCT workflow statuses so each role's transition is exercised
+--    independently & deterministically (rather than one brittle long chain).
+--    The satker-detail component (/kebutuhan-bmn/satker/:id) gates actions by
+--    status_kode: operator submits at 2000/2001; validator_wilayah forwards at
+--    2002; validator_pusat decides at 2005.
+--      S1 0200010 @2001 Input Barang  -> operator_a: Tambah Barang + Submit ke Wilayah
+--      S2 0200020 @2002 →Wilayah      -> validator_wilayah (DKI): Teruskan ke Pusat
+--      S3 0300010 @2005 Analisis      -> validator_pusat: Setujui
+--    ms_workflow_status(kebutuhan_bmn): 2000 Draft, 2001 Input, 2002 →Wilayah,
+--    2003 Revisi, 2004 →Pusat, 2005 Analisis, 2006 Disetujui, 2007 Ditolak.
+--    Known UUIDs so specs can deep-link to the satker detail without list-click.
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn
+  (id, nama, deskripsi, tahun, tgl_mulai, tgl_selesai, pilihan_satker, status_kode, created_by, scope_satker)
+VALUES
+  ('c1000000-0000-4c00-8c00-000000000001', 'E2E Periode Kebutuhan BMN 2026', 'Seed F-E2E kebutuhan workflow', 2026, '2026-01-01', '2026-12-31', 'semua', 2000, '44444444-4444-4444-8444-444444444444', 'semua')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
+  (id, pengajuan_id, satker_id, satker_nama, status_kode, created_by)
+VALUES
+  ('c1000000-0000-4c00-8c00-0000000a0001', 'c1000000-0000-4c00-8c00-000000000001', '0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',   2001, '11111111-1111-4111-8111-111111111111'),
+  ('c1000000-0000-4c00-8c00-0000000a0002', 'c1000000-0000-4c00-8c00-000000000001', '0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN', 2002, '22222222-2222-4222-8222-222222222222'),
+  ('c1000000-0000-4c00-8c00-0000000a0003', 'c1000000-0000-4c00-8c00-000000000001', '0300010', 'KEJAKSAAN NEGERI BANDUNG',         2005, '44444444-4444-4444-8444-444444444444')
+ON CONFLICT (id) DO NOTHING;
+
+-- One pre-existing barang per satker row so (a) the operator's "Submit ke
+-- Wilayah" is valid without depending on the add-barang modal, and (b) the
+-- wilayah/pusat detail views are non-empty. Operator ALSO adds one via the UI
+-- modal during the test (asserting the count goes 1 -> 2).
+INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_barang
+  (id, pengajuan_satker_id, nama, kode_barang, jumlah, satuan, alasan)
+VALUES
+  ('c1000000-0000-4c00-8c00-00000000b001', 'c1000000-0000-4c00-8c00-0000000a0001', 'E2E Barang Seed A', '3.10.01.02.003', 3, 'Unit', 'Seed justifikasi kebutuhan'),
+  ('c1000000-0000-4c00-8c00-00000000b002', 'c1000000-0000-4c00-8c00-0000000a0002', 'E2E Barang Seed B', '3.05.02.01.002', 2, 'Unit', 'Seed justifikasi kebutuhan'),
+  ('c1000000-0000-4c00-8c00-00000000b003', 'c1000000-0000-4c00-8c00-0000000a0003', 'E2E Barang Seed C', '3.10.01.05.010', 1, 'Unit', 'Seed justifikasi kebutuhan')
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;

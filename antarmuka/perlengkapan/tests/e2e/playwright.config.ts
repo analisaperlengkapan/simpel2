@@ -112,6 +112,17 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/nav-access.spec.ts'],
     },
+    // F-E2E E-1 — full Kebutuhan BMN business workflow (operator submit →
+    // validator_wilayah forward → validator_pusat approve + cross-satker
+    // isolation). Drives the real wired satker-detail UI and asserts status
+    // transitions against the backend. Per-role storageState from `setup`;
+    // preconditions seeded in tests/fixtures/e2e/seed-multisatker.sql.
+    {
+      name: 'perlengkapan-kebutuhan',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/kebutuhan-workflow.spec.ts'],
+    },
   ],
 
   /* Run your local dev server before starting the tests */
