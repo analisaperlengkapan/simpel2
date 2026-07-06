@@ -183,20 +183,10 @@ VALUES
   ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih (pengajuan_id, satker_id, is_show_in_form)
-SELECT 'd1000000-0000-4d00-8d00-0000000000c1', s.id, true
-  FROM integrasi.mysimkari_satker s
- WHERE s.kode_satker IN ('0200010', '0200020', '0300010')
-ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
-
-INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker (id, pengajuan_id, satker_id, aktivitas_id, created_by)
-SELECT 'd1000000-0000-4d00-8d00-0000000a0001', 'd1000000-0000-4d00-8d00-0000000000c1', s.id, 1001, '11111111-1111-4111-8111-111111111111'
-  FROM integrasi.mysimkari_satker s WHERE s.kode_satker = '0200010'
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker (id, pengajuan_id, satker_id, aktivitas_id, created_by)
-SELECT 'd1000000-0000-4d00-8d00-0000000a0002', 'd1000000-0000-4d00-8d00-0000000000c1', s.id, 1004, '22222222-2222-4222-8222-222222222222'
-  FROM integrasi.mysimkari_satker s WHERE s.kode_satker = '0200020'
-ON CONFLICT (id) DO NOTHING;
+-- NOTE (#94): per-satker rows are NOT seeded. pengajuan_pakaian_dinas_satker.satker_id
+-- is `uuid`, but integrasi.mysimkari_satker.id is `bigint` (BIGSERIAL) — the BE join
+-- `ON ps.satker_id = s.id` (laporan.rs) is uuid=bigint = invalid SQL, so the pakaian
+-- satker workflow (list/forward/rekap) is BROKEN against the real integrasi schema.
+-- The E-2 satker workflow e2e is therefore descoped until #94 reconciles the key type.
 
 COMMIT;
