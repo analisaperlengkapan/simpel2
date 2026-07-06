@@ -1,0 +1,43 @@
+{
+  "_comment": "F-E2E route-coverage gate. allowUncovered = known e2e debt; shrinks to [] per FE as domains (E-1..E-7) land, then blocking flips true. A NEW uncovered route fails the gate even while advisory. See tests/e2e/route-coverage.mjs.",
+  "frontends": [
+    {
+      "name": "perlengkapan",
+      "routesRs": "antarmuka/perlengkapan/src/routes.rs",
+      "specsDir": "antarmuka/perlengkapan/tests/e2e",
+      "base": "/perlengkapan/simpel/v2",
+      "excludeSuffix": ["/login"],
+      "blocking": false,
+      "allowUncovered": [
+        "/perlengkapan/simpel/v2/dashboard/search",
+        "/perlengkapan/simpel/v2/bank-aset/sebaran",
+        "/perlengkapan/simpel/v2/bank-aset/qrcode",
+        "/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
+        "/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
+        "/perlengkapan/simpel/v2/pakaian-dinas/jenis",
+        "/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
+        "/perlengkapan/simpel/v2/pakaian-dinas/laporan",
+        "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat",
+        "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat",
+        "/perlengkapan/simpel/v2/analitik/roadmap/buat",
+        "/perlengkapan/simpel/v2/analitik/kodefikasi",
+        "/perlengkapan/simpel/v2/admin/workflow",
+        "/perlengkapan/simpel/v2/admin/workflow-monitoring",
+        "/perlengkapan/simpel/v2/bantuan/panduan",
+        "/perlengkapan/simpel/v2/bantuan/faq",
+        "/perlengkapan/simpel/v2/bantuan/helpdesk"
+      ]
+    },
+    {
+      "name": "portal",
+      "routesRs": "antarmuka/portal/src/routes.rs",
+      "specsDir": "antarmuka/portal/tests/e2e",
+      "base": "/portal",
+      "excludeSuffix": ["/login"],
+      "blocking": false,
+      "allowUncovered": [
+        "/portal/dashboard"
+      ]
+    }
+  ]
+}

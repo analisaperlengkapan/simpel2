@@ -566,6 +566,31 @@ jobs:
         # Waive a single line with `-- guard:allow` (plus a reason) if needed.
         run: ./infra/lint/check-sql-migrations.sh
 
+  route-coverage:
+    name: E2E Route Coverage
+    needs: detect
+    # Runs on FE route changes (routes.rs), any e2e spec/fixture/gate change, or
+    # workflow edits. Cheap static parse (Node, no build/browser/stack) — it is a
+    # required gate in ci-summary. A NEW navigable route with no spec visiting it
+    # FAILS the build even while the per-FE gate is still "advisory" (advisory
+    # only relaxes the requirement that EXISTING debt be zero). See
+    # tests/e2e/route-coverage.mjs + tests/e2e/route-coverage.config.json.
+    if: >-
+      needs.detect.outputs.rust-frontend == 'true' ||
+      needs.detect.outputs.e2e == 'true' ||
+      needs.detect.outputs.workflows == 'true'
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v7
+      # Ensure Node is on PATH (arc-simpel runners don't ship it globally). The
+      # gate is dependency-free, so no npm ci (install: false).
+      - uses: ./.github/actions/setup-node
+        with:
+          install: 'false'
+      - name: Route-coverage gate (every typed route must be visited by an e2e)
+        shell: bash
+        run: node tests/e2e/route-coverage.mjs
+
   # ─────────────────────────────────────────────────────
   # Phase 3 — Build artefak (agresif)
   # ─────────────────────────────────────────────────────
@@ -1889,6 +1914,7 @@ jobs:
       - lint-shell
       - lint-toml
       - lint-sql
+      - route-coverage
       - build-antarmuka-portal
       - build-antarmuka-perlengkapan
       - build-backend
