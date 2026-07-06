@@ -56,13 +56,32 @@ Unit Tests dan Integration Tests berada di dalam *crate* masing-masing, bukan di
   navigasi `/bank-aset/daftar` per-peran (storageState), assert NUP seed yang
   boleh tampil + yang TIDAK (E2E-A/B/C). Pelengkap bukti server-side
   (`perlengkapan-rbac`).
-- **Route-coverage / reachability:** `nav-access.spec.ts` (project
-  `perlengkapan-nav`) — tiap rute modul fitur (path `routes.rs`) WAJIB mount
-  shell ter-autentikasi (`app_chrome` header "SIMPEL") per-peran; signal
-  data-independent (tak butuh FE→BE). Spec MOCK lama (`ui-*.spec.ts`,
-  `helpers/session.ts`) DIHAPUS (token mati + rute pra-v2 usang) — JANGAN
-  hidupkan kembali pola mock; pakai real-auth storageState. Workflow PENUH
-  per-fitur (buat→ajukan→setujui, SK, export) = pass komprehensif **@staging**.
+- **Route-coverage GATE (mekanikal, `tests/e2e/route-coverage.mjs`, WAJIB):**
+  penegak "semua halaman diuji, tanpa terkecuali". Skrip Node tanpa-dependency
+  (parse statis — tak butuh build/browser/stack) mem-parse tiap `routes.rs`
+  (kedua FE) → daftar rute navigable → **GAGAL** bila ada rute bertipe yang tak
+  dikunjungi ≥1 spec (`goto`), atau `allowUncovered` basi, atau (saat
+  `blocking:true`) masih ada utang. Job CI `route-coverage` masuk
+  `ci-summary.needs` (blocking). Debt e2e yang belum ditulis dicatat eksplisit di
+  `tests/e2e/route-coverage.config.json` `allowUncovered` (menyusut ke `[]`
+  per-FE seiring domain E-1..E-7 mendarat; lalu flip `blocking:true`). **Rute
+  BARU tanpa e2e = CI merah sejak hari-1**, walau FE masih "advisory". Menambah
+  halaman ⇒ WAJIB menambah e2e yang membukanya (atau catat sbagai utang sadar).
+- **Reachability:** `nav-access.spec.ts` (project `perlengkapan-nav`) — tiap rute
+  modul fitur WAJIB mount shell ter-autentikasi (`app_chrome` header "SIMPEL")
+  per-peran; signal data-independent. Spec MOCK lama (`ui-*.spec.ts`,
+  `helpers/session.ts`) DIHAPUS — JANGAN hidupkan pola mock; pakai real-auth
+  storageState.
+- **Workflow bisnis PENUH = di CI (F-E2E, mandat user 2026-07-06), BUKAN ditunda
+  ke staging.** Tiap workflow (kebutuhan/pakaian-dinas/pemakaian/penghapusan/
+  bank-aset/analitik/dashboard/notifikasi/admin) di-drive end-to-end lewat UI
+  (isi form → klik tombol nyata "Submit ke Validator Wilayah"/"Teruskan ke
+  Validator Pusat"/"Generate Konsep SK"/"Download PDF" → handoff multi-peran via
+  banyak storageState) dgn asersi **state UI + verifikasi state backend via API**
+  (transisi status ter-persist) — **bukan** presence/`if-visible`/screenshot.
+  Prasyarat non-UI (master data, periode terbuka, campaign target satker) di-seed
+  di `tests/fixtures/e2e/seed-multisatker.sql` atau dibuat via-UI. Suite
+  komprehensif ini **blocking tiap PR**. @staging = superset destruktif.
 - **Catatan jalur FE→BE @compose:** WASM memanggil API **origin-relative**
   (`api/client.rs` API_BASE=`/api/v1/perlengkapan`) → di-proxy nginx FE ke
   backend. Upstream host:port nginx **env-overridable** (entrypoint substitusi;
