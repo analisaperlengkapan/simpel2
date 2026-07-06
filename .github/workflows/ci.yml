@@ -1449,6 +1449,19 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-kebutuhan
+      # F-E2E E-2: Pakaian Dinas workflow (validator forwards a satker via the
+      # action panel + master/campaign/report reachability + role-gating).
+      - name: Run Playwright Pakaian Dinas workflow (perlengkapan-pakaian)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-pakaian
       - name: e2e stack logs (on failure)
         if: failure()
         env:

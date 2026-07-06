@@ -123,6 +123,15 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/kebutuhan-workflow.spec.ts'],
     },
+    // F-E2E E-2 — Pakaian Dinas workflow (validator forwards a satker via the
+    // action panel + master/campaign/report pages + role-gating). Per-role
+    // storageState from `setup`; preconditions seeded in seed-multisatker.sql.
+    {
+      name: 'perlengkapan-pakaian',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/pakaian-workflow.spec.ts'],
+    },
   ],
 
   /* Run your local dev server before starting the tests */

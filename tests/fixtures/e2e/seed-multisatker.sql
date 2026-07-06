@@ -162,4 +162,41 @@ VALUES
   ('c1000000-0000-4c00-8c00-00000000b003', 'c1000000-0000-4c00-8c00-0000000a0003', 'E2E Barang Seed C', '3.10.01.05.010', 1, 'Unit', 'Seed justifikasi kebutuhan')
 ON CONFLICT (id) DO NOTHING;
 
+-- ----------------------------------------------------------------------------
+-- 6. perlengkapan: Pakaian Dinas workflow preconditions (F-E2E E-2).
+--    One jenis (master) + one open campaign targeting the DKI + Bandung satkers,
+--    with per-satker rows at DISTINCT aktivitas so each validator tier's action
+--    is exercised independently. `satker_id` here is the integrasi.mysimkari_satker
+--    UUID (auto-generated) → resolved by subquery, NOT hardcoded.
+--    aktivitas (ms_aktivitas_bmn 1000-series): 1000 INPUT, 1001 SUBMIT_TO_VALIDATOR
+--    (validator_wilayah acts), 1004 SUBMIT_TO_PUSAT (validator_pusat acts), 1008 SELESAI.
+--      P1 0200010 @1001 -> validator_wilayah (DKI): Teruskan ke Pusat
+--      P2 0200020 @1004 -> validator_pusat: decide
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active)
+VALUES ('d1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'Seed F-E2E pakaian dinas', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas
+  (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih (pengajuan_id, satker_id, is_show_in_form)
+SELECT 'd1000000-0000-4d00-8d00-0000000000c1', s.id, true
+  FROM integrasi.mysimkari_satker s
+ WHERE s.kode_satker IN ('0200010', '0200020', '0300010')
+ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker (id, pengajuan_id, satker_id, aktivitas_id, created_by)
+SELECT 'd1000000-0000-4d00-8d00-0000000a0001', 'd1000000-0000-4d00-8d00-0000000000c1', s.id, 1001, '11111111-1111-4111-8111-111111111111'
+  FROM integrasi.mysimkari_satker s WHERE s.kode_satker = '0200010'
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker (id, pengajuan_id, satker_id, aktivitas_id, created_by)
+SELECT 'd1000000-0000-4d00-8d00-0000000a0002', 'd1000000-0000-4d00-8d00-0000000000c1', s.id, 1004, '22222222-2222-4222-8222-222222222222'
+  FROM integrasi.mysimkari_satker s WHERE s.kode_satker = '0200020'
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;
