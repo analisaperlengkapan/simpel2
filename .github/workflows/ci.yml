@@ -582,6 +582,11 @@ jobs:
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v7
+      # Ensure Node is on PATH (arc-simpel runners don't ship it globally). The
+      # gate is dependency-free, so no npm ci (install: false).
+      - uses: ./.github/actions/setup-node
+        with:
+          install: 'false'
       - name: Route-coverage gate (every typed route must be visited by an e2e)
         shell: bash
         run: node tests/e2e/route-coverage.mjs
