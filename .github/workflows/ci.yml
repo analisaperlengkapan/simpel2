@@ -447,7 +447,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@v23
+        uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           # markdownlint-cli2 hanya kenal nama file `.markdownlint.jsonc`,
           # `.markdownlint-cli2.jsonc`, `.markdownlint.json`, dst. Nama
