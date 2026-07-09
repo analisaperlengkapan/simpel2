@@ -45,17 +45,22 @@ test.describe('Pakaian Dinas — master, campaign & report pages', () => {
   // satker_id(uuid)=id(bigint) in several queries), so the lists render empty.
   // We assert page REACHABILITY (shell mounts, no auth bounce) until #94 lands;
   // the seeded-row assertions come back with the workflow once #94 is fixed.
-  for (const [name, route] of [
-    ['jenis master', 'pakaian-dinas/jenis'],
-    ['pengajuan (campaign)', 'pakaian-dinas/pengajuan'],
-    ['laporan', 'pakaian-dinas/laporan'],
-  ] as const) {
-    test(`${name} page is reachable`, async ({ page }) => {
-      await page.goto(`${BASE}/${route}`, { waitUntil: 'domcontentloaded' });
-      await expect(shell(page), `${name} shell mounts`).toBeVisible({ timeout: 20000 });
-      expect(/login/i.test(page.url()), `must not redirect to login (${page.url()})`).toBeFalsy();
-    });
-  }
+  // (Full literal paths so the route-coverage gate detects these as visited.)
+  const reachable = async (page: import('@playwright/test').Page, path: string) => {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await expect(shell(page), `shell mounts on ${path}`).toBeVisible({ timeout: 20000 });
+    expect(/login/i.test(page.url()), `must not redirect to login (${page.url()})`).toBeFalsy();
+  };
+
+  test('jenis master page is reachable', async ({ page }) => {
+    await reachable(page, `${BASE}/pakaian-dinas/jenis`);
+  });
+  test('pengajuan (campaign) page is reachable', async ({ page }) => {
+    await reachable(page, `${BASE}/pakaian-dinas/pengajuan`);
+  });
+  test('laporan page is reachable', async ({ page }) => {
+    await reachable(page, `${BASE}/pakaian-dinas/laporan`);
+  });
 });
 
 // ── RBAC: the validator-action endpoint is role-gated ───────────────────────
