@@ -162,4 +162,31 @@ VALUES
   ('c1000000-0000-4c00-8c00-00000000b003', 'c1000000-0000-4c00-8c00-0000000a0003', 'E2E Barang Seed C', '3.10.01.05.010', 1, 'Unit', 'Seed justifikasi kebutuhan')
 ON CONFLICT (id) DO NOTHING;
 
+-- ----------------------------------------------------------------------------
+-- 6. perlengkapan: Pakaian Dinas workflow preconditions (F-E2E E-2).
+--    One jenis (master) + one open campaign targeting the DKI + Bandung satkers,
+--    with per-satker rows at DISTINCT aktivitas so each validator tier's action
+--    is exercised independently. `satker_id` here is the integrasi.mysimkari_satker
+--    UUID (auto-generated) → resolved by subquery, NOT hardcoded.
+--    aktivitas (ms_aktivitas_bmn 1000-series): 1000 INPUT, 1001 SUBMIT_TO_VALIDATOR
+--    (validator_wilayah acts), 1004 SUBMIT_TO_PUSAT (validator_pusat acts), 1008 SELESAI.
+--      P1 0200010 @1001 -> validator_wilayah (DKI): Teruskan ke Pusat
+--      P2 0200020 @1004 -> validator_pusat: decide
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active)
+VALUES ('d1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'Seed F-E2E pakaian dinas', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas
+  (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
+ON CONFLICT (id) DO NOTHING;
+
+-- NOTE (#94): per-satker rows are NOT seeded. pengajuan_pakaian_dinas_satker.satker_id
+-- is `uuid`, but integrasi.mysimkari_satker.id is `bigint` (BIGSERIAL) — the BE join
+-- `ON ps.satker_id = s.id` (laporan.rs) is uuid=bigint = invalid SQL, so the pakaian
+-- satker workflow (list/forward/rekap) is BROKEN against the real integrasi schema.
+-- The E-2 satker workflow e2e is therefore descoped until #94 reconciles the key type.
+
 COMMIT;
