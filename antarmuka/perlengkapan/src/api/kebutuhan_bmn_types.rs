@@ -501,3 +501,21 @@ pub struct KebutuhanBmnQuery {
     pub satker_id: Option<String>,
     pub search: Option<String>,
 }
+
+/// One row of the Laporan Kebutuhan BMN recap (E-5).
+/// Mirrors `layanan/perlengkapan` `RekapLaporanRow`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RekapLaporanRow {
+    pub pengajuan_id: String,
+    pub pengajuan_nama: String,
+    pub tahun: i32,
+    pub satker_id: String,
+    pub satker_nama: Option<String>,
+    pub kode_barang: Option<String>,
+    pub nama_barang: String,
+    pub satuan: Option<String>,
+    pub jumlah: i32,
+    pub jml_setuju: i32,
+    pub status_kode: i32,
+    pub status_nama: Option<String>,
+}

@@ -627,3 +627,73 @@ pub async fn fetch_siman_satker_summary(
         message: "Server-side stub".to_string(),
     })
 }
+
+// --- Laporan rekap (E-5) ---
+/// Query string for the recap + its export; empty filters are omitted so the
+/// backend applies "all".
+fn rekap_query(tahun: Option<i32>, status_kode: Option<i32>) -> String {
+    let mut q: Vec<String> = Vec::new();
+    if let Some(t) = tahun {
+        q.push(format!("tahun={}", t));
+    }
+    if let Some(s) = status_kode {
+        q.push(format!("status_kode={}", s));
+    }
+    if q.is_empty() {
+        String::new()
+    } else {
+        format!("?{}", q.join("&"))
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_rekap_laporan(
+    tahun: Option<i32>,
+    status_kode: Option<i32>,
+) -> Result<ApiResponse<Vec<RekapLaporanRow>>, crate::api::AppError> {
+    auth_get_json(&format!(
+        "{}/laporan/rekap{}",
+        KEBUTUHAN_BMN_BASE,
+        rekap_query(tahun, status_kode)
+    ))
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_rekap_laporan(
+    _tahun: Option<i32>,
+    _status_kode: Option<i32>,
+) -> Result<ApiResponse<Vec<RekapLaporanRow>>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: vec![],
+        message: "Server-side stub".to_string(),
+    })
+}
+
+/// `format` = "xlsx" | "pdf".
+#[cfg(target_arch = "wasm32")]
+pub async fn export_rekap_laporan(
+    format: &str,
+    tahun: Option<i32>,
+    status_kode: Option<i32>,
+) -> Result<Vec<u8>, crate::api::AppError> {
+    let q = rekap_query(tahun, status_kode);
+    let sep = if q.is_empty() { "?" } else { "&" };
+    auth_get_binary(&format!(
+        "{}/laporan/rekap/export{}{}format={}",
+        KEBUTUHAN_BMN_BASE, q, sep, format
+    ))
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn export_rekap_laporan(
+    _format: &str,
+    _tahun: Option<i32>,
+    _status_kode: Option<i32>,
+) -> Result<Vec<u8>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
