@@ -5,7 +5,7 @@
 
 use crate::api::dashboard::fetch_dashboard_stats;
 use crate::api::types::DashboardStats;
-use crate::components::role_switcher::get_active_role;
+use crate::components::role_switcher::use_active_role;
 use crate::routes;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
@@ -205,8 +205,11 @@ fn format_number(n: i64) -> String {
 
 #[component]
 pub fn DashboardHome() -> impl IntoView {
-    let active_role = get_active_role();
-    let role_label = match active_role.as_str() {
+    // Reactive: closures below re-run on a role switch, so the greeting and
+    // the admin-only panels follow immediately instead of waiting for a
+    // browser refresh.
+    let active_role = use_active_role();
+    let role_label = move || match active_role.get().as_str() {
         "validator_wilayah" => "Validator Wilayah",
         "validator_pusat" => "Validator Pusat",
         "admin" => "Administrator",
@@ -217,7 +220,7 @@ pub fn DashboardHome() -> impl IntoView {
     // dashboard re-uses the previous load instantly.
     let client: QueryClient = expect_context();
     let stats_resource = client.local_resource(query_dashboard_stats, || ());
-    let is_admin = active_role == "admin";
+    let is_admin = move || active_role.get() == "admin";
 
     view! {
         <Title text="Dashboard — SIMPEL Perlengkapan" />
@@ -380,7 +383,7 @@ pub fn DashboardHome() -> impl IntoView {
                 </div>
             </section>
 
-            <Show when=move || is_admin>
+            <Show when=is_admin>
                 <section>
                     <SectionHeader title="Panel Administrator" tone="red" />
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">

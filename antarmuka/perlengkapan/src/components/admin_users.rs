@@ -9,17 +9,21 @@ use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
 use phosphor_leptos::{
-    CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USER_CHECK, USER_PLUS, USERS, X,
+    CHECK, LOCK, MAGNIFYING_GLASS, PENCIL_SIMPLE, SPINNER, USER_CHECK, USERS, X,
 };
 
-use crate::components::role_switcher::{PerlengkapanRole, get_active_role};
+use crate::components::role_switcher::{PerlengkapanRole, use_active_role};
 
-/// leptos-fetch query keyed by `(search, role)`. Calls the real
-/// `GET /admin/users` endpoint backed by the `v_user_role_summary`
+/// leptos-fetch query keyed by `(search, role, refresh_trigger)`. Calls the
+/// real `GET /admin/users` endpoint backed by the `v_user_role_summary`
 /// view (migration V018). Empty list on failure so the UI keeps
 /// rendering and the operator sees the error toast instead of a panic.
-async fn query_admin_users(key: (String, Option<String>)) -> Vec<UserRoleAssignment> {
-    let (search, role) = key;
+///
+/// `refresh_trigger` is folded into the cache key so saving a role
+/// assignment can force a real network re-fetch; `.refetch()` on an
+/// unchanged keyer would just hand back the stale cached rows.
+async fn query_admin_users(key: (String, Option<String>, i32)) -> Vec<UserRoleAssignment> {
+    let (search, role, _trigger) = key;
     let filter = crate::api::admin::AdminUsersFilter {
         search: (!search.trim().is_empty()).then(|| search.clone()),
         role,
@@ -39,25 +43,43 @@ async fn query_admin_users(key: (String, Option<String>)) -> Vec<UserRoleAssignm
 /// module don't need to touch every reference.
 pub use crate::api::admin::UserRoleAssignment;
 
-/// Admin Users Management Page
+/// Admin Users Management Page.
+///
+/// Role gate only. The body lives in [`AdminUsersContent`] so the check can be
+/// a *reactive* branch: an early `return` here would be evaluated once at
+/// mount and never react to a role switch (the switcher's whole point).
+///
+/// This is a UI affordance, not a security boundary — `/admin/users` is
+/// enforced server-side against the JWT.
 #[component]
 pub fn AdminUsersPage() -> impl IntoView {
-    let active_role = get_active_role();
-    let is_admin = active_role == "admin";
+    let active_role = use_active_role();
 
-    if !is_admin {
-        return view! {
-            <div class="bg-red-50 border border-red-200 rounded-xl p-8 text-center">
-                <span class="text-4xl text-red-400 mb-4">
-                    <AppIcon icon=LOCK />
-                </span>
-                <h2 class="text-xl font-bold text-red-700 mb-2">"Akses Ditolak"</h2>
-                <p class="text-red-600">"Anda tidak memiliki akses Admin."</p>
-            </div>
-        }
-        .into_any();
+    view! {
+        {move || {
+            if active_role.get() == "admin" {
+                view! { <AdminUsersContent /> }.into_any()
+            } else {
+                view! {
+                    <div
+                        class="bg-red-50 border border-red-200 rounded-xl p-8 text-center"
+                        data-testid="admin-users-denied"
+                    >
+                        <span class="text-4xl text-red-400 mb-4">
+                            <AppIcon icon=LOCK />
+                        </span>
+                        <h2 class="text-xl font-bold text-red-700 mb-2">"Akses Ditolak"</h2>
+                        <p class="text-red-600">"Anda tidak memiliki akses Admin."</p>
+                    </div>
+                }
+                    .into_any()
+            }
+        }}
     }
+}
 
+#[component]
+fn AdminUsersContent() -> impl IntoView {
     // `search_input` mirrors the raw `<input>` value (so the field stays
     // responsive while typing); `search_query` is the debounced value
     // folded into the leptos-fetch cache key. Without the debounce, every
@@ -68,7 +90,16 @@ pub fn AdminUsersPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (selected_role_filter, set_role_filter) = signal::<Option<String>>(None);
     let (show_assign_modal, set_show_assign_modal) = signal(false);
-    let (_selected_user_nip, set_selected_user_nip) = signal::<Option<String>>(None);
+    // The user whose roles the modal is editing. Previously only a `set_`
+    // half existed and nothing ever read it, so the modal had no idea which
+    // user it was about (#99).
+    let selected_user = RwSignal::new(None::<UserRoleAssignment>);
+    // Working set of role keys, seeded from the user's current roles when the
+    // modal opens; `Simpan` diffs this against the original.
+    let pending_roles = RwSignal::new(Vec::<String>::new());
+    let saving = RwSignal::new(false);
+    let save_error = RwSignal::new(None::<String>);
+    let refresh_trigger = RwSignal::new(0);
 
     // Debounce `search_input` → `search_query` with a 300ms trailing edge.
     // Stale tasks bail out via the equality check.
@@ -82,13 +113,67 @@ pub fn AdminUsersPage() -> impl IntoView {
         });
     });
 
-    // Simulated user data — production fetch lives in `query_admin_users`
-    // above. Keyed by `(search_query, role_filter)` so the backend swap
-    // will automatically benefit from the cache + dedup once it lands.
     let client: QueryClient = expect_context();
     let users_resource = client.local_resource(query_admin_users, move || {
-        (search_query.get(), selected_role_filter.get())
+        (
+            search_query.get(),
+            selected_role_filter.get(),
+            refresh_trigger.get(),
+        )
     });
+
+    // Persist the modal's role selection: assign what was ticked, unassign
+    // what was unticked, then force a refetch so the table's badges reflect
+    // what the server now holds rather than what we hoped it would.
+    let save_roles = move |_| {
+        let Some(user) = selected_user.get_untracked() else {
+            return;
+        };
+        spawn_local(async move {
+            saving.set(true);
+            save_error.set(None);
+            let before = user.assigned_roles.clone();
+            let after = pending_roles.get_untracked();
+            let added: Vec<String> = after
+                .iter()
+                .filter(|r| !before.contains(r))
+                .cloned()
+                .collect();
+            let removed: Vec<String> = before
+                .iter()
+                .filter(|r| !after.contains(r))
+                .cloned()
+                .collect();
+
+            let mut failure = None;
+            for role in &added {
+                if let Err(e) = crate::api::admin::assign_admin_role(&user.nip, role).await {
+                    failure = Some(format!("Gagal memberikan role '{role}': {e}"));
+                    break;
+                }
+            }
+            if failure.is_none() {
+                for role in &removed {
+                    if let Err(e) = crate::api::admin::unassign_admin_role(&user.nip, role).await {
+                        failure = Some(format!("Gagal mencabut role '{role}': {e}"));
+                        break;
+                    }
+                }
+            }
+
+            saving.set(false);
+            // Refetch either way: on partial failure some writes may already
+            // have landed, so the table must show the real server state.
+            refresh_trigger.update(|v| *v += 1);
+            match failure {
+                Some(msg) => save_error.set(Some(msg)),
+                None => {
+                    set_show_assign_modal.set(false);
+                    selected_user.set(None);
+                }
+            }
+        });
+    };
 
     let all_roles = PerlengkapanRole::all_roles();
 
@@ -105,18 +190,14 @@ pub fn AdminUsersPage() -> impl IntoView {
                         </div>
                         "Manajemen Pengguna"
                     </h1>
-                    <p class="text-gray-600 mt-1">"Kelola pengguna dan role akses perlengkapan"</p>
+                    <p class="text-gray-600 mt-1">
+                        "Kelola role akses perlengkapan. Data pegawai bersumber dari MySIMKARI (integrasi)."
+                    </p>
                 </div>
-                <button
-                    class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center gap-2"
-                    on:click=move |_| {
-                        set_selected_user_nip.set(None);
-                        set_show_assign_modal.set(true);
-                    }
-                >
-                    <AppIcon icon=USER_PLUS />
-                    "Tambah Pengguna"
-                </button>
+            // No "Tambah Pengguna" action: pegawai are owned by MySIMKARI via
+            // layanan-integrasi (SSoT) and perlengkapan has no create-user
+            // endpoint — the button used to open this modal with no user
+            // attached, which could only ever do nothing (#99).
             </div>
 
             // Filters
@@ -216,8 +297,9 @@ pub fn AdminUsersPage() -> impl IntoView {
                                             users
                                                 .into_iter()
                                                 .map(|user| {
-                                                    let nip_for_edit = user.nip.clone();
+                                                    let user_for_edit = user.clone();
                                                     let nip_display = user.nip.clone();
+                                                    let nip_attr = user.nip.clone();
                                                     let nama = user.nama.clone();
                                                     let jabatan = user.jabatan.clone();
                                                     let satker_name = user.satker_name.clone();
@@ -272,8 +354,12 @@ pub fn AdminUsersPage() -> impl IntoView {
                                                             <td class="px-4 py-3 text-center">
                                                                 <button
                                                                     class="px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                                    data-testid="edit-role"
+                                                                    data-nip=nip_attr
                                                                     on:click=move |_| {
-                                                                        set_selected_user_nip.set(Some(nip_for_edit.clone()));
+                                                                        pending_roles.set(user_for_edit.assigned_roles.clone());
+                                                                        selected_user.set(Some(user_for_edit.clone()));
+                                                                        save_error.set(None);
                                                                         set_show_assign_modal.set(true);
                                                                     }
                                                                 >
@@ -302,14 +388,24 @@ pub fn AdminUsersPage() -> impl IntoView {
                     .then(|| {
                         view! {
                             <div class="fixed inset-0 bg-black/50 z-modal flex items-center justify-center p-4">
-                                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+                                <div
+                                    class="bg-white rounded-2xl shadow-2xl w-full max-w-lg"
+                                    data-testid="role-modal"
+                                    data-nip=move || {
+                                        selected_user.get().map(|u| u.nip).unwrap_or_default()
+                                    }
+                                >
                                     <div class="px-6 py-4 border-b flex items-center justify-between">
                                         <h3 class="text-lg font-bold text-gray-900">
                                             "Atur Role Pengguna"
                                         </h3>
                                         <button
                                             class="p-2 hover:bg-gray-100 rounded-lg"
-                                            on:click=move |_| set_show_assign_modal.set(false)
+                                            data-testid="role-modal-close"
+                                            on:click=move |_| {
+                                                set_show_assign_modal.set(false);
+                                                selected_user.set(None);
+                                            }
                                         >
                                             <span class="text-gray-500">
                                                 <AppIcon icon=X />
@@ -318,17 +414,60 @@ pub fn AdminUsersPage() -> impl IntoView {
                                     </div>
                                     <div class="p-6 space-y-4">
                                         <p class="text-sm text-gray-600">
-                                            "Pilih role yang akan diberikan kepada pengguna ini."
+                                            "Pilih role untuk "
+                                            <span class="font-semibold text-gray-900">
+                                                {move || {
+                                                    selected_user
+                                                        .get()
+                                                        .map(|u| format!("{} ({})", u.nama, u.nip))
+                                                        .unwrap_or_default()
+                                                }}
+                                            </span> "."
                                         </p>
+                                        {move || {
+                                            save_error
+                                                .get()
+                                                .map(|e| {
+                                                    view! {
+                                                        <p
+                                                            class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                                                            data-testid="role-modal-error"
+                                                        >
+                                                            {e}
+                                                        </p>
+                                                    }
+                                                })
+                                        }}
                                         {PerlengkapanRole::all_roles()
                                             .into_iter()
                                             .map(|role| {
+                                                let key = role.key.clone();
+                                                let key_for_check = key.clone();
+                                                let key_for_toggle = key.clone();
                                                 view! {
                                                     <label class="flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer transition-colors">
                                                         <input
                                                             type="checkbox"
-                                                            checked=true
+                                                            data-testid="role-checkbox"
+                                                            data-role=key.clone()
+                                                            prop:checked=move || {
+                                                                pending_roles.get().contains(&key_for_check)
+                                                            }
                                                             class="w-4 h-4 text-blue-600 rounded"
+                                                            on:change=move |ev| {
+                                                                let on = event_target_checked(&ev);
+                                                                let k = key_for_toggle.clone();
+                                                                pending_roles
+                                                                    .update(|roles| {
+                                                                        if on {
+                                                                            if !roles.contains(&k) {
+                                                                                roles.push(k);
+                                                                            }
+                                                                        } else {
+                                                                            roles.retain(|r| r != &k);
+                                                                        }
+                                                                    });
+                                                            }
                                                         />
                                                         <div>
                                                             <span class="text-sm font-medium text-gray-800">
@@ -344,15 +483,23 @@ pub fn AdminUsersPage() -> impl IntoView {
                                     <div class="px-6 py-4 border-t flex justify-end gap-3">
                                         <button
                                             class="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                            on:click=move |_| set_show_assign_modal.set(false)
+                                            data-testid="role-modal-cancel"
+                                            on:click=move |_| {
+                                                set_show_assign_modal.set(false);
+                                                selected_user.set(None);
+                                            }
                                         >
                                             "Batal"
                                         </button>
                                         <button
-                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                                            on:click=move |_| set_show_assign_modal.set(false)
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                                            data-testid="role-modal-save"
+                                            disabled=move || saving.get()
+                                            on:click=save_roles
                                         >
-                                            "Simpan"
+                                            {move || {
+                                                if saving.get() { "Menyimpan..." } else { "Simpan" }
+                                            }}
                                         </button>
                                     </div>
                                 </div>

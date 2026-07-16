@@ -8,8 +8,13 @@
 //! an operator sees only their own satker's items and the exports carry
 //! exactly the rows on screen.
 
-use crate::api::{RekapLaporanRow, export_rekap_laporan, fetch_rekap_laporan};
+use crate::api::{RekapLaporanRow, fetch_rekap_laporan};
+// Only the wasm build downloads a file; the host-target stub below is a no-op,
+// so these two are wasm-only imports (see `download_export`).
+#[cfg(target_arch = "wasm32")]
+use crate::api::export_rekap_laporan;
 use leptos::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use leptos::task::spawn_local;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;

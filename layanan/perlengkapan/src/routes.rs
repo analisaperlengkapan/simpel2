@@ -649,6 +649,29 @@ pub fn create_routes(state: AppState) -> Router {
             "/notifikasi/read-all",
             post(crate::notifikasi::api::mark_all_read),
         )
+        // ============ Bantuan / Helpdesk ============
+        // Backs /bantuan/helpdesk. Reads are scoped by the caller's claims
+        // (own tickets; everything for admin/helpdesk staff) — see
+        // `bantuan::ticket::TicketActor`. /bantuan/faq + /bantuan/panduan are
+        // static FE pages and intentionally have no endpoint.
+        .route(
+            "/bantuan/tiket",
+            get(crate::bantuan::handlers::list_tickets)
+                .post(crate::bantuan::handlers::create_ticket),
+        )
+        .route(
+            "/bantuan/tiket/{id}",
+            get(crate::bantuan::handlers::get_ticket),
+        )
+        .route(
+            "/bantuan/tiket/{id}/status",
+            put(crate::bantuan::handlers::update_ticket_status),
+        )
+        .route(
+            "/bantuan/tiket/{id}/komentar",
+            get(crate::bantuan::handlers::list_ticket_comments)
+                .post(crate::bantuan::handlers::add_ticket_comment),
+        )
         .route("/admin/templates", get(crate::admin::list_templates))
         .route("/admin/templates/{id}", get(crate::admin::get_template))
         // POST renders a live preview of the template without persisting.

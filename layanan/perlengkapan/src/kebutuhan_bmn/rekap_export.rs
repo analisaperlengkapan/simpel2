@@ -168,7 +168,7 @@ pub fn render_rekap_pdf(
     pdf.row(&COL_W, &headers, true, true);
 
     for r in rows {
-        pdf.row(&COL_W, &cells(r).to_vec(), false, true);
+        pdf.row(&COL_W, cells(r).as_ref(), false, true);
     }
 
     // Totals row — the rollup is the report's reason for existing.
