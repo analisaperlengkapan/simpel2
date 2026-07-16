@@ -132,6 +132,16 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/pakaian-workflow.spec.ts'],
     },
+    // F-E2E E-3 — Pengelolaan BMN: Penghapusan full workflow (operator submit
+    // → wilayah forward → pusat verify + Generate Konsep SK + PDF download)
+    // + Pemakaian list/detail/scoping/revoke-policy. Per-role storageState
+    // from `setup`; preconditions seeded in seed-multisatker.sql.
+    {
+      name: 'perlengkapan-pengelolaan',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/pengelolaan-workflow.spec.ts'],
+    },
   ],
 
   /* Run your local dev server before starting the tests */

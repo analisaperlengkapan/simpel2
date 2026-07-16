@@ -189,4 +189,73 @@ ON CONFLICT (id) DO NOTHING;
 -- satker workflow (list/forward/rekap) is BROKEN against the real integrasi schema.
 -- The E-2 satker workflow e2e is therefore descoped until #94 reconciles the key type.
 
+-- ----------------------------------------------------------------------------
+-- 7. perlengkapan: Penghapusan BMN workflow preconditions (F-E2E E-3).
+--    Usulan rows at DISTINCT statuses (known UUIDs, deep-linked by the spec) so
+--    each role's transition is exercised independently. RBAC visibility is the
+--    authoritative MySIMKARI `satker_code` (V003, SatkerScope) — NO mysimkari
+--    join, so this module is #94-safe. `satker_id`/`asset_id` are free uuids
+--    (no FK).
+--    Status model (4000-series): 4000 DRAFT → 4001 SUBMIT_WILAYAH →
+--    4003 SUBMIT_PUSAT → 4004 VERIFIKASI_PUSAT → 4005 KONSEP_SK_GENERATED →
+--    4006 SK_SIGNED → 4007 COMPLETED.
+--      H1 0200010 @4000 -> operator_a: "Ajukan ke Validator Wilayah"
+--      H2 0200010 @4001 -> validator_wilayah (DKI): "Teruskan ke Validator Pusat"
+--      H3 0200020 @4003 -> validator_pusat: verifikasi (API; FE gap) + Generate SK (UI)
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.penghapusan_bmn
+  (id, satker_id, asset_id, kode_barang, nama_barang, nup,
+   tanggal_penghapusan, alasan, metode_penghapusan, nilai_perolehan,
+   status, status_kode, catatan_operator, kewenangan_penetap_sk,
+   created_by, satker_code)
+VALUES
+  ('e1000000-0000-4e00-8e00-0000000a0001', 'e1a00000-0000-4e00-8e00-000000000001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-H-1',
+   '2026-06-01', 'Rusak berat, tidak ekonomis diperbaiki', 'DIMUSNAHKAN', 15000000,
+   'DRAFT', 4000, 'Seed F-E2E penghapusan (operator step)', 'PUSAT',
+   '11111111-1111-4111-8111-111111111111', '0200010'),
+  ('e1000000-0000-4e00-8e00-0000000a0002', 'e1a00000-0000-4e00-8e00-000000000002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.05.010', 'E2E Printer Hapus B', 'E2E-H-2',
+   '2026-06-01', 'Rusak berat, biaya perbaikan melebihi nilai', 'DIMUSNAHKAN', 4000000,
+   'SUBMIT_WILAYAH', 4001, 'Seed F-E2E penghapusan (wilayah step)', 'PUSAT',
+   '11111111-1111-4111-8111-111111111111', '0200010'),
+  ('e1000000-0000-4e00-8e00-0000000a0003', 'e1a00000-0000-4e00-8e00-000000000003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Motor Hapus C', 'E2E-H-3',
+   '2026-06-01', 'Usia teknis terlampaui, akan dilelang', 'DIJUAL', 22000000,
+   'SUBMIT_PUSAT', 4003, 'Seed F-E2E penghapusan (pusat step)', 'PUSAT',
+   '22222222-2222-4222-8222-222222222222', '0200020')
+ON CONFLICT (id) DO NOTHING;
+
+-- One item per usulan (Fase 2.8 multi-item; the seed bypasses the create
+-- endpoint that would normally insert these, and the detail + generated SK
+-- lampiran render from this table).
+INSERT INTO perlengkapan.penghapusan_bmn_item
+  (id, penghapusan_id, asset_id, kode_barang, nama_barang, nup, nilai_perolehan, kondisi, urutan)
+VALUES
+  ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-H-1', 15000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.05.010', 'E2E Printer Hapus B', 'E2E-H-2', 4000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Motor Hapus C', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
+ON CONFLICT (id) DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 8. perlengkapan: Izin Pemakaian BMN precondition (F-E2E E-3).
+--    ONE ACTIVE (3004) izin at satker 0200010. Also satker_code-scoped (V003,
+--    #94-safe). The FE surface for the satker-internal approval chain
+--    (Submitted→SubmittedApproverSatker→Approved: validator-satker-action /
+--    approver-satker-action) is NOT wired, and the `validator_satker` /
+--    `approver_satker` roles the policy requires don't exist in the authenc
+--    seed — so E-3 asserts the LIST/DETAIL render + scoping + the revoke
+--    policy rejections (approver-only, admin explicitly blocked), and the
+--    missing-role/missing-UI gap is tracked as a finding.
+--    jenis_bmn LAPTOP avoids the vehicle/housing CHECK constraints.
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.izin_pemakaian_bmn
+  (id, nomor_izin, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
+   serial_number, pegawai_nip, pegawai_nama, pegawai_jabatan,
+   pegawai_satker_id, pegawai_satker_nama, tanggal_mulai, tanggal_selesai,
+   status, status_kode, keperluan, satker_code)
+VALUES
+  ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3.10.01.02.003', 'E2E Laptop Dinas Pinjam',
+   'SN-E2E-0001', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
+   'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-01-01', '2026-12-31',
+   'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010')
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;

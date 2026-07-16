@@ -1462,6 +1462,19 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-pakaian
+      # F-E2E E-3: Pengelolaan BMN — Penghapusan full workflow (submit → forward
+      # → verify → Generate Konsep SK + PDF) + Pemakaian scoping/revoke-policy.
+      - name: Run Playwright Pengelolaan BMN workflow (perlengkapan-pengelolaan)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-pengelolaan
       - name: e2e stack logs (on failure)
         if: failure()
         env:
