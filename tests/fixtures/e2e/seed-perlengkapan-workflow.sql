@@ -160,4 +160,33 @@ VALUES
    'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010')
 ON CONFLICT (id) DO NOTHING;
 
+-- ----------------------------------------------------------------------------
+-- 9. notifikasi: per-user in-app inbox (F-E2E E-4).
+--    The inbox is scoped by `claims.user_id` (notifikasi/api.rs: get_notifications
+--    /mark_as_read/mark_all_read all take claims.user_id) — NOT by satker. So the
+--    fixture gives operator_a a mixed read/unread inbox and operator_b one row of
+--    its own, which makes BOTH assertions possible:
+--      - read-state transitions (Tandai dibaca / Tandai semua dibaca)
+--      - per-user isolation (operator_b never sees operator_a's rows, and cannot
+--        mark them read — mark_as_read is keyed on (id, user_id))
+--    N1 + N2 unread, N3 already read (so "Hanya yang belum dibaca" filter is
+--    observable), N4 belongs to operator_b.
+-- ----------------------------------------------------------------------------
+INSERT INTO notifikasi.in_app_notifications
+  (id, user_id, notification_type, title, message, priority, category, action_url, read, read_at)
+VALUES
+  ('f1000000-0000-4f00-8f00-0000000c0001', '11111111-1111-4111-8111-111111111111',
+   'workflow', 'E2E Notifikasi Satu', 'Usulan penghapusan menunggu tindakan Anda.',
+   'normal', 'info', '/perlengkapan/simpel/v2/pengelolaan/penghapusan', false, NULL),
+  ('f1000000-0000-4f00-8f00-0000000c0002', '11111111-1111-4111-8111-111111111111',
+   'workflow', 'E2E Notifikasi Dua', 'Periode kebutuhan BMN 2026 telah dibuka.',
+   'high', 'warning', NULL, false, NULL),
+  ('f1000000-0000-4f00-8f00-0000000c0003', '11111111-1111-4111-8111-111111111111',
+   'sistem', 'E2E Notifikasi Terbaca', 'Notifikasi ini sudah dibaca sejak awal.',
+   'normal', 'info', NULL, true, now()),
+  ('f1000000-0000-4f00-8f00-0000000c0004', '22222222-2222-4222-8222-222222222222',
+   'workflow', 'E2E Notifikasi Operator B', 'Hanya untuk operator_b (isolasi per-user).',
+   'normal', 'info', NULL, false, NULL)
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;

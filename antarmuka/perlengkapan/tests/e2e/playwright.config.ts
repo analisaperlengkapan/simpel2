@@ -142,6 +142,17 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/pengelolaan-workflow.spec.ts'],
     },
+    // F-E2E E-4 — Bank Aset (filters/search/sort/detail/sebaran/QR) + Dashboard
+    // & global search + Analitik (roadmap create→list, kodefikasi) + Notifikasi
+    // (per-user inbox read lifecycle + isolation). Per-role storageState from
+    // `setup`; preconditions in seed-multisatker.sql (assets) +
+    // seed-perlengkapan-workflow.sql (notifikasi).
+    {
+      name: 'perlengkapan-bankaset',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/bankaset-analitik-workflow.spec.ts'],
+    },
   ],
 
   /* Run your local dev server before starting the tests */
