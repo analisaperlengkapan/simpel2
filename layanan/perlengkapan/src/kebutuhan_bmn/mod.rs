@@ -24,6 +24,7 @@
 pub mod handlers;
 pub mod models;
 pub mod pdf_laporan;
+pub mod rekap_export;
 pub mod repository;
 pub mod scope;
 pub mod services;

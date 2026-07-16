@@ -285,6 +285,17 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/dashboard",
             get(kebutuhan_bmn::get_dashboard_stats),
         )
+        // Laporan rekap (E-5) — cross-campaign recap + XLSX/PDF export.
+        // Registered before `/kebutuhan-bmn/pengajuan/{id}` style paths so the
+        // literal segment is never shadowed by a param route.
+        .route(
+            "/kebutuhan-bmn/laporan/rekap",
+            get(kebutuhan_bmn::get_rekap_laporan),
+        )
+        .route(
+            "/kebutuhan-bmn/laporan/rekap/export",
+            get(kebutuhan_bmn::export_rekap_laporan),
+        )
         // Pengajuan CRUD
         .route(
             "/kebutuhan-bmn/pengajuan",

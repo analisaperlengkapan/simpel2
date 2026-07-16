@@ -175,6 +175,13 @@ pub struct PengajuanFilter {
     pub satker_id: Option<String>,
     pub search: Option<String>,
 }
+/// Filter for the Laporan Kebutuhan BMN recap (E-5). `status_kode` matches the
+/// **satker-level** status, which is what the report lists per row.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct RekapLaporanFilter {
+    pub tahun: Option<i32>,
+    pub status_kode: Option<i32>,
+}
 #[derive(Debug, Clone, Deserialize)]
 pub struct BarangFilter {
     pub kode_barang: Option<String>,

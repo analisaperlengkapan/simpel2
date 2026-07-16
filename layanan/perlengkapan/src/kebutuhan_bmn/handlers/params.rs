@@ -148,3 +148,12 @@ pub struct SuggestionsQuery {
 fn default_suggestions_limit() -> i32 {
     10
 }
+
+/// Query params for the Laporan Kebutuhan BMN recap (E-5).
+/// `format` is only read by the export endpoint.
+#[derive(Debug, Deserialize)]
+pub struct RekapLaporanQueryParams {
+    pub tahun: Option<i32>,
+    pub status_kode: Option<i32>,
+    pub format: Option<String>,
+}

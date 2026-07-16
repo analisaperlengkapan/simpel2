@@ -1,6 +1,7 @@
 use super::{KebutuhanBmnRepository, PgKebutuhanBmnRepository, UserInfo};
 use crate::kebutuhan_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use tracing::{error, info};
@@ -219,6 +220,134 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             rows.iter().map(KebutuhanBmnSummary::from_row).collect();
 
         Ok((summaries, total))
+    }
+
+    async fn get_rekap_laporan(
+        &self,
+        filter: RekapLaporanFilter,
+        scope: &crate::shared::satker_scope::SatkerScope,
+    ) -> AppResult<Vec<RekapLaporanRow>> {
+        let client = self.get_client().await?;
+
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
+
+        // Campaign visibility (#66/#71). The helper emits a bare `id IN (…)`
+        // predicate meant for a single-table query; this one joins three
+        // tables, so wrap it in a subquery against the campaign table — the
+        // inner `id` then resolves unambiguously and the tested helper is
+        // reused verbatim (including its fail-closed `FALSE` for Denied).
+        if let Some(cond) =
+            crate::kebutuhan_bmn::scope::campaign_visibility_condition(scope, &mut params)
+        {
+            conditions.push(format!(
+                "p.id IN (SELECT id FROM perlengkapan.pengajuan_kebutuhan_bmn WHERE {})",
+                cond
+            ));
+        }
+        let mut param_idx = params.len() + 1;
+
+        // Row-level satker scoping — NOT redundant with the campaign predicate
+        // above. Campaign visibility answers "may I see this campaign exists?",
+        // which for a nationwide (`scope_satker = 'semua'`) campaign is true for
+        // everyone. This recap lists one row per *satker's* requested item, so
+        // without the extra clause an operator would read every other satker's
+        // line items off a nationwide campaign. Verified against a real DB: the
+        // seeded 'semua' campaign returned all 3 satkers' barang to a single
+        // satker caller until this was added.
+        match scope {
+            SatkerScope::All | SatkerScope::Denied => {}
+            SatkerScope::Satker(code) => {
+                conditions.push(format!("ps.satker_id = ${}", param_idx));
+                params.push(Box::new(code.clone()));
+                param_idx += 1;
+            }
+            SatkerScope::Wilayah(code) => {
+                conditions.push(format!(
+                    "ps.satker_id IN (SELECT s.kode_satker FROM integrasi.mysimkari_satker s \
+                     WHERE s.wilayah = (SELECT s2.wilayah FROM integrasi.mysimkari_satker s2 \
+                     WHERE s2.kode_satker = ${}))",
+                    param_idx
+                ));
+                params.push(Box::new(code.clone()));
+                param_idx += 1;
+            }
+        }
+
+        if let Some(tahun) = filter.tahun {
+            conditions.push(format!("p.tahun = ${}", param_idx));
+            params.push(Box::new(tahun));
+            param_idx += 1;
+        }
+        if let Some(status) = filter.status_kode {
+            conditions.push(format!("ps.status_kode = ${}", param_idx));
+            params.push(Box::new(status));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        // `ms_aktivitas_bmn` is the same status-label lookup that
+        // `vw_kebutuhan_bmn_summary` joins; LEFT so an unmapped code still
+        // yields a row (with a NULL label) rather than dropping the item.
+        let query = format!(
+            r#"
+            SELECT
+                p.id            AS pengajuan_id,
+                p.nama          AS pengajuan_nama,
+                p.tahun         AS tahun,
+                ps.satker_id    AS satker_id,
+                ps.satker_nama  AS satker_nama,
+                psb.kode_barang AS kode_barang,
+                psb.nama        AS nama_barang,
+                psb.satuan      AS satuan,
+                psb.jumlah      AS jumlah,
+                COALESCE(psb.jml_setuju, 0) AS jml_setuju,
+                ps.status_kode  AS status_kode,
+                m.nama          AS status_nama
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_barang psb
+            JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker ps
+              ON ps.id = psb.pengajuan_satker_id
+            JOIN perlengkapan.pengajuan_kebutuhan_bmn p
+              ON p.id = ps.pengajuan_id
+            LEFT JOIN perlengkapan.ms_aktivitas_bmn m
+              ON m.kode = ps.status_kode
+            {}
+            ORDER BY p.tahun DESC, ps.satker_nama ASC, psb.nama ASC
+            "#,
+            where_clause
+        );
+
+        let params_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let rows = client
+            .query(&query, &params_refs)
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(rows
+            .iter()
+            .map(|r| RekapLaporanRow {
+                pengajuan_id: r.get("pengajuan_id"),
+                pengajuan_nama: r.get("pengajuan_nama"),
+                tahun: r.get("tahun"),
+                satker_id: r.get("satker_id"),
+                satker_nama: r.get("satker_nama"),
+                kode_barang: r.get("kode_barang"),
+                nama_barang: r.get("nama_barang"),
+                satuan: r.get("satuan"),
+                jumlah: r.get("jumlah"),
+                jml_setuju: r.get("jml_setuju"),
+                status_kode: r.get("status_kode"),
+                status_nama: r.get("status_nama"),
+            })
+            .collect())
     }
 
     async fn update_pengajuan(

@@ -41,6 +41,17 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<(Vec<KebutuhanBmnSummary>, i64)>;
 
+    /// Laporan Kebutuhan BMN recap (E-5): every requested item across the
+    /// campaigns visible to `scope`, one row per
+    /// `pengajuan_kebutuhan_bmn_satker_barang`.
+    async fn get_rekap_laporan(
+        &self,
+        filter: RekapLaporanFilter,
+        // Same campaign-visibility scope as the pengajuan list (#66/#71): a
+        // report must never widen what its underlying list would show.
+        scope: &crate::shared::satker_scope::SatkerScope,
+    ) -> AppResult<Vec<RekapLaporanRow>>;
+
     async fn update_pengajuan(
         &self,
         id: Uuid,
