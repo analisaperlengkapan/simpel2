@@ -275,16 +275,6 @@ pub async fn fetch_admin_users(filter: &AdminUsersFilter) -> AppResult<Vec<UserR
     Ok(resp.data)
 }
 
-/// `GET /admin/users/{nip}`
-pub async fn fetch_admin_user(nip: &str) -> AppResult<UserRoleAssignment> {
-    let url = format!("{API_BASE}/admin/users/{}", url_encode(nip));
-    let resp: Wrap<UserRoleAssignment> = api_get(&url).await?;
-    if !resp.success {
-        return Err(AppError::server(resp.message));
-    }
-    Ok(resp.data)
-}
-
 #[derive(Debug, Clone, Serialize)]
 struct AssignRoleBody<'a> {
     pub role: &'a str,

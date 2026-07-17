@@ -181,9 +181,12 @@ test.describe('Bank Aset — sebaran + QR code', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Dashboard + global search
+// Dashboard
+// (The old /dashboard/search "global search" page was deleted in the FE audit:
+// it called a phantom endpoint — /api/v1/perlengkapan/search does not exist on
+// the backend — and no UI ever linked to it.)
 // ---------------------------------------------------------------------------
-test.describe('Dashboard + pencarian global', () => {
+test.describe('Dashboard', () => {
   test.use({ storageState: storageStatePath('validator_pusat') });
 
   test('dashboard renders real stat cards', async ({ page }) => {
@@ -191,24 +194,6 @@ test.describe('Dashboard + pencarian global', () => {
     await expect(shell(page)).toBeVisible();
     await expect(page.getByText('Total Aset BMN').first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByText('Kondisi Baik').first()).toBeVisible();
-  });
-
-  test('global search returns results for a seeded asset', async ({ page }) => {
-    await page.goto(`${BASE}/dashboard/search`);
-    await expect(shell(page)).toBeVisible();
-    await expect(page.getByText('Pencarian Global').first()).toBeVisible();
-    // Empty state before a query is entered.
-    await expect(page.getByText('Masukkan kata kunci untuk mencari di semua modul').first()).toBeVisible();
-
-    await page.getByRole('textbox').first().fill('Toyota');
-    await page.getByRole('button', { name: 'Cari' }).click();
-    // Either real hits render, or the honest "no results" state — never a crash.
-    await expect
-      .poll(async () => {
-        const body = await page.locator('body').innerText();
-        return body.includes('Toyota') || body.includes('Tidak Ada Hasil');
-      }, { timeout: 20000 })
-      .toBe(true);
   });
 
   test('dashboard export endpoints respond server-side (#97: no FE caller yet)', async ({ request }) => {

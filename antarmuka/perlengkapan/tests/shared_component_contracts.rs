@@ -1,11 +1,12 @@
-//! Source-contract smoke tests: list components across modules must reuse
-//! shared loading / empty / error primitives and the shared pagination
-//! controls, instead of re-rolling the same spinner markup and pager math.
+//! Source-contract smoke tests: list pages across modules must reuse the
+//! shared loading / empty / error primitives under `components::layout`,
+//! instead of re-rolling the same spinner markup that used to diverge
+//! across lists.
 //!
-//! The acceptable sources are (a) the domain-agnostic layout primitives
-//! under `components::layout`, or (b) the legacy `list_feedback` /
-//! `pagination_controls` modules. Either avoids the inline spinner markup
-//! that used to diverge across the three lists.
+//! (The legacy `list_feedback` duplicates and the superseded
+//! `components/{pemakaian_bmn_list,penghapusan_list}.rs` implementations
+//! were deleted in the FE audit — the live lists are
+//! `pages/{pemakaian_bmn,penghapusan_bmn}/list_page.rs`.)
 
 fn source(path_from_crate_root: &str) -> String {
     std::fs::read_to_string(format!(
@@ -17,16 +18,9 @@ fn source(path_from_crate_root: &str) -> String {
 }
 
 fn uses_shared_loading_primitive(content: &str) -> bool {
-    content.contains("list_feedback::{EmptyState, LoadingState}")
-        || content.contains("list_feedback::{LoadingState, EmptyState}")
-        || (content.contains("components::layout")
-            && content.contains("LoadingState")
-            && content.contains("EmptyState"))
-}
-
-fn uses_shared_pagination(content: &str) -> bool {
-    content.contains("pagination_controls::PaginationControls")
-        || content.contains("PaginationControls")
+    content.contains("components::layout")
+        && content.contains("LoadingState")
+        && content.contains("EmptyState")
 }
 
 fn has_no_inline_spinner(content: &str, path: &str) {
@@ -37,16 +31,8 @@ fn has_no_inline_spinner(content: &str, path: &str) {
 }
 
 #[test]
-fn shared_feedback_and_pagination_modules_are_exported() {
+fn layout_primitives_are_exported() {
     let modules = source("src/components/mod.rs");
-    assert!(
-        modules.contains("pub mod list_feedback;"),
-        "components mod should still export list_feedback for legacy callers"
-    );
-    assert!(
-        modules.contains("pub mod pagination_controls;"),
-        "components mod should still export pagination_controls for list callers"
-    );
     assert!(
         modules.contains("pub mod layout"),
         "components mod should export layout primitives"
@@ -60,39 +46,31 @@ fn kebutuhan_bmn_list_uses_shared_loading_and_empty_state() {
 
     assert!(
         uses_shared_loading_primitive(&page),
-        "{path} should use a shared LoadingState/EmptyState (layout or list_feedback)"
+        "{path} should use the shared layout LoadingState/EmptyState"
     );
     has_no_inline_spinner(&page, path);
 }
 
 #[test]
-fn pemakaian_bmn_list_uses_shared_feedback_and_pagination() {
-    let path = "src/components/pemakaian_bmn_list.rs";
+fn pemakaian_bmn_list_page_uses_shared_feedback() {
+    let path = "src/pages/pemakaian_bmn/list_page.rs";
     let page = source(path);
 
     assert!(
         uses_shared_loading_primitive(&page),
-        "{path} should use a shared LoadingState/EmptyState primitive"
-    );
-    assert!(
-        uses_shared_pagination(&page),
-        "{path} should use shared PaginationControls"
+        "{path} should use the shared layout LoadingState/EmptyState"
     );
     has_no_inline_spinner(&page, path);
 }
 
 #[test]
-fn penghapusan_list_uses_shared_feedback_and_pagination() {
-    let path = "src/components/penghapusan_list.rs";
+fn penghapusan_list_page_uses_shared_feedback() {
+    let path = "src/pages/penghapusan_bmn/list_page.rs";
     let page = source(path);
 
     assert!(
         uses_shared_loading_primitive(&page),
-        "{path} should use a shared LoadingState/EmptyState primitive"
-    );
-    assert!(
-        uses_shared_pagination(&page),
-        "{path} should use shared PaginationControls"
+        "{path} should use the shared layout LoadingState/EmptyState"
     );
     has_no_inline_spinner(&page, path);
 }

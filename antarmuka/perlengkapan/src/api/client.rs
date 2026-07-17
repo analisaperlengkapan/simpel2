@@ -69,33 +69,6 @@ pub async fn api_get<T: DeserializeOwned>(path: &str) -> AppResult<T> {
     parse_response(resp).await
 }
 
-pub async fn api_get_optional<T: DeserializeOwned>(path: &str) -> AppResult<Option<T>> {
-    match api_get::<T>(path).await {
-        Ok(v) => Ok(Some(v)),
-        Err(AppError::NotFound(_)) => Ok(None),
-        Err(e) => Err(e),
-    }
-}
-
-pub async fn api_get_binary(path: &str) -> AppResult<Vec<u8>> {
-    let token = require_auth_token()?;
-    let url = full_url(path);
-
-    let resp = Request::get(&url)
-        .header("Authorization", &format!("Bearer {token}"))
-        .send()
-        .await
-        .map_err(AppError::from)?;
-
-    let status = resp.status();
-    if !(200..300).contains(&status) {
-        let body = resp.text().await.unwrap_or_default();
-        return Err(AppError::from_status(status, &body));
-    }
-
-    resp.binary().await.map_err(AppError::from)
-}
-
 /// POST a JSON body and consume the response as raw bytes. Used by the
 /// `/admin/templates/{id}/preview` flow where the response is a rendered
 /// PDF/DOCX/XLSX blob the caller drops into a blob URL + `<iframe>`.
@@ -191,40 +164,6 @@ pub async fn api_put<B: Serialize + ?Sized, T: DeserializeOwned>(
     parse_response(resp).await
 }
 
-pub async fn api_patch<B: Serialize + ?Sized, T: DeserializeOwned>(
-    path: &str,
-    body: &B,
-) -> AppResult<T> {
-    let token = require_auth_token()?;
-    let url = full_url(path);
-
-    let resp = Request::patch(&url)
-        .header("Authorization", &format!("Bearer {token}"))
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json")
-        .json(body)
-        .map_err(AppError::from)?
-        .send()
-        .await
-        .map_err(AppError::from)?;
-
-    parse_response(resp).await
-}
-
-pub async fn api_delete<T: DeserializeOwned>(path: &str) -> AppResult<T> {
-    let token = require_auth_token()?;
-    let url = full_url(path);
-
-    let resp = Request::delete(&url)
-        .header("Authorization", &format!("Bearer {token}"))
-        .header("Accept", "application/json")
-        .send()
-        .await
-        .map_err(AppError::from)?;
-
-    parse_response(resp).await
-}
-
 pub async fn api_delete_empty(path: &str) -> AppResult<()> {
     let token = require_auth_token()?;
     let url = full_url(path);
@@ -244,6 +183,7 @@ pub async fn api_delete_empty(path: &str) -> AppResult<()> {
 // above. These exist so the tree keeps compiling during the incremental port.
 // ---------------------------------------------------------------------------
 
+#[cfg(target_arch = "wasm32")]
 pub async fn auth_get_json<T: DeserializeOwned>(url: &str) -> AppResult<T> {
     let token = require_auth_token()?;
     let resp = Request::get(url)
@@ -255,6 +195,7 @@ pub async fn auth_get_json<T: DeserializeOwned>(url: &str) -> AppResult<T> {
     parse_response(resp).await
 }
 
+#[cfg(target_arch = "wasm32")]
 pub async fn auth_get_binary(url: &str) -> AppResult<Vec<u8>> {
     let token = require_auth_token()?;
     let resp = Request::get(url)
@@ -270,6 +211,7 @@ pub async fn auth_get_binary(url: &str) -> AppResult<Vec<u8>> {
     resp.binary().await.map_err(AppError::from)
 }
 
+#[cfg(target_arch = "wasm32")]
 pub async fn auth_post_json<B: Serialize + ?Sized, T: DeserializeOwned>(
     url: &str,
     body: &B,
@@ -287,6 +229,7 @@ pub async fn auth_post_json<B: Serialize + ?Sized, T: DeserializeOwned>(
     parse_response(resp).await
 }
 
+#[cfg(target_arch = "wasm32")]
 pub async fn auth_put_json<B: Serialize + ?Sized, T: DeserializeOwned>(
     url: &str,
     body: &B,
@@ -304,6 +247,7 @@ pub async fn auth_put_json<B: Serialize + ?Sized, T: DeserializeOwned>(
     parse_response(resp).await
 }
 
+#[cfg(target_arch = "wasm32")]
 pub async fn auth_delete_json<T: DeserializeOwned>(url: &str) -> AppResult<T> {
     let token = require_auth_token()?;
     let resp = Request::delete(url)

@@ -13,34 +13,8 @@ use serde::{Deserialize, Serialize};
 // KEBUTUHAN BMN API FUNCTIONS
 // ============================================================================
 
-const KEBUTUHAN_BMN_BASE: &str = "/api/v1/perlengkapan/kebutuhan-bmn";
-
-// --- Dashboard ---
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_kebutuhan_bmn_dashboard()
--> Result<ApiResponse<KebutuhanBmnDashboardStats>, crate::api::AppError> {
-    auth_get_json(&format!("{}/dashboard", KEBUTUHAN_BMN_BASE)).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_kebutuhan_bmn_dashboard()
--> Result<ApiResponse<KebutuhanBmnDashboardStats>, crate::api::AppError> {
-    Ok(ApiResponse {
-        success: true,
-        data: KebutuhanBmnDashboardStats {
-            total_pengajuan: 0,
-            pengajuan_draft: 0,
-            pengajuan_in_progress: 0,
-            pengajuan_completed: 0,
-            total_satker_terlibat: 0,
-            total_barang_diminta: 0,
-            total_barang_disetujui: 0,
-            by_tahun: vec![],
-            by_status: vec![],
-        },
-        message: "Server-side stub".to_string(),
-    })
-}
+const KEBUTUHAN_BMN_BASE: &str = "/api/v1/perlengkapan/kebutuhan-bmn";
 
 // --- Pengajuan CRUD ---
 #[cfg(target_arch = "wasm32")]
@@ -175,38 +149,6 @@ pub async fn transition_kebutuhan_bmn_status(
     ))
 }
 
-// --- Satker Operations ---
-#[cfg(target_arch = "wasm32")]
-pub async fn fetch_pengajuan_satkers(
-    pengajuan_id: &str,
-    page: i32,
-    per_page: i32,
-) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    let url = format!(
-        "{}/pengajuan/{}/satker?page={}&per_page={}",
-        KEBUTUHAN_BMN_BASE, pengajuan_id, page, per_page
-    );
-
-    auth_get_json(&url).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_pengajuan_satkers(
-    _pengajuan_id: &str,
-    _page: i32,
-    _per_page: i32,
-) -> Result<PaginatedResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    Ok(PaginatedResponse {
-        success: true,
-        data: vec![],
-        total: 0,
-        page: 1,
-        per_page: 20,
-        total_pages: 0,
-        message: "Server-side stub".to_string(),
-    })
-}
-
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_satker_with_barang(
     satker_id: &str,
@@ -218,28 +160,6 @@ pub async fn fetch_satker_with_barang(
 pub async fn fetch_satker_with_barang(
     _satker_id: &str,
 ) -> Result<ApiResponse<SatkerWithBarangResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-#[cfg(target_arch = "wasm32")]
-pub async fn transition_satker_status(
-    satker_id: &str,
-    request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
-    auth_post_json(
-        &format!("{}/satker/{}/transition", KEBUTUHAN_BMN_BASE, satker_id),
-        &request,
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn transition_satker_status(
-    _satker_id: &str,
-    _request: WorkflowTransitionRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnSatker>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
@@ -311,28 +231,6 @@ pub async fn create_kebutuhan_bmn_barang(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub async fn update_kebutuhan_bmn_barang(
-    barang_id: &str,
-    request: UpdateBarangApprovalRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
-    auth_put_json(
-        &format!("{}/barang/{}", KEBUTUHAN_BMN_BASE, barang_id),
-        &request,
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn update_kebutuhan_bmn_barang(
-    _barang_id: &str,
-    _request: UpdateBarangApprovalRequest,
-) -> Result<ApiResponse<PengajuanKebutuhanBmnBarang>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-#[cfg(target_arch = "wasm32")]
 pub async fn delete_kebutuhan_bmn_barang(
     barang_id: &str,
 ) -> Result<ApiResponse<()>, crate::api::AppError> {
@@ -343,36 +241,6 @@ pub async fn delete_kebutuhan_bmn_barang(
 pub async fn delete_kebutuhan_bmn_barang(
     _barang_id: &str,
 ) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-// --- Priority Operations ---
-#[cfg(target_arch = "wasm32")]
-pub async fn set_kebutuhan_bmn_prioritas(
-    request: SetPrioritasRequest,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
-    auth_post_json(&format!("{}/prioritas", KEBUTUHAN_BMN_BASE), &request).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn set_kebutuhan_bmn_prioritas(
-    _request: SetPrioritasRequest,
-) -> Result<ApiResponse<Vec<PengajuanKebutuhanBmnBarang>>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-// --- Export ---
-#[cfg(target_arch = "wasm32")]
-pub async fn export_kebutuhan_bmn(id: &str) -> Result<Vec<u8>, crate::api::AppError> {
-    auth_get_binary(&format!("{}/pengajuan/{}/export", KEBUTUHAN_BMN_BASE, id)).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn export_kebutuhan_bmn(_id: &str) -> Result<Vec<u8>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
@@ -449,39 +317,6 @@ pub async fn batch_reject_kebutuhan(
 pub async fn batch_reject_kebutuhan(
     _ids: Vec<uuid::Uuid>,
     _komentar: String,
-) -> Result<BatchOperationResponse, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-#[cfg(target_arch = "wasm32")]
-pub async fn batch_update_status(
-    ids: Vec<uuid::Uuid>,
-    target_status: i32,
-    komentar: Option<String>,
-) -> Result<BatchOperationResponse, crate::api::AppError> {
-    use serde_json::json;
-
-    let body = json!({
-        "kebutuhan_ids": ids,
-        "target_status": target_status,
-        "komentar": komentar,
-    });
-
-    let api_response: ApiResponse<BatchOperationResponse> = auth_post_json(
-        &format!("{}/batch/update-status", KEBUTUHAN_BMN_BASE),
-        &body,
-    )
-    .await?;
-    Ok(api_response.data)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn batch_update_status(
-    _ids: Vec<uuid::Uuid>,
-    _target_status: i32,
-    _komentar: Option<String>,
 ) -> Result<BatchOperationResponse, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
@@ -567,70 +402,10 @@ pub async fn kebutuhan_validator_pusat_keputusan(
 // SIMAN Integration API
 // ============================================================================
 
-/// Search for existing assets from SIMAN
-#[cfg(target_arch = "wasm32")]
-pub async fn search_siman_assets(
-    search: &str,
-    kategori: Option<&str>,
-    limit: Option<usize>,
-) -> Result<ApiResponse<Vec<SimanAsset>>, crate::api::AppError> {
-    let mut url = format!("{}/siman/search?search={}", KEBUTUHAN_BMN_BASE, search);
-    if let Some(kat) = kategori {
-        url.push_str(&format!("&kategori={}", kat));
-    }
-    if let Some(lim) = limit {
-        url.push_str(&format!("&limit={}", lim));
-    }
-
-    auth_get_json(&url).await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn search_siman_assets(
-    _search: &str,
-    _kategori: Option<&str>,
-    _limit: Option<usize>,
-) -> Result<ApiResponse<Vec<SimanAsset>>, crate::api::AppError> {
-    Ok(ApiResponse {
-        success: true,
-        data: vec![],
-        message: "Server-side stub".to_string(),
-    })
-}
-
-/// Get SIMAN asset summary for a satker
-#[cfg(target_arch = "wasm32")]
-pub async fn fetch_siman_satker_summary(
-    satker_id: &str,
-) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
-    auth_get_json(&format!(
-        "{}/siman/summary/{}",
-        KEBUTUHAN_BMN_BASE, satker_id
-    ))
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_siman_satker_summary(
-    _satker_id: &str,
-) -> Result<ApiResponse<SatkerAssetSummary>, crate::api::AppError> {
-    Ok(ApiResponse {
-        success: true,
-        data: SatkerAssetSummary {
-            satker_id: String::new(),
-            satker_name: None,
-            total_assets: 0,
-            total_value: 0.0,
-            by_category: vec![],
-            by_condition: vec![],
-        },
-        message: "Server-side stub".to_string(),
-    })
-}
-
 // --- Laporan rekap (E-5) ---
 /// Query string for the recap + its export; empty filters are omitted so the
 /// backend applies "all".
+#[cfg(target_arch = "wasm32")]
 fn rekap_query(tahun: Option<i32>, status_kode: Option<i32>) -> String {
     let mut q: Vec<String> = Vec::new();
     if let Some(t) = tahun {
@@ -685,15 +460,4 @@ pub async fn export_rekap_laporan(
         KEBUTUHAN_BMN_BASE, q, sep, format
     ))
     .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn export_rekap_laporan(
-    _format: &str,
-    _tahun: Option<i32>,
-    _status_kode: Option<i32>,
-) -> Result<Vec<u8>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
 }

@@ -24,8 +24,6 @@ pub enum ActionTone {
     Primary,
     Success,
     Danger,
-    Warning,
-    Neutral,
 }
 
 impl ActionTone {
@@ -35,8 +33,6 @@ impl ActionTone {
             ActionTone::Primary => "bg-blue-600 hover:bg-blue-700 text-white",
             ActionTone::Success => "bg-green-600 hover:bg-green-700 text-white",
             ActionTone::Danger => "bg-red-600 hover:bg-red-700 text-white",
-            ActionTone::Warning => "bg-yellow-600 hover:bg-yellow-700 text-white",
-            ActionTone::Neutral => "border border-gray-300 text-gray-700 hover:bg-gray-50",
         }
     }
 }
@@ -45,15 +41,15 @@ impl ActionTone {
 // WorkflowTimeline
 // ============================================================================
 
-/// Status satu tahapan dalam timeline.
+/// Status satu tahapan dalam timeline. Timeline dirakit event-log style —
+/// hanya tahapan yang sudah terjadi yang ditambahkan, jadi tidak ada varian
+/// "belum tercapai".
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum StepStatus {
     /// Tahapan sudah dilewati / selesai.
     Done,
     /// Tahapan yang sedang berjalan.
     Current,
-    /// Tahapan yang belum tercapai.
-    Pending,
     /// Tahapan terminal penolakan.
     Rejected,
 }
@@ -64,8 +60,6 @@ impl StepStatus {
             (StepStatus::Done, _) => "bg-green-500 border-green-500",
             (StepStatus::Current, false) => "bg-blue-500 border-blue-500 ring-4 ring-blue-100",
             (StepStatus::Current, true) => "bg-blue-400 border-blue-400 ring-4 ring-blue-500/20",
-            (StepStatus::Pending, false) => "bg-white border-gray-300",
-            (StepStatus::Pending, true) => "bg-surface-panel border-white/20",
             (StepStatus::Rejected, _) => "bg-red-500 border-red-500",
         }
     }
@@ -76,8 +70,6 @@ impl StepStatus {
             (StepStatus::Done, true) => "text-slate-100",
             (StepStatus::Current, false) => "text-blue-700 font-semibold",
             (StepStatus::Current, true) => "text-blue-300 font-semibold",
-            (StepStatus::Pending, false) => "text-gray-400",
-            (StepStatus::Pending, true) => "text-slate-500",
             (StepStatus::Rejected, false) => "text-red-700 font-semibold",
             (StepStatus::Rejected, true) => "text-red-300 font-semibold",
         }

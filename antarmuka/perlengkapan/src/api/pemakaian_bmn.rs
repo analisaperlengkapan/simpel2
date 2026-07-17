@@ -148,18 +148,6 @@ pub struct CreateBmnItemRequest {
     pub keterangan: Option<String>,
 }
 
-/// Request to upload signed PDF
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UploadSignedPdfRequest {
-    pub signed_pdf_url: String,
-}
-
-/// Request to generate konsep surat
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GenerateKonsepSuratRequest {
-    pub format: Option<String>,
-}
-
 /// BMN availability check response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BmnAvailabilityResponse {
@@ -188,13 +176,6 @@ pub struct IzinPemakaianDetailResponse {
     pub is_expiring_soon: bool,
     pub can_generate_konsep: Option<bool>,
     pub can_upload_signed_pdf: Option<bool>,
-}
-
-/// Request to transition workflow status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PemakaianWorkflowTransitionRequest {
-    pub target_status: String,
-    pub catatan: Option<String>,
 }
 
 /// Request to revoke a permit
@@ -253,6 +234,7 @@ pub struct MonitoringSummaryCards {
     pub tidak_dipakai: Option<i64>,
 }
 
+#[cfg(target_arch = "wasm32")]
 const PEMAKAIAN_BMN_BASE: &str = "/api/v1/perlengkapan/pemakaian-bmn";
 
 // --- List Permits ---
@@ -357,50 +339,6 @@ pub async fn check_bmn_availability(
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-// --- Workflow Transition ---
-#[cfg(target_arch = "wasm32")]
-pub async fn transition_pemakaian_bmn_status(
-    id: &str,
-    request: PemakaianWorkflowTransitionRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(
-        &format!("{}/{}/transition", PEMAKAIAN_BMN_BASE, id),
-        &request,
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn transition_pemakaian_bmn_status(
-    _id: &str,
-    _request: PemakaianWorkflowTransitionRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-// --- Activate Permit ---
-#[cfg(target_arch = "wasm32")]
-pub async fn activate_pemakaian_bmn(
-    id: &str,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(
-        &format!("{}/{}/activate", PEMAKAIAN_BMN_BASE, id),
-        &serde_json::json!({}),
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn activate_pemakaian_bmn(
-    _id: &str,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
@@ -533,50 +471,4 @@ pub async fn fetch_monitoring_summary(
         },
         message: "Server-side stub".to_string(),
     })
-}
-
-// --- Pemakaian BMN: Generate Konsep Surat ---
-#[cfg(target_arch = "wasm32")]
-pub async fn generate_pemakaian_konsep_surat(
-    id: &str,
-    request: GenerateKonsepSuratRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(
-        &format!("{}/{}/generate-konsep-surat", PEMAKAIAN_BMN_BASE, id),
-        &request,
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn generate_pemakaian_konsep_surat(
-    _id: &str,
-    _request: GenerateKonsepSuratRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
-// --- Pemakaian BMN: Upload Signed PDF ---
-#[cfg(target_arch = "wasm32")]
-pub async fn upload_pemakaian_signed_pdf(
-    id: &str,
-    request: UploadSignedPdfRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    auth_post_json(
-        &format!("{}/{}/upload-signed-pdf", PEMAKAIAN_BMN_BASE, id),
-        &request,
-    )
-    .await
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn upload_pemakaian_signed_pdf(
-    _id: &str,
-    _request: UploadSignedPdfRequest,
-) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
 }

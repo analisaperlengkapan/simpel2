@@ -374,7 +374,7 @@ fn render_table(items: Vec<PenghapusanBmnWorkflow>) -> impl IntoView + use<> {
     let rows: Vec<_> = items
         .into_iter()
         .map(|p| {
-            let id_href = format!("/perlengkapan/pengelolaan/penghapusan/{}", p.id);
+            let id_href = crate::routes::url::penghapusan_detail(&p.id);
             let kode = p.kode_barang.clone();
             let nama = p.nama_barang.clone();
             let nup = p.nup.clone();

@@ -16,30 +16,20 @@ struct ApiResponseWrap<T> {
     pub message: String,
 }
 
+/// Subset of the backend's template payload that the admin page renders;
+/// serde ignores the fields we don't need.
 #[derive(Debug, Clone, Deserialize)]
 pub struct DocumentTemplate {
     pub id: String,
     pub name: String,
-    pub description: Option<String>,
     pub template_type: String,
-    pub format: String,
-    pub output_format: String,
     pub version: i32,
     pub is_active: bool,
-    #[serde(default)]
-    pub variables: Option<serde_json::Value>,
-    #[serde(default)]
-    pub sample_data: Option<serde_json::Value>,
-    pub created_at: String,
-    pub updated_at: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct ListTemplatesResponse {
     pub templates: Vec<DocumentTemplate>,
-    pub total: i64,
-    pub page: i64,
-    pub per_page: i64,
 }
 
 /// `GET /admin/templates?template_type=...&is_active=...&page=...&per_page=...`
@@ -59,16 +49,6 @@ pub async fn list_templates(
         url.push_str(&format!("&is_active={ia}"));
     }
     let resp: ApiResponseWrap<ListTemplatesResponse> = api_get(&url).await?;
-    if !resp.success {
-        return Err(AppError::server(resp.message));
-    }
-    Ok(resp.data)
-}
-
-/// `GET /admin/templates/{id}`
-pub async fn get_template(id: &str) -> AppResult<DocumentTemplate> {
-    let url = format!("/admin/templates/{id}");
-    let resp: ApiResponseWrap<DocumentTemplate> = api_get(&url).await?;
     if !resp.success {
         return Err(AppError::server(resp.message));
     }

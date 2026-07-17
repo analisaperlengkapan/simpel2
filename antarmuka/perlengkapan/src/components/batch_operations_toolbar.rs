@@ -16,7 +16,6 @@ pub struct BatchOperationResult {
     pub total_items: usize,
     pub successful_items: usize,
     pub failed_items: usize,
-    pub operation_type: String,
 }
 
 #[component]
@@ -50,7 +49,6 @@ pub fn BatchOperationsToolbar(
                         total_items: response.total_items,
                         successful_items: response.successful_items,
                         failed_items: response.failed_items,
-                        operation_type: "approve".to_string(),
                     });
                 }
                 Err(e) => {
@@ -84,7 +82,6 @@ pub fn BatchOperationsToolbar(
                         total_items: response.total_items,
                         successful_items: response.successful_items,
                         failed_items: response.failed_items,
-                        operation_type: "reject".to_string(),
                     });
                 }
                 Err(e) => {

@@ -275,7 +275,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                     // Redirect after success — `navigate` captured at component
                     // level to stay within the reactive scope.
                     gloo_timers::callback::Timeout::new(1500, move || {
-                        navigate("/perlengkapan/pemakaian-bmn", Default::default());
+                        // navigate() resolves against the router base, so this
+                        // must be base-relative (full-path form would double
+                        // the /perlengkapan/simpel/v2 prefix and 404).
+                        navigate("/pengelolaan/pemakaian", Default::default());
                     })
                     .forget();
                 }
@@ -809,7 +812,7 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                 // Submit buttons
                 <div class="pt-6 flex justify-end gap-3 border-t">
                     <a
-                        href=routes::path::PEMAKAIAN_DAFTAR_LEGACY
+                        href=routes::path::PENGELOLAAN_PEMAKAIAN
                         class="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

@@ -1,7 +1,6 @@
 pub mod admin;
 pub mod bank_aset;
 pub mod dashboard;
-pub mod dashboard_perlengkapan;
 pub mod kebutuhan_bmn;
 pub mod login;
 pub mod not_found;
@@ -9,6 +8,4 @@ pub mod notifikasi;
 pub mod pakaian_dinas;
 pub mod pemakaian_bmn;
 pub mod penghapusan_bmn;
-pub mod placeholder;
-pub mod search_page;
 pub mod workflow;

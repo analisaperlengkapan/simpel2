@@ -34,10 +34,11 @@ pub struct SupportTicket {
     pub closed_at: Option<String>,
 }
 
+/// A comment on a ticket. The payload also carries `ticket_id`, but a thread
+/// is always fetched per-ticket so the FE doesn't need it (serde ignores it).
 #[derive(Debug, Clone, Deserialize)]
 pub struct TicketComment {
     pub id: String,
-    pub ticket_id: String,
     pub user_id: String,
     pub content: String,
     pub created_at: String,

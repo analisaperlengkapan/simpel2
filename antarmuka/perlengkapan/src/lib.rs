@@ -3,14 +3,6 @@
 //! Dark navy + gold Kejaksaan theme, single-page application.
 
 #![recursion_limit = "512"]
-// Kept deliberately: this crate is mid-migration (feature-first, F0-B). It
-// forward-declares the FE↔BE API contract — ~220 request/response DTOs, fetch
-// helpers, and action/scope enum variants — for pages/components that F5-C
-// (#33) will wire. Those are intentional future-impl scaffolding, NOT cruft, so
-// a per-crate `dead_code` allow is the honest choice over ~220 item allows or
-// deleting the planned contract. `unused_imports`/`unused_variables` are NOT
-// suppressed (those were real cruft and have been cleaned up).
-#![allow(dead_code)]
 // Kept deliberately: both lints' suggested rewrites shorten the drop scope of
 // temporaries borrowed inside Leptos reactive closures, which fails the borrow
 // checker here (E0597) — collapsing nested `if`s into edition-2024 let-chains,
@@ -47,7 +39,6 @@ use pages::notifikasi::NotifikasiInboxPage;
 use pages::pakaian_dinas::SpesifikasiPage;
 use pages::pemakaian_bmn::{PemakaianBmnDetailPage, PemakaianBmnListPage};
 use pages::penghapusan_bmn::{PenghapusanBmnDetailPage, PenghapusanBmnListPage};
-use pages::search_page::SearchPage;
 use pages::workflow::config_management::WorkflowConfigManagement;
 use pages::workflow::delegation::WorkflowDelegationPage;
 use pages::workflow::monitoring::WorkflowMonitoring;
@@ -72,7 +63,6 @@ use components::pakaian_dinas_ukuran::UkuranPegawai;
 use components::panduan::PanduanPengguna;
 use components::pemakaian_bmn_form::PemakaianBmnForm;
 use components::pemakaian_bmn_monitoring::PemakaianBmnMonitoring;
-use components::pemakaian_bmn_renew::PemakaianBmnRenew;
 use components::penghapusan_form::PenghapusanForm;
 
 // ── Version ──────────────────────────────────────────────────────────────
@@ -252,13 +242,8 @@ pub fn App() -> impl IntoView {
                                         // ══════════════════════════════════════════
                                         <ParentRoute path=path!("/") view=AuthenticatedLayout>
                                             <Route path=path!("/dashboard") view=DashboardHome />
-                                            <Route path=path!("/dashboard/search") view=SearchPage />
 
                                             // ── Bank Aset ────────────────────────
-                                            <Route
-                                                path=path!("/bank-aset")
-                                                view=BankAsetDashboardPage
-                                            />
                                             <Route
                                                 path=path!("/bank-aset/dashboard")
                                                 view=BankAsetDashboardPage
@@ -289,13 +274,8 @@ pub fn App() -> impl IntoView {
                                                 path=path!("/kebutuhan-bmn/daftar")
                                                 view=KebutuhanBmnList
                                             />
-                                            <Route path=path!("/kebutuhan-bmn") view=KebutuhanBmnList />
                                             <Route
                                                 path=path!("/kebutuhan-bmn/buat")
-                                                view=KebutuhanBmnForm
-                                            />
-                                            <Route
-                                                path=path!("/kebutuhan-bmn/baru")
                                                 view=KebutuhanBmnForm
                                             />
                                             <Route
@@ -304,10 +284,6 @@ pub fn App() -> impl IntoView {
                                             />
                                             <Route
                                                 path=path!("/kebutuhan-bmn/detail/:id")
-                                                view=KebutuhanBmnDetail
-                                            />
-                                            <Route
-                                                path=path!("/kebutuhan-bmn/:id")
                                                 view=KebutuhanBmnDetail
                                             />
                                             <Route
@@ -344,10 +320,6 @@ pub fn App() -> impl IntoView {
                                                 path=path!("/pakaian-dinas/laporan")
                                                 view=PakaianDinasLaporan
                                             />
-                                            <Route
-                                                path=path!("/pakaian-dinas/laporan/rekap")
-                                                view=PakaianDinasLaporan
-                                            />
 
                                             // ── Pengelolaan BMN ──────────────────
                                             <Route
@@ -355,28 +327,12 @@ pub fn App() -> impl IntoView {
                                                 view=PemakaianBmnListPage
                                             />
                                             <Route
-                                                path=path!("/pemakaian-bmn")
-                                                view=PemakaianBmnListPage
-                                            />
-                                            <Route
                                                 path=path!("/pengelolaan/pemakaian/buat")
-                                                view=PemakaianBmnForm
-                                            />
-                                            <Route
-                                                path=path!("/pemakaian-bmn/baru")
                                                 view=PemakaianBmnForm
                                             />
                                             <Route
                                                 path=path!("/pengelolaan/pemakaian/detail/:id")
                                                 view=PemakaianBmnDetailPage
-                                            />
-                                            <Route
-                                                path=path!("/pemakaian-bmn/:id")
-                                                view=PemakaianBmnDetailPage
-                                            />
-                                            <Route
-                                                path=path!("/pemakaian-bmn/:id/renew")
-                                                view=PemakaianBmnRenew
                                             />
                                             <Route
                                                 path=path!("/pengelolaan/pemakaian/monitoring")
@@ -387,23 +343,11 @@ pub fn App() -> impl IntoView {
                                                 view=PenghapusanBmnListPage
                                             />
                                             <Route
-                                                path=path!("/pengelolaan/penghapusan/daftar")
-                                                view=PenghapusanBmnListPage
-                                            />
-                                            <Route
                                                 path=path!("/pengelolaan/penghapusan/buat")
                                                 view=PenghapusanForm
                                             />
                                             <Route
-                                                path=path!("/pengelolaan/penghapusan/baru")
-                                                view=PenghapusanForm
-                                            />
-                                            <Route
                                                 path=path!("/pengelolaan/penghapusan/detail/:id")
-                                                view=PenghapusanBmnDetailPage
-                                            />
-                                            <Route
-                                                path=path!("/pengelolaan/penghapusan/:id")
                                                 view=PenghapusanBmnDetailPage
                                             />
 

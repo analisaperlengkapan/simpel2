@@ -21,7 +21,6 @@ struct ApiResponseWrap<T> {
 #[derive(Debug, Clone, Deserialize)]
 pub struct NotifikasiItem {
     pub id: String,
-    pub notification_type: String,
     pub title: String,
     pub message: String,
     pub priority: String,

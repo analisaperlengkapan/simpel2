@@ -53,17 +53,6 @@ impl LifecycleFilter {
             Self::Dicabut => "Dicabut",
         }
     }
-    fn from_str(s: &str) -> Self {
-        match s {
-            "DRAFT" => Self::Draft,
-            "SUBMITTED" => Self::Diajukan,
-            "ACTIVE" => Self::Aktif,
-            "EXPIRING_SOON" => Self::AkanExpire,
-            "EXPIRED" => Self::Kadaluarsa,
-            "REVOKED" => Self::Dicabut,
-            _ => Self::Semua,
-        }
-    }
     fn all() -> &'static [LifecycleFilter] {
         &[
             Self::Semua,
@@ -378,7 +367,7 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
     let rows: Vec<_> = items
         .into_iter()
         .map(|p| {
-            let id_href = format!("/perlengkapan/pemakaian-bmn/{}", p.id);
+            let id_href = crate::routes::url::pemakaian_detail(&p.id);
             let no = p.nomor_izin.clone().unwrap_or_else(|| "-".to_string());
             let nama = p.pegawai_nama.clone();
             let nip = p.pegawai_nip.clone();

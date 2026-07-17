@@ -14,6 +14,9 @@ pub struct NavGroup {
     pub icon: &'static str,
     pub label: &'static str,
     pub accent: &'static str,
+    /// Shown only when the active role is `admin` (pages are additionally
+    /// guarded server-side + by `AdminLayout`; this only declutters the nav).
+    pub admin_only: bool,
     pub items: &'static [NavItem],
 }
 
@@ -34,6 +37,7 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
         icon: "fas fa-boxes",
         label: "Bank Aset",
         accent: "#34d399",
+        admin_only: false,
         items: &[
             NavItem {
                 href: routes::path::BANK_ASET_DASHBOARD,
@@ -61,6 +65,7 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
         icon: "fas fa-clipboard-list",
         label: "Kebutuhan BMN",
         accent: "#fb923c",
+        admin_only: false,
         items: &[
             NavItem {
                 href: routes::path::KEBUTUHAN_DAFTAR,
@@ -83,6 +88,7 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
         icon: "fas fa-tshirt",
         label: "Pakaian Dinas",
         accent: "#c084fc",
+        admin_only: false,
         items: &[
             NavItem {
                 href: routes::path::PAKAIAN_JENIS,
@@ -110,6 +116,7 @@ const MODUL_UTAMA_GROUPS: &[NavGroup] = &[
         icon: "fas fa-cogs",
         label: "Pengelolaan BMN",
         accent: "#60a5fa",
+        admin_only: false,
         items: &[
             NavItem {
                 href: routes::path::PENGELOLAAN_PEMAKAIAN,
@@ -129,6 +136,7 @@ const ANALITIK_GROUPS: &[NavGroup] = &[NavGroup {
     icon: "fas fa-chart-line",
     label: "Analitik",
     accent: "#2dd4bf",
+    admin_only: false,
     items: &[
         NavItem {
             href: routes::path::ANALITIK_ROADMAP,
@@ -148,6 +156,7 @@ const ADMINISTRASI_GROUPS: &[NavGroup] = &[
         icon: "fas fa-shield-alt",
         label: "Admin",
         accent: "#f87171",
+        admin_only: true,
         items: &[
             NavItem {
                 href: routes::path::ADMIN_USERS,
@@ -169,12 +178,33 @@ const ADMINISTRASI_GROUPS: &[NavGroup] = &[
                 icon: "fas fa-database",
                 label: "Master Data",
             },
+            NavItem {
+                href: routes::path::ADMIN_TEMPLATES,
+                icon: "fas fa-file-alt",
+                label: "Template Dokumen",
+            },
+            NavItem {
+                href: routes::path::ADMIN_WORKFLOW,
+                icon: "fas fa-project-diagram",
+                label: "Konfigurasi Workflow",
+            },
+            NavItem {
+                href: routes::path::ADMIN_WORKFLOW_MONITORING,
+                icon: "fas fa-wave-square",
+                label: "Monitoring Workflow",
+            },
+            NavItem {
+                href: routes::path::ADMIN_WORKFLOW_DELEGATION,
+                icon: "fas fa-people-arrows",
+                label: "Delegasi Workflow",
+            },
         ],
     },
     NavGroup {
         icon: "fas fa-life-ring",
         label: "Bantuan",
         accent: "#94a3b8",
+        admin_only: false,
         items: &[
             NavItem {
                 href: routes::path::BANTUAN_PANDUAN,

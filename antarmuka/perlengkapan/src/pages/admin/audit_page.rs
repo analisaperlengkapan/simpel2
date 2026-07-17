@@ -77,8 +77,8 @@ pub fn AdminAuditPage() -> impl IntoView {
     };
 
     let breadcrumbs = vec![
-        PageBreadcrumb::new("Dashboard", "/perlengkapan/dashboard"),
-        PageBreadcrumb::new("Admin", "/perlengkapan/admin/workflow"),
+        PageBreadcrumb::new("Dashboard", crate::routes::path::DASHBOARD),
+        PageBreadcrumb::new("Admin", crate::routes::path::ADMIN_WORKFLOW),
         PageBreadcrumb::leaf("Audit Log"),
     ];
 

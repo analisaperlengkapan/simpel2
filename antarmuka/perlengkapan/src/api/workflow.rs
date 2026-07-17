@@ -322,46 +322,6 @@ pub async fn upsert_workflow_step(
     ))
 }
 
-/// Delete a workflow step
-#[cfg(target_arch = "wasm32")]
-pub async fn delete_workflow_step(
-    workflow_name: &str,
-    state_name: &str,
-) -> Result<ApiResponse<()>, crate::api::AppError> {
-    use crate::api::client::API_BASE;
-    use gloo_net::http::Request;
-
-    let url = format!(
-        "{}/workflow/definitions/{}/steps/{}",
-        API_BASE, workflow_name, state_name
-    );
-    let token = require_auth_token()?;
-
-    let resp = Request::delete(&url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Network error: {}", e)))?;
-
-    if !resp.ok() {
-        return Err(format!("API error: HTTP {}", resp.status()).into());
-    }
-
-    resp.json::<ApiResponse<()>>()
-        .await
-        .map_err(|e| crate::api::AppError::Unknown(format!("Parse error: {}", e)))
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn delete_workflow_step(
-    _workflow_name: &str,
-    _state_name: &str,
-) -> Result<ApiResponse<()>, crate::api::AppError> {
-    Err(crate::api::AppError::Unknown(
-        "Server-side stub".to_string(),
-    ))
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Delegation types & API
 // ═══════════════════════════════════════════════════════════════════════════

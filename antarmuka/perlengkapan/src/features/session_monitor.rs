@@ -10,11 +10,13 @@
 // import keeps the host-target build warning-free (and immune to `cargo fix`).
 #[cfg(target_arch = "wasm32")]
 use crate::features::auth::AuthService;
+#[cfg(target_arch = "wasm32")]
 use leptos::prelude::*;
 
 /// Spawn a long-lived task that refreshes the JWT before it expires and
 /// pushes a fresh `UserSession` into the provided write signal. Cancels
 /// itself when the owning scope is dropped.
+#[cfg(target_arch = "wasm32")]
 pub fn spawn_refresh_loop(
     set_user_session: WriteSignal<Option<crate::features::auth::UserSession>>,
 ) {

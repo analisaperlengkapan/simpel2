@@ -21,6 +21,7 @@ pub enum AppError {
 }
 
 impl AppError {
+    #[cfg(target_arch = "wasm32")]
     pub fn network(msg: impl Into<String>) -> Self {
         Self::Network(msg.into())
     }
@@ -29,32 +30,12 @@ impl AppError {
         Self::Auth(msg.into())
     }
 
-    pub fn forbidden(msg: impl Into<String>) -> Self {
-        Self::Forbidden(msg.into())
-    }
-
     pub fn not_found(msg: impl Into<String>) -> Self {
         Self::NotFound(msg.into())
     }
 
-    pub fn conflict(msg: impl Into<String>) -> Self {
-        Self::Conflict(msg.into())
-    }
-
     pub fn server(msg: impl Into<String>) -> Self {
         Self::Server(msg.into())
-    }
-
-    pub fn parse(msg: impl Into<String>) -> Self {
-        Self::Parse(msg.into())
-    }
-
-    pub fn unknown(msg: impl Into<String>) -> Self {
-        Self::Unknown(msg.into())
-    }
-
-    pub fn validation(errors: Vec<FieldError>) -> Self {
-        Self::Validation(errors)
     }
 
     pub fn from_status(status: u16, body: &str) -> Self {
@@ -102,10 +83,6 @@ impl AppError {
             Self::Parse(_) => "Format respons server tidak dapat diproses.".to_string(),
             Self::Unknown(msg) => msg.clone(),
         }
-    }
-
-    pub fn is_auth_error(&self) -> bool {
-        matches!(self, Self::Auth(_))
     }
 }
 

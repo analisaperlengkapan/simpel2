@@ -102,17 +102,6 @@ pub struct CreatePenghapusanBmnWorkflowRequest {
     pub items: Vec<CreatePenghapusanBmnItemRequest>,
 }
 
-/// Update SK Penghapusan BMN request
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdatePenghapusanBmnWorkflowRequest {
-    pub tanggal_penghapusan: Option<String>,
-    pub alasan: Option<String>,
-    pub metode_penghapusan: Option<String>,
-    pub nilai_perolehan: Option<f64>,
-    pub lampiran_persyaratan: Option<String>,
-    pub catatan_operator: Option<String>,
-}
-
 /// Penghapusan BMN list filters
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PenghapusanBmnFilters {
@@ -123,33 +112,10 @@ pub struct PenghapusanBmnFilters {
     pub tahun: Option<i32>,
 }
 
-/// Validator wilayah action request for penghapusan BMN
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PenghapusanValidatorWilayahActionRequest {
-    /// "forward" or "return"
-    pub aksi: String,
-    pub catatan: Option<String>,
-}
-
-/// Validator pusat action request for penghapusan BMN
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PenghapusanValidatorPusatActionRequest {
-    /// "verify" or "reject"
-    pub aksi: String,
-    pub catatan: Option<String>,
-}
-
 /// Upload signed SK PDF request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UploadSignedSKRequest {
     pub signed_sk_pdf_url: String,
-}
-
-/// Penghapusan BMN workflow transition request
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PenghapusanWorkflowTransitionRequest {
-    pub target_status: i32,
-    pub catatan: Option<String>,
 }
 
 /// Satu item BMN dalam usulan multi-item (Fase 2.8).
@@ -193,40 +159,6 @@ pub struct PenghapusanBmnDetailResponse {
     pub items: Vec<PenghapusanBmnItem>,
 }
 
-/// Satu baris lampiran pendukung Usulan SK Penghapusan BMN (Fase 0.6 / #15).
-/// Mirror dari backend `PenghapusanBmnLampiran` — hanya metadata; file fisik
-/// di `DocumentStorage`, diakses via `file_url`.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PenghapusanBmnLampiran {
-    pub id: String,
-    pub penghapusan_id: String,
-    pub nama: String,
-    pub file_url: String,
-    #[serde(default)]
-    pub content_type: Option<String>,
-    #[serde(default)]
-    pub size_bytes: Option<i64>,
-    #[serde(default)]
-    pub uploaded_by: Option<String>,
-    pub uploaded_at: String,
-}
-
-/// Hasil verifikasi aset ke SIMAN (Fase 2.3) — ditampilkan ke validator.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SimanAssetVerification {
-    pub nup: String,
-    pub ditemukan: bool,
-    pub kode_barang_diajukan: String,
-    pub kode_barang_siman: Option<String>,
-    pub kode_barang_cocok: bool,
-    pub nama_barang_siman: Option<String>,
-    pub merk: Option<String>,
-    pub kondisi: Option<String>,
-    pub nilai_perolehan_siman: Option<f64>,
-    pub pesan: String,
-    pub layak_lanjut: bool,
-}
-
 /// Transition info for penghapusan BMN
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PenghapusanTransitionInfo {
@@ -244,70 +176,11 @@ pub struct PenghapusanTransitionInfo {
 
 pub use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DashboardStats {
-    pub total_aset: i64,
-    pub total_nilai_aset: f64,
-    pub total_satker: i64,
-    pub aset_baik: i64,
-    pub aset_rusak: i64,
-    pub categories: Vec<CategoryStat>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CategoryStat {
-    pub category: String,
-    pub count: i64,
-    pub value: f64,
-}
-
 // `ApiResponse` is re-exported from `lib_perlengkapan::response` above
 // (see "Response Wrappers" section), so this previously-local definition
 // is gone — single source of truth shared with the backend.
 
 // ============ API Client Functions ============
-
-#[cfg(target_arch = "wasm32")]
-pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, crate::api::AppError> {
-    use crate::api::client::get_auth_token;
-    use gloo_net::http::Request;
-
-    let url = "/api/v1/perlengkapan/dashboard/stats";
-
-    let token = get_auth_token().ok_or_else(|| {
-        crate::api::AppError::network("No authentication token found".to_string())
-    })?;
-    let resp = Request::get(url)
-        .header("Authorization", &format!("Bearer {}", token))
-        .send()
-        .await?;
-
-    if !resp.ok() {
-        return Err(crate::api::AppError::network(format!(
-            "API Error: {}",
-            resp.status()
-        )));
-    }
-
-    let result: ApiResponse<DashboardStats> = resp.json().await?;
-    Ok(result)
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_dashboard_stats() -> Result<ApiResponse<DashboardStats>, crate::api::AppError> {
-    Ok(ApiResponse {
-        success: true,
-        data: DashboardStats {
-            total_aset: 0,
-            total_nilai_aset: 0.0,
-            total_satker: 0,
-            aset_baik: 0,
-            aset_rusak: 0,
-            categories: vec![],
-        },
-        message: "Server-side stub".to_string(),
-    })
-}
 
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_analisis(
