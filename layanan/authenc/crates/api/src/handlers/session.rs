@@ -1,73 +1,54 @@
-//! Session management endpoint handlers
+//! Self-service session management (REQ-PORTAL-008).
+//!
+//! The caller manages their OWN sessions only — identity always comes from the
+//! verified JWT (`sub` + `sid`), never from the request body. Admin-wide
+//! session management is a separate iam-api concern.
 
 use std::sync::Arc;
 
-use axum::{Json, extract::State, http::HeaderMap};
+use axum::{
+    Json,
+    extract::{Path, State},
+    http::HeaderMap,
+};
 use serde::Serialize;
 use uuid::Uuid;
 
 use crate::state::ApiState;
 
-/// Session information
+use super::auth::ErrorResponse;
+use super::auth_helpers::extract_bearer_token;
+
+/// One active session of the calling user, shaped for the portal Sesi Aktif
+/// page (`antarmuka/portal` `SessionInfo`).
 #[derive(Debug, Serialize)]
 pub struct SessionInfo {
-    /// Session ID
     pub id: String,
-    /// User ID
-    pub user_id: Uuid,
-    /// Session creation timestamp
-    pub created_at: i64,
-    /// Session expiration timestamp
-    pub expires_at: i64,
-    /// IP address
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
-    /// User agent
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
+    pub created_at: String,
+    pub last_active: String,
+    pub expires_at: String,
+    /// True when this row is the session the presented token belongs to.
+    pub is_current: bool,
 }
 
-/// List of sessions response
 #[derive(Debug, Serialize)]
 pub struct ListSessionsResponse {
-    /// List of active sessions
     pub sessions: Vec<SessionInfo>,
 }
 
-/// Logout response
-#[derive(Debug, Serialize)]
-pub struct LogoutResponse {
-    /// Success message
-    pub message: String,
-}
-
-use super::auth::ErrorResponse;
-
-/// Extract JWT token from Authorization header
-fn extract_token(headers: &HeaderMap) -> Option<String> {
-    headers
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .and_then(|s| s.strip_prefix("Bearer "))
-        .map(|s| s.to_string())
-}
-
-/// GET /api/v1/sessions - List all sessions for current user
-///
-/// Returns a list of all active sessions for the authenticated user.
-/// Requires valid JWT token in Authorization header.
-pub async fn list_sessions_handler(
-    State(state): State<Arc<ApiState>>,
-    headers: HeaderMap,
-) -> Result<Json<ListSessionsResponse>, ErrorResponse> {
-    // Extract JWT token from Authorization header
-    let token = extract_token(&headers).ok_or_else(|| ErrorResponse {
+/// Verify the bearer token and return `(user_id, sid)`.
+fn caller_identity(
+    state: &Arc<ApiState>,
+    headers: &HeaderMap,
+) -> Result<(Uuid, Option<String>), ErrorResponse> {
+    let token = extract_bearer_token(headers).map_err(|e| ErrorResponse {
         status_code: axum::http::StatusCode::UNAUTHORIZED,
         error: "unauthorized".to_string(),
-        message: "Missing or invalid Authorization header".to_string(),
+        message: e.message,
     })?;
 
-    // Validate JWT token and extract user ID
     let claims = state
         .jwt_service
         .verify_token(&token)
@@ -77,102 +58,167 @@ pub async fn list_sessions_handler(
             message: format!("Invalid token: {}", e),
         })?;
 
-    let user_id = Uuid::parse_str(&claims.sub).map_err(|e| ErrorResponse {
-        status_code: axum::http::StatusCode::BAD_REQUEST,
-        error: "invalid_user_id".to_string(),
-        message: format!("Invalid user ID in token: {}", e),
+    let user_id = Uuid::parse_str(&claims.sub).map_err(|_| ErrorResponse {
+        status_code: axum::http::StatusCode::UNAUTHORIZED,
+        error: "unauthorized".to_string(),
+        message: "Invalid user ID in token".to_string(),
     })?;
 
-    // TODO: Implement session listing from session store
-    // The current SessionStore API doesn't have an all_for_user method
-    let sessions: Vec<SessionInfo> = Vec::new();
-    let _ = user_id; // suppress unused warning
+    Ok((user_id, claims.sid))
+}
+
+/// GET /api/v1/auth/sessions — list the caller's active sessions.
+pub async fn list_sessions_handler(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+) -> Result<Json<ListSessionsResponse>, ErrorResponse> {
+    let (user_id, sid) = caller_identity(&state, &headers)?;
+
+    let rows = state
+        .database
+        .query(
+            r#"
+            SELECT id, ip_address, user_agent, created_at, last_activity_at, expires_at
+            FROM sessions
+            WHERE user_id = $1 AND expires_at > NOW()
+            ORDER BY last_activity_at DESC
+            "#,
+            &[&user_id],
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to list sessions");
+            ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "internal_error".to_string(),
+                message: "Gagal memuat daftar sesi.".to_string(),
+            }
+        })?;
+
+    let sessions = rows
+        .iter()
+        .map(|row| {
+            let id: Uuid = row.get("id");
+            SessionInfo {
+                id: id.to_string(),
+                ip_address: row
+                    .get::<_, Option<std::net::IpAddr>>("ip_address")
+                    .map(|ip| ip.to_string()),
+                user_agent: row.get("user_agent"),
+                created_at: row
+                    .get::<_, chrono::DateTime<chrono::Utc>>("created_at")
+                    .to_rfc3339(),
+                last_active: row
+                    .get::<_, chrono::DateTime<chrono::Utc>>("last_activity_at")
+                    .to_rfc3339(),
+                expires_at: row
+                    .get::<_, chrono::DateTime<chrono::Utc>>("expires_at")
+                    .to_rfc3339(),
+                is_current: sid.as_deref() == Some(id.to_string().as_str()),
+            }
+        })
+        .collect();
 
     Ok(Json(ListSessionsResponse { sessions }))
 }
 
-/// POST /api/v1/auth/logout - Logout and invalidate session
-///
-/// Invalidates the current session and removes it from the session store.
-/// Requires valid JWT token in Authorization header.
-pub async fn logout_handler(
-    State(_state): State<Arc<ApiState>>,
+/// DELETE /api/v1/auth/sessions/{id} — terminate one of the caller's OTHER
+/// sessions. The current session must end via logout (revokes the refresh
+/// token too); a foreign or unknown id returns 404 so session existence is
+/// never leaked across users.
+pub async fn terminate_session_handler(
+    State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
-) -> Result<Json<LogoutResponse>, ErrorResponse> {
-    // Extract JWT token from Authorization header
-    let token = extract_token(&headers).ok_or_else(|| ErrorResponse {
-        status_code: axum::http::StatusCode::UNAUTHORIZED,
-        error: "unauthorized".to_string(),
-        message: "Missing or invalid Authorization header".to_string(),
+    Path(session_id): Path<String>,
+) -> Result<axum::http::StatusCode, ErrorResponse> {
+    let (user_id, sid) = caller_identity(&state, &headers)?;
+
+    let target = Uuid::parse_str(&session_id).map_err(|_| ErrorResponse {
+        status_code: axum::http::StatusCode::NOT_FOUND,
+        error: "not_found".to_string(),
+        message: "Sesi tidak ditemukan.".to_string(),
     })?;
 
-    // Remove session from session store
-    // Note: We don't validate the token here because even if it's expired,
-    // we still want to remove the session
-    // TODO: Implement session removal - current SessionStore API doesn't have a remove method
-    let _ = &token; // suppress unused warning
+    if sid.as_deref() == Some(session_id.as_str()) {
+        return Err(ErrorResponse {
+            status_code: axum::http::StatusCode::BAD_REQUEST,
+            error: "invalid_request".to_string(),
+            message: "Gunakan logout untuk mengakhiri sesi saat ini.".to_string(),
+        });
+    }
 
-    Ok(Json(LogoutResponse {
-        message: "Successfully logged out".to_string(),
-    }))
+    let row = state
+        .database
+        .query(
+            "SELECT user_id, expires_at FROM sessions WHERE id = $1",
+            &[&target],
+        )
+        .await
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to look up session");
+            ErrorResponse {
+                status_code: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                error: "internal_error".to_string(),
+                message: "Gagal menghentikan sesi.".to_string(),
+            }
+        })?;
+
+    let Some(row) = row.first() else {
+        return Err(not_found());
+    };
+    if row.get::<_, Uuid>("user_id") != user_id {
+        return Err(not_found());
+    }
+    let expires_at: chrono::DateTime<chrono::Utc> = row.get("expires_at");
+
+    // Revoke first (fail-closed for any access token carrying this sid), then
+    // drop the session row so refresh + listing stop seeing it.
+    if let Err(e) = state
+        .revocation_store
+        .revoke_session(&session_id, expires_at, Some("user_terminated"))
+        .await
+    {
+        tracing::warn!(error = %e, "Failed to record session revocation");
+    }
+    {
+        use authenc_types::traits::AuthenticationService;
+        let _ = state
+            .auth_service
+            .logout(authenc_types::SessionId(target))
+            .await;
+    }
+
+    Ok(axum::http::StatusCode::NO_CONTENT)
+}
+
+fn not_found() -> ErrorResponse {
+    ErrorResponse {
+        status_code: axum::http::StatusCode::NOT_FOUND,
+        error: "not_found".to_string(),
+        message: "Sesi tidak ditemukan.".to_string(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::http::HeaderValue;
 
     #[test]
-    fn test_extract_token_valid() {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "Authorization",
-            HeaderValue::from_static("Bearer test_token_123"),
-        );
-
-        let token = extract_token(&headers);
-        assert_eq!(token, Some("test_token_123".to_string()));
-    }
-
-    #[test]
-    fn test_extract_token_missing() {
-        let headers = HeaderMap::new();
-        let token = extract_token(&headers);
-        assert_eq!(token, None);
-    }
-
-    #[test]
-    fn test_extract_token_invalid_format() {
-        let mut headers = HeaderMap::new();
-        headers.insert("Authorization", HeaderValue::from_static("InvalidFormat"));
-
-        let token = extract_token(&headers);
-        assert_eq!(token, None);
-    }
-
-    #[test]
-    fn test_session_info_serialization() {
+    fn session_info_serializes_portal_shape() {
         let session = SessionInfo {
             id: "session123".to_string(),
-            user_id: Uuid::new_v4(),
-            created_at: 1234567890,
-            expires_at: 1234567890 + 3600,
             ip_address: Some("192.168.1.1".to_string()),
             user_agent: Some("Mozilla/5.0".to_string()),
+            created_at: "2026-01-01T00:00:00+00:00".to_string(),
+            last_active: "2026-01-01T01:00:00+00:00".to_string(),
+            expires_at: "2026-01-02T00:00:00+00:00".to_string(),
+            is_current: true,
         };
 
         let json = serde_json::to_string(&session).unwrap();
         assert!(json.contains("session123"));
         assert!(json.contains("192.168.1.1"));
-    }
-
-    #[test]
-    fn test_logout_response_serialization() {
-        let response = LogoutResponse {
-            message: "Successfully logged out".to_string(),
-        };
-
-        let json = serde_json::to_string(&response).unwrap();
-        assert!(json.contains("Successfully logged out"));
+        assert!(json.contains("\"is_current\":true"));
+        assert!(json.contains("last_active"));
     }
 }

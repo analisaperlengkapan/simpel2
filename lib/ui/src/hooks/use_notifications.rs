@@ -1,22 +1,33 @@
-//! Notification hook for real-time notifications
+//! Notification hook — per-user in-app inbox.
 //!
-//! Provides WebSocket-based real-time notification delivery for all microfrontends
+//! Reads the REAL notifikasi inbox served by the notifikasi service at
+//! `/api/v1/perlengkapan/notifikasi/*` (same-origin; every FE's nginx/ingress
+//! proxies that prefix). Identity comes from the shared `auth_token` JWT —
+//! the backend scopes rows by `claims.user_id`.
+//!
+//! The previous implementation connected to a `/ws/notifications` endpoint no
+//! backend ever served and fell back to a MOCK generator that fabricated
+//! notifications ("Peringatan Keamanan", …) client-side — removed in the
+//! 2026-07 portal audit: the UI must only ever show real inbox rows, and an
+//! unreachable inbox must surface as `SyncState::Unavailable`, never as fake
+//! data.
 
 use leptos::prelude::*;
-use leptos::task::spawn_local;
 use serde::{Deserialize, Serialize};
 
-/// Notification data structure (matches backend format)
+/// Base path of the notifikasi inbox API (origin-relative). Only the wasm
+/// build performs fetches; the host build compiles the types only.
+#[cfg(target_arch = "wasm32")]
+const NOTIFIKASI_API: &str = "/api/v1/perlengkapan/notifikasi";
+
+/// Notification data structure (UI shape)
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Notification {
     /// Unique identifier for the notification
     pub id: String,
-    /// User ID this notification belongs to
-    pub user_id: String,
     /// Title of the notification
     pub title: String,
-    /// Detailed message content (body in backend)
-    #[serde(alias = "body")]
+    /// Detailed message content
     pub message: String,
     /// Category type of the notification
     pub category: NotificationCategory,
@@ -25,7 +36,6 @@ pub struct Notification {
     /// Optional action URL
     pub action_url: Option<String>,
     /// Timestamp when the notification was created
-    #[serde(alias = "created_at")]
     pub timestamp: String,
     /// Whether the notification has been read
     pub read: bool,
@@ -45,7 +55,7 @@ pub enum NotificationPriority {
     Urgent,
 }
 
-/// Notification category (matches backend format)
+/// Notification category
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum NotificationCategory {
@@ -87,26 +97,16 @@ impl NotificationCategory {
     }
 }
 
-/// Client-to-server message
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ClientMessage {
-    /// Action to perform
-    pub action: String,
-    /// Notification ID (for mark_read action)
-    pub notification_id: Option<String>,
-}
-
-/// WebSocket connection state
+/// Inbox synchronisation state
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WsState {
-    /// Not connected
-    Disconnected,
-    /// Connecting to server
-    Connecting,
-    /// Connected and ready
-    Connected,
-    /// Connection error
-    Error,
+pub enum SyncState {
+    /// Initial fetch in flight
+    Loading,
+    /// Inbox fetched successfully (list may be empty)
+    Ready,
+    /// Inbox could not be fetched (not logged in / service unreachable).
+    /// The UI shows the honest empty/error state — never fabricated data.
+    Unavailable,
 }
 
 /// Notification context for sharing state across components
@@ -114,24 +114,8 @@ pub enum WsState {
 pub struct NotificationContext {
     /// List of notifications
     pub notifications: RwSignal<Vec<Notification>>,
-    /// WebSocket connection state
-    pub ws_state: RwSignal<WsState>,
-}
-
-// Global WebSocket reference for sending messages
-#[cfg(target_arch = "wasm32")]
-thread_local! {
-    static WS_CONNECTION: std::cell::RefCell<Option<web_sys::WebSocket>> = const { std::cell::RefCell::new(None) };
-}
-
-/// Send message via WebSocket
-#[cfg(target_arch = "wasm32")]
-fn send_ws_message(message: &str) {
-    WS_CONNECTION.with(|ws| {
-        if let Some(socket) = ws.borrow().as_ref() {
-            let _ = socket.send_with_str(message);
-        }
-    });
+    /// Inbox synchronisation state
+    pub sync_state: RwSignal<SyncState>,
 }
 
 impl NotificationContext {
@@ -141,66 +125,50 @@ impl NotificationContext {
             .with(|notifs| notifs.iter().filter(|n| !n.read).count())
     }
 
-    /// Mark notification as read (sends to server)
+    /// Mark notification as read (optimistic local update + persist)
     pub fn mark_as_read(&self, id: &str) {
-        // Update local state
         self.notifications.update(|notifs| {
             if let Some(notif) = notifs.iter_mut().find(|n| n.id == id) {
                 notif.read = true;
             }
         });
 
-        // Send to server via WebSocket
         #[cfg(target_arch = "wasm32")]
         {
-            let message = ClientMessage {
-                action: "mark_read".to_string(),
-                notification_id: Some(id.to_string()),
-            };
-
-            if let Ok(json) = serde_json::to_string(&message) {
-                send_ws_message(&json);
-            }
+            let url = format!("{}/{}/read", NOTIFIKASI_API, id);
+            leptos::task::spawn_local(async move {
+                let _ = authed_request(gloo::net::http::Method::PATCH, &url).await;
+            });
         }
     }
 
-    /// Mark all notifications as read (sends to server)
+    /// Mark all notifications as read (optimistic local update + persist)
     pub fn mark_all_as_read(&self) {
-        // Update local state
         self.notifications.update(|notifs| {
             for notif in notifs.iter_mut() {
                 notif.read = true;
             }
         });
 
-        // Send to server via WebSocket
         #[cfg(target_arch = "wasm32")]
         {
-            let message = ClientMessage {
-                action: "mark_all_read".to_string(),
-                notification_id: None,
-            };
-
-            if let Ok(json) = serde_json::to_string(&message) {
-                send_ws_message(&json);
-            }
+            let url = format!("{}/read-all", NOTIFIKASI_API);
+            leptos::task::spawn_local(async move {
+                let _ = authed_request(gloo::net::http::Method::POST, &url).await;
+            });
         }
     }
 
-    /// Add new notification
-    pub fn add_notification(&self, notification: Notification) {
-        self.notifications.update(|notifs| {
-            notifs.insert(0, notification);
-            // Keep only last 100 notifications
-            if notifs.len() > 100 {
-                notifs.truncate(100);
-            }
-        });
-    }
-
-    /// Clear all notifications
-    pub fn clear_all(&self) {
-        self.notifications.update(|notifs| notifs.clear());
+    /// Re-fetch the inbox from the backend.
+    pub fn refresh(&self) {
+        #[cfg(target_arch = "wasm32")]
+        {
+            let notifications = self.notifications;
+            let sync_state = self.sync_state;
+            leptos::task::spawn_local(async move {
+                fetch_inbox(notifications, sync_state).await;
+            });
+        }
     }
 }
 
@@ -231,18 +199,20 @@ pub fn use_notifications() -> NotificationContext {
 
     // Create new context
     let notifications = RwSignal::new(Vec::new());
-    let ws_state = RwSignal::new(WsState::Disconnected);
+    let sync_state = RwSignal::new(SyncState::Loading);
 
     let ctx = NotificationContext {
         notifications,
-        ws_state,
+        sync_state,
     };
 
-    // Setup WebSocket connection
+    // Initial inbox fetch
     #[cfg(target_arch = "wasm32")]
     {
         Effect::new(move |_| {
-            setup_websocket_connection(notifications, ws_state);
+            leptos::task::spawn_local(async move {
+                fetch_inbox(notifications, sync_state).await;
+            });
         });
     }
 
@@ -252,204 +222,100 @@ pub fn use_notifications() -> NotificationContext {
     ctx
 }
 
-/// Setup WebSocket connection for notifications
+// ── Backend wire types + fetch (wasm only) ─────────────────────────────────
+
+/// One inbox row as served by the notifikasi service (`NotifikasiItem`).
+/// `category`/`priority` are free-form strings server-side, so they are mapped
+/// leniently — an unknown value must not fail the whole inbox.
 #[cfg(target_arch = "wasm32")]
-fn setup_websocket_connection(
-    notifications: RwSignal<Vec<Notification>>,
-    ws_state: RwSignal<WsState>,
-) {
-    use wasm_bindgen::JsCast;
-    use wasm_bindgen::prelude::*;
-    use web_sys::{CloseEvent, ErrorEvent, MessageEvent, WebSocket};
-    // Derive WebSocket URL from window.location for same-origin connectivity
-    let ws_url = {
-        let origin = web_sys::window()
-            .and_then(|w| w.location().origin().ok())
-            .unwrap_or_else(|| "http://localhost:3000".to_string());
-        // Convert http(s):// to ws(s)://
-        let ws_origin = origin
-            .replace("https://", "wss://")
-            .replace("http://", "ws://");
-        format!("{}/ws/notifications", ws_origin)
-    };
+#[derive(Deserialize)]
+struct NotifikasiWire {
+    id: String,
+    title: String,
+    message: String,
+    #[serde(default)]
+    priority: String,
+    #[serde(default)]
+    category: String,
+    #[serde(default)]
+    action_url: Option<String>,
+    #[serde(default)]
+    read: bool,
+    #[serde(default)]
+    created_at: String,
+}
 
-    // Get access token from localStorage
-    let access_token = if let Some(storage) = web_sys::window()
-        .and_then(|w| w.local_storage().ok())
-        .flatten()
-    {
-        storage.get_item("auth_token").ok().flatten()
-    } else {
-        None
-    };
-
-    // If no token or mock mode, use mock generator
-    if access_token.is_none() || ws_url.contains("mock") || ws_url.is_empty() {
-        leptos::logging::log!("Using mock notification generator");
-        start_mock_notification_generator(move |notification| {
-            notifications.update(|notifs| {
-                notifs.insert(0, notification);
-                if notifs.len() > 100 {
-                    notifs.truncate(100);
-                }
-            });
-        });
-        return;
-    }
-
-    let token = access_token.unwrap();
-
-    // Create WebSocket connection
-    let ws_url_with_token = format!("{}?token={}", ws_url, urlencoding::encode(&token));
-
-    match WebSocket::new(&ws_url_with_token) {
-        Ok(ws) => {
-            ws_state.set(WsState::Connecting);
-            ws.set_binary_type(web_sys::BinaryType::Arraybuffer);
-
-            // Store WebSocket connection globally
-            WS_CONNECTION.with(|ws_ref| {
-                *ws_ref.borrow_mut() = Some(ws.clone());
-            });
-
-            // On open handler
-            {
-                let onopen_callback = Closure::wrap(Box::new(move |_| {
-                    leptos::logging::log!("WebSocket connected to notification service");
-                    ws_state.set(WsState::Connected);
-                }) as Box<dyn FnMut(JsValue)>);
-
-                ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
-                onopen_callback.forget();
-            }
-
-            // On message handler
-            {
-                let onmessage_callback = Closure::wrap(Box::new(move |e: MessageEvent| {
-                    if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
-                        let message_str = txt.as_string().unwrap_or_default();
-
-                        // Backend sends notifications directly as JSON objects
-                        if let Ok(notification) = serde_json::from_str::<Notification>(&message_str)
-                        {
-                            leptos::logging::log!("Received notification: {}", notification.title);
-                            notifications.update(|notifs| {
-                                notifs.insert(0, notification);
-                                if notifs.len() > 100 {
-                                    notifs.truncate(100);
-                                }
-                            });
-                        } else {
-                            leptos::logging::warn!("Failed to parse notification: {}", message_str);
-                        }
-                    }
-                })
-                    as Box<dyn FnMut(MessageEvent)>);
-
-                ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
-                onmessage_callback.forget();
-            }
-
-            // On error handler
-            {
-                let onerror_callback = Closure::wrap(Box::new(move |e: ErrorEvent| {
-                    leptos::logging::error!("WebSocket error: {:?}", e);
-                    ws_state.set(WsState::Error);
-                })
-                    as Box<dyn FnMut(ErrorEvent)>);
-
-                ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
-                onerror_callback.forget();
-            }
-
-            // On close handler
-            {
-                let onclose_callback = Closure::wrap(Box::new(move |e: CloseEvent| {
-                    leptos::logging::log!(
-                        "WebSocket closed: code={}, reason={}",
-                        e.code(),
-                        e.reason()
-                    );
-                    ws_state.set(WsState::Disconnected);
-                })
-                    as Box<dyn FnMut(CloseEvent)>);
-
-                ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
-                onclose_callback.forget();
-            }
-
-            // Setup keep-alive ping (WebSocket protocol handles this automatically)
-            // No need for manual ping/pong
-        }
-        Err(e) => {
-            leptos::logging::error!("Failed to create WebSocket: {:?}", e);
-            ws_state.set(WsState::Error);
-
-            // Fallback to mock generator
-            start_mock_notification_generator(move |notification| {
-                notifications.update(|notifs| {
-                    notifs.insert(0, notification);
-                    if notifs.len() > 100 {
-                        notifs.truncate(100);
-                    }
-                });
-            });
+#[cfg(target_arch = "wasm32")]
+impl From<NotifikasiWire> for Notification {
+    fn from(w: NotifikasiWire) -> Self {
+        let category = match w.category.to_lowercase().as_str() {
+            "warning" | "peringatan" => NotificationCategory::Warning,
+            "error" => NotificationCategory::Error,
+            "success" | "sukses" => NotificationCategory::Success,
+            "system" | "sistem" => NotificationCategory::System,
+            _ => NotificationCategory::Info,
+        };
+        let priority = match w.priority.to_lowercase().as_str() {
+            "low" => NotificationPriority::Low,
+            "high" => NotificationPriority::High,
+            "urgent" => NotificationPriority::Urgent,
+            _ => NotificationPriority::Normal,
+        };
+        Notification {
+            id: w.id,
+            title: w.title,
+            message: w.message,
+            category,
+            priority,
+            action_url: w.action_url,
+            timestamp: w.created_at,
+            read: w.read,
         }
     }
 }
 
-/// Mock notification generator for testing
-/// Generates a random notification every 10 seconds
-pub fn start_mock_notification_generator<F>(on_notification: F)
-where
-    F: Fn(Notification) + 'static + Clone,
-{
-    spawn_local(async move {
-        let mut counter = 1;
-        loop {
-            gloo_timers::future::TimeoutFuture::new(10_000).await;
+#[cfg(target_arch = "wasm32")]
+fn auth_token() -> Option<String> {
+    web_sys::window()
+        .and_then(|w| w.local_storage().ok())
+        .flatten()
+        .and_then(|s| s.get_item("auth_token").ok().flatten())
+}
 
-            let categories = [
-                NotificationCategory::Info,
-                NotificationCategory::Success,
-                NotificationCategory::Warning,
-                NotificationCategory::Error,
-            ];
+/// Send an authenticated request; Err on missing token / network / non-2xx.
+#[cfg(target_arch = "wasm32")]
+async fn authed_request(
+    method: gloo::net::http::Method,
+    url: &str,
+) -> Result<gloo::net::http::Response, ()> {
+    let token = auth_token().ok_or(())?;
+    let resp = gloo::net::http::RequestBuilder::new(url)
+        .method(method)
+        .header("Authorization", &format!("Bearer {}", token))
+        .build()
+        .map_err(|_| ())?
+        .send()
+        .await
+        .map_err(|_| ())?;
+    if resp.ok() { Ok(resp) } else { Err(()) }
+}
 
-            let titles = [
-                "Pembaruan Sistem",
-                "Dokumen Baru",
-                "Peringatan Keamanan",
-                "Tugas Selesai",
-                "Pesan Baru",
-            ];
+#[cfg(target_arch = "wasm32")]
+async fn fetch_inbox(notifications: RwSignal<Vec<Notification>>, sync_state: RwSignal<SyncState>) {
+    #[derive(Deserialize)]
+    struct ListWrap {
+        data: Vec<NotifikasiWire>,
+    }
 
-            let messages = [
-                "Sistem telah diperbarui ke versi terbaru",
-                "Dokumen baru telah ditambahkan ke sistem",
-                "Harap perbarui password Anda",
-                "Tugas Anda telah selesai diproses",
-                "Anda memiliki pesan baru dari administrator",
-            ];
-
-            let category = categories[counter % categories.len()].clone();
-            let title = titles[counter % titles.len()].to_string();
-            let message = messages[counter % messages.len()].to_string();
-
-            let notification = Notification {
-                id: format!("mock-{}", counter),
-                user_id: "mock-user".to_string(),
-                title,
-                message,
-                category,
-                priority: NotificationPriority::Normal,
-                action_url: None,
-                timestamp: chrono::Utc::now().to_rfc3339(),
-                read: false,
-            };
-
-            on_notification(notification);
-            counter += 1;
-        }
-    });
+    let url = format!("{}?limit=50&offset=0&unread_only=false", NOTIFIKASI_API);
+    match authed_request(gloo::net::http::Method::GET, &url).await {
+        Ok(resp) => match resp.json::<ListWrap>().await {
+            Ok(wrap) => {
+                notifications.set(wrap.data.into_iter().map(Notification::from).collect());
+                sync_state.set(SyncState::Ready);
+            }
+            Err(_) => sync_state.set(SyncState::Unavailable),
+        },
+        Err(()) => sync_state.set(SyncState::Unavailable),
+    }
 }

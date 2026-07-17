@@ -2,7 +2,7 @@
 //!
 //! Provides reusable notification UI components
 
-use crate::hooks::use_notifications::{NotificationCategory, WsState, use_notifications};
+use crate::hooks::use_notifications::{NotificationCategory, use_notifications};
 use leptos::prelude::*;
 
 /// Notification bell component with dropdown
@@ -382,14 +382,26 @@ pub fn NotificationList(
                 {move || {
                     let notifs = filtered_notifications();
                     if notifs.is_empty() {
+                        // Honest empty states: "unavailable" (inbox unreachable)
+                        // is distinct from "genuinely no notifications".
+                        let unavailable = notif_ctx.sync_state.get()
+                            == crate::hooks::use_notifications::SyncState::Unavailable;
                         view! {
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
                                 <div class="text-6xl mb-4">"🔔"</div>
                                 <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                                    "Tidak ada notifikasi"
+                                    {if unavailable {
+                                        "Notifikasi tidak tersedia"
+                                    } else {
+                                        "Tidak ada notifikasi"
+                                    }}
                                 </h3>
                                 <p class="text-gray-600 dark:text-gray-400">
-                                    "Anda tidak memiliki notifikasi saat ini"
+                                    {if unavailable {
+                                        "Layanan notifikasi sedang tidak dapat dihubungi"
+                                    } else {
+                                        "Anda tidak memiliki notifikasi saat ini"
+                                    }}
                                 </p>
                             </div>
                         }
@@ -459,62 +471,6 @@ pub fn NotificationList(
                     }
                 }}
             </div>
-        </div>
-    }
-}
-
-/// Connection status indicator
-///
-/// Shows the current WebSocket connection status
-#[component]
-pub fn NotificationConnectionStatus() -> impl IntoView {
-    let notif_ctx = use_notifications();
-
-    view! {
-        <div class="flex items-center space-x-2 text-sm">
-            {move || {
-                let state = notif_ctx.ws_state.get();
-                match state {
-                    WsState::Connected => {
-                        view! {
-                            <>
-                                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                <span class="text-gray-600 dark:text-gray-400">"Terhubung"</span>
-                            </>
-                        }
-                            .into_any()
-                    }
-                    WsState::Connecting => {
-                        view! {
-                            <>
-                                <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                                <span class="text-gray-600 dark:text-gray-400">
-                                    "Menghubungkan..."
-                                </span>
-                            </>
-                        }
-                            .into_any()
-                    }
-                    WsState::Disconnected => {
-                        view! {
-                            <>
-                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
-                                <span class="text-gray-600 dark:text-gray-400">"Terputus"</span>
-                            </>
-                        }
-                            .into_any()
-                    }
-                    WsState::Error => {
-                        view! {
-                            <>
-                                <span class="w-2 h-2 bg-red-500 rounded-full"></span>
-                                <span class="text-gray-600 dark:text-gray-400">"Error"</span>
-                            </>
-                        }
-                            .into_any()
-                    }
-                }
-            }}
         </div>
     }
 }

@@ -14,7 +14,7 @@ use crate::features::auth::AuthService;
 use crate::features::auth::{
     CallbackPage, LoggedOutPage, LoginPage, PasskeysPage, PasswordChangePage,
 };
-use crate::features::dashboard::PortalDashboardPage;
+use crate::features::dashboard::DashboardPage;
 use crate::features::mfa::{
     MfaBackupCodesPage, MfaBackupVerificationPage, MfaSetupPage, MfaVerificationPage,
 };
@@ -131,7 +131,7 @@ pub fn App() -> impl IntoView {
                             // Layout pages (now read session from context)
                             <Route
                                 path=StaticSegment(routes::segment::DASHBOARD)
-                                view=PortalDashboardPage
+                                view=DashboardPage
                             />
                             <Route path=StaticSegment(routes::segment::APPS) view=AppsPage />
                             <Route

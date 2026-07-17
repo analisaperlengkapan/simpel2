@@ -1,7 +1,7 @@
 //! IAM Admin Pages Module
 //!
 //! Administrative pages for Identity & Access Management.
-//! All pages protected by AdminRoute guard.
+//! All pages protected by the `PortalAdminLayout` parent-route guard.
 
 pub mod audit;
 pub mod auth_flows;

@@ -1,5 +1,4 @@
 //! Portal components
-pub mod cards;
 pub mod feedback;
 pub mod guards;
 pub mod layout;

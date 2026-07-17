@@ -174,7 +174,8 @@ pub struct TotpVerifyRequest {
 
 // ─── Session Types ───────────────────────────────────────────────────────────
 
-/// Active session info
+/// Active session info from `GET /api/v1/auth/sessions` (self-service; serde
+/// ignores fields the UI doesn't need, e.g. `expires_at`).
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SessionInfo {
     pub id: String,
@@ -183,7 +184,6 @@ pub struct SessionInfo {
     pub created_at: String,
     pub last_active: String,
     pub is_current: bool,
-    pub location: Option<String>,
 }
 
 // ─── IAM Admin Types ─────────────────────────────────────────────────────────
@@ -771,27 +771,25 @@ impl AuthencApiClient {
     // Session management endpoints
     // ═════════════════════════════════════════════════════════════════════════
 
-    /// List active sessions
+    /// List the caller's own active sessions (self-service, REQ-PORTAL-008).
     #[cfg(target_arch = "wasm32")]
     pub async fn list_sessions(&self) -> Result<Vec<SessionInfo>, String> {
-        let resp = self.get("/api/v1/iam/sessions").await?;
-        Self::parse_response(resp).await
+        #[derive(Deserialize)]
+        struct ListSessionsResponse {
+            sessions: Vec<SessionInfo>,
+        }
+        let resp = self.get("/api/v1/auth/sessions").await?;
+        Self::parse_response::<ListSessionsResponse>(resp)
+            .await
+            .map(|r| r.sessions)
     }
 
-    /// Terminate a specific session
+    /// Terminate one of the caller's OTHER sessions (the current session ends
+    /// via logout).
     #[cfg(target_arch = "wasm32")]
     pub async fn terminate_session(&self, session_id: &str) -> Result<(), String> {
         let resp = self
-            .delete(&format!("/api/v1/iam/sessions/{}", session_id))
-            .await?;
-        Self::check_ok(resp).await
-    }
-
-    /// Terminate all sessions except current
-    #[cfg(target_arch = "wasm32")]
-    pub async fn terminate_all_sessions(&self) -> Result<(), String> {
-        let resp = self
-            .post("/api/v1/iam/sessions/terminate-all", &serde_json::json!({}))
+            .delete(&format!("/api/v1/auth/sessions/{}", session_id))
             .await?;
         Self::check_ok(resp).await
     }
@@ -1290,10 +1288,6 @@ impl AuthencApiClient {
     }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn terminate_session(&self, _id: &str) -> Result<(), String> {
-        Ok(())
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn terminate_all_sessions(&self) -> Result<(), String> {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]

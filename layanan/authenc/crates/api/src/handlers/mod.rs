@@ -61,8 +61,7 @@ pub use oauth2::{
 };
 
 pub use session::{
-    ListSessionsResponse, SessionInfo, list_sessions_handler,
-    logout_handler as session_logout_handler,
+    ListSessionsResponse, SessionInfo, list_sessions_handler, terminate_session_handler,
 };
 
 pub use mfa::{
