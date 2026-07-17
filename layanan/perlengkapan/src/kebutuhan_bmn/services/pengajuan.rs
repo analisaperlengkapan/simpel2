@@ -72,6 +72,16 @@ impl KebutuhanBmnService {
             .await
     }
 
+    /// Laporan Kebutuhan BMN recap (E-5) — see
+    /// [`super::super::repository::KebutuhanBmnRepository::get_rekap_laporan`].
+    pub async fn get_rekap_laporan(
+        &self,
+        filter: RekapLaporanFilter,
+        scope: &crate::shared::satker_scope::SatkerScope,
+    ) -> AppResult<Vec<RekapLaporanRow>> {
+        self.repository.get_rekap_laporan(filter, scope).await
+    }
+
     /// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
     /// `integrasi.mysimkari_satker.wilayah`. Dipakai FE untuk dropdown
     /// "Scope satker = wilayah".

@@ -2,29 +2,6 @@ use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::WARNING_CIRCLE;
 
-/// A two-column responsive form wrapper that owns spacing, section headers,
-/// and action bar positioning. Wraps `FormField` rows so individual forms
-/// only worry about their fields.
-#[component]
-pub fn FormLayout(
-    #[prop(optional)] actions: Option<Children>,
-    children: Children,
-) -> impl IntoView {
-    view! {
-        <form class="flex flex-col gap-5">
-            <div class="grid grid-cols-1 gap-5 md:grid-cols-2">{children()}</div>
-            {actions
-                .map(|a| {
-                    view! {
-                        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.04] pt-4">
-                            {a()}
-                        </div>
-                    }
-                })}
-        </form>
-    }
-}
-
 /// A labelled field row with helper/error text and an optional required
 /// marker. Accepts children so callers can mount whatever input control
 /// makes sense (input, select, textarea, custom widget).

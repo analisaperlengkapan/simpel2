@@ -105,8 +105,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                     toast.success("Usulan penghapusan berhasil disimpan!");
                     gloo_timers::future::TimeoutFuture::new(1000).await;
                     form.finish_ok();
+                    // Base-relative: navigate() prepends the router base.
                     navigate(
-                        &format!("/perlengkapan/pengelolaan/penghapusan/{}", resp.data.id),
+                        &format!("/pengelolaan/penghapusan/detail/{}", resp.data.id),
                         Default::default(),
                     );
                 }
@@ -452,7 +453,7 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <div class="pt-4 flex justify-end gap-3">
                     <a
-                        href=routes::path::PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY
+                        href=routes::path::PENGELOLAAN_PENGHAPUSAN
                         class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                         "Batal"

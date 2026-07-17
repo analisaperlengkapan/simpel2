@@ -8,22 +8,6 @@ pub enum TimeUnit {
 }
 
 impl TimeUnit {
-    pub fn code(self) -> &'static str {
-        match self {
-            TimeUnit::Minutes => "minutes",
-            TimeUnit::Hours => "hours",
-            TimeUnit::Days => "days",
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            TimeUnit::Minutes => "Menit",
-            TimeUnit::Hours => "Jam",
-            TimeUnit::Days => "Hari",
-        }
-    }
-
     pub fn parse(code: &str) -> Self {
         match code {
             "hours" => TimeUnit::Hours,

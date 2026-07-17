@@ -153,6 +153,18 @@ export default defineConfig({
       dependencies: ['setup'],
       testMatch: ['**/bankaset-analitik-workflow.spec.ts'],
     },
+    // F-E2E E-5 — Bantuan (panduan/FAQ/helpdesk ticket lifecycle incl. staff
+    // status flow), admin workflow config/monitoring/delegation, kebutuhan
+    // buat (validator_pusat) + laporan exports, pakaian ukuran round-trip,
+    // and the negative/RBAC edges. Click-driven navigation (FE-audit lesson:
+    // goto()-only specs cannot catch broken links). Clears the final
+    // route-coverage debt → the perlengkapan gate is BLOCKING from E-5 on.
+    {
+      name: 'perlengkapan-admin-bantuan',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+      testMatch: ['**/admin-bantuan-workflow.spec.ts'],
+    },
   ],
 
   /* Run your local dev server before starting the tests */

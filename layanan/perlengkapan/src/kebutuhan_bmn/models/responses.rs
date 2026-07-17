@@ -203,3 +203,30 @@ pub struct BatchOperationResponse {
     pub executed_at: DateTime<Utc>,
     pub executed_by: Option<Uuid>,
 }
+
+// ============================================================================
+// Laporan Rekap (E-5) — cross-campaign recap for /kebutuhan-bmn/laporan
+// ============================================================================
+
+/// One row of the Laporan Kebutuhan BMN recap: a single requested item
+/// (`pengajuan_kebutuhan_bmn_satker_barang`) resolved against its owning
+/// satker and campaign.
+///
+/// Status is the **satker-level** `status_kode` (where a request actually
+/// sits in the workflow), not the campaign-level one; the label is joined
+/// from `ms_aktivitas_bmn`, the same lookup `vw_kebutuhan_bmn_summary` uses.
+#[derive(Debug, Clone, Serialize)]
+pub struct RekapLaporanRow {
+    pub pengajuan_id: Uuid,
+    pub pengajuan_nama: String,
+    pub tahun: i32,
+    pub satker_id: String,
+    pub satker_nama: Option<String>,
+    pub kode_barang: Option<String>,
+    pub nama_barang: String,
+    pub satuan: Option<String>,
+    pub jumlah: i32,
+    pub jml_setuju: i32,
+    pub status_kode: i32,
+    pub status_nama: Option<String>,
+}

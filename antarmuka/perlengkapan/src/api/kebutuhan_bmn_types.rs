@@ -321,75 +321,9 @@ pub struct AnalisisSummary {
     pub kelayakan_persen: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct KebutuhanBmnDashboardStats {
-    pub total_pengajuan: i64,
-    pub pengajuan_draft: i64,
-    pub pengajuan_in_progress: i64,
-    pub pengajuan_completed: i64,
-    pub total_satker_terlibat: i64,
-    pub total_barang_diminta: i64,
-    pub total_barang_disetujui: i64,
-    pub by_tahun: Vec<StatsByTahun>,
-    pub by_status: Vec<StatsByStatus>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct StatsByTahun {
-    pub tahun: i32,
-    pub total: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct StatsByStatus {
-    pub status_kode: i32,
-    pub status_nama: String,
-    pub total: i64,
-}
-
 // ============================================================================
 // SIMAN Integration Types
 // ============================================================================
-
-/// Asset data from SIMAN (Sistem Informasi Manajemen Aset Negara)
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SimanAsset {
-    pub no_aset: String,
-    pub nama_aset: String,
-    pub nup: Option<String>,
-    pub kondisi: String,
-    pub tahun_perolehan: Option<i32>,
-    pub nilai_perolehan: Option<f64>,
-    pub nilai_buku: Option<f64>,
-    pub lokasi: Option<String>,
-    pub kategori: String,
-    pub satker_id: String,
-    pub metadata: Option<serde_json::Value>,
-}
-
-/// Summary of existing assets for a satker from SIMAN
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SatkerAssetSummary {
-    pub satker_id: String,
-    pub satker_name: Option<String>,
-    pub total_assets: i64,
-    pub total_value: f64,
-    pub by_category: Vec<CategoryAssetCount>,
-    pub by_condition: Vec<ConditionAssetCount>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct CategoryAssetCount {
-    pub category: String,
-    pub count: i64,
-    pub value: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct ConditionAssetCount {
-    pub condition: String,
-    pub count: i64,
-}
 
 // Request DTOs
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -434,24 +368,6 @@ pub struct CreateKebutuhanBmnBarangRequest {
     pub keterangan: Option<String>,
     #[serde(default)]
     pub file_pendukung: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateBarangApprovalRequest {
-    pub jml_setuju: i32,
-    pub keterangan: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SetPrioritasRequest {
-    pub items: Vec<PrioritasItem>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PrioritasItem {
-    pub barang_id: String,
-    pub prioritas: i32,
-    pub skor: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -500,4 +416,22 @@ pub struct KebutuhanBmnQuery {
     pub status_kode: Option<i32>,
     pub satker_id: Option<String>,
     pub search: Option<String>,
+}
+
+/// One row of the Laporan Kebutuhan BMN recap (E-5).
+/// Mirrors `layanan/perlengkapan` `RekapLaporanRow`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RekapLaporanRow {
+    pub pengajuan_id: String,
+    pub pengajuan_nama: String,
+    pub tahun: i32,
+    pub satker_id: String,
+    pub satker_nama: Option<String>,
+    pub kode_barang: Option<String>,
+    pub nama_barang: String,
+    pub satuan: Option<String>,
+    pub jumlah: i32,
+    pub jml_setuju: i32,
+    pub status_kode: i32,
+    pub status_nama: Option<String>,
 }

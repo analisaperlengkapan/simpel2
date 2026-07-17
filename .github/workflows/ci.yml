@@ -1498,6 +1498,20 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-bankaset
+      # F-E2E E-5 — Bantuan (helpdesk ticket lifecycle incl. staff flow),
+      # admin workflow config/monitoring/delegation, kebutuhan buat + laporan
+      # exports, pakaian ukuran, negative/RBAC edges. Click-driven navigation.
+      - name: Run Playwright Admin + Bantuan workflow (perlengkapan-admin-bantuan)
+        run: |
+          NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
+          echo "stack network: ${NET:?simpel-network not found}"
+          docker run --rm --network "$NET" \
+            -e BASE_URL=http://perlengkapan:8080 \
+            -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
+            -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
+            simpel-e2e-smoke \
+            npx playwright test --project=perlengkapan-admin-bantuan
       - name: e2e stack logs (on failure)
         if: failure()
         env:

@@ -2,8 +2,22 @@
 //!
 //! The real authoritative role comes from the JWT in `auth_token`. This
 //! switcher only controls a UI preference key (`ui_active_role`) used by
-//! development views that preview how each role sees the app. It never
-//! mutates the session — the JWT claims always win in guards.
+//! views that preview how each role sees the app. It never mutates the
+//! session — the JWT claims always win in guards, and the backend re-derives
+//! every scope from the token regardless of what is picked here.
+//!
+//! # Reactivity
+//!
+//! The active role lives in an [`ActiveRole`] context signal, seeded from
+//! `localStorage` once at app start. Switching role updates that signal, so
+//! every reader re-renders immediately.
+//!
+//! It previously lived *only* in `localStorage`, read through a plain
+//! `get_active_role() -> String`. Plain reads are not reactive, so pages that
+//! branched on the role captured it once at mount and never saw a change; the
+//! switcher also dispatched a `role-changed` CustomEvent that nothing ever
+//! listened for. The result: picking a role did nothing until the browser was
+//! refreshed (which remounted everything and re-read storage).
 
 use crate::features::auth::AuthService;
 use leptos::prelude::*;
@@ -12,9 +26,17 @@ use phosphor_leptos::CHECK;
 
 const UI_ACTIVE_ROLE_KEY: &str = "ui_active_role";
 
-/// Read the UI preview role. Defaults to whichever role the JWT reports, or
-/// `operator_satker` when no session is loaded.
-pub fn get_active_role() -> String {
+/// Reactive holder for the UI preview role. Provided once at the app root by
+/// [`provide_active_role`]; read with [`use_active_role`].
+#[derive(Clone, Copy)]
+pub struct ActiveRole(pub RwSignal<String>);
+
+/// Read the persisted UI preview role from storage, falling back to whichever
+/// role the JWT reports (or `operator_satker` when no session is loaded).
+///
+/// Non-reactive by nature — it touches `localStorage`. Use it only to seed the
+/// signal; readers that need to re-render want [`use_active_role`].
+pub fn read_active_role_storage() -> String {
     if let Some(stored) = web_sys::window()
         .and_then(|w| w.local_storage().ok().flatten())
         .and_then(|s| s.get_item(UI_ACTIVE_ROLE_KEY).ok().flatten())
@@ -27,9 +49,25 @@ pub fn get_active_role() -> String {
         .unwrap_or_else(|| "operator_satker".to_string())
 }
 
-fn set_active_role_storage(role: &str) {
+/// Install the active-role context. Call once, at the app root.
+pub fn provide_active_role() {
+    provide_context(ActiveRole(RwSignal::new(read_active_role_storage())));
+}
+
+/// The reactive active role. Reading `.get()` inside a view subscribes that
+/// view, so a role switch re-renders it without a page refresh.
+pub fn use_active_role() -> RwSignal<String> {
+    expect_context::<ActiveRole>().0
+}
+
+/// Switch role: persist it *and* update the signal so live views follow.
+/// Writing storage alone is what made the old switcher require a refresh.
+pub fn set_active_role(role: &str) {
     if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
         let _ = storage.set_item(UI_ACTIVE_ROLE_KEY, role);
+    }
+    if let Some(ActiveRole(signal)) = use_context::<ActiveRole>() {
+        signal.set(role.to_string());
     }
 }
 
@@ -114,7 +152,9 @@ const ROLES: &[RoleDef] = &[
 /// Inline role switcher — renders role buttons as a flat list (for embedding in ProfileMenu).
 #[component]
 pub fn RoleSwitcher() -> impl IntoView {
-    let active_key = RwSignal::new(get_active_role());
+    // The shared context signal — NOT a local copy. A local signal is what
+    // limited the old switcher's effect to its own checkmark.
+    let active_key = use_active_role();
 
     view! {
         <div>
@@ -128,15 +168,11 @@ pub fn RoleSwitcher() -> impl IntoView {
 
                     view! {
                         <button
-                            on:click=move |_| {
-                                set_active_role_storage(key);
-                                active_key.set(key.to_string());
-                                if let Some(window) = web_sys::window() {
-                                    if let Ok(event) = web_sys::CustomEvent::new("role-changed") {
-                                        let _ = window.dispatch_event(&event);
-                                    }
-                                }
-                            }
+                            // Persists + updates the shared signal, so every
+                            // role-aware view re-renders on the spot. (This
+                            // used to also dispatch a `role-changed`
+                            // CustomEvent that nothing listened for.)
+                            on:click=move |_| set_active_role(key)
                             style=move || {
                                 format!(
                                     "width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: none; background: {}; border-radius: 8px; cursor: pointer; transition: all 0.15s; text-align: left; border-left: 2px solid {};",

@@ -7,9 +7,11 @@
 //!   Pakaian Dinas (Jenis, Pengajuan, Ukuran, Laporan)
 //!   Pengelolaan BMN (Pemakaian BMN, Penghapusan)
 //!   Analitik (Roadmap Sarpras, Kodefikasi BMN)
-//!   Admin (Pengguna, Otorisasi, Audit Log, Master Data)
+//!   Admin (Pengguna, Otorisasi, Audit Log, Master Data, Template Dokumen,
+//!          Konfigurasi/Monitoring/Delegasi Workflow) — admin role only
 //!   Bantuan (Panduan, FAQ, Helpdesk)
 
+use crate::components::role_switcher::use_active_role;
 use crate::{navigation, routes};
 use leptos::prelude::*;
 use leptos_router::components::A;
@@ -179,7 +181,18 @@ pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
                                 .groups
                                 .iter()
                                 .map(|group| {
-                                    view! { <NavSection group=*group /> }
+                                    let group = *group;
+                                    let active_role = use_active_role();
+                                    // admin_only declutters nav for non-admin
+                                    // roles; the pages stay guarded by
+                                    // AdminLayout + server-side RBAC.
+                                    view! {
+                                        <Show when=move || {
+                                            !group.admin_only || active_role.get() == "admin"
+                                        }>
+                                            <NavSection group=group />
+                                        </Show>
+                                    }
                                 })
                                 .collect_view()}
                         }

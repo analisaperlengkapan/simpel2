@@ -1,36 +1,27 @@
-//! Bantuan module — FAQ, ticketing, knowledge base, chatbot, analytics,
-//! rate limiting, captcha, GDPR export/import. Notifikasi integration goes
-//! through the [`crate::contracts::NotificationSender`] +
-//! [`crate::contracts::AuditSink`] traits wired into
-//! [`AppState`](crate::state::AppState).
+//! Bantuan — helpdesk support tickets.
+//!
+//! Backs the `/bantuan/helpdesk` page: a user files a ticket, helpdesk staff
+//! drive it to resolution. Ticket events fan out through the same ports the
+//! workflow engine uses — [`NotificationSender`](crate::contracts::NotificationSender)
+//! (so the /notifikasi centre surfaces them uniformly) and
+//! [`AuditSink`](crate::contracts::AuditSink) (so `perlengkapan.audit_log`
+//! records who-did-what-when).
+//!
+//! # Scope
+//!
+//! Tickets and their comments — nothing else. This module previously also
+//! carried a chatbot, knowledge base, FAQ CRUD, analytics, webhooks, GDPR
+//! erasure and export/import: ~2 000 lines that were never mounted, queried a
+//! `bantuan.*` schema no migration created, and — in the chatbot's case —
+//! required an `AI_SERVICE_URL` present in no compose file and no Helm values
+//! (its config loader `expect()`ed the var, so constructing it would panic).
+//! They were removed rather than wired blind (see `V004__bantuan_tickets.sql`,
+//! #98). `/bantuan/faq` and `/bantuan/panduan` are static pages by design and
+//! need no backend.
 
-pub mod analytics;
-pub mod audit;
-pub mod captcha;
-pub mod chatbot;
-pub mod config;
-pub mod error;
-pub mod export_import;
-pub mod faq;
-pub mod gdpr;
 pub mod handlers;
-pub mod knowledge;
 pub mod models;
-pub mod rate_limit;
-pub mod rbac;
 pub mod ticket;
-pub mod webhook;
 
-/// Local state used by the bantuan handlers/middleware.
-///
-/// Kept self-contained for now so the module compiles in isolation; once the
-/// unified `shared::state` consolidation lands, this will be replaced by a
-/// projection from the global `AppState`.
-#[derive(Clone)]
-pub struct AppState {
-    pub db: deadpool_postgres::Pool,
-    pub redis: redis::Client,
-    pub config: config::AppConfig,
-    pub metrics_registry: prometheus::Registry,
-    pub rate_limit: rate_limit::RateLimitState,
-}
+pub use models::{SupportTicket, TicketComment};
+pub use ticket::TicketService;

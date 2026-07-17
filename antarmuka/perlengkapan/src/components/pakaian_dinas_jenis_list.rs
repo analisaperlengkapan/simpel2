@@ -242,10 +242,7 @@ fn render_jenis_table(
                                             <td class="px-4 py-3">
                                                 <div class="flex items-center gap-3">
                                                     <a
-                                                        href=format!(
-                                                            "/perlengkapan/pakaian-dinas/jenis/{}/spesifikasi",
-                                                            item_id,
-                                                        )
+                                                        href=crate::routes::url::pakaian_spesifikasi(&item_id)
                                                         class="text-success-400 transition hover:text-success-300"
                                                         title="Lihat Spesifikasi"
                                                     >

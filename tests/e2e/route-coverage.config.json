@@ -7,17 +7,8 @@
       "specsDir": "antarmuka/perlengkapan/tests/e2e",
       "base": "/perlengkapan/simpel/v2",
       "excludeSuffix": ["/login"],
-      "blocking": false,
-      "allowUncovered": [
-        "/perlengkapan/simpel/v2/kebutuhan-bmn/buat",
-        "/perlengkapan/simpel/v2/kebutuhan-bmn/laporan",
-        "/perlengkapan/simpel/v2/pakaian-dinas/ukuran",
-        "/perlengkapan/simpel/v2/admin/workflow",
-        "/perlengkapan/simpel/v2/admin/workflow-monitoring",
-        "/perlengkapan/simpel/v2/bantuan/panduan",
-        "/perlengkapan/simpel/v2/bantuan/faq",
-        "/perlengkapan/simpel/v2/bantuan/helpdesk"
-      ]
+      "blocking": true,
+      "allowUncovered": []
     },
     {
       "name": "portal",

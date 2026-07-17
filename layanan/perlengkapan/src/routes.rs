@@ -285,6 +285,17 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/dashboard",
             get(kebutuhan_bmn::get_dashboard_stats),
         )
+        // Laporan rekap (E-5) — cross-campaign recap + XLSX/PDF export.
+        // Registered before `/kebutuhan-bmn/pengajuan/{id}` style paths so the
+        // literal segment is never shadowed by a param route.
+        .route(
+            "/kebutuhan-bmn/laporan/rekap",
+            get(kebutuhan_bmn::get_rekap_laporan),
+        )
+        .route(
+            "/kebutuhan-bmn/laporan/rekap/export",
+            get(kebutuhan_bmn::export_rekap_laporan),
+        )
         // Pengajuan CRUD
         .route(
             "/kebutuhan-bmn/pengajuan",
@@ -637,6 +648,29 @@ pub fn create_routes(state: AppState) -> Router {
         .route(
             "/notifikasi/read-all",
             post(crate::notifikasi::api::mark_all_read),
+        )
+        // ============ Bantuan / Helpdesk ============
+        // Backs /bantuan/helpdesk. Reads are scoped by the caller's claims
+        // (own tickets; everything for admin/helpdesk staff) — see
+        // `bantuan::ticket::TicketActor`. /bantuan/faq + /bantuan/panduan are
+        // static FE pages and intentionally have no endpoint.
+        .route(
+            "/bantuan/tiket",
+            get(crate::bantuan::handlers::list_tickets)
+                .post(crate::bantuan::handlers::create_ticket),
+        )
+        .route(
+            "/bantuan/tiket/{id}",
+            get(crate::bantuan::handlers::get_ticket),
+        )
+        .route(
+            "/bantuan/tiket/{id}/status",
+            put(crate::bantuan::handlers::update_ticket_status),
+        )
+        .route(
+            "/bantuan/tiket/{id}/komentar",
+            get(crate::bantuan::handlers::list_ticket_comments)
+                .post(crate::bantuan::handlers::add_ticket_comment),
         )
         .route("/admin/templates", get(crate::admin::list_templates))
         .route("/admin/templates/{id}", get(crate::admin::get_template))

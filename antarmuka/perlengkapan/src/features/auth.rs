@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 pub const AUTH_TOKEN_KEY: &str = "auth_token";
 pub const REFRESH_TOKEN_KEY: &str = "refresh_token";
+#[cfg(target_arch = "wasm32")]
 pub const LOGOUT_EVENT_KEY: &str = "logout_event";
 
 /// Session derived from JWT claims. Never constructed from localStorage JSON —
@@ -75,10 +76,6 @@ impl UserSession {
         self.has_role("validator_wilayah")
     }
 
-    pub fn is_operator_satker(&self) -> bool {
-        self.has_role("operator_satker")
-    }
-
     /// Whether the JWT is still within its expiry window. A missing `exp`
     /// is treated as expired to avoid accepting malformed tokens.
     pub fn is_active(&self) -> bool {
@@ -89,6 +86,7 @@ impl UserSession {
     }
 
     /// True if the token expires within `seconds` — used to trigger refresh.
+    #[cfg(target_arch = "wasm32")]
     pub fn expires_within(&self, seconds: i64) -> bool {
         match self.expires_at {
             Some(exp) => {
@@ -153,6 +151,7 @@ impl AuthService {
             .filter(|t| !t.is_empty())
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn read_refresh_token() -> Option<String> {
         let storage = web_sys::window()?.local_storage().ok().flatten()?;
         storage
@@ -206,12 +205,14 @@ impl AuthService {
     /// Persist the token and emit a storage event so other tabs / the portal
     /// can react. We deliberately do **not** store a serialized session — it
     /// would duplicate the JWT and drift out of sync.
+    #[cfg(target_arch = "wasm32")]
     pub fn store_token(token: &str) {
         if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
             let _ = storage.set_item(AUTH_TOKEN_KEY, token);
         }
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn store_refresh_token(token: &str) {
         if let Some(storage) = web_sys::window().and_then(|w| w.local_storage().ok().flatten()) {
             let _ = storage.set_item(REFRESH_TOKEN_KEY, token);

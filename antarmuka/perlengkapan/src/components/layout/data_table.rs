@@ -16,11 +16,6 @@ impl<T> DataTableColumn<T> {
             cell: Box::new(cell),
         }
     }
-
-    pub fn align(mut self, align: &'static str) -> Self {
-        self.align = align;
-        self
-    }
 }
 
 /// Responsive data table with sticky header, zebra-striped rows, and a

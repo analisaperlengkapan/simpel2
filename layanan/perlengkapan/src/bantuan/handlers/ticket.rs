@@ -1,145 +1,158 @@
-use crate::bantuan::error::AppError;
-use crate::bantuan::ticket::TicketService;
+//! `/bantuan/tiket*` handlers.
+//!
+//! Every handler builds its [`TicketActor`] from verified [`Claims`] and passes
+//! it to the service — the request body carries *what* to do, never *who* is
+//! doing it. Typed request DTOs (rather than raw `serde_json::Value`) mean an
+//! unknown or spoofed `user_id` field cannot even be expressed by a client.
+
 use axum::{
-    extract::{Json, Path, Query, State},
-    response::IntoResponse,
+    Json,
+    extract::{Path, Query, State},
 };
-use deadpool_postgres::Pool;
-use serde_json::json;
+use serde::Deserialize;
 use uuid::Uuid;
 
-pub async fn list_tickets(
-    State(pool): State<Pool>,
-    Query(params): Query<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let user_id = params
-        .get("user_id")
-        .and_then(|v| v.as_str())
-        .and_then(|s| Uuid::parse_str(s).ok());
-    let status = params.get("status").and_then(|v| v.as_str());
-    let ticket = TicketService::new(pool);
-    let tickets = ticket.list_tickets(user_id, status).await?;
-    Ok(Json(tickets))
+use crate::bantuan::models::{SupportTicket, TicketComment};
+use crate::bantuan::ticket::{TicketActor, TicketService};
+use crate::shared::error::AppResult;
+use crate::shared::middleware::Claims;
+use crate::state::AppState;
+use lib_perlengkapan::response::ApiResponse;
+
+/// Build the service with the notification + audit ports wired, so a ticket
+/// event lands in the /notifikasi centre and `perlengkapan.audit_log` exactly
+/// like a workflow event does.
+fn service(state: &AppState) -> TicketService {
+    TicketService::new(state.db_pool.clone())
+        .with_notification_sender(state.notifier.clone())
+        .with_audit_sink(state.audit_sink.clone())
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateTicketRequest {
+    pub subject: String,
+    pub description: Option<String>,
+    pub priority: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddCommentRequest {
+    pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateStatusRequest {
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListTicketsQuery {
+    pub status: Option<String>,
+    #[serde(default = "default_limit")]
+    pub limit: i64,
+    #[serde(default)]
+    pub offset: i64,
+}
+
+fn default_limit() -> i64 {
+    20
+}
+
+/// POST /bantuan/tiket — file a ticket as the authenticated caller.
 pub async fn create_ticket(
-    State(pool): State<Pool>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let user_id = payload["user_id"]
-        .as_str()
-        .and_then(|s| Uuid::parse_str(s).ok())
-        .ok_or(AppError::Validation("user_id wajib".to_string()))?;
-    let subject = payload["subject"]
-        .as_str()
-        .ok_or(AppError::Validation("subject wajib".to_string()))?;
-    let description = payload.get("description").and_then(|v| v.as_str());
-    let priority = payload.get("priority").and_then(|v| v.as_str());
-    let category_id = payload
-        .get("category_id")
-        .and_then(|v| v.as_str())
-        .and_then(|s| Uuid::parse_str(s).ok());
-    let spam_score = payload
-        .get("spam_score")
-        .and_then(|v| v.as_f64())
-        .unwrap_or(0.0) as f32;
-    let ticket_service = TicketService::new(pool.clone());
-    let ticket = ticket_service
+    State(state): State<AppState>,
+    claims: Claims,
+    Json(req): Json<CreateTicketRequest>,
+) -> AppResult<Json<ApiResponse<SupportTicket>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let ticket = service(&state)
         .create_ticket(
-            user_id,
-            subject,
-            description,
-            priority,
-            category_id,
-            spam_score,
+            &actor,
+            &req.subject,
+            req.description.as_deref(),
+            req.priority.as_deref(),
         )
         .await?;
-    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
-    Ok(Json(ticket))
+    Ok(Json(ApiResponse::success(
+        ticket,
+        "Tiket bantuan berhasil dibuat".to_string(),
+    )))
 }
-pub async fn get_ticket(
-    State(pool): State<Pool>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let ticket = TicketService::new(pool);
-    let t = ticket.get_ticket(id).await?;
-    Ok(Json(t))
-}
-pub async fn update_ticket(
-    State(pool): State<Pool>,
-    Path(id): Path<Uuid>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let subject = payload["subject"]
-        .as_str()
-        .ok_or(AppError::Validation("subject wajib".to_string()))?;
-    let description = payload.get("description").and_then(|v| v.as_str());
-    let priority = payload.get("priority").and_then(|v| v.as_str());
-    let category_id = payload
-        .get("category_id")
-        .and_then(|v| v.as_str())
-        .and_then(|s| Uuid::parse_str(s).ok());
-    let status = payload["status"].as_str().unwrap_or("open");
-    let ticket_service = TicketService::new(pool.clone());
-    let t = ticket_service
-        .update_ticket(id, subject, description, priority, category_id, status)
+
+/// GET /bantuan/tiket — the caller's own tickets; every ticket for helpdesk staff.
+pub async fn list_tickets(
+    State(state): State<AppState>,
+    claims: Claims,
+    Query(q): Query<ListTicketsQuery>,
+) -> AppResult<Json<ApiResponse<Vec<SupportTicket>>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let tickets = service(&state)
+        .list_tickets(&actor, q.status.as_deref(), q.limit, q.offset)
         .await?;
-    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
-    Ok(Json(t))
+    Ok(Json(ApiResponse::success(
+        tickets,
+        "Daftar tiket bantuan".to_string(),
+    )))
 }
-pub async fn delete_ticket(
-    State(pool): State<Pool>,
+
+/// GET /bantuan/tiket/{id}
+pub async fn get_ticket(
+    State(state): State<AppState>,
+    claims: Claims,
     Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let ticket = TicketService::new(pool.clone());
-    ticket.delete_ticket(id).await?;
-    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
-    Ok(Json(json!({"status": "deleted", "id": id})))
+) -> AppResult<Json<ApiResponse<SupportTicket>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let ticket = service(&state).get_ticket(&actor, id).await?;
+    Ok(Json(ApiResponse::success(
+        ticket,
+        "Detail tiket bantuan".to_string(),
+    )))
 }
-pub async fn list_ticket_comments(
-    State(pool): State<Pool>,
-    Path(id): Path<Uuid>,
-) -> Result<impl IntoResponse, AppError> {
-    let ticket = TicketService::new(pool);
-    let comments = ticket.list_comments(id).await?;
-    Ok(Json(comments))
-}
-pub async fn add_ticket_comment(
-    State(pool): State<Pool>,
-    Path(id): Path<Uuid>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let user_id = payload["user_id"]
-        .as_str()
-        .and_then(|s| Uuid::parse_str(s).ok())
-        .ok_or(AppError::Validation("user_id wajib".to_string()))?;
-    let content = payload["content"]
-        .as_str()
-        .ok_or(AppError::Validation("content wajib".to_string()))?;
-    let ticket = TicketService::new(pool.clone());
-    let comment = ticket.add_comment(id, user_id, content).await?;
-    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
-    Ok(Json(comment))
-}
+
+/// PUT /bantuan/tiket/{id}/status — helpdesk staff only.
 pub async fn update_ticket_status(
-    State(pool): State<Pool>,
+    State(state): State<AppState>,
+    claims: Claims,
     Path(id): Path<Uuid>,
-    Json(payload): Json<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let status = payload["status"]
-        .as_str()
-        .ok_or(AppError::Validation("status wajib".to_string()))?;
-    let ticket = TicketService::new(pool.clone());
-    let t = ticket.update_status(id, status).await?;
-    // TODO(audit-log): emit AuditEvent via state.audit_sink once the bantuan router is mounted into the unified app + claims are plumbed through (deferred per plan A.5).
-    Ok(Json(t))
+    Json(req): Json<UpdateStatusRequest>,
+) -> AppResult<Json<ApiResponse<SupportTicket>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let ticket = service(&state)
+        .update_status(&actor, id, &req.status)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        ticket,
+        "Status tiket diperbarui".to_string(),
+    )))
 }
-pub async fn search_tickets(
-    State(pool): State<Pool>,
-    Query(params): Query<serde_json::Value>,
-) -> Result<impl IntoResponse, AppError> {
-    let query = params["q"].as_str().unwrap_or("");
-    let max_results = params["limit"].as_u64().unwrap_or(20) as u32;
-    let ticket = TicketService::new(pool);
-    let tickets = ticket.search_tickets(query, max_results).await?;
-    Ok(Json(tickets))
+
+/// GET /bantuan/tiket/{id}/komentar
+pub async fn list_ticket_comments(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(id): Path<Uuid>,
+) -> AppResult<Json<ApiResponse<Vec<TicketComment>>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let comments = service(&state).list_comments(&actor, id).await?;
+    Ok(Json(ApiResponse::success(
+        comments,
+        "Daftar komentar tiket".to_string(),
+    )))
+}
+
+/// POST /bantuan/tiket/{id}/komentar
+pub async fn add_ticket_comment(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(id): Path<Uuid>,
+    Json(req): Json<AddCommentRequest>,
+) -> AppResult<Json<ApiResponse<TicketComment>>> {
+    let actor = TicketActor::from_claims(&claims);
+    let comment = service(&state)
+        .add_comment(&actor, id, &req.content)
+        .await?;
+    Ok(Json(ApiResponse::success(
+        comment,
+        "Komentar ditambahkan".to_string(),
+    )))
 }

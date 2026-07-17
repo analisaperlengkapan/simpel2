@@ -193,19 +193,14 @@ pub async fn fetch_detail(id: &str) -> AppResult<BankAsetDetail> {
     Ok(resp.data)
 }
 
-/// Slim BMN lookup by NUP. Mirrors the `BankAsetLookup` payload the
-/// backend emits at `GET /bank-aset/lookup?nup=<nup>`. Used by the
-/// pemakaian-bmn form to auto-fill `bmn_kode_barang` + `bmn_nama_barang`.
+/// Slim BMN lookup by NUP — the subset of the `GET /bank-aset/lookup?nup=`
+/// payload the pemakaian-bmn form auto-fills (serde ignores the rest).
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct BankAsetLookup {
-    pub id: String,
-    pub nup: String,
     pub kode_barang: Option<String>,
     pub nama_barang: Option<String>,
     pub merk: Option<String>,
     pub tahun_perolehan: Option<String>,
-    pub kondisi: Option<String>,
-    pub satker: Option<String>,
 }
 
 /// Returns `Ok(Some(_))` on a hit, `Ok(None)` on a 404 (NUP not in

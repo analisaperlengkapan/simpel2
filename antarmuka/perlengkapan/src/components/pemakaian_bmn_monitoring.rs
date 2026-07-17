@@ -232,7 +232,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                     </td>
                                                                     <td class="px-4 py-3 text-sm">
                                                                         <a
-                                                                            href=format!("/perlengkapan/pemakaian-bmn/{}", permit.id)
+                                                                            href=crate::routes::url::pemakaian_detail(&permit.id)
                                                                             class="text-blue-600 hover:text-blue-800"
                                                                         >
                                                                             "Detail"

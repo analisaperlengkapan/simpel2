@@ -1,14 +1,12 @@
 //! Centralized route constants for perlengkapan frontend.
 
 pub mod path {
-    pub const ROOT: &str = "/perlengkapan/simpel/v2/";
+    #[cfg(target_arch = "wasm32")]
     pub const LOGIN: &str = "/perlengkapan/simpel/v2/login";
-    pub const PORTAL_LOGIN: &str = "/portal/login";
     pub const PORTAL_LOGIN_WITH_REDIRECT: &str =
         "/portal/login?redirect_uri=%2Fperlengkapan%2Fsimpel%2Fv2%2Fdashboard";
 
     pub const DASHBOARD: &str = "/perlengkapan/simpel/v2/dashboard";
-    pub const DASHBOARD_SEARCH: &str = "/perlengkapan/simpel/v2/dashboard/search";
 
     pub const BANK_ASET_DASHBOARD: &str = "/perlengkapan/simpel/v2/bank-aset/dashboard";
     pub const BANK_ASET_DAFTAR: &str = "/perlengkapan/simpel/v2/bank-aset/daftar";
@@ -18,15 +16,11 @@ pub mod path {
     pub const KEBUTUHAN_DAFTAR: &str = "/perlengkapan/simpel/v2/kebutuhan-bmn/daftar";
     pub const KEBUTUHAN_BUAT: &str = "/perlengkapan/simpel/v2/kebutuhan-bmn/buat";
     pub const KEBUTUHAN_LAPORAN: &str = "/perlengkapan/simpel/v2/kebutuhan-bmn/laporan";
-    pub const KEBUTUHAN_DAFTAR_LEGACY: &str = "/perlengkapan/simpel/v2/kebutuhan-bmn";
-    pub const KEBUTUHAN_BUAT_LEGACY: &str = "/perlengkapan/simpel/v2/kebutuhan-bmn/baru";
 
     pub const PAKAIAN_JENIS: &str = "/perlengkapan/simpel/v2/pakaian-dinas/jenis";
     pub const PAKAIAN_PENGAJUAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/pengajuan";
     pub const PAKAIAN_UKURAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/ukuran";
     pub const PAKAIAN_LAPORAN: &str = "/perlengkapan/simpel/v2/pakaian-dinas/laporan";
-    pub const PAKAIAN_LAPORAN_REKAP_LEGACY: &str =
-        "/perlengkapan/simpel/v2/pakaian-dinas/laporan/rekap";
 
     pub const PENGELOLAAN_PEMAKAIAN: &str = "/perlengkapan/simpel/v2/pengelolaan/pemakaian";
     pub const PENGELOLAAN_PENGHAPUSAN: &str = "/perlengkapan/simpel/v2/pengelolaan/penghapusan";
@@ -34,11 +28,6 @@ pub mod path {
         "/perlengkapan/simpel/v2/pengelolaan/pemakaian/buat";
     pub const PENGELOLAAN_PENGHAPUSAN_BUAT: &str =
         "/perlengkapan/simpel/v2/pengelolaan/penghapusan/buat";
-    pub const PENGELOLAAN_PENGHAPUSAN_DAFTAR_LEGACY: &str =
-        "/perlengkapan/simpel/v2/pengelolaan/penghapusan/daftar";
-
-    pub const PEMAKAIAN_DAFTAR_LEGACY: &str = "/perlengkapan/simpel/v2/pemakaian-bmn";
-    pub const PEMAKAIAN_BUAT_LEGACY: &str = "/perlengkapan/simpel/v2/pemakaian-bmn/baru";
 
     pub const ANALITIK_ROADMAP: &str = "/perlengkapan/simpel/v2/analitik/roadmap";
     pub const ANALITIK_ROADMAP_BUAT: &str = "/perlengkapan/simpel/v2/analitik/roadmap/buat";
@@ -52,6 +41,7 @@ pub mod path {
     pub const NOTIFIKASI: &str = "/perlengkapan/simpel/v2/notifikasi";
     pub const ADMIN_WORKFLOW: &str = "/perlengkapan/simpel/v2/admin/workflow";
     pub const ADMIN_WORKFLOW_MONITORING: &str = "/perlengkapan/simpel/v2/admin/workflow-monitoring";
+    pub const ADMIN_WORKFLOW_DELEGATION: &str = "/perlengkapan/simpel/v2/admin/workflow-delegation";
 
     pub const BANTUAN_PANDUAN: &str = "/perlengkapan/simpel/v2/bantuan/panduan";
     pub const BANTUAN_FAQ: &str = "/perlengkapan/simpel/v2/bantuan/faq";
@@ -82,11 +72,24 @@ pub mod url {
         format!("/perlengkapan/simpel/v2/bank-aset/daftar/{}", id)
     }
 
-    pub fn dashboard_perlengkapan_with_query(query: &str) -> String {
-        if query.is_empty() {
-            super::path::DASHBOARD.to_string()
-        } else {
-            format!("{}?{}", super::path::DASHBOARD, query)
-        }
+    pub fn pakaian_spesifikasi(jenis_id: impl std::fmt::Display) -> String {
+        format!(
+            "/perlengkapan/simpel/v2/pakaian-dinas/jenis/{}/spesifikasi",
+            jenis_id
+        )
+    }
+
+    pub fn pemakaian_detail(id: impl std::fmt::Display) -> String {
+        format!(
+            "/perlengkapan/simpel/v2/pengelolaan/pemakaian/detail/{}",
+            id
+        )
+    }
+
+    pub fn penghapusan_detail(id: impl std::fmt::Display) -> String {
+        format!(
+            "/perlengkapan/simpel/v2/pengelolaan/penghapusan/detail/{}",
+            id
+        )
     }
 }

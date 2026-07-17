@@ -21,7 +21,6 @@ struct ApiResponseWrap<T> {
 #[derive(Debug, Clone, Deserialize)]
 pub struct IntegrasiCircuitStatus {
     pub source: String,
-    pub state: String,
     pub healthy: bool,
     pub label: String,
 }
