@@ -286,6 +286,7 @@ impl IntoResponse for ErrorResponse {
 /// If MFA is enabled, returns mfa_token and requires MFA verification.
 pub async fn login_handler(
     State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
     Json(request): Json<LoginRequest>,
 ) -> impl axum::response::IntoResponse {
     use authenc_types::{
@@ -360,6 +361,32 @@ pub async fn login_handler(
         }) => {
             let uid = user_id.as_uuid().to_string();
             let sid = session_id.0.to_string();
+
+            // Best-effort: stamp the new session row with the client address +
+            // user agent so the self-service Sesi Aktif page can show which
+            // device each session belongs to. Never fails the login.
+            {
+                let ip: Option<std::net::IpAddr> = headers
+                    .get("x-forwarded-for")
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.split(',').next())
+                    .or_else(|| headers.get("x-real-ip").and_then(|v| v.to_str().ok()))
+                    .and_then(|v| v.trim().parse().ok());
+                let user_agent = headers
+                    .get(axum::http::header::USER_AGENT)
+                    .and_then(|v| v.to_str().ok())
+                    .map(|v| v.chars().take(512).collect::<String>());
+                if let Err(e) = state
+                    .database
+                    .query(
+                        "UPDATE sessions SET ip_address = $2, user_agent = $3 WHERE id = $1",
+                        &[&session_id.0, &ip, &user_agent],
+                    )
+                    .await
+                {
+                    tracing::debug!(error = %e, "Failed to stamp session client info");
+                }
+            }
 
             // Check if user must change password
             let user = match state.user_service.get_user(user_id).await {

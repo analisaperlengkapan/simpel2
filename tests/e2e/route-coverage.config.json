@@ -17,8 +17,16 @@
       "base": "/portal",
       "excludeSuffix": ["/login"],
       "blocking": false,
+      "_debt": "deep-IAM admin pages = F-E2E E-7 scope (after the #45 IAM trim); cleared + blocking flips true there",
       "allowUncovered": [
-        "/portal/dashboard"
+        "/portal/admin/auth-flows",
+        "/portal/admin/clients",
+        "/portal/admin/federation",
+        "/portal/admin/groups",
+        "/portal/admin/linked-accounts",
+        "/portal/admin/permissions",
+        "/portal/admin/realm-settings",
+        "/portal/admin/realms"
       ]
     }
   ]

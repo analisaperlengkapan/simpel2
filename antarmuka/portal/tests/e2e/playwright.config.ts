@@ -55,11 +55,11 @@ export default defineConfig({
 
   /* Configure projects by test category.
    *
-   * Only `portal-chromium` is the CI gate (e2e-portal job): the genuine portal
-   * FE real-auth login flow (captcha via debug endpoint, /api/** proxied to
-   * authenc by page.route) — needs only portal + authenc. The other specs need
-   * MORE than the portal stack and are split into their own non-gating projects
-   * so the gate's stack matches what it runs:
+   * `portal-chromium` + `portal-core` are the CI gate (e2e-portal job): real
+   * portal FE auth + core-route workflows (captcha via debug endpoint, /api/**
+   * proxied to authenc by page.route) — need only portal + authenc. The other
+   * specs need MORE than the portal stack and are split into their own
+   * non-gating projects so the gate's stack matches what it runs:
    *   - portal-cross-app  (auth-login-flow): REAL cross-app SSO (portal login
    *     → perlengkapan dashboard via the same-origin JWT). Runs in the
    *     e2e-portal-cross-app job against the single-origin `cross-app-ingress`
@@ -67,13 +67,22 @@ export default defineConfig({
    *     is that ingress (BASE_URL env).
    *   - portal-integration (integrasi-authenc-e2e): gRPC against
    *     layanan-integrasi → needs that service up (backend integration).
-   *   - portal-screenshots: visual artifacts, not assertions.
+   * (portal-screenshots was deleted in F-E2E E-6: screenshots are failure
+   * artifacts, not tests.)
    */
   projects: [
     {
       name: 'portal-chromium',
       use: { ...devices['Desktop Chrome'] },
       testMatch: ['**/portal-auth-e2e.spec.ts'],
+    },
+    // F-E2E E-6 — portal core workflows: dashboard (real /me + admin stats),
+    // click-driven sidebar navigation, sessions self-service lifecycle,
+    // admin users/roles/audit, RBAC negatives, logout + cross-tab.
+    {
+      name: 'portal-core',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ['**/portal-core-workflow.spec.ts'],
     },
     {
       name: 'portal-cross-app',
@@ -84,11 +93,6 @@ export default defineConfig({
       name: 'portal-integration',
       use: { ...devices['Desktop Chrome'] },
       testMatch: ['**/integrasi-authenc-e2e.spec.ts'],
-    },
-    {
-      name: 'portal-screenshots',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: ['**/portal-screenshots-e2e.spec.ts'],
     },
   ],
 

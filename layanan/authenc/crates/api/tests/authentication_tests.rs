@@ -75,8 +75,10 @@ mod handler_verification {
     #[test]
     #[allow(unused_imports)]
     fn test_session_handlers_exist() {
-        // Verify session handlers are accessible
-        use authenc_api::handlers::session::{list_sessions_handler, logout_handler};
+        // Verify the self-service session handlers are accessible (the old
+        // no-op session::logout_handler stub was deleted; the real logout
+        // lives in handlers::auth).
+        use authenc_api::handlers::session::{list_sessions_handler, terminate_session_handler};
     }
 
     #[test]

@@ -118,6 +118,16 @@ fn create_base_router(state: Arc<ApiState>) -> Router {
             "/api/v1/auth/me/password",
             post(handlers::change_password_handler),
         )
+        // Self-service session management (REQ-PORTAL-008): the caller lists /
+        // terminates their OWN sessions; identity comes from the JWT only.
+        .route(
+            "/api/v1/auth/sessions",
+            get(handlers::list_sessions_handler),
+        )
+        .route(
+            "/api/v1/auth/sessions/{id}",
+            axum::routing::delete(handlers::terminate_session_handler),
+        )
         .route(
             "/api/v1/auth/validate",
             post(handlers::validate_token_handler),

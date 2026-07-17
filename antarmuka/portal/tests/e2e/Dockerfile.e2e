@@ -23,5 +23,6 @@ RUN npm ci --no-audit --no-fund
 # Then the specs / config / helpers.
 COPY . .
 
-# Default: run the portal real-auth project. Override at `docker run` if needed.
-CMD ["npx", "playwright", "test", "--project=portal-chromium"]
+# Default: run the CI-gate projects — real-auth login flow + the E-6 core
+# workflow suite. Override at `docker run` if needed.
+CMD ["npx", "playwright", "test", "--project=portal-chromium", "--project=portal-core"]

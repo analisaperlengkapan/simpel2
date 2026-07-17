@@ -130,10 +130,6 @@ pub fn SessionsPage() -> impl IntoView {
                                         .ip_address
                                         .clone()
                                         .unwrap_or_else(|| "-".to_string());
-                                    let location = session_info
-                                        .location
-                                        .clone()
-                                        .unwrap_or_else(|| "Lokasi tidak diketahui".to_string());
                                     let last_active = session_info.last_active.clone();
                                     let created = session_info.created_at.clone();
                                     let device_lower = device.to_lowercase();
@@ -149,14 +145,17 @@ pub fn SessionsPage() -> impl IntoView {
                                     };
 
                                     view! {
-                                        <div class=format!(
-                                            "bg-white rounded-xl border {} p-4 flex items-start gap-4",
-                                            if is_current {
-                                                "border-primary-300 ring-1 ring-primary-100"
-                                            } else {
-                                                "border-gray-200"
-                                            },
-                                        )>
+                                        <div
+                                            data-session-id=session_info.id.clone()
+                                            class=format!(
+                                                "bg-white rounded-xl border {} p-4 flex items-start gap-4",
+                                                if is_current {
+                                                    "border-primary-300 ring-1 ring-primary-100"
+                                                } else {
+                                                    "border-gray-200"
+                                                },
+                                            )
+                                        >
                                             <span class="text-2xl mt-1">{device_icon}</span>
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center gap-2">
@@ -174,7 +173,6 @@ pub fn SessionsPage() -> impl IntoView {
                                                 </div>
                                                 <div class="text-sm text-gray-500 mt-1 space-y-0.5">
                                                     <p>"IP: " {ip}</p>
-                                                    <p>"Lokasi: " {location}</p>
                                                     <p>"Login: " {created}</p>
                                                     <p>"Aktif terakhir: " {last_active}</p>
                                                 </div>

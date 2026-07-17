@@ -1224,7 +1224,10 @@ jobs:
       # Build the portal e2e image (context shipped to dind) and run it on the
       # compose network. The specs reach portal:8080 (FE) and authenc:8088 (REST
       # + captcha-debug) by service name; page.route() proxies /api/** to authenc.
-      - name: Run Playwright (portal-chromium)
+      # Runs the image's default CMD = portal-chromium (real-auth login flow)
+      # + portal-core (F-E2E E-6 core workflows incl. sessions self-service,
+      # admin users/roles/audit, RBAC negatives, logout/cross-tab).
+      - name: Run Playwright (portal-chromium + portal-core)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
