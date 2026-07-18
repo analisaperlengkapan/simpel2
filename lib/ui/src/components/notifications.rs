@@ -382,10 +382,10 @@ pub fn NotificationList(
                 {move || {
                     let notifs = filtered_notifications();
                     if notifs.is_empty() {
-                        // Honest empty states: "unavailable" (inbox unreachable)
-                        // is distinct from "genuinely no notifications".
                         let unavailable = notif_ctx.sync_state.get()
                             == crate::hooks::use_notifications::SyncState::Unavailable;
+                        // Honest empty states: "unavailable" (inbox unreachable)
+                        // is distinct from "genuinely no notifications".
                         view! {
                             <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
                                 <div class="text-6xl mb-4">"🔔"</div>

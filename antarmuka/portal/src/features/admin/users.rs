@@ -317,9 +317,12 @@ pub fn UsersManagementPage() -> impl IntoView {
                                     on:click=move |_| {
                                         set_page.set((page.get() + 1).min(total_pages.get()))
                                     }
-                                    disabled=move || page.get() >= total_pages.get()
-                                    class="px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    disabled=move || page.get()
                                 >
+                                    = total_pages.get()
+                                    class=
+                                    "px-3 py-1 text-sm border rounded disabled:opacity-50"
+                                    >
                                     "Selanjutnya →"
                                 </button>
                             </div>
