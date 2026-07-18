@@ -188,7 +188,9 @@ pub struct SessionInfo {
 
 // ─── IAM Admin Types ─────────────────────────────────────────────────────────
 
-/// IAM User (admin view)
+/// IAM User (admin view) — mirrors the backend `UserResponse` field names.
+/// The old shape expected `last_login` and required `roles`, neither of
+/// which the backend sent, so every `iam_get_user` deserialization failed.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IamUser {
     pub id: String,
@@ -200,7 +202,7 @@ pub struct IamUser {
     pub email_verified: bool,
     pub mfa_enabled: bool,
     pub created_at: String,
-    pub last_login: Option<String>,
+    pub last_login_at: Option<String>,
     pub roles: Vec<String>,
 }
 
@@ -224,38 +226,7 @@ pub struct UpdateUserRequest {
     pub enabled: Option<bool>,
 }
 
-/// Realm info
-///
-/// Fields use `#[serde(default)]` where the backend `RealmResponse` may
-/// omit them, preventing deserialization failures.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RealmInfo {
-    pub id: String,
-    pub name: String,
-    pub display_name: Option<String>,
-    #[serde(default)]
-    pub description: Option<String>,
-    pub enabled: bool,
-    pub created_at: String,
-    #[serde(default)]
-    pub updated_at: Option<String>,
-}
-
-/// Create realm request
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateRealmRequest {
-    pub name: String,
-    pub display_name: Option<String>,
-}
-
-/// Update realm request
-#[derive(Clone, Debug, Serialize)]
-pub struct UpdateRealmRequest {
-    pub display_name: Option<String>,
-    pub enabled: Option<bool>,
-}
-
-/// OAuth2 Client info
+/// OAuth2 Client info (read-only inspection; clients are seeded config)
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClientInfo {
     pub id: String,
@@ -268,17 +239,6 @@ pub struct ClientInfo {
     pub created_at: String,
 }
 
-/// Create client request
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateClientRequest {
-    pub client_id: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub client_type: String,
-    pub redirect_uris: Vec<String>,
-    pub enabled: bool,
-}
-
 /// Role info
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RoleInfo {
@@ -288,59 +248,6 @@ pub struct RoleInfo {
     pub permissions: Vec<String>,
     pub user_count: Option<u64>,
     pub created_at: String,
-}
-
-/// Create role request
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateRoleRequest {
-    pub name: String,
-    pub description: Option<String>,
-    pub permissions: Vec<String>,
-}
-
-/// Federation identity provider
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct IdentityProviderInfo {
-    pub id: String,
-    pub alias: String,
-    pub display_name: Option<String>,
-    pub provider_type: String,
-    pub enabled: bool,
-    pub created_at: String,
-}
-
-/// Create IdP request
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateIdentityProviderRequest {
-    pub alias: String,
-    pub display_name: Option<String>,
-    pub provider_type: String,
-    pub config: serde_json::Value,
-    pub enabled: bool,
-}
-
-/// Group info from IAM API
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct GroupInfo {
-    pub id: String,
-    pub realm_id: String,
-    pub name: String,
-    pub parent_id: Option<String>,
-    pub description: Option<String>,
-    pub attributes: serde_json::Value,
-    pub member_count: i64,
-    pub subgroup_count: i64,
-    pub created_at: String,
-    pub updated_at: String,
-}
-
-/// Create group request
-#[derive(Clone, Debug, Serialize)]
-pub struct CreateGroupApiRequest {
-    pub realm_id: String,
-    pub name: String,
-    pub parent_id: Option<String>,
-    pub description: Option<String>,
 }
 
 /// Audit log entry
@@ -369,16 +276,15 @@ pub struct AuditLogQuery {
 }
 
 /// Admin statistics
+/// Subset of the backend `SystemStats` the admin overview renders
+/// (serde ignores the extra fields the backend also reports).
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AdminStats {
     pub total_users: u64,
     pub active_users: u64,
     pub total_sessions: u64,
-    pub total_realms: u64,
+    pub active_sessions: u64,
     pub total_clients: u64,
-    pub mfa_enabled_users: u64,
-    pub recent_login_count: u64,
-    pub failed_login_count: u64,
 }
 
 /// Paginated response wrapper
@@ -887,43 +793,7 @@ impl AuthencApiClient {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // IAM Admin: Realm Management (/api/v1/iam/realms/)
-    // ═════════════════════════════════════════════════════════════════════════
-
-    /// List realms
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_list_realms(&self) -> Result<Vec<RealmInfo>, String> {
-        let resp = self.get("/api/v1/iam/realms").await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Create realm
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_create_realm(&self, req: &CreateRealmRequest) -> Result<RealmInfo, String> {
-        let resp = self.post("/api/v1/iam/realms", req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Update realm
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_update_realm(
-        &self,
-        id: &str,
-        req: &UpdateRealmRequest,
-    ) -> Result<RealmInfo, String> {
-        let resp = self.put(&format!("/api/v1/iam/realms/{}", id), req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Delete realm
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_delete_realm(&self, id: &str) -> Result<(), String> {
-        let resp = self.delete(&format!("/api/v1/iam/realms/{}", id)).await?;
-        Self::check_ok(resp).await
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // IAM Admin: Client Management (/api/v1/iam/clients/)
+    // IAM Admin: Client Inspection (/api/v1/iam/clients/, read-only)
     // ═════════════════════════════════════════════════════════════════════════
 
     /// List OAuth2 clients
@@ -933,37 +803,8 @@ impl AuthencApiClient {
         Self::parse_response(resp).await
     }
 
-    /// Create OAuth2 client
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_create_client(&self, req: &CreateClientRequest) -> Result<ClientInfo, String> {
-        let resp = self.post("/api/v1/iam/clients", req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Delete OAuth2 client
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_delete_client(&self, id: &str) -> Result<(), String> {
-        let resp = self.delete(&format!("/api/v1/iam/clients/{}", id)).await?;
-        Self::check_ok(resp).await
-    }
-
-    /// Regenerate client secret
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_regenerate_client_secret(
-        &self,
-        id: &str,
-    ) -> Result<serde_json::Value, String> {
-        let resp = self
-            .post(
-                &format!("/api/v1/iam/clients/{}/secret/regenerate", id),
-                &serde_json::json!({}),
-            )
-            .await?;
-        Self::parse_response(resp).await
-    }
-
     // ═════════════════════════════════════════════════════════════════════════
-    // IAM Admin: Role Management (/api/v1/iam/roles/)
+    // IAM Admin: Role Listing (/api/v1/iam/roles)
     // ═════════════════════════════════════════════════════════════════════════
 
     /// List roles
@@ -971,50 +812,6 @@ impl AuthencApiClient {
     pub async fn iam_list_roles(&self) -> Result<Vec<RoleInfo>, String> {
         let resp = self.get("/api/v1/iam/roles").await?;
         Self::parse_response(resp).await
-    }
-
-    /// Create role
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_create_role(&self, req: &CreateRoleRequest) -> Result<RoleInfo, String> {
-        let resp = self.post("/api/v1/iam/roles", req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Delete role
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_delete_role(&self, id: &str) -> Result<(), String> {
-        let resp = self.delete(&format!("/api/v1/iam/roles/{}", id)).await?;
-        Self::check_ok(resp).await
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // IAM Admin: Federation / Identity Providers (/api/v1/iam/identity-providers/)
-    // ═════════════════════════════════════════════════════════════════════════
-
-    /// List identity providers
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_list_identity_providers(&self) -> Result<Vec<IdentityProviderInfo>, String> {
-        let resp = self.get("/api/v1/iam/identity-providers").await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Create identity provider
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_create_identity_provider(
-        &self,
-        req: &CreateIdentityProviderRequest,
-    ) -> Result<IdentityProviderInfo, String> {
-        let resp = self.post("/api/v1/iam/identity-providers", req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Delete identity provider
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_delete_identity_provider(&self, id: &str) -> Result<(), String> {
-        let resp = self
-            .delete(&format!("/api/v1/iam/identity-providers/{}", id))
-            .await?;
-        Self::check_ok(resp).await
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -1076,56 +873,6 @@ impl AuthencApiClient {
     #[cfg(target_arch = "wasm32")]
     pub async fn iam_admin_stats(&self) -> Result<AdminStats, String> {
         let resp = self.get("/api/v1/iam/admin/stats").await?;
-        Self::parse_response(resp).await
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    // IAM Admin: Group Management (/api/v1/iam/groups/)
-    // ═════════════════════════════════════════════════════════════════════════
-
-    /// List groups
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_list_groups(&self) -> Result<Vec<GroupInfo>, String> {
-        let resp = self.get("/api/v1/iam/groups").await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Create group
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_create_group(&self, req: &CreateGroupApiRequest) -> Result<GroupInfo, String> {
-        let resp = self.post("/api/v1/iam/groups", req).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Get group by ID
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_get_group(&self, id: &str) -> Result<GroupInfo, String> {
-        let resp = self.get(&format!("/api/v1/iam/groups/{}", id)).await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Delete group
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_delete_group(&self, id: &str) -> Result<(), String> {
-        let resp = self.delete(&format!("/api/v1/iam/groups/{}", id)).await?;
-        Self::check_ok(resp).await
-    }
-
-    /// Get group members
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_get_group_members(&self, id: &str) -> Result<Vec<String>, String> {
-        let resp = self
-            .get(&format!("/api/v1/iam/groups/{}/members", id))
-            .await?;
-        Self::parse_response(resp).await
-    }
-
-    /// Get subgroups
-    #[cfg(target_arch = "wasm32")]
-    pub async fn iam_get_subgroups(&self, id: &str) -> Result<Vec<GroupInfo>, String> {
-        let resp = self
-            .get(&format!("/api/v1/iam/groups/{}/subgroups", id))
-            .await?;
         Self::parse_response(resp).await
     }
 
@@ -1317,7 +1064,7 @@ impl AuthencApiClient {
             email_verified: false,
             mfa_enabled: false,
             created_at: "2026-01-01".to_string(),
-            last_login: None,
+            last_login_at: None,
             roles: vec![],
         })
     }
@@ -1358,83 +1105,12 @@ impl AuthencApiClient {
         Ok(())
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_list_realms(&self) -> Result<Vec<RealmInfo>, String> {
-        Ok(vec![])
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_create_realm(&self, _r: &CreateRealmRequest) -> Result<RealmInfo, String> {
-        Ok(RealmInfo {
-            id: "mock".to_string(),
-            name: "mock".to_string(),
-            display_name: None,
-            description: None,
-            enabled: true,
-            created_at: "2026-01-01".to_string(),
-            updated_at: None,
-        })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_update_realm(
-        &self,
-        _id: &str,
-        _r: &UpdateRealmRequest,
-    ) -> Result<RealmInfo, String> {
-        self.iam_create_realm(&CreateRealmRequest {
-            name: "mock".to_string(),
-            display_name: None,
-        })
-        .await
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_delete_realm(&self, _id: &str) -> Result<(), String> {
-        Ok(())
-    }
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_list_clients(&self) -> Result<Vec<ClientInfo>, String> {
         Ok(vec![])
     }
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_create_client(&self, _r: &CreateClientRequest) -> Result<ClientInfo, String> {
-        Ok(ClientInfo {
-            id: "mock".to_string(),
-            client_id: "mock".to_string(),
-            name: None,
-            description: None,
-            client_type: "public".to_string(),
-            redirect_uris: vec![],
-            enabled: true,
-            created_at: "2026-01-01".to_string(),
-        })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_delete_client(&self, _id: &str) -> Result<(), String> {
-        Ok(())
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_regenerate_client_secret(
-        &self,
-        _id: &str,
-    ) -> Result<serde_json::Value, String> {
-        Ok(serde_json::json!({"secret": "new_mock_secret"}))
-    }
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_list_roles(&self) -> Result<Vec<RoleInfo>, String> {
         Ok(vec![])
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_create_role(&self, _r: &CreateRoleRequest) -> Result<RoleInfo, String> {
-        Ok(RoleInfo {
-            id: "mock".to_string(),
-            name: "mock".to_string(),
-            description: None,
-            permissions: vec![],
-            user_count: None,
-            created_at: "2026-01-01".to_string(),
-        })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_delete_role(&self, _id: &str) -> Result<(), String> {
-        Ok(())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -1451,28 +1127,6 @@ impl AuthencApiClient {
         })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_list_identity_providers(&self) -> Result<Vec<IdentityProviderInfo>, String> {
-        Ok(vec![])
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_create_identity_provider(
-        &self,
-        _r: &CreateIdentityProviderRequest,
-    ) -> Result<IdentityProviderInfo, String> {
-        Ok(IdentityProviderInfo {
-            id: "mock".to_string(),
-            alias: "mock".to_string(),
-            display_name: None,
-            provider_type: "oidc".to_string(),
-            enabled: true,
-            created_at: "2026-01-01".to_string(),
-        })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_delete_identity_provider(&self, _id: &str) -> Result<(), String> {
-        Ok(())
-    }
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn iam_query_audit_logs(
         &self,
@@ -1496,52 +1150,8 @@ impl AuthencApiClient {
             total_users: 0,
             active_users: 0,
             total_sessions: 0,
-            total_realms: 0,
+            active_sessions: 0,
             total_clients: 0,
-            mfa_enabled_users: 0,
-            recent_login_count: 0,
-            failed_login_count: 0,
         })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_list_groups(&self) -> Result<Vec<GroupInfo>, String> {
-        Ok(vec![])
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_create_group(&self, _r: &CreateGroupApiRequest) -> Result<GroupInfo, String> {
-        Ok(GroupInfo {
-            id: "mock".to_string(),
-            realm_id: "mock".to_string(),
-            name: "mock".to_string(),
-            parent_id: None,
-            description: None,
-            attributes: serde_json::json!({}),
-            member_count: 0,
-            subgroup_count: 0,
-            created_at: "2026-01-01".to_string(),
-            updated_at: "2026-01-01".to_string(),
-        })
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_get_group(&self, _id: &str) -> Result<GroupInfo, String> {
-        self.iam_create_group(&CreateGroupApiRequest {
-            realm_id: "mock".to_string(),
-            name: "mock".to_string(),
-            parent_id: None,
-            description: None,
-        })
-        .await
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_delete_group(&self, _id: &str) -> Result<(), String> {
-        Ok(())
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_get_group_members(&self, _id: &str) -> Result<Vec<String>, String> {
-        Ok(vec![])
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn iam_get_subgroups(&self, _id: &str) -> Result<Vec<GroupInfo>, String> {
-        Ok(vec![])
     }
 }

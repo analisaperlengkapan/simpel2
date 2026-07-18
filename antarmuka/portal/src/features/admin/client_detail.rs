@@ -1,66 +1,19 @@
 //! Client Detail Page (Admin)
 //!
-//! Tabbed interface for viewing and managing a single OAuth2/OIDC client.
-//! 7 tabs: Settings, Credentials, Roles, Client Scopes, Mappers, Scope, Sessions
+//! Read-only inspection of a single OAuth2/OIDC client, backed by
+//! `GET /api/v1/iam/clients/{id}`. The old page mirrored Keycloak's 7-tab
+//! console where five tabs were hard-coded "not configured" placeholders
+//! and the credentials tab called a regenerate-secret endpoint that was a
+//! NotImplemented stub — all removed with the #45 IAM trim. Clients are
+//! seeded configuration; their secret never leaves the backend.
 //! REQ-PORTAL-017
 
-use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
+use crate::components::feedback::{ErrorBanner, LoadingPanel};
 use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::async_load::load_value_once;
 use crate::utils::authenc_api::ClientInfo;
 use leptos::prelude::*;
-use leptos::task::spawn_local;
-
-/// Active tab enum
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ClientTab {
-    Settings,
-    Credentials,
-    Roles,
-    ClientScopes,
-    Mappers,
-    Scope,
-    Sessions,
-}
-
-impl ClientTab {
-    fn label(&self) -> &'static str {
-        match self {
-            Self::Settings => "Pengaturan",
-            Self::Credentials => "Kredensial",
-            Self::Roles => "Peran",
-            Self::ClientScopes => "Cakupan Klien",
-            Self::Mappers => "Pemeta",
-            Self::Scope => "Cakupan",
-            Self::Sessions => "Sesi",
-        }
-    }
-
-    fn icon(&self) -> &'static str {
-        match self {
-            Self::Settings => "⚙",
-            Self::Credentials => "🔑",
-            Self::Roles => "🛡",
-            Self::ClientScopes => "📋",
-            Self::Mappers => "🔄",
-            Self::Scope => "📦",
-            Self::Sessions => "📱",
-        }
-    }
-
-    fn all() -> &'static [ClientTab] {
-        &[
-            Self::Settings,
-            Self::Credentials,
-            Self::Roles,
-            Self::ClientScopes,
-            Self::Mappers,
-            Self::Scope,
-            Self::Sessions,
-        ]
-    }
-}
 
 /// Client detail page — takes client ID from path
 #[component]
@@ -73,8 +26,6 @@ pub fn ClientDetailPage() -> impl IntoView {
     let (client, set_client) = signal(Option::<ClientInfo>::None);
     let (loading, set_loading) = signal(true);
     let (error, set_error) = signal(Option::<String>::None);
-    let (success, set_success) = signal(Option::<String>::None);
-    let (active_tab, set_active_tab) = signal(ClientTab::Settings);
 
     // Load client
     {
@@ -92,28 +43,6 @@ pub fn ClientDetailPage() -> impl IntoView {
                 set_loading,
                 "Gagal memuat detail klien",
             );
-        });
-    }
-
-    // Regenerate secret handler
-    let (regen_trigger, set_regen_trigger) = signal(0u32);
-    {
-        let api = api.clone();
-        Effect::new(move || {
-            let count = regen_trigger.get();
-            if count == 0 {
-                return;
-            }
-            let api = api.clone();
-            let cid = client_id();
-            spawn_local(async move {
-                match api.iam_regenerate_client_secret(&cid).await {
-                    Ok(_) => set_success.set(Some("Rahasia klien berhasil diperbarui".to_string())),
-                    Err(e) => {
-                        set_error.set(Some(format!("Gagal memperbarui rahasia klien: {}", e)))
-                    }
-                }
-            });
         });
     }
 
@@ -137,12 +66,6 @@ pub fn ClientDetailPage() -> impl IntoView {
             .unwrap_or_default()
     };
     let client_enabled = move || client.get().map(|c| c.enabled).unwrap_or(false);
-    let client_description = move || {
-        client
-            .get()
-            .and_then(|c| c.description.clone())
-            .unwrap_or_else(|| "—".to_string())
-    };
     let client_created = move || {
         client
             .get()
@@ -173,7 +96,6 @@ pub fn ClientDetailPage() -> impl IntoView {
                     " / Detail"
                 </nav>
 
-                {move || success.get().map(|msg| view! { <SuccessBanner message=msg /> })}
                 {move || error.get().map(|msg| view! { <ErrorBanner message=msg /> })}
 
                 <Show
@@ -241,200 +163,64 @@ pub fn ClientDetailPage() -> impl IntoView {
                             </div>
                         </div>
 
-                        // Tabs
-                        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                            <div class="border-b">
-                                <nav class="flex overflow-x-auto px-2">
-                                    {ClientTab::all()
-                                        .iter()
-                                        .map(|tab| {
-                                            let t = *tab;
-                                            view! {
-                                                <button
-                                                    on:click=move |_| set_active_tab.set(t)
-                                                    class=move || {
-                                                        if active_tab.get() == t {
-                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-primary-600 border-b-2 border-primary-600 whitespace-nowrap"
-                                                        } else {
-                                                            "flex items-center gap-1.5 px-4 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent whitespace-nowrap"
-                                                        }
-                                                    }
-                                                >
-                                                    <span>{t.icon()}</span>
-                                                    {t.label()}
-                                                </button>
-                                            }
-                                        })
-                                        .collect::<Vec<_>>()}
-                                </nav>
-                            </div>
-
-                            <div class="p-6">
-                                // === Settings Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Settings>
-                                    <div class="space-y-5">
-                                        <dl class="space-y-4">
-                                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                <div class="border rounded-lg p-4">
-                                                    <dt class="text-xs text-gray-500 mb-1">"ID Klien"</dt>
-                                                    <dd class="text-sm font-mono font-semibold text-gray-900">
-                                                        {client_client_id}
-                                                    </dd>
-                                                </div>
-                                                <div class="border rounded-lg p-4">
-                                                    <dt class="text-xs text-gray-500 mb-1">"Tipe Klien"</dt>
-                                                    <dd class="text-sm font-semibold text-gray-900">
-                                                        {client_type}
-                                                    </dd>
-                                                </div>
-                                            </div>
-                                            <div class="border rounded-lg p-4">
-                                                <dt class="text-xs text-gray-500 mb-1">"Deskripsi"</dt>
-                                                <dd class="text-sm text-gray-700">{client_description}</dd>
-                                            </div>
-                                            <div class="border rounded-lg p-4">
-                                                <dt class="text-xs text-gray-500 mb-2">"Redirect URIs"</dt>
-                                                <dd>
-                                                    {move || {
-                                                        let uris = client_uris();
-                                                        if uris.is_empty() {
-                                                            view! {
-                                                                <p class="text-sm text-gray-400 italic">
-                                                                    "Tidak ada redirect URI."
-                                                                </p>
-                                                            }
-                                                                .into_any()
-                                                        } else {
-                                                            view! {
-                                                                <ul class="space-y-1">
-                                                                    {uris
-                                                                        .into_iter()
-                                                                        .map(|uri| {
-                                                                            view! {
-                                                                                <li class="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded">
-                                                                                    {uri}
-                                                                                </li>
-                                                                            }
-                                                                        })
-                                                                        .collect::<Vec<_>>()}
-                                                                </ul>
-                                                            }
-                                                                .into_any()
-                                                        }
-                                                    }}
-                                                </dd>
-                                            </div>
-                                        </dl>
+                        // Configuration details
+                        <div class="bg-white rounded-xl border border-gray-200 p-6">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">
+                                "Konfigurasi Klien"
+                            </h2>
+                            <dl class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="border rounded-lg p-4">
+                                        <dt class="text-xs text-gray-500 mb-1">"ID Klien"</dt>
+                                        <dd class="text-sm font-mono font-semibold text-gray-900">
+                                            {client_client_id}
+                                        </dd>
                                     </div>
-                                </Show>
-
-                                // === Credentials Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Credentials>
-                                    <div class="space-y-6">
-                                        <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                                            <h4 class="font-semibold text-amber-800">
-                                                "⚠ Client Secret"
-                                            </h4>
-                                            <p class="text-sm text-amber-700 mt-1">
-                                                "Regenerasi secret akan membuat secret lama tidak valid. Semua aplikasi yang menggunakan secret lama akan gagal otentikasi."
-                                            </p>
-                                        </div>
-                                        <div class="border rounded-lg p-5">
-                                            <h4 class="font-medium text-gray-900 mb-3">
-                                                "Regenerasi Client Secret"
-                                            </h4>
-                                            <button
-                                                on:click=move |_| {
-                                                    set_regen_trigger.set(regen_trigger.get() + 1)
+                                    <div class="border rounded-lg p-4">
+                                        <dt class="text-xs text-gray-500 mb-1">"Tipe Klien"</dt>
+                                        <dd class="text-sm font-semibold text-gray-900">
+                                            {client_type}
+                                        </dd>
+                                    </div>
+                                </div>
+                                <div class="border rounded-lg p-4">
+                                    <dt class="text-xs text-gray-500 mb-2">"Redirect URIs"</dt>
+                                    <dd>
+                                        {move || {
+                                            let uris = client_uris();
+                                            if uris.is_empty() {
+                                                view! {
+                                                    <p class="text-sm text-gray-400 italic">
+                                                        "Tidak ada redirect URI."
+                                                    </p>
                                                 }
-                                                class="px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors text-sm"
-                                            >
-                                                "🔄 Regenerasi Secret"
-                                            </button>
-                                        </div>
-                                    </div>
-                                </Show>
-
-                                // === Roles Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Roles>
-                                    <div class="text-center py-8">
-                                        <p class="text-3xl mb-3">"🛡"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
-                                            "Peran Klien"
-                                        </h3>
-                                        <p class="text-sm text-gray-500">
-                                            "Peran yang tersedia untuk klien ini."
-                                        </p>
-                                        <p class="text-xs text-gray-400 mt-4">
-                                            "Belum ada peran klien yang dikonfigurasi."
-                                        </p>
-                                    </div>
-                                </Show>
-
-                                // === Client Scopes Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::ClientScopes>
-                                    <div class="text-center py-8">
-                                        <p class="text-3xl mb-3">"📋"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
-                                            "Cakupan Klien"
-                                        </h3>
-                                        <p class="text-sm text-gray-500">
-                                            "Cakupan default dan opsional yang ditetapkan ke klien ini."
-                                        </p>
-                                        <p class="text-xs text-gray-400 mt-4">
-                                            "Belum ada cakupan yang dikonfigurasi."
-                                        </p>
-                                    </div>
-                                </Show>
-
-                                // === Mappers Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Mappers>
-                                    <div class="text-center py-8">
-                                        <p class="text-3xl mb-3">"🔄"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
-                                            "Protocol Mappers"
-                                        </h3>
-                                        <p class="text-sm text-gray-500">
-                                            "Mapper yang mengontrol klaim token untuk klien ini."
-                                        </p>
-                                        <p class="text-xs text-gray-400 mt-4">
-                                            "Belum ada mapper yang dikonfigurasi."
-                                        </p>
-                                    </div>
-                                </Show>
-
-                                // === Scope Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Scope>
-                                    <div class="text-center py-8">
-                                        <p class="text-3xl mb-3">"📦"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
-                                            "Scope Evaluation"
-                                        </h3>
-                                        <p class="text-sm text-gray-500">
-                                            "Evaluasi scope yang efektif untuk klien ini berdasarkan konfigurasi realm."
-                                        </p>
-                                        <p class="text-xs text-gray-400 mt-4">
-                                            "Belum ada evaluasi scope."
-                                        </p>
-                                    </div>
-                                </Show>
-
-                                // === Sessions Tab ===
-                                <Show when=move || active_tab.get() == ClientTab::Sessions>
-                                    <div class="text-center py-8">
-                                        <p class="text-3xl mb-3">"📱"</p>
-                                        <h3 class="text-lg font-semibold text-gray-700 mb-2">
-                                            "Sesi Aktif"
-                                        </h3>
-                                        <p class="text-sm text-gray-500">
-                                            "Sesi aktif yang menggunakan klien ini."
-                                        </p>
-                                        <p class="text-xs text-gray-400 mt-4">
-                                            "Tidak ada sesi aktif."
-                                        </p>
-                                    </div>
-                                </Show>
-                            </div>
+                                                    .into_any()
+                                            } else {
+                                                view! {
+                                                    <ul class="space-y-1">
+                                                        {uris
+                                                            .into_iter()
+                                                            .map(|uri| {
+                                                                view! {
+                                                                    <li class="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded">
+                                                                        {uri}
+                                                                    </li>
+                                                                }
+                                                            })
+                                                            .collect::<Vec<_>>()}
+                                                    </ul>
+                                                }
+                                                    .into_any()
+                                            }
+                                        }}
+                                    </dd>
+                                </div>
+                                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <p class="text-xs text-gray-500">
+                                        "Klien merupakan konfigurasi ter-seed. Rahasia klien tidak pernah ditampilkan; perubahan konfigurasi dilakukan lewat seed/migrasi."
+                                    </p>
+                                </div>
+                            </dl>
                         </div>
                     </Show>
                 </Show>

@@ -308,8 +308,6 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
 
     // Clone services shared between ApiState and IamApiState
     let iam_user_service = user_service.clone();
-    let iam_realm_service = realm_service.clone();
-    let iam_oauth2_service = oauth2_service.clone();
     let iam_jwt_service = jwt_service.clone();
 
     // CAPTCHA service
@@ -460,49 +458,11 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Satker identity = integrasi/MySIMKARI (SoT, #42). Build the read-model once
-    // and feed BOTH the read view and the RBAC hierarchy from it; fall back to the
-    // local DB cache only if integrasi is unreachable at startup (resilience, not
-    // a second master).
-    let all_satkers = match &state.integrasi_client {
-        Some(client) => match client.get_satker_readmodel().await {
-            Ok(s) if !s.is_empty() => {
-                info!(
-                    "Loaded {} satkers from integrasi read-model (identity SoT)",
-                    s.len()
-                );
-                s
-            }
-            Ok(_) => {
-                warn!("integrasi returned 0 satkers; falling back to local DB cache");
-                db.get_all_satkers().await.unwrap_or_default()
-            }
-            Err(e) => {
-                warn!("integrasi satker read-model failed ({e}); falling back to local DB cache");
-                db.get_all_satkers().await.unwrap_or_default()
-            }
-        },
-        None => {
-            warn!("No integrasi client configured; using local DB satker cache");
-            db.get_all_satkers().await.unwrap_or_default()
-        }
-    };
-    let satker_service = Arc::new(authenc_core::services::SatkerManagementService::new(
-        all_satkers.clone(),
-    ));
-    let satker_auth_service = Arc::new(authenc_core::services::SatkerAuthorizationService::new(
-        all_satkers,
-    ));
-
-    // IAM API - create state and router for admin endpoints
-    let iam_state = IamApiState::new(
-        iam_user_service,
-        iam_realm_service,
-        iam_oauth2_service,
-        iam_jwt_service,
-        satker_service,
-        satker_auth_service,
-    );
+    // IAM API - create state and router for admin endpoints. (The satker
+    // read-model bootstrap that used to live here fed only the deleted IAM
+    // satker admin endpoints — login-time satker resolution talks to the
+    // integrasi client directly.)
+    let iam_state = IamApiState::new(iam_user_service, iam_jwt_service, db.clone());
     let iam_router = create_iam_router(Arc::new(iam_state));
 
     // App config - development CORS + disabled CSRF for API service

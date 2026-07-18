@@ -114,7 +114,6 @@
 //! - [`transaction`]: Transaction management and isolation levels
 //! - [`stores`]: High-level store implementations
 //! - [`operations`]: Low-level database operations
-//! - [`queries`]: Common query patterns
 //! - [`batch`]: Batch operation support
 //! - [`migrations`]: Database schema migration system
 //!
@@ -197,9 +196,6 @@ pub mod models;
 /// - Client registration operations (disabled)
 /// - Protocol mapper operations (disabled)
 pub mod operations;
-
-/// Common query patterns and utilities
-pub mod queries;
 
 /// Batch operation support for bulk inserts/updates
 pub mod batch;

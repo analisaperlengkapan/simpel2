@@ -1,11 +1,18 @@
 //! Role management HTTP handlers
+//!
+//! The platform's role model is fixed and seeded (admin + operator_satker +
+//! validator_wilayah + validator_pusat, `002_seed.sql`); login builds
+//! `realm_access.roles` from the same `user_roles` → `roles` relation these
+//! handlers manage. The surface is therefore read + assignment only — role
+//! CRUD would drift the seeded model and had no real implementation or
+//! consumer anyway.
 
 use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -13,103 +20,131 @@ use crate::error::ApiResult;
 use crate::state::IamApiState;
 use authenc_types::AuthencError;
 
-/// Role response DTO
+/// Role response DTO (shape shared with the portal `RoleInfo`)
 #[derive(Debug, Serialize)]
 pub struct RoleResponse {
     pub id: Uuid,
     pub name: String,
     pub description: Option<String>,
-    pub realm_id: Uuid,
+    /// `permission@resource` pairs from `role_permissions`
+    pub permissions: Vec<String>,
+    /// Number of users currently holding this role
+    pub user_count: u64,
     pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Create role request
-#[derive(Debug, Deserialize)]
-pub struct CreateRoleRequest {
-    pub name: String,
-    pub description: Option<String>,
-    pub realm_id: Uuid,
-}
-
-/// Update role request
-#[derive(Debug, Deserialize)]
-pub struct UpdateRoleRequest {
-    pub name: Option<String>,
-    pub description: Option<String>,
-}
-
-/// GET /api/v1/iam/roles - List roles
+/// GET /api/v1/iam/roles - List roles with permissions and user counts
 pub async fn list_roles(
-    State(_state): State<Arc<IamApiState>>,
+    State(state): State<Arc<IamApiState>>,
 ) -> ApiResult<Json<Vec<RoleResponse>>> {
-    // TODO: Call role_service.list_roles() when implemented
-    Ok(Json(vec![]))
-}
+    let rows = state
+        .database
+        .query(
+            r#"
+            SELECT r.id,
+                   r.name,
+                   r.description,
+                   r.created_at,
+                   COALESCE(p.permissions, '{}') AS permissions,
+                   COALESCE(u.user_count, 0)    AS user_count
+            FROM roles r
+            LEFT JOIN (
+                SELECT role_id,
+                       array_agg(permission || '@' || COALESCE(resource, '*')
+                                 ORDER BY resource) AS permissions
+                FROM role_permissions
+                GROUP BY role_id
+            ) p ON p.role_id = r.id
+            LEFT JOIN (
+                SELECT role_id, COUNT(*) AS user_count
+                FROM user_roles
+                GROUP BY role_id
+            ) u ON u.role_id = r.id
+            WHERE r.deleted_at IS NULL
+            ORDER BY r.name
+            "#,
+            &[],
+        )
+        .await
+        .map_err(crate::error::ApiError)?;
 
-/// POST /api/v1/iam/roles - Create role
-pub async fn create_role(
-    State(_state): State<Arc<IamApiState>>,
-    Json(_req): Json<CreateRoleRequest>,
-) -> ApiResult<(StatusCode, Json<RoleResponse>)> {
-    // TODO: Call role_service.create_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "create_role not yet implemented".to_string(),
-    )))
-}
+    let roles = rows
+        .into_iter()
+        .map(|row| RoleResponse {
+            id: row.get("id"),
+            name: row.get("name"),
+            description: row.get("description"),
+            permissions: row.get("permissions"),
+            user_count: row.get::<_, i64>("user_count") as u64,
+            created_at: row.get("created_at"),
+        })
+        .collect();
 
-/// GET /api/v1/iam/roles/{id} - Get role by ID
-pub async fn get_role(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-) -> ApiResult<Json<RoleResponse>> {
-    // TODO: Call role_service.get_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "get_role not yet implemented".to_string(),
-    )))
-}
-
-/// PUT /api/v1/iam/roles/{id} - Update role
-pub async fn update_role(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-    Json(_req): Json<UpdateRoleRequest>,
-) -> ApiResult<Json<RoleResponse>> {
-    // TODO: Call role_service.update_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "update_role not yet implemented".to_string(),
-    )))
-}
-
-/// DELETE /api/v1/iam/roles/{id} - Delete role
-pub async fn delete_role(
-    State(_state): State<Arc<IamApiState>>,
-    Path(_id): Path<Uuid>,
-) -> ApiResult<StatusCode> {
-    // TODO: Call role_service.delete_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "delete_role not yet implemented".to_string(),
-    )))
+    Ok(Json(roles))
 }
 
 /// POST /api/v1/iam/users/{user_id}/roles/{role_id} - Assign role to user
 pub async fn assign_role_to_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path((_user_id, _role_id)): Path<(Uuid, Uuid)>,
+    State(state): State<Arc<IamApiState>>,
+    Path((user_id, role_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call role_service.assign_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "assign_role not yet implemented".to_string(),
-    )))
+    // Role and user must both exist — a nonexistent pair must 404, not
+    // silently insert a dangling row (user_roles has no FK to roles).
+    let role_exists = state
+        .database
+        .query(
+            "SELECT 1 FROM roles WHERE id = $1 AND deleted_at IS NULL",
+            &[&role_id],
+        )
+        .await
+        .map_err(crate::error::ApiError)?;
+    if role_exists.is_empty() {
+        return Err(crate::error::ApiError(AuthencError::not_found("role")));
+    }
+    let user_exists = state
+        .database
+        .query("SELECT 1 FROM users WHERE id = $1", &[&user_id])
+        .await
+        .map_err(crate::error::ApiError)?;
+    if user_exists.is_empty() {
+        return Err(crate::error::ApiError(AuthencError::not_found("user")));
+    }
+
+    state
+        .database
+        .execute(
+            r#"
+            INSERT INTO user_roles (user_id, role_id)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id, role_id) DO NOTHING
+            "#,
+            &[&user_id, &role_id],
+        )
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// DELETE /api/v1/iam/users/{user_id}/roles/{role_id} - Remove role from user
 pub async fn remove_role_from_user(
-    State(_state): State<Arc<IamApiState>>,
-    Path((_user_id, _role_id)): Path<(Uuid, Uuid)>,
+    State(state): State<Arc<IamApiState>>,
+    Path((user_id, role_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
-    // TODO: Call role_service.remove_role() when implemented
-    Err(crate::error::ApiError(AuthencError::NotImplemented(
-        "remove_role not yet implemented".to_string(),
-    )))
+    let affected = state
+        .database
+        .execute(
+            "DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2",
+            &[&user_id, &role_id],
+        )
+        .await
+        .map_err(crate::error::ApiError)?;
+
+    if affected == 0 {
+        return Err(crate::error::ApiError(AuthencError::not_found(
+            "role assignment",
+        )));
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }

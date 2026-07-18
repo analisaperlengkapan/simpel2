@@ -184,23 +184,13 @@ pub fn App() -> impl IntoView {
                                 path=(StaticSegment("users"), ParamSegment("id"))
                                 view=UserDetailPage
                             />
-                            <Route path=StaticSegment("realms") view=RealmsManagementPage />
                             <Route path=StaticSegment("clients") view=ClientsManagementPage />
                             <Route
                                 path=(StaticSegment("clients"), ParamSegment("id"))
                                 view=ClientDetailPage
                             />
                             <Route path=StaticSegment("roles") view=RolesManagementPage />
-                            <Route path=StaticSegment("federation") view=FederationManagementPage />
-                            <Route
-                                path=StaticSegment("permissions")
-                                view=PermissionsManagementPage
-                            />
                             <Route path=StaticSegment("audit") view=AuditLogsPage />
-                            <Route path=StaticSegment("groups") view=GroupsManagementPage />
-                            <Route path=StaticSegment("realm-settings") view=RealmSettingsPage />
-                            <Route path=StaticSegment("auth-flows") view=AuthFlowsPage />
-                            <Route path=StaticSegment("linked-accounts") view=LinkedAccountsPage />
                         </ParentRoute>
                     </Routes>
                 </Router>

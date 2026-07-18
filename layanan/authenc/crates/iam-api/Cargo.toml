@@ -10,6 +10,7 @@ rust-version = "1.90"
 authenc-types = { path = "../types" }
 authenc-core = { path = "../core" }
 authenc-crypto = { path = "../crypto" }
+authenc-storage = { path = "../storage" }
 
 # External dependencies (from workspace)
 tokio = { workspace = true }
@@ -21,6 +22,7 @@ uuid = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+tokio-postgres = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 

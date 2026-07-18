@@ -33,11 +33,15 @@ impl Default for SecurityMonitoringConfig {
         Self {
             enabled: true,
             suspicious_threshold_rpm: 100,
+            // Prefix-matched (`starts_with`) against the request path, so
+            // these must be the real mounted prefixes. The old values
+            // (`/auth/login`, `/admin`, …) lacked the `/api/v1` prefix and
+            // never matched anything — no security event was ever recorded.
             monitored_paths: vec![
-                "/auth/login".to_string(),
-                "/auth/register".to_string(),
-                "/account".to_string(),
-                "/admin".to_string(),
+                "/api/v1/auth/login".to_string(),
+                "/api/v1/auth/logout".to_string(),
+                "/api/v1/auth/revoke".to_string(),
+                "/api/v1/iam/".to_string(),
             ],
             log_auth_attempts: true,
             log_authz_failures: true,

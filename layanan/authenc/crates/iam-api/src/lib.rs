@@ -3,13 +3,11 @@
 //! IAM Administration REST API for Authenc identity provider.
 //!
 //! This crate provides admin HTTP endpoints for:
-//! - User management (CRUD, password reset, MFA setup)
-//! - Realm management
-//! - OAuth2 client management
-//! - Role and permission management
-//! - Federation/SSO configuration
-//! - Audit log access
-//! - System configuration
+//! - User management (CRUD, password reset, MFA enable/disable)
+//! - Role listing and user-role assignment
+//! - OAuth2 client inspection (read-only; clients are seeded config)
+//! - Audit log access and export
+//! - System statistics
 
 // Re-export types from authenc-types
 pub use authenc_types::*;
@@ -18,7 +16,6 @@ pub mod error;
 pub mod handlers;
 pub mod middleware;
 pub mod router;
-pub mod routes;
 pub mod state;
 
 // Re-export the main router creation function for convenience

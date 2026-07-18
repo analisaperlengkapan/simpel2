@@ -59,28 +59,16 @@ pub fn AdminOverviewPage() -> impl IntoView {
                         href="/portal/admin/users"
                     />
                     <AdminNavCard
-                        icon="🏢"
-                        title="Realm"
-                        desc="Kelola realm dan konfigurasi tenant"
-                        href="/portal/admin/realms"
-                    />
-                    <AdminNavCard
-                        icon="🔑"
-                        title="Klien OAuth2"
-                        desc="Kelola aplikasi klien dan kredensial"
-                        href="/portal/admin/clients"
-                    />
-                    <AdminNavCard
                         icon="🛡️"
                         title="Peran & Hak Akses"
                         desc="Kelola peran dan izin"
                         href="/portal/admin/roles"
                     />
                     <AdminNavCard
-                        icon="🌐"
-                        title="Federasi"
-                        desc="Kelola penyedia identitas eksternal"
-                        href="/portal/admin/federation"
+                        icon="🔑"
+                        title="Klien OAuth2"
+                        desc="Lihat aplikasi klien terdaftar"
+                        href="/portal/admin/clients"
                     />
                     <AdminNavCard
                         icon="📋"
@@ -116,7 +104,7 @@ pub fn AdminOverviewPage() -> impl IntoView {
                                         />
                                         <StatCard
                                             label="Sesi Aktif"
-                                            value=s.total_sessions.to_string()
+                                            value=s.active_sessions.to_string()
                                             icon="📱"
                                         />
                                         <StatCard

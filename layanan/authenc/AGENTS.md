@@ -71,7 +71,7 @@ layanan/authenc/
 │   ├── crypto/             # Cryptographic operations (Ed25519, Argon2, FIPS)
 │   ├── federation/         # IdP federation & identity brokering
 │   ├── grpc/               # Tonic gRPC server (auth_service, captcha, health)
-│   ├── iam-api/            # IAM REST API (users, roles, realms, clients)
+│   ├── iam-api/            # IAM REST API (users, roles, clients read-only, audit, stats)
 │   ├── mfa/                # MFA subsystem (TOTP, WebAuthn, SMS, Email)
 │   ├── storage/            # Storage backends (PostgreSQL operations, migrations)
 │   ├── types/              # Shared types & error definitions
