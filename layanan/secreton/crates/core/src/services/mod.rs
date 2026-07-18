@@ -86,7 +86,6 @@ pub mod secrets;
 // Refactored services from API crate
 pub mod admin_service;
 pub mod auth_service;
-pub mod container;
 pub mod namespace_persistence;
 pub mod seal_adapter;
 pub mod secret_service;

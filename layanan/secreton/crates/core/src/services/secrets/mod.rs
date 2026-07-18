@@ -146,43 +146,20 @@ pub trait SecretEngine: Send + Sync {
 }
 
 pub mod aws;
-pub mod azure;
-pub mod cubbyhole;
 pub mod database;
-pub mod gcp;
-pub mod identity;
-pub mod kafka;
-pub mod kmip;
-pub mod kubernetes;
-pub mod kvv2;
-pub mod ldap;
 pub mod lease_integration;
 pub mod memory;
-pub mod mongodb;
-pub mod mysql;
 pub mod pki;
-pub mod rabbitmq;
-pub mod redis;
 pub mod ssh;
 pub mod totp;
 pub mod transform;
 pub mod transit;
 
 pub use aws::*;
-pub use azure::*;
-pub use cubbyhole::*;
 pub use database::*;
-pub use gcp::*;
-pub use identity::*;
-pub use kmip::*;
-pub use kubernetes::*;
-pub use kvv2::*;
 pub use lease_integration::*;
 pub use memory::*;
-pub use mongodb::*;
-pub use mysql::*;
 pub use pki::*;
-pub use redis::*;
 pub use ssh::*;
 pub use totp::*;
 pub use transform::*;

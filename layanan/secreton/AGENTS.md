@@ -134,13 +134,6 @@ All handlers in `crates/api/src/handlers/`:
 | `pki` | `/v1/sys/pki` | Extended PKI: intermediate CA, OCSP, templates, renewal |
 | `ssh` | `/v1/sys/ssh` | SSH CA, roles, creds, sign user/host, OTP |
 | `aws` | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
-| `gcp` | `/v1/sys/gcp` | Dynamic GCP service account credentials |
-| `azure` | `/v1/sys/azure` | Dynamic Azure credentials |
-| `identity` | `/v1/sys/identity` | OIDC provider, entities, groups |
-| `kmip` | `/v1/sys/kmip` | KMIP key operations |
-| `ldap` | `/v1/sys/ldap` | Dynamic LDAP credentials |
-| `rabbitmq` | `/v1/sys/rabbitmq` | Dynamic RabbitMQ credentials |
-| `kafka` | `/v1/sys/kafka` | Dynamic Kafka credentials |
 | `key_hierarchy` | `/v1/sys/key-hierarchy` | Key hierarchy management |
 | `inject` | `/v1/sys/inject` | Environment variable injection |
 | `webhook` | `/v1/sys/webhooks` | Webhook subscriptions and delivery |
@@ -148,6 +141,15 @@ All handlers in `crates/api/src/handlers/`:
 | `revocation` | `/v1/secret` | Certificate/credential revocation |
 | `dynamic` | `/v1/dynamic` | Dynamic database credentials |
 | `metrics` | `/v1/metrics` (also `/metrics`) | JSON metrics snapshot |
+
+> **Trimmed 2026-07-18 (#103).** The `gcp`, `azure`, `identity`, `kmip`, `ldap`,
+> `rabbitmq` and `kafka` engines were **deleted**. None had a client library —
+> they generated a credential locally, persisted a lease, and returned success
+> **without ever contacting the target system**, so callers would have received
+> fabricated credentials as if valid. `identity` was a second OIDC provider,
+> which contradicts the codified split (authenc = IAM, secreton = secrets only).
+> None had a consumer. Do **not** re-add an engine without a real client library
+> and an integration test that proves the remote object was actually created.
 
 There is also a `raft` handler (feature-gated behind `raft-consensus`):
 
