@@ -22,9 +22,10 @@ pub struct ListUsersQuery {
     #[serde(default = "default_page")]
     pub page: u32,
 
-    /// Items per page
+    /// Items per page (the portal's parameter name; the old handler read
+    /// `page_size`, silently ignoring what the frontend actually sent)
     #[serde(default = "default_page_size")]
-    pub page_size: u32,
+    pub per_page: u32,
 
     /// Search query (username, email, nip, nama)
     pub search: Option<String>,
@@ -43,13 +44,14 @@ fn default_page_size() -> u32 {
     20
 }
 
-/// Paginated user list response
+/// Paginated user list response (canonical envelope shared with the
+/// audit-log listing: data/total/page/per_page/total_pages)
 #[derive(Debug, Serialize)]
 pub struct PaginatedUsers {
-    pub users: Vec<UserResponse>,
+    pub data: Vec<UserResponse>,
     pub total: i64,
     pub page: u32,
-    pub page_size: u32,
+    pub per_page: u32,
     pub total_pages: u32,
 }
 
@@ -59,6 +61,8 @@ pub struct UserResponse {
     pub id: Uuid,
     pub username: String,
     pub email: String,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub enabled: bool,
     pub email_verified: bool,
     pub mfa_enabled: bool,
@@ -67,6 +71,9 @@ pub struct UserResponse {
     pub jabatan: Option<String>,
     pub satker_code: String,
     pub require_password_change: bool,
+    /// Role names from the user_roles → roles relation (the same set the
+    /// login flow embeds in `realm_access.roles`)
+    pub roles: Vec<String>,
     pub last_login_at: Option<chrono::DateTime<chrono::Utc>>,
     pub realm_id: Option<Uuid>,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -79,6 +86,8 @@ pub struct CreateUserRequest {
     pub username: String,
     pub email: String,
     pub password: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub enabled: Option<bool>,
     pub realm_id: Option<Uuid>,
     pub nip: Option<String>,
@@ -91,6 +100,8 @@ pub struct CreateUserRequest {
 #[derive(Debug, Deserialize)]
 pub struct UpdateUserRequest {
     pub email: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
     pub enabled: Option<bool>,
     pub nip: Option<String>,
     pub nama: Option<String>,
@@ -118,6 +129,8 @@ fn user_to_response(user: &authenc_types::domain::user::User) -> UserResponse {
         id: user.id,
         username: user.username.clone(),
         email: user.email.clone(),
+        first_name: user.first_name.clone(),
+        last_name: user.last_name.clone(),
         enabled: user.enabled,
         email_verified: user.email_verified,
         mfa_enabled: user.mfa_enabled,
@@ -126,6 +139,7 @@ fn user_to_response(user: &authenc_types::domain::user::User) -> UserResponse {
         jabatan: user.jabatan.clone(),
         satker_code: user.satker_code.clone(),
         require_password_change: user.require_password_change,
+        roles: user.roles.iter().map(|r| r.name.clone()).collect(),
         last_login_at: user.last_login_at,
         realm_id: user.realm_id,
         created_at: user.created_at,
@@ -139,10 +153,10 @@ pub async fn list_users(
     Query(params): Query<ListUsersQuery>,
 ) -> ApiResult<Json<PaginatedUsers>> {
     let realm_id = RealmId::from_uuid(params.realm_id.unwrap_or(MASTER_REALM_ID));
-    let page_size = params.page_size.clamp(1, 100);
+    let per_page = params.per_page.clamp(1, 100);
     let page = params.page.max(1);
-    let offset = ((page - 1) * page_size) as usize;
-    let limit = page_size as usize;
+    let offset = ((page - 1) * per_page) as usize;
+    let limit = per_page as usize;
 
     let (users, total) = if let Some(ref search) = params.search {
         state
@@ -165,16 +179,16 @@ pub async fn list_users(
     };
 
     let total_pages = if total > 0 {
-        (total as u32).div_ceil(page_size)
+        (total as u32).div_ceil(per_page)
     } else {
         0
     };
 
     let response = PaginatedUsers {
-        users: users.iter().map(user_to_response).collect(),
+        data: users.iter().map(user_to_response).collect(),
         total,
         page,
-        page_size,
+        per_page,
         total_pages,
     };
 
@@ -192,8 +206,8 @@ pub async fn create_user(
         password: req.password,
         realm_id: Some(req.realm_id.unwrap_or(MASTER_REALM_ID)),
         satker_code: req.satker_code.unwrap_or_default(),
-        first_name: None,
-        last_name: None,
+        first_name: req.first_name,
+        last_name: req.last_name,
         nip: req.nip,
         nama: req.nama,
         jabatan: req.jabatan,
@@ -237,8 +251,8 @@ pub async fn update_user(
         username: None,
         email: req.email,
         satker_code: req.satker_code,
-        first_name: None,
-        last_name: None,
+        first_name: req.first_name,
+        last_name: req.last_name,
         nip: req.nip,
         nama: req.nama,
         jabatan: req.jabatan,

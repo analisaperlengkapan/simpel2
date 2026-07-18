@@ -1,14 +1,17 @@
 //! User Detail Page (Admin)
 //!
 //! Tabbed interface for viewing and managing a single user.
-//! 6 tabs: Details, Attributes, Credentials, Role Mappings, Groups, Sessions
+//! 4 tabs: Details, Attributes, Credentials, Role Mappings — the old
+//! Groups/Sessions tabs rendered hard-coded "empty" claims about real
+//! data and were deleted with the #45 IAM trim. Role Mappings is a real
+//! manager: assign/remove against /api/v1/iam/users/{id}/roles/{role_id}.
 //! REQ-PORTAL-016
 
 use crate::components::feedback::{ErrorBanner, LoadingPanel, SuccessBanner};
 use crate::components::layout::main_layout::MainLayout;
 use crate::utils::app_state::{use_api_client, use_main_layout_session_and_logout};
 use crate::utils::async_load::load_value_once;
-use crate::utils::authenc_api::{IamUser, UpdateUserRequest};
+use crate::utils::authenc_api::{IamUser, RoleInfo, UpdateUserRequest};
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
@@ -19,8 +22,6 @@ enum UserTab {
     Attributes,
     Credentials,
     RoleMappings,
-    Groups,
-    Sessions,
 }
 
 impl UserTab {
@@ -30,8 +31,6 @@ impl UserTab {
             Self::Attributes => "Atribut",
             Self::Credentials => "Kredensial",
             Self::RoleMappings => "Pemetaan Peran",
-            Self::Groups => "Grup",
-            Self::Sessions => "Sesi",
         }
     }
 
@@ -41,8 +40,6 @@ impl UserTab {
             Self::Attributes => "🏷",
             Self::Credentials => "🔑",
             Self::RoleMappings => "🛡",
-            Self::Groups => "👥",
-            Self::Sessions => "📱",
         }
     }
 
@@ -52,8 +49,6 @@ impl UserTab {
             Self::Attributes,
             Self::Credentials,
             Self::RoleMappings,
-            Self::Groups,
-            Self::Sessions,
         ]
     }
 }
@@ -72,6 +67,11 @@ pub fn UserDetailPage() -> impl IntoView {
     let (error, set_error) = signal(Option::<String>::None);
     let (success, set_success) = signal(Option::<String>::None);
     let (active_tab, set_active_tab) = signal(UserTab::Details);
+
+    // All platform roles (for the Role Mappings manager) + in-flight flag
+    // so the assign/remove buttons can't double-fire.
+    let (all_roles, set_all_roles) = signal(Vec::<RoleInfo>::new());
+    let (role_busy, set_role_busy) = signal(false);
 
     // Editable fields (synced from user signal on load)
     let (edit_email, set_edit_email) = signal(String::new());
@@ -173,6 +173,57 @@ pub fn UserDetailPage() -> impl IntoView {
         });
     }
 
+    // Load the platform role list once (for the Role Mappings manager).
+    {
+        let api = api.clone();
+        Effect::new(move || {
+            let api = api.clone();
+            spawn_local(async move {
+                match api.iam_list_roles().await {
+                    Ok(roles) => set_all_roles.set(roles),
+                    Err(e) => set_error.set(Some(format!("Gagal memuat daftar peran: {}", e))),
+                }
+            });
+        });
+    }
+
+    // Assign/remove a role, then reload the user so the assigned set
+    // reflects what the backend actually persisted. Callback so the view
+    // closures stay `Fn` (Callback is Copy).
+    let toggle_role = {
+        let api = api.clone();
+        let load = load_user.clone();
+        Callback::new(move |(role_id, currently_assigned): (String, bool)| {
+            if role_busy.get_untracked() {
+                return;
+            }
+            let api = api.clone();
+            let load = load.clone();
+            let uid = user_id();
+            set_role_busy.set(true);
+            set_error.set(None);
+            spawn_local(async move {
+                let result = if currently_assigned {
+                    api.iam_remove_role(&uid, &role_id).await
+                } else {
+                    api.iam_assign_role(&uid, &role_id).await
+                };
+                match result {
+                    Ok(()) => {
+                        set_success.set(Some(if currently_assigned {
+                            "Peran berhasil dicabut".to_string()
+                        } else {
+                            "Peran berhasil ditetapkan".to_string()
+                        }));
+                        load();
+                    }
+                    Err(e) => set_error.set(Some(format!("Gagal mengubah peran: {}", e))),
+                }
+                set_role_busy.set(false);
+            });
+        })
+    };
+
     // Derived signals for user info (avoids FnOnce issue)
     let display_name = move || {
         user.get()
@@ -198,7 +249,7 @@ pub fn UserDetailPage() -> impl IntoView {
     let user_created = move || user.get().map(|u| u.created_at.clone()).unwrap_or_default();
     let user_last_login = move || {
         user.get()
-            .and_then(|u| u.last_login.clone())
+            .and_then(|u| u.last_login_at.clone())
             .unwrap_or_else(|| "—".to_string())
     };
     let avatar_letter = move || {
@@ -512,17 +563,21 @@ pub fn UserDetailPage() -> impl IntoView {
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
                                             <h4 class="font-medium text-gray-900">
-                                                "Peran yang Ditetapkan"
+                                                "Pemetaan Peran"
                                             </h4>
+                                            <p class="text-xs text-gray-500">
+                                                "Perubahan berlaku pada login berikutnya"
+                                            </p>
                                         </div>
                                         {move || {
-                                            let roles = user_roles();
+                                            let assigned = user_roles();
+                                            let roles = all_roles.get();
                                             if roles.is_empty() {
                                                 view! {
                                                     <div class="text-center py-8">
                                                         <p class="text-3xl mb-2">"🛡"</p>
                                                         <p class="text-sm text-gray-500">
-                                                            "Belum ada peran yang ditetapkan."
+                                                            "Daftar peran tidak tersedia."
                                                         </p>
                                                     </div>
                                                 }
@@ -533,61 +588,48 @@ pub fn UserDetailPage() -> impl IntoView {
                                                         {roles
                                                             .into_iter()
                                                             .map(|role| {
+                                                                let is_assigned = assigned.contains(&role.name);
+                                                                let role_id = role.id.clone();
                                                                 view! {
-                                                                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
-                                                                        <div class="flex items-center gap-3">
-                                                                            <span class="text-lg">"🛡"</span>
-                                                                            <span class="text-sm font-medium text-gray-900">
-                                                                                {role}
-                                                                            </span>
+                                                                        <div
+                                                                            class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
+                                                                            data-role-name=role.name.clone()
+                                                                        >
+                                                                            <div class="flex items-center gap-3">
+                                                                                <span class="text-lg">"🛡"</span>
+                                                                                <div>
+                                                                                    <span class="text-sm font-medium text-gray-900">
+                                                                                        {role.name.clone()}
+                                                                                    </span>
+                                                                                    <p class="text-xs text-gray-500">
+                                                                                        {role.description.clone().unwrap_or_default()}
+                                                                                    </p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <button
+                                                                                class=if is_assigned {
+                                                                                    "px-3 py-1 text-sm rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                                                                } else {
+                                                                                    "px-3 py-1 text-sm rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+                                                                                }
+                                                                                disabled=move || role_busy.get()
+                                                                                on:click=move |_| {
+                                                                                    toggle_role
+                                                                                        .run((role_id.clone(), is_assigned))
+                                                                                }
+                                                                            >
+                                                                                {if is_assigned { "Cabut" } else { "Tetapkan" }}
+                                                                            </button>
                                                                         </div>
-                                                                    </div>
-                                                                }
-                                                            })
-                                                            .collect::<Vec<_>>()}
-                                                    </div>
+                                                                    }
+                                                                })
+                                                                .collect::<Vec<_>>()}
+                                                        </div>
+                                                    }
+                                                        .into_any()
                                                 }
-                                                    .into_any()
                                             }
-                                        }}
-                                    </div>
-                                </Show>
-
-                                // === Groups Tab ===
-                                <Show when=move || active_tab.get() == UserTab::Groups>
-                                    <div class="space-y-4">
-                                        <div class="flex items-center justify-between">
-                                            <h4 class="font-medium text-gray-900">
-                                                "Keanggotaan Grup"
-                                            </h4>
-                                        </div>
-                                        <div class="text-center py-8">
-                                            <p class="text-3xl mb-2">"👥"</p>
-                                            <p class="text-sm text-gray-500">
-                                                "Pengguna belum tergabung dalam grup manapun."
-                                            </p>
-                                            <a
-                                                href="/portal/admin/groups"
-                                                class="text-sm text-primary-600 hover:underline mt-2 inline-block"
-                                            >
-                                                "Kelola Grup →"
-                                            </a>
-                                        </div>
-                                    </div>
-                                </Show>
-
-                                // === Sessions Tab ===
-                                <Show when=move || active_tab.get() == UserTab::Sessions>
-                                    <div class="space-y-4">
-                                        <div class="flex items-center justify-between">
-                                            <h4 class="font-medium text-gray-900">"Sesi Aktif"</h4>
-                                        </div>
-                                        <div class="text-center py-8">
-                                            <p class="text-3xl mb-2">"📱"</p>
-                                            <p class="text-sm text-gray-500">
-                                                "Tidak ada sesi aktif untuk pengguna ini."
-                                            </p>
-                                        </div>
+                                        }
                                     </div>
                                 </Show>
                             </div>

@@ -30,7 +30,6 @@
 //! - [`RealmManagementServiceImpl`]: Multi-tenant realm management
 //! - [`RoleManagementServiceImpl`]: Role-based access control (RBAC)
 //! - [`OrganizationService`]: Organization hierarchy management
-//! - [`SatkerAuthorizationService`]: Government hierarchy authorization (Kejaksaan RI)
 //!
 //! ### OAuth2/OIDC
 //! - [`OAuth2ServiceImpl`]: OAuth2 authorization server
@@ -250,8 +249,6 @@ pub use services::{
     RiskEngine,
     Role,
     RoleManagementServiceImpl,
-    SatkerAuthorizationService,
-    SatkerHierarchyInfo,
 
     ScopeStore,
     ServiceAccountStore,

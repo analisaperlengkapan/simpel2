@@ -59,9 +59,16 @@ pub fn create_unified_router(
 
     // Ensure we have configs for the other middleware layers
     let validation_config = Arc::new(middleware::InputValidationConfig::default());
+    // Security events (auth attempts, authz failures) are persisted to
+    // authenc.audit_logs — this is the writer behind the IAM audit-log
+    // admin endpoints. Without the store the middleware silently degrades
+    // to tracing logs and the audit trail is empty.
+    let audit_store = Arc::new(authenc_core::services::PgAuditLogStore::new(
+        state.database.clone(),
+    ));
     let security_state = Arc::new(middleware::SecurityMonitoringState::new(
         middleware::SecurityMonitoringConfig::default(),
-        None, // TODO: inject actual audit store
+        Some(audit_store),
     ));
 
     // Apply CSRF protection (wraps router directly)

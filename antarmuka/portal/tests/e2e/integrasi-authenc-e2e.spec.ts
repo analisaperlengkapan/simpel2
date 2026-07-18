@@ -447,59 +447,6 @@ test.describe('Integrasi ↔ Authenc Integration', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Section 3: Federation & Sync Endpoints
-  // ═══════════════════════════════════════════════════════════════════════
-
-  test.describe('Authenc — Federation Sync Endpoints', () => {
-    let adminToken: string;
-
-    test.beforeAll(async ({ request }) => {
-      try {
-        const loginResp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
-          data: {
-            username: ADMIN_USER.username,
-            password: ADMIN_USER.password,
-          },
-        });
-        if (loginResp.ok()) {
-          const body = await loginResp.json();
-          adminToken = body.access_token;
-        }
-      } catch {
-        // Will skip tests if admin token missing
-      }
-    });
-
-    test('federation sync endpoint exists', async ({ request }) => {
-      test.skip(!adminToken, 'Admin token not available');
-
-      const resp = await request.post(`${AUTHENC_URL}/api/v1/iam/federation/sync`, {
-        headers: { Authorization: `Bearer ${adminToken}` },
-        data: { source: 'mysimkari' },
-      });
-
-      // Endpoint-EXISTENCE check, not an RBAC assertion: 200 = working,
-      // 501 = not_implemented, 404 = route not configured yet, 401/403 =
-      // route exists but denies the fixture user (validator_pusat, not an
-      // IAM admin — the baseline has no login-able admin account).
-      expect([200, 401, 403, 404, 501]).toContain(resp.status());
-      console.log(`  Federation sync: HTTP ${resp.status()}`);
-    });
-
-    test('federation stats endpoint exists', async ({ request }) => {
-      test.skip(!adminToken, 'Admin token not available');
-
-      const resp = await request.get(`${AUTHENC_URL}/api/v1/iam/federation/stats`, {
-        headers: { Authorization: `Bearer ${adminToken}` },
-      });
-
-      // Endpoint-existence check (see federation sync above for the statuses).
-      expect([200, 401, 403, 404, 501]).toContain(resp.status());
-      console.log(`  Federation stats: HTTP ${resp.status()}`);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════════════
   // Section 4: Cross-Service Data Consistency
   // ═══════════════════════════════════════════════════════════════════════
 

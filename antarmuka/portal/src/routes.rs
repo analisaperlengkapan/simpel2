@@ -25,16 +25,9 @@ pub mod segment {
 
     pub const ADMIN: &str = "admin";
     pub const ADMIN_USERS: &str = "admin/users";
-    pub const ADMIN_REALMS: &str = "admin/realms";
     pub const ADMIN_CLIENTS: &str = "admin/clients";
     pub const ADMIN_ROLES: &str = "admin/roles";
-    pub const ADMIN_FEDERATION: &str = "admin/federation";
-    pub const ADMIN_PERMISSIONS: &str = "admin/permissions";
     pub const ADMIN_AUDIT: &str = "admin/audit";
-    pub const ADMIN_GROUPS: &str = "admin/groups";
-    pub const ADMIN_REALM_SETTINGS: &str = "admin/realm-settings";
-    pub const ADMIN_AUTH_FLOWS: &str = "admin/auth-flows";
-    pub const ADMIN_LINKED_ACCOUNTS: &str = "admin/linked-accounts";
 }
 
 pub mod path {
@@ -50,14 +43,7 @@ pub mod path {
 
     pub const ADMIN: &str = "/portal/admin";
     pub const ADMIN_USERS: &str = "/portal/admin/users";
-    pub const ADMIN_REALMS: &str = "/portal/admin/realms";
     pub const ADMIN_CLIENTS: &str = "/portal/admin/clients";
     pub const ADMIN_ROLES: &str = "/portal/admin/roles";
-    pub const ADMIN_FEDERATION: &str = "/portal/admin/federation";
-    pub const ADMIN_PERMISSIONS: &str = "/portal/admin/permissions";
     pub const ADMIN_AUDIT: &str = "/portal/admin/audit";
-    pub const ADMIN_GROUPS: &str = "/portal/admin/groups";
-    pub const ADMIN_REALM_SETTINGS: &str = "/portal/admin/realm-settings";
-    pub const ADMIN_AUTH_FLOWS: &str = "/portal/admin/auth-flows";
-    pub const ADMIN_LINKED_ACCOUNTS: &str = "/portal/admin/linked-accounts";
 }

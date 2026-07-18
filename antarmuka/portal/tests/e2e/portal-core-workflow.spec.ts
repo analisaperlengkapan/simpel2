@@ -8,9 +8,10 @@
  * cannot catch broken links), and every workflow asserts BOTH the UI change
  * and the backend state via API cross-checks.
  *
- * Deep-IAM admin pages (realms/clients/federation/permissions/groups/
- * realm-settings/auth-flows/linked-accounts) are E-7 scope (after the #45 IAM
- * trim) — tracked as route-coverage debt, not silently skipped.
+ * E-7 (post-#45-trim) is folded in: the Keycloak-mirror admin pages were
+ * DELETED with the trim, and the surviving IAM surface (clients inspection,
+ * role assignment on user detail, real audit-log rows) is asserted here —
+ * portal route-coverage is BLOCKING from this suite on.
  *
  * Each describe logs in fresh (UI login, real captcha) so no test can poison
  * another test's session; tests that revoke sessions use OPERATOR_B and tests
@@ -439,6 +440,119 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible({
       timeout: 15000,
     });
+
+    // The audit trail is REAL now (PgAuditLogStore is injected and the
+    // monitored-path prefixes match the mounted routes): the logins this
+    // suite already performed must be recorded. Writes are async
+    // (tokio::spawn), so poll briefly.
+    const token = await pageToken(page);
+    await expect
+      .poll(
+        async () => {
+          const resp = await page.request.get(
+            `${AUTHENC_URL}/api/v1/iam/audit-logs?per_page=5`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (resp.status() !== 200) return -1;
+          const body = await resp.json();
+          return Number(body.total);
+        },
+        { timeout: 20000 },
+      )
+      .toBeGreaterThan(0);
+  });
+
+  test('clients page lists the seeded OAuth2 client + read-only detail', async ({
+    page,
+  }) => {
+    await clickSidebarLink(page, '/portal/admin/clients');
+    await expect(
+      page.getByRole('heading', { name: 'Manajemen Klien OAuth2' }),
+    ).toBeVisible({ timeout: 15000 });
+
+    // The seeded `perlengkapan` client comes from the real GET
+    // /api/v1/iam/clients (the old handler silently returned []).
+    await expect(page.getByText('perlengkapan', { exact: true }).first()).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Detail page renders the same client read-only (id from the BE list).
+    const token = await pageToken(page);
+    const listResp = await page.request.get(`${AUTHENC_URL}/api/v1/iam/clients`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(listResp.status()).toBe(200);
+    const clients = await listResp.json();
+    expect(clients.length).toBeGreaterThan(0);
+    const client = clients.find((c: { client_id: string }) => c.client_id === 'perlengkapan');
+    expect(client).toBeTruthy();
+
+    await page.goto(`${PORTAL_URL}/portal/admin/clients/${client.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await expect(page.getByText('Konfigurasi Klien')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('SIMPEL Perlengkapan').first()).toBeVisible({
+      timeout: 15000,
+    });
+  });
+
+  test('role assignment on user detail is real end-to-end (assign → revoke)', async ({
+    page,
+  }) => {
+    // Temp user via the real IAM API so this test owns its fixture.
+    const token = await pageToken(page);
+    const username = `e2erole${Date.now()}`;
+    const createResp = await page.request.post(`${AUTHENC_URL}/api/v1/iam/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        username,
+        email: `${username}@e2e.test`,
+        password: 'TempPass123!',
+        enabled: true,
+      },
+    });
+    expect(createResp.status()).toBe(201);
+    const created = await createResp.json();
+    expect(created.roles).toEqual([]);
+
+    // UI: user detail → Pemetaan Peran → Tetapkan operator_satker.
+    await page.goto(`${PORTAL_URL}/portal/admin/users/${created.id}`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await page.getByRole('button', { name: /Pemetaan Peran/ }).click();
+    const roleRow = page.locator('[data-role-name="operator_satker"]');
+    await expect(roleRow).toBeVisible({ timeout: 15000 });
+    await roleRow.getByRole('button', { name: 'Tetapkan' }).click();
+    await expect(page.getByText('Peran berhasil ditetapkan')).toBeVisible({
+      timeout: 15000,
+    });
+
+    // BE: the assignment is persisted on the same relation login reads.
+    const afterAssign = await page.request.get(
+      `${AUTHENC_URL}/api/v1/iam/users/${created.id}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(afterAssign.status()).toBe(200);
+    expect((await afterAssign.json()).roles).toContain('operator_satker');
+
+    // UI: revoke it again; BE confirms the removal.
+    await roleRow.getByRole('button', { name: 'Cabut' }).click();
+    await expect(page.getByText('Peran berhasil dicabut')).toBeVisible({ timeout: 15000 });
+    const afterRemove = await page.request.get(
+      `${AUTHENC_URL}/api/v1/iam/users/${created.id}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect((await afterRemove.json()).roles).not.toContain('operator_satker');
+
+    // Cleanup as its own assertion: disable the temp account.
+    const disableResp = await page.request.put(
+      `${AUTHENC_URL}/api/v1/iam/users/${created.id}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { enabled: false },
+      },
+    );
+    expect(disableResp.status()).toBe(200);
   });
 });
 
