@@ -35,9 +35,20 @@ function jwtPayload(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
 }
 
-/** Click a sidebar menu link by its href and wait for the URL. */
+/**
+ * Click a sidebar menu link by its href and wait for the URL.
+ *
+ * Must filter to VISIBLE links: `<nav>` renders the whole menu twice — the
+ * desktop quick-links plus a `lg:hidden` mobile drawer — and the drawer copy
+ * comes first in the DOM, so an unfiltered `.first()` grabs a hidden element
+ * and the click times out for every item that isn't a top-bar quick link.
+ */
 async function clickSidebarLink(page: Page, href: string): Promise<void> {
-  await page.locator(`aside a[href="${href}"], nav a[href="${href}"]`).first().click();
+  await page
+    .locator(`aside a[href="${href}"], nav a[href="${href}"]`)
+    .locator('visible=true')
+    .first()
+    .click();
   await page.waitForURL(new RegExp(href.replace(/\//g, '\\/')), { timeout: 15000 });
 }
 
@@ -282,7 +293,9 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
     });
 
     // Overview nav card → users management.
-    await page.locator('a[href="/portal/admin/users"]').first().click();
+    // visible=true for the same reason as clickSidebarLink: the mobile drawer
+    // renders a hidden copy of this link earlier in the DOM.
+    await page.locator('a[href="/portal/admin/users"]').locator('visible=true').first().click();
     await page.waitForURL(/\/portal\/admin\/users/, { timeout: 15000 });
     await expect(page.getByRole('heading', { name: 'Manajemen Pengguna' })).toBeVisible({
       timeout: 15000,

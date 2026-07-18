@@ -130,6 +130,9 @@ pub fn ForbiddenPage() -> impl IntoView {
                     href="/portal/dashboard"
                     on:click=move |ev| {
                         ev.prevent_default();
+                        // navigate() resolves against the router base ("/portal"),
+                        // so the path here must be base-relative — a "/portal/…"
+                        // path would navigate to /portal/portal/… (404).
                         nav("/dashboard", Default::default());
                     }
                     class="inline-flex items-center gap-2 px-5 py-2.5 bg-navy-700 hover:bg-navy-800 dark:bg-gold-500 dark:hover:bg-gold-600 text-white dark:text-navy-900 rounded-xl font-medium transition-colors shadow-sm"
