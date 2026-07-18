@@ -1,4 +1,10 @@
 //! HTTP request handlers
+//!
+//! Every module here is mounted by `router.rs` (or used by a mounted
+//! module — `oidc_jwt` backs the oauth2 id_token path). The #102 audit
+//! deleted 17 unrouted modules (device flow, token exchange, SAML/social/
+//! SSO federation, consent UI, Ed25519 twins, …): none had a route, an
+//! intra-crate consumer, or a frontend/simpelv1 caller.
 
 // Authentication handlers
 pub mod auth;
@@ -10,36 +16,17 @@ pub mod webauthn;
 // OAuth2/OIDC handlers
 pub mod client;
 pub mod client_registration;
-pub mod device;
 pub mod jwks;
-pub mod jwt_ed25519;
 pub mod oauth2;
-pub mod oauth2_authz_code;
-pub mod oidc_ed25519;
 pub mod oidc_jwt;
-pub mod oidc_keys;
-pub mod oidc_provider;
-pub mod oidc_sso;
-pub mod token_exchange;
 pub mod token_validation;
-
-// Federation handlers
-pub mod broker;
-pub mod federated_auth;
-pub mod federated_login;
-pub mod saml;
-pub mod social;
-pub mod sso;
 
 // CAPTCHA handlers
 pub mod captcha;
 
 // Utility handlers
-pub mod authorization;
-pub mod consent_ui;
 pub mod health;
 pub mod metrics;
-pub mod validation_helper;
 
 // Re-export handlers
 pub use auth::{
