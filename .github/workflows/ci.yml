@@ -617,12 +617,11 @@ jobs:
       - name: trunk build --release
         working-directory: antarmuka/portal
         run: trunk build --release
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dist-portal
-          path: antarmuka/portal/dist
-          retention-days: 1
+      # NOTE(#102 CI audit): the dist artifact upload was deleted — no job ever
+      # downloaded it (e2e stacks build the FE inside Docker), and the upload
+      # was the only step that could fail the whole FE build on the account's
+      # Actions artifact-storage quota (billed as a month-to-date average, so
+      # a past overrun blocks uploads for days after the artifacts are gone).
 
   build-antarmuka-perlengkapan:
     name: Build Perlengkapan Microfrontend
@@ -647,12 +646,11 @@ jobs:
       - name: trunk build --release
         working-directory: antarmuka/perlengkapan
         run: trunk build --release
-      - name: Upload dist artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: dist-perlengkapan
-          path: antarmuka/perlengkapan/dist
-          retention-days: 1
+      # NOTE(#102 CI audit): the dist artifact upload was deleted — no job ever
+      # downloaded it (e2e stacks build the FE inside Docker), and the upload
+      # was the only step that could fail the whole FE build on the account's
+      # Actions artifact-storage quota (billed as a month-to-date average, so
+      # a past overrun blocks uploads for days after the artifacts are gone).
 
   build-backend:
     name: Build Backend (${{ matrix.name }})
@@ -1256,6 +1254,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
         if: always()
+        # Diagnostic only — must not fail the job when the account artifact
+        # quota rejects uploads (see the dist-upload note in the FE builds).
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report-portal
@@ -1532,6 +1533,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
         if: always()
+        # Diagnostic only — must not fail the job when the account artifact
+        # quota rejects uploads (see the dist-upload note in the FE builds).
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report-perlengkapan
@@ -1642,6 +1646,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml --profile cross-app down -v || true
       - name: Upload Playwright report
         if: always()
+        # Diagnostic only — must not fail the job when the account artifact
+        # quota rejects uploads (see the dist-upload note in the FE builds).
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report-cross-app
@@ -1761,6 +1768,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v || true
       - name: Upload Playwright report
         if: always()
+        # Diagnostic only — must not fail the job when the account artifact
+        # quota rejects uploads (see the dist-upload note in the FE builds).
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report-integrasi-authenc
