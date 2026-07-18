@@ -37,10 +37,9 @@ impl FalconVariant {
     /// Get the typical detached signature size in bytes for this variant
     ///
     /// **Important**: Falcon signatures use compression and have VARIABLE sizes!
-    /// - Falcon-512: typically 660-690 bytes (max ~690)
-    /// - Falcon-1024: typically 1280-1330 bytes (max ~1330)
-    ///
-    /// Use `max_signature_size()` for buffer allocation.
+    /// This is an informational average — never use it to validate a signature
+    /// (a real signature is routinely smaller *and* may be larger). Use
+    /// `max_signature_size()` for buffer allocation and bounds checks.
     ///
     /// # Security Note
     /// Variable-length signatures may leak minimal information about message
@@ -48,16 +47,20 @@ impl FalconVariant {
     /// compact signature size.
     pub fn signature_size(&self) -> usize {
         match self {
-            FalconVariant::Falcon512 => 690,   // Typical/max size
-            FalconVariant::Falcon1024 => 1330, // Typical/max size
+            FalconVariant::Falcon512 => 690,   // Typical size
+            FalconVariant::Falcon1024 => 1330, // Typical size
         }
     }
 
     /// Get the maximum signature size (upper bound for allocation)
+    ///
+    /// Taken from the PQClean parameter set (`CRYPTO_BYTES`), not estimated:
+    /// the compressed encoding never exceeds it, and anything below it is a
+    /// legal size that only cryptographic verification can accept or reject.
     pub fn max_signature_size(&self) -> usize {
         match self {
-            FalconVariant::Falcon512 => 700,   // Add safety margin
-            FalconVariant::Falcon1024 => 1350, // Add safety margin
+            FalconVariant::Falcon512 => falcon512::signature_bytes(),
+            FalconVariant::Falcon1024 => falcon1024::signature_bytes(),
         }
     }
 
@@ -193,18 +196,15 @@ impl FalconKeypair {
             ));
         }
 
-        // Validate signature size range (allow variability for Falcon)
+        // Upper bound only. Falcon's compressed encoding is variable-length with
+        // no meaningful floor (Falcon-512 signatures below 650 bytes occur in
+        // normal operation), so a lower bound would reject valid signatures.
+        // Anything shorter is rejected by verification itself, below.
         let max_sig_size = self.variant.max_signature_size();
-        let min_sig_size = match self.variant {
-            FalconVariant::Falcon512 => 650,
-            FalconVariant::Falcon1024 => 1250,
-        };
-
-        if signature.len() < min_sig_size || signature.len() > max_sig_size {
+        if signature.len() > max_sig_size {
             return Err(CryptoError::InvalidSignature(format!(
-                "Signature size out of range: {} bytes (expected {}-{})",
+                "Signature too large: {} bytes (max {})",
                 signature.len(),
-                min_sig_size,
                 max_sig_size
             )));
         }
@@ -512,14 +512,13 @@ mod tests {
 
         let signature = keypair.sign(message).unwrap();
 
-        // Falcon signatures have variable length - check within range
+        // Falcon signatures are variable-length: only the parameter-set maximum
+        // is a real invariant, any lower bound is a guess that flakes.
         let max_size = FalconVariant::Falcon1024.max_signature_size();
-        let min_size = 1250; // Minimum expected
         assert!(
-            signature.len() >= min_size && signature.len() <= max_size,
-            "Signature size {} not in range [{}, {}]",
+            !signature.is_empty() && signature.len() <= max_size,
+            "Signature size {} exceeds max {}",
             signature.len(),
-            min_size,
             max_size
         );
 
@@ -545,6 +544,31 @@ mod tests {
         assert_eq!(provider.variant.signature_size(), 690);
     }
 
+    /// Regression: `verify()` used to reject signatures below a guessed floor
+    /// (650 bytes for Falcon-512), which the compressed encoding undercuts in
+    /// normal operation — a valid signature was intermittently refused. Sign
+    /// enough messages that short encodings are hit, and require every one to
+    /// verify.
+    #[test]
+    fn test_short_signatures_still_verify() {
+        let keypair = FalconKeypair::generate(FalconVariant::Falcon512).unwrap();
+        let mut shortest = usize::MAX;
+
+        for i in 0..64u32 {
+            let message = format!("regression message {i}");
+            let signature = keypair.sign(message.as_bytes()).unwrap();
+            shortest = shortest.min(signature.len());
+
+            assert!(
+                keypair.verify(message.as_bytes(), &signature).unwrap(),
+                "signature of {} bytes was refused",
+                signature.len()
+            );
+        }
+
+        assert!(shortest > 0, "signing produced an empty signature");
+    }
+
     #[test]
     fn test_batch_operations() {
         let keypair = FalconKeypair::generate(FalconVariant::Falcon512).unwrap();
@@ -556,15 +580,13 @@ mod tests {
 
         assert_eq!(signatures.len(), 3, "Should produce 3 signatures");
 
-        // Falcon signatures have variable sizes - check all are within range
+        // Falcon signatures have variable sizes - only the maximum is invariant
         let max_size = FalconVariant::Falcon512.max_signature_size();
-        let min_size = 650;
         for sig in &signatures {
             assert!(
-                sig.len() >= min_size && sig.len() <= max_size,
-                "Signature size {} not in valid range [{}, {}]",
+                !sig.is_empty() && sig.len() <= max_size,
+                "Signature size {} exceeds max {}",
                 sig.len(),
-                min_size,
                 max_size
             );
         }
@@ -623,18 +645,13 @@ mod tests {
 
             let signature = keypair.sign(message).unwrap();
 
-            // Check signature is within valid range
+            // Only the parameter-set maximum bounds a Falcon signature
             let max_size = variant.max_signature_size();
-            let min_size = match variant {
-                FalconVariant::Falcon512 => 650,
-                FalconVariant::Falcon1024 => 1250,
-            };
             assert!(
-                signature.len() >= min_size && signature.len() <= max_size,
-                "Variant {:?}: signature size {} not in range [{}, {}]",
+                !signature.is_empty() && signature.len() <= max_size,
+                "Variant {:?}: signature size {} exceeds max {}",
                 variant,
                 signature.len(),
-                min_size,
                 max_size
             );
 
