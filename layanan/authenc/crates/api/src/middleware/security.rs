@@ -500,8 +500,20 @@ mod tests {
 
         assert!(config.enabled);
         assert_eq!(config.suspicious_threshold_rpm, 100);
-        assert!(config.monitored_paths.contains(&"/auth/login".to_string()));
-        assert!(config.monitored_paths.contains(&"/admin".to_string()));
+        // Prefix-matched against real mounted paths — every default must
+        // carry the /api/v1 prefix or it will never match a request.
+        assert!(
+            config
+                .monitored_paths
+                .contains(&"/api/v1/auth/login".to_string())
+        );
+        assert!(config.monitored_paths.contains(&"/api/v1/iam/".to_string()));
+        assert!(
+            config
+                .monitored_paths
+                .iter()
+                .all(|p| p.starts_with("/api/v1/"))
+        );
         assert!(config.log_auth_attempts);
         assert!(config.log_authz_failures);
     }
