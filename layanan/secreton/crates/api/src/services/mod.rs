@@ -88,7 +88,6 @@ pub struct ServiceContainer {
     /// AWS secrets engine
     pub aws_engine: Arc<AwsEngine>,
 
-
     /// Auto-rotation engine
     pub rotation_engine: Arc<AutoRotationEngine>,
 
@@ -377,14 +376,6 @@ impl ServiceContainer {
 
         let aws_engine = Arc::new(AwsEngine::new());
         tracing::info!("✅ AWS secrets engine initialized");
-
-
-
-
-
-
-
-
 
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
@@ -759,7 +750,6 @@ impl ServiceContainer {
         let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
         let pki_engine = Arc::new(PkiEngine::new());
         let aws_engine = Arc::new(AwsEngine::new());
-
 
         let rotation_engine = Arc::new(AutoRotationEngine::new());
 
