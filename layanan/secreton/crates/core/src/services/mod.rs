@@ -5,7 +5,6 @@
 //!
 //! # Core Services
 //! - [`health`] - System health checks and readiness probes
-//! - [`identity`] - Entity identity management
 //! - [`lease`] - Lease management for temporary secrets
 //! - [`metrics`] - Performance and usage metrics
 //! - [`mfa`] - Multi-factor authentication
@@ -53,7 +52,6 @@
 // Core services (essential)
 pub mod classification;
 pub mod health;
-pub mod identity;
 pub mod key_hierarchy;
 // TODO: key_manager needs refactoring to use proper StorageBackend API
 // pub mod key_manager;

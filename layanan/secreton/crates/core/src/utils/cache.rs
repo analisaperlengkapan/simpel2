@@ -3,6 +3,8 @@
 //! This module re-exports cache types from the common library and provides
 //! a secret-specific cache manager.
 
+// Only referenced by `with_redis`, which is itself behind this feature.
+#[cfg(feature = "redis")]
 use crate::CoreError;
 use crate::storage::CacheBackend;
 use lib_backend::cache::{CacheStats, RedisCache};
