@@ -563,11 +563,19 @@ test.describe('Portal core — public MFA pages', () => {
     await setupAllProxies(page);
 
     // Without a temp token both pages must render their honest state — a
-    // Leptos-rendered flow page, not a blank mount or crash.
+    // Leptos-rendered flow page, not a blank mount or crash. Assert the page's
+    // OWN heading: "an h1 is visible" also passes on the 404 fallback, which is
+    // exactly what these routes served while their paths were unmatchable.
     await page.goto(`${PORTAL_URL}/portal/mfa/verify`, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('h1').first()).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.getByRole('heading', { name: 'Two-Factor Authentication' }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Halaman Tidak Ditemukan')).toHaveCount(0);
 
     await page.goto(`${PORTAL_URL}/portal/mfa/backup-verify`, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('h1').first()).toBeVisible({ timeout: 30000 });
+    await expect(
+      page.getByRole('heading', { name: 'Backup Code Verification' }),
+    ).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText('Halaman Tidak Ditemukan')).toHaveCount(0);
   });
 });
