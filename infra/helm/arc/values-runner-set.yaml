@@ -152,17 +152,26 @@ template:
           # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
           - name: CARGO_BUILD_JOBS
             value: "4"
-        # Runner mengorkestrasi job & menjalankan cargo/trunk langsung; build
-        # image berat ada di dind (lihat blok resources-nya). Selisih
-        # request↔limit sengaja dipersempit 1→6 menjadi 1→2: rasio lama membuat
+        # Runner mengorkestrasi job & menjalankan cargo/trunk LANGSUNG (build
+        # image berat ada di dind, lihat blok resources-nya). Selisih CPU
+        # request↔limit dipersempit 1→6 menjadi 1→2: rasio lama membuat
         # scheduler menghitung 1 CPU/pod untuk beban yang boleh menuntut 6.
+        #
+        # MEMORI — DIKOREKSI 2026-07-19, sebelum PR ini di-merge. Revisi pertama
+        # menurunkan limit 10Gi→4Gi berbarengan dgn CPU. Itu terlalu jauh:
+        # pod `arc-simpel-9nthz-runner-drx9g` ter-OOMKill (exit 137) di container
+        # RUNNER — dind & init-nya keluar 0. Wajar: `cargo`/`trunk` jalan DI SINI,
+        # dan 4Gi terbukti bisa tersentuh. Limit dinaikkan ke 8Gi; REQUEST tetap
+        # 2Gi supaya penjadwalan (dan karenanya maxRunners 8) tak berubah —
+        # yang berubah hanya atap, agar lonjakan sesaat tidak membunuh job.
+        # Pelajaran: dua angka diubah sekaligus, satu terbukti salah. Ukur dulu.
         resources:
           requests:
             cpu: "1"
             memory: 2Gi
           limits:
             cpu: "2"
-            memory: 4Gi
+            memory: 8Gi
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work
