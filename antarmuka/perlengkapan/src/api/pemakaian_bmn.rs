@@ -67,8 +67,14 @@ pub struct IzinPemakaianBmn {
     pub revoked_by: Option<String>,
     pub revoked_by_nama: Option<String>,
     pub revoked_at: Option<String>,
-    pub created_by: String,
-    pub created_by_nama: String,
+    // Nullable in the schema, and the backend models them as `Option` (see
+    // `pemakaian_bmn/models/entities.rs`). Declaring them required here made
+    // serde fail on the WHOLE `PaginatedResponse`, so one null audit column
+    // blanked the entire list page while the API was returning the rows fine.
+    // Every sibling audit field (approved_by/revoked_by/updated_by) was already
+    // optional; these two were the outliers.
+    pub created_by: Option<String>,
+    pub created_by_nama: Option<String>,
     pub updated_by: Option<String>,
     pub updated_by_nama: Option<String>,
     pub created_at: String,
