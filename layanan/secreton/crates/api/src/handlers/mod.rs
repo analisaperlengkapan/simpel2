@@ -71,24 +71,17 @@
 pub mod admin;
 pub mod auth;
 pub mod aws;
-pub mod azure;
 pub mod classification;
 pub mod crypto;
 pub mod dynamic;
-pub mod gcp;
 pub mod health;
-pub mod identity;
 pub mod inject;
-pub mod kafka;
 pub mod key_hierarchy;
-pub mod kmip;
-pub mod ldap;
 pub mod lease;
 pub mod metrics;
 pub mod namespace;
 pub mod pki;
 pub mod policy;
-pub mod rabbitmq;
 pub mod revocation;
 pub mod rotation;
 pub mod seal;
@@ -137,14 +130,7 @@ pub fn create_protected_router(_config: &ApiConfig, services: Arc<ServiceContain
         .nest("/pki", pki::create_routes())
         .nest("/ssh", ssh::create_routes())
         .nest("/aws", aws::create_routes())
-        .nest("/gcp", gcp::create_routes())
-        .nest("/azure", azure::create_routes())
-        .nest("/identity", identity::create_routes())
         .nest("/rotation", rotation::create_routes())
-        .nest("/kmip", kmip::create_routes())
-        .nest("/ldap", ldap::create_routes())
-        .nest("/rabbitmq", rabbitmq::create_routes())
-        .nest("/kafka", kafka::create_routes())
         .nest("/zk", zero_knowledge::create_routes())
         .nest("/inject", inject::create_routes())
         .nest("/webhooks", webhook::create_routes());

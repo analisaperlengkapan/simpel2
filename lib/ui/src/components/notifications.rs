@@ -382,6 +382,8 @@ pub fn NotificationList(
                 {move || {
                     let notifs = filtered_notifications();
                     if notifs.is_empty() {
+                        // Honest empty states: "unavailable" (inbox unreachable)
+                        // is distinct from "genuinely no notifications".
                         let unavailable = notif_ctx.sync_state.get()
                             == crate::hooks::use_notifications::SyncState::Unavailable;
                         // Honest empty states: "unavailable" (inbox unreachable)

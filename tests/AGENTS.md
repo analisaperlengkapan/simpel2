@@ -162,6 +162,35 @@ staging-only masuk checklist sertifikasi **F5-E (#35)** — komprehensif @stagin
 - **Lokasi**: `tests/load/`
 - **Standar**: Hanya ke namespace `simpelv2-staging`.
 
+## 🚫 Tes yatim (orphaned tests) — gate `lint-orphan-tests`
+
+Cargo hanya menjadikan **`tests/*.rs`** sebagai test target. Berkas di
+**sub-direktori** `tests/` hanya ikut terkompilasi bila ada target yang
+mendeklarasikannya (`mod integration;`, `#[path = "..."] mod x;`, atau
+`[[test]] path =` di `Cargo.toml`). Sub-direktori yang tak dideklarasikan
+**tak pernah dikompilasi dan tak pernah dijalankan** — dan tak ada gate yang
+menyadarinya membusuk.
+
+Ini bukan hipotetis. `layanan/secreton/tests/{integration,unit,security,
+performance,common}` berisi 8.640 baris dalam kondisi persis itu (#103/#104),
+membusuk tiga arah sekaligus tanpa terdeteksi: galat sintaks (sebuah penyuntingan
+otomatis mencopot `}` dari literal `json!`/`format!`), pemanggilan API yang sudah
+lama direfaktor (`create_lease`: 11 argumen → 1 struct request, 19 lokasi), dan
+pembacaan field yang kini privat. Satu berkasnya berjudul *"verifies all 16
+secrets engines are functional"* padahal asersinya
+`assert!(r.is_ok() || r.is_err())` — tautologi, di berkas yang belum pernah
+sekalipun dibangun.
+
+**Aturan:** berkas `.rs` di sub-direktori `tests/` **wajib** terjangkau dari
+suatu target. Gate `lint-orphan-tests` (`infra/lint/check-orphan-tests.sh`,
+**BLOCKING**) menggagalkan CI bila tidak. Perbaiki dengan menghapusnya, atau
+memindahkannya ke `tests/<nama>.rs`, atau mendeklarasikannya — lalu **pastikan
+ia benar-benar kompilasi dan lulus** sebelum diandalkan.
+
+**Pelajaran yang lebih luas:** "ada berkas tes" ≠ "ada cakupan tes". Sebelum
+mempercayai sebuah suite, pastikan ia benar-benar dijalankan dan asersinya bisa
+gagal. Bandingkan dengan asersi lemah di E2E (`ada h1` lolos di halaman 404).
+
 ## ⚠️ Aturan AI untuk Pengujian
 
 ❌ **DON'T:**

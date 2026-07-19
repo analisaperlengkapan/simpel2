@@ -17,20 +17,12 @@ use std::sync::Arc;
 use crate::config::ApiConfig;
 use secreton_core::audit::AuditLogger;
 use secreton_core::namespace::NamespaceService;
-use secreton_core::services::identity::IdentityService;
 use secreton_core::services::lease::LeaseManager;
 use secreton_core::services::rotation::AutoRotationEngine;
 use secreton_core::services::seal::{SealConfig, SealService};
 use secreton_core::services::secrets::aws::AwsEngine;
-use secreton_core::services::secrets::azure::AzureEngine;
 use secreton_core::services::secrets::database::DatabaseSecretsEngine;
-use secreton_core::services::secrets::gcp::GcpEngine;
-use secreton_core::services::secrets::identity::IdentityEngine;
-use secreton_core::services::secrets::kafka::KafkaEngine;
-use secreton_core::services::secrets::kmip::KmipEngine;
-use secreton_core::services::secrets::ldap::LdapEngine;
 use secreton_core::services::secrets::pki::PkiEngine;
-use secreton_core::services::secrets::rabbitmq::RabbitMqEngine;
 use secreton_core::services::secrets::ssh::SshEngine;
 use secreton_core::services::secrets::totp::TotpEngine;
 use secreton_core::services::secrets::transform::TransformEngine;
@@ -95,30 +87,6 @@ pub struct ServiceContainer {
 
     /// AWS secrets engine
     pub aws_engine: Arc<AwsEngine>,
-
-    /// GCP secrets engine
-    pub gcp_engine: Arc<GcpEngine>,
-
-    /// Azure secrets engine
-    pub azure_engine: Arc<AzureEngine>,
-
-    /// Identity service (entity/group management)
-    pub identity_service: Arc<IdentityService>,
-
-    /// Identity secrets engine (OIDC Provider)
-    pub identity_engine: Arc<IdentityEngine>,
-
-    /// KMIP secrets engine
-    pub kmip_engine: Arc<KmipEngine>,
-
-    /// LDAP secrets engine
-    pub ldap_engine: Arc<LdapEngine>,
-
-    /// RabbitMQ secrets engine
-    pub rabbitmq_engine: Arc<RabbitMqEngine>,
-
-    /// Kafka secrets engine
-    pub kafka_engine: Arc<KafkaEngine>,
 
     /// Auto-rotation engine
     pub rotation_engine: Arc<AutoRotationEngine>,
@@ -199,14 +167,6 @@ impl ServiceContainer {
             ssh_engine,
             pki_engine,
             aws_engine,
-            gcp_engine,
-            azure_engine,
-            identity_service,
-            identity_engine,
-            kmip_engine,
-            ldap_engine,
-            rabbitmq_engine,
-            kafka_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -240,14 +200,6 @@ impl ServiceContainer {
             ssh_engine,
             pki_engine,
             aws_engine,
-            gcp_engine,
-            azure_engine,
-            identity_service,
-            identity_engine,
-            kmip_engine,
-            ldap_engine,
-            rabbitmq_engine,
-            kafka_engine,
             rotation_engine,
             lease_manager,
             policy_service,
@@ -400,14 +352,6 @@ impl ServiceContainer {
         Arc<SshEngine>,
         Arc<PkiEngine>,
         Arc<AwsEngine>,
-        Arc<GcpEngine>,
-        Arc<AzureEngine>,
-        Arc<IdentityService>,
-        Arc<IdentityEngine>,
-        Arc<KmipEngine>,
-        Arc<LdapEngine>,
-        Arc<RabbitMqEngine>,
-        Arc<KafkaEngine>,
         Arc<AutoRotationEngine>,
         Arc<policy::PolicyService>,
         Arc<WrappingService>,
@@ -433,30 +377,6 @@ impl ServiceContainer {
         let aws_engine = Arc::new(AwsEngine::new());
         tracing::info!("✅ AWS secrets engine initialized");
 
-        let gcp_engine = Arc::new(GcpEngine::new());
-        tracing::info!("✅ GCP secrets engine initialized");
-
-        let azure_engine = Arc::new(AzureEngine::new());
-        tracing::info!("✅ Azure secrets engine initialized");
-
-        let identity_service = Arc::new(IdentityService::new());
-        tracing::info!("✅ Identity service initialized");
-
-        let identity_engine = Arc::new(IdentityEngine::new(identity_service.clone()));
-        tracing::info!("✅ Identity secrets engine (OIDC Provider) initialized");
-
-        let kmip_engine = Arc::new(KmipEngine::with_storage(pool.clone()));
-        tracing::info!("✅ KMIP secrets engine initialized");
-
-        let ldap_engine = Arc::new(LdapEngine::with_storage(pool.clone()));
-        tracing::info!("✅ LDAP secrets engine initialized");
-
-        let rabbitmq_engine = Arc::new(RabbitMqEngine::with_storage(pool.clone()));
-        tracing::info!("✅ RabbitMQ secrets engine initialized");
-
-        let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
-        tracing::info!("✅ Kafka secrets engine initialized");
-
         let rotation_engine = Arc::new(AutoRotationEngine::new());
         tracing::info!("✅ Auto-rotation engine initialized");
 
@@ -474,14 +394,6 @@ impl ServiceContainer {
             ssh_engine,
             pki_engine,
             aws_engine,
-            gcp_engine,
-            azure_engine,
-            identity_service,
-            identity_engine,
-            kmip_engine,
-            ldap_engine,
-            rabbitmq_engine,
-            kafka_engine,
             rotation_engine,
             policy_service,
             wrapping_service,
@@ -838,16 +750,7 @@ impl ServiceContainer {
         let ssh_engine = Arc::new(SshEngine::with_storage(pool.clone()));
         let pki_engine = Arc::new(PkiEngine::new());
         let aws_engine = Arc::new(AwsEngine::new());
-        let gcp_engine = Arc::new(GcpEngine::new());
-        let azure_engine = Arc::new(AzureEngine::new());
 
-        let identity_service = Arc::new(IdentityService::new());
-        let identity_engine = Arc::new(IdentityEngine::new(identity_service.clone()));
-
-        let kmip_engine = Arc::new(KmipEngine::with_storage(pool.clone()));
-        let ldap_engine = Arc::new(LdapEngine::with_storage(pool.clone()));
-        let rabbitmq_engine = Arc::new(RabbitMqEngine::with_storage(pool.clone()));
-        let kafka_engine = Arc::new(KafkaEngine::with_storage(pool.clone()));
         let rotation_engine = Arc::new(AutoRotationEngine::new());
 
         let lease_manager = Arc::new(LeaseManager::new(pool.clone()));
@@ -888,14 +791,6 @@ impl ServiceContainer {
             ssh_engine,
             pki_engine,
             aws_engine,
-            gcp_engine,
-            azure_engine,
-            identity_service,
-            identity_engine,
-            kmip_engine,
-            ldap_engine,
-            rabbitmq_engine,
-            kafka_engine,
             rotation_engine,
             lease_manager,
             policy_service,

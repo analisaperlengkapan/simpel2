@@ -137,23 +137,55 @@ pub fn main() {
 Dua hal yang **WAJIB** dipahami sebelum menyentuh crate FE
 (`perlengkapan-microfrontend`, `portal-microfrontend`):
 
-### 1. `view!` diformat oleh **leptosfmt**, bukan rustfmt
+### 1. `view!` diformat MANUAL — leptosfmt DIHAPUS (2026-07-19)
 
 `cargo fmt` (rustfmt) **tidak** masuk ke dalam token-tree makro, jadi isi
-`view! { … }` tak tersentuh. **leptosfmt** (pinned `0.1.33`, prebuilt binary)
-menutup celah itu dan dijalankan oleh **autofix bot** (best-effort), bukan gate.
-Config: [`.leptosfmt.toml`](../.leptosfmt.toml) (selaras rustfmt: `tab_spaces=4`,
-`max_width=100`). Urutan yang benar bila format manual: **leptosfmt dulu, lalu
-`cargo fmt`** (rustfmt merapikan whitespace kode di sekitarnya setelahnya).
+`view! { … }` tak tersentuh. Dulu celah itu ditutup **leptosfmt** (`0.1.33`) via
+autofix bot. **Itu sudah dihapus dari `autofix.yml`** — isi `view!` sekarang
+diformat tangan.
 
-> ⚠️ **JANGAN taruh komentar non-doc `//` di dalam / tepat setelah blok kode
-> `{ … }` di dalam `view!`** (mis. `})} // catatan`, atau `// catatan` tepat
-> setelah `</div>` yang mengikuti blok `{…}`). leptosfmt memakai fork prettyplease
-> yang **tak mendukung** komentar di code-block → outputnya **oscillating /
-> non-idempoten** (terbukti di ~17 file). Komentar `//` di **markup** view! aman;
-> yang **di code-block** tidak. Letakkan komentar di luar `view!`, atau di posisi
-> markup, bukan di dalam `{…}`. (Karena itu leptosfmt sengaja **tidak** dijadikan
-> gate `--check` blocking.)
+> 🚨 **Alasan penghapusan: leptosfmt MERUSAK markup secara SENYAP.** Ia
+> mem-parse isi `view!` sebagai markup, sehingga **memotong ekspresi atribut di
+> `>` pertama**. File `antarmuka/portal/src/features/admin/users.rs` dirusak
+> **dua kali** dengan pola sama:
+>
+> ```rust
+> // sebelum
+> disabled=move || page.get() >= total_pages.get()
+> class="px-3 py-1 …"
+> // sesudah leptosfmt
+> disabled=move || page.get()   // u32, bukan bool
+> >                             // tag close liar
+> = total_pages.get()           // jadi TEXT CHILD tombol
+> class=
+> "px-3 py-1 …"                 // juga text child
+> ```
+>
+> **Yang membuatnya berbahaya: hasilnya TETAP KOMPILASI** (terverifikasi
+> `cargo check -p portal-microfrontend --target wasm32-unknown-unknown` = exit 0).
+> Tak ada gate kompilasi yang bisa menangkapnya — yang ter-deploy adalah tombol
+> dengan teks sampah dan state `disabled` salah. Ini **lebih buruk** daripada
+> build error. Hanya e2e yang meng-assert paginasi yang bisa menangkapnya.
+>
+> Karena leptosfmt tak pernah jadi gate, menghapusnya **tidak menghilangkan
+> jaminan apa pun**.
+
+**Aturan yang tetap berlaku (agar aman untuk formatter/tool apa pun):**
+
+1. **JANGAN taruh operator perbandingan (`>`, `<`, `>=`, `<=`) di posisi
+   atribut `view!`.** Ekstrak ke `Memo` di atas `view!`:
+
+   ```rust
+   let on_last_page = Memo::new(move |_| page.get() >= total_pages.get());
+   // …
+   <button disabled=on_last_page class="…">
+   ```
+
+   Ini pola yang dipakai `users.rs` sekarang.
+2. **JANGAN taruh komentar non-doc `//` di dalam / tepat setelah blok kode
+   `{ … }` di dalam `view!`.** leptosfmt memakai fork prettyplease yang tak
+   mendukung komentar di code-block → output **non-idempoten** (~17 file
+   berosilasi). Relevan lagi bila suatu saat formatter `view!` dihidupkan ulang.
 
 ### 2. FE crates di-**exclude** dari `cargo fix` / `clippy --fix`
 

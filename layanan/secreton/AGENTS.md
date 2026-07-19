@@ -71,7 +71,7 @@ k8s-operator ─→ (gRPC client to grpc)
 
 The central state is `ServiceContainer` (in `crates/api/src/services/mod.rs`), wrapped in `Arc` as `AppState`.
 
-Key fields: `config`, `storage`, `pool` (deadpool-postgres), `crypto`, `auth`, `engine` (SecretService), `admin`, `audit`, `seal`, `namespace`, `transit_engine`, `pki_engine`, `lease_manager`, `policy_service`, `hsm` (optional), and various dynamic secret engines (AWS, GCP, Azure, LDAP, RabbitMQ, Kafka, KMIP).
+Key fields: `config`, `storage`, `pool` (deadpool-postgres), `crypto`, `auth`, `engine` (SecretService), `admin`, `audit`, `seal`, `namespace`, `transit_engine`, `pki_engine`, `lease_manager`, `policy_service`, `hsm` (optional), plus the surviving secret engines: `aws_engine`, `rotation_engine`, `wrapping`, `mfa`. The GCP/Azure/LDAP/RabbitMQ/Kafka/KMIP engines were deleted in #103 — see "Secrets engines" below.
 
 `AppState` = `ApiState { services: Arc<ServiceContainer>, transit, kv, pki, prometheus_handle, metrics }` — passed to Axum via `.with_state(state)`.
 
@@ -134,13 +134,6 @@ All handlers in `crates/api/src/handlers/`:
 | `pki` | `/v1/sys/pki` | Extended PKI: intermediate CA, OCSP, templates, renewal |
 | `ssh` | `/v1/sys/ssh` | SSH CA, roles, creds, sign user/host, OTP |
 | `aws` | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
-| `gcp` | `/v1/sys/gcp` | Dynamic GCP service account credentials |
-| `azure` | `/v1/sys/azure` | Dynamic Azure credentials |
-| `identity` | `/v1/sys/identity` | OIDC provider, entities, groups |
-| `kmip` | `/v1/sys/kmip` | KMIP key operations |
-| `ldap` | `/v1/sys/ldap` | Dynamic LDAP credentials |
-| `rabbitmq` | `/v1/sys/rabbitmq` | Dynamic RabbitMQ credentials |
-| `kafka` | `/v1/sys/kafka` | Dynamic Kafka credentials |
 | `key_hierarchy` | `/v1/sys/key-hierarchy` | Key hierarchy management |
 | `inject` | `/v1/sys/inject` | Environment variable injection |
 | `webhook` | `/v1/sys/webhooks` | Webhook subscriptions and delivery |
@@ -148,6 +141,63 @@ All handlers in `crates/api/src/handlers/`:
 | `revocation` | `/v1/secret` | Certificate/credential revocation |
 | `dynamic` | `/v1/dynamic` | Dynamic database credentials |
 | `metrics` | `/v1/metrics` (also `/metrics`) | JSON metrics snapshot |
+
+> **Trimmed 2026-07-18 (#103).** The `gcp`, `azure`, `identity`, `kmip`, `ldap`,
+> `rabbitmq` and `kafka` engines were **deleted**. None had a client library —
+> they generated a credential locally, persisted a lease, and returned success
+> **without ever contacting the target system**, so callers would have received
+> fabricated credentials as if valid. `identity` was a second OIDC provider,
+> which contradicts the codified split (authenc = IAM, secreton = secrets only).
+> None had a consumer. Do **not** re-add an engine without a real client library
+> and an integration test that proves the remote object was actually created.
+
+The same audit found the same disease on the authentication side:
+
+> **Auth methods trimmed 2026-07-19 (#103).** The whole
+> `core/src/services/auth/` tree (9 modules, 3.544 baris) was **deleted**: it had
+> **zero consumers anywhere in the repo** — the live authentication path is
+> `core/src/auth/authenc_provider.rs` (delegasi ke authenc) plus the API crate's
+> own `api/src/services/auth.rs`, which is what the binary actually constructs.
+>
+> Five of them were simulated, and one was actively dangerous: `ldap.rs` `bind()`
+> returned `Ok(())` for **any non-empty password** and `search_user()` fabricated
+> a user for **any username** — an accept-anything authenticator sitting behind
+> the `AuthMethod` trait, i.e. exactly the shape something gets wired into later.
+> `github`/`oidc`/`kubernetes`/`aws` were likewise simulated ("Simulate parsing
+> JWT", "return mock identity"). `userpass`/`certificate` were genuinely
+> implemented (Argon2id, x509-parser) but duplicated the live API-crate service.
+>
+> **Rule: an auth method is security-critical dead code.** Never add one without
+> a real client library, a mounted route, and a test proving a _wrong_ credential
+> is **rejected**.
+>
+> This is not theoretical. `ldap.rs` shipped 3 passing tests; all 3 fed a
+> valid-looking credential and asserted success:
+>
+> ```rust
+> let result = ldap.authenticate("testuser", "password123").await;
+> assert!(result.is_ok());          // passes BECAUSE bind() accepts anything
+> ```
+>
+> Not one fed a wrong password and asserted failure. The suite was green and
+> encoded the bug as expected behaviour. **For anything that decides "is this
+> caller who they claim to be", the negative case is the test that matters** —
+> a happy-path assertion cannot distinguish a working authenticator from one
+> that returns `Ok` unconditionally.
+
+And a third instance, this time a duplicated layer rather than a fake one:
+
+> **Shadow service layer deleted 2026-07-19 (#103).** `core/src/services/`
+> carried a second, unreachable copy of the service layer —
+> `admin_service`, `auth_service`, `secret_service`, `policy_service`,
+> `dynamic_role_service`, `rbac`, `key_manager` (4.280 baris incl. its test).
+> All had zero external references (`auth_service` only via the equally-dead
+> `admin_service`), while `api/src/services/{admin,auth,secret_engine,policy}.rs`
+> are the ones `ServiceContainer` constructs. `key_manager` was not even compiled
+> (`// pub mod key_manager;`). Git history confirms which copy is real: the API
+> copies have 5–8 commits, the core copies only 2–3, all mechanical clippy sweeps.
+> Before "moving" a service into `core`, switch the consumer over in the same
+> change — otherwise both copies survive and only one is real.
 
 There is also a `raft` handler (feature-gated behind `raft-consensus`):
 
@@ -495,12 +545,29 @@ Test suites in `tests/`:
 
 Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokumentasikan di sini cara service lain (authenc, layanan-perlengkapan, layanan-integrasi, simpelv1) consume:
 
-### Kubernetes Auth Backend
+### Kubernetes Auth Backend — ⚠️ BELUM ADA SISI SERVER (jangan diaktifkan)
 
-- Implementasi server-side: `layanan/secreton/crates/core/src/services/auth/kubernetes.rs`.
-- Implementasi client-side: `layanan/secreton/crates/agent/src/auth/kubernetes.rs`.
-- Bootstrap: `infra/helm/bootstrap-secreton.sh <env>` (one-shot, post-install) — enable auth backend, configure TokenReview API, apply policies + roles dari ConfigMap `secreton-policies` & `secreton-auth-config`.
-- Verifikasi: `secreton auth list | grep kubernetes` → `kubernetes/` aktif.
+> **Terverifikasi 2026-07-19 (#103, task #105). Mekanisme ini TIDAK berfungsi.**
+> Yang di bawah adalah desain yang direncanakan, bukan perilaku nyata:
+>
+> - **Tidak ada route `/v1/auth/kubernetes/login`** di API. Yang ada hanya
+>   `/v1/auth/login` dan `/oauth/{provider}`.
+> - Bekas "implementasi server-side" (`core/src/services/auth/kubernetes.rs`)
+>   tidak pernah di-mount (nol konsumen) dan **dihapus di #103** karena
+>   disimulasi (`// Simulate parsing JWT`) — seperti 5 auth method lain.
+> - `infra/helm/bootstrap-secreton.sh` ditulis untuk **API HashiCorp Vault**,
+>   bukan Secreton: memanggil `/sys/auth/kubernetes`, `/auth/kubernetes/config`,
+>   `/auth/kubernetes/role/<svc>`, dan contoh token-nya `hvs.xxxx` (prefix Vault).
+>   Dengan `set -euo pipefail` + `curl -fsS`, script **abort di langkah 4/6**.
+>
+> **Tidak memutus apa pun hari ini** — `secretonAuth.enabled: false` di
+> `values.yaml:125` dan tak ada override staging/production. **JANGAN flip
+> `secretonAuth.enabled=true`** (termasuk sebagai prasyarat F6-A) sebelum task
+> #105 diputuskan: bangun sisi server, atau buang mekanisme ini dan pertahankan
+> jalur token/gRPC (`secretonGrpcUrl`) sebagai satu-satunya cara konsumsi.
+>
+> Sisi klien memang ada (`crates/agent/src/auth/kubernetes.rs` + policy per-service
+> di `values.yaml`) — itulah yang membuat gap ini tampak seperti fitur jadi.
 
 ### Login Flow
 

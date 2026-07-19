@@ -105,18 +105,31 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-key: autofix-rust
 
-      # leptosfmt formats the Leptos `view!` macro bodies that rustfmt skips
-      # (rustfmt never descends into macro token trees). Prebuilt binary, pinned.
-      - name: Install leptosfmt
-        shell: bash
-        run: |
-          if ! command -v leptosfmt &>/dev/null; then
-            mkdir -p "$HOME/.local/bin"
-            curl -fsSL "https://github.com/bram209/leptosfmt/releases/download/0.1.33/leptosfmt-0.1.33-x86_64-unknown-linux-musl.tar.gz" \
-              | tar xz -C "$HOME/.local/bin"
-            chmod +x "$HOME/.local/bin/leptosfmt"
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-          fi
+      # leptosfmt REMOVED 2026-07-19 — it silently corrupts `view!` markup.
+      #
+      # It parses `view!` bodies as markup, so it splits an attribute expression
+      # at the first `>`. This mangled the same file twice:
+      #
+      #   disabled=move || page.get() >= total_pages.get()
+      #   class="px-3 py-1 ..."
+      # becomes
+      #   disabled=move || page.get()      <- u32, not bool
+      #   >                                <- stray tag close
+      #   = total_pages.get()              <- now a TEXT CHILD of the button
+      #   class=
+      #   "px-3 py-1 ..."                  <- also a text child
+      #
+      # The critical part: the result still COMPILES (verified: cargo check
+      # -p portal-microfrontend --target wasm32-unknown-unknown exits 0). No
+      # compile gate can catch it — it ships a button with garbage label text
+      # and a broken disabled state. That makes this strictly worse than a
+      # build break, and it is not worth cosmetic formatting of macro bodies.
+      #
+      # It was never a gate (best-effort only) and was already known to be
+      # non-idempotent on `//` comments inside `view!` (~17 files oscillating),
+      # so removing it forfeits nothing that was enforced. rustfmt does not
+      # descend into macro token trees, so `view!` bodies are simply hand-
+      # formatted now. See antarmuka/AGENTS.md.
 
       - name: Apply cargo fmt + fix + clippy --fix
         shell: bash
@@ -147,16 +160,10 @@ jobs:
             --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --fix --allow-dirty --allow-staged -- -W clippy::all || clippy_exit=$?
           if [ $clippy_exit -ne 0 ]; then echo "::warning::cargo clippy --fix exit code: $clippy_exit"; fi
-          # leptosfmt: format `view!` macro bodies (rustfmt skips macros). Run
-          # BEFORE the final cargo fmt so rustfmt cleans up any surrounding-code
-          # whitespace afterwards. Best-effort (NOT a gate): leptosfmt 0.1.33 is
-          # non-idempotent on `//` comments placed next to tags inside `view!`
-          # (~17 files oscillate), so it is intentionally not wired as a blocking
-          # `--check` in ci.yml — it just formats the markup opportunistically.
-          leptosfmt_exit=0
-          leptosfmt antarmuka lib/ui || leptosfmt_exit=$?
-          if [ $leptosfmt_exit -ne 0 ]; then echo "::warning::leptosfmt exit code: $leptosfmt_exit"; fi
-          # Final fmt pass untuk reformat hasil fix/clippy + leptosfmt.
+          # NOTE: leptosfmt intentionally removed here — it silently corrupts
+          # `view!` attribute expressions containing `>`/`<` into code that
+          # still compiles. See the comment on the deleted install step above.
+          # Final fmt pass untuk reformat hasil fix/clippy.
           final_fmt_exit=0
           cargo fmt --all || final_fmt_exit=$?
           if [ $final_fmt_exit -ne 0 ]; then echo "::warning::final cargo fmt exit code: $final_fmt_exit"; fi
@@ -541,16 +548,9 @@ jobs:
           cargo clippy --workspace --all-targets \
             --exclude perlengkapan-microfrontend --exclude portal-microfrontend \
             --fix --allow-dirty --allow-staged -- -W clippy::all
-          # leptosfmt: format `view!` macro bodies (best-effort; see note in the
-          # non-fork rust job). Run before the final cargo fmt.
-          if ! command -v leptosfmt &>/dev/null; then
-            mkdir -p "$HOME/.local/bin"
-            curl -fsSL "https://github.com/bram209/leptosfmt/releases/download/0.1.33/leptosfmt-0.1.33-x86_64-unknown-linux-musl.tar.gz" \
-              | tar xz -C "$HOME/.local/bin"
-            chmod +x "$HOME/.local/bin/leptosfmt"
-            export PATH="$HOME/.local/bin:$PATH"
-          fi
-          leptosfmt antarmuka lib/ui
+          # leptosfmt REMOVED 2026-07-19 (see the note in the non-fork rust job):
+          # it splits `view!` attribute expressions at `>` into markup that still
+          # compiles but renders wrong. Not a gate, so nothing enforced is lost.
           cargo fmt --all
           python3 ./infra/scripts/check-cargo-versioning.py fix
           # TOML

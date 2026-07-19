@@ -27,10 +27,9 @@ Secreton provides encrypted secret storage, transit encryption, PKI certificate 
 │  │  SecretService · TransitEngine · PkiEngine · SshEngine  │  │
 │  │  AuthService · SealService · NamespaceService           │  │
 │  │  DatabaseSecretsEngine · TotpEngine · TransformEngine   │  │
-│  │  AwsEngine · GcpEngine · AzureEngine · KmipEngine       │  │
-│  │  LdapEngine · RabbitMqEngine · KafkaEngine              │  │
+│  │  AwsEngine                                              │  │
 │  │  RotationEngine · LeaseManager · PolicyService          │  │
-│  │  WrappingService · IdentityService · MfaService         │  │
+│  │  WrappingService · MfaService                           │  │
 │  │  BackupManager · AuditLogger                            │  │
 │  └─────────────────────────┬───────────────────────────────┘  │
 │                            ▼                                  │
@@ -181,7 +180,9 @@ On-demand credential generation with automatic lease-based expiration.
 | POST | `/v1/dynamic/database/roles/{role}` | Create credential role |
 | GET | `/v1/dynamic/database/creds/{role}` | Generate database credentials |
 
-Supported databases: PostgreSQL, MySQL, MongoDB, Redis, Cassandra, MSSQL.
+**PostgreSQL only.** `DatabaseType` also accepts MySQL, MongoDB, Redis, Cassandra
+and MSSQL, but only PostgreSQL has a connection pool behind it; every other value
+fails closed with `UnsupportedDatabase` when the connection is configured.
 
 ### Authentication (`/v1/auth`)
 
@@ -285,17 +286,35 @@ Automatic secret rotation with webhook notifications.
 | TOTP | `/v1/sys/totp` | Time-based OTP key management and code generation/validation |
 | Crypto (HMAC, Random) | `/v1/sys/crypto` | HMAC computation, random byte generation, re-encryption |
 | Transform (FPE/Tokenization) | `/v1/sys/transform` | Format-preserving encryption, tokenization roles |
-| Identity (OIDC) | `/v1/sys/identity` | OpenID Connect provider, entity management |
-| KMIP | `/v1/sys/kmip` | Key Management Interoperability Protocol |
-| LDAP | `/v1/sys/ldap` | LDAP credential management |
-| RabbitMQ | `/v1/sys/rabbitmq` | Dynamic RabbitMQ credentials |
-| Kafka | `/v1/sys/kafka` | Dynamic Kafka credentials |
 | AWS | `/v1/sys/aws` | Dynamic AWS IAM/STS credentials |
-| GCP | `/v1/sys/gcp` | Dynamic GCP service account credentials |
-| Azure | `/v1/sys/azure` | Dynamic Azure credentials |
 | Zero-Knowledge | `/v1/sys/zk` | Zero-knowledge secret storage |
 | Inject | `/v1/sys/inject` | Environment variable injection |
 | Webhooks | `/v1/sys/webhooks` | Webhook subscriptions and delivery management |
+
+> **Removed 2026-07-18.** The GCP, Azure, Identity, KMIP, LDAP, RabbitMQ and Kafka
+> engines were deleted. None of them had a client library for the system they
+> named, so they generated a credential locally, stored a lease and reported
+> success **without ever contacting that system** — a caller would have been
+> handed a fabricated credential as though it were valid. Identity was a second
+> OIDC provider, which conflicts with authenc being the identity authority.
+> None had a consumer. Re-adding any of them requires a real client library plus
+> an integration test proving the remote object was actually created.
+
+A follow-up pass found the same pattern on the authentication side:
+
+> **Removed 2026-07-19.** The `core/src/services/auth/` tree (9 auth methods) and
+> a duplicate, unreachable copy of the service layer (`admin_service`,
+> `auth_service`, `secret_service`, `policy_service`, `dynamic_role_service`,
+> `rbac`, `key_manager`) were deleted — 7.824 lines with zero consumers. The live
+> authentication path is `core/src/auth/authenc_provider.rs` (delegating to
+> authenc) plus the API crate's own services, which are what the server actually
+> constructs. Five of the auth methods were simulated; LDAP's `bind()` accepted
+> **any non-empty password** and its user lookup fabricated **any username**.
+>
+> **Kubernetes SA auth is not implemented server-side** despite the client and
+> Helm policy config existing — there is no `/v1/auth/kubernetes/login` route,
+> and `infra/helm/bootstrap-secreton.sh` targets HashiCorp Vault's API. Leave
+> `secretonAuth.enabled` at `false`.
 
 ### Administration (`/v1/admin`)
 
