@@ -300,6 +300,8 @@ Automatic secret rotation with webhook notifications.
 > None had a consumer. Re-adding any of them requires a real client library plus
 > an integration test proving the remote object was actually created.
 
+A follow-up pass found the same pattern on the authentication side:
+
 > **Removed 2026-07-19.** The `core/src/services/auth/` tree (9 auth methods) and
 > a duplicate, unreachable copy of the service layer (`admin_service`,
 > `auth_service`, `secret_service`, `policy_service`, `dynamic_role_service`,

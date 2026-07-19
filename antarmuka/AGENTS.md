@@ -174,11 +174,13 @@ diformat tangan.
 
 1. **JANGAN taruh operator perbandingan (`>`, `<`, `>=`, `<=`) di posisi
    atribut `view!`.** Ekstrak ke `Memo` di atas `view!`:
+
    ```rust
    let on_last_page = Memo::new(move |_| page.get() >= total_pages.get());
    // …
    <button disabled=on_last_page class="…">
    ```
+
    Ini pola yang dipakai `users.rs` sekarang.
 2. **JANGAN taruh komentar non-doc `//` di dalam / tepat setelah blok kode
    `{ … }` di dalam `view!`.** leptosfmt memakai fork prettyplease yang tak

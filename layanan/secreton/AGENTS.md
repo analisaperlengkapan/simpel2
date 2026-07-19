@@ -151,6 +151,8 @@ All handlers in `crates/api/src/handlers/`:
 > None had a consumer. Do **not** re-add an engine without a real client library
 > and an integration test that proves the remote object was actually created.
 
+The same audit found the same disease on the authentication side:
+
 > **Auth methods trimmed 2026-07-19 (#103).** The whole
 > `core/src/services/auth/` tree (9 modules, 3.544 baris) was **deleted**: it had
 > **zero consumers anywhere in the repo** — the live authentication path is
@@ -166,7 +168,7 @@ All handlers in `crates/api/src/handlers/`:
 > implemented (Argon2id, x509-parser) but duplicated the live API-crate service.
 >
 > **Rule: an auth method is security-critical dead code.** Never add one without
-> a real client library, a mounted route, and a test proving a *wrong* credential
+> a real client library, a mounted route, and a test proving a _wrong_ credential
 > is **rejected**.
 >
 > This is not theoretical. `ldap.rs` shipped 3 passing tests; all 3 fed a
@@ -182,6 +184,8 @@ All handlers in `crates/api/src/handlers/`:
 > caller who they claim to be", the negative case is the test that matters** —
 > a happy-path assertion cannot distinguish a working authenticator from one
 > that returns `Ok` unconditionally.
+
+And a third instance, this time a duplicated layer rather than a fake one:
 
 > **Shadow service layer deleted 2026-07-19 (#103).** `core/src/services/`
 > carried a second, unreachable copy of the service layer —
