@@ -1673,7 +1673,13 @@ jobs:
           # used to rebuild them itself, which is why one PR issued up to six
           # identical multi-stage builds.
           set -euo pipefail
-          for img in simpel2-authenc simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan simpel2-portal; do
+          # simpel2-secreton is NOT optional here even though `secreton` is not
+          # named in the `up -d` below: `layanan-integrasi` declares
+          # depends_on: secreton, so compose pulls it into the graph. Without
+          # the image present, compose silently falls back to BUILDING it from
+          # source, which blows the 600s bound — the first revision of this
+          # loop omitted it and that is exactly what happened.
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan simpel2-portal; do
             docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
             docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
           done
