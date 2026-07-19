@@ -29,13 +29,25 @@ scaleSetLabels:
   - dependabot
   - dependency-submission
 
-# Skala — dimaksimalkan utk host simple02 (48 vCPU/62 GiB). Diukur saat full CI
-# 15 pod aktif: CPU aktual 15%, mem 19% (47 GiB free), loadavg ~7/48 — beban riil
-# sangat rendah. Pengikat = memory REQUESTS (2Gi/pod). 20 × 2Gi = 40Gi + baseline
-# ~9Gi ≈ 49Gi (~75% allocatable) — aman, sisakan headroom utk staging. Naik lagi
-# diminishing returns (jarang ada >20 job paralel). maxRunners = ceiling (antre).
+# Skala — DIHITUNG ULANG 2026-07-19 (#111). Angka lama (20) berasal dari sizing
+# yang menghitung container YANG SALAH: ia memakai requests container `runner`
+# (2Gi/pod) sebagai pengikat, padahal `dind` — tempat SEMUA `docker build`
+# sebenarnya berjalan — sama sekali tak punya blok `resources:`. Jadi scheduler
+# melihat 20 × 1 CPU = 20/48 ("muat santai") sementara beban nyatanya tak
+# terbatas. Hasil terukur: requests CPU 65% tapi LIMITS 369%, memory limits 387%,
+# loadavg 311 di kotak 48-core, dan e2e gagal di step build setelah ~90 menit
+# tanpa menjalankan satu asersi pun.
+#
+# Anggaran jujur simple02 (48 vCPU / ~62Gi allocatable), sisakan utk staging
+# (postgres/redis/portal×2/perlengkapan×2/registry) + sistem ≈ 11 CPU / 11Gi:
+#   per pod requests = dind 3 CPU + runner 1 CPU  = 4 CPU
+#                      dind 3Gi  + runner 2Gi     = 5Gi
+#   8 pod = 32 CPU + 40Gi  →  +baseline ≈ 43 CPU (90%) / 51Gi (82%)
+# Turun dari 20 BUKAN pengurangan kapasitas: 20 tak pernah benar-benar muat.
+# Paralelisme yang hilang ditebus oleh build-once e2e (6 job berhenti membangun
+# stack masing-masing), bukan dgn menjual-lebih node.
 minRunners: 0
-maxRunners: 20
+maxRunners: 8
 
 # ── Pod template MANUAL untuk dind (BUKAN containerMode shorthand) ──
 # Manual diperlukan agar bisa:
@@ -95,6 +107,17 @@ template:
         securityContext:
           privileged: true
         restartPolicy: Always
+        # WAJIB ADA (#111). Tanpa blok ini dind = 0 request / 0 limit: tak
+        # terlihat scheduler dan tak terbatas saat runtime — padahal DI SINILAH
+        # `docker build` berjalan (runner cuma bicara ke socket). Ini penyebab
+        # overcommit 369% + loadavg 311, bukan jumlah node.
+        resources:
+          requests:
+            cpu: "3"
+            memory: 3Gi
+          limits:
+            cpu: "6"
+            memory: 6Gi
         startupProbe:
           exec:
             command: ["docker", "info"]
@@ -122,13 +145,17 @@ template:
           # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
           - name: CARGO_BUILD_JOBS
             value: "4"
+        # Runner mengorkestrasi job & menjalankan cargo/trunk langsung; build
+        # image berat ada di dind (lihat blok resources-nya). Selisih
+        # request↔limit sengaja dipersempit 1→6 menjadi 1→2: rasio lama membuat
+        # scheduler menghitung 1 CPU/pod untuk beban yang boleh menuntut 6.
         resources:
           requests:
             cpu: "1"
             memory: 2Gi
           limits:
-            cpu: "6"
-            memory: 10Gi
+            cpu: "2"
+            memory: 4Gi
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work
