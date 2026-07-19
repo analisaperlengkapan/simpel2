@@ -268,7 +268,16 @@ test.describe('Izin Pemakaian BMN — scoping & revoke policy', () => {
       });
       expect(resp.ok(), `GET pemakaian-bmn list as ${userKey} (${resp.status()})`).toBeTruthy();
       const body = await resp.json();
-      return (body.data ?? []).map((r: { id: string }) => r.id);
+      // Assert the envelope shape before mapping. `?? []` only covers an ABSENT
+      // `data`; when the BE nested the page struct here (data.data) this line
+      // threw an opaque "(...).map is not a function" that named neither the
+      // endpoint nor the mismatch. Contract: flat PaginatedResponse.
+      expect(
+        Array.isArray(body.data),
+        `pemakaian-bmn list must return a flat PaginatedResponse (data: []) — got data of type ` +
+          `${Array.isArray(body.data) ? 'array' : typeof body.data}: ${JSON.stringify(body.data)?.slice(0, 200)}`,
+      ).toBeTruthy();
+      return body.data.map((r: { id: string }) => r.id);
     };
 
     expect(await listIds('operator_a'), 'operator_a sees own izin').toContain(I1_IZIN);
