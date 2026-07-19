@@ -300,6 +300,20 @@ Automatic secret rotation with webhook notifications.
 > None had a consumer. Re-adding any of them requires a real client library plus
 > an integration test proving the remote object was actually created.
 
+> **Removed 2026-07-19.** The `core/src/services/auth/` tree (9 auth methods) and
+> a duplicate, unreachable copy of the service layer (`admin_service`,
+> `auth_service`, `secret_service`, `policy_service`, `dynamic_role_service`,
+> `rbac`, `key_manager`) were deleted — 7.824 lines with zero consumers. The live
+> authentication path is `core/src/auth/authenc_provider.rs` (delegating to
+> authenc) plus the API crate's own services, which are what the server actually
+> constructs. Five of the auth methods were simulated; LDAP's `bind()` accepted
+> **any non-empty password** and its user lookup fabricated **any username**.
+>
+> **Kubernetes SA auth is not implemented server-side** despite the client and
+> Helm policy config existing — there is no `/v1/auth/kubernetes/login` route,
+> and `infra/helm/bootstrap-secreton.sh` targets HashiCorp Vault's API. Leave
+> `secretonAuth.enabled` at `false`.
+
 ### Administration (`/v1/admin`)
 
 User/role management, system config, maintenance, and security scanning.
