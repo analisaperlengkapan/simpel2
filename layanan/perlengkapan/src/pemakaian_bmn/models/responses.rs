@@ -26,7 +26,12 @@ pub struct IzinPemakaianDetailResponse {
     pub can_generate_konsep: bool,
     pub can_upload_signed_pdf: bool,
 }
-/// Paginated list response
+/// INTERNAL page carrier (repository -> service -> handler). **Not a wire
+/// shape.** `list_permits` converts this into the shared
+/// `lib_perlengkapan::response::PaginatedResponse`, which is what the FE
+/// fetcher and the e2e specs are typed against. Serializing this struct
+/// directly puts the rows at `data.data` and breaks both — do not return it
+/// from a handler.
 #[derive(Debug, Clone, Serialize)]
 pub struct PaginatedPermitsResponse {
     pub data: Vec<IzinPemakaianBmn>,
