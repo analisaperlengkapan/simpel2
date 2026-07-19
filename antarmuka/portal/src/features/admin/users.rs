@@ -24,6 +24,15 @@ pub fn UsersManagementPage() -> impl IntoView {
     let (total_pages, set_total_pages) = signal(1u32);
     let (show_create_modal, set_show_create_modal) = signal(false);
 
+    // Pagination bounds live here, NOT inline in `view!`. leptosfmt (run by the
+    // autofix bot) parses `view!` as markup and splits an attribute expression
+    // at the first `>` — `disabled=move || page.get() >= total_pages.get()`
+    // got rewritten into a stray tag close twice (see antarmuka/AGENTS.md).
+    // Keeping every comparison out of attribute position makes that impossible.
+    let on_first_page = Memo::new(move |_| page.get() <= 1);
+    let on_last_page = Memo::new(move |_| page.get() >= total_pages.get());
+    let has_multiple_pages = Memo::new(move |_| total_pages.get() > 1);
+
     // Form fields for new user
     let (new_username, set_new_username) = signal(String::new());
     let (new_email, set_new_email) = signal(String::new());
@@ -298,13 +307,13 @@ pub fn UsersManagementPage() -> impl IntoView {
                         </Show>
 
                         // Pagination
-                        <Show when=move || { total_pages.get() > 1 }>
+                        <Show when=move || has_multiple_pages.get()>
                             <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
                                 <button
                                     on:click=move |_| {
                                         set_page.set(page.get().saturating_sub(1).max(1))
                                     }
-                                    disabled=move || page.get() <= 1
+                                    disabled=on_first_page
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "← Sebelumnya"
@@ -317,12 +326,9 @@ pub fn UsersManagementPage() -> impl IntoView {
                                     on:click=move |_| {
                                         set_page.set((page.get() + 1).min(total_pages.get()))
                                     }
-                                    disabled=move || page.get()
+                                    disabled=on_last_page
+                                    class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
-                                    = total_pages.get()
-                                    class=
-                                    "px-3 py-1 text-sm border rounded disabled:opacity-50"
-                                    >
                                     "Selanjutnya →"
                                 </button>
                             </div>
