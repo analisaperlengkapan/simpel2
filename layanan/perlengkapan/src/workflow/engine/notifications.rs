@@ -87,7 +87,7 @@ impl WorkflowEngine {
                 let requester_id: Uuid = row.get("created_by");
                 let satker_id: Uuid = row.get("satker_id");
 
-                (requester_id, satker_id)
+                (Some(requester_id), satker_id)
             }
             "penghapusan_bmn" => {
                 let query = r#"
@@ -100,18 +100,31 @@ impl WorkflowEngine {
                 let requester_id: Uuid = row.get("created_by");
                 let satker_id: Uuid = row.get("satker_id");
 
-                (requester_id, satker_id)
+                (Some(requester_id), satker_id)
             }
             "pemakaian_bmn" => {
+                // `izin_pemakaian_bmn` has neither `pemohon_id` nor `satker_id`
+                // (the requester is `created_by`, the unit is
+                // `pegawai_satker_id`) — the old column names made this query
+                // fail with "column does not exist" on every pemakaian
+                // notification. `created_by` is nullable, so fall back to the
+                // approver/validator-facing satker rather than panicking.
                 let query = r#"
-                    SELECT pemohon_id as created_by, satker_id
+                    SELECT created_by, pegawai_satker_id
                     FROM perlengkapan.izin_pemakaian_bmn
                     WHERE id = $1
                 "#;
 
                 let row = client.query_one(query, &[&request.entity_id]).await?;
-                let requester_id: Uuid = row.get("created_by");
-                let satker_id: Uuid = row.get("satker_id");
+                let requester_id: Option<Uuid> = row.get("created_by");
+                let satker_id: Uuid = row.get("pegawai_satker_id");
+
+                if requester_id.is_none() {
+                    tracing::warn!(
+                        entity_id = %request.entity_id,
+                        "pemakaian_bmn permit has no created_by; requester will not be notified"
+                    );
+                }
 
                 (requester_id, satker_id)
             }
@@ -151,7 +164,7 @@ impl WorkflowEngine {
                 };
 
                 (
-                    vec![requester_id],
+                    requester_id.into_iter().collect(),
                     notification,
                     NotificationPriority::Normal,
                 )
@@ -165,7 +178,11 @@ impl WorkflowEngine {
                     reason: request.catatan.clone(),
                 };
 
-                (vec![requester_id], notification, NotificationPriority::High)
+                (
+                    requester_id.into_iter().collect(),
+                    notification,
+                    NotificationPriority::High,
+                )
             }
             "REVISION_REQUIRED" => {
                 // Notify requester
@@ -176,7 +193,11 @@ impl WorkflowEngine {
                     notes: request.catatan.clone(),
                 };
 
-                (vec![requester_id], notification, NotificationPriority::High)
+                (
+                    requester_id.into_iter().collect(),
+                    notification,
+                    NotificationPriority::High,
+                )
             }
             _ => {
                 // For other states, send generic transition notification to requester
@@ -190,7 +211,7 @@ impl WorkflowEngine {
                 };
 
                 (
-                    vec![requester_id],
+                    requester_id.into_iter().collect(),
                     notification,
                     NotificationPriority::Normal,
                 )

@@ -32,6 +32,7 @@ use lib_ui::components::app_shell::AppShell;
 use leptos_router::{
     ParamSegment, StaticSegment,
     components::{ParentRoute, Route, Router, Routes},
+    path,
 };
 
 /// Main application component with session management
@@ -101,24 +102,29 @@ pub fn App() -> impl IntoView {
                         <Route path=StaticSegment(routes::segment::CALLBACK) view=CallbackPage />
                         <Route path=StaticSegment(routes::segment::LOGGED_OUT) view=LoggedOutPage />
 
-                        // MFA routes (semi-public, temp-token based)
-                        <Route path=StaticSegment(routes::segment::MFA_SETUP) view=MfaSetupPage />
-                        <Route
-                            path=StaticSegment(routes::segment::MFA_VERIFY)
-                            view=MfaVerificationPage
-                        />
-                        <Route
-                            path=StaticSegment(routes::segment::MFA_BACKUP_VERIFY)
-                            view=MfaBackupVerificationPage
-                        />
+                        // MFA routes (semi-public, temp-token based).
+                        // Two-segment paths need TWO segments: a single
+                        // `StaticSegment("mfa/verify")` matches a segment
+                        // literally named "mfa/verify", which no URL produces,
+                        // so all three MFA pages used to 404.
+                        <Route path=path!("/mfa/setup") view=MfaSetupPage />
+                        <Route path=path!("/mfa/verify") view=MfaVerificationPage />
+                        <Route path=path!("/mfa/backup-verify") view=MfaBackupVerificationPage />
 
                         // ══════════════════════════════════════════════
                         // AUTHENTICATED ROUTES — PortalAuthLayout guards
                         // ALL children (like Next.js layout.tsx / Laravel
                         // Route::middleware('auth')->group())
                         // ══════════════════════════════════════════════
+                        // `path!("/")` expands to ZERO segments, so children
+                        // match directly under the base. `StaticSegment("")` —
+                        // which this used to be — is a segment that must itself
+                        // match, so no child ever did: every authenticated
+                        // route (/portal/dashboard, /profile, /apps, …) fell
+                        // through to the 404 fallback. The admin ParentRoute
+                        // below was unaffected because its path is non-empty.
                         <ParentRoute
-                            path=StaticSegment("")
+                            path=path!("/")
                             view=move || {
                                 view! {
                                     <PortalAuthLayout
@@ -142,10 +148,7 @@ pub fn App() -> impl IntoView {
                                 path=StaticSegment(routes::segment::SETTINGS)
                                 view=SettingsPage
                             />
-                            <Route
-                                path=StaticSegment(routes::segment::MFA_BACKUP_CODES)
-                                view=MfaBackupCodesPage
-                            />
+                            <Route path=path!("/mfa/backup-codes") view=MfaBackupCodesPage />
 
                             // Self-service account management
                             <Route path=StaticSegment(routes::segment::PROFILE) view=ProfilePage />
