@@ -106,7 +106,12 @@ VALUES
   ('44444444-4444-4444-8444-444444444444', '200000000000000004', '200000000000000004@kejaksaan.go.id', '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M', true, true, '00000000-0000-0000-0000-000000000000', false, now(), now(), 0, false, '0100000', false, false, 0, '200000000000000004', 'E2E Validator Pusat', 'Validator Pusat', false, false, false, 0),
   -- Login-able ADMIN (the baseline `admin` user carries a placeholder hash and
   -- require_password_change; portal admin/IAM e2e needs a real admin login).
-  ('55555555-5555-4555-8555-555555555555', '200000000000000005', '200000000000000005@kejaksaan.go.id', '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M', true, true, '00000000-0000-0000-0000-000000000000', false, now(), now(), 0, false, '0100000', false, false, 0, '200000000000000005', 'E2E Admin Pusat', 'Administrator', false, false, false, 0)
+  ('55555555-5555-4555-8555-555555555555', '200000000000000005', '200000000000000005@kejaksaan.go.id', '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M', true, true, '00000000-0000-0000-0000-000000000000', false, now(), now(), 0, false, '0100000', false, false, 0, '200000000000000005', 'E2E Admin Pusat', 'Administrator', false, false, false, 0),
+  -- Satker-internal approval chain (#96). Both sit in 0200010 alongside
+  -- operator_a, because the Pemakaian chain is satker-internal by design: the
+  -- validator and the approver are the operator's own satker colleagues.
+  ('66666666-6666-4666-8666-666666666666', '200000000000000006', '200000000000000006@kejaksaan.go.id', '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M', true, true, '00000000-0000-0000-0000-000000000000', false, now(), now(), 0, false, '0200010', false, false, 0, '200000000000000006', 'E2E Validator Satker Jakpus', 'Validator Satker', false, false, false, 0),
+  ('77777777-7777-4777-8777-777777777777', '200000000000000007', '200000000000000007@kejaksaan.go.id', '$argon2id$v=19$m=65536,t=3,p=4$TG0TRGGPnVrMiDnG2RfqeQ$wwhai83/MyAlKcB8W4XLHj5iSa5ATcB/DJ/a6/5zg6M', true, true, '00000000-0000-0000-0000-000000000000', false, now(), now(), 0, false, '0200010', false, false, 0, '200000000000000007', 'E2E Approver Satker Jakpus', 'Pengguna Barang Satker', false, false, false, 0)
 ON CONFLICT (id) DO NOTHING;
 
 -- role assignments (single role per user)
@@ -116,7 +121,11 @@ VALUES
   ('2222aaaa-0000-4000-8000-000000000002', '22222222-2222-4222-8222-222222222222', 'f646c0e4-5cb4-4008-8e3b-118af6c22ede', now()), -- operator_satker
   ('3333aaaa-0000-4000-8000-000000000003', '33333333-3333-4333-8333-333333333333', '54b5d1ae-8aaa-4e31-b4b2-a77a49cfd06b', now()), -- validator_wilayah
   ('4444aaaa-0000-4000-8000-000000000004', '44444444-4444-4444-8444-444444444444', '9377d14c-22b6-4674-b080-a6ba43969eb1', now()), -- validator_pusat
-  ('5555aaaa-0000-4000-8000-000000000005', '55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000002', now())  -- admin
+  ('5555aaaa-0000-4000-8000-000000000005', '55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000002', now()), -- admin
+  -- Role ids come from authenc migration 004, which seeds these two roles; they
+  -- did not exist before, which is why nobody could hold them (#96).
+  ('6666aaaa-0000-4000-8000-000000000006', '66666666-6666-4666-8666-666666666666', '7c2f1a90-6d3e-4b52-9a41-2f8e5c7b1d04', now()), -- validator_satker
+  ('7777aaaa-0000-4000-8000-000000000007', '77777777-7777-4777-8777-777777777777', '9e4b3c17-8a05-4d66-b3f2-6c1a9d0e5f38', now())  -- approver_satker
 ON CONFLICT (id) DO NOTHING;
 
 -- active_role + satker_code attributes (mirror the base seed user shape)
@@ -131,7 +140,11 @@ VALUES
   ('4444bbbb-0000-4000-8000-000000000004', '44444444-4444-4444-8444-444444444444', 'active_role', 'validator_pusat',  now()),
   ('4444bbbb-0000-4000-8000-000000000044', '44444444-4444-4444-8444-444444444444', 'satker_code', '0100000',          now()),
   ('5555bbbb-0000-4000-8000-000000000005', '55555555-5555-4555-8555-555555555555', 'active_role', 'admin',            now()),
-  ('5555bbbb-0000-4000-8000-000000000055', '55555555-5555-4555-8555-555555555555', 'satker_code', '0100000',          now())
+  ('5555bbbb-0000-4000-8000-000000000055', '55555555-5555-4555-8555-555555555555', 'satker_code', '0100000',          now()),
+  ('6666bbbb-0000-4000-8000-000000000006', '66666666-6666-4666-8666-666666666666', 'active_role', 'validator_satker', now()),
+  ('6666bbbb-0000-4000-8000-000000000066', '66666666-6666-4666-8666-666666666666', 'satker_code', '0200010',          now()),
+  ('7777bbbb-0000-4000-8000-000000000007', '77777777-7777-4777-8777-777777777777', 'active_role', 'approver_satker',  now()),
+  ('7777bbbb-0000-4000-8000-000000000077', '77777777-7777-4777-8777-777777777777', 'satker_code', '0200010',          now())
 ON CONFLICT (id) DO NOTHING;
 
 COMMIT;

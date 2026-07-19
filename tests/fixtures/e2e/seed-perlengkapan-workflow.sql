@@ -139,13 +139,14 @@ ON CONFLICT (id) DO NOTHING;
 -- ----------------------------------------------------------------------------
 -- 8. perlengkapan: Izin Pemakaian BMN precondition (F-E2E E-3).
 --    ONE ACTIVE (3004) izin at satker 0200010. Also satker_code-scoped (V003,
---    #94-safe). The FE surface for the satker-internal approval chain
---    (Submitted→SubmittedApproverSatker→Approved: validator-satker-action /
---    approver-satker-action) is NOT wired, and the `validator_satker` /
---    `approver_satker` roles the policy requires don't exist in the authenc
---    seed — so E-3 asserts the LIST/DETAIL render + scoping + the revoke
---    policy rejections (approver-only, admin explicitly blocked), and the
---    missing-role/missing-UI gap is tracked as a finding.
+--    #94-safe). The satker-internal approval chain
+--    (Submitted→SubmittedApproverSatker→Approved) is now reachable: #96 seeded
+--    the `validator_satker` / `approver_satker` roles the policy requires
+--    (authenc migration 004), gave two 0200010 users those roles
+--    (seed-multisatker.sql), and wired the FE buttons. This row stays ACTIVE so
+--    E-3 keeps covering LIST/DETAIL render + scoping + the revoke policy
+--    rejections (approver-only, admin explicitly blocked); the chain itself is
+--    driven from a DRAFT permit created by the spec.
 --    jenis_bmn LAPTOP avoids the vehicle/housing CHECK constraints.
 -- ----------------------------------------------------------------------------
 INSERT INTO perlengkapan.izin_pemakaian_bmn
@@ -157,7 +158,14 @@ VALUES
   ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3.10.01.02.003', 'E2E Laptop Dinas Pinjam',
    'SN-E2E-0001', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-01-01', '2026-12-31',
-   'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010')
+   'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010'),
+  -- I2 @SUBMITTED(3001): the entry point of the satker approval chain (#96).
+  -- validator_satker forwards it, then approver_satker approves it, both
+  -- through the UI.
+  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3.10.01.02.003', 'E2E Laptop Ajuan Satker',
+   'SN-E2E-0002', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
+   'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-02-01', '2026-11-30',
+   'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010')
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------

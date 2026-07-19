@@ -11,7 +11,8 @@ use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
 
 use crate::api::error::AppError;
 use crate::api::pemakaian_bmn::{
-    self, IzinPemakaianDetailResponse, RenewPermitRequest, RevokePermitRequest,
+    self, IzinPemakaianDetailResponse, PemakaianWorkflowTransitionInfo, RenewPermitRequest,
+    RevokePermitRequest,
 };
 use crate::components::layout::{
     EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
@@ -186,7 +187,15 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
                     view! { <ErrorState error=err on_retry=Box::new(move || reload()) /> }
                         .into_any()
                 } else if let Some(d) = detail.get() {
-                    view! { <DetailBody detail=d on_renew=open_renew on_revoke=open_revoke /> }
+                    view! {
+                        <DetailBody
+                            detail=d
+                            set_action_msg=set_action_msg
+                            set_reload_tick=set_reload_tick
+                            on_renew=open_renew
+                            on_revoke=open_revoke
+                        />
+                    }
                         .into_any()
                 } else {
                     view! {
@@ -230,10 +239,15 @@ pub fn PemakaianBmnDetailPage() -> impl IntoView {
 #[component]
 fn DetailBody(
     detail: IzinPemakaianDetailResponse,
+    set_action_msg: WriteSignal<Option<(bool, String)>>,
+    set_reload_tick: WriteSignal<u32>,
     on_renew: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
     on_revoke: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
 ) -> impl IntoView {
     let izin = detail.izin.clone();
+    let transitions = detail.allowed_transitions.clone();
+    let permit_id = izin.id.clone();
+    let permit_version = izin.version;
     let status = izin.status.clone();
     let is_active = status == "ACTIVE" || status == "APPROVED";
     let can_revoke = is_active;
@@ -268,6 +282,15 @@ fn DetailBody(
             on_revoke=on_revoke
         />
 
+        <SatkerApprovalActions
+            id=permit_id
+            from_state=status.clone()
+            version=permit_version
+            transitions=transitions
+            set_action_msg=set_action_msg
+            set_reload_tick=set_reload_tick
+        />
+
         <SectionCard
             title=format!("Izin #{}", nomor)
             description="Informasi umum permohonan."
@@ -288,6 +311,188 @@ fn DetailBody(
                 <p class="mt-1 text-sm text-slate-200">{keperluan}</p>
             </div>
         </SectionCard>
+    }
+}
+
+/// The satker-internal approval chain, rendered from what the backend says
+/// this caller may do next.
+///
+/// `allowed_transitions` arrives already narrowed twice — by the workflow
+/// config, then by `PemakaianBmnPolicy` against the caller's role — and each
+/// entry carries its own imperative label. So there is deliberately no role
+/// check here: duplicating the policy in the browser is how a UI ends up
+/// offering a button the API answers 403 to.
+///
+/// Revoke and renew keep their own controls on [`LifecycleSummary`]; they are
+/// lifecycle operations on an already-active permit, not approval steps.
+#[component]
+fn SatkerApprovalActions(
+    id: String,
+    from_state: String,
+    version: i32,
+    transitions: Vec<PemakaianWorkflowTransitionInfo>,
+    set_action_msg: WriteSignal<Option<(bool, String)>>,
+    set_reload_tick: WriteSignal<u32>,
+) -> impl IntoView {
+    let actionable: Vec<PemakaianWorkflowTransitionInfo> = transitions
+        .into_iter()
+        .filter(|t| t.status != "REVOKED")
+        .collect();
+
+    if actionable.is_empty() {
+        return ().into_any();
+    }
+
+    let (catatan, set_catatan) = signal(String::new());
+    let (submitting, set_submitting) = signal(false);
+    let needs_comment = actionable.iter().any(|t| t.requires_comment);
+
+    view! {
+        <SectionCard
+            title="Tindakan Persetujuan"
+            description="Alur persetujuan internal satuan kerja."
+            icon="fas fa-user-check"
+        >
+            <Show when=move || needs_comment>
+                <div class="mb-3">
+                    <label
+                        for="catatan-satker"
+                        class="text-[0.65rem] uppercase tracking-wide text-slate-500"
+                    >
+                        "Catatan Revisi"
+                    </label>
+                    <textarea
+                        id="catatan-satker"
+                        rows="2"
+                        placeholder="Minimal 10 karakter — jelaskan apa yang perlu diperbaiki Operator."
+                        prop:value=move || catatan.get()
+                        on:input=move |ev| {
+                            let el = ev.target().unwrap().unchecked_into::<HtmlTextAreaElement>();
+                            set_catatan.set(el.value());
+                        }
+                        class="focus-ring mt-1 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+                    />
+                </div>
+            </Show>
+
+            <div class="flex flex-wrap gap-2">
+                <For
+                    each=move || actionable.clone()
+                    key=|t| t.status.clone()
+                    let:transition
+                >
+                    {
+                        let id = id.clone();
+                        let from_state = from_state.clone();
+                        let to_state = transition.status.clone();
+                        let requires_comment = transition.requires_comment;
+                        let on_click = move |_| {
+                            let catatan_now = catatan.get();
+                            // The backend enforces a 10-char minimum; checking here
+                            // turns a 400 round-trip into immediate feedback. The
+                            // server stays the authority either way.
+                            if requires_comment && catatan_now.trim().len() < 10 {
+                                set_action_msg
+                                    .set(
+                                        Some((
+                                            false,
+                                            "Catatan revisi wajib diisi, minimal 10 karakter."
+                                                .to_string(),
+                                        )),
+                                    );
+                                return;
+                            }
+                            let catatan_opt = if catatan_now.trim().is_empty() {
+                                None
+                            } else {
+                                Some(catatan_now)
+                            };
+                            let (id, from_state, to_state) = (
+                                id.clone(),
+                                from_state.clone(),
+                                to_state.clone(),
+                            );
+                            set_submitting.set(true);
+                            spawn_local(async move {
+                                let result = dispatch_satker_action(
+                                        &id,
+                                        &from_state,
+                                        &to_state,
+                                        version,
+                                        catatan_opt,
+                                    )
+                                    .await;
+                                match result {
+                                    Ok(msg) => {
+                                        set_action_msg.set(Some((true, msg)));
+                                        set_catatan.set(String::new());
+                                        set_reload_tick.update(|t| *t += 1);
+                                    }
+                                    Err(e) => set_action_msg.set(Some((false, e.user_message()))),
+                                }
+                                set_submitting.set(false);
+                            });
+                        };
+                        view! {
+                            <button
+                                type="button"
+                                on:click=on_click
+                                disabled=move || submitting.get()
+                                class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                            >
+                                {transition.action_label.clone()}
+                            </button>
+                        }
+                    }
+                </For>
+            </div>
+        </SectionCard>
+    }
+        .into_any()
+}
+
+/// Route a satker approval move to the endpoint that owns it.
+///
+/// Keyed on the (from, to) pair, mirroring `PemakaianBmnAction::for_transition`
+/// on the server. The target alone is not enough: BOTH return paths land in
+/// `REVISI_OPERATOR`, and it is the SOURCE state that says which role is
+/// returning — validator from `SUBMITTED`, approver from
+/// `SUBMITTED_APPROVER_SATKER`. Deciding from the pair keeps every error
+/// meaningful; calling one endpoint and retrying the other on failure would
+/// swallow a real rejection (a stale `expected_version`, say) and report it as
+/// the wrong thing.
+async fn dispatch_satker_action(
+    id: &str,
+    from_state: &str,
+    to_state: &str,
+    version: i32,
+    catatan: Option<String>,
+) -> Result<String, AppError> {
+    match (from_state, to_state) {
+        ("SUBMITTED", "SUBMITTED_APPROVER_SATKER") => {
+            pemakaian_bmn::validator_satker_action(id, "forward", version, catatan).await?;
+            Ok("Izin diteruskan ke Approver Satker.".to_string())
+        }
+        ("SUBMITTED", "REVISI_OPERATOR") => {
+            pemakaian_bmn::validator_satker_action(id, "return", version, catatan).await?;
+            Ok("Izin dikembalikan ke Operator untuk revisi.".to_string())
+        }
+        ("SUBMITTED_APPROVER_SATKER", "APPROVED") => {
+            pemakaian_bmn::approver_satker_action(id, "approve", version, catatan).await?;
+            Ok("Izin pemakaian BMN disetujui.".to_string())
+        }
+        ("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR") => {
+            pemakaian_bmn::approver_satker_action(id, "return", version, catatan).await?;
+            Ok("Izin dikembalikan ke Operator untuk revisi.".to_string())
+        }
+        ("REVISI_OPERATOR", "SUBMITTED") => {
+            pemakaian_bmn::resubmit_pemakaian_bmn(id, version).await?;
+            Ok("Izin diajukan ulang ke Validator Satker.".to_string())
+        }
+        (from, to) => Err(AppError::Unknown(format!(
+            "Transisi '{}' → '{}' tidak dikenali oleh antarmuka.",
+            from, to
+        ))),
     }
 }
 

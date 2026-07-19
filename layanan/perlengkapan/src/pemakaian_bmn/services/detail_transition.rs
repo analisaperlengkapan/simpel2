@@ -161,15 +161,22 @@ impl PemakaianBmnService {
         next_states
             .into_iter()
             .filter_map(|state_name| {
-                PemakaianBmnStatus::from_state_name(&state_name).map(|status| {
-                    WorkflowTransitionInfo {
-                        status: status.to_state_name().to_string(),
-                        label: status.label().to_string(),
-                        requires_comment: matches!(
-                            status,
-                            PemakaianBmnStatus::Rejected | PemakaianBmnStatus::Revoked
-                        ),
-                    }
+                let status = PemakaianBmnStatus::from_state_name(&state_name)?;
+                // A move nothing can perform is not offered at all. `label()`
+                // would still render, but there would be no action behind the
+                // button — the failure mode this whole path exists to avoid.
+                let action = crate::shared::policy::PemakaianBmnAction::for_transition(
+                    current_state,
+                    status.to_state_name(),
+                )?;
+                Some(WorkflowTransitionInfo {
+                    status: status.to_state_name().to_string(),
+                    label: status.label().to_string(),
+                    action_label: action.action_label().to_string(),
+                    requires_comment: matches!(
+                        status,
+                        PemakaianBmnStatus::Rejected | PemakaianBmnStatus::Revoked
+                    ),
                 })
             })
             .collect()

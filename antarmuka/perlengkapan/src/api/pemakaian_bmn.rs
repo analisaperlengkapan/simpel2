@@ -59,6 +59,23 @@ pub struct IzinPemakaianBmn {
     pub signed_pdf_uploaded_at: Option<String>,
     pub is_completed: Option<bool>,
     pub status: String,
+    // Satker-internal approval chain (V035). These were missing entirely, so
+    // the FE could not even display who validated or approved a permit — let
+    // alone drive the chain. Nullability mirrors the backend entity field for
+    // field: everything here is unset until that step happens.
+    pub validator_satker_id: Option<String>,
+    pub validator_satker_nama: Option<String>,
+    pub tanggal_validasi_satker: Option<String>,
+    pub catatan_validator_satker: Option<String>,
+    pub approver_satker_id: Option<String>,
+    pub approver_satker_nama: Option<String>,
+    pub tanggal_approval_satker: Option<String>,
+    pub catatan_approver_satker: Option<String>,
+    /// Optimistic-concurrency token. The satker action endpoints require
+    /// `expected_version` and reject a stale one, so the FE must echo back the
+    /// value it rendered rather than inventing one. Non-Option because the
+    /// backend always sends it.
+    pub version: i32,
     pub catatan_approval: Option<String>,
     pub catatan_revocation: Option<String>,
     pub approved_by: Option<String>,
@@ -163,6 +180,11 @@ pub struct BmnAvailabilityResponse {
 pub struct PemakaianWorkflowTransitionInfo {
     pub status: String,
     pub label: String,
+    /// Imperative label for the button, authored by the backend
+    /// (`PemakaianBmnAction::action_label`). Rendered verbatim: the list
+    /// arrives already narrowed to what THIS caller may do, so the FE keeps no
+    /// RBAC rules of its own.
+    pub action_label: String,
     pub requires_comment: bool,
 }
 
@@ -339,6 +361,107 @@ pub async fn check_bmn_availability(
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+// --- Satker-internal approval chain (#96) ---
+//
+// The backend has enforced this 3-step chain since V035
+// (Submitted -> SubmittedApproverSatker -> Approved) via `PemakaianBmnPolicy`,
+// but nothing in the FE ever called it, and the `validator_satker` /
+// `approver_satker` roles it requires were absent from the IAM seed — so the
+// chain was unreachable twice over.
+//
+// Both endpoints take an internally-tagged body (`action` discriminator) and
+// `expected_version` for optimistic concurrency; a stale version is rejected
+// rather than silently overwriting a concurrent decision.
+
+/// Validator Satker forwards to Approver Satker, or returns for revision.
+/// `action` is "forward" or "return"; the backend requires a catatan of at
+/// least 10 characters when returning.
+#[cfg(target_arch = "wasm32")]
+pub async fn validator_satker_action(
+    id: &str,
+    action: &str,
+    expected_version: i32,
+    catatan: Option<String>,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/validator-satker-action", PEMAKAIAN_BMN_BASE, id),
+        &serde_json::json!({
+            "action": action,
+            "expected_version": expected_version,
+            "catatan": catatan,
+        }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn validator_satker_action(
+    _id: &str,
+    _action: &str,
+    _expected_version: i32,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Approver Satker (Pengguna Barang Satker) approves, or returns for revision.
+/// `action` is "approve" or "return".
+#[cfg(target_arch = "wasm32")]
+pub async fn approver_satker_action(
+    id: &str,
+    action: &str,
+    expected_version: i32,
+    catatan: Option<String>,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/approver-satker-action", PEMAKAIAN_BMN_BASE, id),
+        &serde_json::json!({
+            "action": action,
+            "expected_version": expected_version,
+            "catatan": catatan,
+        }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn approver_satker_action(
+    _id: &str,
+    _action: &str,
+    _expected_version: i32,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Operator re-submits after revision. No catatan: the data changes are
+/// already recorded by the preceding permit update.
+#[cfg(target_arch = "wasm32")]
+pub async fn resubmit_pemakaian_bmn(
+    id: &str,
+    expected_version: i32,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/resubmit", PEMAKAIAN_BMN_BASE, id),
+        &serde_json::json!({ "expected_version": expected_version }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn resubmit_pemakaian_bmn(
+    _id: &str,
+    _expected_version: i32,
+) -> Result<ApiResponse<IzinPemakaianBmn>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),
     ))
