@@ -101,6 +101,13 @@ template:
           # Samakan MTU dgn pod network Calico (vxlan 1450). Default dind 1500
           # > 1450 → transfer besar di `docker build` RUN (apk/curl) stall/gagal.
           - --mtu=1450
+          # Registry in-cluster (microk8s NodePort, HTTP polos) — tujuan push
+          # image e2e "build sekali" (#111). Dialamatkan lewat IP node, BUKAN
+          # nama Service: pod runner memakai dnsPolicy None + resolver publik
+          # (lihat blok dnsConfig di bawah) sehingga nama *.svc.cluster.local
+          # TIDAK bisa di-resolve. Tanpa flag ini push/pull ditolak dgn
+          # "http: server gave HTTP response to HTTPS client".
+          - --insecure-registry=172.15.10.252:32000
         env:
           - name: DOCKER_GROUP_GID
             value: "123"
