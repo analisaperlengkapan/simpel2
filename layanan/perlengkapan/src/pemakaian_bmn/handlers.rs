@@ -153,7 +153,9 @@ pub async fn get_permit_document(
     // Creator or cross-satker role (pusat/admin) may access; everyone else is
     // rejected until authenc exposes per-user satker codes (commit 20 lands a
     // richer ValidateTokenResponse).
-    if permit.izin.created_by != claims.user_id && !claims.is_cross_satker_role() {
+    // `created_by` is nullable: a permit with no recorded creator has no
+    // creator to match, so only a cross-satker role gets through (fail-closed).
+    if permit.izin.created_by != Some(claims.user_id) && !claims.is_cross_satker_role() {
         return Err(AppError::Authorization(
             "Anda tidak memiliki akses ke dokumen izin ini".to_string(),
         ));

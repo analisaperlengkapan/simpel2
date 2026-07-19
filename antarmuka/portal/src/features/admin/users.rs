@@ -22,6 +22,7 @@ pub fn UsersManagementPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (page, set_page) = signal(1u32);
     let (total_pages, set_total_pages) = signal(1u32);
+    let is_last_page = Memo::new(move |_| page.get() >= total_pages.get());
     let (show_create_modal, set_show_create_modal) = signal(false);
 
     // Form fields for new user
@@ -317,7 +318,12 @@ pub fn UsersManagementPage() -> impl IntoView {
                                     on:click=move |_| {
                                         set_page.set((page.get() + 1).min(total_pages.get()))
                                     }
-                                    disabled=move || page.get() >= total_pages.get()
+                                    // `>=` inside an attribute closure trips
+                                    // leptosfmt, which splits the markup at the
+                                    // `>` and turns the rest into text nodes
+                                    // (it did exactly that here). Keep the
+                                    // comparison out of the view macro.
+                                    disabled=is_last_page
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "Selanjutnya →"

@@ -34,6 +34,16 @@ impl PemakaianBmnService {
         days_remaining: i32,
     ) -> AppResult<()> {
         if let Some(notifier) = &self.notifier {
+            // The reminder goes to the permit's creator; a permit without one
+            // has nobody to remind (the column is nullable).
+            let Some(recipient) = permit.created_by else {
+                warn!(
+                    "Permit {} has no created_by; skipping H-{} expiry reminder",
+                    permit.id, days_remaining
+                );
+                return Ok(());
+            };
+
             // Create notification data
             let notification_type = crate::workflow::WorkflowNotificationType::WorkflowTransition {
                 entity_type: "pemakaian_bmn".to_string(),
@@ -52,7 +62,7 @@ impl PemakaianBmnService {
             };
 
             let msg = crate::workflow::to_notification_message(
-                permit.created_by,
+                recipient,
                 &notification_type,
                 crate::workflow::NotificationPriority::High,
             );
@@ -60,7 +70,7 @@ impl PemakaianBmnService {
                 Ok(_) => {
                     info!(
                         "Sent H-{} expiry reminder for permit {} to user {}",
-                        days_remaining, permit.id, permit.created_by
+                        days_remaining, permit.id, recipient
                     );
                     let days_label = days_remaining.to_string();
                     crate::shared::metrics::permit_expiry_reminders_sent_total()
@@ -93,6 +103,14 @@ impl PemakaianBmnService {
     /// Requirements: REQ-P007, REQ-N008
     pub async fn send_expiry_notification(&self, permit: &IzinPemakaianBmn) -> AppResult<()> {
         if let Some(notifier) = &self.notifier {
+            let Some(recipient) = permit.created_by else {
+                warn!(
+                    "Permit {} has no created_by; skipping expiry notification",
+                    permit.id
+                );
+                return Ok(());
+            };
+
             // Create notification data
             let notification_type = crate::workflow::WorkflowNotificationType::WorkflowTransition {
                 entity_type: "pemakaian_bmn".to_string(),
@@ -110,7 +128,7 @@ impl PemakaianBmnService {
             };
 
             let msg = crate::workflow::to_notification_message(
-                permit.created_by,
+                recipient,
                 &notification_type,
                 crate::workflow::NotificationPriority::Urgent,
             );
@@ -118,7 +136,7 @@ impl PemakaianBmnService {
                 Ok(_) => {
                     info!(
                         "Sent expiry notification for permit {} to user {}",
-                        permit.id, permit.created_by
+                        permit.id, recipient
                     );
                     crate::shared::metrics::permit_expiry_notifications_sent_total()
                         .with_label_values(&["success"])

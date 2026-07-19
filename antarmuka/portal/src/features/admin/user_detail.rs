@@ -562,9 +562,7 @@ pub fn UserDetailPage() -> impl IntoView {
                                 <Show when=move || active_tab.get() == UserTab::RoleMappings>
                                     <div class="space-y-4">
                                         <div class="flex items-center justify-between">
-                                            <h4 class="font-medium text-gray-900">
-                                                "Pemetaan Peran"
-                                            </h4>
+                                            <h4 class="font-medium text-gray-900">"Pemetaan Peran"</h4>
                                             <p class="text-xs text-gray-500">
                                                 "Perubahan berlaku pada login berikutnya"
                                             </p>
@@ -591,45 +589,43 @@ pub fn UserDetailPage() -> impl IntoView {
                                                                 let is_assigned = assigned.contains(&role.name);
                                                                 let role_id = role.id.clone();
                                                                 view! {
-                                                                        <div
-                                                                            class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
-                                                                            data-role-name=role.name.clone()
-                                                                        >
-                                                                            <div class="flex items-center gap-3">
-                                                                                <span class="text-lg">"🛡"</span>
-                                                                                <div>
-                                                                                    <span class="text-sm font-medium text-gray-900">
-                                                                                        {role.name.clone()}
-                                                                                    </span>
-                                                                                    <p class="text-xs text-gray-500">
-                                                                                        {role.description.clone().unwrap_or_default()}
-                                                                                    </p>
-                                                                                </div>
+                                                                    <div
+                                                                        class="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg"
+                                                                        data-role-name=role.name.clone()
+                                                                    >
+                                                                        <div class="flex items-center gap-3">
+                                                                            <span class="text-lg">"🛡"</span>
+                                                                            <div>
+                                                                                <span class="text-sm font-medium text-gray-900">
+                                                                                    {role.name.clone()}
+                                                                                </span>
+                                                                                <p class="text-xs text-gray-500">
+                                                                                    {role.description.clone().unwrap_or_default()}
+                                                                                </p>
                                                                             </div>
-                                                                            <button
-                                                                                class=if is_assigned {
-                                                                                    "px-3 py-1 text-sm rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
-                                                                                } else {
-                                                                                    "px-3 py-1 text-sm rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50"
-                                                                                }
-                                                                                disabled=move || role_busy.get()
-                                                                                on:click=move |_| {
-                                                                                    toggle_role
-                                                                                        .run((role_id.clone(), is_assigned))
-                                                                                }
-                                                                            >
-                                                                                {if is_assigned { "Cabut" } else { "Tetapkan" }}
-                                                                            </button>
                                                                         </div>
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<_>>()}
-                                                        </div>
-                                                    }
-                                                        .into_any()
+                                                                        <button
+                                                                            class=if is_assigned {
+                                                                                "px-3 py-1 text-sm rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50"
+                                                                            } else {
+                                                                                "px-3 py-1 text-sm rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+                                                                            }
+                                                                            disabled=move || role_busy.get()
+                                                                            on:click=move |_| {
+                                                                                toggle_role.run((role_id.clone(), is_assigned))
+                                                                            }
+                                                                        >
+                                                                            {if is_assigned { "Cabut" } else { "Tetapkan" }}
+                                                                        </button>
+                                                                    </div>
+                                                                }
+                                                            })
+                                                            .collect::<Vec<_>>()}
+                                                    </div>
                                                 }
+                                                    .into_any()
                                             }
-                                        }
+                                        }}
                                     </div>
                                 </Show>
                             </div>
