@@ -8,15 +8,6 @@ pub mod path {
 
     pub const DASHBOARD: &str = "/perlengkapan/simpel/v2/dashboard";
 
-    /// Logo asset. The app is served under `/perlengkapan/simpel/v2/` (see
-    /// `Trunk.toml` `public_url`, `<base href>` in index.html, and the nginx
-    /// `location` + Dockerfile copy target). Three call sites used to hard-code
-    /// `/perlengkapan/assets/...` — missing the `/simpel/v2` segment — which
-    /// nginx resolved against its root to a path that does not exist, so the
-    /// logo 404'd on every page. Kept here so the prefix lives in exactly one
-    /// place, like every other absolute path in this module.
-    pub const LOGO: &str = "/perlengkapan/simpel/v2/assets/kejaksaan-logo.png";
-
     pub const BANK_ASET_DASHBOARD: &str = "/perlengkapan/simpel/v2/bank-aset/dashboard";
     pub const BANK_ASET_DAFTAR: &str = "/perlengkapan/simpel/v2/bank-aset/daftar";
     pub const BANK_ASET_SEBARAN: &str = "/perlengkapan/simpel/v2/bank-aset/sebaran";

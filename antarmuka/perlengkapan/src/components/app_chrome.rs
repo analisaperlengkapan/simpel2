@@ -39,7 +39,7 @@ pub fn AppHeader(#[prop(into)] on_toggle_sidebar: Callback<()>) -> impl IntoView
                         attr:class="flex items-center gap-3 no-underline"
                     >
                         <img
-                            src=routes::path::LOGO
+                            src=crate::assets::LOGO
                             alt="Kejaksaan RI"
                             class="h-8 w-8 object-contain"
                         />
