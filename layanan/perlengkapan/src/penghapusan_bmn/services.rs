@@ -121,6 +121,8 @@ impl PenghapusanBmnService {
             .map(|s| PenghapusanTransitionInfo {
                 status_kode: s.to_code(),
                 status_nama: s.label().to_string(),
+                action_label: s.action_label().to_string(),
+                to_state: s.to_state_name().to_string(),
                 requires_comment: matches!(
                     s,
                     PenghapusanBmnStatus::ReturnedToOperator | PenghapusanBmnStatus::Rejected
