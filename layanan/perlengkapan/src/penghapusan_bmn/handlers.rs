@@ -162,9 +162,18 @@ pub async fn verify_penghapusan_asset_siman(
 pub async fn get_penghapusan_bmn_detail(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmnDetailResponse>>, AppError> {
-    let detail = service.get_detail(id).await?;
+    let mut detail = service.get_detail(id).await?;
+
+    // `get_detail` answers "what may happen next" from the STATE alone. Narrow
+    // it to "what may THIS caller do", so the FE can render the list verbatim
+    // and never offer a button that would come back 403. Enforcement still
+    // happens on each action handler below — this only shapes what is offered.
+    detail.allowed_transitions.retain(|t| {
+        PenghapusanBmnStatus::from_code(t.status_kode)
+            .is_some_and(|s| claims.has_any_role(s.actor_roles()))
+    });
 
     Ok(Json(ApiResponse::success(
         detail,
@@ -265,7 +274,7 @@ pub async fn submit_to_wilayah(
     claims: Claims,
     Json(body): Json<SubmitWilayahBody>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_role("operator_satker")?;
+    claims.require_any_role(PenghapusanBmnStatus::SubmitWilayah.actor_roles())?;
     let penghapusan = service
         .submit_to_wilayah(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
@@ -283,7 +292,7 @@ pub async fn forward_to_pusat(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_role("validator_wilayah")?;
+    claims.require_any_role(PenghapusanBmnStatus::SubmitPusat.actor_roles())?;
     if body.aksi != "forward" {
         return Err(AppError::BadRequest("Action harus 'forward'".to_string()));
     }
@@ -312,7 +321,7 @@ pub async fn verifikasi_pusat(
     claims: Claims,
     Json(body): Json<VerifikasiPusatBody>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_role("validator_pusat")?;
+    claims.require_any_role(PenghapusanBmnStatus::VerifikasiPusat.actor_roles())?;
     let penghapusan = service
         .verifikasi_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
         .await?;
@@ -330,7 +339,7 @@ pub async fn return_to_operator(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_role("validator_wilayah")?;
+    claims.require_any_role(PenghapusanBmnStatus::ReturnedToOperator.actor_roles())?;
     if body.aksi != "return" {
         return Err(AppError::BadRequest("Action harus 'return'".to_string()));
     }
@@ -358,7 +367,8 @@ pub async fn validator_wilayah_action(
     claims: Claims,
     Json(body): Json<ValidatorWilayahActionRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_role("validator_wilayah")?;
+    // Both branches are validator_wilayah moves; the state machine says so.
+    claims.require_any_role(PenghapusanBmnStatus::SubmitPusat.actor_roles())?;
     match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service
@@ -402,7 +412,7 @@ pub async fn generate_konsep_sk(
     // kewenangan_penetap_sk seharusnya divalidasi di service layer
     // (lihat plan §6.3); di sini cukup pastikan caller adalah salah
     // satu dari kedua role.
-    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
+    claims.require_any_role(PenghapusanBmnStatus::KonsepSKGenerated.actor_roles())?;
     let penghapusan = service
         .generate_konsep_sk(id, claims.user_id, claims.role.clone())
         .await?;
@@ -472,7 +482,7 @@ pub async fn upload_signed_sk(
     claims: Claims,
     Json(body): Json<UploadSignedSKRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
+    claims.require_any_role(PenghapusanBmnStatus::SKSigned.actor_roles())?;
     let penghapusan = service
         .upload_signed_sk(
             id,
@@ -702,7 +712,7 @@ pub async fn transition_penghapusan_bmn(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     // RBAC: legacy generic transition endpoint dipakai utk Reject di Pusat.
     // Validator Wilayah & Pusat boleh trigger; operator tidak.
-    claims.require_any_role(&["validator_pusat", "validator_wilayah"])?;
+    claims.require_any_role(PenghapusanBmnStatus::Rejected.actor_roles())?;
     request.validate()?;
 
     let ip_address = "127.0.0.1".to_string();

@@ -155,6 +155,20 @@ impl Claims {
         self.require_any_role(&[role])
     }
 
+    /// Versi predikat dari [`require_any_role`]: menjawab "boleh?" tanpa
+    /// menghasilkan error. Dipakai saat MENYUSUN respons (mis. memfilter
+    /// daftar aksi yg ditawarkan ke FE), bukan saat menegakkan akses —
+    /// penegakan tetap `require_*` di handler aksinya.
+    ///
+    /// Sengaja mendelegasikan ke `require_any_role` agar bypass
+    /// admin/superadmin dan match case-insensitive-nya hanya hidup di SATU
+    /// tempat; menyalin aturannya ke sini akan membuat keduanya bisa hanyut.
+    ///
+    /// [`require_any_role`]: Self::require_any_role
+    pub fn has_any_role(&self, allowed: &[&str]) -> bool {
+        self.require_any_role(allowed).is_ok()
+    }
+
     /// Assert caller adalah admin (atau superadmin). Dipakai utk
     /// endpoint master/referensi yg hanya boleh diubah admin.
     pub fn require_admin(&self) -> Result<(), AppError> {
