@@ -13,7 +13,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::{Claims, ClientIp};
-use lib_perlengkapan::response::ApiResponse;
+use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 use super::models::*;
 use super::services::PemakaianBmnService;
@@ -82,17 +82,27 @@ pub async fn update_permit(
 
 /// GET /pemakaian-bmn
 /// List permits with pagination and filters
+/// Returns the shared `PaginatedResponse` envelope — a FLAT `data: [...]` array,
+/// same as `analisis`, `bank_aset` and `penghapusan_bmn`. This used to be
+/// `ApiResponse<PaginatedPermitsResponse>`, which nested the page struct inside
+/// the envelope and put the rows at `data.data`. Nothing consumed that shape:
+/// the FE fetcher is typed `PaginatedResponse<IzinPemakaianBmn>` and could not
+/// deserialize it, so the list page was broken in the browser, and the e2e
+/// helper threw `.map is not a function`.
 pub async fn list_permits(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(query): axum::extract::Query<ListPermitsQuery>,
     claims: Claims,
-) -> Result<Json<ApiResponse<PaginatedPermitsResponse>>, AppError> {
+) -> Result<Json<PaginatedResponse<IzinPemakaianBmn>>, AppError> {
     let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let response = service.list_permits(query, &scope).await?;
 
-    Ok(Json(ApiResponse::success(
-        response,
-        "Permits retrieved successfully".to_string(),
+    Ok(Json(PaginatedResponse::new(
+        response.data,
+        response.total,
+        response.page as i32,
+        response.per_page as i32,
+        "Permits retrieved successfully",
     )))
 }
 
@@ -153,7 +163,9 @@ pub async fn get_permit_document(
     // Creator or cross-satker role (pusat/admin) may access; everyone else is
     // rejected until authenc exposes per-user satker codes (commit 20 lands a
     // richer ValidateTokenResponse).
-    if permit.izin.created_by != claims.user_id && !claims.is_cross_satker_role() {
+    // `created_by` is nullable: a permit with no recorded creator has no
+    // creator to match, so only a cross-satker role gets through (fail-closed).
+    if permit.izin.created_by != Some(claims.user_id) && !claims.is_cross_satker_role() {
         return Err(AppError::Authorization(
             "Anda tidak memiliki akses ke dokumen izin ini".to_string(),
         ));

@@ -75,6 +75,18 @@ export async function setupAllProxies(
 ): Promise<{ getCaptchaAnswer: () => string | null }> {
   let captchaAnswer: string | null = null;
 
+  // A WASM panic unmounts the whole Leptos app: the URL stays put but nothing
+  // renders, so every later assertion fails with an unhelpful "element not
+  // found". Surface the panic itself in the CI log instead.
+  page.on('pageerror', (err) => {
+    console.error(`[portal pageerror] ${err.message}`);
+  });
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      console.error(`[portal console.error] ${msg.text()}`);
+    }
+  });
+
   await setupPortalAssetProxy(page);
 
   await page.route('**/api/**', async (route: Route) => {

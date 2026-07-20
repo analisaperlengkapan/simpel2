@@ -571,6 +571,22 @@ jobs:
         # Waive a single line with `-- guard:allow` (plus a reason) if needed.
         run: ./infra/lint/check-sql-migrations.sh
 
+  lint-orphan-tests:
+    name: Lint Orphaned Tests
+    needs: detect
+    # Rust changes can add a tests/ subdirectory; workflow changes exercise the
+    # guard itself.
+    if: needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.workflows == 'true'
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v7
+      - name: Orphaned-test guard
+        shell: bash
+        # BLOCKING from the start, unlike lint-sql/kube-linter which matured
+        # advisory->blocking: the tree is already clean (#104 removed 8,911
+        # unreachable lines), so any hit is a genuine regression, not a backlog.
+        run: ./infra/lint/check-orphan-tests.sh
+
   route-coverage:
     name: E2E Route Coverage
     needs: detect
@@ -2110,6 +2126,7 @@ jobs:
       - lint-shell
       - lint-toml
       - lint-sql
+      - lint-orphan-tests
       - route-coverage
       - build-antarmuka-portal
       - build-antarmuka-perlengkapan

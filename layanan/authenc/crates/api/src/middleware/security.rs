@@ -68,8 +68,14 @@ impl SecurityMonitoringState {
         }
     }
 
-    /// Log a security event
-    async fn log_security_event(&self, event_type: &str, details: serde_json::Value) {
+    /// Log a security event.
+    ///
+    /// `status` must be one of the three outcomes `audit_logs.status` accepts
+    /// (see [`PgAuditLogStore::add_log`]) — it is the event's outcome, which
+    /// only the caller knows. The previous code read a `status` key that the
+    /// details payload never carried and fell back to `"unknown"`, so every
+    /// insert was rejected by `audit_logs_status_check`.
+    async fn log_security_event(&self, event_type: &str, status: &str, details: serde_json::Value) {
         if let Some(audit_store) = &self.audit_store {
             let event = authenc_types::domain::audit_log::AuditLog {
                 timestamp: chrono::Utc::now(),
@@ -82,11 +88,7 @@ impl SecurityMonitoringState {
                     .get("client_id")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string()),
-                status: details
-                    .get("status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string(),
+                status: status.to_string(),
                 detail: Some(serde_json::to_string(&details).unwrap_or_default()),
             };
 
@@ -148,20 +150,20 @@ pub async fn security_monitoring_middleware(
 
         // Log authentication attempts
         if state.config.log_auth_attempts && path.contains("/auth/") {
-            let event_type = match status_code {
-                StatusCode::OK => "AUTH_SUCCESS",
-                StatusCode::UNAUTHORIZED => "AUTH_FAILURE",
-                _ => "AUTH_ATTEMPT",
+            let (event_type, status) = match status_code {
+                StatusCode::OK => ("AUTH_SUCCESS", "success"),
+                StatusCode::UNAUTHORIZED => ("AUTH_FAILURE", "failure"),
+                _ => ("AUTH_ATTEMPT", "warning"),
             };
             state
-                .log_security_event(event_type, event_details.clone())
+                .log_security_event(event_type, status, event_details.clone())
                 .await;
         }
 
         // Log authorization failures
         if state.config.log_authz_failures && status_code == StatusCode::FORBIDDEN {
             state
-                .log_security_event("AUTHZ_FAILURE", event_details.clone())
+                .log_security_event("AUTHZ_FAILURE", "failure", event_details.clone())
                 .await;
         }
 
@@ -173,7 +175,7 @@ pub async fn security_monitoring_middleware(
                 ip
             );
             state
-                .log_security_event("SUSPICIOUS_ACTIVITY", event_details)
+                .log_security_event("SUSPICIOUS_ACTIVITY", "warning", event_details)
                 .await;
         }
     }

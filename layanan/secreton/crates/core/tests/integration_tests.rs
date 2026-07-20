@@ -1,5 +1,4 @@
 // Integration tests for Secreton Core
-mod auth_service_tests;
 //
 // NOTE: This test file references outdated API structures (EngineRegistry, MemorySecretEngine)
 // The current secrets module uses SecretEngine trait with different implementations.

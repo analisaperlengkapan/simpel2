@@ -22,6 +22,15 @@ pub fn UsersManagementPage() -> impl IntoView {
     let (search_query, set_search_query) = signal(String::new());
     let (page, set_page) = signal(1u32);
     let (total_pages, set_total_pages) = signal(1u32);
+    // All pagination comparisons live here, NOT inline in `view!`. leptosfmt
+    // parses `view!` as markup and splits an attribute expression at the first
+    // `>`, which silently rewrites the markup into something that STILL
+    // COMPILES (verified) but renders wrong. `is_last_page` was mangled twice
+    // that way; `is_first_page`/`has_multiple_pages` are the same hazard class
+    // (`<=`, `>`) and are extracted for the same reason. See antarmuka/AGENTS.md.
+    let is_last_page = Memo::new(move |_| page.get() >= total_pages.get());
+    let is_first_page = Memo::new(move |_| page.get() <= 1);
+    let has_multiple_pages = Memo::new(move |_| total_pages.get() > 1);
     let (show_create_modal, set_show_create_modal) = signal(false);
 
     // Form fields for new user
@@ -298,13 +307,13 @@ pub fn UsersManagementPage() -> impl IntoView {
                         </Show>
 
                         // Pagination
-                        <Show when=move || { total_pages.get() > 1 }>
+                        <Show when=move || has_multiple_pages.get()>
                             <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
                                 <button
                                     on:click=move |_| {
                                         set_page.set(page.get().saturating_sub(1).max(1))
                                     }
-                                    disabled=move || page.get() <= 1
+                                    disabled=is_first_page
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "← Sebelumnya"
@@ -317,7 +326,12 @@ pub fn UsersManagementPage() -> impl IntoView {
                                     on:click=move |_| {
                                         set_page.set((page.get() + 1).min(total_pages.get()))
                                     }
-                                    disabled=move || page.get() >= total_pages.get()
+                                    // `>=` inside an attribute closure trips
+                                    // leptosfmt, which splits the markup at the
+                                    // `>` and turns the rest into text nodes
+                                    // (it did exactly that here). Keep the
+                                    // comparison out of the view macro.
+                                    disabled=is_last_page
                                     class="px-3 py-1 text-sm border rounded disabled:opacity-50"
                                 >
                                     "Selanjutnya →"

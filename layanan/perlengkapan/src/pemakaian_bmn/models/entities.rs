@@ -98,8 +98,12 @@ pub struct IzinPemakaianBmn {
     pub revoked_at: Option<DateTime<Utc>>,
 
     // Audit Fields
-    pub created_by: Uuid,
-    pub created_by_nama: String,
+    // Nullable in the schema (`izin_pemakaian_bmn.created_by/created_by_nama`),
+    // so these must be Option: decoding a legally-NULL row into `Uuid`/`String`
+    // panics, and the service builds with panic=abort — one such row killed the
+    // whole process mid-suite.
+    pub created_by: Option<Uuid>,
+    pub created_by_nama: Option<String>,
     pub updated_by: Option<Uuid>,
     pub updated_by_nama: Option<String>,
     pub created_at: DateTime<Utc>,

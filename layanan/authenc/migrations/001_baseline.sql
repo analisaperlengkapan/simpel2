@@ -63,10 +63,14 @@ BEGIN
     IF NEW.password_hash IS NOT NULL AND
        (OLD.password_hash IS NULL OR NEW.password_hash != OLD.password_hash) THEN
 
-        -- Insert old password into history (if it exists)
+        -- Insert old password into history (if it exists).
+        -- password_changed_at is NULL for any account that has never changed
+        -- its password (every freshly created user), and password_history
+        -- .created_at is NOT NULL — without the COALESCE the trigger aborts the
+        -- UPDATE and the user can never set their own password (HTTP 500).
         IF OLD.password_hash IS NOT NULL THEN
             INSERT INTO password_history (user_id, password_hash, created_at)
-            VALUES (NEW.id, OLD.password_hash, OLD.password_changed_at);
+            VALUES (NEW.id, OLD.password_hash, COALESCE(OLD.password_changed_at, NOW()));
         END IF;
 
         -- Update password_changed_at to current time
