@@ -1234,7 +1234,7 @@ dependencies = [
  "hyper-util",
  "pin-project-lite",
  "rustls 0.21.12",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
@@ -1515,7 +1515,7 @@ dependencies = [
  "hyper 1.10.1",
  "hyper-util",
  "pin-project-lite",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -5241,7 +5241,7 @@ dependencies = [
  "hyper 1.10.1",
  "hyper-util",
  "log",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -5875,7 +5875,7 @@ dependencies = [
  "k8s-openapi",
  "kube-core",
  "pem",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "secrecy",
  "serde",
  "serde_json",
@@ -6435,7 +6435,7 @@ dependencies = [
  "nom 8.0.0",
  "percent-encoding",
  "quoted_printable",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "socket2 0.6.3",
  "tokio",
  "tokio-rustls 0.26.4",
@@ -6467,7 +6467,7 @@ dependencies = [
  "lib-core",
  "pin-project",
  "redis",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -6858,7 +6858,7 @@ dependencies = [
  "metrics",
  "metrics-util",
  "quanta",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -8653,7 +8653,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash 2.1.2",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
@@ -8674,7 +8674,7 @@ dependencies = [
  "rand 0.9.4",
  "ring",
  "rustc-hash 2.1.2",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.18",
@@ -9244,7 +9244,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -9291,7 +9291,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-pki-types",
  "rustls-platform-verifier",
  "serde",
@@ -9580,9 +9580,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.41"
+version = "0.23.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b92b125634d9b795e7beca796cc790df15a7fb38323bf3196fda83292d06b1f"
+checksum = "3c54fcab019b409d04215d3a17cb438fd7fbf192ee61461f20f4fe18704bc138"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -9636,7 +9636,7 @@ dependencies = [
  "jni",
  "log",
  "once_cell",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "rustls-platform-verifier-android",
  "rustls-webpki 0.103.13",
@@ -9847,7 +9847,7 @@ dependencies = [
  "proptest",
  "rand 0.8.7",
  "rand_core 0.6.4",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "secreton-api",
  "secreton-backup",
  "secreton-core",
@@ -9922,7 +9922,7 @@ dependencies = [
  "proptest",
  "reqwest 0.13.4",
  "rustc_version",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "rustls-pemfile",
  "secreton-core",
@@ -10091,7 +10091,7 @@ dependencies = [
  "regex",
  "reqwest 0.13.4",
  "ring",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "secreton-crypto",
  "secreton-hsm",
@@ -10192,7 +10192,7 @@ dependencies = [
  "metrics",
  "prost",
  "rustc_version",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "secreton-core",
  "secreton-crypto",
  "secreton-storage",
@@ -10314,7 +10314,7 @@ dependencies = [
  "openraft",
  "prost",
  "reqwest 0.13.4",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "rustls-native-certs",
  "secreton-crypto",
  "secreton-types",
@@ -11593,7 +11593,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4c2ad44aa0ae96db89c4742212ed41645b2f597311ff6e1945542a4d9fadc2fb"
 dependencies = [
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "sha2 0.11.0",
  "tokio",
  "tokio-postgres",
@@ -11617,7 +11617,7 @@ version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "tokio",
 ]
 
@@ -13714,7 +13714,7 @@ dependencies = [
  "hyper-util",
  "log",
  "percent-encoding",
- "rustls 0.23.41",
+ "rustls 0.23.42",
  "seahash",
  "serde",
  "serde_json",
