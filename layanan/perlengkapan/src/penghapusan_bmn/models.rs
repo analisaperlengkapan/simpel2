@@ -85,6 +85,58 @@ impl PenghapusanBmnStatus {
         }
     }
 
+    /// Imperative form of [`label`], for a button that *causes* this state.
+    ///
+    /// `label()` names the resulting state ("Diajukan ke Validator Wilayah");
+    /// a control that performs the move needs the command form ("Ajukan ke
+    /// Validator Wilayah"). Both live here because the workflow vocabulary is
+    /// the server's: the FE renders `allowed_transitions` verbatim and never
+    /// re-spells a state name.
+    ///
+    /// [`label`]: Self::label
+    pub fn action_label(&self) -> &'static str {
+        match self {
+            Self::Draft => "Kembalikan ke Draft",
+            Self::SubmitWilayah => "Ajukan ke Validator Wilayah",
+            Self::ReturnedToOperator => "Revisi Satker",
+            Self::SubmitPusat => "Teruskan ke Validator Pusat",
+            Self::VerifikasiPusat => "Verifikasi Pusat",
+            Self::KonsepSKGenerated => "Generate Konsep SK",
+            Self::SKSigned => "Unggah SK Tertandatangan",
+            Self::Completed => "Selesaikan",
+            Self::Rejected => "Tolak Usulan",
+            Self::KonsepSKWilayahGenerated => "Generate Konsep SK (Wilayah)",
+            Self::SKSignedWilayah => "Unggah SK Tertandatangan (Wilayah)",
+        }
+    }
+
+    /// Roles permitted to move a usulan INTO this state.
+    ///
+    /// This is the SINGLE source for that fact: every transition handler in
+    /// `handlers.rs` gates on `require_any_role(<State>.actor_roles())` rather
+    /// than a literal role list, and `get_penghapusan_bmn_detail` filters the
+    /// offered transitions through the same function. So the actions the API
+    /// advertises and the actions it accepts cannot drift apart — there is
+    /// only one list, and a button that appears is a button that works.
+    pub fn actor_roles(&self) -> &'static [&'static str] {
+        match self {
+            // submit_to_wilayah
+            Self::SubmitWilayah => &["operator_satker"],
+            // validator_wilayah_action / forward_to_pusat / return_to_operator
+            Self::SubmitPusat | Self::ReturnedToOperator => &["validator_wilayah"],
+            // verifikasi_pusat
+            Self::VerifikasiPusat => &["validator_pusat"],
+            // generate_konsep_sk / upload_signed_sk / transition (Rejected, Completed)
+            Self::KonsepSKGenerated | Self::SKSigned | Self::Rejected | Self::Completed => {
+                &["validator_pusat", "validator_wilayah"]
+            }
+            // generate_konsep_sk_wilayah / upload_signed_sk_wilayah
+            Self::KonsepSKWilayahGenerated | Self::SKSignedWilayah => &["validator_wilayah"],
+            // No endpoint moves a usulan back to Draft.
+            Self::Draft => &[],
+        }
+    }
+
     pub fn to_state_name(&self) -> &'static str {
         match self {
             Self::Draft => "DRAFT",
@@ -415,6 +467,14 @@ pub struct PenghapusanBmnDetailResponse {
 pub struct PenghapusanTransitionInfo {
     pub status_kode: i32,
     pub status_nama: String,
+    /// Imperative label for the control that performs this transition
+    /// (see [`PenghapusanBmnStatus::action_label`]). Sent so the FE renders
+    /// the server's workflow vocabulary rather than maintaining its own copy.
+    pub action_label: String,
+    /// Canonical state name (`to_state_name`), i.e. what the generic
+    /// `/transition` endpoint expects in `to_state`. Sent for the same reason
+    /// as `action_label`: the FE should never map a code back to a name.
+    pub to_state: String,
     pub requires_comment: bool,
 }
 
@@ -560,6 +620,89 @@ pub struct UploadLampiranResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// What each role is offered at each stage — the exact list the detail
+    /// endpoint hands the FE, which renders it without adding rules of its own.
+    ///
+    /// The negatives matter as much as the positives: an operator looking at a
+    /// usulan already sitting with the wilayah validator must be offered
+    /// NOTHING, or the UI would show a button that answers 403.
+    #[test]
+    fn transitions_offered_per_role() {
+        use PenghapusanBmnStatus::*;
+
+        let offered = |state: PenghapusanBmnStatus, role: &str| -> Vec<PenghapusanBmnStatus> {
+            state
+                .allowed_transitions()
+                .into_iter()
+                .filter(|s| s.actor_roles().contains(&role))
+                .collect()
+        };
+
+        // Operator drives only the two submissions into wilayah.
+        assert_eq!(offered(Draft, "operator_satker"), vec![SubmitWilayah]);
+        assert_eq!(
+            offered(ReturnedToOperator, "operator_satker"),
+            vec![SubmitWilayah]
+        );
+        assert!(offered(SubmitWilayah, "operator_satker").is_empty());
+        assert!(offered(SubmitPusat, "operator_satker").is_empty());
+        assert!(offered(VerifikasiPusat, "operator_satker").is_empty());
+
+        // Wilayah forwards, returns, or takes the wilayah SK lane.
+        assert_eq!(
+            offered(SubmitWilayah, "validator_wilayah"),
+            vec![SubmitPusat, ReturnedToOperator, KonsepSKWilayahGenerated]
+        );
+        assert!(offered(Draft, "validator_wilayah").is_empty());
+
+        // Pusat only acts once the usulan has reached it.
+        assert_eq!(
+            offered(SubmitPusat, "validator_pusat"),
+            vec![VerifikasiPusat]
+        );
+        assert_eq!(
+            offered(VerifikasiPusat, "validator_pusat"),
+            vec![KonsepSKGenerated, Rejected]
+        );
+        assert!(offered(SubmitWilayah, "validator_pusat").is_empty());
+
+        // Terminal states offer nothing to anyone.
+        for role in ["operator_satker", "validator_wilayah", "validator_pusat"] {
+            assert!(offered(Completed, role).is_empty());
+            assert!(offered(Rejected, role).is_empty());
+        }
+    }
+
+    /// Every reachable state must name someone who can reach it; otherwise the
+    /// filter would silently strip a transition and strand the workflow.
+    #[test]
+    fn every_reachable_state_has_an_actor() {
+        use PenghapusanBmnStatus::*;
+        let all = [
+            Draft,
+            SubmitWilayah,
+            ReturnedToOperator,
+            SubmitPusat,
+            VerifikasiPusat,
+            KonsepSKGenerated,
+            SKSigned,
+            Completed,
+            Rejected,
+            KonsepSKWilayahGenerated,
+            SKSignedWilayah,
+        ];
+        for state in all {
+            for target in state.allowed_transitions() {
+                assert!(
+                    !target.actor_roles().is_empty(),
+                    "{:?} is reachable from {:?} but no role may perform it",
+                    target,
+                    state
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_penghapusan_status_flow() {

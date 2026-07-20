@@ -92,6 +92,116 @@ pub async fn create_penghapusan_bmn_workflow(
     ))
 }
 
+// --- Approval chain (#95) ---
+//
+// The backend has had these five transition endpoints since the workflow
+// landed, with real state-machine + RBAC enforcement, and e2e proves the
+// server side works. Nothing in the FE ever called them: the UI went
+// create -> (nothing) -> generate SK, leaving states 4000/4001/4003
+// unreachable through the browser. Field names mirror the handler bodies in
+// `layanan/perlengkapan/src/penghapusan_bmn/handlers.rs` exactly --
+// `catatan` is Option there, so it is Option here (see antarmuka/AGENTS.md on
+// mirroring backend nullability).
+
+/// Operator Satker -> Validator Wilayah (4000 -> 4001).
+#[cfg(target_arch = "wasm32")]
+pub async fn submit_penghapusan_to_wilayah(
+    id: &str,
+    catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/submit-wilayah", PENGHAPUSAN_BMN_BASE, id),
+        &serde_json::json!({ "catatan": catatan }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn submit_penghapusan_to_wilayah(
+    _id: &str,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Validator Wilayah acts on a submission. `aksi` is "forward" (-> Pusat,
+/// 4001 -> 4003) or "return" (-> Operator); the backend rejects anything else
+/// and requires `catatan` when returning.
+#[cfg(target_arch = "wasm32")]
+pub async fn validator_wilayah_penghapusan_action(
+    id: &str,
+    aksi: &str,
+    catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/validator-wilayah", PENGHAPUSAN_BMN_BASE, id),
+        &serde_json::json!({ "aksi": aksi, "catatan": catatan }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn validator_wilayah_penghapusan_action(
+    _id: &str,
+    _aksi: &str,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Validator Pusat verifies against SIMAN, unlocking konsep-SK generation.
+#[cfg(target_arch = "wasm32")]
+pub async fn verifikasi_penghapusan_pusat(
+    id: &str,
+    catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/verifikasi-pusat", PENGHAPUSAN_BMN_BASE, id),
+        &serde_json::json!({ "catatan": catatan }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn verifikasi_penghapusan_pusat(
+    _id: &str,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
+/// Generic transition. The backend keeps this for Reject at Pusat and gates it
+/// to validator_pusat + validator_wilayah.
+#[cfg(target_arch = "wasm32")]
+pub async fn transition_penghapusan_bmn(
+    id: &str,
+    to_state: &str,
+    catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    auth_post_json(
+        &format!("{}/{}/transition", PENGHAPUSAN_BMN_BASE, id),
+        &serde_json::json!({ "to_state": to_state, "catatan": catatan }),
+    )
+    .await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn transition_penghapusan_bmn(
+    _id: &str,
+    _to_state: &str,
+    _catatan: Option<String>,
+) -> Result<ApiResponse<PenghapusanBmnWorkflow>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
+}
+
 // --- Generate Konsep SK Penghapusan BMN ---
 #[cfg(target_arch = "wasm32")]
 pub async fn generate_penghapusan_konsep_sk(
