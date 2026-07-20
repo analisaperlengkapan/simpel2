@@ -164,7 +164,47 @@ pub struct PenghapusanBmnDetailResponse {
 pub struct PenghapusanTransitionInfo {
     pub status_kode: i32,
     pub status_nama: String,
+    /// Imperative label for the button that performs this transition, authored
+    /// by the backend (`PenghapusanBmnStatus::action_label`). Rendered verbatim
+    /// so the workflow vocabulary has exactly one home.
+    pub action_label: String,
+    /// Canonical state name for the generic `/transition` endpoint.
+    pub to_state: String,
     pub requires_comment: bool,
+}
+
+/// Penghapusan workflow state codes, as sent in
+/// [`PenghapusanTransitionInfo::status_kode`].
+///
+/// Mirrors `PenghapusanBmnStatus` in `layanan/perlengkapan`. The FE needs these
+/// for exactly one reason: choosing WHICH endpoint performs a transition, since
+/// several moves have purpose-built endpoints rather than the generic one. It
+/// does NOT use them to decide what a user may do — that is the backend's
+/// answer, delivered pre-filtered in `allowed_transitions`.
+pub struct PenghapusanBmnStatusKode;
+
+impl PenghapusanBmnStatusKode {
+    pub const SUBMIT_WILAYAH: i32 = 4001;
+    pub const RETURNED_TO_OPERATOR: i32 = 4002;
+    pub const SUBMIT_PUSAT: i32 = 4003;
+    pub const VERIFIKASI_PUSAT: i32 = 4004;
+    pub const KONSEP_SK_GENERATED: i32 = 4005;
+    pub const SK_SIGNED: i32 = 4006;
+    pub const KONSEP_SK_WILAYAH_GENERATED: i32 = 4010;
+    pub const SK_SIGNED_WILAYAH: i32 = 4011;
+
+    /// States reached by producing or uploading a document, not by a
+    /// comment-and-confirm action. These have dedicated controls on the SK
+    /// panel, so the generic action list leaves them out.
+    pub fn is_document_flow(status_kode: i32) -> bool {
+        matches!(
+            status_kode,
+            Self::KONSEP_SK_GENERATED
+                | Self::SK_SIGNED
+                | Self::KONSEP_SK_WILAYAH_GENERATED
+                | Self::SK_SIGNED_WILAYAH
+        )
+    }
 }
 
 // ============ Response Wrappers ============

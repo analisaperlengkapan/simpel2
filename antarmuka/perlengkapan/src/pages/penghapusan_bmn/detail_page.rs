@@ -7,10 +7,11 @@ use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::AppIcon;
 use phosphor_leptos::{ARROW_LEFT, CLOCK, FILE_ARROW_UP, FILE_TEXT, MAGIC_WAND, WARNING, X};
 use wasm_bindgen::JsCast;
-use web_sys::{Event, HtmlInputElement};
+use web_sys::{Event, HtmlInputElement, HtmlTextAreaElement};
 
 use crate::api::common::{
-    PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow, UploadSignedSKRequest,
+    PenghapusanBmnDetailResponse, PenghapusanBmnWorkflow, PenghapusanTransitionInfo,
+    UploadSignedSKRequest,
 };
 use crate::api::error::AppError;
 use crate::api::penghapusan_bmn;
@@ -168,6 +169,9 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
                         <DetailBody
                             detail=d
                             submitting=submitting
+                            set_submitting=set_submitting
+                            set_action_msg=set_action_msg
+                            set_reload_tick=set_reload_tick
                             on_generate=generate_sk
                             on_upload=open_upload
                         />
@@ -202,6 +206,9 @@ pub fn PenghapusanBmnDetailPage() -> impl IntoView {
 fn DetailBody(
     detail: PenghapusanBmnDetailResponse,
     submitting: ReadSignal<bool>,
+    set_submitting: WriteSignal<bool>,
+    set_action_msg: WriteSignal<Option<(bool, String)>>,
+    set_reload_tick: WriteSignal<u32>,
     on_generate: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
     on_upload: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
 ) -> impl IntoView {
@@ -209,6 +216,7 @@ fn DetailBody(
     let status = p.status.clone();
     let can_generate_sk = detail.can_generate_sk;
     let can_upload_signed_sk = detail.can_upload_signed_sk;
+    let transitions = detail.allowed_transitions.clone();
 
     let metode = p.metode_penghapusan.clone();
     let alasan = p.alasan.clone();
@@ -266,6 +274,15 @@ fn DetailBody(
             </div>
         </SectionCard>
 
+        <WorkflowActions
+            id=p.id.clone()
+            transitions=transitions
+            submitting=submitting
+            set_submitting=set_submitting
+            set_action_msg=set_action_msg
+            set_reload_tick=set_reload_tick
+        />
+
         <ValidatorPanel p=p.clone() />
 
         <SkPanel
@@ -277,6 +294,159 @@ fn DetailBody(
             on_generate=on_generate
             on_upload=on_upload
         />
+    }
+}
+
+/// The approval chain, rendered from whatever the backend says this caller may
+/// do next.
+///
+/// The button list is NOT decided here: `allowed_transitions` already arrives
+/// narrowed to the current state AND the caller's role, and each entry carries
+/// its own label. So this component never asks "is the user a validator?" —
+/// asking would mean keeping a second copy of the RBAC rules in the browser,
+/// which is exactly how a UI drifts out of step with the API it drives.
+///
+/// The two SK states are deliberately absent: generating a konsep and uploading
+/// a signed PDF are document flows with their own controls in [`SkPanel`], not
+/// comment-and-confirm actions.
+#[component]
+fn WorkflowActions(
+    id: String,
+    transitions: Vec<PenghapusanTransitionInfo>,
+    submitting: ReadSignal<bool>,
+    set_submitting: WriteSignal<bool>,
+    set_action_msg: WriteSignal<Option<(bool, String)>>,
+    set_reload_tick: WriteSignal<u32>,
+) -> impl IntoView {
+    use crate::api::common::PenghapusanBmnStatusKode as Kode;
+
+    let actionable: Vec<PenghapusanTransitionInfo> = transitions
+        .into_iter()
+        .filter(|t| !Kode::is_document_flow(t.status_kode))
+        .collect();
+
+    let (catatan, set_catatan) = signal(String::new());
+    let needs_comment = actionable.iter().any(|t| t.requires_comment);
+
+    if actionable.is_empty() {
+        return ().into_any();
+    }
+
+    view! {
+        <SectionCard
+            title="Tindakan Workflow"
+            description="Aksi yang tersedia untuk Anda pada tahap ini."
+            icon="fas fa-diagram-project"
+        >
+            <Show when=move || needs_comment>
+                <div class="mb-3">
+                    <label
+                        for="catatan-workflow"
+                        class="text-[0.65rem] uppercase tracking-wide text-slate-500"
+                    >
+                        "Catatan"
+                    </label>
+                    <textarea
+                        id="catatan-workflow"
+                        rows="2"
+                        placeholder="Wajib diisi saat mengembalikan atau menolak usulan."
+                        prop:value=move || catatan.get()
+                        on:input=move |ev| {
+                            let el = ev.target().unwrap().unchecked_into::<HtmlTextAreaElement>();
+                            set_catatan.set(el.value());
+                        }
+                        class="focus-ring mt-1 w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500"
+                    />
+                </div>
+            </Show>
+
+            <div class="flex flex-wrap gap-2">
+                <For each=move || actionable.clone() key=|t| t.status_kode let:transition>
+                    {
+                        let id = id.clone();
+                        let kode = transition.status_kode;
+                        let to_state = transition.to_state.clone();
+                        let requires_comment = transition.requires_comment;
+                        let on_click = move |_| {
+                            let catatan = catatan.get();
+                            if requires_comment && catatan.trim().is_empty() {
+                                set_action_msg
+                                    .set(
+                                        Some((
+                                            false,
+                                            "Catatan wajib diisi untuk tindakan ini.".to_string(),
+                                        )),
+                                    );
+                                return;
+                            }
+                            let catatan = if catatan.trim().is_empty() {
+                                None
+                            } else {
+                                Some(catatan)
+                            };
+                            let (id, to_state) = (id.clone(), to_state.clone());
+                            set_submitting.set(true);
+                            spawn_local(async move {
+                                let result = dispatch_transition(&id, kode, &to_state, catatan)
+                                    .await;
+                                match result {
+                                    Ok(msg) => {
+                                        set_action_msg.set(Some((true, msg)));
+                                        set_catatan.set(String::new());
+                                        set_reload_tick.update(|t| *t += 1);
+                                    }
+                                    Err(e) => set_action_msg.set(Some((false, e.user_message()))),
+                                }
+                                set_submitting.set(false);
+                            });
+                        };
+                        view! {
+                            <button
+                                type="button"
+                                on:click=on_click
+                                disabled=move || submitting.get()
+                                class="focus-ring inline-flex items-center gap-1.5 rounded-lg bg-gold-gradient px-3 py-1.5 text-xs font-bold text-navy-950 shadow-sm transition hover:opacity-90 disabled:opacity-40"
+                            >
+                                {transition.action_label.clone()}
+                            </button>
+                        }
+                    }
+                </For>
+            </div>
+        </SectionCard>
+    }
+        .into_any()
+}
+
+/// Route a transition to the endpoint that owns it.
+///
+/// Most moves have a purpose-built endpoint carrying extra semantics (the
+/// wilayah one distinguishes forward from return); the rest go through the
+/// generic `/transition`, which is why `to_state` travels with each entry
+/// instead of being reconstructed from the code here.
+async fn dispatch_transition(
+    id: &str,
+    status_kode: i32,
+    to_state: &str,
+    catatan: Option<String>,
+) -> Result<String, AppError> {
+    use crate::api::common::PenghapusanBmnStatusKode as Kode;
+
+    if status_kode == Kode::SUBMIT_WILAYAH {
+        penghapusan_bmn::submit_penghapusan_to_wilayah(id, catatan).await?;
+        Ok("Usulan berhasil diajukan ke Validator Wilayah.".to_string())
+    } else if status_kode == Kode::SUBMIT_PUSAT {
+        penghapusan_bmn::validator_wilayah_penghapusan_action(id, "forward", catatan).await?;
+        Ok("Usulan berhasil diteruskan ke Validator Pusat.".to_string())
+    } else if status_kode == Kode::RETURNED_TO_OPERATOR {
+        penghapusan_bmn::validator_wilayah_penghapusan_action(id, "return", catatan).await?;
+        Ok("Usulan dikembalikan ke Operator Satker.".to_string())
+    } else if status_kode == Kode::VERIFIKASI_PUSAT {
+        penghapusan_bmn::verifikasi_penghapusan_pusat(id, catatan).await?;
+        Ok("Usulan berhasil diverifikasi.".to_string())
+    } else {
+        penghapusan_bmn::transition_penghapusan_bmn(id, to_state, catatan).await?;
+        Ok("Status usulan berhasil diperbarui.".to_string())
     }
 }
 
