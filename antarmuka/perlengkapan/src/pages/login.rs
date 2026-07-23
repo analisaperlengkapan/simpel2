@@ -17,7 +17,7 @@ pub fn LoginPage() -> impl IntoView {
             <div style="width: 100%; max-width: 760px; border-radius: 24px; border: 1px solid rgba(51,65,85,0.72); border-top: 3px solid #d4a843; background: linear-gradient(180deg, rgba(4,14,38,0.97) 0%, rgba(3,12,34,0.97) 100%); padding: clamp(1.6rem, 2vw, 2.25rem) clamp(1.25rem, 3vw, 2.25rem) clamp(1.35rem, 2vw, 1.9rem) clamp(1.25rem, 3vw, 2.25rem); box-shadow: 0 22px 70px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.04);">
                 <div style="display: flex; justify-content: center; margin-bottom: 0.8rem;">
                     <img
-                        src="/perlengkapan/assets/kejaksaan-logo.png"
+                        src=crate::assets::LOGO
                         alt="Kejaksaan RI"
                         style="width: clamp(88px, 15vw, 116px); height: clamp(88px, 15vw, 116px); object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.34));"
                     />

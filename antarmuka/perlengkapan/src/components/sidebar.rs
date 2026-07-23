@@ -136,7 +136,7 @@ pub fn Sidebar(sidebar_open: RwSignal<bool>) -> impl IntoView {
                     attr:style="display: flex; align-items: center; gap: 12px; text-decoration: none;"
                 >
                     <img
-                        src="/perlengkapan/assets/kejaksaan-logo.png"
+                        src=crate::assets::LOGO
                         alt="Kejaksaan RI"
                         style="width: 36px; height: 36px; object-fit: contain;"
                     />

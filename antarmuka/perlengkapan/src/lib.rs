@@ -11,6 +11,7 @@
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::redundant_closure)]
 mod api;
+mod assets;
 mod components;
 mod features;
 mod navigation;
