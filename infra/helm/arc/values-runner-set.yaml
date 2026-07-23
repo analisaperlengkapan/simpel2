@@ -38,16 +38,33 @@ scaleSetLabels:
 # loadavg 311 di kotak 48-core, dan e2e gagal di step build setelah ~90 menit
 # tanpa menjalankan satu asersi pun.
 #
-# Anggaran jujur simple02 (48 vCPU / ~62Gi allocatable), sisakan utk staging
-# (postgres/redis/portal×2/perlengkapan×2/registry) + sistem ≈ 11 CPU / 11Gi:
-#   per pod requests = dind 3 CPU + runner 1 CPU  = 4 CPU
-#                      dind 3Gi  + runner 2Gi     = 5Gi
-#   8 pod = 32 CPU + 40Gi  →  +baseline ≈ 43 CPU (90%) / 51Gi (82%)
-# Turun dari 20 BUKAN pengurangan kapasitas: 20 tak pernah benar-benar muat.
-# Paralelisme yang hilang ditebus oleh build-once e2e (6 job berhenti membangun
-# stack masing-masing), bukan dgn menjual-lebih node.
+# KOREKSI 2026-07-20: revisi pertama menjawab overcommit itu dgn memotong
+# maxRunners 20→8 — memperlakukan "satu node penuh" sebagai "cluster penuh".
+# Itu salah: runner dipaku ke simple02 lewat nodeSelector, sementara node kedua
+# (simpel.kejaksaan.go.id, 48 vCPU) menganggur di 13% CPU / 2% memori. Yang
+# rusak adalah PENEMPATAN + tiadanya resources dind, bukan jumlah runner.
+# Pin dibuang (lihat topologySpreadConstraints) dan kapasitas kembali ke 20.
+#
+# Anggaran DUA node — diukur 2026-07-20, bukan diperkirakan:
+#   allocatable      2 × 48000m CPU = 96000m ; 2 × 63739Mi = 127478Mi
+#   baseline non-CI  simple02 11690m/11328Mi + prod-node 6670m/1388Mi
+#                    = 18360m / 12716Mi
+#   bebas utk CI     77640m CPU / 114762Mi
+#   per pod requests dind 2 CPU + runner 1 CPU = 3 CPU
+#                    dind 3Gi  + runner 2Gi    = 5Gi
+#   20 pod           60000m CPU (77% dari bebas) + 102400Mi (89% dari bebas)
+#
+# CPU request dind diturunkan 3→2 (limit TETAP 6). Alasannya asimetri yang
+# nyata: CPU itu compressible — request kurang ⇒ throttle. Memori TIDAK —
+# request kurang ⇒ OOMKill (sudah terbukti sekali, lihat blok runner di bawah).
+# Jadi kepadatan dibeli dari angka yang gagal-nya anggun saja; requests memori
+# tidak disentuh.
+#
+# Pengaman produksi BUKAN lagi "sisakan kursi kosong", melainkan
+# priorityClassName: arc-ci-runner (nilai NEGATIF) — produksi menggusur runner
+# saat butuh. Lihat blok priorityClassName di bawah.
 minRunners: 0
-maxRunners: 8
+maxRunners: 20
 
 # ── Pod template MANUAL untuk dind (BUKAN containerMode shorthand) ──
 # Manual diperlukan agar bisa:
@@ -58,6 +75,14 @@ maxRunners: 8
 # CATATAN dind = NATIVE SIDECAR: harus di `initContainers` dgn restartPolicy:Always
 # (K8s melarang restartPolicy di non-init container). JANGAN set `containerMode`.
 template:
+  metadata:
+    # Label ini kita definisikan SENDIRI supaya topologySpreadConstraints di
+    # bawah punya selector yang pasti cocok. ARC tidak menaruh label stabil
+    # apa pun di pod template (`ephemeralRunnerSpec.metadata.labels` = {}), dan
+    # selector yang tak cocok TIDAK error — ia hanya diam-diam tak menyebar.
+    # Dengan mendefinisikan kedua sisi di file ini, keduanya tak bisa berpisah.
+    labels:
+      simpel.ci/runner: "true"
   spec:
     # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
     # ns arc-runners dari simpelv2-staging (PAT read:packages).
@@ -75,8 +100,31 @@ template:
       options:
         - name: ndots
           value: "1"
-    nodeSelector:
-      kubernetes.io/hostname: simple02
+    # Prioritas NEGATIF (-100) — inilah yang membuat "pakai node produksi utk CI"
+    # aman. Pod tanpa priorityClassName bernilai 0, jadi nilai negatif menaruh
+    # runner di bawah SEMUA beban lain: yang sudah punya kelas (staging 100000,
+    # postgres-operator 1000000, longhorn/system jauh di atas) MAUPUN pod
+    # produksi polos yang tak punya kelas sama sekali. Kalau kelas ini positif,
+    # runner justru mengalahkan pod produksi tak-berkelas — persis kebalikan
+    # dari yang diinginkan. preemptionPolicy: Never (di definisi kelasnya)
+    # memastikan runner tak pernah menggusur siapa pun.
+    # Definisi kelas = infra/helm/arc/install.sh (cluster-scoped, seperti
+    # namespace & label PSA di skrip yang sama).
+    # KONSEKUENSI YANG DITERIMA: deploy produksi yang butuh ruang akan menggusur
+    # runner ⇒ job CI-nya MATI di tengah jalan dan harus di-run ulang. Itu
+    # memang pertukaran yang dipilih: produksi menang, CI mengalah.
+    priorityClassName: arc-ci-runner
+    # Sebar rata ke KEDUA node. Pengganti nodeSelector `hostname: simple02` yang
+    # dibuang — pin itu sendiri sumber "satu node 90%, satu node 13%".
+    # whenUnsatisfiable: ScheduleAnyway = sebar kalau bisa, jangan pernah
+    # menahan runner jadi Pending hanya demi kerapian distribusi.
+    topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            simpel.ci/runner: "true"
     tolerations:
       - key: dedicated
         operator: Equal
@@ -118,9 +166,13 @@ template:
         # terlihat scheduler dan tak terbatas saat runtime — padahal DI SINILAH
         # `docker build` berjalan (runner cuma bicara ke socket). Ini penyebab
         # overcommit 369% + loadavg 311, bukan jumlah node.
+        # CPU request 3→2 pada 2026-07-20 (limit tetap 6) supaya 20 pod muat di
+        # dua node. Aman karena CPU compressible: kalau semua dind menuntut
+        # bersamaan, cgroup membagi proporsional (build melambat) — tak ada yang
+        # dibunuh. Memori dibiarkan 3Gi/6Gi: itu angka yang gagal-nya keras.
         resources:
           requests:
-            cpu: "3"
+            cpu: "2"
             memory: 3Gi
           limits:
             cpu: "6"
