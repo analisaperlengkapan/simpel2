@@ -10,6 +10,7 @@ use axum::{
 };
 
 use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 
 use super::models::{
     ForecastCompareQuery, ForecastCompareResponse, ForecastExportQuery, ForecastQuery,
@@ -23,6 +24,7 @@ use super::services::RoadmapService;
 pub async fn get_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let request = query.into_request();
     let result = service.generate_forecast(request).await?;
@@ -35,6 +37,7 @@ pub async fn get_forecast(
 pub async fn get_forecast_summary(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastSummaryQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let summary = service
         .get_summary(query.satker_id, query.kode_barang.as_deref())
@@ -48,6 +51,7 @@ pub async fn get_forecast_summary(
 pub async fn get_forecast_compare(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastCompareQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let current_request = lib_perlengkapan::models::ForecastRequest {
         satker_id: query.satker_id,
@@ -78,6 +82,7 @@ pub async fn get_forecast_compare(
 pub async fn export_forecast(
     State(service): State<RoadmapService>,
     Query(query): Query<ForecastExportQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let csv_bytes = service
         .export_csv(query.satker_id, query.kode_barang.as_deref())

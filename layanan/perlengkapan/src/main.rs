@@ -596,7 +596,11 @@ fn build_router(state: AppState) -> Router {
         .route("/metrics", get(middleware::metrics::metrics_handler))
         .with_state(Arc::new(state.clone()));
 
-    // API routes with authentication and rate limiting
+    // API routes. NOTE: there is no auth *middleware* layer here — authentication
+    // is enforced per-handler by the `Claims` extractor. A handler that omits
+    // `Claims` is therefore PUBLIC, and the gateway routes /api/v1/perlengkapan
+    // straight from the Istio ingress, so "public" means internet-reachable.
+    // Only the k8s probes under /health are meant to be unauthenticated.
     let api_routes = routes::create_routes(state.clone());
 
     // Combine all routes

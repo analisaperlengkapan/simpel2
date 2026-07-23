@@ -244,10 +244,32 @@ flowchart TB
 
 ### 5. Authentication & Authorization
 
-- Validate JWT tokens via Authenc gRPC on every request
-- Implement role-based access control (RBAC)
-- Use middleware for authentication checks
-- Never trust client-side data for authorization
+> ⚠️ **Tidak ada lapisan middleware auth di service ini.** `main.rs` hanya memasang
+> `size_limit`, `metrics`, `rate_limit`, `TraceLayer`, dan `cors`. **Ekstraktor
+> `Claims` ITULAH gerbangnya** — satu-satunya. Handler yang tak menerima `Claims`
+> berarti **PUBLIK**, dan karena Istio gateway (`hosts: ["*"]`) merutekan
+> `/api/v1/perlengkapan` langsung ke `layanan-perlengkapan:3020`, "publik" berarti
+> **terjangkau dari internet**, bukan sekadar dari dalam cluster.
+>
+> Ini bukan hipotetis: 15 route pernah lolos tanpa gerbang persis karena dokumen ini
+> dulu menulis "use middleware for authentication checks" (lihat commit
+> `fix(perlengkapan): 15 API routes answered anyone who asked`).
+
+- **Setiap handler WAJIB menerima `Claims`** (`crate::shared::middleware::Claims`).
+  Bila klaimnya tak dipakai di badan fungsi, tetap tulis sebagai `_claims: Claims` —
+  efek sampingnya (validasi token) itulah gerbangnya. Konvensi ini sudah dipakai
+  ~59 tempat; ikuti, jangan bikin pola baru.
+- **Satu-satunya pengecualian sah** = probe kubelet di `shared/health.rs`
+  (`liveness_check`, `readiness_check`, `health_check`). Selain itu, tidak ada.
+- **Jangan ambil `satker_id` dari query string** untuk menentukan data siapa yang
+  dibaca — itu melewati scoping. Turunkan dari token via `AsetScope::from_claims`
+  (pola di `bank_aset/scope.rs`, fail-closed bila token tak punya satker).
+- Menutup gerbang di BE **hampir selalu menuntut perubahan FE**: pemanggil yang pakai
+  `gloo_net::http::Request` mentah atau `window.open` tak membawa header
+  `Authorization` dan akan 401. Pakai `api_get`/`auth_get_binary`; untuk unduhan
+  bergerbang pakai pola fetch → blob → anchor sintetis.
+- RBAC per-peran & lintas-satker ditegakkan **di server**, bukan dgn menyembunyikan
+  tombol di FE.
 
 ---
 
@@ -263,21 +285,35 @@ use axum::{
 };
 use uuid::Uuid;
 
+use crate::shared::middleware::Claims;
+
 pub async fn get_perlengkapan(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    user_id: Uuid, // From auth middleware
+    // WAJIB. Ekstraktor inilah gerbang auth-nya — tak ada middleware auth.
+    // Tulis `_claims: Claims` bila nilainya tak dipakai; menghapusnya
+    // membuat endpoint ini publik & terjangkau internet.
+    claims: Claims,
 ) -> Result<Json<PerlengkapanResponse>, AppError> {
-    // Validate authorization
-    if !state.auth_client.check_permission(user_id, "perlengkapan:read").await? {
-        return Err(AppError::Unauthorized("Insufficient permissions".into()));
-    }
+    // Scoping diturunkan dari TOKEN, bukan dari query string.
+    // `push_condition` mengembalikan predikat + mendaftarkan param `$n`-nya;
+    // `None` = peran lintas-satker (tanpa batasan), dan `AsetScope::Denied`
+    // (token tanpa identitas satker) menghasilkan `FALSE` ⇒ nol baris, jadi
+    // jalur ini fail-closed dengan sendirinya.
+    let scope = AsetScope::from_claims(&claims);
+    let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+    let scope_clause = match scope.push_condition(&mut params) {
+        Some(cond) => format!(" AND {cond}"),
+        None => String::new(),
+    };
 
-    // Fetch from database
+    // Batas satker ikut masuk ke WHERE — biar DB yang menegakkannya,
+    // bukan disaring belakangan di Rust.
+    let sql = format!("SELECT * FROM perlengkapan WHERE id = $1{scope_clause}");
     let perlengkapan = state.db_pool
         .get()
         .await?
-        .query_one("SELECT * FROM perlengkapan WHERE id = $1", &[&id])
+        .query_one(&sql, &params.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
         .await?
         .try_into()?;
 

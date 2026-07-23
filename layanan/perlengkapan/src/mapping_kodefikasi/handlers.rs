@@ -8,6 +8,7 @@ use crate::AppState;
 use crate::mapping_kodefikasi::models::*;
 use crate::mapping_kodefikasi::services::MappingService;
 use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 use axum::{
     Json,
     extract::{Query, State},
@@ -21,6 +22,7 @@ use axum::{
 pub async fn detect_non_standard_codes(
     State(state): State<AppState>,
     Query(query): Query<MappingListQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
     let page = query.page.unwrap_or(1);
@@ -48,6 +50,7 @@ pub async fn detect_non_standard_codes(
 pub async fn list_standard_codes(
     State(state): State<AppState>,
     Query(query): Query<MappingListQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
     let page = query.page.unwrap_or(1);
@@ -80,6 +83,7 @@ pub struct SuggestionsQuery {
 pub async fn get_mapping_suggestions(
     State(state): State<AppState>,
     Query(query): Query<SuggestionsQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
     let suggestions = service.get_mapping_suggestions(&query.nama).await?;
@@ -91,6 +95,7 @@ pub async fn get_mapping_suggestions(
 /// GET /api/v1/mapping/progress
 pub async fn get_mapping_progress(
     State(state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
     let progress = service.get_mapping_progress().await?;
@@ -102,6 +107,7 @@ pub async fn get_mapping_progress(
 /// GET /api/v1/mapping/progress/satker
 pub async fn get_mapping_progress_by_satker(
     State(state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
     let progress = service.get_mapping_progress_by_satker().await?;
@@ -114,6 +120,7 @@ pub async fn get_mapping_progress_by_satker(
 pub async fn export_mapping(
     State(state): State<AppState>,
     Query(query): Query<ExportQuery>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let service = MappingService::new(state.db_pool.clone());
 
