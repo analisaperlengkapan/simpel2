@@ -565,23 +565,16 @@ pub fn create_routes(state: AppState) -> Router {
         )
         // ============ Workflow Definition Routes ============
         .route(
+            // Read-only: the four workflows are defined in Rust
+            // (`WorkflowConfig::default_*`) and the engine is constructed from
+            // them at boot. There is deliberately no write path — see
+            // `workflow/definition_handlers.rs`.
             "/workflow/definitions",
-            get(crate::workflow::definition_handlers::get_workflow_definitions)
-                .post(crate::workflow::definition_handlers::create_workflow_definition),
+            get(crate::workflow::definition_handlers::get_workflow_definitions),
         )
         .route(
             "/workflow/definitions/{name}",
-            get(crate::workflow::definition_handlers::get_workflow_definition_by_name)
-                .put(crate::workflow::definition_handlers::update_workflow_definition)
-                .delete(crate::workflow::definition_handlers::delete_workflow_definition),
-        )
-        .route(
-            "/workflow/definitions/{name}/steps",
-            post(crate::workflow::definition_handlers::upsert_workflow_step),
-        )
-        .route(
-            "/workflow/definitions/{name}/steps/{state}",
-            delete(crate::workflow::definition_handlers::delete_workflow_step),
+            get(crate::workflow::definition_handlers::get_workflow_definition_by_name),
         )
         // ============ Workflow Monitoring Routes ============
         .route(

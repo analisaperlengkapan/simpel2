@@ -1,10 +1,13 @@
 //! List of workflow definitions as cards — primary landing surface for
-//! workflow admin. Owns presentation only; all state mutations flow back to
-//! the parent via callbacks.
+//! workflow admin. Owns presentation only.
+//!
+//! View-only: the workflows are defined in Rust and this page reports them.
+//! The edit/delete/create buttons were removed together with the backend write
+//! endpoints they called, which never did anything but reject the request.
 
 use leptos::prelude::*;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{EYE, GIT_BRANCH, PENCIL, PLUS, TRASH, TREE_STRUCTURE, USERS};
+use phosphor_leptos::{EYE, GIT_BRANCH, TREE_STRUCTURE, USERS};
 
 use crate::api::workflow::WorkflowDefinition;
 
@@ -12,32 +15,22 @@ use crate::api::workflow::WorkflowDefinition;
 pub fn ConfigListPanel(
     workflows: Vec<WorkflowDefinition>,
     #[prop(into)] on_view: Callback<String>,
-    #[prop(into)] on_edit: Callback<WorkflowDefinition>,
-    #[prop(into)] on_delete: Callback<String>,
-    #[prop(into)] on_create: Callback<()>,
 ) -> impl IntoView {
     if workflows.is_empty() {
+        // Reaching this means the service returned no definitions at all —
+        // the four are compiled in, so it signals a backend/transport fault
+        // rather than an empty collection the operator could fill.
         return view! {
             <div class="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-white/[0.02] py-14 text-center">
                 <span class="text-3xl text-slate-500">
                     <AppIcon icon=TREE_STRUCTURE />
                 </span>
                 <div>
-                    <h3 class="text-base font-semibold text-white">"Belum Ada Workflow"</h3>
+                    <h3 class="text-base font-semibold text-white">"Definisi Workflow Tidak Termuat"</h3>
                     <p class="mt-1 text-sm text-slate-400">
-                        "Buat konfigurasi workflow pertama untuk memulai."
+                        "Workflow ditetapkan di sisi server. Daftar kosong menandakan gangguan layanan, bukan konfigurasi yang belum diisi."
                     </p>
                 </div>
-                <button
-                    type="button"
-                    class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
-                    on:click=move |_| on_create.run(())
-                >
-                    <span class="mr-2">
-                        <AppIcon icon=PLUS />
-                    </span>
-                    "Buat Workflow Pertama"
-                </button>
             </div>
         }
         .into_any();
@@ -47,8 +40,6 @@ pub fn ConfigListPanel(
         .into_iter()
         .map(|workflow| {
             let name_view = workflow.name.clone();
-            let name_delete = workflow.name.clone();
-            let workflow_for_edit = workflow.clone();
             let (status_class, status_label) = match workflow.status.as_str() {
                 "active" => (
                     "border-success-500/40 bg-success-500/15 text-success-400",
@@ -113,27 +104,6 @@ pub fn ConfigListPanel(
                                 <AppIcon icon=EYE />
                             </span>
                             "Detail"
-                        </button>
-                        <button
-                            type="button"
-                            class="focus-ring flex-1 rounded-lg border border-warning-500/30 bg-warning-500/10 px-3 py-2 text-sm font-semibold text-warning-400 transition hover:bg-warning-500/20"
-                            on:click={
-                                let workflow = workflow_for_edit.clone();
-                                move |_| on_edit.run(workflow.clone())
-                            }
-                        >
-                            <span class="mr-1.5">
-                                <AppIcon icon=PENCIL />
-                            </span>
-                            "Edit"
-                        </button>
-                        <button
-                            type="button"
-                            class="focus-ring rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-sm font-semibold text-danger-400 transition hover:bg-danger-500/20"
-                            on:click=move |_| on_delete.run(name_delete.clone())
-                            title="Hapus"
-                        >
-                            <AppIcon icon=TRASH />
                         </button>
                     </div>
                 </div>
