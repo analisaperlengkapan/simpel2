@@ -8,14 +8,11 @@
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use lib_ui::components::icon::AppIcon;
-use phosphor_leptos::{CHECK, CIRCLE, CLOCK, FLAG_CHECKERED, GEAR, MINUS, PLUS, USER_LIST, X};
+use phosphor_leptos::{CHECK, CIRCLE, CLOCK, FLAG_CHECKERED, MINUS, USER_LIST, X};
 
-use super::config::{
-    ConfigEditorPanel, ConfigJsonPreview, ConfigListPanel, DeleteConfigModal, RoleMatrix,
-    StepEditorModal, TransitionMatrix,
-};
+use super::config::{ConfigJsonPreview, ConfigListPanel, RoleMatrix, TransitionMatrix};
 use crate::api::workflow::{
-    WorkflowDefinition, WorkflowDefinitionDetail, WorkflowStep, fetch_workflow_definition_detail,
+    WorkflowDefinition, WorkflowDefinitionDetail, fetch_workflow_definition_detail,
     fetch_workflow_definitions, format_sla,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
@@ -45,29 +42,8 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
     let list_resource = client.local_resource(query_workflow_definitions, || ());
 
     let (selected, set_selected) = signal::<Option<String>>(None);
-    let (editing, set_editing) = signal::<Option<WorkflowDefinition>>(None);
-    let (deleting, set_deleting) = signal::<Option<String>>(None);
-    let (show_create, set_show_create) = signal(false);
 
     let on_view = Callback::new(move |name: String| set_selected.set(Some(name)));
-    let on_edit = Callback::new(move |wf: WorkflowDefinition| set_editing.set(Some(wf)));
-    let on_delete = Callback::new(move |name: String| set_deleting.set(Some(name)));
-    let on_create = Callback::new(move |_| set_show_create.set(true));
-
-    let close_create_or_edit = Callback::new(move |_| {
-        set_editing.set(None);
-        set_show_create.set(false);
-    });
-    let save_and_refresh = Callback::new(move |_| {
-        set_editing.set(None);
-        set_show_create.set(false);
-        list_resource.refetch();
-    });
-    let close_delete = Callback::new(move |_| set_deleting.set(None));
-    let confirm_delete = Callback::new(move |_| {
-        set_deleting.set(None);
-        list_resource.refetch();
-    });
     let close_detail = Callback::new(move |_| set_selected.set(None));
 
     view! {
@@ -75,21 +51,6 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
             title="Konfigurasi Workflow"
             description="Kelola definisi workflow, langkah, role, transisi dan SLA untuk seluruh proses BMN."
             icon="fas fa-project-diagram"
-            actions=Box::new(move || {
-                view! {
-                    <button
-                        type="button"
-                        class="focus-ring rounded-lg bg-gold-gradient px-4 py-2 text-sm font-semibold text-navy-950 shadow-card transition hover:brightness-105"
-                        on:click=move |_| set_show_create.set(true)
-                    >
-                        <span class="mr-2">
-                            <AppIcon icon=PLUS />
-                        </span>
-                        "Workflow Baru"
-                    </button>
-                }
-                    .into_any()
-            })
         >
             <SectionCard title="Definisi Workflow" icon="fas fa-list">
                 <Suspense fallback=move || {
@@ -101,13 +62,7 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
                             .map(|result| match result {
                                 Ok(workflows) => {
                                     view! {
-                                        <ConfigListPanel
-                                            workflows=workflows
-                                            on_view=on_view
-                                            on_edit=on_edit
-                                            on_delete=on_delete
-                                            on_create=on_create
-                                        />
+                                        <ConfigListPanel workflows=workflows on_view=on_view />
                                     }
                                         .into_any()
                                 }
@@ -130,47 +85,6 @@ pub fn WorkflowConfigManagement() -> impl IntoView {
                     })
             }}
 
-            {move || {
-                editing
-                    .get()
-                    .map(|wf| {
-                        view! {
-                            <ConfigEditorPanel
-                                workflow=Some(wf)
-                                on_close=close_create_or_edit
-                                on_save=save_and_refresh
-                            />
-                        }
-                    })
-            }}
-
-            {move || {
-                show_create
-                    .get()
-                    .then(|| {
-                        view! {
-                            <ConfigEditorPanel
-                                workflow=None
-                                on_close=close_create_or_edit
-                                on_save=save_and_refresh
-                            />
-                        }
-                    })
-            }}
-
-            {move || {
-                deleting
-                    .get()
-                    .map(|name| {
-                        view! {
-                            <DeleteConfigModal
-                                workflow_name=name
-                                on_close=close_delete
-                                on_confirm=confirm_delete
-                            />
-                        }
-                    })
-            }}
         </PageLayout>
     }
 }
@@ -187,15 +101,6 @@ fn WorkflowDetailDrawer(
     let client: QueryClient = expect_context();
     let detail_resource = client.local_resource(query_workflow_definition_detail, move || {
         name_for_resource.clone()
-    });
-
-    let (edit_step, set_edit_step) = signal::<Option<WorkflowStep>>(None);
-    let workflow_name_for_modal = workflow_name.clone();
-
-    let close_step_editor = Callback::new(move |_| set_edit_step.set(None));
-    let save_step_editor = Callback::new(move |_| {
-        set_edit_step.set(None);
-        detail_resource.refetch();
     });
 
     view! {
@@ -239,7 +144,6 @@ fn WorkflowDetailDrawer(
                                     let step_rows = steps
                                         .into_iter()
                                         .map(|step| {
-                                            let step_for_edit = step.clone();
                                             let sla_label = step
                                                 .sla_minutes
                                                 .map(format_sla)
@@ -324,18 +228,6 @@ fn WorkflowDetailDrawer(
                                                                 .into_any()
                                                         }}
                                                     </td>
-                                                    <td class="px-3 py-3 text-right">
-                                                        <button
-                                                            type="button"
-                                                            class="focus-ring rounded-md border border-info-500/30 bg-info-500/10 px-2.5 py-1 text-[0.7rem] font-semibold text-info-300 transition hover:bg-info-500/20"
-                                                            title="Edit langkah"
-                                                            on:click=move |_| {
-                                                                set_edit_step.set(Some(step_for_edit.clone()))
-                                                            }
-                                                        >
-                                                            <AppIcon icon=GEAR />
-                                                        </button>
-                                                    </td>
                                                 </tr>
                                             }
                                         })
@@ -417,31 +309,6 @@ fn WorkflowDetailDrawer(
                 </Suspense>
             </div>
 
-            {move || {
-                detail_resource
-                    .get()
-                    .and_then(|r| r.ok())
-                    .and_then(|detail| {
-                        edit_step
-                            .get()
-                            .map(|step| {
-                                let all_states: Vec<String> = detail
-                                    .steps
-                                    .iter()
-                                    .map(|s| s.state_name.clone())
-                                    .collect();
-                                view! {
-                                    <StepEditorModal
-                                        workflow_name=workflow_name_for_modal.clone()
-                                        step=step
-                                        all_states=all_states
-                                        on_close=close_step_editor
-                                        on_save=save_step_editor
-                                    />
-                                }
-                            })
-                    })
-            }}
         </div>
     }
 }

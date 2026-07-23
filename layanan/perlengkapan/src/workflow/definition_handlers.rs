@@ -1,6 +1,21 @@
-//! Workflow Definition API Handlers
+//! Workflow Definition API Handlers — READ ONLY, deliberately.
 //!
-//! REST API endpoints for workflow definition management (CRUD operations)
+//! The four workflows are defined in Rust (`WorkflowConfig::default_*`) and the
+//! engine is built from them at boot (`main.rs`). These endpoints expose that
+//! shape so the admin page can render it; they do not edit it.
+//!
+//! There used to be create/update/delete handlers here. Every one of them
+//! returned `BadRequest` without touching state, because the write path was
+//! never built: there is no `workflow_steps` table, and the
+//! `perlengkapan.workflow_definitions` table that does exist is read by
+//! nothing.
+//!
+//! Making these editable is not simply unfinished work — it would be wrong
+//! until the engine is the sole authority on transitions. Today the real
+//! enforcement lives in the per-domain Rust status enums (`can_transition_to`),
+//! so a DB-editable graph could promise a transition the code still refuses.
+//! Two sources of truth, silently disagreeing. If custom workflows are ever
+//! needed, make the engine authoritative FIRST, then add the write path.
 
 use axum::{
     extract::{Path, State},
@@ -73,33 +88,6 @@ pub struct WorkflowDefinitionDetailResponse {
     pub transitions: HashMap<String, Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct CreateWorkflowRequest {
-    pub name: String,
-    pub description: String,
-    pub version: String,
-    pub status: String,
-    pub supports_parallel_approval: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpdateWorkflowRequest {
-    pub description: Option<String>,
-    pub version: Option<String>,
-    pub status: Option<String>,
-    pub supports_parallel_approval: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct UpsertStepRequest {
-    pub state_name: String,
-    pub state_code: Option<i32>,
-    pub required_role: Option<String>,
-    pub sla_minutes: Option<u32>,
-    pub next_states: Vec<String>,
-    pub escalation_enabled: bool,
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 // Handler Functions
 // ═══════════════════════════════════════════════════════════════════════════
@@ -147,79 +135,6 @@ pub async fn get_workflow_definition_by_name(
     let detail = workflow_config_to_detail_response(&config);
 
     Ok((StatusCode::OK, Json(ApiResponse::success(detail))))
-}
-
-/// POST /api/v1/workflow/definitions
-///
-/// Create a new workflow definition
-pub async fn create_workflow_definition(
-    State(_state): State<AppState>,
-    Json(_request): Json<CreateWorkflowRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    // For now, workflow definitions are hardcoded
-    // Return error indicating this operation is not yet supported
-    Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Creating custom workflow definitions is not yet supported. Use predefined workflows: kebutuhan_bmn, pemakaian_bmn, penghapusan_bmn, pakaian_dinas".to_string(),
-    ))
-}
-
-/// PUT /api/v1/workflow/definitions/{name}
-///
-/// Update an existing workflow definition
-pub async fn update_workflow_definition(
-    State(_state): State<AppState>,
-    Path(_name): Path<String>,
-    Json(_request): Json<UpdateWorkflowRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    // For now, workflow definitions are hardcoded
-    // Return error indicating this operation is not yet supported
-    Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Updating workflow definitions is not yet supported. Workflow configurations are managed in code.".to_string(),
-    ))
-}
-
-/// DELETE /api/v1/workflow/definitions/{name}
-///
-/// Delete a workflow definition
-pub async fn delete_workflow_definition(
-    State(_state): State<AppState>,
-    Path(_name): Path<String>,
-) -> Result<impl IntoResponse, AppError> {
-    // For now, workflow definitions are hardcoded
-    // Return error indicating this operation is not yet supported
-    Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Deleting workflow definitions is not supported. Workflow configurations are managed in code.".to_string(),
-    ))
-}
-
-/// POST /api/v1/workflow/definitions/{name}/steps
-///
-/// Add or update a workflow step
-pub async fn upsert_workflow_step(
-    State(_state): State<AppState>,
-    Path(_workflow_name): Path<String>,
-    Json(_request): Json<UpsertStepRequest>,
-) -> Result<impl IntoResponse, AppError> {
-    // For now, workflow definitions are hardcoded
-    // Return error indicating this operation is not yet supported
-    Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Modifying workflow steps is not yet supported. Workflow configurations are managed in code.".to_string(),
-    ))
-}
-
-/// DELETE /api/v1/workflow/definitions/{name}/steps/{state}
-///
-/// Delete a workflow step
-pub async fn delete_workflow_step(
-    State(_state): State<AppState>,
-    Path((_workflow_name, _state_name)): Path<(String, String)>,
-) -> Result<impl IntoResponse, AppError> {
-    // For now, workflow definitions are hardcoded
-    // Return error indicating this operation is not yet supported
-    Err::<(StatusCode, Json<ApiResponse<()>>), AppError>(AppError::BadRequest(
-        "Deleting workflow steps is not supported. Workflow configurations are managed in code."
-            .to_string(),
-    ))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
