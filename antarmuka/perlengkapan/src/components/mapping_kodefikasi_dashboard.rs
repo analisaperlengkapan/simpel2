@@ -42,27 +42,64 @@ async fn query_mapping_progress(_: ()) -> Option<MappingProgress> {
 }
 
 async fn fetch_mapping_progress() -> Result<MappingProgress, String> {
-    let response = gloo_net::http::Request::get("/api/v1/perlengkapan/mapping/progress")
-        .send()
+    // `api_get` attaches the bearer token; `/mapping/progress` is authenticated
+    // server-side, so a bare `gloo_net` request would now come back 401.
+    crate::api::client::api_get::<MappingProgress>("/mapping/progress")
         .await
-        .map_err(|e| format!("Request failed: {}", e))?;
-
-    if !response.ok() {
-        return Err(format!("HTTP error: {}", response.status()));
-    }
-
-    response
-        .json::<MappingProgress>()
-        .await
-        .map_err(|e| format!("JSON parse error: {}", e))
+        .map_err(|e| e.to_string())
 }
 
-fn download_export(format: &str) {
-    if let Some(window) = web_sys::window() {
-        let url = format!("/api/v1/perlengkapan/mapping/export?format={}", format);
-        let _ = window.open_with_url(&url);
-    }
+/// `/mapping/export` is authenticated, and a plain `window.open` navigation
+/// cannot carry an `Authorization` header — it would just 401. So fetch the
+/// bytes with auth, wrap them in a blob, then click a synthetic anchor (same
+/// shape as `laporan_kebutuhan_bmn::download_export`).
+///
+/// NOTE: the `format` param is sent for URL compatibility, but the backend
+/// (`mapping_kodefikasi::handlers::export_mapping`) ignores it and always
+/// returns CSV — hence the `.csv` filename regardless of the button pressed.
+#[cfg(target_arch = "wasm32")]
+fn download_export(format: &'static str) {
+    use wasm_bindgen::JsCast;
+    use web_sys::{Blob, BlobPropertyBag, Url};
+
+    leptos::task::spawn_local(async move {
+        let url = format!(
+            "{}/mapping/export?format={}",
+            crate::api::client::API_BASE,
+            format
+        );
+        let bytes = match crate::api::client::auth_get_binary(&url).await {
+            Ok(b) => b,
+            Err(e) => {
+                leptos::logging::error!("export mapping {format} gagal: {e}");
+                return;
+            }
+        };
+        let array = js_sys::Uint8Array::from(bytes.as_slice());
+        let parts = js_sys::Array::new();
+        parts.push(&array);
+        let opts = BlobPropertyBag::new();
+        opts.set_type("text/csv;charset=utf-8");
+        let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else {
+            return;
+        };
+        let Ok(object_url) = Url::create_object_url_with_blob(&blob) else {
+            return;
+        };
+        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+            if let Ok(a) = doc.create_element("a") {
+                let a: web_sys::HtmlAnchorElement = a.unchecked_into();
+                a.set_href(&object_url);
+                a.set_download("mapping_kodefikasi.csv");
+                a.click();
+            }
+        }
+        let _ = Url::revoke_object_url(&object_url);
+    });
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn download_export(_format: &'static str) {}
 
 #[component]
 pub fn MappingKodefikasiDashboard() -> impl IntoView {

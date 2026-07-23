@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 use crate::{AppState, workflow::config::WorkflowConfig};
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -108,6 +109,7 @@ pub struct UpsertStepRequest {
 /// Get all workflow definitions
 pub async fn get_workflow_definitions(
     State(_state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     // For now, return the hardcoded workflow definitions
     // In the future, this could be stored in the database
@@ -127,6 +129,7 @@ pub async fn get_workflow_definitions(
 pub async fn get_workflow_definition_by_name(
     State(_state): State<AppState>,
     Path(name): Path<String>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let config = match name.as_str() {
         "kebutuhan_bmn" => WorkflowConfig::default_kebutuhan_bmn(),

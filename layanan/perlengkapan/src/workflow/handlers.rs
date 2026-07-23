@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::AppState;
 use crate::shared::error::AppError;
+use crate::shared::middleware::Claims;
 use crate::workflow::monitoring::{WorkflowMonitor, WorkflowSummary};
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -51,6 +52,7 @@ impl<T: Serialize> ApiResponse<T> {
 /// Get overall workflow metrics for monitoring dashboard
 pub async fn get_workflow_metrics(
     State(state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
@@ -67,6 +69,7 @@ pub async fn get_workflow_metrics(
 /// Get list of active workflows
 pub async fn get_active_workflows(
     State(state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
@@ -100,6 +103,7 @@ pub async fn get_active_workflows(
 /// Get list of workflows that have breached SLA
 pub async fn get_sla_breaches(
     State(state): State<AppState>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
@@ -124,7 +128,10 @@ pub async fn get_sla_breaches(
 /// GET /api/v1/workflow/monitoring/bottlenecks
 ///
 /// Get list of workflow bottlenecks
-pub async fn get_bottlenecks(State(state): State<AppState>) -> Result<impl IntoResponse, AppError> {
+pub async fn get_bottlenecks(
+    State(state): State<AppState>,
+    _claims: Claims,
+) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
     let bottlenecks = monitor
