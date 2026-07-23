@@ -30,6 +30,11 @@ env:
   # exhausted memory/FDs, causing intermittent "could not parse/
   # generate dep info at: target/.../X.d: No such file" errors.
   CARGO_BUILD_JOBS: "4"
+  # In-cluster microk8s registry, addressed by NODE IP on purpose: ARC runner
+  # pods run with dnsPolicy None + public resolvers, so cluster DNS names do not
+  # resolve. Used only to hand e2e images from `e2e-build-images` to the six e2e
+  # jobs (#111) — never a source of release artifacts.
+  E2E_REGISTRY: "172.15.10.252:32000"
 
 jobs:
   # ─────────────────────────────────────────────────────
@@ -1142,6 +1147,76 @@ jobs:
   # trunk-built dist via Playwright `webServer` (or a docker-compose) + run
   # authenc/perlengkapan + postgres, point baseURL at it; (2) set repo variable
   # E2E_PERLENGKAPAN_ENABLED=true. After that these become blocking via ci-summary.
+  # ── BUILD ONCE, PULL SIX TIMES (#111) ────────────────────────────────────
+  # Every e2e job used to run its own `docker compose build`, so one PR issued
+  # up to six independent multi-stage Rust/WASM builds of the SAME images, and
+  # two open PRs made twelve. Combined with a dind sidecar that had no resource
+  # limits at all, that drove simple02 to loadavg 311 and produced ~90-minute
+  # red jobs that never executed a single assertion.
+  #
+  # Images are pushed to the in-cluster microk8s registry, addressed BY NODE IP
+  # (172.15.10.252:32000): runner pods use dnsPolicy None with public resolvers,
+  # so *.svc.cluster.local does not resolve. dind carries the matching
+  # --insecure-registry flag (infra/helm/arc/values-runner-set.yaml).
+  #
+  # The `e2e/` repository prefix is deliberate and load-bearing: the authenc
+  # image here is built with CAPTCHA_DEBUG=1 (docker-compose.e2e.yml), so it
+  # must never be confusable with the `simpelv2/` images that get promoted to
+  # staging and production. Same reason these are tagged by commit SHA and
+  # never `latest`.
+  #
+  # NOT cached across PRs on purpose: buildx gha cache already handles layer
+  # reuse. What this removes is duplicated CPU inside a single run.
+  e2e-build-images:
+    name: Build e2e images (once, shared)
+    needs: [detect]
+    if: |
+      !cancelled() &&
+      (
+        github.event.inputs.run_e2e == 'true' ||
+        (
+          (vars.E2E_PORTAL_ENABLED == 'true' ||
+           vars.E2E_PERLENGKAPAN_ENABLED == 'true' ||
+           vars.E2E_INTEGRATION_ENABLED == 'true') &&
+          (needs.detect.outputs.rust-frontend == 'true' ||
+           needs.detect.outputs.rust-backend == 'true' ||
+           needs.detect.outputs.e2e == 'true')
+        )
+      )
+    runs-on: arc-simpel
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Docker Compose v2 plugin
+        run: |
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL \
+            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
+            -o "$HOME/.docker/cli-plugins/docker-compose"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      - name: Build every e2e image once
+        env:
+          POSTGRES_PASSWORD: e2e_test_pw
+          SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
+        run: |
+          # Union of what the six e2e jobs consume. Both compose files, so the
+          # authenc image gets the CAPTCHA_DEBUG=1 build arg the e2e suites need.
+          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
+              authenc secreton gateway layanan-integrasi layanan-perlengkapan \
+              perlengkapan portal; then
+            echo "::error::shared e2e image build failed or timed out after 5400s"
+            exit 1
+          fi
+      - name: Push to in-cluster registry
+        run: |
+          set -euo pipefail
+          for img in simpel2-authenc simpel2-secreton simpel2-gateway \
+                     simpel2-integrasi simpel2-layanan-perlengkapan \
+                     simpel2-perlengkapan simpel2-portal; do
+            docker tag "${img}:local" "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker push "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+          done
+
   e2e-portal:
     name: E2E Playwright (portal)
     # Portal smoke = portal FE + authenc only (login via real authenc, proxy
@@ -1150,7 +1225,7 @@ jobs:
     # e2e job builds its own stack via compose); monolith adds no signal here.
     # A full cross-app SSO e2e incl. simpelv1 belongs to the comprehensive
     # staging suite (F5-C) — add monolith back there deliberately.
-    needs: [detect, build-antarmuka-portal, build-backend]
+    needs: [e2e-build-images, detect, build-antarmuka-portal, build-backend]
     # F5-C: real stack bring-up (portal FE + authenc with captcha-debug) via
     # compose, mirroring e2e-perlengkapan. The portal specs proxy /api/** to
     # authenc via Playwright page.route(), so the portal nginx proxy is NOT on
@@ -1167,7 +1242,8 @@ jobs:
           needs.detect.outputs.e2e == 'true'))
       ) &&
       needs.build-antarmuka-portal.result != 'failure' &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v7
@@ -1183,7 +1259,7 @@ jobs:
       # SIMPELV1_APP_KEY is required by compose interpolation (the simpelv1
       # service declares ${SIMPELV1_APP_KEY:?...}) even though we do NOT bring
       # simpelv1 up here — set a throwaway value so `docker compose` can load.
-      - name: Build e2e images (authenc + portal + integrasi)
+      - name: Pull shared e2e images (authenc + portal + integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
@@ -1193,11 +1269,14 @@ jobs:
           # (shared with the layanan-integrasi service). Without it the
           # bring-up dies with "simpel2-integrasi:local: not found" — proven
           # on the first real run of this job (CI run 28557595484).
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc portal layanan-integrasi; then
-            echo "::error::portal e2e image build failed or timed out after 5400s"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          for img in simpel2-authenc simpel2-portal simpel2-integrasi; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -1286,7 +1365,7 @@ jobs:
     # Compose stack = authenc + perlengkapan + integrasi + secreton + postgres +
     # redis (NO simpelv1) → no dependency on build-monolith-assets (Vite). The
     # build-* needs are fail-fast gates only (the job builds its own stack).
-    needs: [detect, build-antarmuka-perlengkapan, build-backend]
+    needs: [e2e-build-images, detect, build-antarmuka-perlengkapan, build-backend]
     # Self-contained (compose builds the stack) — see e2e-portal note above.
     # Blocking gate via E2E_PERLENGKAPAN_ENABLED, but only when perlengkapan FE or any Rust
     # backend actually changed (skips → SKIP, non-blocking, on docs/infra-only
@@ -1302,7 +1381,8 @@ jobs:
           needs.detect.outputs.e2e == 'true'))
       ) &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v7
@@ -1340,16 +1420,19 @@ jobs:
       # legit cold build of all 5 images is ~50min, so 90min (5400s) catches a
       # true hang while leaving generous headroom under host contention. (The
       # apt fetches are also hardened with retries+timeouts in the Dockerfiles.)
-      - name: Build e2e images
+      - name: Pull shared e2e images
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc secreton layanan-integrasi layanan-perlengkapan perlengkapan; then
-            echo "::error::e2e image build failed or timed out after 5400s (a Dockerfile step — often an apt-get fetch in dind — likely hung; see build log above)"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -1569,7 +1652,7 @@ jobs:
   # NOT in ci-summary.needs. Needs BOTH FE builds + the backend.
   e2e-portal-cross-app:
     name: E2E Cross-app SSO (portal ↔ perlengkapan, single-origin)
-    needs: [detect, build-antarmuka-portal, build-antarmuka-perlengkapan, build-backend]
+    needs: [e2e-build-images, detect, build-antarmuka-portal, build-antarmuka-perlengkapan, build-backend]
     if: |
       !cancelled() &&
       (
@@ -1581,7 +1664,8 @@ jobs:
       ) &&
       needs.build-antarmuka-portal.result != 'failure' &&
       needs.build-antarmuka-perlengkapan.result != 'failure' &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     env:
       POSTGRES_PASSWORD: e2e_test_pw
@@ -1596,16 +1680,25 @@ jobs:
             -o "$HOME/.docker/cli-plugins/docker-compose"
           chmod +x "$HOME/.docker/cli-plugins/docker-compose"
           docker compose version
-      - name: Build e2e images (both FEs + backend)
+      - name: Pull shared e2e images (both FEs + backend)
         run: |
           # authenc built with captcha-debug (e2e overlay) so the real login can
           # solve the captcha headlessly. layanan-integrasi is needed because
           # layanan-perlengkapan depends_on it (boot-race fix).
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc layanan-integrasi layanan-perlengkapan perlengkapan portal; then
-            echo "::error::cross-app e2e image build failed or timed out after 5400s"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          # simpel2-secreton is NOT optional here even though `secreton` is not
+          # named in the `up -d` below: `layanan-integrasi` declares
+          # depends_on: secreton, so compose pulls it into the graph. Without
+          # the image present, compose silently falls back to BUILDING it from
+          # source, which blows the 600s bound — the first revision of this
+          # loop omitted it and that is exactly what happened.
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-layanan-perlengkapan simpel2-perlengkapan simpel2-portal; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up single-origin stack (bounded)
         run: |
           # --profile cross-app pulls in the cross-app-ingress service.
@@ -1682,7 +1775,7 @@ jobs:
     # context, so it is copied into the build context and located via
     # INTEGRASI_PROTO_PATH. Gated by E2E_INTEGRATION_ENABLED; run_e2e dispatch
     # always runs.
-    needs: [detect, build-backend]
+    needs: [e2e-build-images, detect, build-backend]
     if: |
       !cancelled() &&
       (
@@ -1691,7 +1784,8 @@ jobs:
          (needs.detect.outputs.rust-backend == 'true' ||
           needs.detect.outputs.e2e == 'true'))
       ) &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v7
@@ -1703,16 +1797,19 @@ jobs:
             -o "$HOME/.docker/cli-plugins/docker-compose"
           chmod +x "$HOME/.docker/cli-plugins/docker-compose"
           docker compose version
-      - name: Build e2e images (authenc + secreton + layanan-integrasi)
+      - name: Pull shared e2e images (authenc + secreton + layanan-integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc secreton layanan-integrasi; then
-            echo "::error::integration e2e image build failed or timed out after 5400s"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up e2e stack (bounded)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -1806,7 +1903,7 @@ jobs:
   # ci-summary.needs (opt-in integration job, mirrors e2e-integrasi-authenc).
   e2e-secreton-gateway:
     name: E2E Secreton bootstrap ↔ Gateway (init/unseal/seed)
-    needs: [detect, build-backend]
+    needs: [e2e-build-images, detect, build-backend]
     if: |
       !cancelled() &&
       (
@@ -1815,7 +1912,8 @@ jobs:
          (needs.detect.outputs.rust-backend == 'true' ||
           needs.detect.outputs.e2e == 'true'))
       ) &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     env:
       POSTGRES_PASSWORD: e2e_test_pw
@@ -1835,11 +1933,14 @@ jobs:
           # gateway depends_on authenc + layanan-integrasi (service_started), so
           # they must exist even though the bootstrap only exercises the secreton
           # channel (gateway gRPC channels are lazy — connect_lazy).
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              secreton gateway authenc layanan-integrasi; then
-            echo "::error::secreton-gateway e2e image build failed or timed out after 5400s"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          for img in simpel2-secreton simpel2-gateway simpel2-authenc simpel2-integrasi; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up core stack (bounded)
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
@@ -1894,7 +1995,7 @@ jobs:
   # E2E_INTEGRATION_ENABLED / run_e2e. NOT in ci-summary.needs (opt-in).
   e2e-simpelv1-integration:
     name: E2E simpelv1 ↔ gateway (authenc + secreton + integrasi, live)
-    needs: [detect, build-backend]
+    needs: [e2e-build-images, detect, build-backend]
     if: |
       !cancelled() &&
       (
@@ -1904,7 +2005,8 @@ jobs:
           needs.detect.outputs.monolith-php == 'true' ||
           needs.detect.outputs.e2e == 'true'))
       ) &&
-      needs.build-backend.result != 'failure'
+      needs.build-backend.result != 'failure' &&
+      needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
     env:
       POSTGRES_PASSWORD: e2e_test_pw
@@ -1921,11 +2023,14 @@ jobs:
           docker compose version
       - name: Build images (authenc + secreton + layanan-integrasi + gateway)
         run: |
-          if ! timeout 5400 docker compose -f docker-compose.yml -f docker-compose.e2e.yml build \
-              authenc secreton layanan-integrasi gateway; then
-            echo "::error::simpelv1-integration image build failed or timed out after 5400s"
-            exit 1
-          fi
+          # Images come from the shared `e2e-build-images` job (#111); this job
+          # used to rebuild them itself, which is why one PR issued up to six
+          # identical multi-stage builds.
+          set -euo pipefail
+          for img in simpel2-authenc simpel2-secreton simpel2-integrasi simpel2-gateway; do
+            docker pull "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}"
+            docker tag "${E2E_REGISTRY}/e2e/${img}:${GITHUB_SHA}" "${img}:local"
+          done
       - name: Bring up core stack (bounded)
         run: |
           if ! timeout 600 docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d \
