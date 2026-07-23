@@ -196,21 +196,35 @@ Gunakan token Tailwind, **jangan** tulis `z-[70]` / `z-[9999]`:
 | `z-modal` | 80 | Dialog, drawer |
 | `z-toast` | 90 | Notification overlay |
 
-### Routing (phase 8a)
+### Routing — enum typed DIHAPUS (2026-07-19)
 
-URL strings hardcoded di `<A href="/perlengkapan/...">` mendrift dengan
-mudah. Gunakan typed enums:
+`lib/ui/src/routes/` (`PerlengkapanRoute`, `PortalRoute`, `ToPath`) **sudah
+dihapus**. Bagian ini dulu menganjurkannya sebagai penangkal URL drift.
+Kenyataannya kebalikannya.
 
-```rust
-use lib_ui::prelude::*;
+Modul itu mendarat spekulatif — doc-nya sendiri mengakui "call-sites can adopt
+it incrementally" dan wrapper `<AppLink>`-nya "lands once the workspace build
+is healthy enough to verify it". Adopsi itu tidak pernah terjadi: **nol**
+konsumen nyata, satu-satunya yang menyebutnya adalah baris re-export di
+`prelude` itu sendiri.
 
-let url = PerlengkapanRoute::KebutuhanDetail { id: bmn_id }.to_path();
-view! { <A href=url>"Lihat detail"</A> }
-```
+Dan karena tak pernah dipakai, tak ada yang menyadari **setiap** path di
+`PerlengkapanRoute` kehilangan segmen `/simpel/v2` — aplikasi disajikan di
+`/perlengkapan/simpel/v2/`, enum-nya menghasilkan `/perlengkapan/...`.
+Doctest-nya meng-assert path yang salah itu dan ber-tag ```ignore``` sehingga
+tak pernah dijalankan. Jadi abstraksi yang dijual sebagai "compile-time-checked,
+tidak ada typo URL yang lolos sampai runtime" justru menyimpan URL salah
+secara seragam, tampak kanonik, siap disalin orang berikutnya.
 
-Setara dengan Laravel `route('users.show', $id)` atau Next.js
-`Link href="/users/[id]"` — tapi compile-time-checked, jadi tidak ada
-typo URL yang lolos sampai runtime.
+**Pola yang benar (dipakai sungguhan):** konstanta terpusat di crate app,
+`antarmuka/perlengkapan/src/routes.rs` — satu tempat untuk prefix, dan
+di-enforce oleh gate `tests/e2e/route-coverage.mjs` yang menuntut tiap rute
+punya minimal satu e2e. URL aset bukan rute; taruh di `src/assets.rs`, bukan
+di `routes.rs`.
+
+Pelajaran umumnya: abstraksi bersama yang tidak dipakai siapa pun tidak netral
+— ia lebih buruk daripada tidak ada, karena tampak berwibawa tanpa pernah
+diuji apa pun.
 
 ### Layout / routing mental-model
 
