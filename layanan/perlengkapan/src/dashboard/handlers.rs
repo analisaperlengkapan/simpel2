@@ -39,6 +39,10 @@ pub async fn get_dashboard_stats(
 pub async fn get_perlengkapan_dashboard_metrics(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
+    // Nationwide perlengkapan aggregates. There is no auth middleware layer on
+    // this router — `Claims` IS the gate (see shared/middleware) — so omitting
+    // it published this data to anyone who could reach the service.
+    _claims: Claims,
 ) -> Result<Json<PerlengkapanDashboardMetrics>, AppError> {
     let metrics = state
         .dashboard_service
@@ -61,6 +65,7 @@ pub async fn get_perlengkapan_dashboard_metrics(
 pub async fn export_dashboard_excel(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     // Get dashboard metrics
     let metrics = state
@@ -104,6 +109,7 @@ pub async fn export_dashboard_excel(
 pub async fn export_dashboard_pdf(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
+    _claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
     // Get dashboard metrics
     let metrics = state

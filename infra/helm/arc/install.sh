@@ -41,6 +41,35 @@ kubectl create namespace "${RUNNER_NS}" --dry-run=client -o yaml | kubectl apply
 kubectl label namespace "${RUNNER_NS}" \
   pod-security.kubernetes.io/enforce=privileged --overwrite
 
+echo "==> PriorityClass arc-ci-runner (cluster-scoped)"
+# Runner CI berbagi node dengan produksi, jadi butuh urutan mengalah yang tegas.
+#
+# NILAI NEGATIF, dan itu disengaja: pod tanpa priorityClassName bernilai 0.
+# Kelas positif berapa pun akan membuat runner MENGALAHKAN pod produksi yang
+# tak punya kelas — kebalikan dari yang kita mau. -100 menaruh runner di bawah
+# segalanya tanpa perlu menyentuh satu pun manifest produksi.
+#
+# preemptionPolicy: Never → runner tak pernah menggusur pod lain; ia hanya bisa
+# digusur. Beban lain (default PreemptLowerPriority) bebas mengambil kembali
+# resource dengan menggusur runner saat butuh menjadwal.
+#
+# Chart gha-runner-scale-set upstream tak men-template PriorityClass, dan objek
+# ini cluster-scoped — jadi tempatnya di sini, sederet dgn namespace & label PSA
+# yang juga prasyarat. Idempotent (apply).
+kubectl apply -f - <<'EOF'
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: arc-ci-runner
+value: -100
+globalDefault: false
+preemptionPolicy: Never
+description: >-
+  Runner CI ephemeral (ARC). Nilai negatif = di bawah setiap beban lain,
+  termasuk pod produksi tanpa priorityClassName (yang bernilai 0). Runner
+  mengalah agar produksi bisa memakai kapasitas kedua node kapan pun perlu.
+EOF
+
 echo "==> Secret PAT (arc-github-token) di ${RUNNER_NS}"
 kubectl create secret generic arc-github-token \
   --namespace "${RUNNER_NS}" \

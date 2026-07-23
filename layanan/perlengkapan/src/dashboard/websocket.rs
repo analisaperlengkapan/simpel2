@@ -5,10 +5,10 @@
 
 use axum::{
     extract::{
-        State,
+        Query, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
     },
-    response::Response,
+    response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast;
@@ -16,6 +16,24 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use crate::AppState;
+use crate::shared::error::AppError;
+use crate::shared::grpc::clients::AuthencClient;
+
+/// Auth for the dashboard stream.
+///
+/// A browser cannot set `Authorization` on a WebSocket handshake — the API has
+/// no header parameter — so the token travels as a query parameter instead.
+/// That is the standard workaround, but it has a real cost: query strings land
+/// in access logs and proxy logs in a way headers do not. Mitigations:
+/// the token is short-lived, is never logged by this handler, and is validated
+/// BEFORE the upgrade so an unauthenticated peer never reaches the broadcast.
+///
+/// The alternative — upgrade first, then demand auth in the first frame —
+/// leaves a socket open to an unauthenticated peer, which is worse.
+#[derive(Debug, Deserialize)]
+pub struct DashboardWsAuth {
+    pub token: String,
+}
 
 /// Dashboard update message types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,7 +79,29 @@ pub enum DashboardUpdate {
 pub async fn dashboard_websocket_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
+    Query(auth): Query<DashboardWsAuth>,
 ) -> Response {
+    // Validate BEFORE upgrading. This endpoint used to accept every peer: it
+    // took no `Claims`, and this router has no auth middleware layer (`Claims`
+    // is the gate), so the dashboard stream was open to anyone who could reach
+    // the service.
+    let authenc: AuthencClient = axum::extract::FromRef::from_ref(&state);
+    match authenc.validate_token(&auth.token).await {
+        Ok(resp) if resp.valid => {}
+        Ok(resp) => {
+            // Never echo the token itself.
+            info!("dashboard ws: rejected invalid token");
+            return AppError::Authentication(
+                resp.error.unwrap_or_else(|| "Invalid token".to_string()),
+            )
+            .into_response();
+        }
+        Err(e) => {
+            warn!("dashboard ws: token validation failed: {}", e);
+            return AppError::Authentication("Token validation failed".to_string()).into_response();
+        }
+    }
+
     info!("New WebSocket connection request for dashboard updates");
     ws.on_upgrade(|socket| handle_dashboard_socket(socket, state))
 }
