@@ -13,6 +13,11 @@ use super::*;
 pub struct WorkflowTransitionInfo {
     pub status: String,
     pub label: String,
+    /// Imperative label for the control that performs this move
+    /// (`PemakaianBmnAction::action_label`). `label` names the resulting state;
+    /// a button needs the command form. Server-authored so the workflow
+    /// vocabulary has one home and the FE renders it verbatim.
+    pub action_label: String,
     pub requires_comment: bool,
 }
 /// Response with permit and allowed transitions

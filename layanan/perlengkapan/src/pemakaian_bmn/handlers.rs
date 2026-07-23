@@ -23,9 +23,24 @@ use super::services::PemakaianBmnService;
 pub async fn get_permit_by_id(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<IzinPemakaianDetailResponse>>, AppError> {
-    let response = service.get_permit_detail(id).await?;
+    use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
+
+    let mut response = service.get_permit_detail(id).await?;
+
+    // The service answers "what may happen next" from the STATE. Narrow it to
+    // "what may THIS caller do" by handing each candidate back to the same
+    // policy the action handlers enforce with — so the API never advertises a
+    // move that would come back 403, and the FE needs no RBAC table of its own.
+    let from_state = response.izin.status.clone();
+    response.allowed_transitions.retain(|t| {
+        PemakaianBmnAction::for_transition(&from_state, &t.status).is_some_and(|action| {
+            PemakaianBmnPolicy
+                .authorize(&claims, action, Some(&from_state))
+                .is_ok()
+        })
+    });
 
     Ok(Json(ApiResponse::success(
         response,

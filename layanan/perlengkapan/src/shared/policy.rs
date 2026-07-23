@@ -139,6 +139,56 @@ pub enum PemakaianBmnAction {
     UpdateDraft,
 }
 
+impl PemakaianBmnAction {
+    /// The action that moves a permit `from` one state `to` another.
+    ///
+    /// Exists so the detail endpoint can narrow `allowed_transitions` — which
+    /// the workflow engine computes from the STATE alone — down to the moves
+    /// the CALLER may actually make, by handing each candidate back to
+    /// [`WorkflowPolicy::allowed_roles`]. Without it the API would advertise a
+    /// button that answers 403, and the FE would have to keep its own copy of
+    /// the RBAC table to avoid showing it.
+    ///
+    /// `None` means no single action performs that move (so nothing is
+    /// offered), NOT that it is permitted.
+    ///
+    /// The two return paths are distinguished by their SOURCE state: only
+    /// Validator Satker can be the one returning from `SUBMITTED`, only
+    /// Approver Satker from `SUBMITTED_APPROVER_SATKER`.
+    pub fn for_transition(from: &str, to: &str) -> Option<Self> {
+        use PemakaianBmnAction::*;
+        match (from, to) {
+            ("DRAFT", "SUBMITTED") => Some(Submit),
+            ("SUBMITTED", "SUBMITTED_APPROVER_SATKER") => Some(ValidatorSatkerForward),
+            ("SUBMITTED", "REVISI_OPERATOR") => Some(ValidatorSatkerReturn),
+            ("SUBMITTED_APPROVER_SATKER", "APPROVED") => Some(ApproverSatkerApprove),
+            ("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR") => Some(ApproverSatkerReturn),
+            ("REVISI_OPERATOR", "SUBMITTED") => Some(Resubmit),
+            ("ACTIVE", "REVOKED") => Some(Revoke),
+            _ => None,
+        }
+    }
+
+    /// Imperative label for the control that performs this action.
+    ///
+    /// Lives beside the action rather than in the frontend so the workflow
+    /// vocabulary has one home; the FE renders it verbatim.
+    pub fn action_label(&self) -> &'static str {
+        use PemakaianBmnAction::*;
+        match self {
+            Create => "Buat Draft",
+            Submit => "Ajukan ke Validator Satker",
+            ValidatorSatkerForward => "Teruskan ke Approver Satker",
+            ValidatorSatkerReturn => "Kembalikan untuk Revisi",
+            ApproverSatkerApprove => "Setujui Izin",
+            ApproverSatkerReturn => "Kembalikan untuk Revisi",
+            Resubmit => "Ajukan Ulang",
+            Revoke => "Cabut Izin",
+            UpdateDraft => "Simpan Draft",
+        }
+    }
+}
+
 pub struct PemakaianBmnPolicy;
 
 impl WorkflowPolicy for PemakaianBmnPolicy {
@@ -415,6 +465,89 @@ mod tests {
             nama: None,
             jabatan: None,
             satker_code: None,
+        }
+    }
+
+    /// `for_transition` must agree with the workflow config, in both
+    /// directions.
+    ///
+    /// Forward: every move the engine calls valid should name an action, or the
+    /// detail endpoint silently drops it and the workflow strands with no
+    /// button. Backward: a pair the engine rejects must NOT name one, or we
+    /// would offer a move the engine then refuses.
+    ///
+    /// This is what catches a hand-written map going stale — an earlier draft
+    /// of it claimed SUBMITTED_APPROVER_SATKER -> ACTIVE, which the config
+    /// explicitly forbids.
+    #[test]
+    fn for_transition_agrees_with_workflow_config() {
+        use crate::workflow::config::WorkflowConfig;
+        let config = WorkflowConfig::default_pemakaian_bmn();
+
+        let states = [
+            "DRAFT",
+            "SUBMITTED",
+            "SUBMITTED_APPROVER_SATKER",
+            "REVISI_OPERATOR",
+            "APPROVED",
+            "ACTIVE",
+            "REVOKED",
+            "EXPIRED",
+            "CANCELLED",
+            "REJECTED",
+        ];
+
+        for from in states {
+            for to in states {
+                let valid = config.is_valid_transition(from, to);
+                let mapped = PemakaianBmnAction::for_transition(from, to).is_some();
+                if mapped {
+                    assert!(
+                        valid,
+                        "for_transition maps {from} -> {to}, but the workflow config rejects it"
+                    );
+                }
+            }
+        }
+
+        // The approval chain specifically must be fully mapped, or a role that
+        // exists in the policy would have no way to act.
+        for (from, to) in [
+            ("DRAFT", "SUBMITTED"),
+            ("SUBMITTED", "SUBMITTED_APPROVER_SATKER"),
+            ("SUBMITTED", "REVISI_OPERATOR"),
+            ("SUBMITTED_APPROVER_SATKER", "APPROVED"),
+            ("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR"),
+            ("REVISI_OPERATOR", "SUBMITTED"),
+        ] {
+            assert!(
+                PemakaianBmnAction::for_transition(from, to).is_some(),
+                "approval-chain move {from} -> {to} has no action"
+            );
+        }
+    }
+
+    /// Each mapped action must also be one the policy grants to somebody in
+    /// that source state — otherwise the detail filter strips it for every
+    /// caller and the button never appears for anyone.
+    #[test]
+    fn every_mapped_transition_is_grantable() {
+        for (from, to) in [
+            ("DRAFT", "SUBMITTED"),
+            ("SUBMITTED", "SUBMITTED_APPROVER_SATKER"),
+            ("SUBMITTED", "REVISI_OPERATOR"),
+            ("SUBMITTED_APPROVER_SATKER", "APPROVED"),
+            ("SUBMITTED_APPROVER_SATKER", "REVISI_OPERATOR"),
+            ("REVISI_OPERATOR", "SUBMITTED"),
+            ("ACTIVE", "REVOKED"),
+        ] {
+            let action = PemakaianBmnAction::for_transition(from, to)
+                .unwrap_or_else(|| panic!("{from} -> {to} unmapped"));
+            let roles = PemakaianBmnPolicy.allowed_roles(action, Some(from));
+            assert!(
+                roles.is_some_and(|r| !r.is_empty()),
+                "{from} -> {to} maps to {action:?} but the policy grants it to nobody"
+            );
         }
     }
 

@@ -16,14 +16,13 @@
  *
  * Stack: brought up via `docker-compose.e2e.yml` (authenc REST on :18088).
  */
-import type { APIRequestContext, BrowserContext } from '@playwright/test';
+import type { APIRequestContext, BrowserContext } from "@playwright/test";
 
 /** authenc REST base — the e2e overlay publishes it on host :18088. */
-export const AUTHENC_URL = process.env.AUTHENC_URL || 'http://localhost:18088';
+export const AUTHENC_URL = process.env.AUTHENC_URL || "http://localhost:18088";
 
 /** Perlengkapan FE base — compose serves it on :3001 (host). */
-export const PERLENGKAPAN_URL =
-  process.env.PERLENGKAPAN_URL || process.env.BASE_URL || 'http://localhost:3001';
+export const PERLENGKAPAN_URL = process.env.PERLENGKAPAN_URL || process.env.BASE_URL || "http://localhost:3001";
 
 /**
  * Perlengkapan BACKEND (layanan-perlengkapan) base — the axum API. RBAC
@@ -33,12 +32,11 @@ export const PERLENGKAPAN_URL =
  * Compose publishes it on host :3020; on the CI compose network it is reachable
  * by service name (`http://layanan-perlengkapan:3020`).
  */
-export const PERLENGKAPAN_API_URL =
-  process.env.PERLENGKAPAN_API_URL || 'http://localhost:3020';
+export const PERLENGKAPAN_API_URL = process.env.PERLENGKAPAN_API_URL || "http://localhost:3020";
 
 /** localStorage key Perlengkapan reads the JWT from (features/auth.rs AUTH_TOKEN_KEY). */
-export const AUTH_TOKEN_KEY = 'auth_token';
-export const REFRESH_TOKEN_KEY = 'refresh_token';
+export const AUTH_TOKEN_KEY = "auth_token";
+export const REFRESH_TOKEN_KEY = "refresh_token";
 
 export interface SeedCredentials {
   username: string;
@@ -47,8 +45,8 @@ export interface SeedCredentials {
 
 /** The single seed user (has all four perlengkapan roles incl. admin). */
 export const SEED_USER: SeedCredentials = {
-  username: '199203142014031001',
-  password: '199203142014031001',
+  username: "199203142014031001",
+  password: "199203142014031001",
 };
 
 export interface LoginTokens {
@@ -60,13 +58,10 @@ export interface LoginTokens {
  * Log in via the real authenc REST API and return the JWT pair.
  * Throws if authenc is unreachable or the response lacks an access token.
  */
-export async function apiLogin(
-  request: APIRequestContext,
-  creds: SeedCredentials = SEED_USER,
-): Promise<LoginTokens> {
+export async function apiLogin(request: APIRequestContext, creds: SeedCredentials = SEED_USER): Promise<LoginTokens> {
   const resp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
     data: { username: creds.username, password: creds.password },
-    headers: { 'Content-Type': 'application/json' },
+    headers: { "Content-Type": "application/json" },
   });
   if (!resp.ok()) {
     throw new Error(
@@ -80,7 +75,7 @@ export async function apiLogin(
         `require_password_change=${body.require_password_change}): ${JSON.stringify(body)}`,
     );
   }
-  return { accessToken: body.access_token, refreshToken: body.refresh_token ?? '' };
+  return { accessToken: body.access_token, refreshToken: body.refresh_token ?? "" };
 }
 
 /**
@@ -88,14 +83,11 @@ export async function apiLogin(
  * write the JWT into Perlengkapan's localStorage on its own origin (storageState
  * captures localStorage, so derived projects start authenticated).
  */
-export async function seedRealAuth(
-  context: BrowserContext,
-  creds: SeedCredentials = SEED_USER,
-): Promise<LoginTokens> {
+export async function seedRealAuth(context: BrowserContext, creds: SeedCredentials = SEED_USER): Promise<LoginTokens> {
   const tokens = await apiLogin(context.request, creds);
   const page = await context.newPage();
   // Must be on the target origin before touching its localStorage.
-  await page.goto(PERLENGKAPAN_URL, { waitUntil: 'domcontentloaded' });
+  await page.goto(PERLENGKAPAN_URL, { waitUntil: "domcontentloaded" });
   await page.evaluate(
     ({ accessKey, refreshKey, access, refresh }) => {
       localStorage.setItem(accessKey, access);
@@ -145,43 +137,62 @@ export interface ScopedTestUser {
   allowedKdsatkerKeu: string[];
 }
 
-const KD_JAKPUS = '006019999010001KD';
-const KD_JAKSEL = '006019999020001KD';
-const KD_BANDUNG = '006018888010001KD';
+const KD_JAKPUS = "006019999010001KD";
+const KD_JAKSEL = "006019999020001KD";
+const KD_BANDUNG = "006018888010001KD";
 
 /** All four per-role scoping users from the multi-satker seed. */
 export const TEST_USERS: ScopedTestUser[] = [
   {
-    key: 'operator_a',
-    username: '200000000000000001',
-    role: 'operator_satker',
-    satkerCode: '0200010',
+    key: "operator_a",
+    username: "200000000000000001",
+    role: "operator_satker",
+    satkerCode: "0200010",
     expectedAsetCount: 2,
     allowedKdsatkerKeu: [KD_JAKPUS],
   },
   {
-    key: 'operator_b',
-    username: '200000000000000002',
-    role: 'operator_satker',
-    satkerCode: '0200020',
+    key: "operator_b",
+    username: "200000000000000002",
+    role: "operator_satker",
+    satkerCode: "0200020",
     expectedAsetCount: 2,
     allowedKdsatkerKeu: [KD_JAKSEL],
   },
   {
-    key: 'validator_wilayah',
-    username: '200000000000000003',
-    role: 'validator_wilayah',
-    satkerCode: '0200010',
+    key: "validator_wilayah",
+    username: "200000000000000003",
+    role: "validator_wilayah",
+    satkerCode: "0200010",
     expectedAsetCount: 4,
     allowedKdsatkerKeu: [KD_JAKPUS, KD_JAKSEL],
   },
   {
-    key: 'validator_pusat',
-    username: '200000000000000004',
-    role: 'validator_pusat',
-    satkerCode: '0100000',
+    key: "validator_pusat",
+    username: "200000000000000004",
+    role: "validator_pusat",
+    satkerCode: "0100000",
     expectedAsetCount: 5,
     allowedKdsatkerKeu: [KD_JAKPUS, KD_JAKSEL, KD_BANDUNG],
+  },
+  // Satker-internal approval chain (#96). Both sit in 0200010 with operator_a:
+  // the Pemakaian chain is satker-internal, so validator and approver are the
+  // operator's own colleagues and see exactly the same 2 assets.
+  {
+    key: "validator_satker",
+    username: "200000000000000006",
+    role: "validator_satker",
+    satkerCode: "0200010",
+    expectedAsetCount: 2,
+    allowedKdsatkerKeu: [KD_JAKPUS],
+  },
+  {
+    key: "approver_satker",
+    username: "200000000000000007",
+    role: "approver_satker",
+    satkerCode: "0200010",
+    expectedAsetCount: 2,
+    allowedKdsatkerKeu: [KD_JAKPUS],
   },
 ];
 
@@ -236,15 +247,10 @@ export async function bankAsetList(
   token: string | null,
   query: Record<string, string | number> = {},
 ) {
-  const params = new URLSearchParams(
-    Object.entries({ per_page: 200, ...query }).map(([k, v]) => [k, String(v)]),
-  );
+  const params = new URLSearchParams(Object.entries({ per_page: 200, ...query }).map(([k, v]) => [k, String(v)]));
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  return request.get(
-    `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/bank-aset?${params.toString()}`,
-    { headers },
-  );
+  return request.get(`${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/bank-aset?${params.toString()}`, { headers });
 }
 
 /** As {@link bankAsetList} but parses and returns the `PaginatedResponse` body. */
@@ -261,15 +267,10 @@ export async function bankAsetListJson(
 }
 
 /** Call `GET /api/v1/perlengkapan/bank-aset/{id}` with a Bearer token. */
-export async function bankAsetDetail(
-  request: APIRequestContext,
-  token: string,
-  id: string,
-) {
-  return request.get(
-    `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/bank-aset/${id}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+export async function bankAsetDetail(request: APIRequestContext, token: string, id: string) {
+  return request.get(`${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/bank-aset/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 /**
@@ -280,10 +281,7 @@ export async function bankAsetDetail(
  * which uses the narrower `is_admin()` (so validator_pusat is denied the UI but
  * allowed the API).
  */
-export async function adminMasterList(
-  request: APIRequestContext,
-  token: string | null,
-) {
+export async function adminMasterList(request: APIRequestContext, token: string | null) {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
   return request.get(`${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/admin/master`, {
@@ -306,15 +304,14 @@ export interface JwtIdentity {
  * job (authenc gRPC `ValidateToken`); here we only inspect the claims.
  */
 export function decodeJwtIdentity(token: string): JwtIdentity {
-  const part = token.split('.')[1];
-  if (!part) throw new Error('not a JWT (missing payload segment)');
-  const json = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+  const part = token.split(".")[1];
+  if (!part) throw new Error("not a JWT (missing payload segment)");
+  const json = Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
   const claims = JSON.parse(json) as Record<string, unknown>;
-  const satkerCode =
-    (claims.satker_code as string | undefined) ?? (claims.satker as string | undefined);
+  const satkerCode = (claims.satker_code as string | undefined) ?? (claims.satker as string | undefined);
   const realmAccess = claims.realm_access as { roles?: unknown } | undefined;
   const realmRoles = Array.isArray(realmAccess?.roles)
-    ? (realmAccess!.roles as unknown[]).filter((r): r is string => typeof r === 'string')
+    ? (realmAccess!.roles as unknown[]).filter((r): r is string => typeof r === "string")
     : [];
   return { satkerCode, realmRoles };
 }
