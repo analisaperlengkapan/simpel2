@@ -29,11 +29,40 @@ scaleSetLabels:
   - dependabot
   - dependency-submission
 
-# Skala — dimaksimalkan utk host simple02 (48 vCPU/62 GiB). Diukur saat full CI
-# 15 pod aktif: CPU aktual 15%, mem 19% (47 GiB free), loadavg ~7/48 — beban riil
-# sangat rendah. Pengikat = memory REQUESTS (2Gi/pod). 20 × 2Gi = 40Gi + baseline
-# ~9Gi ≈ 49Gi (~75% allocatable) — aman, sisakan headroom utk staging. Naik lagi
-# diminishing returns (jarang ada >20 job paralel). maxRunners = ceiling (antre).
+# Skala — DIHITUNG ULANG 2026-07-19 (#111). Angka lama (20) berasal dari sizing
+# yang menghitung container YANG SALAH: ia memakai requests container `runner`
+# (2Gi/pod) sebagai pengikat, padahal `dind` — tempat SEMUA `docker build`
+# sebenarnya berjalan — sama sekali tak punya blok `resources:`. Jadi scheduler
+# melihat 20 × 1 CPU = 20/48 ("muat santai") sementara beban nyatanya tak
+# terbatas. Hasil terukur: requests CPU 65% tapi LIMITS 369%, memory limits 387%,
+# loadavg 311 di kotak 48-core, dan e2e gagal di step build setelah ~90 menit
+# tanpa menjalankan satu asersi pun.
+#
+# KOREKSI 2026-07-20: revisi pertama menjawab overcommit itu dgn memotong
+# maxRunners 20→8 — memperlakukan "satu node penuh" sebagai "cluster penuh".
+# Itu salah: runner dipaku ke simple02 lewat nodeSelector, sementara node kedua
+# (simpel.kejaksaan.go.id, 48 vCPU) menganggur di 13% CPU / 2% memori. Yang
+# rusak adalah PENEMPATAN + tiadanya resources dind, bukan jumlah runner.
+# Pin dibuang (lihat topologySpreadConstraints) dan kapasitas kembali ke 20.
+#
+# Anggaran DUA node — diukur 2026-07-20, bukan diperkirakan:
+#   allocatable      2 × 48000m CPU = 96000m ; 2 × 63739Mi = 127478Mi
+#   baseline non-CI  simple02 11690m/11328Mi + prod-node 6670m/1388Mi
+#                    = 18360m / 12716Mi
+#   bebas utk CI     77640m CPU / 114762Mi
+#   per pod requests dind 2 CPU + runner 1 CPU = 3 CPU
+#                    dind 3Gi  + runner 2Gi    = 5Gi
+#   20 pod           60000m CPU (77% dari bebas) + 102400Mi (89% dari bebas)
+#
+# CPU request dind diturunkan 3→2 (limit TETAP 6). Alasannya asimetri yang
+# nyata: CPU itu compressible — request kurang ⇒ throttle. Memori TIDAK —
+# request kurang ⇒ OOMKill (sudah terbukti sekali, lihat blok runner di bawah).
+# Jadi kepadatan dibeli dari angka yang gagal-nya anggun saja; requests memori
+# tidak disentuh.
+#
+# Pengaman produksi BUKAN lagi "sisakan kursi kosong", melainkan
+# priorityClassName: arc-ci-runner (nilai NEGATIF) — produksi menggusur runner
+# saat butuh. Lihat blok priorityClassName di bawah.
 minRunners: 0
 maxRunners: 20
 
@@ -46,6 +75,14 @@ maxRunners: 20
 # CATATAN dind = NATIVE SIDECAR: harus di `initContainers` dgn restartPolicy:Always
 # (K8s melarang restartPolicy di non-init container). JANGAN set `containerMode`.
 template:
+  metadata:
+    # Label ini kita definisikan SENDIRI supaya topologySpreadConstraints di
+    # bawah punya selector yang pasti cocok. ARC tidak menaruh label stabil
+    # apa pun di pod template (`ephemeralRunnerSpec.metadata.labels` = {}), dan
+    # selector yang tak cocok TIDAK error — ia hanya diam-diam tak menyebar.
+    # Dengan mendefinisikan kedua sisi di file ini, keduanya tak bisa berpisah.
+    labels:
+      simpel.ci/runner: "true"
   spec:
     # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
     # ns arc-runners dari simpelv2-staging (PAT read:packages).
@@ -63,8 +100,31 @@ template:
       options:
         - name: ndots
           value: "1"
-    nodeSelector:
-      kubernetes.io/hostname: simple02
+    # Prioritas NEGATIF (-100) — inilah yang membuat "pakai node produksi utk CI"
+    # aman. Pod tanpa priorityClassName bernilai 0, jadi nilai negatif menaruh
+    # runner di bawah SEMUA beban lain: yang sudah punya kelas (staging 100000,
+    # postgres-operator 1000000, longhorn/system jauh di atas) MAUPUN pod
+    # produksi polos yang tak punya kelas sama sekali. Kalau kelas ini positif,
+    # runner justru mengalahkan pod produksi tak-berkelas — persis kebalikan
+    # dari yang diinginkan. preemptionPolicy: Never (di definisi kelasnya)
+    # memastikan runner tak pernah menggusur siapa pun.
+    # Definisi kelas = infra/helm/arc/install.sh (cluster-scoped, seperti
+    # namespace & label PSA di skrip yang sama).
+    # KONSEKUENSI YANG DITERIMA: deploy produksi yang butuh ruang akan menggusur
+    # runner ⇒ job CI-nya MATI di tengah jalan dan harus di-run ulang. Itu
+    # memang pertukaran yang dipilih: produksi menang, CI mengalah.
+    priorityClassName: arc-ci-runner
+    # Sebar rata ke KEDUA node. Pengganti nodeSelector `hostname: simple02` yang
+    # dibuang — pin itu sendiri sumber "satu node 90%, satu node 13%".
+    # whenUnsatisfiable: ScheduleAnyway = sebar kalau bisa, jangan pernah
+    # menahan runner jadi Pending hanya demi kerapian distribusi.
+    topologySpreadConstraints:
+      - maxSkew: 2
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            simpel.ci/runner: "true"
     tolerations:
       - key: dedicated
         operator: Equal
@@ -89,12 +149,34 @@ template:
           # Samakan MTU dgn pod network Calico (vxlan 1450). Default dind 1500
           # > 1450 → transfer besar di `docker build` RUN (apk/curl) stall/gagal.
           - --mtu=1450
+          # Registry in-cluster (microk8s NodePort, HTTP polos) — tujuan push
+          # image e2e "build sekali" (#111). Dialamatkan lewat IP node, BUKAN
+          # nama Service: pod runner memakai dnsPolicy None + resolver publik
+          # (lihat blok dnsConfig di bawah) sehingga nama *.svc.cluster.local
+          # TIDAK bisa di-resolve. Tanpa flag ini push/pull ditolak dgn
+          # "http: server gave HTTP response to HTTPS client".
+          - --insecure-registry=172.15.10.252:32000
         env:
           - name: DOCKER_GROUP_GID
             value: "123"
         securityContext:
           privileged: true
         restartPolicy: Always
+        # WAJIB ADA (#111). Tanpa blok ini dind = 0 request / 0 limit: tak
+        # terlihat scheduler dan tak terbatas saat runtime — padahal DI SINILAH
+        # `docker build` berjalan (runner cuma bicara ke socket). Ini penyebab
+        # overcommit 369% + loadavg 311, bukan jumlah node.
+        # CPU request 3→2 pada 2026-07-20 (limit tetap 6) supaya 20 pod muat di
+        # dua node. Aman karena CPU compressible: kalau semua dind menuntut
+        # bersamaan, cgroup membagi proporsional (build melambat) — tak ada yang
+        # dibunuh. Memori dibiarkan 3Gi/6Gi: itu angka yang gagal-nya keras.
+        resources:
+          requests:
+            cpu: "2"
+            memory: 3Gi
+          limits:
+            cpu: "6"
+            memory: 6Gi
         startupProbe:
           exec:
             command: ["docker", "info"]
@@ -122,13 +204,26 @@ template:
           # Selaras CARGO_BUILD_JOBS di ci.yml (hindari FD exhaustion).
           - name: CARGO_BUILD_JOBS
             value: "4"
+        # Runner mengorkestrasi job & menjalankan cargo/trunk LANGSUNG (build
+        # image berat ada di dind, lihat blok resources-nya). Selisih CPU
+        # request↔limit dipersempit 1→6 menjadi 1→2: rasio lama membuat
+        # scheduler menghitung 1 CPU/pod untuk beban yang boleh menuntut 6.
+        #
+        # MEMORI — DIKOREKSI 2026-07-19, sebelum PR ini di-merge. Revisi pertama
+        # menurunkan limit 10Gi→4Gi berbarengan dgn CPU. Itu terlalu jauh:
+        # pod `arc-simpel-9nthz-runner-drx9g` ter-OOMKill (exit 137) di container
+        # RUNNER — dind & init-nya keluar 0. Wajar: `cargo`/`trunk` jalan DI SINI,
+        # dan 4Gi terbukti bisa tersentuh. Limit dinaikkan ke 8Gi; REQUEST tetap
+        # 2Gi supaya penjadwalan (dan karenanya maxRunners 8) tak berubah —
+        # yang berubah hanya atap, agar lonjakan sesaat tidak membunuh job.
+        # Pelajaran: dua angka diubah sekaligus, satu terbukti salah. Ukur dulu.
         resources:
           requests:
             cpu: "1"
             memory: 2Gi
           limits:
-            cpu: "6"
-            memory: 10Gi
+            cpu: "2"
+            memory: 8Gi
         volumeMounts:
           - name: work
             mountPath: /home/runner/_work
