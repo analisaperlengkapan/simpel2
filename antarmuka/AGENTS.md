@@ -335,6 +335,41 @@ The fetch flow is the same across both MFEs:
    response body on non-2xx and bubble up via `AppError::Unknown(format!("HTTP {}: {}", status, body))`
    so the user sees the actual reason, not just "500".
 
+4. **Response DTO nullability WAJIB cermin backend.** Kalau field di model
+   backend `Option<T>`, di DTO FE **harus** `Option<T>` juga. Kalau ragu,
+   pilih `Option`.
+
+   Alasannya bukan gaya, tapi radius kerusakannya: serde gagal pada
+   **SELURUH** respons begitu satu field required menerima `null`. Satu kolom
+   audit yang null mengosongkan **seluruh halaman**, padahal API-nya
+   sehat — halaman tampak "tidak ada data", bukan error.
+
+   Kejadian nyata (2026-07-19): `IzinPemakaianBmn.created_by`/`created_by_nama`
+   ditulis `String` di FE padahal backend `Option<Uuid>`/`Option<String>` dan
+   skema-nya nullable. Seed e2e tidak mengisi kolom itu → daftar Pemakaian BMN
+   **kosong total** di browser. Semua field audit tetangganya
+   (`approved_by`/`revoked_by`/`updated_by`) sudah `Option` — dua ini
+   satu-satunya yang luput. Ironisnya keduanya **tidak pernah dibaca** UI;
+   mereka ada murni untuk deserialisasi, lalu justru mematahkannya.
+
+   **Kenapa tidak ada gerbang yang menangkap ini:** `cargo check` hijau (tipe
+   FE konsisten dengan dirinya sendiri), `cargo check` backend hijau, dan spec
+   e2e yang memanggil endpoint via `request.get()` juga hijau — karena ia
+   membaca `body.data.map(r => r.id)` sebagai JSON mentah, tak pernah lewat
+   struct Rust FE. Jadi drift ini **tak terlihat oleh kedua compiler maupun
+   tes API**. Satu-satunya yang menangkapnya = spec yang membuka halamannya
+   di browser.
+
+   Sapuan pembanding FE↔BE ada di riwayat sesi (bandingkan optionality per
+   field untuk struct bernama sama di `antarmuka/*/src/api/*.rs` vs
+   `layanan/*/src/**`). Arah `Request`/`Query` (FE required, BE `Option`)
+   aman — FE selalu mengirim nilai; yang berbahaya hanya arah **respons**.
+
+   Perbaikan struktural yang lebih tuntas (belum dikerjakan): pindahkan DTO
+   respons ke `lib/perlengkapan` yang sudah WASM-safe dan pakai **tipe yang
+   sama** di kedua sisi, seperti `lib_perlengkapan::response::PaginatedResponse`
+   — kalau tipenya satu, drift-nya mustahil.
+
 ### 3. Run a single MFE locally
 
 ```bash
