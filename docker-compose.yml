@@ -108,6 +108,10 @@ services:
     build:
       context: .
       dockerfile: layanan/secreton/Dockerfile
+    # Explicit tag (was: compose default `<project>-<service>`). CI builds these
+    # ONCE and pushes to the in-cluster registry, so the name must be stable and
+    # independent of the compose project name. See ci.yml job `e2e-build-images`.
+    image: simpel2-secreton:local
     container_name: secreton
     ports:
       - "50053:50053"
@@ -202,6 +206,7 @@ services:
     build:
       context: .
       dockerfile: layanan/perlengkapan/Dockerfile
+    image: simpel2-layanan-perlengkapan:local
     container_name: layanan-perlengkapan
     ports:
       - "3020:3020"
@@ -360,6 +365,7 @@ services:
     build:
       context: .
       dockerfile: antarmuka/portal/Dockerfile
+    image: simpel2-portal:local
     container_name: portal
     ports:
       - "3000:8080"
@@ -394,6 +400,7 @@ services:
     build:
       context: .
       dockerfile: antarmuka/perlengkapan/Dockerfile
+    image: simpel2-perlengkapan:local
     container_name: perlengkapan
     ports:
       - "3001:8080"
