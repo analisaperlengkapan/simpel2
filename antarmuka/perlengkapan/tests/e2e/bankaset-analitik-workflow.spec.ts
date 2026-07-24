@@ -48,8 +48,18 @@ const N2 = "f1000000-0000-4f00-8f00-0000000c0002"; // operator_a, unread
 const N3 = "f1000000-0000-4f00-8f00-0000000c0003"; // operator_a, already read
 const N4 = "f1000000-0000-4f00-8f00-0000000c0004"; // operator_b, unread
 
-/** The authenticated app shell has mounted (not bounced to the portal login). */
-const shell = (page: Page) => page.getByRole("heading", { name: "SIMPEL" }).first();
+/**
+ * The authenticated app shell has mounted (not bounced to the portal login).
+ *
+ * `app_chrome.rs:46` renders the brand inside a sticky <header> as a <span>, and
+ * `sidebar.rs:144` as a <div> — there is NO heading element anywhere in the
+ * chrome, so `getByRole("heading", { name: "SIMPEL" })` could never match. The
+ * <header> scope is what keeps this off the login page, which mentions "Portal
+ * SIMPEL" in body copy (`login.rs:39`) but renders no header. Same locator and
+ * timeout as the specs that already pass — nav-access.spec.ts:46 and
+ * pengelolaan-workflow.spec.ts:54.
+ */
+const shell = (page: Page) => page.locator("header").getByText("SIMPEL").first();
 
 /** Real per-role JWT (apiLogin returns a token PAIR — the header needs .accessToken). */
 async function tokenFor(request: APIRequestContext, userKey: string): Promise<string> {
@@ -73,7 +83,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("list renders every seeded asset before filtering", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Daftar Aset").first()).toBeVisible();
     await expect
       .poll(() => visibleNups(page), { timeout: 20000 })
@@ -82,7 +92,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("search narrows to the matching asset and Reset restores the full list", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
     await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill("Toyota");
@@ -97,7 +107,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("kondisi filter isolates the single RUSAK RINGAN asset", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
     await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption({ label: "RUSAK RINGAN" });
@@ -107,7 +117,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("jenis filter isolates the single Tanah asset", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
     await page.getByRole("combobox").filter({ hasText: "Semua Jenis BMN" }).selectOption({ label: "Tanah" });
@@ -117,7 +127,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("sort by Nama A→Z reorders the rows server-side", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
     await page.getByRole("combobox").filter({ hasText: "Terbaru diperbarui" }).selectOption("nama_asc");
@@ -135,7 +145,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
   test("Detail opens the asset detail page with the real record", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill("Toyota");
     await page.getByRole("button", { name: "Terapkan" }).click();
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1"]);
@@ -158,7 +168,7 @@ test.describe("Bank Aset — sebaran + QR code", () => {
 
   test("sebaran aggregates assets per satker", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/sebaran`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Sebaran Aset per Satker").first()).toBeVisible();
     // Real aggregation of the seeded rows — the satkers holding assets must appear.
     await expect(page.getByText("KEJAKSAAN NEGERI JAKARTA PUSAT").first()).toBeVisible({ timeout: 20000 });
@@ -167,7 +177,7 @@ test.describe("Bank Aset — sebaran + QR code", () => {
 
   test("QR generator selects assets and renders label previews", async ({ page }) => {
     await page.goto(`${BASE}/bank-aset/qrcode`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Generator QR Code Aset").first()).toBeVisible();
 
     // Candidate assets load from the real list endpoint.
@@ -194,7 +204,7 @@ test.describe("Dashboard", () => {
 
   test("dashboard renders real stat cards", async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Total Aset BMN").first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Kondisi Baik").first()).toBeVisible();
   });
@@ -251,7 +261,7 @@ test.describe("Analitik — roadmap + kodefikasi", () => {
     const judul = `E2E Roadmap ${Date.now()}`;
 
     await page.goto(`${BASE}/analitik/roadmap/buat`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Buat Analisis Kebutuhan").first()).toBeVisible();
 
     await page.getByRole("textbox").first().fill(judul);
@@ -283,13 +293,13 @@ test.describe("Analitik — roadmap + kodefikasi", () => {
 
   test("roadmap list page mounts with the create entry point", async ({ page }) => {
     await page.goto(`${BASE}/analitik/roadmap`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Buat Analisis Baru").first()).toBeVisible({ timeout: 20000 });
   });
 
   test("kodefikasi dashboard renders its mapping table", async ({ page }) => {
     await page.goto(`${BASE}/analitik/kodefikasi`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     // Column headers of the real mapping table (data may legitimately be empty:
     // mapping rows are produced by the #43 satker_code_map / kodefikasi pipeline).
     await expect(page.getByText("Kode Lama").first()).toBeVisible({ timeout: 20000 });
@@ -305,7 +315,7 @@ test.describe("Notifikasi — inbox read lifecycle", () => {
 
   test("inbox lists this user rows only, and the unread filter hides the read one", async ({ page }) => {
     await page.goto(`${BASE}/notifikasi`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole("heading", { name: "Notifikasi" }).first()).toBeVisible();
 
     await expect(page.getByText("E2E Notifikasi Satu").first()).toBeVisible({ timeout: 20000 });
@@ -333,7 +343,7 @@ test.describe("Notifikasi — inbox read lifecycle", () => {
     };
 
     await page.goto(`${BASE}/notifikasi`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("E2E Notifikasi Satu").first()).toBeVisible({ timeout: 20000 });
 
     await page.getByRole("button", { name: "Tandai semua dibaca" }).click();
@@ -379,7 +389,7 @@ test.describe("Notifikasi — operator_b sees only its own row", () => {
 
   test("inbox is scoped to operator_b", async ({ page }) => {
     await page.goto(`${BASE}/notifikasi`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("E2E Notifikasi Operator B").first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("E2E Notifikasi Satu")).toHaveCount(0);
     await expect(page.getByText("E2E Notifikasi Dua")).toHaveCount(0);

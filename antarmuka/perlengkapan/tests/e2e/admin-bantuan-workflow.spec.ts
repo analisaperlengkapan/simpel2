@@ -29,7 +29,18 @@ const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan`;
 /** Both route guards render this on a role mismatch (see guards-rbac.spec.ts). */
 const FORBIDDEN = /Akses Ditolak/i;
 
-const shell = (page: Page) => page.getByRole('heading', { name: 'SIMPEL' }).first();
+/**
+ * The authenticated app shell has mounted (not bounced to the portal login).
+ *
+ * `app_chrome.rs:46` renders the brand inside a sticky <header> as a <span>, and
+ * `sidebar.rs:144` as a <div> — there is NO heading element anywhere in the
+ * chrome, so `getByRole('heading', { name: 'SIMPEL' })` could never match. The
+ * <header> scope is what keeps this off the login page, which mentions "Portal
+ * SIMPEL" in body copy (`login.rs:39`) but renders no header. Same locator and
+ * timeout as the specs that already pass — nav-access.spec.ts:46 and
+ * pengelolaan-workflow.spec.ts:54.
+ */
+const shell = (page: Page) => page.locator('header').getByText('SIMPEL').first();
 
 async function tokenFor(request: APIRequestContext, userKey: string): Promise<string> {
   const user = TEST_USERS.find((u) => u.key === userKey);
@@ -53,7 +64,7 @@ test.describe('Bantuan — panduan & FAQ', () => {
 
   test('panduan is reachable via sidebar and renders content', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Bantuan', `${BASE}/bantuan/panduan`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/bantuan/panduan$`));
     await expect(page.getByText('Panduan Pengguna').first()).toBeVisible();
@@ -61,7 +72,7 @@ test.describe('Bantuan — panduan & FAQ', () => {
 
   test('faq is reachable via sidebar and renders content', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Bantuan', `${BASE}/bantuan/faq`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/bantuan/faq$`));
     await expect(
@@ -79,7 +90,7 @@ test.describe('Helpdesk — reporter files and tracks a ticket', () => {
 
   test('empty subject is rejected client-side (server enforces too)', async ({ page }) => {
     await page.goto(`${BASE}/bantuan/helpdesk`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await page.getByTestId('helpdesk-message').fill('pesan tanpa subjek');
     await page.getByTestId('helpdesk-submit').click();
     await expect(page.getByTestId('helpdesk-error')).toContainText('Subjek wajib diisi');
@@ -91,7 +102,7 @@ test.describe('Helpdesk — reporter files and tracks a ticket', () => {
   }) => {
     const subject = `E2E tiket operator ${Date.now()}`;
     await page.goto(`${BASE}/bantuan/helpdesk`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
 
     await page.getByTestId('helpdesk-subject').fill(subject);
     await page.getByTestId('helpdesk-priority').selectOption('high');
@@ -160,7 +171,7 @@ test.describe('Helpdesk — staff status management', () => {
 
     // Staff UI: the admin's list is server-widened to ALL tickets.
     await page.goto(`${BASE}/bantuan/helpdesk`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     const row = page.locator(`[data-testid="helpdesk-ticket-row"][data-ticket-id="${ticketId}"]`);
     await expect(row).toBeVisible();
     await expect(row).toHaveAttribute('data-status', 'open');
@@ -203,7 +214,7 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
 
   test('konfigurasi workflow lists real definitions', async ({ page, request }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin/workflow$`));
     await expect(page.getByText('Konfigurasi Workflow').first()).toBeVisible();
@@ -218,7 +229,7 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
 
   test('monitoring workflow renders the metrics summary', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow-monitoring`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin/workflow-monitoring$`));
     await expect(page.getByText('Monitoring Workflow').first()).toBeVisible();
@@ -227,7 +238,7 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
 
   test('delegasi workflow renders its list (rows or honest empty state)', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow-delegation`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin/workflow-delegation$`));
     await expect(page.getByText('Delegasi Workflow').first()).toBeVisible();
@@ -249,7 +260,7 @@ test.describe('Admin surfaces denied for operator', () => {
 
   test('sidebar hides the Admin group for a non-admin active role', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     const nav = page.locator('nav');
     // Bantuan (same ADMINISTRASI section) stays visible…
     await expect(nav.getByRole('button', { name: 'Bantuan', exact: true })).toBeVisible();
@@ -282,7 +293,7 @@ test.describe('Kebutuhan BMN — buat & laporan', () => {
   }) => {
     const nama = `E2E Kampanye Kebutuhan ${Date.now()}`;
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Kebutuhan BMN', `${BASE}/kebutuhan-bmn/buat`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/kebutuhan-bmn/buat$`));
 
@@ -324,7 +335,7 @@ test.describe('Kebutuhan BMN — buat & laporan', () => {
     page,
   }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Kebutuhan BMN', `${BASE}/kebutuhan-bmn/laporan`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/kebutuhan-bmn/laporan$`));
 
@@ -355,7 +366,7 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
 
   test('operator saves personal sizes and they persist across reload', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    await expect(shell(page)).toBeVisible();
+    await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Pakaian Dinas', `${BASE}/pakaian-dinas/ukuran`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/pakaian-dinas/ukuran$`));
     await expect(page.getByText('Ukuran Pakaian Dinas').first()).toBeVisible();
