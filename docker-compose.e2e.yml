@@ -31,6 +31,16 @@ services:
       args:
         # 1 => `cargo build --features authenc-api/captcha-debug` (see Dockerfile)
         CAPTCHA_DEBUG: "1"
+    environment:
+      # Disable authenc's per-IP request limiter (default 60 req/min) for the e2e
+      # stack ONLY. The comprehensive Playwright suite drives every workflow —
+      # login + `expect.poll` status loops + multi-role transitions — from a
+      # SINGLE runner IP, legitimately exceeding 60 req/min; the limiter then 429s
+      # non-deterministically (e.g. pengelolaan "approver_satker approves" flaked
+      # with `login failed (429)`). Production/staging leave this unset and keep
+      # the secure default. Nothing in the suite asserts 429 behaviour. Honoured
+      # by layanan/authenc/crates/api/src/main.rs (AUTHENC_RATE_LIMIT_ENABLED).
+      AUTHENC_RATE_LIMIT_ENABLED: "false"
     ports:
       - "18088:8088" # REST API for e2e real-auth + captcha-debug
 
