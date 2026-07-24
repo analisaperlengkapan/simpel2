@@ -27,6 +27,12 @@ const EXPECT: Record<string, { visible: string[]; hidden: string[] }> = {
   operator_b: { visible: NUP_B, hidden: [...NUP_A, ...NUP_C] },
   validator_wilayah: { visible: [...NUP_A, ...NUP_B], hidden: NUP_C },
   validator_pusat: { visible: [...NUP_A, ...NUP_B, ...NUP_C], hidden: [] },
+  // Satker-internal approval chain (#96): both sit in 0200010 (Jakpus) alongside
+  // operator_a. Neither is a cross-satker role (Claims::is_cross_satker_role), so
+  // AsetScope::from_claims puts them in AsetScope::Satker — same 2 in-scope rows
+  // as operator_a, nothing from other satkers.
+  validator_satker: { visible: NUP_A, hidden: [...NUP_B, ...NUP_C] },
+  approver_satker: { visible: NUP_A, hidden: [...NUP_B, ...NUP_C] },
 };
 
 for (const user of TEST_USERS) {
