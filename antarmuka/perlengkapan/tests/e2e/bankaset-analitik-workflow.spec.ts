@@ -263,21 +263,27 @@ test.describe("Dashboard", () => {
   // of the test. Separate tests report both.
   for (const fmt of ["excel", "pdf"] as const) {
     test(`dashboard export/${fmt} responds server-side (#97: no FE caller yet)`, async ({ request }) => {
-      // FINDING #116 — filed, not papered over. `excel` genuinely 500s. The 400
-      // this test used to get (before `tahun_anggaran` was supplied) was hiding
-      // it. Ruled out by the sibling tests in this same file: the route is
+      // FINDING #116 — filed, not papered over. Both formats genuinely 500. The
+      // 400 this test used to get (before `tahun_anggaran` was supplied) was
+      // hiding it. Ruled out by the sibling tests in this same file: the route is
       // mounted and guarded ("reject anonymous callers" passes with 401), and
       // the metrics query works ("dashboard renders real stat cards" passes) —
       // and the handler runs that query BEFORE the excel step. So the fault is
-      // inside `export_dashboard_to_excel`, which round-trips a temp file
-      // through /tmp (services.rs:95).
+      // in the export layer. `export_dashboard_to_excel` round-trips a temp file
+      // through /tmp (services.rs:95); `export_dashboard_to_pdf` does not, so a
+      // shared cause upstream of both is likelier than the temp-file theory
+      // alone — see #116.
       //
       // `test.fail` rather than a loosened assertion or a skip: the assertions
       // below still describe CORRECT behaviour, so the day #116 is fixed
       // Playwright reports "expected to fail but passed" and forces this marker
       // to be removed. A weakened expectation would silently accept the bug
       // forever.
-      test.fail(fmt === "excel", "#116: export_dashboard_to_excel returns 500");
+      // BOTH formats 500 — confirmed by splitting this test. While it was one
+      // loop it threw on `excel` and never reached `pdf`, so "pdf is fine" was
+      // never true, just never measured. That is the whole argument for the
+      // split: a loop that aborts hides every case after the first.
+      test.fail(true, "#116: dashboard export returns 500 for excel AND pdf");
 
       const token = await tokenFor(request, "validator_pusat");
       // `tahun_anggaran` is a REQUIRED query param (DashboardParams.tahun_anggaran
