@@ -1636,37 +1636,3 @@ export async function getAssetById(
   return { status: res.status(), body: await safeJson(res) };
 }
 
-// ============================================================================
-// Mapping Kodefikasi API
-// ============================================================================
-
-export async function detectNonStandardCodes(
-  request: APIRequestContext,
-  user: MockUser
-) {
-  const res = await request.get(`${API_BASE}/mapping/detect`, {
-    headers: authHeaders(user),
-  });
-  return { status: res.status(), body: await safeJson(res) };
-}
-
-export async function getMappingSuggestions(
-  request: APIRequestContext,
-  user: MockUser
-) {
-  const res = await request.get(`${API_BASE}/mapping/suggestions`, {
-    headers: authHeaders(user),
-  });
-  return { status: res.status(), body: await safeJson(res) };
-}
-
-export async function getAllMappingProposals(
-  request: APIRequestContext,
-  user: MockUser
-) {
-  const res = await request.get(`${API_BASE}/mapping/proposals`, {
-    headers: authHeaders(user),
-  });
-  return { status: res.status(), body: await safeJson(res) };
-}
-

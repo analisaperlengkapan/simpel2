@@ -11,7 +11,7 @@
  *   rbac-scoping.spec.ts (API) and rbac-scoping-ui.spec.ts (UI). E-4 covers what
  *   those don't: the filter/search/sort/pagination controls, the detail page,
  *   sebaran, the QR generator, dashboard + global search, analitik roadmap
- *   create→list, kodefikasi, and the notifikasi read lifecycle.
+ *   create→list and the notifikasi read lifecycle.
  *
  * FINDING #97 (surfaced by this domain's recon, filed rather than faked):
  *   The BE wires GET /dashboard/perlengkapan/export/excel, /export/pdf and
@@ -327,9 +327,9 @@ test.describe("Dashboard", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Analitik — roadmap create→list (real CRUD) + kodefikasi
+// Analitik — roadmap create→list (real CRUD)
 // ---------------------------------------------------------------------------
-test.describe("Analitik — roadmap + kodefikasi", () => {
+test.describe("Analitik — roadmap", () => {
   test.use({ storageState: storageStatePath("operator_a") });
 
   test("create an analisis via the form, then see it in the list and the backend", async ({ page, request }) => {
@@ -371,29 +371,6 @@ test.describe("Analitik — roadmap + kodefikasi", () => {
     await page.goto(`${BASE}/analitik/roadmap`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByText("Buat Analisis Baru").first()).toBeVisible({ timeout: 20000 });
-  });
-
-  test("kodefikasi dashboard route mounts (mapping table blocked by #113)", async ({ page }) => {
-    await page.goto(`${BASE}/analitik/kodefikasi`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    // FINDING #113 (product bug, filed rather than faked — see the task):
-    //   The mapping table below `Mapping Kodefikasi BMN` never renders, because
-    //   every mapping_kodefikasi query 500s. Two independent schema faults:
-    //     (a) `perlengkapan.ms_barang` is joined at 13 sites in
-    //         mapping_kodefikasi/repository.rs but is created by NO migration —
-    //         `grep -rn ms_barang --include=*.sql .` returns zero hits.
-    //     (b) both progress queries select `s.nama` from `authenc.satkers`,
-    //         whose column is `name` (001_baseline.sql:4376).
-    //   The FE then swallows the error to `None` (mapping_kodefikasi_dashboard.rs:35)
-    //   and `.and_then(|data| data.map(..))` renders NOTHING — no error state — so
-    //   the failure is invisible in the browser.
-    // Until the module has a schema, assert what the route genuinely delivers:
-    // it mounts under the app shell and its own chrome renders. The header
-    // assertions move back here once #113 lands.
-    await expect(page.getByRole("heading", { name: "Mapping Kodefikasi BMN" }).first()).toBeVisible({
-      timeout: 20000,
-    });
-    await expect(page.getByRole("button", { name: /Export XLSX/ })).toBeVisible();
   });
 });
 

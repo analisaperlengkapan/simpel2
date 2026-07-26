@@ -181,8 +181,7 @@ impl DokumenService {
             //   2. Hold `Arc<CsvGenerator>` on `DokumenService`; dispatch
             //      this branch through it analogously to the Excel branch.
             //   3. Surface a "Cetak CSV" button next to "Cetak Excel" in
-            //      `pakaian_dinas_laporan.rs` + `mapping_kodefikasi_
-            //      dashboard.rs`.
+            //      `pakaian_dinas_laporan.rs`.
             // Until that lands, returning a validation error keeps the
             // trait honest — callers see a clear "not yet" rather than a
             // 5xx from the deeper pipeline.

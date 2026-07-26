@@ -55,7 +55,6 @@ use components::kebutuhan_bmn_form::KebutuhanBmnForm;
 use components::kebutuhan_bmn_list::KebutuhanBmnList;
 use components::kebutuhan_bmn_satker::KebutuhanBmnSatkerDetail;
 use components::laporan_kebutuhan_bmn::LaporanKebutuhanBmn;
-use components::mapping_kodefikasi_dashboard::MappingKodefikasiDashboard;
 use components::pakaian_dinas_jenis_list::PakaianDinasJenisList;
 use components::pakaian_dinas_laporan::PakaianDinasLaporan;
 use components::pakaian_dinas_pengajuan_list::PakaianDinasPengajuanList;
@@ -357,10 +356,6 @@ pub fn App() -> impl IntoView {
                                             <Route
                                                 path=path!("/analitik/roadmap/buat")
                                                 view=AnalisisForm
-                                            />
-                                            <Route
-                                                path=path!("/analitik/kodefikasi")
-                                                view=MappingKodefikasiDashboard
                                             />
 
                                             // ── Notifikasi ───────────────────────

@@ -137,18 +137,11 @@ const ANALITIK_GROUPS: &[NavGroup] = &[NavGroup {
     label: "Analitik",
     accent: "#2dd4bf",
     admin_only: false,
-    items: &[
-        NavItem {
-            href: routes::path::ANALITIK_ROADMAP,
-            icon: "fas fa-road",
-            label: "Roadmap Sarpras",
-        },
-        NavItem {
-            href: routes::path::ANALITIK_KODEFIKASI,
-            icon: "fas fa-barcode",
-            label: "Kodefikasi BMN",
-        },
-    ],
+    items: &[NavItem {
+        href: routes::path::ANALITIK_ROADMAP,
+        icon: "fas fa-road",
+        label: "Roadmap Sarpras",
+    }],
 }];
 
 const ADMINISTRASI_GROUPS: &[NavGroup] = &[

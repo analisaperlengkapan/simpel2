@@ -143,7 +143,7 @@ export default defineConfig({
       testMatch: ['**/pengelolaan-workflow.spec.ts'],
     },
     // F-E2E E-4 — Bank Aset (filters/search/sort/detail/sebaran/QR) + Dashboard
-    // & global search + Analitik (roadmap create→list, kodefikasi) + Notifikasi
+    // & global search + Analitik (roadmap create→list) + Notifikasi
     // (per-user inbox read lifecycle + isolation). Per-role storageState from
     // `setup`; preconditions in seed-multisatker.sql (assets) +
     // seed-perlengkapan-workflow.sql (notifikasi).

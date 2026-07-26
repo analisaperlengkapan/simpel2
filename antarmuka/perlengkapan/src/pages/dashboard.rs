@@ -373,13 +373,6 @@ pub fn DashboardHome() -> impl IntoView {
                         description="Prediksi kebutuhan sarana prasarana"
                         tone="teal"
                     />
-                    <QuickNav
-                        href=routes::path::ANALITIK_KODEFIKASI
-                        icon="fas fa-barcode"
-                        label="Kodefikasi BMN"
-                        description="Mapping kode barang standar"
-                        tone="purple"
-                    />
                 </div>
             </section>
 

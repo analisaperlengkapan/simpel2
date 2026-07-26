@@ -650,12 +650,6 @@ pub fn AdminRolesPage() -> impl IntoView {
                                                         <span class="text-green-500 mr-2">
                                                             <AppIcon icon=CHECK />
                                                         </span>
-                                                        "Mapping Kodefikasi: Approve/Reject"
-                                                    </div>
-                                                    <div>
-                                                        <span class="text-green-500 mr-2">
-                                                            <AppIcon icon=CHECK />
-                                                        </span>
                                                         "Roadmap Sarpras: Approve"
                                                     </div>
                                                 }
