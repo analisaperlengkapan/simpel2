@@ -42,7 +42,11 @@ services:
       # by layanan/authenc/crates/api/src/main.rs (AUTHENC_RATE_LIMIT_ENABLED).
       AUTHENC_RATE_LIMIT_ENABLED: "false"
     ports:
-      - "18088:8088" # REST API for e2e real-auth + captcha-debug
+      # Host port parameterised for the same reason as docker-compose.yml (#111):
+      # concurrent e2e stacks on one shared Docker daemon collided on fixed
+      # ports. CI sets AUTHENC_REST_HOST_PORT=0 (ephemeral); the default keeps
+      # :18088 for local runs, which is what the header above documents.
+      - "${AUTHENC_REST_HOST_PORT:-18088}:8088" # REST API for e2e real-auth + captcha-debug
 
   # Enable the gateway's privileged database secrets-engine provisioning routes
   # (/v1/database/config/*, /v1/database/roles/*) so the secreton bootstrap can

@@ -35,6 +35,31 @@ env:
   # resolve. Used only to hand e2e images from `e2e-build-images` to the six e2e
   # jobs (#111) — never a source of release artifacts.
   E2E_REGISTRY: "172.15.10.252:32000"
+  # Publish every compose service on an EPHEMERAL host port in CI (#111).
+  #
+  # docker-compose.yml publishes fixed host ports for local development, and ARC
+  # runners share ONE Docker daemon per node — so any two e2e stacks that both
+  # bring up a given service raced for the same port and the loser died at
+  # bring-up with "failed to bind host port 0.0.0.0:50052/tcp: address already
+  # in use". That is not cross-run only: it bit "Cross-app SSO" and "Secreton
+  # bootstrap" in the SAME run, since both bring up layanan-integrasi.
+  #
+  # Nothing in CI consumes a host port — every e2e job addresses services by
+  # compose SERVICE NAME on the shared network (BASE_URL=http://portal:8080,
+  # AUTHENC_URL=http://authenc:8088, ...). So the published ports are pure
+  # liability here. "0" makes Docker pick a free port per stack; local dev is
+  # untouched because the compose defaults still resolve to the old values.
+  POSTGRES_HOST_PORT: "0"
+  REDIS_HOST_PORT: "0"
+  AUTHENC_GRPC_HOST_PORT: "0"
+  SECRETON_GRPC_HOST_PORT: "0"
+  INTEGRASI_GRPC_HOST_PORT: "0"
+  PERLENGKAPAN_API_HOST_PORT: "0"
+  GATEWAY_HOST_PORT: "0"
+  SIMPELV1_HOST_PORT: "0"
+  PORTAL_HOST_PORT: "0"
+  PERLENGKAPAN_HOST_PORT: "0"
+  AUTHENC_REST_HOST_PORT: "0"
 
 jobs:
   # ─────────────────────────────────────────────────────

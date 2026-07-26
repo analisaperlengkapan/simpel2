@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
       POSTGRES_INITDB_ARGS: --encoding=UTF8
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       # Auto-create per-service databases (dbsimpelv1, dbsimpelv2,
@@ -35,7 +35,7 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -87,7 +87,7 @@ services:
     image: simpel2-authenc:local
     container_name: authenc
     ports:
-      - "50051:50051"
+      - "${AUTHENC_GRPC_HOST_PORT:-50051}:50051"
     environment:
       RUST_LOG: debug
       GRPC_PORT: "50051"
@@ -114,7 +114,7 @@ services:
     image: simpel2-secreton:local
     container_name: secreton
     ports:
-      - "50053:50053"
+      - "${SECRETON_GRPC_HOST_PORT:-50053}:50053"
     environment:
       RUST_LOG: debug
       GRPC_PORT: "50053"
@@ -171,7 +171,7 @@ services:
     image: simpel2-integrasi:local
     container_name: layanan-integrasi
     ports:
-      - "50052:50052"
+      - "${INTEGRASI_GRPC_HOST_PORT:-50052}:50052"
     environment:
       RUST_LOG: debug
       GRPC_PORT: "50052"
@@ -209,7 +209,7 @@ services:
     image: simpel2-layanan-perlengkapan:local
     container_name: layanan-perlengkapan
     ports:
-      - "3020:3020"
+      - "${PERLENGKAPAN_API_HOST_PORT:-3020}:3020"
     environment:
       RUST_LOG: debug
       SERVER_PORT: "3020"
@@ -259,7 +259,7 @@ services:
     image: simpel2-gateway:local
     container_name: gateway
     ports:
-      - "8090:8090"
+      - "${GATEWAY_HOST_PORT:-8090}:8090"
     environment:
       RUST_LOG: debug
       GATEWAY_PORT: "8090"
@@ -322,7 +322,7 @@ services:
       dockerfile: monolith/simpelv1/Dockerfile
     container_name: simpelv1
     ports:
-      - "8000:8080"
+      - "${SIMPELV1_HOST_PORT:-8000}:8080"
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -368,7 +368,7 @@ services:
     image: simpel2-portal:local
     container_name: portal
     ports:
-      - "3000:8080"
+      - "${PORTAL_HOST_PORT:-3000}:8080"
     environment:
       # The portal is an nginx container serving a WASM bundle. At
       # container start `antarmuka/portal/entrypoint.sh` writes
@@ -403,7 +403,7 @@ services:
     image: simpel2-perlengkapan:local
     container_name: perlengkapan
     ports:
-      - "3001:8080"
+      - "${PERLENGKAPAN_HOST_PORT:-3001}:8080"
     environment:
       # The perlengkapan microfrontend is an nginx container serving a
       # WASM bundle. At container start `antarmuka/perlengkapan/entrypoint.sh`
