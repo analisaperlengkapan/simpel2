@@ -229,7 +229,10 @@ test.describe("Bank Aset — sebaran + QR code", () => {
 
     await previewBtn.click();
     await expect(page.getByText("Pratinjau Label QR Code").first()).toBeVisible({ timeout: 20000 });
-    await expect(page.getByRole("button", { name: "Cetak" })).toBeVisible();
+    // `exact: true` is required: getByRole matches the accessible name as a
+    // SUBSTRING by default, so a bare "Cetak" also matches the "Pratinjau &
+    // Cetak" trigger that opened this modal — two elements, strict-mode failure.
+    await expect(page.getByRole("button", { name: "Cetak", exact: true })).toBeVisible();
 
     // Close the modal, then clear the selection — the button falls back to disabled.
     await page.getByRole("button", { name: "Tutup" }).click();
@@ -255,21 +258,38 @@ test.describe("Dashboard", () => {
     await expect(page.getByText("Kondisi Baik").first()).toBeVisible();
   });
 
-  test("dashboard export endpoints respond server-side (#97: no FE caller yet)", async ({ request }) => {
-    const token = await tokenFor(request, "validator_pusat");
-    for (const fmt of ["excel", "pdf"]) {
+  // Split per-format (was one test looping both): the loop threw on `excel` and
+  // so never reached `pdf`, leaving pdf's real status unknown for the whole life
+  // of the test. Separate tests report both.
+  for (const fmt of ["excel", "pdf"] as const) {
+    test(`dashboard export/${fmt} responds server-side (#97: no FE caller yet)`, async ({ request }) => {
+      // FINDING #116 — filed, not papered over. `excel` genuinely 500s. The 400
+      // this test used to get (before `tahun_anggaran` was supplied) was hiding
+      // it. Ruled out by the sibling tests in this same file: the route is
+      // mounted and guarded ("reject anonymous callers" passes with 401), and
+      // the metrics query works ("dashboard renders real stat cards" passes) —
+      // and the handler runs that query BEFORE the excel step. So the fault is
+      // inside `export_dashboard_to_excel`, which round-trips a temp file
+      // through /tmp (services.rs:95).
+      //
+      // `test.fail` rather than a loosened assertion or a skip: the assertions
+      // below still describe CORRECT behaviour, so the day #116 is fixed
+      // Playwright reports "expected to fail but passed" and forces this marker
+      // to be removed. A weakened expectation would silently accept the bug
+      // forever.
+      test.fail(fmt === "excel", "#116: export_dashboard_to_excel returns 500");
+
+      const token = await tokenFor(request, "validator_pusat");
       // `tahun_anggaran` is a REQUIRED query param (DashboardParams.tahun_anggaran
       // is a bare i32, dashboard/models.rs:10) — omitting it is a legitimate 400
       // from the Query extractor, not endpoint rot.
       const res = await request.get(`${API}/dashboard/perlengkapan/export/${fmt}?tahun_anggaran=2026`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // The endpoint is wired and must keep working even though the dashboard
-      // UI offers no button for it (#97). Assert it is not a 404/5xx rot.
       expect(res.status(), `dashboard export/${fmt} status`).toBeLessThan(400);
       expect((await res.body()).length, `dashboard export/${fmt} body`).toBeGreaterThan(0);
-    }
-  });
+    });
+  }
 
   // The test above passes a token — and used to pass WITHOUT one too, because
   // these handlers took no `Claims` and this router has no auth middleware
