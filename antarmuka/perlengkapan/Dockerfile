@@ -1,5 +1,19 @@
 # Multi-stage build for Perlengkapan with Nginx - PORT 8080
-FROM rustlang/rust:nightly as chef
+#
+# Toolchain: STABLE, pinned — same channel as every `layanan/*/Dockerfile`.
+# This used to be `rustlang/rust:nightly`, a FLOATING tag inherited from the
+# leptos template in the initial commit. It was never a requirement: neither FE
+# crate contains a single `#![feature(...)]`, and CI type-checks both against
+# stable via `cargo check -p perlengkapan-microfrontend --target
+# wasm32-unknown-unknown` (`.github/actions/setup-rust` pins 1.96.0).
+# What the floating tag DID do was let nightly-2026-07-25 into the build, where
+# `cargo chef cook --release` hit a rustc ICE compiling tokio ("not immediate",
+# rustc_codegen_ssa/src/mir/operand.rs:291) under the workspace's fat-LTO
+# release profile — failing the shared e2e image build and skipping every e2e
+# job. The backend images cook the identical tokio with the identical profile on
+# stable without incident, so pinning here closes the last hole in the F-CI
+# toolchain pin.
+FROM rust:1.97-bookworm AS chef
 RUN cargo install cargo-chef --locked
 
 FROM chef as planner
