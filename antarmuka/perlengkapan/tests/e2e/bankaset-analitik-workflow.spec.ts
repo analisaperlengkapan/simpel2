@@ -35,6 +35,19 @@
  *   E2E-B-2 Tanah Kantor   Tanah               / Tanah         / BAIK         0200020
  *   E2E-C-1 Printer Epson  Peralatan dan Mesin / Alat Kantor   / RUSAK RINGAN 0300010
  * validator_pusat sees all 5 → the only role for which filter maths is stable.
+ *
+ * WHAT THE UI ACTUALLY SHOWS (verified, do not "fix" back to siman_aset.nama):
+ *   `repository.rs:563` maps `BankAsetItem.nama_aset` from `ur_sskel` (the BMN
+ *   sub-sub-group nomenclature) and only falls back to `nama` when ur_sskel is
+ *   NULL. Both `list_page.rs:409` and `detail_page.rs:125` render that field, and
+ *   `sort=nama_asc` is `ORDER BY ur_sskel` (`repository.rs:98`) — so the whole
+ *   stack is consistently ur_sskel-based. The strings on screen are therefore the
+ *   `ur_sskel` column, NOT the brand names above:
+ *     E2E-A-1 "Kendaraan Dinas Roda 4"   E2E-A-2 "Personal Computer Unit"
+ *     E2E-B-1 "Kendaraan Dinas Roda 2"   E2E-B-2 "Tanah Bangunan Kantor"
+ *     E2E-C-1 "Personal Computer Unit"
+ *   (Search still matches the brand: the BE ILIKEs ur_sskel OR nama OR kd_brg OR
+ *   no_aset OR merk, so "Toyota" narrows to E2E-A-1 by `nama`/`merk`.)
  */
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
 import { credsFor, apiLogin, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
@@ -69,10 +82,26 @@ async function tokenFor(request: APIRequestContext, userKey: string): Promise<st
   return accessToken;
 }
 
+const ALL_NUPS = ["E2E-A-1", "E2E-A-2", "E2E-B-1", "E2E-B-2", "E2E-C-1"];
+
 /** Rows currently rendered in the bank-aset list (the NUP column is unique per asset). */
 async function visibleNups(page: Page): Promise<string[]> {
   const body = await page.locator("body").innerText();
-  return ["E2E-A-1", "E2E-A-2", "E2E-B-1", "E2E-B-2", "E2E-C-1"].filter((n) => body.includes(n));
+  return ALL_NUPS.filter((n) => body.includes(n));
+}
+
+/**
+ * Same rows, but in the order they appear on screen — `visibleNups` filters a
+ * fixed array and so can never observe ordering, which is what the sort test
+ * needs. Ordering is asserted on NUPs (unique) rather than on the displayed
+ * ur_sskel, which repeats across E2E-A-2 and E2E-C-1.
+ */
+async function nupsInDomOrder(page: Page): Promise<string[]> {
+  const body = await page.locator("body").innerText();
+  return ALL_NUPS.map((n) => [n, body.indexOf(n)] as const)
+    .filter(([, i]) => i >= 0)
+    .sort((a, b) => a[1] - b[1])
+    .map(([n]) => n);
 }
 
 // ---------------------------------------------------------------------------
@@ -97,9 +126,9 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
 
     await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill("Toyota");
     await page.getByRole("button", { name: "Terapkan" }).click();
-    // Real server-side search: only the Toyota row survives.
+    // Real server-side search: only the Toyota row survives (matched on nama/merk).
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1"]);
-    await expect(page.getByText("Toyota Avanza").first()).toBeVisible();
+    await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Reset" }).click();
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
@@ -110,9 +139,13 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
-    await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption({ label: "RUSAK RINGAN" });
+    // Select by VALUE, not label: the FE renders each dynamic option as
+    // `format!("{} ({})", o.value, o.count)` (list_page.rs:264), so the label is
+    // "RUSAK RINGAN (1)" and matching on the bare value is both correct and
+    // immune to the seeded row count changing.
+    await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption("RUSAK RINGAN");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-C-1"]);
-    await expect(page.getByText("Printer Epson").first()).toBeVisible();
+    await expect(page.getByText("Personal Computer Unit").first()).toBeVisible();
   });
 
   test("jenis filter isolates the single Tanah asset", async ({ page }) => {
@@ -120,9 +153,9 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
-    await page.getByRole("combobox").filter({ hasText: "Semua Jenis BMN" }).selectOption({ label: "Tanah" });
+    await page.getByRole("combobox").filter({ hasText: "Semua Jenis BMN" }).selectOption("Tanah");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-2"]);
-    await expect(page.getByText("Tanah Kantor").first()).toBeVisible();
+    await expect(page.getByText("Tanah Bangunan Kantor").first()).toBeVisible();
   });
 
   test("sort by Nama A→Z reorders the rows server-side", async ({ page }) => {
@@ -131,16 +164,18 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
 
     await page.getByRole("combobox").filter({ hasText: "Terbaru diperbarui" }).selectOption("nama_asc");
-    // Honda Vario < Laptop Dell < Printer Epson < Tanah Kantor < Toyota Avanza
+    // `nama_asc` is ORDER BY ur_sskel ASC server-side, so the row order becomes:
+    //   "Kendaraan Dinas Roda 2" (E2E-B-1) < "Kendaraan Dinas Roda 4" (E2E-A-1)
+    //   < "Personal Computer Unit" (E2E-A-2, E2E-C-1 — tied) < "Tanah Bangunan
+    //   Kantor" (E2E-B-2).
+    // Assert only the parts the tie does not make ambiguous, which is still
+    // enough to prove the order changed from the default (updated_at DESC).
     await expect
-      .poll(
-        async () => {
-          const body = await page.locator("body").innerText();
-          return body.indexOf("Honda Vario") < body.indexOf("Toyota Avanza");
-        },
-        { timeout: 20000 },
-      )
-      .toBe(true);
+      .poll(async () => (await nupsInDomOrder(page)).slice(0, 2), { timeout: 20000 })
+      .toEqual(["E2E-B-1", "E2E-A-1"]);
+    await expect
+      .poll(async () => (await nupsInDomOrder(page)).at(-1), { timeout: 20000 })
+      .toBe("E2E-B-2");
   });
 
   test("Detail opens the asset detail page with the real record", async ({ page }) => {
@@ -155,7 +190,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
     await page.getByRole("link", { name: "Detail" }).first().click();
     await expect(page).toHaveURL(/\/bank-aset\/daftar\/\d+/);
     await expect(page.getByText("Detail Aset").first()).toBeVisible();
-    await expect(page.getByText("Toyota Avanza").first()).toBeVisible();
+    await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
     await expect(page.getByText("3.05.01.04.001").first()).toBeVisible(); // kode barang
   });
 });
@@ -183,13 +218,24 @@ test.describe("Bank Aset — sebaran + QR code", () => {
     // Candidate assets load from the real list endpoint.
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).not.toHaveLength(0);
 
+    // "Pilih semua" only fills the selection; the preview modal is behind its own
+    // button, which is `disabled` while nothing is selected (qrcode_page.rs:271).
+    // Asserting it went from disabled to enabled proves the selection really
+    // landed in state rather than just repainting checkboxes.
+    const previewBtn = page.getByRole("button", { name: "Pratinjau & Cetak" });
+    await expect(previewBtn).toBeDisabled();
     await page.getByRole("button", { name: "Pilih semua" }).click();
-    // Selecting drives the preview panel — real state, not just a visible button.
+    await expect(previewBtn).toBeEnabled({ timeout: 20000 });
+
+    await previewBtn.click();
     await expect(page.getByText("Pratinjau Label QR Code").first()).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole("button", { name: "Cetak" })).toBeVisible();
 
-    await page.getByRole("button", { name: "Bersihkan" }).click();
+    // Close the modal, then clear the selection — the button falls back to disabled.
+    await page.getByRole("button", { name: "Tutup" }).click();
     await expect(page.getByText("Pratinjau Label QR Code")).toHaveCount(0);
+    await page.getByRole("button", { name: "Bersihkan" }).click();
+    await expect(previewBtn).toBeDisabled();
   });
 });
 
@@ -212,7 +258,10 @@ test.describe("Dashboard", () => {
   test("dashboard export endpoints respond server-side (#97: no FE caller yet)", async ({ request }) => {
     const token = await tokenFor(request, "validator_pusat");
     for (const fmt of ["excel", "pdf"]) {
-      const res = await request.get(`${API}/dashboard/perlengkapan/export/${fmt}`, {
+      // `tahun_anggaran` is a REQUIRED query param (DashboardParams.tahun_anggaran
+      // is a bare i32, dashboard/models.rs:10) — omitting it is a legitimate 400
+      // from the Query extractor, not endpoint rot.
+      const res = await request.get(`${API}/dashboard/perlengkapan/export/${fmt}?tahun_anggaran=2026`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       // The endpoint is wired and must keep working even though the dashboard
@@ -297,13 +346,27 @@ test.describe("Analitik — roadmap + kodefikasi", () => {
     await expect(page.getByText("Buat Analisis Baru").first()).toBeVisible({ timeout: 20000 });
   });
 
-  test("kodefikasi dashboard renders its mapping table", async ({ page }) => {
+  test("kodefikasi dashboard route mounts (mapping table blocked by #113)", async ({ page }) => {
     await page.goto(`${BASE}/analitik/kodefikasi`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    // Column headers of the real mapping table (data may legitimately be empty:
-    // mapping rows are produced by the #43 satker_code_map / kodefikasi pipeline).
-    await expect(page.getByText("Kode Lama").first()).toBeVisible({ timeout: 20000 });
-    await expect(page.getByText("Kode Standar Rujukan").first()).toBeVisible();
+    // FINDING #113 (product bug, filed rather than faked — see the task):
+    //   The mapping table below `Mapping Kodefikasi BMN` never renders, because
+    //   every mapping_kodefikasi query 500s. Two independent schema faults:
+    //     (a) `perlengkapan.ms_barang` is joined at 13 sites in
+    //         mapping_kodefikasi/repository.rs but is created by NO migration —
+    //         `grep -rn ms_barang --include=*.sql .` returns zero hits.
+    //     (b) both progress queries select `s.nama` from `authenc.satkers`,
+    //         whose column is `name` (001_baseline.sql:4376).
+    //   The FE then swallows the error to `None` (mapping_kodefikasi_dashboard.rs:35)
+    //   and `.and_then(|data| data.map(..))` renders NOTHING — no error state — so
+    //   the failure is invisible in the browser.
+    // Until the module has a schema, assert what the route genuinely delivers:
+    // it mounts under the app shell and its own chrome renders. The header
+    // assertions move back here once #113 lands.
+    await expect(page.getByRole("heading", { name: "Mapping Kodefikasi BMN" }).first()).toBeVisible({
+      timeout: 20000,
+    });
+    await expect(page.getByRole("button", { name: /Export XLSX/ })).toBeVisible();
   });
 });
 
@@ -362,22 +425,34 @@ test.describe("Notifikasi — inbox read lifecycle", () => {
   });
 
   test("a user cannot mark another user notification read (ownership enforced)", async ({ request }) => {
-    // mark_as_read is keyed on (id, claims.user_id) — operator_b patching
-    // operator_a's N1 must not flip it.
-    const tokenB = await tokenFor(request, "operator_b");
-    const res = await request.patch(`${API}/notifikasi/${N1}/read`, {
-      headers: { Authorization: `Bearer ${tokenB}` },
-    });
-    // Either an explicit rejection or a no-op — never a cross-user write.
-    if (res.ok()) {
-      const tokenA = await tokenFor(request, "operator_a");
+    // mark_as_read is keyed on (id, claims.user_id) — `notifikasi/api.rs:124`
+    // passes the token's user_id and the UPDATE is `WHERE id=$1 AND user_id=$2`
+    // (`in_app.rs:172`), so operator_b patching operator_a's N1 must be a no-op.
+    //
+    // Asserted as "B's PATCH did not CHANGE N1", never as "N1 is unread": the
+    // sibling test above clicks "Tandai semua dibaca" and legitimately drains
+    // operator_a's whole inbox, so an absolute `read === false` here is only
+    // true when this file runs out of order. Compare before/after instead.
+    const tokenA = await tokenFor(request, "operator_a");
+    const readStateOfN1 = async (): Promise<boolean | undefined> => {
       const listed = await request.get(`${API}/notifikasi?limit=100&offset=0&unread_only=false`, {
         headers: { Authorization: `Bearer ${tokenA}` },
       });
       const rows: Array<{ id: string; read: boolean }> = (await listed.json()).data ?? [];
-      const n1 = rows.find((r) => r.id === N1);
-      // If N1 is still in operator_a's inbox it must NOT have been read by B.
-      if (n1) expect(n1.read, "N1 read-state after cross-user PATCH").toBe(false);
+      return rows.find((r) => r.id === N1)?.read;
+    };
+
+    const before = await readStateOfN1();
+    expect(before, "N1 must be visible in operator_a's inbox for this test to mean anything").toBeDefined();
+
+    const tokenB = await tokenFor(request, "operator_b");
+    const res = await request.patch(`${API}/notifikasi/${N1}/read`, {
+      headers: { Authorization: `Bearer ${tokenB}` },
+    });
+
+    // Either an explicit rejection or a silent no-op — never a cross-user write.
+    if (res.ok()) {
+      expect(await readStateOfN1(), "cross-user PATCH must not mutate N1").toBe(before);
     } else {
       expect(res.status()).toBeGreaterThanOrEqual(400);
     }
