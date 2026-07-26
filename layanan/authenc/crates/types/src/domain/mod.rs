@@ -16,7 +16,6 @@ pub mod social_account;
 pub mod user;
 
 // OAuth2/OIDC domain models
-pub mod client_policy;
 pub mod client_registration;
 pub mod client_scope;
 pub mod device;
@@ -82,7 +81,6 @@ pub use user::{
 };
 
 // Re-export OAuth2/OIDC types
-pub use client_policy::*;
 pub use client_registration::*;
 pub use client_scope::*;
 pub use device::*;

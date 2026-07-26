@@ -35,31 +35,20 @@ pub mod uma;
 pub mod uma_policy_store;
 
 // Audit services
-pub mod audit_integrity;
 pub mod audit_log_sink;
 pub mod audit_signature;
-#[cfg(feature = "elasticsearch")]
-pub mod elasticsearch_audit_log_sink;
 pub mod enhanced_audit;
 #[cfg(feature = "kafka")]
 pub mod kafka_audit_log_sink;
 pub mod pg_audit_log_store;
 
 // Event services
-pub mod event_listeners;
 #[cfg(feature = "kafka")]
 pub mod event_publisher;
-#[cfg(feature = "aws")]
-pub mod event_retention;
 pub mod events;
-#[cfg(feature = "kafka")]
-pub mod kafka_event_listener;
-pub mod pg_event_store;
 
 // Cache services
 pub mod cache;
-#[cfg(feature = "kafka")]
-pub mod cache_invalidation_listener;
 pub mod cache_utils;
 
 // Identity Broker services
@@ -74,7 +63,6 @@ pub mod federation_provider;
 
 // Advanced services (Enterprise features)
 pub mod authorization;
-pub mod client_policy;
 pub mod clustering;
 pub mod compliance;
 pub mod config_manager;
@@ -86,7 +74,6 @@ pub mod observability;
 pub mod zero_trust;
 
 // FAPI-2 services (OPTIONAL)
-pub mod par;
 
 // Store implementations
 pub mod captcha;
@@ -141,11 +128,8 @@ pub use uma::{
 pub use uma_policy_store::{UmaDelegationPolicyStore, UmaPolicyStore};
 
 // Audit service exports
-pub use audit_integrity::*;
 pub use audit_log_sink::*;
 pub use audit_signature::*;
-#[cfg(feature = "elasticsearch")]
-pub use elasticsearch_audit_log_sink::*;
 pub use enhanced_audit::{
     EnhancedAuditContext, EnhancedAuditService, create_audit_context, extract_audit_details,
 };
@@ -154,20 +138,12 @@ pub use kafka_audit_log_sink::*;
 pub use pg_audit_log_store::*;
 
 // Event service exports
-pub use event_listeners::*;
 #[cfg(feature = "kafka")]
 pub use event_publisher::{DlqEntry, EventPublisher, EventPublisherConfig, PublishableEvent};
-#[cfg(feature = "aws")]
-pub use event_retention::*;
 pub use events::*;
-#[cfg(feature = "kafka")]
-pub use kafka_event_listener::*;
-pub use pg_event_store::*;
 
 // Cache service exports
 pub use cache::*;
-#[cfg(feature = "kafka")]
-pub use cache_invalidation_listener::*;
 pub use cache_utils::*;
 
 // Identity Broker service exports
@@ -187,7 +163,6 @@ pub use federation_provider::*;
 // Advanced service exports (Enterprise features)
 #[allow(ambiguous_glob_reexports)]
 pub use authorization::*;
-pub use client_policy::*;
 #[allow(ambiguous_glob_reexports)]
 pub use clustering::*;
 #[allow(ambiguous_glob_reexports)]
@@ -201,6 +176,5 @@ pub use observability::*;
 pub use zero_trust::*;
 
 // FAPI-2 service exports (OPTIONAL)
-pub use par::*;
 
 pub use captcha::CaptchaService;
