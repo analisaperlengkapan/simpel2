@@ -50,7 +50,14 @@
  *   no_aset OR merk, so "Toyota" narrows to E2E-A-1 by `nama`/`merk`.)
  */
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
-import { credsFor, apiLogin, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
+import {
+  credsFor,
+  apiLogin,
+  storageStatePath,
+  tokenFor,
+  TEST_USERS,
+  PERLENGKAPAN_API_URL,
+} from "./helpers/real-auth";
 
 const BASE = "/perlengkapan/simpel/v2";
 const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan`;
@@ -75,12 +82,6 @@ const N4 = "f1000000-0000-4f00-8f00-0000000c0004"; // operator_b, unread
 const shell = (page: Page) => page.locator("header").getByText("SIMPEL").first();
 
 /** Real per-role JWT (apiLogin returns a token PAIR — the header needs .accessToken). */
-async function tokenFor(request: APIRequestContext, userKey: string): Promise<string> {
-  const user = TEST_USERS.find((u) => u.key === userKey);
-  if (!user) throw new Error(`unknown seeded test user: ${userKey}`);
-  const { accessToken } = await apiLogin(request, credsFor(user));
-  return accessToken;
-}
 
 const ALL_NUPS = ["E2E-A-1", "E2E-A-2", "E2E-B-1", "E2E-B-2", "E2E-C-1"];
 

@@ -19,6 +19,7 @@ import {
   credsFor,
   apiLogin,
   storageStatePath,
+  tokenFor,
   TEST_USERS,
   PERLENGKAPAN_API_URL,
 } from './helpers/real-auth';
@@ -41,13 +42,6 @@ const FORBIDDEN = /Akses Ditolak/i;
  * pengelolaan-workflow.spec.ts:54.
  */
 const shell = (page: Page) => page.locator('header').getByText('SIMPEL').first();
-
-async function tokenFor(request: APIRequestContext, userKey: string): Promise<string> {
-  const user = TEST_USERS.find((u) => u.key === userKey);
-  if (!user) throw new Error(`unknown seeded test user: ${userKey}`);
-  const { accessToken } = await apiLogin(request, credsFor(user));
-  return accessToken;
-}
 
 /** Expand a collapsed sidebar group, then click the real nav link by href. */
 async function clickSidebarLink(page: Page, group: string, href: string) {
