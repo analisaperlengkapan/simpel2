@@ -197,6 +197,38 @@ export const TEST_USERS: ScopedTestUser[] = [
 ];
 
 /**
+ * Access token for a seeded test user key, for direct API assertions.
+ *
+ * Handles the `admin` key, which the scoped `TEST_USERS` table deliberately
+ * does NOT contain: the admin identity is the all-role [`SEED_USER`], not a
+ * satker-scoped user. `storageStatePath("admin")` already resolves that way for
+ * browser contexts (auth.setup writes the seed user under that key), so a
+ * `tokenFor("admin")` that threw was an inconsistency between the browser path
+ * and the API path — and it threw "unknown seeded test user: admin" the first
+ * time admin-bantuan-workflow.spec.ts ever executed.
+ *
+ * Lives here rather than being copy-pasted per spec: two specs had their own
+ * identical local copies, so the bug had to be found and fixed twice.
+ */
+export async function tokenFor(
+  request: APIRequestContext,
+  userKey: string,
+): Promise<string> {
+  if (userKey === "admin") {
+    const { accessToken } = await apiLogin(request, SEED_USER);
+    return accessToken;
+  }
+  const user = TEST_USERS.find((u) => u.key === userKey);
+  if (!user) {
+    throw new Error(
+      `unknown seeded test user: ${userKey} (known: admin, ${TEST_USERS.map((u) => u.key).join(", ")})`,
+    );
+  }
+  const { accessToken } = await apiLogin(request, credsFor(user));
+  return accessToken;
+}
+
+/**
  * Credentials for a scoped test user. ALL multi-satker users share the base
  * seed password — the fixture reuses the one known Argon2id hash (verifying
  * exactly "199203142014031001") for every user, so `password == username`

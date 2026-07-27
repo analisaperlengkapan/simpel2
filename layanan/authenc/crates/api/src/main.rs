@@ -27,7 +27,7 @@ use tracing::{info, warn};
 use url::Url;
 
 use authenc_api::{
-    AppConfig, AxumApp, CorsConfig, CsrfConfig, Environment,
+    AppConfig, AxumApp, CorsConfig, CsrfConfig, Environment, RateLimitConfig,
     session_store::SessionStore as WebAuthnSessionStore, state::ApiState,
 };
 use authenc_iam_api::{create_iam_router, state::IamApiState};
@@ -465,14 +465,33 @@ async fn main() -> std::result::Result<(), Box<dyn std::error::Error>> {
     let iam_state = IamApiState::new(iam_user_service, iam_jwt_service, db.clone());
     let iam_router = create_iam_router(Arc::new(iam_state));
 
+    // Rate limiting — secure defaults (60 req/min per IP, enabled) that
+    // production/staging keep by leaving these unset. Overridable via env so the
+    // e2e stack can relax the per-IP budget: the comprehensive Playwright suite
+    // drives every workflow (login + `expect.poll` status loops + transitions)
+    // from a SINGLE runner IP, which legitimately exceeds 60 req/min and would
+    // otherwise 429 non-deterministically. `AUTHENC_RATE_LIMIT_ENABLED=false`
+    // disables the limiter; `AUTHENC_RATE_LIMIT_RPM=<n>` raises the budget.
+    let mut rate_limit = RateLimitConfig::default();
+    if let Ok(v) = std::env::var("AUTHENC_RATE_LIMIT_ENABLED") {
+        rate_limit.enabled =
+            !matches!(v.trim().to_ascii_lowercase().as_str(), "false" | "0" | "no");
+    }
+    if let Some(n) = std::env::var("AUTHENC_RATE_LIMIT_RPM")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+    {
+        rate_limit.requests_per_minute = n;
+    }
+
     // App config - development CORS + disabled CSRF for API service
     let config = AppConfig {
         cors: CorsConfig::new(Environment::Development),
+        rate_limit,
         csrf: CsrfConfig {
             enabled: false,
             ..Default::default()
         },
-        ..Default::default()
     };
 
     let app = AxumApp::new(state, config);
