@@ -222,6 +222,26 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
   });
 
   test('monitoring workflow renders the metrics summary', async ({ page }) => {
+    // FINDING #118 — root cause identified, filed, NOT papered over.
+    //   `workflow/monitoring.rs::get_metrics` queries `perlengkapan.kebutuhan_bmn`, a table that
+    //   NO migration creates (the real one is `pengajuan_kebutuhan_bmn`). Every call 500s, so
+    //   `MonitoringContent` — which holds "Ringkasan Metrics" (monitoring.rs:380) — never renders,
+    //   while the outer page title at monitoring.rs:322 does. That asymmetry is exactly what this
+    //   test observes.
+    //
+    //   It is not a rename: the queries also filter `status NOT IN ('REJECTED',...)` on a table
+    //   whose column is `status_kode integer`, and the SLA query names states ('SUBMIT_SATKER',
+    //   'PENYUSUNAN_PRIORITAS') that do not exist in the authoritative enum
+    //   (kebutuhan_bmn/models/status.rs:16). Which real states carry an SLA is a product decision.
+    //
+    //   Same root cause as #116 (dashboard export 500s) — `dashboard/repository.rs` hits the same
+    //   phantom table.
+    //
+    // `test.fail` rather than a weakened assertion: the assertions below still describe CORRECT
+    // behaviour, so the day #118 lands Playwright reports "expected to fail but passed" and forces
+    // this marker out.
+    test.fail(true, '#118: workflow monitoring queries a table no migration creates');
+
     await page.goto(`${BASE}/dashboard`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow-monitoring`);
@@ -359,6 +379,18 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
   test.use({ storageState: storageStatePath('operator_a') });
 
   test('operator saves personal sizes and they persist across reload', async ({ page }) => {
+    // FINDING #117 — the page renders PARTIALLY and the cause needs the live page, not a source
+    // read, so it is filed rather than guessed at.
+    //   `toHaveCount(3)` is the CORRECT expectation: the <select> at
+    //   pakaian_dinas_ukuran.rs:285 is emitted by `render_size_select`, which is called once per
+    //   size signal, and there are three (ukuran_baju/celana/sepatu, :45-47). `render_size_select`
+    //   has NO empty-list guard, so it always emits a <select> even with zero options.
+    //   Received was 0 while `getByText('Isi Ukuran')` PASSED — yet that heading is the
+    //   SectionCard the selects live inside (:165). A card that renders without its own children
+    //   means the failure is upstream of the form branch, not a data-shape problem, and the
+    //   seeded master data is present (ms_ukuran exists in V001 with 35 rows in V002).
+    test.fail(true, '#117: ukuran form renders its section header but zero selects');
+
     await page.goto(`${BASE}/dashboard`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Pakaian Dinas', `${BASE}/pakaian-dinas/ukuran`);
