@@ -54,9 +54,7 @@
 //! - [`EnhancedAuditService`]: Enhanced audit with integrity verification
 //! - [`EventPublisher`]: Event publishing with DLQ support
 //! - [`PgAuditLogStore`]: PostgreSQL audit log storage
-//! - [`PgEventStore`]: PostgreSQL event storage
 //! - [`KafkaAuditLogSink`]: Kafka audit log sink
-//! - [`ElasticsearchAuditLogSink`]: Elasticsearch audit log sink
 //!
 //! ### Session Management
 //! - [`SessionStore`]: Session storage and management
@@ -139,7 +137,7 @@
 //!
 //! - `default`: All core features enabled
 //! - `kafka`: Kafka event streaming support
-//! - `elasticsearch`: Elasticsearch audit log sink
+//! - `elasticsearch`: Elasticsearch-backed enhanced audit
 //! - `redis`: Redis caching support
 //! - `fips`: FIPS 140-2 compliance mode
 //! - `quantum`: Post-quantum cryptography support
