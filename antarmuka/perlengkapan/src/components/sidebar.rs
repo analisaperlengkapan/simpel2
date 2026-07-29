@@ -6,7 +6,7 @@
 //!   Kebutuhan BMN (Daftar, Buat Baru, Laporan)
 //!   Pakaian Dinas (Jenis, Pengajuan, Ukuran, Laporan)
 //!   Pengelolaan BMN (Pemakaian BMN, Penghapusan)
-//!   Analitik (Roadmap Sarpras, Kodefikasi BMN)
+//!   Analitik (Roadmap Sarpras)
 //!   Admin (Pengguna, Otorisasi, Audit Log, Master Data, Template Dokumen,
 //!          Konfigurasi/Monitoring/Delegasi Workflow) — admin role only
 //!   Bantuan (Panduan, FAQ, Helpdesk)

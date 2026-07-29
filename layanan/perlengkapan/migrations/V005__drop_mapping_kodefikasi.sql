@@ -1,0 +1,41 @@
+-- ============================================================================
+-- Migration V005: drop the mapping_kodefikasi schema (#113)
+-- ============================================================================
+-- The mapping_kodefikasi module was dead on arrival and is removed in this same
+-- change (BE module, FE dashboard, shared model, six routes). Two independent
+-- faults meant every one of its queries 500'd, so the feature never worked in
+-- any environment:
+--
+--   (a) `perlengkapan.ms_barang` is joined at 13 sites in the module's
+--       repository but is created by NO migration anywhere in the repo —
+--       `grep -rn ms_barang --include=*.sql .` returns zero CREATE TABLE hits.
+--   (b) both progress queries select `s.nama` from `authenc.satkers`, whose
+--       column is `name` (authenc 001_baseline.sql:4376).
+--
+-- The failure was invisible in the browser: the FE mapped the error to `None`
+-- and then rendered nothing at all — no error state — which is what let a
+-- non-functional feature sit in the nav looking real.
+--
+-- WHY A NEW MIGRATION RATHER THAN EDITING THE BASELINE: V001__baseline.sql has
+-- already been applied, and refinery validates checksums of applied migrations.
+-- Editing it in place would make every deployed environment fail to start.
+--
+-- EXPAND/CONTRACT (#52): this is the contract step, and it is safe to run in the
+-- same release as the code removal because the table has NO readers to lose —
+-- the queries that referenced it could never execute successfully, and
+-- `V002__seed.sql` ships zero rows for it (the pg_dump section is empty). So
+-- there is no data to preserve and an app-level `helm rollback` cannot resurrect
+-- a working reader.
+--
+-- Dropped explicitly rather than with CASCADE: if some dependent object exists
+-- that this migration does not know about, DROP TABLE must fail loudly instead
+-- of silently removing it.
+-- ============================================================================
+
+-- Sole dependent of the table (aggregate over status_mapping); zero code
+-- consumers — `grep -rn v_mapping_progress` finds no .rs/.ts/.php reference.
+DROP VIEW IF EXISTS perlengkapan.v_mapping_progress;
+
+-- Indexes (idx_mapping_*) and the trg_mapping_updated_at trigger are owned by
+-- the table and are removed with it.
+DROP TABLE IF EXISTS perlengkapan.mapping_kodefikasi;

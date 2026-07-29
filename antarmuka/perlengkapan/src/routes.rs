@@ -31,7 +31,6 @@ pub mod path {
 
     pub const ANALITIK_ROADMAP: &str = "/perlengkapan/simpel/v2/analitik/roadmap";
     pub const ANALITIK_ROADMAP_BUAT: &str = "/perlengkapan/simpel/v2/analitik/roadmap/buat";
-    pub const ANALITIK_KODEFIKASI: &str = "/perlengkapan/simpel/v2/analitik/kodefikasi";
 
     pub const ADMIN_USERS: &str = "/perlengkapan/simpel/v2/admin/users";
     pub const ADMIN_ROLES: &str = "/perlengkapan/simpel/v2/admin/roles";

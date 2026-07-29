@@ -9,7 +9,6 @@ pub mod dashboard;
 pub mod dokumen;
 pub mod export;
 pub mod kebutuhan_bmn;
-pub mod mapping_kodefikasi;
 pub mod notifikasi;
 pub mod pakaian_dinas;
 pub mod pemakaian_bmn;

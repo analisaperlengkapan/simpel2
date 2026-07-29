@@ -12,7 +12,6 @@ pub mod kebutuhan_bmn_list;
 pub mod kebutuhan_bmn_satker;
 pub mod laporan_kebutuhan_bmn;
 pub mod layout;
-pub mod mapping_kodefikasi_dashboard;
 pub mod pagination_controls;
 pub mod pakaian_dinas_jenis_list;
 pub mod pakaian_dinas_laporan;

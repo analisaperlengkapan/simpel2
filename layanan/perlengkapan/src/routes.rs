@@ -8,10 +8,7 @@ use axum::{
 };
 
 use crate::export::handlers::{download_export_job, export_to_excel, get_export_job_status};
-use crate::{
-    AppState, dashboard, kebutuhan_bmn, mapping_kodefikasi, pakaian_dinas, pemakaian_bmn,
-    roadmap_sarpras,
-};
+use crate::{AppState, dashboard, kebutuhan_bmn, pakaian_dinas, pemakaian_bmn, roadmap_sarpras};
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
@@ -429,28 +426,6 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/export/excel", get(export_to_excel))
         .route("/export/jobs/{id}/status", get(get_export_job_status))
         .route("/export/jobs/{id}/download", get(download_export_job))
-        // ============ Mapping Kodefikasi Routes (Read-Only + Export) ============
-        .route(
-            "/mapping/detect",
-            get(mapping_kodefikasi::detect_non_standard_codes),
-        )
-        .route(
-            "/mapping/standard",
-            get(mapping_kodefikasi::list_standard_codes),
-        )
-        .route(
-            "/mapping/suggestions",
-            get(mapping_kodefikasi::get_mapping_suggestions),
-        )
-        .route(
-            "/mapping/progress",
-            get(mapping_kodefikasi::get_mapping_progress),
-        )
-        .route(
-            "/mapping/progress/satker",
-            get(mapping_kodefikasi::get_mapping_progress_by_satker),
-        )
-        .route("/mapping/export", get(mapping_kodefikasi::export_mapping))
         // ============ Predictive Analytics (Forecast) Routes ============
         .route("/forecast", get(roadmap_sarpras::get_forecast))
         .route(
