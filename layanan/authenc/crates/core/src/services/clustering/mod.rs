@@ -1219,7 +1219,7 @@ impl NodeHealthMonitor {
                 let now = chrono::Utc::now();
                 let mut health = node_health.write().await;
 
-                for (_node_id, status) in health.iter_mut() {
+                for status in health.values_mut() {
                     let elapsed = now.signed_duration_since(status.last_heartbeat);
                     if elapsed > chrono::Duration::from_std(timeout_threshold).unwrap() {
                         status.is_healthy = false;

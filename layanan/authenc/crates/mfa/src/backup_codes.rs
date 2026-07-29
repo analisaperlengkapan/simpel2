@@ -109,11 +109,7 @@ impl<S: BackupCodesStore> BackupCodesService<S> {
 
         // Format with dashes for readability (e.g., ABCD-EFGH)
         if self.config.length >= 8 {
-            format!(
-                "{}-{}",
-                &code[..4].to_uppercase(),
-                &code[4..].to_uppercase()
-            )
+            format!("{}-{}", code[..4].to_uppercase(), code[4..].to_uppercase())
         } else {
             code.to_uppercase()
         }

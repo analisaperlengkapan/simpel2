@@ -421,7 +421,7 @@ impl ClassificationService for InMemoryClassificationService {
         let mut total_secrets = 0;
         let mut total_accesses = 0;
 
-        for (_, metadata) in classifications.iter() {
+        for metadata in classifications.values() {
             total_secrets += 1;
             total_accesses += metadata.access_count;
 
