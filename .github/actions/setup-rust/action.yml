@@ -9,7 +9,7 @@ inputs:
     # this toolchain in their own images (which timed out on ARC).
     description: 'Rust toolchain version'
     required: false
-    default: '1.96.0'
+    default: '1.97.1'
   targets:
     description: 'Comma-separated list of targets to install'
     required: false
