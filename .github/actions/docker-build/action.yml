@@ -98,8 +98,20 @@ runs:
         load: ${{ inputs.push == 'false' && inputs.load == 'true' }}
         platforms: ${{ inputs.platforms }}
         build-args: ${{ inputs.build-args }}
+        # `ignore-error=true` on the EXPORT: the gha cache backend is billed
+        # against the same Actions storage quota as artifacts, and when that
+        # quota is exhausted the export fails and buildx aborts the whole build
+        # with `failed to solve: not_found` — even though the image compiled
+        # cleanly. Observed on PR #685 (job 89870932217): 30+ minutes of
+        # successful compilation thrown away, immediately followed by
+        # "Artifact storage quota has been hit".
+        #
+        # A cache write is an optimisation. It must never be able to fail a
+        # build whose content is correct, especially when the trigger is an
+        # account-wide quota this repo cannot control (this repo holds only
+        # ~0.2 GB of artifacts). The import side already tolerates a miss.
         cache-from: type=gha,scope=${{ inputs.image }}
-        cache-to: type=gha,mode=max,scope=${{ inputs.image }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.image }},ignore-error=true
         provenance: ${{ inputs.push }}
         sbom: ${{ inputs.push }}
 
