@@ -1,7 +1,7 @@
 # 🏛️ SIMPEL (Sistem Informasi Perlengkapan)
 
-[![Rust](https://img.shields.io/badge/rust-1.96%2B-orange.svg)](https://rustlang.org)
-[![Leptos](https://img.shields.io/badge/leptos-0.8.19-green.svg)](https://leptos.dev)
+[![Rust](https://img.shields.io/badge/rust-1.97%2B-orange.svg)](https://rustlang.org)
+[![Leptos](https://img.shields.io/badge/leptos-0.8.20-green.svg)](https://leptos.dev)
 [![Axum](https://img.shields.io/badge/axum-0.8.9-blue.svg)](https://github.com/tokio-rs/axum)
 [![Kubernetes](https://img.shields.io/badge/kubernetes-ready-brightgreen.svg)](https://kubernetes.io)
 
@@ -89,8 +89,8 @@ simpel2/
 
 | Lapisan | Teknologi | Versi | Tujuan |
 |---------|-----------|-------|--------|
-| **Bahasa** | Rust | 1.96+ (Edition 2024) | Memory safety & performa tinggi |
-| **Frontend** | Leptos | 0.8.19 | Reaktivitas WASM (Client-Side Rendering) |
+| **Bahasa** | Rust | 1.97+ (Edition 2024) | Memory safety & performa tinggi |
+| **Frontend** | Leptos | 0.8.20 | Reaktivitas WASM (Client-Side Rendering) |
 | **Backend HTTP** | Axum | 0.8.9 | REST API asinkron |
 | **Backend gRPC** | Tonic + Prost | 0.14.x | Komunikasi antar-layanan terproteksi mTLS |
 | **Database** | PostgreSQL | 15+ | Persistensi data relasional |
@@ -104,7 +104,7 @@ simpel2/
 
 ### 1. Persyaratan Sistem
 
-- **Rust 1.90+** (`rustup` dengan target `wasm32-unknown-unknown`)
+- **Rust 1.97+** (`rustup` dengan target `wasm32-unknown-unknown`)
 - **Trunk** (`cargo install trunk` atau `cargo binstall trunk`)
 - **Docker & Docker Compose** (PostgreSQL & Redis lokal)
 

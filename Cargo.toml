@@ -68,7 +68,7 @@ default-members = [
 version = "0.1.0"
 edition = "2024"
 authors = ["SIMPEL Team"]
-rust-version = "1.96"
+rust-version = "1.97.1"
 
 
 [workspace.dependencies]
@@ -342,7 +342,7 @@ mockall = "0.14.0"
 serial_test = "3.5.0"
 
 # Leptos Frontend Dependencies - Latest Available Stable
-leptos = { version = "0.8.19" }
+leptos = { version = "0.8.20" }
 leptos_meta = { version = "0.8.6" }
 leptos_router = { version = "0.8.13" }
 leptos_dom = { version = "0.8.8" }

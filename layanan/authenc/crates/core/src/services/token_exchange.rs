@@ -753,7 +753,7 @@ impl TokenExchangeService {
 
         let mut detail = format!(
             "Token exchange: {} -> {}",
-            &request.subject_token_type,
+            request.subject_token_type,
             request
                 .requested_token_type
                 .as_deref()
