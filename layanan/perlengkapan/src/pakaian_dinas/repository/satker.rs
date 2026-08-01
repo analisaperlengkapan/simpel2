@@ -29,12 +29,12 @@ impl PakaianDinasRepository {
         let rows = client
             .query(
                 r#"
-                SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
+                SELECT ps.*, s.nama_satker as satker_nama, s.kode_satker as satker_kode,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
                 WHERE ps.pengajuan_id = $1
-                ORDER BY s.nama ASC
+                ORDER BY s.nama_satker ASC
                 LIMIT $2 OFFSET $3
                 "#,
                 &[&pengajuan_id, &(per_page as i64), &(offset as i64)],
@@ -56,10 +56,10 @@ impl PakaianDinasRepository {
         let row = client
             .query_opt(
                 r#"
-                SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
+                SELECT ps.*, s.nama_satker as satker_nama, s.kode_satker as satker_kode,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
                 WHERE ps.id = $1
                 "#,
                 &[&id],

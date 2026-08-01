@@ -171,7 +171,7 @@ async fn test_pakaian_dinas_pengajuan_create() {
         "nama": "Pengajuan PDH 2026", "tahun": 2026,
         "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
         "pilihan_satker": "sebagian", "spesifikasi_ids": [spesifikasi_id],
-        "satker_ids": ["00000000-0000-0000-0000-0000000000aa"]}),
+        "satker_ids": ["0200010"]}),
     )
     .await;
     assert_eq!(res.status_code(), 201, "create pengajuan: {:?}", res.text());
@@ -232,7 +232,7 @@ async fn test_pakaian_dinas_validator_workflow() {
         json!({"nama": "Pengajuan PDH 2026", "tahun": 2026,
                "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
                "pilihan_satker": "sebagian", "spesifikasi_ids": [spec_id],
-               "satker_ids": ["00000000-0000-0000-0000-0000000000aa"]}),
+               "satker_ids": ["0200010"]}),
     )
     .await;
     assert_eq!(r.status_code(), 201, "create pengajuan: {:?}", r.text());
@@ -253,7 +253,9 @@ async fn test_pakaian_dinas_validator_workflow() {
                 &[
                     &satker_row_id,
                     &Uuid::parse_str(&pengajuan_id).unwrap(),
-                    &Uuid::new_v4(),
+                    // MySIMKARI kode_satker — the column is varchar(20) (V006/#94),
+                    // not a uuid.
+                    &"0200010",
                     &Uuid::parse_str(OPERATOR).unwrap(),
                 ],
             )

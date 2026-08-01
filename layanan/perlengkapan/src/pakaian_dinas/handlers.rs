@@ -65,7 +65,8 @@ pub struct LaporanDaftarQuery {
     #[serde(flatten)]
     pub pagination: PaginationQuery,
     pub pengajuan_id: Uuid,
-    pub satker_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` (V006/#94).
+    pub satker_id: Option<String>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,
@@ -560,10 +561,11 @@ pub async fn bulk_upsert_pegawai_profiles(
 
 pub async fn get_pegawai_by_satker(
     State(service): State<PakaianDinasService>,
-    Path(satker_id): Path<Uuid>,
+    // MySIMKARI `kode_satker`, not a uuid (V006/#94).
+    Path(satker_code): Path<String>,
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<MysimkariPegawai>>>, AppError> {
-    let items = service.get_pegawai_by_satker(satker_id).await?;
+    let items = service.get_pegawai_by_satker(&satker_code).await?;
 
     Ok(Json(ApiResponse::success(
         items,
@@ -575,10 +577,11 @@ pub async fn get_pegawai_by_satker(
 /// Dipakai wizard ukuran utk menampilkan `last_sync_at` + banner data basi.
 pub async fn get_pegawai_roster_with_sync(
     State(service): State<PakaianDinasService>,
-    Path(satker_id): Path<Uuid>,
+    // MySIMKARI `kode_satker`, not a uuid (V006/#94).
+    Path(satker_code): Path<String>,
     _claims: Claims,
 ) -> Result<Json<ApiResponse<PegawaiRosterWithSync>>, AppError> {
-    let roster = service.get_pegawai_roster_with_sync(satker_id).await?;
+    let roster = service.get_pegawai_roster_with_sync(&satker_code).await?;
 
     Ok(Json(ApiResponse::success(
         roster,
@@ -595,10 +598,11 @@ pub struct PegawaiWithSizes {
 
 pub async fn get_pegawai_with_sizes(
     State(service): State<PakaianDinasService>,
-    Path(satker_id): Path<Uuid>,
+    // MySIMKARI `kode_satker`, not a uuid (V006/#94).
+    Path(satker_code): Path<String>,
     _claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PegawaiWithSizes>>>, AppError> {
-    let items = service.get_pegawai_with_sizes(satker_id).await?;
+    let items = service.get_pegawai_with_sizes(&satker_code).await?;
 
     let response: Vec<PegawaiWithSizes> = items
         .into_iter()
@@ -770,7 +774,8 @@ pub struct CetakQuery {
     pub jenis_laporan: String, // "rekap" or "daftar"
     pub jenis_file: String,    // "excel" or "pdf"
     pub pengajuan_id: Uuid,
-    pub satker_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` (V006/#94).
+    pub satker_id: Option<String>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,

@@ -89,7 +89,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
@@ -127,20 +127,20 @@ impl PakaianDinasRepository {
         let data_query = format!(
             r#"
             SELECT
-                psp.nip, psp.nama, s.nama as satker_nama, psp.jabatan, psp.pangkat,
+                psp.nip, psp.nama, s.nama_satker as satker_nama, psp.jabatan, psp.pangkat,
                 psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'BAJU' THEN pu.ukuran END) as ukuran_baju,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'CELANA' THEN pu.ukuran END) as ukuran_celana,
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'SEPATU' THEN pu.ukuran END) as ukuran_sepatu
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
-            GROUP BY psp.id, psp.nip, psp.nama, s.nama, psp.jabatan, psp.pangkat,
+            GROUP BY psp.id, psp.nip, psp.nama, s.nama_satker, psp.jabatan, psp.pangkat,
                      psp.jenis_kelamin, psp.gol_kd, psp.jenis, psp.eselon, psp.with_hijab
-            ORDER BY s.nama, psp.nama
+            ORDER BY s.nama_satker, psp.nama
             LIMIT ${} OFFSET ${}
             "#,
             where_clause, limit_idx, offset_idx
@@ -206,7 +206,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
@@ -224,17 +224,17 @@ impl PakaianDinasRepository {
         let query = format!(
             r#"
             SELECT
-                COALESCE(s.nama, '-') AS satker_nama,
+                COALESCE(s.nama_satker, '-') AS satker_nama,
                 psp.nip, psp.nama, psp.jabatan, psp.gol_kd, psp.jenis,
                 psp.jenis_kelamin, psp.with_hijab,
                 pp.spesifikasi_nama AS item_nama, pu.ukuran
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
-            ORDER BY s.nama, psp.nama, pp.spesifikasi_nama
+            ORDER BY s.nama_satker, psp.nama, pp.spesifikasi_nama
             "#,
             where_clause
         );
@@ -280,13 +280,13 @@ impl PakaianDinasRepository {
                 pp.spesifikasi_nama AS pakaian_nama,
                 pp.spesifikasi_ukuran_group AS ukuran_group,
                 psp.jenis_kelamin AS gender,
-                COALESCE(s.nama, '-') AS satker_nama,
+                COALESCE(s.nama_satker, '-') AS satker_nama,
                 pu.ukuran,
                 COUNT(*) AS jumlah
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = 1008
@@ -302,7 +302,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             query.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
@@ -319,8 +319,8 @@ impl PakaianDinasRepository {
 
         query.push_str(
             " GROUP BY pp.spesifikasi_nama, pp.spesifikasi_ukuran_group, \
-              psp.jenis_kelamin, s.nama, pu.ukuran \
-              ORDER BY pp.spesifikasi_nama, psp.jenis_kelamin, s.nama, pu.ukuran",
+              psp.jenis_kelamin, s.nama_satker, pu.ukuran \
+              ORDER BY pp.spesifikasi_nama, psp.jenis_kelamin, s.nama_satker, pu.ukuran",
         );
 
         let refs: Vec<&(dyn ToSql + Sync)> =

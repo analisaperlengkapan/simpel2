@@ -57,8 +57,10 @@ pub struct CreatePengajuanRequest {
     #[serde(default)]
     pub dengan_unit_kerja: bool,
     pub jenis_pakaian_dinas_id: Option<Uuid>,
-    pub spesifikasi_ids: Vec<Uuid>,    // Selected specifications
-    pub satker_ids: Option<Vec<Uuid>>, // Selected satkers (if pilihan_satker = "sebagian")
+    pub spesifikasi_ids: Vec<Uuid>, // Selected specifications
+    /// Selected satkers (if `pilihan_satker = "sebagian"`), as MySIMKARI
+    /// `kode_satker` — not the bigint surrogate id (V006/#94).
+    pub satker_ids: Option<Vec<String>>,
     /// Wilayah Kejaksaan Tinggi (#19) — wajib jika `pilihan_satker = "wilayah"`.
     /// Satker di-resolve otomatis dari `integrasi.mysimkari_satker.wilayah`.
     #[serde(default)]
@@ -136,7 +138,8 @@ pub struct UpsertPegawaiProfileRequest {
 pub struct LaporanFilter {
     pub pengajuan_id: Option<Uuid>,
     pub tahun: Option<i32>,
-    pub satker_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` (V006/#94).
+    pub satker_id: Option<String>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,

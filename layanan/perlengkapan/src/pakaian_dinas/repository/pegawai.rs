@@ -1,7 +1,6 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
 use crate::shared::error::{AppResult, bad_request};
-use uuid::Uuid;
 
 impl PakaianDinasRepository {
     pub async fn get_pegawai_pakaian_dinas(
@@ -198,9 +197,14 @@ impl PakaianDinasRepository {
 
     // ============ MySIMKARI Integration ============
 
+    /// `integrasi.mysimkari_pegawai.satker_id` is **TEXT** holding the MySIMKARI
+    /// `kode_satker` — integrasi's own child tables key satkers by the business
+    /// code, never by the bigint surrogate. This used to take a `Uuid`, which
+    /// tokio-postgres refuses to bind to a text column, so the employee lookup
+    /// that the whole pakaian-dinas flow depends on failed at runtime (#94).
     pub async fn get_mysimkari_pegawai_by_satker(
         &self,
-        satker_id: Uuid,
+        satker_code: &str,
     ) -> AppResult<Vec<MysimkariPegawai>> {
         let client = self
             .pool
@@ -215,7 +219,7 @@ impl PakaianDinasRepository {
                 WHERE satker_id = $1
                 ORDER BY nama ASC
                 "#,
-                &[&satker_id],
+                &[&satker_code],
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
