@@ -33,6 +33,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Google Maps (peta sebaran BMN)
+    |--------------------------------------------------------------------------
+    |
+    | Kunci Maps JavaScript API. Ini kunci BROWSER — memang terkirim ke setiap
+    | klien di dalam <script src>, jadi ia tak bisa (dan tak perlu)
+    | dirahasiakan. Pelindungnya = HTTP-referrer restriction + kuota di GCP
+    | console, BUKAN kerahasiaan.
+    |
+    | Tetap dipindah ke sini karena hard-code di Blade berarti: (a) satu kunci
+    | dipakai staging DAN production sehingga kuota/abuse tak bisa dipisah,
+    | (b) rotasi menuntut edit kode + rebuild image, (c) gitleaks menandainya
+    | di tiap scan. Dibaca lewat `config()` agar tetap hidup setelah
+    | `php artisan config:cache` — alasan yang sama dengan blok gateway di bawah.
+    |
+    | Default sengaja KOSONG: bila env tak diisi, tag <script> tidak dirender
+    | sama sekali sehingga peta hilang secara kasat mata, ketimbang diam-diam
+    | memakai kunci milik environment lain.
+    |
+    */
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY', ''),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Backend Gateway Clients
     |--------------------------------------------------------------------------
     |
