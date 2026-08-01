@@ -263,29 +263,18 @@ test.describe("Dashboard", () => {
   // so never reached `pdf`, leaving pdf's real status unknown for the whole life
   // of the test. Separate tests report both.
   for (const fmt of ["excel", "pdf"] as const) {
-    test(`dashboard export/${fmt} responds server-side (#97: no FE caller yet)`, async ({ request }) => {
-      // FINDING #116 — filed, not papered over. Both formats genuinely 500. The
-      // 400 this test used to get (before `tahun_anggaran` was supplied) was
-      // hiding it. Ruled out by the sibling tests in this same file: the route is
-      // mounted and guarded ("reject anonymous callers" passes with 401), and
-      // the metrics query works ("dashboard renders real stat cards" passes) —
-      // and the handler runs that query BEFORE the excel step. So the fault is
-      // in the export layer. `export_dashboard_to_excel` round-trips a temp file
-      // through /tmp (services.rs:95); `export_dashboard_to_pdf` does not, so a
-      // shared cause upstream of both is likelier than the temp-file theory
-      // alone — see #116.
+    test(`dashboard export/${fmt} responds server-side`, async ({ request }) => {
+      // #116 FIXED. The 500 was never in the export layer: both handlers call
+      // `get_perlengkapan_dashboard_metrics` FIRST, and four of its seven
+      // sub-queries targeted relations that exist in NO environment
+      // (`perlengkapan.kebutuhan_bmn`, `perlengkapan.pakaian_dinas`,
+      // `integrasi.v_siman_summary_total`, `..._per_kategori`) — the same
+      // never-built data model as #118. `tokio::try_join!` propagates the first
+      // error, so BOTH formats failed identically; that is why pdf failed too
+      // despite never touching the filesystem.
       //
-      // `test.fail` rather than a loosened assertion or a skip: the assertions
-      // below still describe CORRECT behaviour, so the day #116 is fixed
-      // Playwright reports "expected to fail but passed" and forces this marker
-      // to be removed. A weakened expectation would silently accept the bug
-      // forever.
-      // BOTH formats 500 — confirmed by splitting this test. While it was one
-      // loop it threw on `excel` and never reached `pdf`, so "pdf is fine" was
-      // never true, just never measured. That is the whole argument for the
-      // split: a loop that aborts hides every case after the first.
-      test.fail(true, "#116: dashboard export returns 500 for excel AND pdf");
-
+      // The earlier `test.fail(true, …)` marker did its job: the assertions were
+      // left describing CORRECT behaviour, so they now simply pass.
       const token = await tokenFor(request, "validator_pusat");
       // `tahun_anggaran` is a REQUIRED query param (DashboardParams.tahun_anggaran
       // is a bare i32, dashboard/models.rs:10) — omitting it is a legitimate 400
@@ -295,6 +284,28 @@ test.describe("Dashboard", () => {
       });
       expect(res.status(), `dashboard export/${fmt} status`).toBeLessThan(400);
       expect((await res.body()).length, `dashboard export/${fmt} body`).toBeGreaterThan(0);
+    });
+  }
+
+  // #97: the exports now have a real FE caller. Asserting the BUTTON drives a
+  // download closes the gap that let a 500 endpoint sit unnoticed — a
+  // server-side probe alone keeps passing with no UI behind it.
+  for (const [label, ext] of [
+    ["Export Excel", "xlsx"],
+    ["Export PDF", "pdf"],
+  ] as const) {
+    test(`dashboard "${label}" button downloads a file`, async ({ page }) => {
+      await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });
+      const btn = page.getByRole("button", { name: label });
+      await expect(btn, `${label} button is rendered`).toBeVisible({ timeout: 20000 });
+
+      const [download] = await Promise.all([
+        page.waitForEvent("download", { timeout: 20000 }),
+        btn.click(),
+      ]);
+      expect(download.suggestedFilename(), `${label} filename`).toMatch(
+        new RegExp(`\\.${ext}$`),
+      );
     });
   }
 
