@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::ApiResponse;
 
 use crate::kebutuhan_bmn::models::*;
@@ -45,16 +46,23 @@ pub async fn add_satker_to_pengajuan(
 }
 /// GET /kebutuhan-bmn/satker/:id
 /// Get satker detail with barang list
+///
+/// Object-level scoping (#93): `claims` dulu `_claims` — tak terpakai — sehingga
+/// endpoint ini 200 utk SIAPA PUN yang terautentikasi. Di campaign nasional
+/// (`scope_satker = 'semua'`) itu berarti operator satker A bisa membaca isian
+/// satker B hanya dgn menebak/mengumpulkan UUID-nya. Scoping tier #66/#71
+/// sebelumnya hanya terpasang di endpoint DAFTAR.
 pub async fn get_satker_detail(
     State(service): State<KebutuhanBmnService>,
     Path(satker_id): Path<Uuid>,
     Query(pagination): Query<PaginationQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<SatkerWithBarangResponse>>, AppError> {
     pagination.validate()?;
 
+    let scope = SatkerScope::from_claims(&claims);
     let response = service
-        .get_satker_with_barang(satker_id, pagination.page, pagination.per_page)
+        .get_satker_with_barang(satker_id, pagination.page, pagination.per_page, &scope)
         .await?;
 
     Ok(Json(ApiResponse::success(
