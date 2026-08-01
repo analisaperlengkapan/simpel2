@@ -153,11 +153,6 @@ test.describe('Kebutuhan BMN — validator pusat approves', () => {
 // Each transition endpoint enforces the caller's ROLE (require_role):
 // submit-wilayah = operator_satker only; keputusan-pusat = validator_pusat only.
 // A wrong-role caller must be rejected (no unauthorized mutation).
-//
-// NOTE (tracked, #93): OBJECT-level satker scoping is NOT yet enforced — the
-// single satker-detail READ (get_satker_detail ignores claims) returns 200 to
-// any authenticated user, so cross-satker read isolation is a separate RBAC gap,
-// not asserted here. We assert the role gating that IS enforced.
 const KB_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/kebutuhan-bmn`;
 
 test.describe('Kebutuhan BMN — role-gated workflow actions', () => {
@@ -177,5 +172,64 @@ test.describe('Kebutuhan BMN — role-gated workflow actions', () => {
       data: { is_approved: true, alasan_keputusan: 'e2e role-gate probe' },
     });
     expect(r2.status(), 'operator blocked from pusat decision').toBeGreaterThanOrEqual(400);
+  });
+});
+
+// ── RBAC: object-level satker scoping on the single-record READ (#93) ────────
+// The role gating above answers "may this ROLE act?". It does NOT answer "may
+// this caller touch THIS row?" — the gap #93 was filed for: `get_satker_detail`
+// took `_claims` (unused) and returned 200 to any authenticated user. Because
+// the seeded campaign is nationwide (`scope_satker = 'semua'`), every satker has
+// a row in it, so operator_a could read operator_b's submission by id alone.
+//
+// The seed gives all four SatkerScope tiers against one endpoint:
+//   S1 0200010 DKI JAKARTA (operator_a's own satker)
+//   S2 0200020 DKI JAKARTA (operator_b's satker — same wilayah as S1)
+//   S3 0300010 JAWA BARAT  (different wilayah)
+// so this also exercises the DB-backed Wilayah tier, not only the pure ones.
+//
+// Out-of-scope reads must answer 404, NOT 403: a 403 confirms the row exists and
+// turns the endpoint into an existence oracle across satkers.
+test.describe('Kebutuhan BMN — object-level satker scoping (#93)', () => {
+  const detail = (request: APIRequestContext, token: string, id: string) =>
+    request.get(`${KB_API}/satker/${id}?page=1&per_page=20`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+  test('operator reads its own satker row but not another satker in the campaign', async ({
+    request,
+  }) => {
+    const { accessToken } = await apiLogin(request, credsFor(userFor('operator_a')));
+
+    const own = await detail(request, accessToken, S1_OPERATOR);
+    expect(own.status(), 'operator_a reads its OWN satker detail').toBe(200);
+
+    const other = await detail(request, accessToken, S2_WILAYAH);
+    expect(other.status(), 'operator_a denied operator_b detail (fails closed)').toBe(404);
+  });
+
+  test('validator_wilayah reads across its wilayah but not beyond it', async ({ request }) => {
+    const { accessToken } = await apiLogin(request, credsFor(userFor('validator_wilayah')));
+
+    // DKI validator over a DKI satker it does not itself belong to: allowed.
+    const inRegion = await detail(request, accessToken, S2_WILAYAH);
+    expect(inRegion.status(), 'validator_wilayah (DKI) reads a DKI satker').toBe(200);
+
+    // Same role, different wilayah: denied.
+    const outOfRegion = await detail(request, accessToken, S3_PUSAT);
+    expect(outOfRegion.status(), 'validator_wilayah (DKI) denied a JAWA BARAT satker').toBe(404);
+  });
+
+  test('validator_pusat is unrestricted across satkers', async ({ request }) => {
+    const { accessToken } = await apiLogin(request, credsFor(userFor('validator_pusat')));
+
+    for (const [id, label] of [
+      [S1_OPERATOR, '0200010'],
+      [S2_WILAYAH, '0200020'],
+      [S3_PUSAT, '0300010'],
+    ] as const) {
+      const resp = await detail(request, accessToken, id);
+      expect(resp.status(), `validator_pusat reads satker ${label}`).toBe(200);
+    }
   });
 });

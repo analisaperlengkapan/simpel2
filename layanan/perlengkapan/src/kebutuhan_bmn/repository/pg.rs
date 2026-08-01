@@ -1179,6 +1179,43 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         Ok(rows.iter().map(|r| r.get::<_, String>("wilayah")).collect())
     }
 
+    async fn satker_code_in_scope(&self, scope: &SatkerScope, code: &str) -> AppResult<bool> {
+        // Tier murni (All/Denied/Satker) diputuskan tanpa menyentuh DB, dan
+        // aturannya hidup di SatkerScope agar tak ada salinan kedua di sini.
+        // `unwrap_or(false)` = fail-closed; secara praktis tak terjangkau
+        // karena Wilayah adalah satu-satunya varian yang mengembalikan None.
+        let SatkerScope::Wilayah(caller) = scope else {
+            return Ok(scope.contains_code_local(code).unwrap_or(false));
+        };
+
+        // Sengaja kembar dgn cabang Wilayah di `SatkerScope::push_condition`:
+        // "satker target berada di wilayah yang sama dengan satker pemanggil",
+        // wilayah di-resolve dari SoT `integrasi.mysimkari_satker`. Bentuk
+        // EXISTS dipakai di sini karena kita menguji SATU kode, bukan
+        // memfilter sekumpulan baris.
+        let client = self.get_client().await?;
+        let row = client
+            .query_one(
+                r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM integrasi.mysimkari_satker s
+                    WHERE s.kode_satker = $1
+                      AND s.wilayah IS NOT NULL
+                      AND s.wilayah = (
+                          SELECT w.wilayah
+                          FROM integrasi.mysimkari_satker w
+                          WHERE w.kode_satker = $2
+                      )
+                ) AS in_scope
+                "#,
+                &[&code, &caller],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        Ok(row.get::<_, bool>("in_scope"))
+    }
+
     async fn insert_bmn_referensi(
         &self,
         pengajuan_id: Uuid,

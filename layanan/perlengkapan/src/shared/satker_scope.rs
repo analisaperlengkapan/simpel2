@@ -60,6 +60,24 @@ impl SatkerScope {
         }
     }
 
+    /// Object-level counterpart of [`Self::push_condition`]: apakah `code` masuk
+    /// dalam scope ini, untuk tier yang **tak butuh DB**?
+    ///
+    /// Mengembalikan `None` untuk [`Self::Wilayah`] — satu-satunya tier yang
+    /// harus di-resolve lewat `integrasi.mysimkari_satker`, jadi keputusannya
+    /// milik repository (lihat `KebutuhanBmnRepository::satker_code_in_scope`).
+    /// Memisahkannya begini membuat tier murni bisa diuji tanpa Postgres,
+    /// sekaligus menjaga satu sumber kebenaran: repository mendelegasikan ke
+    /// sini alih-alih menyalin ulang aturannya.
+    pub fn contains_code_local(&self, code: &str) -> Option<bool> {
+        match self {
+            Self::All => Some(true),
+            Self::Denied => Some(false),
+            Self::Satker(own) => Some(own == code),
+            Self::Wilayah(_) => None,
+        }
+    }
+
     /// Append this scope as a SQL condition over the given MySIMKARI satker-code
     /// column (`col`, e.g. `"satker_code"`). Pushes the bind parameter (when any)
     /// onto `params` and returns the condition string, or `None` when no
@@ -163,6 +181,41 @@ mod tests {
         assert_eq!(
             SatkerScope::from_claims(&claims("Validator_Wilayah", Some("02.28"))),
             SatkerScope::Wilayah("02.28".to_string())
+        );
+    }
+
+    // ---- contains_code_local: object-level tiers (#93) ------------------
+
+    #[test]
+    fn contains_code_local_all_admits_any_code() {
+        assert_eq!(SatkerScope::All.contains_code_local("02.28"), Some(true));
+        assert_eq!(SatkerScope::All.contains_code_local(""), Some(true));
+    }
+
+    #[test]
+    fn contains_code_local_denied_admits_nothing() {
+        assert_eq!(
+            SatkerScope::Denied.contains_code_local("02.28"),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn contains_code_local_satker_is_exact_match() {
+        let scope = SatkerScope::Satker("02.28".to_string());
+        assert_eq!(scope.contains_code_local("02.28"), Some(true));
+        // The cross-satker read that #93 was filed for.
+        assert_eq!(scope.contains_code_local("02.29"), Some(false));
+        // No prefix/substring leniency: a satker code is compared whole.
+        assert_eq!(scope.contains_code_local("02.280"), Some(false));
+        assert_eq!(scope.contains_code_local("02.2"), Some(false));
+    }
+
+    #[test]
+    fn contains_code_local_defers_wilayah_to_the_database() {
+        assert_eq!(
+            SatkerScope::Wilayah("02.28".to_string()).contains_code_local("02.29"),
+            None
         );
     }
 

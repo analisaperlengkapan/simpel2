@@ -2,6 +2,7 @@ use super::KebutuhanBmnService;
 use crate::kebutuhan_bmn::models::*;
 use crate::kebutuhan_bmn::repository::KebutuhanBmnRepository;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::info;
 use uuid::Uuid;
 use validator::Validate;
@@ -15,14 +16,36 @@ impl KebutuhanBmnService {
         self.repository.get_pengajuan_satkers(pengajuan_id).await
     }
 
-    /// Get satker with its barang list
+    /// Get satker with its barang list, scoped to the caller (#93).
+    ///
+    /// `scope` WAJIB diturunkan dari claims pemanggil. Tanpa ini endpoint
+    /// mengembalikan 200 utk siapa pun yang terautentikasi, sehingga operator
+    /// satker A bisa membaca isian satker B di campaign nasional.
     pub async fn get_satker_with_barang(
         &self,
         satker_id: Uuid,
         page: i32,
         per_page: i32,
+        scope: &SatkerScope,
     ) -> AppResult<SatkerWithBarangResponse> {
         let satker = self.repository.get_satker_by_id(satker_id).await?;
+
+        // NotFound, BUKAN Forbidden. 403 mengkonfirmasi bahwa record-nya ADA
+        // sehingga endpoint berubah jadi existence-oracle lintas satker: siapa
+        // pun bisa memetakan UUID mana yang valid. 404 gagal-tertutup dan tak
+        // membocorkan apa pun. Sama dgn perilaku bank_aset yang sudah di-assert
+        // e2e ("detail fails closed across satkers (404)").
+        if !self
+            .repository
+            .satker_code_in_scope(scope, &satker.satker_id)
+            .await?
+        {
+            return Err(AppError::NotFound(format!(
+                "Satker pengajuan {} tidak ditemukan",
+                satker_id
+            )));
+        }
+
         let (barang_list, total_barang) = self
             .repository
             .get_satker_barang(satker_id, page, per_page, None)

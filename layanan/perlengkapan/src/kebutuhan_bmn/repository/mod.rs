@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use super::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 
 // ============================================================================
 // Repository Trait
@@ -194,6 +195,22 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     /// V029 (Fase 1.7): Daftar wilayah distinct yg ada di
     /// `integrasi.mysimkari_satker` — dipakai FE utk dropdown.
     async fn list_wilayah(&self) -> AppResult<Vec<String>>;
+
+    /// Object-level counterpart of [`SatkerScope::push_condition`]: apakah satu
+    /// `kode_satker` MySIMKARI (`code`) masuk dalam scope pemanggil?
+    ///
+    /// Ini yang menutup celah #93. Scoping tier (#66/#71) sebelumnya hanya
+    /// dipasang pada **daftar**; pembacaan satu-record memakai UUID dari path
+    /// sehingga siapa pun yang terautentikasi bisa membaca submission satker
+    /// lain di dalam campaign nasional (`scope_satker = 'semua'`).
+    ///
+    /// Tier `Wilayah` sengaja memakai subquery **yang sama persis** dengan
+    /// `push_condition` (self-join `integrasi.mysimkari_satker` atas kolom
+    /// `wilayah`) supaya scoping daftar dan scoping objek tak bisa menyimpang
+    /// satu sama lain — kalau salah satu berubah, keduanya harus berubah.
+    ///
+    /// Tier murni (`All`/`Denied`/`Satker`) tidak menyentuh DB sama sekali.
+    async fn satker_code_in_scope(&self, scope: &SatkerScope, code: &str) -> AppResult<bool>;
 
     // ========================================================================
     // V029 (Fase 1.6): Allowed-list BMN
