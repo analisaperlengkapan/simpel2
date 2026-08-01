@@ -41,9 +41,30 @@ jobs:
       # (Verified: all 8 workflows pass `yaml.safe_load` locally.)
       #
       # Findings are now the gate; the undeclared dependency is gone.
-      - uses: raven-actions/actionlint@v2
-        with:
-          fail-on-error: true
+      #
+      # Run actionlint from its OFFICIAL IMAGE rather than via
+      # `raven-actions/actionlint@v2`. Making the linter the real gate exposed
+      # that the action cannot run on our ARC runner at all: it resolves and
+      # downloads its binary through the GitHub API from inside
+      # `actions/github-script`, that request fails here, and the step dies with
+      # **exit 127 (command not found)**.
+      #
+      # So the action has been broken on this runner the whole time — the old
+      # `fail-on-error: false` + `continue-on-error: true` simply swallowed the
+      # 127. Between that and the PyYAML fallback described above, this job has
+      # never actually linted a single workflow.
+      #
+      # `docker run` is the pattern already used in this repo for pinned
+      # third-party tooling (see composer-audit in security.yml and trivy), and
+      # the ARC runner has a dind sidecar. The image tag is PINNED, not
+      # `:latest` — a floating tag is exactly what caused the FE nightly-rustc
+      # ICE and the Blade plugin breakage (#119).
+      - name: actionlint (pinned image)
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo:ro" -w /repo \
+            rhysd/actionlint:1.7.12 -color
 
   dependency-health:
     name: Dependency Health
