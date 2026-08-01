@@ -44,9 +44,13 @@ pub struct BottleneckInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkflowSummary {
     pub id: String,
+    /// MySIMKARI `kode_satker`
     pub satker_id: String,
-    pub kode_barang: String,
-    pub nama_barang: String,
+    pub satker_nama: String,
+    /// Requested items on this response. Replaces the old `kode_barang` /
+    /// `nama_barang` pair: items live one-to-many under a response, so a single
+    /// code/name could only ever show one arbitrary row of several.
+    pub jumlah_barang: i64,
     pub status: String,
     pub state_entered_at: String,
     pub time_in_state_minutes: i64,
@@ -188,13 +192,19 @@ fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
                                 scope="col"
                                 class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
                             >
-                                "Kode Barang"
+                                "Kode Satker"
                             </th>
                             <th
                                 scope="col"
                                 class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
                             >
-                                "Nama Barang"
+                                "Satker"
+                            </th>
+                            <th
+                                scope="col"
+                                class="px-3 py-3 text-left text-[0.7rem] font-semibold uppercase tracking-wider text-slate-400"
+                            >
+                                "Jumlah Barang"
                             </th>
                             <th
                                 scope="col"
@@ -219,11 +229,14 @@ fn WorkflowStatusTable(workflows: Vec<WorkflowSummary>) -> impl IntoView {
                                     <tr class="transition hover:bg-white/[0.02]">
                                         <td class="px-3 py-3">
                                             <span class="font-mono text-xs font-semibold text-info-300">
-                                                {wf.kode_barang}
+                                                {wf.satker_id}
                                             </span>
                                         </td>
                                         <td class="px-3 py-3 text-sm text-slate-200">
-                                            {wf.nama_barang}
+                                            {wf.satker_nama}
+                                        </td>
+                                        <td class="px-3 py-3 text-sm text-slate-300">
+                                            {wf.jumlah_barang}
                                         </td>
                                         <td class="px-3 py-3">
                                             <span class="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[0.7rem] font-medium text-slate-300">

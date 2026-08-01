@@ -222,32 +222,30 @@ test.describe('Admin — workflow config, monitoring, delegation', () => {
   });
 
   test('monitoring workflow renders the metrics summary', async ({ page }) => {
-    // FINDING #118 — root cause identified, filed, NOT papered over.
-    //   `workflow/monitoring.rs::get_metrics` queries `perlengkapan.kebutuhan_bmn`, a table that
-    //   NO migration creates (the real one is `pengajuan_kebutuhan_bmn`). Every call 500s, so
-    //   `MonitoringContent` — which holds "Ringkasan Metrics" (monitoring.rs:380) — never renders,
-    //   while the outer page title at monitoring.rs:322 does. That asymmetry is exactly what this
-    //   test observes.
+    // #118 (monitoring slice) FIXED — the `test.fail` marker is gone because the
+    // behaviour asserted below now holds. What was wrong:
+    //   `get_metrics` queried `perlengkapan.kebutuhan_bmn`, a table NO migration creates, and
+    //   `..._satker_aktivitas.aktivitas_id` / `.pengajuan_id`, two columns that table does not
+    //   have. Every call 500'd, so `MonitoringContent` — which holds "Ringkasan Metrics" — never
+    //   rendered while the outer page title did. That asymmetry is what this test observed.
+    //   `/monitoring/active` was equally broken AND its caller looped over six hard-coded English
+    //   state names that match nothing; the page requires BOTH calls to succeed.
     //
-    //   It is not a rename: the queries also filter `status NOT IN ('REJECTED',...)` on a table
-    //   whose column is `status_kode integer`, and the SLA query names states ('SUBMIT_SATKER',
-    //   'PENYUSUNAN_PRIORITAS') that do not exist in the authoritative enum
-    //   (kebutuhan_bmn/models/status.rs:16). Which real states carry an SLA is a product decision.
-    //
-    //   Same root cause as #116 (dashboard export 500s) — `dashboard/repository.rs` hits the same
-    //   phantom table.
-    //
-    // `test.fail` rather than a weakened assertion: the assertions below still describe CORRECT
-    // behaviour, so the day #118 lands Playwright reports "expected to fail but passed" and forces
-    // this marker out.
-    test.fail(true, '#118: workflow monitoring queries a table no migration creates');
-
+    // The page renders both blocks, so assert both: a metrics summary AND the active-workflow
+    // panel. Asserting only the first would let a regression in `/monitoring/active` pass
+    // unnoticed — and that endpoint is exactly the one that was silently dead.
     await page.goto(`${BASE}/dashboard`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Admin', `${BASE}/admin/workflow-monitoring`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/admin/workflow-monitoring$`));
     await expect(page.getByText('Monitoring Workflow').first()).toBeVisible();
     await expect(page.getByText('Ringkasan Metrics').first()).toBeVisible({ timeout: 20000 });
+
+    // The stat cards carry real numbers, not blanks: a card rendering an empty
+    // value would still satisfy a text-only check on its label.
+    for (const label of ['Total Aktif', 'SLA Breaches', 'Mendekati SLA']) {
+      await expect(page.getByText(label).first(), `${label} card`).toBeVisible();
+    }
   });
 
   test('delegasi workflow renders its list (rows or honest empty state)', async ({ page }) => {
