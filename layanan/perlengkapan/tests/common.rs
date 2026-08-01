@@ -158,12 +158,24 @@ pub async fn setup_test_db() -> (Database, String) {
         )", &[]).await.unwrap();
 
     // Cross-schema SoT stub for satker identity (integrasi owns it; perlengkapan
-    // reads it). Pakaian-dinas satker queries LEFT JOIN this for satker_nama/kode,
-    // and the wilayah resolver filters on `wilayah`. Minimal column set.
+    // reads it). Pakaian-dinas satker queries LEFT JOIN this, and the wilayah
+    // resolver filters on `wilayah`.
+    //
+    // The column names and types MUST mirror `layanan/integrasi/migrations`
+    // (`001_init_schema.sql`) — this stub previously declared
+    // `id UUID, kode VARCHAR, nama VARCHAR`, none of which the real table has
+    // (it is `id BIGSERIAL, kode_satker TEXT, nama_satker TEXT`). That divergence
+    // is what made the whole integration suite worthless for #94: the production
+    // queries were written to match this FICTION, so they passed here while
+    // failing against every real environment. A stub that drifts from the SoT
+    // does not merely miss bugs, it actively certifies them.
     client
         .execute(
             "CREATE TABLE IF NOT EXISTS integrasi.mysimkari_satker (
-                id UUID PRIMARY KEY, kode VARCHAR, nama VARCHAR, wilayah VARCHAR
+                id BIGSERIAL PRIMARY KEY,
+                kode_satker TEXT NOT NULL UNIQUE,
+                nama_satker TEXT,
+                wilayah TEXT
             )",
             &[],
         )
