@@ -73,27 +73,17 @@ pub async fn get_active_workflows(
 ) -> Result<impl IntoResponse, AppError> {
     let monitor = WorkflowMonitor::new(state.db_pool.clone());
 
-    // Get workflows from all non-terminal states
-    let mut all_workflows = Vec::new();
-
-    // Common workflow states to check
-    let states = vec![
-        "DRAFT",
-        "SUBMIT_SATKER",
-        "ANALISIS_KELAYAKAN",
-        "PENYUSUNAN_PRIORITAS",
-        "REVIEW_PUSAT",
-        "APPROVAL_PUSAT",
-    ];
-
-    for state_name in states {
-        let workflows = monitor
-            .get_workflows_by_state(state_name, 100, 0)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to get workflows: {}", e)))?;
-
-        all_workflows.extend(workflows);
-    }
+    // One query over every non-terminal state, instead of six queries over a
+    // hard-coded name list. That list ("DRAFT", "SUBMIT_SATKER",
+    // "PENYUSUNAN_PRIORITAS", …) matched NOTHING: the real state names live in
+    // `ms_workflow_status` and are Indonesian ("Draft", "Diajukan ke Validator
+    // Wilayah", …), and one of the six describes a step the workflow does not
+    // have. Asking the database which states are non-terminal removes the
+    // hand-maintained list that could drift from the seed.
+    let all_workflows = monitor
+        .list_active_workflows(100, 0)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to get workflows: {}", e)))?;
 
     Ok((StatusCode::OK, Json(ApiResponse::success(all_workflows))))
 }
