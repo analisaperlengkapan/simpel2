@@ -34,6 +34,18 @@ paths = [
   '''composer\.lock''',
   # Helm chart values templates (placeholder, akan diisi runtime)
   '''infra/helm/.*/values-secrets\.example\.yaml''',
+  # Spec/desain `.kiro/` — kelas yang sama dengan docs/*.md di atas.
+  '''(.+/)?\.kiro/.+\.md''',
+  # Catatan implementasi SCREAMING_CASE (mis. MFA_IMPLEMENTATION_COMPLETE.md):
+  # write-up desain berisi contoh payload, bukan konfigurasi yang dimuat.
+  '''(.+/)?[A-Z][A-Z0-9_]+\.md''',
+  # Contoh yang bisa dijalankan (`examples/*.rs`) — nilainya ilustratif.
+  '''(.+/)?examples?/.+\.rs''',
+  # Skrip uji end-to-end (mis. layanan/secreton/test_e2e_v3.sh) — payload uji.
+  '''(.+/)?test_.+\.sh''',
+  # Artefak build; tak pernah di-commit, tapi scan working-tree (`--no-git`)
+  # ikut menyusurinya dan rmeta rlib memuat test-vector PEM dari crate hulu.
+  '''(.+/)?target/.+''',
 ]
 
 regexes = [
@@ -43,7 +55,92 @@ regexes = [
   '''(test|dummy|fake|placeholder|example|changeme)[_-]?(password|secret|token|key)''',
   # Base64 padding char di config public
   '''^[A-Za-z0-9+/]{1,15}={0,2}$''',
+  # PKI placeholder literal — `pki.rs` mengembalikan string harfiah
+  # "[RSA-2048 placeholder key data]" (bukan kunci). Lihat juga catatan
+  # duplikat PKI stub di audit secreton (#103).
+  '''placeholder key data''',
+  # JWT harfiah bertanda `.test` di skrip uji secreton (test_e2e_v3.sh).
+  '''^eyJ[A-Za-z0-9_-]+\.test$''',
+  # Demo key di contoh audit authenc (`examples/audit_example.rs`).
+  '''^sk_live_abc123$''',
+  # Contoh key-id KANONIK dari dokumentasi AWS KMS sendiri, dikutip di rustdoc
+  # `auto-unseal/{aws_kms,config}.rs`. Menulis ulang justru memperburuk dok.
+  '''1234abcd-12ab-34cd-56ef-1234567890ab''',
+  # JWT contoh yang SENGAJA dipotong di rustdoc & fixture unit test — diakhiri
+  # "...". Perhatikan: header-nya TIDAK diikuti titik pemisah segmen
+  # ("eyJhbGciOi...JXVCJ9..."), jadi pola harus mengizinkan nol segmen.
+  '''^eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]*)*\.\.\.$''',
+  # Sampel harfiah di rustdoc `storage/secure/mod.rs` (KeyEntry) — string
+  # urutan alfabet, plus varian base64-nya.
+  '''^0123456789ABCDEFGHIJKLMNOPQRSTUVW$''',
+  '''^ABCDEFGHIJKLMNOPQRSTUV$''',
+  '''^MDEyMzQ1Njc4OUFCQ0RFRkdISUpLTE1OT1BRUlNUVVZX$''',
+  '''^QUJDREVGR0hJSktMTU5PUFFSU1RVVg==$''',
+  # UUID contoh kanonik (dipakai luas di dokumentasi/RFC) sebagai captcha_token
+  # di unit test authenc `handlers/auth.rs`.
+  '''3f2504e0-4f89-41d3-9a0c-0305e82c3301''',
+  # Nama algoritma, bukan kunci — unit test secreton `secret_engine.rs`.
+  '''chacha20-poly1305''',
+  # `authenc.toml` -> `secrets_to_load` memuat NAMA secret yang diambil dari
+  # Secreton saat boot, bukan nilainya (nilai di-interpolasi dari env,
+  # mis. `jwt_secret = "${JWT_SECRET}"`).
+  '''ed25519_private_key''',
 ]
 
+# ─── Allowlist commit historis ─────────────────────────────────────
+# Ditriase 2026-08-01 (gitleaks direproduksi lokal: 119 temuan, 112 di antaranya
+# hanya ada di HISTORI — file-nya sudah tak ada di HEAD).
+#
+# Kenapa allowlist per-COMMIT dan bukan per-path/rewrite history:
+#   * per-commit = presisi. Path `infra/**` & `.github/**` MASIH hidup, jadi
+#     mem-blacklist path akan menutupi kebocoran BARU di direktori yang sama.
+#     Meng-allowlist commit tertentu hanya membebaskan masa lalu yang sudah
+#     diperiksa, dan tetap merah bila ada secret baru masuk.
+#   * rewrite history (git-filter-repo) ditolak: mengubah ke-2044 SHA,
+#     mematikan semua clone/fork + referensi SHA di PR/issue/memori —
+#     biaya sangat besar untuk temuan yang terbukti dev-only.
+#
+# Bukti kenapa temuan ini AMAN (diverifikasi, bukan asumsi):
+#   * `nginx/certs/privkey.pem` → cert **mkcert DEVELOPMENT**
+#     (issuer "mkcert development CA", O="mkcert development certificate").
+#     CA-nya lokal per-mesin developer; tanpa CA itu ter-install, kunci ini
+#     tak bisa dipakai MITM apa pun.
+#   * `infra/k8s/**`, `k8s/**`, `layanan/secreton/deploy/**` → manifest era
+#     PRA-Helm. Namespace staging DI-WIPE 2026-06-17 lalu dibangun ulang dengan
+#     secret BARU (lihat memori project_helm_namespace_footgun_safety &
+#     project_staging_stale_pre_f5b); production BELUM PERNAH di-deploy.
+#     Jadi tak ada satu pun kredensial di sini yang masih berlaku.
+#   * `simpel_web-main/**`, `simpel_laravel/**` → app legacy, direktorinya
+#     sudah tak ada (digantikan `monolith/simpelv1`).
+#   * `.github/workflows/integration-tests.yml` → workflow lama, sudah dihapus.
+#
+# ⚠️ Kunci Google Maps di `simpel_web-main/...blade.php` TIDAK cukup di-allowlist
+# di sini: file-nya PINDAH ke `monolith/simpelv1/...` sehingga kuncinya MASIH
+# HIDUP. Itu ditangani terpisah (dipindah ke `config/services.php` + env).
+# Pelajaran metode: memisahkan live-vs-histori dengan mencocokkan PATH akan
+# meleset untuk rahasia yang berpindah path — pakai `--no-git` lalu iris dengan
+# `git ls-files`.
 commits = [
-] # Hash specific commits to ignore (jika ada false positive historis)
+  "f1f469d3a8972fe8f95c16a4189816f15b2171a0", # 2025-07-09  nginx/ — cert mkcert DEV (bukan CA nyata)
+  "25b11d8387907a95cbf7f1a76e3aac569dad6a4e", # 2025-07-16  k8s/ — ingress-tls era pra-Helm, dir sudah hilang
+  "cd8abfb2cf1007832770e19845788aed01c3f992", # 2025-10-17  infra/ — secreton pki/ssh test vectors
+  "8b59986141efcc64df9cab10c79ac9f8c39c384a", # 2025-10-31  infra/ — k8s secrets pra-Helm (env sudah di-wipe)
+  "dcbbecd0b27aa21d332afc9be4e2dd4fa09c5546", # 2025-11-05  infra/ — refactor workflows lama
+  "a37d3d5f7beeb5dc59e961ba7699400620ca46d0", # 2025-11-10  infra/ — authenc/secreton fixup
+  "146201b58d33693db95fc88ccdd9d22108c71d70", # 2025-11-14  infra/ — secreton ssh_old.rs test key
+  "c19114580b6276d0896691125d31a54c1a83eba9", # 2026-01-20  infra/ — merge konsolidasi
+  "ee28f7658126590d3094c3492edef7e8d0a8cdaf", # 2026-01-23  infra/ — k8s 02-secrets.yaml pra-Helm
+  "84ebc49a1e406c61bb338e88ac5021faefa9d114", # 2026-01-26  simpel_laravel/ — app legacy, dir sudah hilang
+  "9f302db1400b02635e8d075efc4da2a33a1ec8c8", # 2026-01-29  .github/ — integration-tests.yml (dihapus)
+  "9f44228980c383f1cc174fa6638f3795491d2154", # 2026-01-29  infra/ — authenc JwtKey fixup
+  "42dfa5a15b824123a891d8fb7553c40a34663eb1", # 2026-02-04  .github/ — CI integration test fixup
+  "782815dfddc5f9b8464719887867ff108c845399", # 2026-02-04  .github/ — idem
+  "ea27ec925bebc56996163d1944ca38bba4ac2570", # 2026-02-04  .github/ — idem
+  "c1545164d087e88dece3cebab73114c3536b530e", # 2026-02-11  simpel_web-main/ — legacy (Maps key ditangani terpisah)
+  "6ddb10e092243750f6263d807194412dc90145c3", # 2026-02-19  infra/ — refactor multi-service
+  "8367359fe6bfbb1141a0d818f710cccea39d5220", # 2026-02-20  infra/ — refactor multi-crate
+  "b176f14ce0d5b7a779e6d6e7acfa671180f46db8", # 2026-02-26  infra/ — secreton staging pra-Helm
+  "e4ea051faab244134a6dc4fda25a64e1c67b24aa", # 2026-03-02  infra/ — fixup
+  "99da071cec7441d8e9f5d34845716e0616e09d00", # 2026-03-09  .github/ — overhaul CI/Dependabot
+  "1352d3468a194eb543360c04808077c1991c2877", # 2026-04-30  infra/ — manifest k8s simpelv1 pra-Helm
+]

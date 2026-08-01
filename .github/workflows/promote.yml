@@ -58,7 +58,10 @@ jobs:
             echo "::error::target_tag harus SemVer final (mis. v0.1.0). Got: $TARGET"
             exit 1
           fi
-          SOURCE_BASE=$(echo "$SOURCE" | sed 's/-.*//')
+          # Strip the pre-release suffix: v0.1.0-rc1 -> v0.1.0. `%%-*` removes the
+          # longest `-`-prefixed suffix, i.e. everything from the FIRST hyphen —
+          # identical to the previous `sed 's/-.*//'`, without forking a process.
+          SOURCE_BASE="${SOURCE%%-*}"
           if [ "$SOURCE_BASE" != "$TARGET" ]; then
             echo "::error::Base version mismatch: source=$SOURCE_BASE, target=$TARGET"
             exit 1

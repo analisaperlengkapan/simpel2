@@ -29,7 +29,24 @@ return [
     |
     */
 
-    'secret' => env('JWT_SECRET', 'DkzybDmozMwZoQhQ2zqYpGHgC4MMsymfFqjfhJACZCk6Q13RUxrEFRCXaoOO5U41'),
+    // TIDAK ADA nilai default — disengaja, dan ini perbaikan keamanan.
+    //
+    // Sebelumnya baris ini berbunyi `env('JWT_SECRET', '<literal>')` dengan
+    // secret ter-hardcode di repo. `JWT_SECRET` tidak pernah disediakan di mana
+    // pun (chart merender `simpelv1-secrets` hanya dari `.Values.secrets
+    // .simpelv1`, dan example-nya cuma DB_USERNAME/DB_PASSWORD/APP_KEY), jadi
+    // fallback itulah yang BENAR-BENAR dipakai. Karena guard `api` memakai
+    // driver `jwt` (config/auth.php) dan JWTAuth dipakai di AuthController +
+    // TokenToSessionMiddleware, siapa pun yang membaca repo ini bisa menempa
+    // token API simpelv1 yang sah.
+    //
+    // Tanpa default, tymon/jwt-auth melempar error eksplisit saat boot bila
+    // secret kosong — gagal SECARA LANTANG (fail-closed) alih-alih diam-diam
+    // menandatangani token dengan secret yang publik.
+    // Sediakan lewat `secrets.simpelv1.JWT_SECRET` (lihat
+    // infra/helm/simpel/values-secrets.example.yaml); `php artisan jwt:secret`
+    // membangkitkannya untuk pengembangan lokal.
+    'secret' => env('JWT_SECRET'),
 
     /*
     |--------------------------------------------------------------------------
