@@ -1092,6 +1092,10 @@ jobs:
           ARGS="${TEST_ARGS-${{ matrix.test_args }}}"
           TARGETS="${{ matrix.target_args || '--all-targets' }}"
           echo "test args: [$TARGETS] [$ARGS]"
+          # shellcheck disable=SC2086  # word splitting is the POINT here:
+          # $TARGETS and $ARGS each hold several whitespace-separated cargo
+          # flags that must reach cargo as separate argv entries. Quoting them
+          # would pass one glued argument and break every matrix tier.
           cargo test ${{ matrix.packages }} $TARGETS --no-fail-fast $ARGS
 
   # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
@@ -2177,10 +2181,12 @@ jobs:
           NEEDS_JSON: ${{ toJson(needs) }}
         run: |
           set -euo pipefail
-          echo "## CI Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## CI Summary"
+            echo ""
+            echo "| Job | Result |"
+            echo "|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
           fail=0
           PARSED=$(echo "$NEEDS_JSON" | python3 -c '
           import json, sys

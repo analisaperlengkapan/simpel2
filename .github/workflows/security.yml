@@ -325,10 +325,12 @@ jobs:
           NEEDS_JSON: ${{ toJson(needs) }}
         run: |
           set -euo pipefail
-          echo "## Security Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Check | Result | Category |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Security Summary"
+            echo ""
+            echo "| Check | Result | Category |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
 
           # Blocking = harus sukses. Advisory = boleh gagal (informational).
           #   gitleaks   — tak boleh ada secret bocor.

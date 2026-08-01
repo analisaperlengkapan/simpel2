@@ -26,23 +26,24 @@ jobs:
     runs-on: arc-simpel
     steps:
       - uses: actions/checkout@v7
+      # actionlint parses the YAML *and* validates workflow semantics + the
+      # embedded shell (via shellcheck), so it strictly supersedes the
+      # hand-rolled `yaml.safe_load` fallback this job used to carry.
+      #
+      # That fallback ran `python3 -c "import yaml; ..."` per workflow. python3
+      # exists on the ARC runner (ci-summary uses it), but the runner image
+      # `infra/helm/arc/runner-image/Dockerfile` installs no **PyYAML** — so the
+      # import raised, every file was reported "Invalid YAML", and the job
+      # exited with the file count. That is why this job failed all 40
+      # scheduled runs since at least 2026-06-22 while the real linter sat
+      # behind `fail-on-error: false` and gated nothing: the only step that
+      # could fail was the one measuring its own missing dependency.
+      # (Verified: all 8 workflows pass `yaml.safe_load` locally.)
+      #
+      # Findings are now the gate; the undeclared dependency is gone.
       - uses: raven-actions/actionlint@v2
-        continue-on-error: true
         with:
-          fail-on-error: false
-      - name: YAML safe-load fallback
-        shell: bash
-        run: |
-          INVALID=0
-          for workflow in .github/workflows/*.yml; do
-            if python3 -c "import yaml; yaml.safe_load(open('$workflow'))" 2>/dev/null; then
-              echo "OK $(basename "$workflow")"
-            else
-              echo "::error::Invalid YAML: $workflow"
-              INVALID=$((INVALID + 1))
-            fi
-          done
-          exit "$INVALID"
+          fail-on-error: true
 
   dependency-health:
     name: Dependency Health

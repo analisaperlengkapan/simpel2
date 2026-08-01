@@ -90,6 +90,10 @@ jobs:
           {
             echo "### Changes since $PREV_TAG"
             echo ""
+            # shellcheck disable=SC2016  # single quotes are REQUIRED: `%s`/`%h`
+            # are git pretty-format placeholders that git itself expands, and the
+            # backticks are literal markdown. Double quotes would let the shell
+            # try to run `%h` as a command substitution.
             git log "$PREV_TAG..HEAD" --pretty=format:'- %s (`%h`)' || echo "- Initial release"
             echo ""
           } > CHANGELOG_RELEASE.md
@@ -138,7 +142,9 @@ jobs:
           fi
           cd release-artifacts
           if compgen -G "*" >/dev/null; then
-            tar czf "../simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" *
+            # `--` ends option parsing so a binary whose name begins with `-`
+            # is archived as a file rather than eaten as a tar flag.
+            tar czf "../simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" -- *
           fi
           cd ..
           if [ -f "simpelv2-backend-${{ needs.validate.outputs.version }}.tar.gz" ]; then
@@ -208,7 +214,8 @@ jobs:
       - name: Package frontend artifacts
         shell: bash
         run: |
-          (cd release-frontend && tar czf "../simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" *)
+          # `--` ends option parsing (see the backend archive step above).
+          (cd release-frontend && tar czf "../simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" -- *)
           sha256sum "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz" \
             > "simpelv2-frontend-${{ needs.validate.outputs.version }}.tar.gz.sha256"
       - name: Upload frontend artifacts
