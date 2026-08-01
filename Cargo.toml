@@ -516,23 +516,23 @@ ssh-encoding = "0.3.0"
 # (`sigv4a` for STS/S3 signing, `http-1x` for S3).
 aws-config = "1.10.1"
 aws-sdk-s3 = { version = "1.135.0", default-features = false, features = [
-    "default-https-client",
-    "rt-tokio",
-    "sigv4a",
-    "http-1x",
+  "default-https-client",
+  "rt-tokio",
+  "sigv4a",
+  "http-1x",
 ] }
 aws-sdk-iam = { version = "1.112.0", default-features = false, features = [
-    "default-https-client",
-    "rt-tokio",
+  "default-https-client",
+  "rt-tokio",
 ] }
 aws-sdk-sts = { version = "1.106.0", default-features = false, features = [
-    "default-https-client",
-    "rt-tokio",
-    "sigv4a",
+  "default-https-client",
+  "rt-tokio",
+  "sigv4a",
 ] }
 aws-sdk-kms = { version = "1.110.0", default-features = false, features = [
-    "default-https-client",
-    "rt-tokio",
+  "default-https-client",
+  "rt-tokio",
 ] }
 aws-types = "1.3.16"
 aws-credential-types = "1.2.14"
