@@ -89,7 +89,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
@@ -134,7 +134,7 @@ impl PakaianDinasRepository {
                 MAX(CASE WHEN pp.spesifikasi_ukuran_group = 'SEPATU' THEN pu.ukuran END) as ukuran_sepatu
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
@@ -206,7 +206,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             where_clause.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {
@@ -230,7 +230,7 @@ impl PakaianDinasRepository {
                 pp.spesifikasi_nama AS item_nama, pu.ukuran
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu ON psp.id = pu.pegawai_id
             LEFT JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             {}
@@ -286,7 +286,7 @@ impl PakaianDinasRepository {
             FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran pu
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker_pegawai psp ON pu.pegawai_id = psp.id
             JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps ON psp.pengajuan_satker_id = ps.id
-            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+            LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
             JOIN perlengkapan.pengajuan_pakaian_dinas_pakaian pp ON pu.pakaian_id = pp.id
             WHERE ps.pengajuan_id = $1
               AND ps.aktivitas_id = 1008
@@ -302,7 +302,7 @@ impl PakaianDinasRepository {
         }
         if let Some(ref satker_id) = filter.satker_id {
             query.push_str(&format!(" AND ps.satker_id = ${}", idx));
-            params.push(Box::new(*satker_id));
+            params.push(Box::new(satker_id.clone()));
             idx += 1;
         }
         if let Some(ref eselon) = filter.eselon {

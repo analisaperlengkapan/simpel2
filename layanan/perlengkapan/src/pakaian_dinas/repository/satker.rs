@@ -32,7 +32,7 @@ impl PakaianDinasRepository {
                 SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
                 WHERE ps.pengajuan_id = $1
                 ORDER BY s.nama ASC
                 LIMIT $2 OFFSET $3
@@ -59,7 +59,7 @@ impl PakaianDinasRepository {
                 SELECT ps.*, s.nama as satker_nama, s.kode as satker_kode,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai WHERE pengajuan_satker_id = ps.id) as total_pegawai
                 FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
-                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.id
+                LEFT JOIN integrasi.mysimkari_satker s ON ps.satker_id = s.kode_satker
                 WHERE ps.id = $1
                 "#,
                 &[&id],

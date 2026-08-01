@@ -68,8 +68,9 @@ ON CONFLICT (id) DO NOTHING;
 -- 6. perlengkapan: Pakaian Dinas workflow preconditions (F-E2E E-2).
 --    One jenis (master) + one open campaign targeting the DKI + Bandung satkers,
 --    with per-satker rows at DISTINCT aktivitas so each validator tier's action
---    is exercised independently. `satker_id` here is the integrasi.mysimkari_satker
---    UUID (auto-generated) → resolved by subquery, NOT hardcoded.
+--    is exercised independently. `satker_id` is the MySIMKARI `kode_satker`
+--    (V006/#94) — the same key kebutuhan uses — so it is written literally here
+--    rather than resolved through a surrogate id.
 --    aktivitas (ms_aktivitas_bmn 1000-series): 1000 INPUT, 1001 SUBMIT_TO_VALIDATOR
 --    (validator_wilayah acts), 1004 SUBMIT_TO_PUSAT (validator_pusat acts), 1008 SELESAI.
 --      P1 0200010 @1001 -> validator_wilayah (DKI): Teruskan ke Pusat
@@ -85,11 +86,32 @@ VALUES
   ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
 ON CONFLICT (id) DO NOTHING;
 
--- NOTE (#94): per-satker rows are NOT seeded. pengajuan_pakaian_dinas_satker.satker_id
--- is `uuid`, but integrasi.mysimkari_satker.id is `bigint` (BIGSERIAL) — the BE join
--- `ON ps.satker_id = s.id` (laporan.rs) is uuid=bigint = invalid SQL, so the pakaian
--- satker workflow (list/forward/rekap) is BROKEN against the real integrasi schema.
--- The E-2 satker workflow e2e is therefore descoped until #94 reconciles the key type.
+-- Per-satker rows (restored by V006/#94 — they could not be seeded before,
+-- because `satker_id` was a uuid the BE compared against a bigint PK).
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
+  (id, pengajuan_id, satker_id, aktivitas_id, created_by)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000a0001', 'd1000000-0000-4d00-8d00-0000000000c1', '0200010', 1001, '11111111-1111-4111-8111-111111111111'),
+  ('d1000000-0000-4d00-8d00-0000000a0002', 'd1000000-0000-4d00-8d00-0000000000c1', '0200020', 1004, '22222222-2222-4222-8222-222222222222')
+ON CONFLICT (id) DO NOTHING;
+
+-- The campaign explicitly targets both satkers, so the scope.rs satker tier has
+-- a row to match (its predicate now compares kode_satker directly).
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
+  (pengajuan_id, satker_id, is_show_in_form)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000000c1', '0200010', true),
+  ('d1000000-0000-4d00-8d00-0000000000c1', '0200020', true)
+ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
+
+-- One employee row per satker so the rekap/daftar reports have something to
+-- aggregate over (they JOIN pengajuan_pakaian_dinas_satker → mysimkari_satker).
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
+  (id, pengajuan_satker_id, nip, nama, jenis_kelamin, jabatan, pangkat)
+VALUES
+  ('d1000000-0000-4d00-8d00-00000000e001', 'd1000000-0000-4d00-8d00-0000000a0001', '200000000000000001', 'E2E Operator Jakpus', 'L', 'Operator Satker', 'Penata Muda'),
+  ('d1000000-0000-4d00-8d00-00000000e002', 'd1000000-0000-4d00-8d00-0000000a0002', '200000000000000002', 'E2E Operator Jaksel', 'P', 'Operator Satker', 'Penata Muda')
+ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
 -- 7. perlengkapan: Penghapusan BMN workflow preconditions (F-E2E E-3).

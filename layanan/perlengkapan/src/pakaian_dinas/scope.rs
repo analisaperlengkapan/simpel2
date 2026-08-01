@@ -10,10 +10,11 @@
 //!     legacy/create paths may write `'semua'`, `'all'`, or leave it NULL — all
 //!     mean nationwide. We treat NULL / `'semua'` / `'all'` as nationwide.
 //!   - the targeted-satker child `pengajuan_pakaian_dinas_satker_terpilih` keys
-//!     satkers by **UUID** (`satker_id` → `integrasi.mysimkari_satker.id`),
-//!     whereas kebutuhan keyed them by `kode_satker` (text). So we join through
-//!     `integrasi.mysimkari_satker` to compare against the caller's MySIMKARI
-//!     `kode_satker`.
+//!     satkers by MySIMKARI `kode_satker`, same as kebutuhan (V006/#94 — it
+//!     used to be a `uuid` compared against a `bigint` PK, which was invalid
+//!     SQL). The satker tier can therefore compare the column directly; only
+//!     the wilayah tier still joins `integrasi.mysimkari_satker`, because it
+//!     needs that table's `wilayah`.
 //!
 //! Tiers (derived via [`SatkerScope`], reusing its role mapping):
 //! - `All`     — cross-satker roles (pusat/validator_pusat/admin = the campaign
@@ -55,8 +56,7 @@ pub fn campaign_visibility_condition(
                         (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih pt \
-                        JOIN integrasi.mysimkari_satker ms ON ms.id = pt.satker_id \
-                        WHERE pt.pengajuan_id = pp.id AND ms.kode_satker = ${i}))"
+                        WHERE pt.pengajuan_id = pp.id AND pt.satker_id = ${i}))"
             ))
         }
         SatkerScope::Wilayah(code) => {
@@ -69,7 +69,7 @@ pub fn campaign_visibility_condition(
                         (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih pt \
-                        JOIN integrasi.mysimkari_satker ms ON ms.id = pt.satker_id \
+                        JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = pt.satker_id \
                         WHERE pt.pengajuan_id = pp.id AND ms.wilayah = \
                           (SELECT s2.wilayah FROM integrasi.mysimkari_satker s2 \
                            WHERE s2.kode_satker = ${i})))"
@@ -109,10 +109,14 @@ mod tests {
         assert!(cond.contains("'semua', 'all'"));
         // wilayah tier resolves the caller's wilayah name
         assert!(cond.contains("pp.scope_satker = 'wilayah'"));
-        // explicit targets join through mysimkari_satker by UUID → kode_satker
+        // Explicit targets compare kode_satker DIRECTLY — no join through
+        // mysimkari_satker, because the column now holds kode_satker (V006/#94).
         assert!(cond.contains("pengajuan_pakaian_dinas_satker_terpilih pt"));
-        assert!(cond.contains("ms.id = pt.satker_id"));
-        assert!(cond.contains("ms.kode_satker = $1"));
+        assert!(cond.contains("pt.satker_id = $1"));
+        assert!(
+            !cond.contains("JOIN integrasi.mysimkari_satker ms"),
+            "satker tier must not need the surrogate-id join any more"
+        );
         assert_eq!(p.len(), 1);
     }
 
@@ -122,7 +126,9 @@ mod tests {
         let cond =
             campaign_visibility_condition(&SatkerScope::Wilayah("02.28".to_string()), &mut p)
                 .unwrap();
-        assert!(cond.contains("JOIN integrasi.mysimkari_satker ms ON ms.id = pt.satker_id"));
+        assert!(
+            cond.contains("JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = pt.satker_id")
+        );
         assert!(cond.contains("ms.wilayah ="));
         assert!(cond.contains("$1"));
         assert_eq!(p.len(), 1);

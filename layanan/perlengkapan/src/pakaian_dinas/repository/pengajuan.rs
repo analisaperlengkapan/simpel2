@@ -190,20 +190,20 @@ impl PakaianDinasRepository {
         // - "wilayah" (#19): auto-resolve dari integrasi.mysimkari_satker.wilayah.
         // - "sebagian": pakai satker_ids dari operator.
         // - "all"/"semua": kosong (artinya seluruh satker).
-        let resolved_satker_ids: Vec<Uuid> = if request.pilihan_satker == "wilayah" {
+        let resolved_satker_codes: Vec<String> = if request.pilihan_satker == "wilayah" {
             match request
                 .wilayah_id
                 .as_deref()
                 .filter(|w| !w.trim().is_empty())
             {
-                Some(wid) => self.list_satker_ids_by_wilayah(wid).await?,
+                Some(wid) => self.list_satker_codes_by_wilayah(wid).await?,
                 None => Vec::new(),
             }
         } else {
             request.satker_ids.clone().unwrap_or_default()
         };
 
-        for satker_id in &resolved_satker_ids {
+        for satker_id in &resolved_satker_codes {
             client
                 .execute(
                     r#"
@@ -221,10 +221,15 @@ impl PakaianDinasRepository {
         self.get_pengajuan_by_id(id).await
     }
 
-    /// Resolve satker UUID untuk satu wilayah Kejaksaan Tinggi (#19), sumber
-    /// `integrasi.mysimkari_satker`. Sejalan dgn resolver Kebutuhan BMN namun
-    /// mengembalikan `id` (UUID) karena `satker_terpilih.satker_id` bertipe UUID.
-    pub async fn list_satker_ids_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<Uuid>> {
+    /// Resolve `kode_satker` untuk satu wilayah Kejaksaan Tinggi (#19), sumber
+    /// `integrasi.mysimkari_satker`. Kembar dgn
+    /// `KebutuhanBmnRepository::list_satker_codes_by_wilayah` — nama dan bentuk
+    /// sengaja disamakan.
+    ///
+    /// Sebelum V006/#94 fungsi ini `SELECT id` lalu membacanya sebagai `Uuid`,
+    /// padahal kolomnya `BIGSERIAL` → tokio-postgres menolak konversi dan
+    /// pembuatan campaign ber-scope "wilayah" selalu gagal.
+    pub async fn list_satker_codes_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<String>> {
         let client = self
             .pool
             .get()
@@ -232,12 +237,16 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let rows = client
             .query(
-                "SELECT id FROM integrasi.mysimkari_satker WHERE wilayah = $1",
+                "SELECT kode_satker FROM integrasi.mysimkari_satker \
+                 WHERE wilayah = $1 ORDER BY kode_satker",
                 &[&wilayah],
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
-        Ok(rows.iter().map(|r| r.get::<_, Uuid>("id")).collect())
+        Ok(rows
+            .iter()
+            .map(|r| r.get::<_, String>("kode_satker"))
+            .collect())
     }
 
     pub async fn delete_pengajuan(&self, id: Uuid) -> AppResult<()> {

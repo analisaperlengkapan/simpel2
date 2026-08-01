@@ -43,7 +43,7 @@ pub fn validate_periode_pakaian_dinas(
 pub fn validate_scope_satker(
     pilihan_satker: &str,
     wilayah_id: Option<&str>,
-    satker_ids: Option<&[Uuid]>,
+    satker_ids: Option<&[String]>,
 ) -> Result<(), AppError> {
     match pilihan_satker {
         "all" | "semua" => Ok(()),
@@ -118,11 +118,11 @@ impl PakaianDinasService {
     /// fallback aware, bukan tarik-langsung yang lossy.
     pub async fn get_pegawai_roster_with_sync(
         &self,
-        satker_id: Uuid,
+        satker_code: &str,
     ) -> AppResult<PegawaiRosterWithSync> {
         let pegawai = self
             .repository
-            .get_mysimkari_pegawai_by_satker(satker_id)
+            .get_mysimkari_pegawai_by_satker(satker_code)
             .await?;
 
         let sync = match &self.integrasi_client {
@@ -541,20 +541,23 @@ impl PakaianDinasService {
 
     // ============ MySIMKARI Integration ============
 
-    pub async fn get_pegawai_by_satker(&self, satker_id: Uuid) -> AppResult<Vec<MysimkariPegawai>> {
+    pub async fn get_pegawai_by_satker(
+        &self,
+        satker_code: &str,
+    ) -> AppResult<Vec<MysimkariPegawai>> {
         self.repository
-            .get_mysimkari_pegawai_by_satker(satker_id)
+            .get_mysimkari_pegawai_by_satker(satker_code)
             .await
     }
 
     /// Get employees with their existing uniform sizes
     pub async fn get_pegawai_with_sizes(
         &self,
-        satker_id: Uuid,
+        satker_code: &str,
     ) -> AppResult<Vec<(MysimkariPegawai, Option<PegawaiPakaianDinas>)>> {
         let pegawai_list = self
             .repository
-            .get_mysimkari_pegawai_by_satker(satker_id)
+            .get_mysimkari_pegawai_by_satker(satker_code)
             .await?;
 
         let mut result = Vec::with_capacity(pegawai_list.len());
@@ -860,7 +863,8 @@ mod tests {
     fn scope_sebagian_requires_satker_ids() {
         assert!(validate_scope_satker("sebagian", None, None).is_err());
         assert!(validate_scope_satker("sebagian", None, Some(&[])).is_err());
-        assert!(validate_scope_satker("sebagian", None, Some(&[Uuid::new_v4()])).is_ok());
+        // MySIMKARI kode_satker, not a uuid (V006/#94).
+        assert!(validate_scope_satker("sebagian", None, Some(&["0200010".to_string()])).is_ok());
     }
 
     #[test]

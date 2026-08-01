@@ -193,8 +193,10 @@ impl PengajuanPakaianDinas {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PengajuanSatkerTerpilih {
     pub pengajuan_id: Uuid,
-    pub satker_id: Uuid,
-    pub satker_pusat_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` — SoT `integrasi.mysimkari_satker.kode_satker`.
+    /// NOT the bigint surrogate `id` (reassigned on re-sync). See V006 / #94.
+    pub satker_id: String,
+    pub satker_pusat_id: Option<String>,
     pub is_show_in_form: bool,
     // Joined fields
     pub satker_nama: Option<String>,
@@ -247,11 +249,10 @@ impl PengajuanPakaian {
 pub struct PengajuanSatker {
     pub id: Uuid,
     pub pengajuan_id: Uuid,
-    pub satker_id: Uuid,
-    pub satker_pusat_id: Option<Uuid>,
-    pub id_kejati: Option<Uuid>,
-    pub id_kejari: Option<Uuid>,
-    pub id_cabjari: Option<Uuid>,
+    /// MySIMKARI `kode_satker` — SoT `integrasi.mysimkari_satker.kode_satker`.
+    /// NOT the bigint surrogate `id` (reassigned on re-sync). See V006 / #94.
+    pub satker_id: String,
+    pub satker_pusat_id: Option<String>,
     pub aktivitas_id: i32,
     pub created_by: Option<Uuid>,
     pub updated_by: Option<Uuid>,
@@ -270,9 +271,6 @@ impl PengajuanSatker {
             pengajuan_id: row.get("pengajuan_id"),
             satker_id: row.get("satker_id"),
             satker_pusat_id: row.try_get("satker_pusat_id").ok(),
-            id_kejati: row.try_get("id_kejati").ok(),
-            id_kejari: row.try_get("id_kejari").ok(),
-            id_cabjari: row.try_get("id_cabjari").ok(),
             aktivitas_id: row.get("aktivitas_id"),
             created_by: row.try_get("created_by").ok(),
             updated_by: row.try_get("updated_by").ok(),
@@ -425,7 +423,10 @@ impl PegawaiPakaianDinas {
 /// Employee data from MySIMKARI integration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MysimkariPegawai {
-    pub id: i32,
+    /// `integrasi.mysimkari_pegawai.id` is BIGSERIAL (int8). This was `i32`,
+    /// and `row.get::<_, i32>` on an int8 column PANICS — so every roster read
+    /// 500'd on the first row even once the query itself was fixed (#94).
+    pub id: i64,
     pub nama: String,
     pub nip: String,
     pub no_hp: Option<String>,
@@ -442,7 +443,10 @@ pub struct MysimkariPegawai {
     pub eselon: Option<String>,
     pub nama_satker: Option<String>,
     pub gol_kd: Option<String>,
-    pub satker_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` — the column is TEXT. This was `Option<Uuid>`
+    /// read via `try_get(..).ok()`, so the type error was swallowed and the
+    /// field silently deserialized to `None` on EVERY row (#94).
+    pub satker_id: Option<String>,
 }
 impl MysimkariPegawai {
     pub fn from_row(row: &Row) -> Self {
