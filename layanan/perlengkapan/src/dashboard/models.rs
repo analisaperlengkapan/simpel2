@@ -91,8 +91,9 @@ pub struct AssetUtilization {
 // ============ Summary dashboard (`/dashboard/stats`) ============
 //
 // Lightweight SIMAN-summary card for the landing dashboard, distinct from the
-// richer `PerlengkapanDashboardMetrics` above. Sourced from the
-// `integrasi.v_siman_summary_*` views.
+// richer `PerlengkapanDashboardMetrics` above. Aggregated from the
+// `integrasi.siman_aset` SoT table — NOT from `integrasi.v_siman_summary_*`,
+// which no migration, seed or chart in this repo creates (see repository.rs).
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DashboardStats {

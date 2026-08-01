@@ -126,7 +126,10 @@ pub async fn fetch_gap_analysis(
             SELECT COUNT(*)::bigint AS good_count
             FROM integrasi.siman_aset sa
             WHERE sa.kode_barang = r.kode_barang
-              AND sa.kondisi = 'BAIK'
+              -- see fetch_asset_utilization: `kondisi` alone is NULL in every
+              -- environment fed by ur_kondisi, which silently made every gap
+              -- equal to the full requested quantity.
+              AND UPPER(COALESCE(sa.kondisi, sa.ur_kondisi, '')) = 'BAIK'
         ) g ON TRUE
         ORDER BY gap DESC
         LIMIT $1
@@ -208,8 +211,16 @@ pub async fn fetch_workflow_metrics(db_pool: &Pool) -> Result<WorkflowMetrics, A
     // Average processing time for completed per-satker responses. "Completed" is
     // status_kode 2008 (models/status.rs). The old query filtered a TEXT
     // `status = 'COMPLETED'` that exists nowhere in this schema.
+    // The `::FLOAT8` is load-bearing, not defensive noise. `EXTRACT(EPOCH ...)`
+    // returns NUMERIC on PostgreSQL 14+ (it was float8 before), and AVG() over
+    // numeric stays numeric. tokio_postgres has no `FromSql<f64>` for NUMERIC, so
+    // reading it into an f64 PANICS instead of returning Err — and because the
+    // release profile sets `panic = "abort"` (root Cargo.toml), that panic takes
+    // the entire service down rather than failing the one request. Verified in
+    // CI: this exact query aborted layanan-perlengkapan mid-run, which is why 12
+    // unrelated e2e tests then failed with ENOTFOUND.
     let avg_time_query = r#"
-        SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600), 0) AS avg_hours
+        SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (updated_at - created_at)) / 3600), 0)::FLOAT8 AS avg_hours
         FROM perlengkapan.pengajuan_kebutuhan_bmn_satker
         WHERE status_kode = 2008
     "#;
@@ -228,7 +239,8 @@ pub async fn fetch_workflow_metrics(db_pool: &Pool) -> Result<WorkflowMetrics, A
             -- ms_workflow_status; the code is cast to text because
             -- BottleneckInfo.state is a String and the kode column is INTEGER.
             COALESCE(w.nama, 'Kode ' || ka.to_status_kode::text) AS state,
-            COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600), 0) as avg_hours,
+            -- ::FLOAT8 for the same NUMERIC-vs-f64 reason as avg_time_query above.
+            COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - ka.created_at)) / 3600), 0)::FLOAT8 as avg_hours,
             COUNT(*) as count
         FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas ka
         LEFT JOIN perlengkapan.ms_workflow_status w
@@ -279,10 +291,24 @@ pub async fn fetch_workflow_metrics(db_pool: &Pool) -> Result<WorkflowMetrics, A
 pub async fn fetch_asset_utilization(db_pool: &Pool) -> Result<AssetUtilization, AppError> {
     let client = db_pool.get().await?;
 
+    // Two fixes over the previous form, both of which killed the process rather
+    // than erroring (release profile is `panic = "abort"`):
+    //
+    //  * COALESCE around SUM(): with no GROUP BY, an EMPTY siman_aset still yields
+    //    one row, and SUM() over zero rows is NULL. Reading NULL into i64 panics.
+    //    That is the state of every environment before its first SIMAN sync.
+    //  * the condition column: `kondisi` is only populated when the SIMAN API
+    //    returns a KONDISI field (siman/transform.rs:107); the e2e seed and much
+    //    real data carry `ur_kondisi` instead, so `kondisi = 'BAIK'` counted zero
+    //    good assets. integrasi's own gRPC reader coalesces both
+    //    (grpc/service.rs:972) — that is the SoT owner's canonical form, so use it.
     let query = r#"
         SELECT
-            COUNT(*) as total_assets,
-            SUM(CASE WHEN kondisi = 'BAIK' THEN 1 ELSE 0 END) as assets_in_good_condition
+            COUNT(*) AS total_assets,
+            COALESCE(SUM(
+                CASE WHEN UPPER(COALESCE(kondisi, ur_kondisi, '')) = 'BAIK'
+                     THEN 1 ELSE 0 END
+            ), 0) AS assets_in_good_condition
         FROM integrasi.siman_aset
     "#;
 
@@ -359,20 +385,40 @@ pub async fn fetch_dashboard_stats(db_pool: &Pool) -> Result<DashboardStats, App
         .await
         .map_err(|e| AppError::Internal(format!("Failed to get database connection: {}", e)))?;
 
-    // Query v_siman_summary_total with explicit casts to be safe.
+    // Aggregated straight off `integrasi.siman_aset`, the SoT table.
+    //
+    // This used to read `integrasi.v_siman_summary_total` and
+    // `..._per_kategori`. Those two views are created by NOTHING in this repo —
+    // not integrasi's migrations (which define `v_siman_ringkasan`, a different
+    // view), not the e2e seed, not the Helm chart. They exist only in the
+    // `siman` schema of the one-off import documented in
+    // layanan/integrasi/SIMAN_MIGRATION_COMPLETE.md. So `/dashboard/stats` was a
+    // guaranteed 500 in every environment, and the e2e that "covered" it passed
+    // anyway because it asserted the static card LABELS ("Total Aset BMN"),
+    // which render whether or not the fetch succeeds.
+    //
+    // `rph_aset` is TEXT in the SoT, so the value is parsed with the same
+    // regex-guarded cast bank_aset/repository.rs:106 already uses — a bare
+    // `::FLOAT8` throws on any non-numeric row and would abort the process.
     let summary = client
         .query_one(
             "SELECT
-                total_aset,
-                COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai,
-                total_satker,
-                total_baik,
-                total_rusak
-              FROM integrasi.v_siman_summary_total",
+                COUNT(*)                                        AS total_aset,
+                COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$'
+                                  THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8
+                                                                AS total_nilai,
+                COUNT(DISTINCT kdsatker_keu)                    AS total_satker,
+                COUNT(*) FILTER (
+                    WHERE UPPER(COALESCE(kondisi, ur_kondisi, '')) = 'BAIK'
+                )                                               AS total_baik,
+                COUNT(*) FILTER (
+                    WHERE UPPER(COALESCE(kondisi, ur_kondisi, '')) LIKE 'RUSAK%'
+                )                                               AS total_rusak
+              FROM integrasi.siman_aset",
             &[],
         )
         .await
-        .map_err(|e| AppError::Database(format!("Failed to query summary with cast: {}", e)))?;
+        .map_err(|e| AppError::Database(format!("Failed to query SIMAN summary: {}", e)))?;
 
     let total_aset: i64 = summary.get("total_aset");
     let total_nilai_aset: f64 = summary.get("total_nilai");
@@ -382,7 +428,14 @@ pub async fn fetch_dashboard_stats(db_pool: &Pool) -> Result<DashboardStats, App
 
     let cat_rows = client
         .query(
-            "SELECT kategori_aset, total_aset, COALESCE(total_nilai_perolehan, 0)::FLOAT8 as total_nilai FROM integrasi.v_siman_summary_per_kategori ORDER BY total_aset DESC",
+            "SELECT COALESCE(kategori_aset, '(tanpa kategori)') AS kategori_aset,
+                    COUNT(*)                                    AS total_aset,
+                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$'
+                                      THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8
+                                                                AS total_nilai
+               FROM integrasi.siman_aset
+              GROUP BY kategori_aset
+              ORDER BY total_aset DESC",
             &[],
         )
         .await

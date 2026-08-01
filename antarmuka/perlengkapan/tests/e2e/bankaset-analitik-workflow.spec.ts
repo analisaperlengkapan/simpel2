@@ -265,13 +265,22 @@ test.describe("Dashboard", () => {
   for (const fmt of ["excel", "pdf"] as const) {
     test(`dashboard export/${fmt} responds server-side`, async ({ request }) => {
       // #116 FIXED. The 500 was never in the export layer: both handlers call
-      // `get_perlengkapan_dashboard_metrics` FIRST, and four of its seven
-      // sub-queries targeted relations that exist in NO environment
-      // (`perlengkapan.kebutuhan_bmn`, `perlengkapan.pakaian_dinas`,
-      // `integrasi.v_siman_summary_total`, `..._per_kategori`) — the same
-      // never-built data model as #118. `tokio::try_join!` propagates the first
-      // error, so BOTH formats failed identically; that is why pdf failed too
-      // despite never touching the filesystem.
+      // `get_perlengkapan_dashboard_metrics` FIRST, and its sub-queries targeted
+      // two relations that exist in NO environment (`perlengkapan.kebutuhan_bmn`,
+      // `perlengkapan.pakaian_dinas` — verified absent from V001__baseline) plus
+      // two columns that do not exist on relations that DO (`authenc.satkers.nama`,
+      // `..._satker_aktivitas.aktivitas_id`) — the same never-built data model as
+      // #118. `tokio::try_join!` propagates the first error, so BOTH formats
+      // failed identically; that is why pdf failed too despite never touching the
+      // filesystem.
+      //
+      // A second, distinct fault survived that rewrite and only CI caught it: the
+      // rebuilt workflow query read `AVG(EXTRACT(EPOCH ...))` into an f64. That
+      // expression is NUMERIC on PostgreSQL 14+, tokio_postgres has no
+      // FromSql<f64> for NUMERIC, and the release profile sets `panic = "abort"` —
+      // so the backend PROCESS died on the first export request and every later
+      // test in this file failed with ENOTFOUND. Hence the `::FLOAT8` casts in
+      // dashboard/repository.rs.
       //
       // The earlier `test.fail(true, …)` marker did its job: the assertions were
       // left describing CORRECT behaviour, so they now simply pass.
