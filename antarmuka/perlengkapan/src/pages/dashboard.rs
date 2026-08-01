@@ -191,6 +191,58 @@ async fn query_dashboard_stats(_: ()) -> Result<DashboardStats, crate::api::AppE
     fetch_dashboard_stats().await
 }
 
+/// Fetch the dashboard recap as bytes and hand it to the browser as a download.
+/// Mirrors `components::laporan_kebutuhan_bmn::download_export` — same blob +
+/// synthetic-anchor pattern, kept identical so there is one way to do this.
+#[cfg(target_arch = "wasm32")]
+fn download_dashboard_export(format: &'static str) {
+    use leptos::task::spawn_local;
+    use wasm_bindgen::JsCast;
+    use web_sys::{Blob, BlobPropertyBag, Url};
+
+    spawn_local(async move {
+        // The endpoint requires `tahun_anggaran`; the recap is for the running
+        // budget year, which is what the dashboard cards above already show.
+        let tahun = js_sys::Date::new_0().get_full_year() as i32;
+        let bytes = match crate::api::dashboard::export_dashboard(format, tahun).await {
+            Ok(b) => b,
+            Err(e) => {
+                leptos::logging::error!("export dashboard {format} gagal: {e}");
+                return;
+            }
+        };
+        let mime = if format == "pdf" {
+            "application/pdf"
+        } else {
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        };
+        let array = js_sys::Uint8Array::from(bytes.as_slice());
+        let parts = js_sys::Array::new();
+        parts.push(&array);
+        let opts = BlobPropertyBag::new();
+        opts.set_type(mime);
+        let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else {
+            return;
+        };
+        let Ok(url) = Url::create_object_url_with_blob(&blob) else {
+            return;
+        };
+        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+            if let Ok(a) = doc.create_element("a") {
+                let a: web_sys::HtmlAnchorElement = a.unchecked_into();
+                a.set_href(&url);
+                let ext = if format == "pdf" { "pdf" } else { "xlsx" };
+                a.set_download(&format!("Rekap_Dashboard_Perlengkapan_{tahun}.{ext}"));
+                a.click();
+            }
+        }
+        let _ = Url::revoke_object_url(&url);
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn download_dashboard_export(_format: &'static str) {}
+
 fn format_number(n: i64) -> String {
     let s = n.to_string();
     let mut result = String::new();
@@ -321,6 +373,29 @@ pub fn DashboardHome() -> impl IntoView {
                     }
                 }}
             </Suspense>
+
+            // Rekap dashboard export (#97/#116). These two endpoints existed but
+            // had no FE caller at all, which is why the 500 they returned went
+            // unnoticed until an e2e probed them directly.
+            <section class="flex flex-wrap items-center gap-3">
+                <span class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-400">
+                    "Unduh rekap"
+                </span>
+                <button
+                    type="button"
+                    class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
+                    on:click=move |_| download_dashboard_export("excel")
+                >
+                    "Export Excel"
+                </button>
+                <button
+                    type="button"
+                    class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
+                    on:click=move |_| download_dashboard_export("pdf")
+                >
+                    "Export PDF"
+                </button>
+            </section>
 
             <section>
                 <SectionHeader title="Modul Utama" tone="gold" />

@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 /// Query parameters for dashboard metrics
 #[derive(Debug, Deserialize)]
@@ -42,7 +41,8 @@ pub struct KebutuhanMetrics {
 /// Satker count for kebutuhan
 #[derive(Debug, Serialize)]
 pub struct SatkerCount {
-    pub satker_id: Uuid,
+    /// MySIMKARI `kode_satker` — the real column is `varchar(20)`, not a uuid.
+    pub satker_id: String,
     pub satker_nama: String,
     pub count: i64,
 }
@@ -91,8 +91,9 @@ pub struct AssetUtilization {
 // ============ Summary dashboard (`/dashboard/stats`) ============
 //
 // Lightweight SIMAN-summary card for the landing dashboard, distinct from the
-// richer `PerlengkapanDashboardMetrics` above. Sourced from the
-// `integrasi.v_siman_summary_*` views.
+// richer `PerlengkapanDashboardMetrics` above. Aggregated from the
+// `integrasi.siman_aset` SoT table — NOT from `integrasi.v_siman_summary_*`,
+// which no migration, seed or chart in this repo creates (see repository.rs).
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DashboardStats {

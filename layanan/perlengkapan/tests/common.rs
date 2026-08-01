@@ -152,10 +152,31 @@ pub async fn setup_test_db() -> (Database, String) {
             .await;
     }
 
-    client.execute(
-        "CREATE TABLE IF NOT EXISTS integrasi.siman_aset (
-            id UUID PRIMARY KEY, kategori_aset VARCHAR, no_aset VARCHAR, ur_sskel VARCHAR, nama VARCHAR, kd_brg VARCHAR, merk VARCHAR, tipe VARCHAR, ur_kondisi VARCHAR, alamat VARCHAR, nama_satker VARCHAR, rph_aset VARCHAR, tgl_perlh VARCHAR, updated_at TIMESTAMPTZ DEFAULT NOW()
-        )", &[]).await.unwrap();
+    // Second cross-schema stub, and it had drifted the same way the satker one
+    // had: `id UUID` where the SoT declares BIGSERIAL, and missing `jenis_aset`
+    // (NOT NULL upstream), `kondisi`, `kdsatker_keu`, `kode_barang`, `satker_id`
+    // and `nama_barang` entirely — every one of which production code queries.
+    // Mirrors `layanan/integrasi/migrations/001_init_schema.sql`. A stub that
+    // diverges from the owner's DDL does not merely miss bugs; it certifies them.
+    client
+        .execute(
+            "CREATE TABLE IF NOT EXISTS integrasi.siman_aset (
+                id BIGSERIAL PRIMARY KEY,
+                jenis_aset TEXT NOT NULL,
+                kategori_aset TEXT, no_aset TEXT, ur_sskel TEXT, nama TEXT,
+                kd_brg TEXT, merk TEXT, tipe TEXT,
+                ur_kondisi TEXT, kondisi TEXT,
+                alamat TEXT, nama_satker TEXT, kdsatker_keu TEXT,
+                satker_id UUID, nama_barang TEXT, kode_barang TEXT, nup TEXT,
+                rph_aset TEXT, tgl_perlh TEXT, raw_data JSONB,
+                synced_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )",
+            &[],
+        )
+        .await
+        .unwrap();
 
     // Cross-schema SoT stub for satker identity (integrasi owns it; perlengkapan
     // reads it). Pakaian-dinas satker queries LEFT JOIN this, and the wilayah
@@ -177,6 +198,29 @@ pub async fn setup_test_db() -> (Database, String) {
                 nama_satker TEXT,
                 wilayah TEXT
             )",
+            &[],
+        )
+        .await
+        .unwrap();
+
+    // SIMAN assets the penghapusan tests reference by (kode_barang, NUP).
+    //
+    // These are REQUIRED, not decoration: penghapusan_bmn/services.rs deliberately
+    // rejects a create whose asset is absent from SIMAN, because `nilai_perolehan`
+    // must come from the authoritative source and never from operator input.
+    // Those tests used to pass without any SIMAN row only because the old stub
+    // had no `nup` column at all — the lookup errored and degraded to "no value",
+    // so the integrity rule silently never ran. With a faithful schema the rule
+    // applies, which is the behaviour we actually want asserted.
+    client
+        .execute(
+            "INSERT INTO integrasi.siman_aset
+                (jenis_aset, kategori_aset, nama, ur_kondisi, kode_barang, nup, rph_aset)
+             VALUES
+                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 003/015', 'BAIK', '3.06.02.01.003', '015', '12500000'),
+                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 003/099', 'BAIK', '3.06.02.01.003', '099', '9750000'),
+                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 004/016', 'BAIK', '3.06.02.01.004', '016', '4300000')
+             ON CONFLICT DO NOTHING",
             &[],
         )
         .await
