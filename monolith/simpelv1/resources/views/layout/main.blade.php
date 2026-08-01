@@ -36,22 +36,29 @@
 
     <script src={{ url('/assets/libs/jquery/jquery-3.7.0.min.js') }}></script>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBNrDMFbgKfbIxSpFadAk7YjcJ9qTNwYU8" async defer></script>
+    @if (config('services.google_maps.key'))
+        <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.key') }}" async defer>
+        </script>
+    @endif
     <style>
         body {
             background: #fff7e0 !important;
             transition: background 0.3s;
         }
-        #page-topbar, .footer {
+
+        #page-topbar,
+        .footer {
             background: #fff !important;
             border-bottom: 2.5px solid #f9b233;
             border-radius: 0 0 18px 18px;
             box-shadow: 0 2px 8px 0 #f9b23322;
         }
+
         .footer {
             border-top: 2.5px solid #f9b233;
             border-radius: 18px 18px 0 0;
         }
+
         .navbar-menu {
             background: #fff !important;
             border-right: 2.5px solid #f9b233;
@@ -59,7 +66,10 @@
             box-shadow: 2px 0 8px 0 #f9b23322;
             transition: width 0.3s;
         }
-        .btn-primary, .btn-success, .btn-info {
+
+        .btn-primary,
+        .btn-success,
+        .btn-info {
             background: #1e5631 !important;
             border-color: #1e5631 !important;
             color: #fff !important;
@@ -67,19 +77,26 @@
             box-shadow: 0 2px 8px 0 #1e563122;
             transition: background 0.2s;
         }
-        .btn-primary:hover, .btn-success:hover, .btn-info:hover {
+
+        .btn-primary:hover,
+        .btn-success:hover,
+        .btn-info:hover {
             background: #f9b233 !important;
             border-color: #f9b233 !important;
             color: #1e5631 !important;
         }
-        .card, .modal-content {
+
+        .card,
+        .modal-content {
             border-radius: 18px;
             box-shadow: 0 4px 24px 0 #1e563122;
         }
+
         .main-content {
             background: #fff7e0 !important;
             min-height: 100vh;
         }
+
         .fab {
             position: fixed;
             right: 32px;
@@ -98,35 +115,50 @@
             cursor: pointer;
             transition: background 0.2s;
         }
+
         .fab:hover {
             background: #1e5631;
             color: #fff;
         }
+
         .toast-container {
             position: fixed;
             top: 24px;
             right: 24px;
             z-index: 2000;
         }
+
         .dark-mode body {
             background: #1e5631 !important;
         }
-        .dark-mode #page-topbar, .dark-mode .footer, .dark-mode .navbar-menu, .dark-mode .main-content {
+
+        .dark-mode #page-topbar,
+        .dark-mode .footer,
+        .dark-mode .navbar-menu,
+        .dark-mode .main-content {
             background: #222 !important;
             color: #fff !important;
             border-color: #f9b233;
         }
-        .dark-mode .btn-primary, .dark-mode .btn-success, .dark-mode .btn-info {
+
+        .dark-mode .btn-primary,
+        .dark-mode .btn-success,
+        .dark-mode .btn-info {
             background: #f9b233 !important;
             border-color: #f9b233 !important;
             color: #1e5631 !important;
         }
-        .dark-mode .btn-primary:hover, .dark-mode .btn-success:hover, .dark-mode .btn-info:hover {
+
+        .dark-mode .btn-primary:hover,
+        .dark-mode .btn-success:hover,
+        .dark-mode .btn-info:hover {
             background: #1e5631 !important;
             border-color: #1e5631 !important;
             color: #fff !important;
         }
-        .dark-mode .card, .dark-mode .modal-content {
+
+        .dark-mode .card,
+        .dark-mode .modal-content {
             background: #222 !important;
             color: #fff !important;
         }
@@ -146,10 +178,12 @@
                         <div class="navbar-brand-box horizontal-logo">
                             <a href="{{ url('') }}" class="logo logo-dark">
                                 <span class="logo-sm">
-                                    <img src="{{ url('/assets/images/logo_kejaksaan.png') }}" alt="" height="32">
+                                    <img src="{{ url('/assets/images/logo_kejaksaan.png') }}" alt=""
+                                        height="32">
                                 </span>
                                 <span class="logo-lg">
-                                    <img src="{{ url('/assets/images/logo_kejaksaan.png') }}" alt="" height="32">
+                                    <img src="{{ url('/assets/images/logo_kejaksaan.png') }}" alt=""
+                                        height="32">
                                 </span>
                             </a>
                         </div>
@@ -246,7 +280,6 @@
                                         class="align-middle" data-key="t-logout">Logout</span></a>
                             </div>
                         </div>
-
 
                     </div>
                 </div>
@@ -397,7 +430,7 @@
         };
         // Tooltip init
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
+        tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
         // Toast function
@@ -405,7 +438,8 @@
             const toast = document.createElement('div');
             toast.className = `toast align-items-center text-bg-${type} border-0 show mb-2`;
             toast.role = 'alert';
-            toast.innerHTML = `<div class='d-flex'><div class='toast-body'>${msg}</div><button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast'></button></div>`;
+            toast.innerHTML =
+                `<div class='d-flex'><div class='toast-body'>${msg}</div><button type='button' class='btn-close btn-close-white me-2 m-auto' data-bs-dismiss='toast'></button></div>`;
             document.getElementById('toastContainer').appendChild(toast);
             setTimeout(() => toast.remove(), 4000);
         };

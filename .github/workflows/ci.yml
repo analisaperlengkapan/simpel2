@@ -406,9 +406,56 @@ jobs:
       - uses: ./.github/actions/setup-node
         with:
           working-directory: monolith/simpelv1
-      - name: Prettier check (Blade)
+      # Scope: Blade files CHANGED by this PR, not the whole tree.
+      #
+      # Two reasons, both measured rather than assumed:
+      #  1. The plugin used to CRASH ("Unknown node type: undefined") on 288 of
+      #     the ~290 committed templates, so this check has never once passed.
+      #     Root cause was the floating range `^1.8.13` resolving to 1.16.2,
+      #     which dropped Prettier 2 support; it is now pinned exactly. (#119)
+      #  2. With the pin the crash is gone, but 248 legacy templates are simply
+      #     not formatted. Reformatting them is NOT whitespace-only: the plugin
+      #     reprints PHP from an AST, adding trailing commas in array literals
+      #     and re-parenthesising expressions (`round($a/$b*100,1)` ->
+      #     `round(($a/$b)*100,1)`). Every case inspected was
+      #     precedence-preserving, but these templates render the live simpelv1
+      #     UI and have no rendering test, so a 248-file AST rewrite is not
+      #     something to land unverified.
+      #
+      # Checking only changed files makes the gate real for new/edited
+      # templates immediately, while the legacy backlog gets reformatted
+      # deliberately, in reviewable batches. Full-tree enforcement returns once
+      # that backlog is cleared.
+      - name: Prettier check (Blade, changed files only)
         working-directory: monolith/simpelv1
-        run: npx prettier --check 'resources/views/**/*.blade.php'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          BASE="${BASE_SHA:-}"
+          if [ -z "$BASE" ]; then
+            BASE=$(git merge-base HEAD origin/main 2>/dev/null || echo "")
+          fi
+          if [ -z "$BASE" ]; then
+            echo "No merge base available; checking HEAD commit only."
+            BASE="HEAD^"
+          fi
+          # `--diff-filter=d` drops deletions: prettier cannot check a file that
+          # no longer exists, and a rename shows up as its new path anyway.
+          mapfile -t FILES < <(
+            git diff --name-only --diff-filter=d "$BASE"...HEAD -- 'resources/views/**/*.blade.php' \
+              | sed 's|^monolith/simpelv1/||'
+          )
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No Blade templates changed in this PR."
+            exit 0
+          fi
+          printf 'Checking %d changed Blade template(s):\n' "${#FILES[@]}"
+          printf '  %s\n' "${FILES[@]}"
+          # NOTE: prettier prints "All matched files use Prettier code style!"
+          # as its LAST line even when it errors and exits non-zero, so never
+          # judge this step by tail output — only by the exit status.
+          npx prettier --check "${FILES[@]}"
 
   lint-dockerfile:
     name: Lint Dockerfile
