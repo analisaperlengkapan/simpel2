@@ -498,11 +498,42 @@ data-encoding = "2.11.0"
 fpe = "0.6.1"
 ssh-key = { version = "0.6.7", features = ["ed25519", "rsa", "ecdsa", "std"] }
 ssh-encoding = "0.3.0"
-aws-config = "1.8.18"
-aws-sdk-s3 = "1.135.0"
-aws-sdk-iam = "1.112.0"
-aws-sdk-sts = "1.106.0"
-aws-sdk-kms = "1.110.0"
+# AWS SDK: `default-features = false` is a SECURITY fix, not tidying.
+#
+# Every aws-sdk-* ships a default feature set containing BOTH `rustls` and
+# `default-https-client`. The first is the superseded legacy path: it enables
+# aws-smithy-runtime/tls-rustls -> aws-smithy-http-client/legacy-rustls-ring ->
+# hyper-rustls 0.24 -> rustls 0.21 -> rustls-webpki 0.101.7, which carries
+# GHSA/RUSTSEC advisories (one HIGH: DoS via panic on a malformed CRL BIT
+# STRING, patched only in >= 0.103.13). No version bump can clear it — 1.2.0 is
+# the newest aws-smithy-http-client and it still wires the legacy stack behind
+# that feature — so the only route is to stop asking for it.
+#
+# The second, `default-https-client`, is the modern path (hyper-rustls 0.27 ->
+# rustls 0.23 -> rustls-webpki 0.103.x) and is what actually serves every
+# request these SDKs make. Keeping it plus `rt-tokio` preserves behaviour; the
+# per-crate extras below are the non-TLS defaults each crate also shipped
+# (`sigv4a` for STS/S3 signing, `http-1x` for S3).
+aws-config = "1.10.1"
+aws-sdk-s3 = { version = "1.135.0", default-features = false, features = [
+  "default-https-client",
+  "rt-tokio",
+  "sigv4a",
+  "http-1x",
+] }
+aws-sdk-iam = { version = "1.112.0", default-features = false, features = [
+  "default-https-client",
+  "rt-tokio",
+] }
+aws-sdk-sts = { version = "1.106.0", default-features = false, features = [
+  "default-https-client",
+  "rt-tokio",
+  "sigv4a",
+] }
+aws-sdk-kms = { version = "1.110.0", default-features = false, features = [
+  "default-https-client",
+  "rt-tokio",
+] }
 aws-types = "1.3.16"
 aws-credential-types = "1.2.14"
 google-cloudkms1 = "7.0.0+20251203"
