@@ -15,7 +15,7 @@ impl PakaianDinasRepository {
 
         let row = client
             .query_opt(
-                "SELECT * FROM pegawai_pakaian_dinas WHERE nip = $1",
+                "SELECT * FROM perlengkapan.pegawai_pakaian_dinas WHERE nip = $1",
                 &[&nip],
             )
             .await
@@ -40,14 +40,18 @@ impl PakaianDinasRepository {
         client
             .execute(
                 r#"
-                INSERT INTO pegawai_pakaian_dinas
+                INSERT INTO perlengkapan.pegawai_pakaian_dinas
                     (nip, nama, ukuran_baju, ukuran_celana, ukuran_sepatu, with_hijab, updated_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                VALUES ($1, $2, $3, $4, $5, COALESCE($6, false), $7)
                 ON CONFLICT (nip) DO UPDATE SET
                     ukuran_baju = EXCLUDED.ukuran_baju,
                     ukuran_celana = EXCLUDED.ukuran_celana,
                     ukuran_sepatu = EXCLUDED.ukuran_sepatu,
-                    with_hijab = EXCLUDED.with_hijab,
+                    -- $6, not EXCLUDED: the INSERT list already collapsed a
+                    -- missing flag to `false`, so EXCLUDED cannot tell "the
+                    -- caller said false" from "the caller said nothing" and
+                    -- would clear a flag this endpoint does not own.
+                    with_hijab = COALESCE($6, pegawai_pakaian_dinas.with_hijab),
                     updated_at = EXCLUDED.updated_at
                 "#,
                 &[
@@ -84,7 +88,7 @@ impl PakaianDinasRepository {
         client
             .execute(
                 r#"
-                INSERT INTO pegawai_pakaian_dinas
+                INSERT INTO perlengkapan.pegawai_pakaian_dinas
                     (nip, nama, pangkat, jabatan, eselon, jenis_kelamin,
                      jenis_pegawai, with_hijab, mapped_unit_kerja, kode_satker,
                      ukuran_baju, ukuran_celana, ukuran_sepatu, updated_at)
@@ -150,7 +154,7 @@ impl PakaianDinasRepository {
             client
                 .execute(
                     r#"
-                    INSERT INTO pegawai_pakaian_dinas
+                    INSERT INTO perlengkapan.pegawai_pakaian_dinas
                         (nip, nama, pangkat, jabatan, eselon, jenis_kelamin,
                          jenis_pegawai, with_hijab, mapped_unit_kerja, kode_satker,
                          ukuran_baju, ukuran_celana, ukuran_sepatu, updated_at)

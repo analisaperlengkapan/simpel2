@@ -34,14 +34,21 @@ pub struct SpesifikasiPakaianDinas {
     pub updated_at: String,
 }
 
-/// Master Ukuran (Size master data)
+/// Master Ukuran (Size master data).
+///
+/// Mirrors `layanan/perlengkapan/src/pakaian_dinas/models/entities.rs::Ukuran`,
+/// which is a straight projection of `perlengkapan.ms_ukuran` — a three-column
+/// table keyed on `(ukuran, "group")` with no surrogate id and no timestamps.
+/// This DTO previously declared `id`/`size`/`created_at`/`updated_at`, none of
+/// which the backend ever emits, so `resp.json()` failed on EVERY response and
+/// the whole ukuran page fell into `ErrorState` (#117).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Ukuran {
-    pub id: String,
+    /// The size label itself ("M", "42", …) — also half of the primary key.
+    pub ukuran: String,
+    /// BAJU | CELANA | SEPATU.
     pub group: String,
-    pub size: String,
-    pub created_at: String,
-    pub updated_at: String,
+    pub urutan: i32,
 }
 
 /// Pengajuan Pakaian Dinas (Uniform request/application)
@@ -170,26 +177,41 @@ pub struct ValidatorActionRequest {
     pub komentar: Option<String>,
 }
 
-/// Pegawai Pakaian Dinas (Employee uniform sizes)
+/// Pegawai Pakaian Dinas (Employee uniform sizes).
+///
+/// A deliberate SUBSET of the backend entity of the same name (`entities.rs:381`):
+/// serde ignores unknown fields, so the reporting columns this page never reads
+/// (pangkat/jabatan/eselon/kode_satker/…) are left out and the DTO stays tolerant
+/// of backend additions. Every field below must exist upstream — the previous
+/// version invented `id`/`pegawai_id`/`pegawai_nama`/`pegawai_nip`/`created_at`,
+/// all non-Option, so the fetch failed and the form never prefilled (#117).
+/// The employee is keyed by `nip`, taken from the JWT, not by a surrogate id.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PegawaiPakaianDinas {
-    pub id: String,
-    pub pegawai_id: String,
-    pub pegawai_nama: Option<String>,
-    pub pegawai_nip: Option<String>,
+    pub nip: String,
+    pub nama: Option<String>,
     pub ukuran_baju: Option<String>,
     pub ukuran_celana: Option<String>,
     pub ukuran_sepatu: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    #[serde(default)]
+    pub with_hijab: bool,
 }
 
+/// Mirrors `models/requests.rs::UpdatePersonalUkuranRequest`.
+///
+/// The three sizes are `String`, not `Option<String>`: the backend validates
+/// each with `length(min = 1)`, so sending `null` is a 400. The caller enforces
+/// that up front rather than letting the server reject it. There is no
+/// `pegawai_id` on the wire — the backend resolves the employee from the JWT
+/// `nip` claim, and the previous field was silently ignored.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UpsertPegawaiUkuranRequest {
-    pub pegawai_id: String,
-    pub ukuran_baju: Option<String>,
-    pub ukuran_celana: Option<String>,
-    pub ukuran_sepatu: Option<String>,
+pub struct UpdatePersonalUkuranRequest {
+    pub ukuran_baju: String,
+    pub ukuran_celana: String,
+    pub ukuran_sepatu: String,
+    /// Round-tripped from the stored value so saving sizes cannot clear a flag
+    /// this form does not own; see the COALESCE in `repository/pegawai.rs`.
+    pub with_hijab: bool,
 }
 
 /// Report: Rekap Ukuran (Size summary)
@@ -777,7 +799,7 @@ pub async fn fetch_pegawai_ukuran(
 
 #[cfg(target_arch = "wasm32")]
 pub async fn upsert_pegawai_ukuran(
-    request: UpsertPegawaiUkuranRequest,
+    request: UpdatePersonalUkuranRequest,
 ) -> Result<ApiResponse<PegawaiPakaianDinas>, crate::api::AppError> {
     use crate::api::client::get_auth_token;
     use gloo_net::http::Request;
@@ -806,7 +828,7 @@ pub async fn upsert_pegawai_ukuran(
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn upsert_pegawai_ukuran(
-    _request: UpsertPegawaiUkuranRequest,
+    _request: UpdatePersonalUkuranRequest,
 ) -> Result<ApiResponse<PegawaiPakaianDinas>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),

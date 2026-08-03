@@ -181,13 +181,23 @@ impl AuthencClient {
             let mut user_id = Some("00000000-0000-0000-0000-000000000001".to_string());
             let mut role = "admin".to_string();
             let mut satker_code = None;
+            let mut nip = None;
 
+            // `mock::<role>::<user_id>::<satker_code>[::<nip>]`
+            //
+            // The trailing NIP is optional and dev-only. Without it every
+            // NIP-gated endpoint (the personal-ukuran pair, which resolves the
+            // employee from this claim rather than from a body field) returns
+            // 400 and cannot be covered below the e2e layer at all.
             if token.starts_with("mock::") {
                 let parts: Vec<&str> = token.split("::").collect();
                 if parts.len() >= 4 {
                     role = parts[1].to_string();
                     user_id = Some(parts[2].to_string());
                     satker_code = Some(parts[3].to_string());
+                }
+                if let Some(v) = parts.get(4) {
+                    nip = Some((*v).to_string());
                 }
             }
 
@@ -199,7 +209,7 @@ impl AuthencClient {
                 error: None,
                 username: None,
                 name: None,
-                nip: None,
+                nip,
                 jabatan: None,
                 satker_code,
                 realm_roles: vec![role],

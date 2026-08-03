@@ -376,25 +376,22 @@ test.describe('Kebutuhan BMN — buat & laporan', () => {
 test.describe('Pakaian Dinas — ukuran pegawai', () => {
   test.use({ storageState: storageStatePath('operator_a') });
 
-  test('operator saves personal sizes and they persist across reload', async ({ page }) => {
-    // FINDING #117 — the page renders PARTIALLY and the cause needs the live page, not a source
-    // read, so it is filed rather than guessed at.
-    //   `toHaveCount(3)` is the CORRECT expectation: the <select> at
-    //   pakaian_dinas_ukuran.rs:285 is emitted by `render_size_select`, which is called once per
-    //   size signal, and there are three (ukuran_baju/celana/sepatu, :45-47). `render_size_select`
-    //   has NO empty-list guard, so it always emits a <select> even with zero options.
-    //   Received was 0 while `getByText('Isi Ukuran')` PASSED — yet that heading is the
-    //   SectionCard the selects live inside (:165). A card that renders without its own children
-    //   means the failure is upstream of the form branch, not a data-shape problem, and the
-    //   seeded master data is present (ms_ukuran exists in V001 with 35 rows in V002).
-    test.fail(true, '#117: ukuran form renders its section header but zero selects');
+  // Locator note (#117): `getByText('Isi Ukuran')` is NOT usable as proof that the form card
+  // rendered. Playwright's default text matching is substring + case-insensitive, so it also
+  // matches the PageLayout description "Isi ukuran pakaian dinas Anda untuk keperluan
+  // pengajuan" (pakaian_dinas_ukuran.rs:85) — which renders unconditionally, OUTSIDE the
+  // <Suspense>. That is precisely why the original failure read as "the section header
+  // renders but its children do not": the header never rendered at all and the assertion was
+  // matching the description. Assert on the form itself.
+  const sizeForm = (page: Page) => page.locator('form').filter({ has: page.locator('select') });
 
+  test('operator saves personal sizes and they persist across reload', async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await clickSidebarLink(page, 'Pakaian Dinas', `${BASE}/pakaian-dinas/ukuran`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/pakaian-dinas/ukuran$`));
     await expect(page.getByText('Ukuran Pakaian Dinas').first()).toBeVisible();
-    await expect(page.getByText('Isi Ukuran').first()).toBeVisible({ timeout: 20000 });
+    await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
 
     // Pick the first real size in each dropdown (options come from ms_ukuran).
     const selects = page.locator('select');
@@ -411,6 +408,9 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
       await selects.nth(i).selectOption(values[0]);
       chosen.push(values[0]);
     }
+    // `with_hijab` belongs to the same record and had its own bug (saving sizes used to
+    // reset it), so drive it here instead of leaving it at the default.
+    await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: /Simpan/ }).click();
     await expect(page.getByText('Ukuran berhasil disimpan!').first()).toBeVisible({
       timeout: 15000,
@@ -418,9 +418,22 @@ test.describe('Pakaian Dinas — ukuran pegawai', () => {
 
     // Round-trip: a fresh load must show the persisted values.
     await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(page.getByText('Isi Ukuran').first()).toBeVisible({ timeout: 20000 });
+    await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
     for (let i = 0; i < 3; i++) {
       await expect(page.locator('select').nth(i)).toHaveValue(chosen[i], { timeout: 15000 });
     }
+    await expect(page.getByRole('checkbox')).toBeChecked({ timeout: 15000 });
+  });
+
+  test('an incomplete size form is refused before it reaches the backend', async ({ page }) => {
+    await page.goto(`${BASE}/pakaian-dinas/ukuran`);
+    await expect(sizeForm(page)).toBeVisible({ timeout: 20000 });
+
+    // All three sizes are required server-side (`length(min = 1)`). Submitting with the
+    // placeholder still selected must produce a readable message, not a raw 400 body.
+    await page.locator('select').nth(0).selectOption('');
+    await page.getByRole('button', { name: /Simpan/ }).click();
+    await expect(page.getByText(/wajib diisi semua/i).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Ukuran berhasil disimpan!')).toHaveCount(0);
   });
 });
