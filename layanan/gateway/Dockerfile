@@ -53,6 +53,10 @@ ENV RUST_LOG=info
 ENV GATEWAY_PORT=8090
 # Upstream gRPC endpoints — overridden per environment (compose / Helm).
 ENV AUTHENC_GRPC_URL=http://authenc:50051
+# DL3064 matches "SECRET" in the variable NAME. Secreton is a service name and
+# the value is its in-cluster URL, not a credential. Per-line so a real leaked
+# secret elsewhere still trips the rule.
+# hadolint ignore=DL3064
 ENV SECRETON_GRPC_URL=http://secreton:50053
 ENV INTEGRASI_GRPC_URL=http://layanan-integrasi:50052
 
