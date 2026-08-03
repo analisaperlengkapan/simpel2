@@ -320,7 +320,7 @@ bigdecimal = { version = "0.4.10", features = ["serde"] }
 handlebars = "6.4.1"
 
 # PDF generation
-printpdf = "0.9.1"
+printpdf = "0.12"
 
 # Additional utilities
 captcha = "1.0.0"
