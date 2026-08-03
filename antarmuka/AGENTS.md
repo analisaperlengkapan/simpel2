@@ -216,10 +216,40 @@ Gate clippy di `ci.yml` tetap menjaring lint FE (di target wasm32, `--all-featur
 [tools]
 wasm-bindgen = "0.2"
 wasm-opt = ['-O3', '--enable-bulk-memory']
+tailwindcss = "3.3.5"   # WAJIB dipin — lihat aturan di bawah
 
 [build]
 release = true
 ```
+
+**ATURAN: tiap tool yang diunduh trunk WAJIB dipin di `[tools]` DAN di-pre-seed
+di Dockerfile.** Trunk mengunduh binari tool-nya (tailwindcss, wasm-bindgen,
+wasm-opt) dari GitHub releases **sekali-tembak tanpa retry**, dan untuk
+tailwindcss itu terjadi di *asset pipeline* — yaitu SETELAH kompilasi wasm
+~10 menit. Satu koneksi putus membuang seluruh build (insiden nyata: CI run
+30778634989/30778635010, `failed downloading release archive / client error
+(SendRequest)`).
+
+Mekanismenya (`trunk/src/tools.rs:338-348`): trunk memeriksa
+`~/.cache/trunk/{nama}-{versi}/{nama}` dan **melewati unduhan sepenuhnya bila
+file itu ada & executable** — tanpa verifikasi checksum. Jadi pre-seed di
+Dockerfile mematikan ketergantungan jaringan itu:
+
+```dockerfile
+RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
+    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+      -o /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss \
+      https://github.com/.../v3.3.5/tailwindcss-linux-x64 && \
+    chmod +x /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss
+```
+
+Versi di `[tools]` dan versi di path cache **harus sama** — kalau tidak, trunk
+mencari direktori lain dan mengunduh lagi (diam-diam kembali rapuh). Tanpa pin,
+versinya = default trunk yang berubah senyap saat trunk di-bump.
+
+Ini insiden ke-4 dari kelas yang sama (#114 tag `nightly` mengambang, #711
+actionlint via GitHub API, plugin Blade bertag mengambang). Pola umumnya:
+**jangan pernah menggantungkan build pada unduhan jaringan tanpa pin + retry.**
 
 ### Signal Reactivity Best Practices
 
