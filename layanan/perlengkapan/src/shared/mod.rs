@@ -12,7 +12,6 @@
 //!   originally).
 //! - [`connection_config`] — db connection options helper.
 //! - [`db`] — deadpool-postgres pool + `Database` wrapper.
-//! - [`db_optimization`] — boot-time index maintenance.
 //! - [`error`] — `AppError` + `AppResult` + `IntoResponse` mapping for
 //!   the unified crate.
 //! - [`grpc`] — backend↔backend clients (authenc + secreton + integrasi).
@@ -27,7 +26,6 @@ pub mod audit;
 pub mod cache;
 pub mod connection_config;
 pub mod db;
-pub mod db_optimization;
 pub mod error;
 pub mod events;
 pub mod grpc;

@@ -326,9 +326,13 @@ async fn main() -> anyhow::Result<()> {
     info!("Running refinery migrations...");
     layanan_perlengkapan::migrations::run(db.pool()).await?;
 
-    // Add essential indexes for performance optimization
-    info!("Adding essential database indexes...");
-    layanan_perlengkapan::shared::db_optimization::add_essential_indexes(db.pool()).await?;
+    // NOTE: there is deliberately no boot-time index step here. `add_essential_indexes`
+    // used to run 19 DDL statements at startup; measured against the real baseline, 10
+    // errored on tables/columns that do not exist and the other 9 were duplicates of
+    // indexes the migrations already create — `IF NOT EXISTS` matches on index NAME, so a
+    // differently-named copy of an existing index looks like a success. The loop only
+    // `warn!`ed on failure, so neither half was ever visible. Indexes belong in migrations
+    // (expand/contract), which is where all 226 of them now live.
 
     // Generic Excel export feature service (own repository trait, shared `db`).
     let export_service = ExportService::new(Arc::new(db.clone()));
