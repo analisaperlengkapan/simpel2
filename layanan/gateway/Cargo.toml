@@ -2,6 +2,7 @@
 name = "layanan-gateway"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors = ["SIMPEL Team"]
 description = "REST→gRPC sidecar gateway for simpelv1 (authenc + secreton + integrasi)"
 publish = false

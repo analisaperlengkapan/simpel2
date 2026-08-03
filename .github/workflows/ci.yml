@@ -336,7 +336,7 @@ jobs:
         run: rm -rf target
       # Clippy split per-crate so the 20-runner ARC budget runs them in parallel
       # and failures pinpoint the offending crate. Toolchain is pinned (setup-rust
-      # → 1.96.0) so the lint set is reproducible.
+      # → 1.97.1) so the lint set is reproducible.
       # HARD GATE (#29): `-- -D warnings` + `continue-on-error: false`. The whole
       # workspace was brought to zero warnings per crate (gates p4–p7 + portal
       # cleanup) before flipping this on. FE crates fixed by hand cfg-aware (the

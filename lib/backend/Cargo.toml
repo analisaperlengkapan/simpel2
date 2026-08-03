@@ -3,6 +3,7 @@ name = "lib-backend"
 publish = false
 version.workspace = true
 edition = "2024"
+rust-version.workspace = true
 description = "Backend infrastructure utilities for SIMPEL services (DB, cache, middleware, gRPC)"
 
 [dependencies]

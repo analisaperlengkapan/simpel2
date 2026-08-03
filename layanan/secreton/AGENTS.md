@@ -18,7 +18,7 @@
 
 | Component | Technology |
 |-----------|-----------|
-| Language | Rust Edition 2024, MSRV 1.90+ |
+| Language | Rust Edition 2024, MSRV 1.97.1 |
 | HTTP | Axum 0.8.x |
 | gRPC | Tonic 0.14 + Prost |
 | CLI | clap (derive) |

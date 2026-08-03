@@ -3,6 +3,7 @@ name = "secreton-hsm"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Hardware Security Module (HSM) integration for Secreton vault"
 keywords = ["hsm", "pkcs11", "cryptography", "hardware-security"]

@@ -5,7 +5,7 @@
 # leptos template in the initial commit. It was never a requirement: neither FE
 # crate contains a single `#![feature(...)]`, and CI type-checks both against
 # stable via `cargo check -p perlengkapan-microfrontend --target
-# wasm32-unknown-unknown` (`.github/actions/setup-rust` pins 1.96.0).
+# wasm32-unknown-unknown` (`.github/actions/setup-rust` pins 1.97.1).
 # What the floating tag DID do was let nightly-2026-07-25 into the build, where
 # `cargo chef cook --release` hit a rustc ICE compiling tokio ("not immediate",
 # rustc_codegen_ssa/src/mir/operand.rs:291) under the workspace's fat-LTO

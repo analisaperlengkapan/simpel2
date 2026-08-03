@@ -3,6 +3,7 @@ name = "secreton-core"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Core types and utilities for Secreton vault system"
 keywords = ["core", "types", "utilities", "security"]

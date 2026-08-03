@@ -3,7 +3,7 @@ name = "secreton-replication"
 publish = false
 version.workspace = true
 edition = "2024"
-rust-version = "1.90"
+rust-version.workspace = true
 
 [dependencies]
 # Internal dependencies

@@ -3,6 +3,7 @@ name = "lib-perlengkapan"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Shared library for Perlengkapan domain - models, types, and validation for both backend and frontend"
 

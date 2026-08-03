@@ -3,6 +3,7 @@ name = "secreton-crypto"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Cryptographic primitives and quantum-safe algorithms for Secreton using Ed25519 for signatures"
 keywords = ["cryptography", "quantum-safe", "post-quantum"]
