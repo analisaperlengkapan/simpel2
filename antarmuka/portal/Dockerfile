@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config libssl-dev protobuf-compiler \
     cmake clang libclang-dev perl \
     libc6-dev libc6-dev-i386 llvm lld \
+    curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ENV BINDGEN_EXTRA_CLANG_ARGS="-I/usr/include -I/usr/include/x86_64-linux-gnu"
 
@@ -53,6 +54,22 @@ ENV RUST_BACKTRACE=1
 # Fix wasm-bindgen cache issue
 RUN mkdir -p /root/.cache/trunk/wasm-bindgen-0.2.100
 RUN cp /usr/local/cargo/bin/wasm-bindgen /root/.cache/trunk/wasm-bindgen-0.2.100/wasm-bindgen || true
+
+# Pre-seed tailwindcss into the same trunk tool cache (`{name}-{version}/{name}`,
+# the layout the wasm-bindgen line above already relies on).
+#
+# `<link data-trunk rel="tailwind-css">` makes trunk fetch this binary from
+# GitHub releases during the asset pipeline — a SINGLE-SHOT reqwest call with no
+# retry, run AFTER the long wasm compile, so one dropped connection discards the
+# whole build (CI run 30778635010 died exactly this way on the perlengkapan FE).
+# curl --retry with backoff turns that into a few seconds of retry instead.
+# Version is pinned in Trunk.toml `[tools]` so this path and trunk's expectation
+# cannot drift apart.
+RUN mkdir -p /root/.cache/trunk/tailwindcss-3.3.5 && \
+    curl -fsSL --retry 5 --retry-delay 2 --retry-all-errors \
+      -o /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss \
+      https://github.com/tailwindlabs/tailwindcss/releases/download/v3.3.5/tailwindcss-linux-x64 && \
+    chmod +x /root/.cache/trunk/tailwindcss-3.3.5/tailwindcss
 
 # Set build-time environment variables for WASM baking
 # Build-time fake values, not used anymore but just to keep Trunk happy if still using env!

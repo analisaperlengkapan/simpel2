@@ -5,6 +5,15 @@ release = true
 wasm_opt = false
 public_url = "/portal/"
 
+# Pin the tailwindcss binary trunk fetches for `rel="tailwind-css"`. Left
+# implicit, the version is whatever the installed trunk defaults to, which a
+# trunk bump silently changes — and the Dockerfile pre-seeds this exact version
+# into trunk's tool cache (`~/.cache/trunk/tailwindcss-<version>/tailwindcss`)
+# so the build does not depend on a GitHub release download succeeding. The two
+# must agree, so state it here rather than inheriting a default.
+[tools]
+tailwindcss = "3.3.5"
+
 # Advanced wasm-bindgen configuration
 [build.wasm-bindgen]
 target = "web"
