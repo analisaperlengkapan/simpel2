@@ -106,8 +106,14 @@ pub struct UpdatePersonalUkuranRequest {
     pub ukuran_celana: String,
     #[validate(length(min = 1, message = "Ukuran sepatu harus diisi"))]
     pub ukuran_sepatu: String,
+    /// `Option`, not a `#[serde(default)] bool`: this is the self-service form,
+    /// which only owns the three sizes. A plain default meant every save posted
+    /// `false` and the upsert wrote it over whatever the operator wizard
+    /// (`UpsertPegawaiProfileRequest`) had set — silent data loss in a field the
+    /// uniform reports read. `None` now means "leave it alone"; see the COALESCE
+    /// in `repository/pegawai.rs::upsert_pegawai_pakaian_dinas`.
     #[serde(default)]
-    pub with_hijab: bool,
+    pub with_hijab: Option<bool>,
 }
 /// Full profile upsert — used by satker operators to set the reporting
 /// fields that MySIMKARI does not carry (eselon, gender, jenis pegawai,

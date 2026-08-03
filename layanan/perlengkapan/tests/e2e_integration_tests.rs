@@ -4,6 +4,7 @@ mod common;
 mod integration {
     mod dashboard_metrics_test;
     mod kebutuhan_bmn_workflow_test;
+    mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
     mod pemakaian_bmn_workflow_test;
     mod penghapusan_bmn_workflow_test;

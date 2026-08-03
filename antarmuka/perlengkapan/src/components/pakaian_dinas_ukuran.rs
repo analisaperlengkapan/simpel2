@@ -3,7 +3,7 @@
 //! Allows employees to input their personal uniform sizes (baju, celana, sepatu).
 
 use crate::api::{
-    AppError, PegawaiPakaianDinas, Ukuran, UpsertPegawaiUkuranRequest, fetch_master_ukuran,
+    AppError, PegawaiPakaianDinas, Ukuran, UpdatePersonalUkuranRequest, fetch_master_ukuran,
     fetch_pegawai_ukuran, upsert_pegawai_ukuran,
 };
 use crate::components::layout::{ErrorState, LoadingState, PageLayout, SectionCard};
@@ -45,6 +45,7 @@ pub fn UkuranPegawai(
     let (ukuran_baju, set_ukuran_baju) = signal(String::new());
     let (ukuran_celana, set_ukuran_celana) = signal(String::new());
     let (ukuran_sepatu, set_ukuran_sepatu) = signal(String::new());
+    let (with_hijab, set_with_hijab) = signal(false);
     let (is_saving, set_is_saving) = signal(false);
     let (success_message, set_success_message) = signal(Option::<String>::None);
     let (error_message, set_error_message) = signal(Option::<String>::None);
@@ -72,10 +73,12 @@ pub fn UkuranPegawai(
             if let Some(sepatu) = ukuran.ukuran_sepatu {
                 set_ukuran_sepatu.set(sepatu);
             }
+            set_with_hijab.set(ukuran.with_hijab);
         }
     });
 
-    let pegawai_id_for_submit = pegawai_id.clone();
+    // `pegawai_id` is a cache key only — the save endpoint identifies the
+    // employee from the JWT `nip` claim and takes no id in its body.
     let initial = pegawai_nama.chars().next().unwrap_or('?').to_string();
 
     view! {
@@ -117,39 +120,38 @@ pub fn UkuranPegawai(
                     view! { <LoadingState message="Memuat data ukuran...".to_string() /> }
                 }>
                     {move || {
-                        let pid = pegawai_id_for_submit.clone();
                         match master_ukuran.get() {
                             None => view! { <LoadingState /> }.into_any(),
                             Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                             Some(Ok((baju_sizes, celana_sizes, sepatu_sizes))) => {
-                                let pid2 = pid.clone();
                                 let on_submit = move |ev: leptos::ev::SubmitEvent| {
                                     ev.prevent_default();
-                                    set_is_saving.set(true);
                                     set_success_message.set(None);
                                     set_error_message.set(None);
-                                    let pid = pid2.clone();
                                     let baju = ukuran_baju.get();
                                     let celana = ukuran_celana.get();
                                     let sepatu = ukuran_sepatu.get();
+                                    // The backend validates all three with
+                                    // `length(min = 1)`, so an empty select is a 400
+                                    // with a raw validator dump. Say so here instead.
+                                    if baju.is_empty() || celana.is_empty() || sepatu.is_empty() {
+                                        set_error_message
+                                            .set(
+                                                Some(
+                                                    "Ukuran baju, celana, dan sepatu wajib diisi semua."
+                                                        .to_string(),
+                                                ),
+                                            );
+                                        return;
+                                    }
+                                    set_is_saving.set(true);
+                                    let hijab = with_hijab.get();
                                     spawn_local(async move {
-                                        let request = UpsertPegawaiUkuranRequest {
-                                            pegawai_id: pid,
-                                            ukuran_baju: if baju.is_empty() {
-                                                None
-                                            } else {
-                                                Some(baju)
-                                            },
-                                            ukuran_celana: if celana.is_empty() {
-                                                None
-                                            } else {
-                                                Some(celana)
-                                            },
-                                            ukuran_sepatu: if sepatu.is_empty() {
-                                                None
-                                            } else {
-                                                Some(sepatu)
-                                            },
+                                        let request = UpdatePersonalUkuranRequest {
+                                            ukuran_baju: baju,
+                                            ukuran_celana: celana,
+                                            ukuran_sepatu: sepatu,
+                                            with_hijab: hijab,
                                         };
                                         match upsert_pegawai_ukuran(request).await {
                                             Ok(_) => {
@@ -190,6 +192,23 @@ pub fn UkuranPegawai(
                                                     "Ukuran standar: 36-46 (angka)",
                                                 )}
                                             </div>
+                                            // `with_hijab` feeds the uniform reports
+                                            // (`laporan_report.rs` renders it as Y/T).
+                                            // Without a control here the form posted
+                                            // the serde default `false` on every save
+                                            // and silently reset a flag the operator
+                                            // wizard had set.
+                                            <label class="mt-4 flex items-center gap-2.5 text-sm text-slate-200">
+                                                <input
+                                                    type="checkbox"
+                                                    class="focus-ring h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                                                    prop:checked=move || with_hijab.get()
+                                                    on:change=move |ev| {
+                                                        set_with_hijab.set(event_target_checked(&ev))
+                                                    }
+                                                />
+                                                "Menggunakan hijab"
+                                            </label>
                                             <div class="mt-5 flex justify-end border-t border-white/[0.04] pt-4">
                                                 <button
                                                     type="submit"
@@ -288,11 +307,13 @@ fn render_size_select(
                 on:change=move |ev| set_value.set(event_target_value(&ev))
             >
                 <option value="">"-- Pilih Ukuran --"</option>
+                // Keyed on `ukuran` alone: within one select the `group` is fixed,
+                // and `(ukuran, group)` is the table's full primary key.
                 <For
                     each=move || sizes.clone()
-                    key=|u| u.id.clone()
+                    key=|u| u.ukuran.clone()
                     children=move |u: Ukuran| {
-                        let size = u.size.clone();
+                        let size = u.ukuran.clone();
                         let size2 = size.clone();
                         view! { <option value=size>{size2}</option> }
                     }
