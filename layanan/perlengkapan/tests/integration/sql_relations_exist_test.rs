@@ -38,46 +38,184 @@ struct RelationRef {
     location: String,
 }
 
-/// Pull the contents of every raw string literal (`r#"..."#`) out of a source
-/// file, together with the line each one starts on.
+/// Pull the contents of every string literal — raw (`r#"…"#`, `r"…"`) AND
+/// plain (`"…"`) — out of a source file, with the line each one starts on.
 ///
-/// Raw strings are where all of this crate's SQL lives, and restricting the
-/// scan to them is what keeps prose out of the results — this very file, and
-/// the fix commentary in `documents.rs`, mention `perlengkapan.kebutuhan_bmn`
-/// in comments. A comment-stripping heuristic would be the fragile way to
-/// handle that; only ever looking inside raw literals is the exact way.
-fn raw_string_literals(src: &str) -> Vec<(usize, &str)> {
+/// Comments are skipped outright, which is what keeps prose out of the results:
+/// this file and the fix commentary in `documents.rs` both mention
+/// `perlengkapan.kebutuhan_bmn` in comments. Stripping comments is exact here
+/// because we are walking the source, not pattern-matching it.
+///
+/// Plain literals must be scanned too, not just raw ones: `admin/users.rs`
+/// builds its statement with `String::from("SELECT … FROM v_user_role_summary")`
+/// — a plain literal. A raw-only scanner has a blind spot precisely where #123
+/// lives, which is how that bug survived the first version of this guard.
+fn string_literals(src: &str) -> Vec<(usize, String)> {
+    let b = src.as_bytes();
     let mut out = Vec::new();
-    let bytes = src.as_bytes();
-    let mut i = 0;
+    let mut i = 0usize;
+    let mut line = 1usize;
 
-    while let Some(start) = src[i..].find("r#\"") {
-        let open = i + start;
-        let content_start = open + 3;
-        match src[content_start..].find("\"#") {
-            Some(rel_end) => {
-                let content_end = content_start + rel_end;
-                let line = bytes[..open].iter().filter(|&&b| b == b'\n').count() + 1;
-                out.push((line, &src[content_start..content_end]));
-                i = content_end + 2;
+    while i < b.len() {
+        match b[i] {
+            b'\n' => {
+                line += 1;
+                i += 1;
             }
-            // Unterminated literal: cannot happen in code that compiles.
-            None => break,
+            // Line comment
+            b'/' if i + 1 < b.len() && b[i + 1] == b'/' => {
+                while i < b.len() && b[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            // Block comment
+            b'/' if i + 1 < b.len() && b[i + 1] == b'*' => {
+                i += 2;
+                while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') {
+                    if b[i] == b'\n' {
+                        line += 1;
+                    }
+                    i += 1;
+                }
+                i = (i + 2).min(b.len());
+            }
+            // Raw literal: r, then any number of #, then "
+            b'r' if i + 1 < b.len() && (b[i + 1] == b'#' || b[i + 1] == b'"') => {
+                let mut j = i + 1;
+                let mut hashes = 0usize;
+                while j < b.len() && b[j] == b'#' {
+                    hashes += 1;
+                    j += 1;
+                }
+                if j >= b.len() || b[j] != b'"' {
+                    i += 1;
+                    continue;
+                }
+                let start_line = line;
+                let content_start = j + 1;
+                let terminator = format!("\"{}", "#".repeat(hashes));
+                match src[content_start..].find(&terminator) {
+                    Some(rel) => {
+                        let content = &src[content_start..content_start + rel];
+                        line += content.matches('\n').count();
+                        out.push((start_line, content.to_string()));
+                        i = content_start + rel + terminator.len();
+                    }
+                    None => break,
+                }
+            }
+            // Plain literal, honouring backslash escapes
+            b'"' => {
+                let start_line = line;
+                let mut j = i + 1;
+                let mut content = String::new();
+                while j < b.len() {
+                    match b[j] {
+                        b'\\' => {
+                            // Keep a space so `\n` joins tokens rather than
+                            // gluing them together.
+                            content.push(' ');
+                            j += 2;
+                        }
+                        b'"' => break,
+                        c => {
+                            if c == b'\n' {
+                                line += 1;
+                            }
+                            content.push(c as char);
+                            j += 1;
+                        }
+                    }
+                }
+                out.push((start_line, content));
+                i = j + 1;
+            }
+            _ => i += 1,
         }
     }
 
     out
 }
 
-/// Walk `src/` and collect every `<schema>.<relation>` that appears in a
+/// Does this literal actually contain a SQL statement?
+///
+/// Applied to every literal, because now that plain strings are scanned,
+/// ordinary prose would otherwise register as relations — "failed to send
+/// update to client" reads as `UPDATE to`, and "batch update status completed"
+/// as `UPDATE status`.
+///
+/// So a bare verb is not enough: each pattern below pairs the verb with the
+/// clause that must accompany it in real SQL (`SELECT … FROM`, `UPDATE … SET`).
+/// English prose essentially never satisfies those pairs.
+fn looks_like_sql(literal: &str) -> bool {
+    let re = Regex::new(
+        r"(?is)\bSELECT\b.*\bFROM\b|\bINSERT\s+INTO\b|\bUPDATE\b.*\bSET\b|\bDELETE\s+FROM\b",
+    )
+    .expect("static regex compiles");
+    re.is_match(literal)
+}
+
+/// SQL keywords that can legally follow FROM/JOIN/INTO/UPDATE without being a
+/// relation name. These are grammar, not tables:
+///   `JOIN LATERAL (…)`, `EXTRACT(YEAR FROM CURRENT_DATE)`,
+///   `INSERT … ON CONFLICT DO UPDATE SET`, `FROM ONLY tbl`.
+const SQL_KEYWORDS: &[&str] = &[
+    "lateral",
+    "set",
+    "only",
+    "select",
+    "values",
+    "current_date",
+    "current_time",
+    "current_timestamp",
+    "unnest",
+    "generate_series",
+];
+
+/// Names bound by `WITH <name> AS (` / `, <name> AS (`.
+///
+/// Collected per FILE, not per literal: several repositories assemble one
+/// statement from multiple raw literals via `format!`, so the CTE can be
+/// declared in a different literal than the one that reads it. Per-literal
+/// scoping produced false positives for exactly that reason
+/// (`workflow/monitoring.rs` `current_state` / `sla`).
+///
+/// A CTE is the only relation that is legitimately unqualified, so this set is
+/// what makes the unqualified check below trustworthy.
+fn cte_names(src: &str) -> BTreeSet<String> {
+    // Matches `name AS (` and `name(col, …) AS (`, and does NOT require a
+    // preceding `WITH`/`,`: `workflow/monitoring.rs` keeps a CTE body in its
+    // own const fragment that is interpolated after a `WITH`, so the binding
+    // has no prefix in the text where it is written.
+    //
+    // `<name> [ (cols) ] AS (` is an unambiguous CTE signature — a column
+    // alias is never followed by an opening parenthesis.
+    let re = Regex::new(r"(?i)\b([a-z_][a-z0-9_]*)\s*(?:\([^()]*\))?\s+AS\s*\(")
+        .expect("static regex compiles");
+    re.captures_iter(src)
+        .map(|c| c[1].to_ascii_lowercase())
+        .collect()
+}
+
+/// Walk `src/` and collect every relation that appears in a
 /// FROM / JOIN / INTO / UPDATE position inside a raw string literal.
+///
+/// Both qualified (`schema.table`) and UNQUALIFIED (`table`) references are
+/// collected. The unqualified half matters just as much here: this service
+/// never sets `search_path` (0 hits in `src/`), so an unqualified identifier
+/// resolves against the default `"$user", public` and fails in EVERY
+/// environment — while all of its tables live in the `perlengkapan` schema.
+/// #123 (`FROM v_user_role_summary`) is exactly that shape, and it slipped
+/// past the first version of this guard, which only looked at qualified names.
 fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
     // `INTO` also covers `INSERT INTO`; `UPDATE` covers the bare form. The
-    // relation part deliberately does not match a trailing `(`, so CTE and
-    // function calls do not register as tables.
-    let re =
-        Regex::new(r"(?i)\b(?:FROM|JOIN|INTO|UPDATE)\s+([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)\b")
-            .expect("static regex compiles");
+    // optional `\.<name>` group is what distinguishes the two cases: when it
+    // is absent the reference is unqualified. A trailing `(` cannot match
+    // `[a-z_]`, so `FROM (SELECT …)` and function calls do not register.
+    let re = Regex::new(
+        r"(?i)\b(?:FROM|JOIN|INTO|UPDATE)\s+([a-z_][a-z0-9_]*)(?:\.([a-z_][a-z0-9_]*))?\b",
+    )
+    .expect("static regex compiles");
 
     let mut found = Vec::new();
     let mut stack = vec![src_dir.to_path_buf()];
@@ -99,15 +237,50 @@ fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
             let src = std::fs::read_to_string(&path)
                 .unwrap_or_else(|e| panic!("cannot read {}: {e}", path.display()));
 
-            for (start_line, literal) in raw_string_literals(&src) {
+            let ctes = cte_names(&src);
+
+            for (start_line, literal) in string_literals(&src) {
+                if !looks_like_sql(&literal) {
+                    continue;
+                }
+                let literal = literal.as_str();
                 for caps in re.captures_iter(literal) {
                     let offset = caps
                         .get(0)
                         .map(|m| literal[..m.start()].matches('\n').count())
                         .unwrap_or(0);
+
+                    // `UPDATE perlengkapan.{} SET …` — the relation is a
+                    // `format!` placeholder, so group 2 cannot match, but the
+                    // reference IS schema-qualified. A trailing '.' is the
+                    // tell; without this check `perlengkapan` itself would be
+                    // reported as a bare relation
+                    // (`workflow/engine/transition.rs`).
+                    let m = caps.get(0).expect("group 0 always present");
+                    if caps.get(2).is_none() && literal[m.end()..].starts_with('.') {
+                        continue;
+                    }
+
+                    // Group 2 present => `schema.relation`; absent => bare name.
+                    let (schema, relation) = match caps.get(2) {
+                        Some(rel) => (
+                            caps[1].to_ascii_lowercase(),
+                            rel.as_str().to_ascii_lowercase(),
+                        ),
+                        None => (String::new(), caps[1].to_ascii_lowercase()),
+                    };
+
+                    // A CTE is the one relation that is *supposed* to be bare;
+                    // a keyword is not a relation at all.
+                    if schema.is_empty()
+                        && (ctes.contains(&relation) || SQL_KEYWORDS.contains(&relation.as_str()))
+                    {
+                        continue;
+                    }
+
                     found.push(RelationRef {
-                        schema: caps[1].to_ascii_lowercase(),
-                        relation: caps[2].to_ascii_lowercase(),
+                        schema,
+                        relation,
                         location: format!(
                             "{}:{}",
                             path.strip_prefix(src_dir.parent().unwrap_or(src_dir))
@@ -165,6 +338,19 @@ async fn every_perlengkapan_relation_referenced_in_sql_actually_exists() {
     let mut foreign = BTreeSet::new();
 
     for r in &refs {
+        // Unqualified, and not a CTE. This service never sets `search_path`,
+        // so the name resolves against `"$user", public` while every table it
+        // owns lives in `perlengkapan` — it cannot resolve in any environment,
+        // whether or not something by that name exists somewhere.
+        if r.schema.is_empty() {
+            missing.insert(format!(
+                "  {} references bare `{}` — unqualified, and this service \
+                 never sets search_path, so it resolves against \"$user\",public \
+                 and fails everywhere. Qualify it with its schema.",
+                r.location, r.relation
+            ));
+            continue;
+        }
         if r.schema != "perlengkapan" {
             foreign.insert(format!("{}.{}", r.schema, r.relation));
             continue;

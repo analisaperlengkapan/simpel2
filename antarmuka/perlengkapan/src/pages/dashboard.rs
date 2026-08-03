@@ -455,13 +455,8 @@ pub fn DashboardHome() -> impl IntoView {
                 <section>
                     <SectionHeader title="Panel Administrator" tone="red" />
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <QuickNav
-                            href=routes::path::ADMIN_USERS
-                            icon="fas fa-users-cog"
-                            label="Manajemen Pengguna"
-                            description="Data pengguna dan sesi aktif"
-                            tone="red"
-                        />
+                        // No "Manajemen Pengguna" tile: that page was removed
+                        // (user administration lives in portal, against authenc).
                         <QuickNav
                             href=routes::path::ADMIN_ROLES
                             icon="fas fa-user-tag"

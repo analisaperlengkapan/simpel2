@@ -7,11 +7,20 @@ pub mod handlers;
 pub mod models;
 pub mod repository;
 pub mod templates;
-pub mod users;
+// NOTE: no `users` module. `/admin/users` read `v_user_role_summary`,
+// `perlengkapan_users` and `perlengkapan_user_roles` — none of which any
+// migration creates, so the page returned nothing but errors in every
+// environment since it was written (the frontend swallowed them into an empty
+// list, which is why it looked merely empty rather than broken).
+//
+// It is not being repaired here because it should not exist: users and roles
+// belong to authenc, which is the IAM source of truth per the SSoT rules in
+// `layanan/AGENTS.md`. A second user/role master in perlengkapan is exactly the
+// over-reach the satker refactor removed. Portal already administers users and
+// roles against authenc for real.
 
 pub use handlers::{
     create_master_record, delete_master_record, list_audit_logs, list_master_records,
     list_master_sources, update_master_record,
 };
 pub use templates::{get_template, list_templates, preview_template};
-pub use users::{assign_role, get_user, list_users, unassign_role};

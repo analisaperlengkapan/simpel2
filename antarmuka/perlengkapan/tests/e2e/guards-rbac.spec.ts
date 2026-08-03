@@ -17,11 +17,14 @@
 import { test, expect } from '@playwright/test';
 import { TEST_USERS, storageStatePath } from './helpers/real-auth';
 
-const ADMIN_ROUTE = '/perlengkapan/simpel/v2/admin/users';
+// /admin/audit, not /admin/users: the latter was removed (it queried
+// relations no migration creates; user admin belongs to authenc). Any
+// admin-gated route proves the gate — this one also renders real data.
+const ADMIN_ROUTE = '/perlengkapan/simpel/v2/admin/audit';
 // ForbiddenPage (route guard) and the page-level guard both render this.
 const FORBIDDEN = /Akses Ditolak/i;
-// AdminUsersPage renders this heading only once the admin gate passes.
-const ADMIN_HEADING = /Manajemen Pengguna/i;
+// AdminAuditPage renders this title only once the admin gate passes.
+const ADMIN_HEADING = /Audit Log/i;
 const LOGIN_HINT = /login/i;
 
 // Non-admin: admin route → forbidden, no admin content, no login redirect.
@@ -29,7 +32,7 @@ for (const user of TEST_USERS) {
   test.describe(`admin route denied for non-admin — ${user.key} (${user.role})`, () => {
     test.use({ storageState: storageStatePath(user.key) });
 
-    test(`${user.key} is forbidden at /admin/users`, async ({ page }) => {
+    test(`${user.key} is forbidden at /admin/audit`, async ({ page }) => {
       await page.goto(ADMIN_ROUTE, { waitUntil: 'domcontentloaded' });
       await expect(
         page.getByText(FORBIDDEN).first(),
@@ -51,11 +54,11 @@ for (const user of TEST_USERS) {
 test.describe('admin route allowed for the admin user', () => {
   test.use({ storageState: storageStatePath('admin') });
 
-  test('admin reaches /admin/users content', async ({ page }) => {
+  test('admin reaches /admin/audit content', async ({ page }) => {
     await page.goto(ADMIN_ROUTE, { waitUntil: 'domcontentloaded' });
     await expect(
       page.getByText(ADMIN_HEADING).first(),
-      'admin should reach the user-management page (gate passes)',
+      'admin should reach the audit page (gate passes)',
     ).toBeVisible({ timeout: 15000 });
     await expect(
       page.getByText(FORBIDDEN),

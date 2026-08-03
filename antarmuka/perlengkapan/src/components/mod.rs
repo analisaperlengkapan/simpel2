@@ -1,4 +1,4 @@
-pub mod admin_users;
+pub mod admin_roles;
 pub mod analisis_form;
 pub mod analisis_list;
 pub mod app_chrome;
