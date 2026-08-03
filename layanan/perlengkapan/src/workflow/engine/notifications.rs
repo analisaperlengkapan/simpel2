@@ -77,17 +77,29 @@ impl WorkflowEngine {
 
         let (requester_id, satker_id) = match entity_type {
             "kebutuhan_bmn" => {
+                // `perlengkapan.kebutuhan_bmn` does not exist and never did —
+                // the real entity is the pusat-driven campaign
+                // `pengajuan_kebutuhan_bmn` (the same table `status_table()`
+                // below already transitions). Because this whole call is
+                // non-blocking (see `transition.rs`), the resulting error was
+                // swallowed into a `tracing::error!` and every kebutuhan
+                // notification silently went nowhere.
+                //
+                // There is deliberately no satker here: a campaign is national
+                // by construction (`scope_satker` = semua/sebagian/wilayah) and
+                // fans out to N rows in `pengajuan_kebutuhan_bmn_satker`, so no
+                // single satker uuid exists to return. `created_by` is nullable,
+                // hence `Option` — reading it as a bare `Uuid` would panic.
                 let query = r#"
-                    SELECT created_by, satker_id
-                    FROM perlengkapan.kebutuhan_bmn
+                    SELECT created_by
+                    FROM perlengkapan.pengajuan_kebutuhan_bmn
                     WHERE id = $1
                 "#;
 
                 let row = client.query_one(query, &[&request.entity_id]).await?;
-                let requester_id: Uuid = row.get("created_by");
-                let satker_id: Uuid = row.get("satker_id");
+                let requester_id: Option<Uuid> = row.get("created_by");
 
-                (Some(requester_id), satker_id)
+                (requester_id, None)
             }
             "penghapusan_bmn" => {
                 let query = r#"
@@ -100,7 +112,7 @@ impl WorkflowEngine {
                 let requester_id: Uuid = row.get("created_by");
                 let satker_id: Uuid = row.get("satker_id");
 
-                (Some(requester_id), satker_id)
+                (Some(requester_id), Some(satker_id))
             }
             "pemakaian_bmn" => {
                 // `izin_pemakaian_bmn` has neither `pemohon_id` nor `satker_id`
@@ -126,7 +138,7 @@ impl WorkflowEngine {
                     );
                 }
 
-                (requester_id, satker_id)
+                (requester_id, Some(satker_id))
             }
             _ => {
                 return Err(WorkflowError::InvalidState(format!(
@@ -226,7 +238,14 @@ impl WorkflowEngine {
     /// For now, this is a placeholder that returns an empty list.
     ///
     /// Requirements: REQ-N005
-    async fn get_approvers_for_state(&self, state: &str, satker_id: Uuid) -> Result<Vec<Uuid>> {
+    /// `satker_id` is `None` for campaign-shaped workflows (kebutuhan_bmn),
+    /// which have no single owning satker — the real implementation must read
+    /// the participating satkers from `pengajuan_kebutuhan_bmn_satker` instead.
+    async fn get_approvers_for_state(
+        &self,
+        state: &str,
+        satker_id: Option<Uuid>,
+    ) -> Result<Vec<Uuid>> {
         // Get required role from configuration
         let required_role = self
             .config
@@ -257,7 +276,7 @@ impl WorkflowEngine {
         tracing::debug!(
             state = %state,
             required_role = %required_role,
-            satker_id = %satker_id,
+            satker_id = ?satker_id,
             "Getting approvers (placeholder - would call Authenc in production)"
         );
 

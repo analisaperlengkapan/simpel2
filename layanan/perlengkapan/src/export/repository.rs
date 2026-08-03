@@ -414,20 +414,30 @@ impl Database {
 
         let limit = query.limit.unwrap_or(50000).min(50000);
 
-        // Build query with filters
+        // `perlengkapan.kebutuhan_bmn` never existed, so this export always
+        // 500'd. The real model is three tables: the pusat-driven campaign
+        // (`pengajuan_kebutuhan_bmn`), its per-satker rows, and the line items
+        // under those. An export row is a line item, hence the two joins.
+        //
+        // `satker_nama` comes off the per-satker row, which already denormalises
+        // it — the old `LEFT JOIN authenc.satkers` was both phantom-keyed and
+        // pointed at a table #42 demoted from satker master.
         let mut sql = String::from(
             r#"
             SELECT
-                k.id,
-                s.nama as satker_nama,
-                k.kode_barang,
-                k.nama_barang,
-                k.jumlah_kebutuhan,
-                k.tahun_anggaran,
-                k.status,
-                k.created_at
-            FROM perlengkapan.kebutuhan_bmn k
-            LEFT JOIN authenc.satkers s ON k.satker_id = s.id
+                kb.id,
+                ks.satker_nama,
+                kb.kode_barang,
+                kb.nama            AS nama_barang,
+                kb.jumlah          AS jumlah_kebutuhan,
+                k.tahun            AS tahun_anggaran,
+                ks.status_kode::text AS status,
+                kb.created_at
+            FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_barang kb
+            JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker ks
+              ON kb.pengajuan_satker_id = ks.id
+            JOIN perlengkapan.pengajuan_kebutuhan_bmn k
+              ON ks.pengajuan_id = k.id
             WHERE 1=1
             "#,
         );
@@ -436,24 +446,29 @@ impl Database {
         let mut param_idx = 1;
 
         if let Some(tahun) = query.tahun_anggaran {
-            sql.push_str(&format!(" AND k.tahun_anggaran = ${}", param_idx));
+            sql.push_str(&format!(" AND k.tahun = ${}", param_idx));
             params.push(Box::new(tahun));
             param_idx += 1;
         }
 
-        if let Some(satker_id) = query.satker_id {
-            sql.push_str(&format!(" AND k.satker_id = ${}", param_idx));
-            params.push(Box::new(satker_id));
+        if let Some(ref satker_id) = query.satker_id {
+            sql.push_str(&format!(" AND ks.satker_id = ${}", param_idx));
+            params.push(Box::new(satker_id.clone()));
             param_idx += 1;
         }
 
         if let Some(ref status) = query.status {
-            sql.push_str(&format!(" AND k.status = ${}", param_idx));
+            // Compared as text: the workflow state lives in `status_kode`, an
+            // integer code, while the filter arrives as a string.
+            sql.push_str(&format!(" AND ks.status_kode::text = ${}", param_idx));
             params.push(Box::new(status.clone()));
             param_idx += 1;
         }
 
-        sql.push_str(&format!(" ORDER BY k.created_at DESC LIMIT ${}", param_idx));
+        sql.push_str(&format!(
+            " ORDER BY kb.created_at DESC LIMIT ${}",
+            param_idx
+        ));
         params.push(Box::new(limit as i64));
 
         let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
@@ -476,9 +491,15 @@ impl Database {
                         .unwrap_or_default(),
                 ),
             );
+            // `kode_barang` and `created_at` below are both nullable on
+            // `pengajuan_kebutuhan_bmn_satker_barang`; decoding either as a bare
+            // type panics on NULL, and this crate builds with `panic = "abort"`.
             obj.insert(
                 "kode_barang".to_string(),
-                serde_json::Value::String(row.get("kode_barang")),
+                serde_json::Value::String(
+                    row.get::<_, Option<String>>("kode_barang")
+                        .unwrap_or_default(),
+                ),
             );
             obj.insert(
                 "nama_barang".to_string(),
@@ -503,8 +524,9 @@ impl Database {
             obj.insert(
                 "created_at".to_string(),
                 serde_json::Value::String(
-                    row.get::<_, chrono::DateTime<chrono::Utc>>("created_at")
-                        .to_rfc3339(),
+                    row.get::<_, Option<chrono::DateTime<chrono::Utc>>>("created_at")
+                        .map(|t| t.to_rfc3339())
+                        .unwrap_or_default(),
                 ),
             );
             results.push(serde_json::Value::Object(obj));
@@ -526,19 +548,39 @@ impl Database {
 
         let rows = client
             .query(
+                // `perlengkapan.ukuran_pakaian_pegawai` exists in no environment,
+                // so this export 500'd exactly like the kebutuhan one above. The
+                // real table is `pegawai_pakaian_dinas`, and it does not model
+                // sizes as `jenis_pakaian_id`/`ukuran_id` foreign keys at all —
+                // it stores three text sizes per employee on a single row.
+                //
+                // The LATERAL unpivots those three columns into one export row
+                // per recorded size, which is what the "Jenis Pakaian"/"Ukuran"
+                // column pair was always asking for. Unset sizes are dropped
+                // rather than exported blank.
+                //
+                // `nama` and `status` are nullable and are COALESCEd here
+                // because the readers below decode them as bare `String`, which
+                // panics on NULL under `panic = "abort"`. Ordering is by NIP:
+                // the table has no `created_at`, only `updated_at`.
                 r#"
                 SELECT
                     p.nip,
-                    p.nama as nama_pegawai,
-                    j.nama as jenis_pakaian,
-                    u.nama as ukuran,
-                    1 as jumlah,
-                    EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER as tahun_anggaran,
-                    'ACTIVE' as status
-                FROM perlengkapan.ukuran_pakaian_pegawai p
-                LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_id = j.id
-                LEFT JOIN perlengkapan.ms_ukuran u ON p.ukuran_id = u.id
-                ORDER BY p.created_at DESC
+                    COALESCE(p.nama, '')       AS nama_pegawai,
+                    v.jenis_pakaian,
+                    v.ukuran,
+                    1                          AS jumlah,
+                    EXTRACT(YEAR FROM CURRENT_DATE)::INTEGER AS tahun_anggaran,
+                    COALESCE(p.status, 'ACTIVE') AS status
+                FROM perlengkapan.pegawai_pakaian_dinas p
+                CROSS JOIN LATERAL (
+                    VALUES
+                        ('Baju',   p.ukuran_baju),
+                        ('Celana', p.ukuran_celana),
+                        ('Sepatu', p.ukuran_sepatu)
+                ) AS v(jenis_pakaian, ukuran)
+                WHERE v.ukuran IS NOT NULL AND v.ukuran <> ''
+                ORDER BY p.nip, v.jenis_pakaian
                 LIMIT $1
                 "#,
                 &[&(limit as i64)],
