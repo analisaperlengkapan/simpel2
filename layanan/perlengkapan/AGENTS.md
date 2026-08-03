@@ -397,6 +397,22 @@ that pattern lives in authenc, not here). End-to-end:
    and runs through `refinery` from `main.rs` (`migrations::run()`).
    Never `ALTER` an existing migration after merge — append a new file.
 
+   **Semua DDL WAJIB di migrasi — DILARANG DDL saat runtime/boot.** Bukan
+   gaya, tapi hasil dua insiden: `add_essential_indexes` (dihapus V007) dan
+   `ensure_snapshot_table` (dipindah ke V008) sama-sama membuat skema jadi
+   efek samping dari melayani request — tak terlihat di `migrations/`, tak
+   bisa di-review, dan menambah round-trip DDL tiap panggilan.
+
+   **Setiap relasi yang di-query WAJIB ada di migrasi.** Ditegakkan secara
+   mekanis oleh `tests/integration/sql_relations_exist_test.rs`: test itu
+   memindai raw string literal di `src/**` untuk tiap `<schema>.<relasi>`
+   pada posisi FROM/JOIN/INTO/UPDATE, lalu meng-assert relasi tsb ada di DB
+   yang baru dimigrasi. Alasannya `cargo check` buta terhadap isi string SQL
+   — kelas bug "tabel hantu" ini sudah muncul tiga kali (#113, #118, #123)
+   dan sebagian besar tersembunyi karena error-nya ditelan (`transition()`
+   hanya `warn!`) atau kodenya tak pernah dipanggil. Kalau test ini merah,
+   perbaiki query/tambah migrasi — **jangan** tambahkan pengecualian.
+
 5. **Test** — unit tests next to the service; cross-module flows go in
    `tests/`. Backend lib tests must run serial (`--test-threads=1`)
    because they share a Docker Postgres.

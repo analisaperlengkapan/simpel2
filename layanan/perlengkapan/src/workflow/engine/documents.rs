@@ -51,12 +51,23 @@ impl WorkflowEngine {
 
         let (template_id, entity_data) = match entity_type {
             "kebutuhan_bmn" => {
-                // Fetch kebutuhan BMN data
+                // Neither `perlengkapan.kebutuhan_bmn` nor `perlengkapan.ms_satker`
+                // has ever existed. The real entity is the campaign
+                // `pengajuan_kebutuhan_bmn`, whose columns are `tahun` (not
+                // `tahun_anggaran`) and `status_kode` (an integer, not a string
+                // `status`). Because the caller swallows errors (see
+                // `transition.rs`), approving a kebutuhan campaign silently
+                // produced no SK at all.
+                //
+                // `satker_nama` stays in the payload so the template contract is
+                // unchanged, but a campaign is national by construction and fans
+                // out to N rows in `pengajuan_kebutuhan_bmn_satker` — there is no
+                // single satker to name, so it is empty exactly as the old
+                // `LEFT JOIN` miss would have rendered it.
                 let query = r#"
-                    SELECT k.*, s.nama as satker_nama
-                    FROM perlengkapan.kebutuhan_bmn k
-                    LEFT JOIN perlengkapan.ms_satker s ON k.satker_id = s.id
-                    WHERE k.id = $1
+                    SELECT id, nama, tahun, status_kode, created_at
+                    FROM perlengkapan.pengajuan_kebutuhan_bmn
+                    WHERE id = $1
                 "#;
 
                 let row = client.query_one(query, &[entity_id]).await?;
@@ -65,10 +76,14 @@ impl WorkflowEngine {
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
-                    "satker_nama": row.get::<_, Option<String>>("satker_nama").unwrap_or_default(),
-                    "tahun_anggaran": row.get::<_, i32>("tahun_anggaran"),
-                    "status": row.get::<_, String>("status"),
-                    "created_at": row.get::<_, chrono::DateTime<Utc>>("created_at").to_rfc3339(),
+                    "satker_nama": "",
+                    "nama_kegiatan": row.get::<_, String>("nama"),
+                    "tahun_anggaran": row.get::<_, i32>("tahun"),
+                    "status": row.get::<_, i32>("status_kode").to_string(),
+                    "created_at": row
+                        .get::<_, Option<chrono::DateTime<Utc>>>("created_at")
+                        .map(|t| t.to_rfc3339())
+                        .unwrap_or_default(),
                     "document_type": "SK Kebutuhan BMN",
                     "approval_date": chrono::Utc::now().format("%d %B %Y").to_string(),
                 });
@@ -76,12 +91,21 @@ impl WorkflowEngine {
                 (template_id, entity_data)
             }
             "penghapusan_bmn" => {
-                // Fetch penghapusan BMN data
+                // Same phantom `perlengkapan.ms_satker` join as the arm above, so
+                // auto-SK on approval was silently broken here too. The table
+                // itself is real; only the join was not.
+                //
+                // It cannot simply be repointed at the satker SoT
+                // (`integrasi.mysimkari_satker`): that table keys on
+                // `kode_satker TEXT` while `penghapusan_bmn.satker_id` is a
+                // `uuid`, the same key-type mismatch as #94. `satker_nama` is
+                // therefore left empty — which is what the old `LEFT JOIN` miss
+                // already rendered — rather than inventing a join that cannot
+                // match. Resolving it properly needs the satker-identity work.
                 let query = r#"
-                    SELECT p.*, s.nama as satker_nama
-                    FROM perlengkapan.penghapusan_bmn p
-                    LEFT JOIN perlengkapan.ms_satker s ON p.satker_id = s.id
-                    WHERE p.id = $1
+                    SELECT id, alasan, status, created_at
+                    FROM perlengkapan.penghapusan_bmn
+                    WHERE id = $1
                 "#;
 
                 let row = client.query_one(query, &[entity_id]).await?;
@@ -90,7 +114,7 @@ impl WorkflowEngine {
 
                 let entity_data = serde_json::json!({
                     "id": entity_id.to_string(),
-                    "satker_nama": row.get::<_, Option<String>>("satker_nama").unwrap_or_default(),
+                    "satker_nama": "",
                     "alasan": row.get::<_, Option<String>>("alasan").unwrap_or_default(),
                     "status": row.get::<_, String>("status"),
                     "created_at": row.get::<_, chrono::DateTime<Utc>>("created_at").to_rfc3339(),

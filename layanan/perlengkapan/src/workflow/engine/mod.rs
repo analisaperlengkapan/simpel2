@@ -170,23 +170,13 @@ impl WorkflowEngine {
     pub fn for_penghapusan_bmn(db_pool: Pool) -> Self {
         Self::new(WorkflowConfig::default_penghapusan_bmn(), db_pool)
     }
-    /// Get the current state of an entity
-    pub async fn get_current_state(&self, entity_id: Uuid) -> Result<String> {
-        let client = self.db_pool.get().await?;
+    // NOTE: there is deliberately no `get_current_state` here. It read `status`
+    // from `perlengkapan.kebutuhan_bmn`, a table that has never existed, and it
+    // was hard-coded to that one entity despite the engine being generic across
+    // four workflows. It had zero callers, so the broken query was never issued.
+    // Callers that need the current state read it from the owning repository;
+    // `transition()` resolves the right table through `status_table()`.
 
-        let query = r#"
-            SELECT status
-            FROM perlengkapan.kebutuhan_bmn
-            WHERE id = $1
-        "#;
-
-        let row = client
-            .query_opt(query, &[&entity_id])
-            .await?
-            .ok_or_else(|| WorkflowError::EntityNotFound(entity_id))?;
-
-        Ok(row.get("status"))
-    }
     /// Get all valid next states from the current state
     pub fn get_next_states(&self, current_state: &str) -> Vec<String> {
         self.config.get_next_states(current_state)

@@ -85,19 +85,34 @@ impl RoadmapRepository {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
+        // Reads `perlengkapan.roadmap_sarpras` — the roadmap table this module
+        // is named after and already exports from. It previously read
+        // `perlengkapan.kebutuhan_bmn`, which exists in no environment, so every
+        // /forecast endpoint 500'd for as long as they have been mounted.
+        //
+        // The mistake was only ever the table name: roadmap_sarpras carries the
+        // exact quantities this aggregate wants, including a real
+        // `estimasi_anggaran`, so no part of the forecast has to be invented.
+        // `gap` is computed rather than stored, floored at zero so an
+        // over-fulfilled row cannot subtract from another year's shortfall.
+        //
+        // Types are deliberate: `SUM(integer)` yields BIGINT and
+        // `SUM(double precision)` yields DOUBLE PRECISION, so the i64/f64 reads
+        // in `from_row` decode. A NUMERIC here would panic instead (#116).
         let query = format!(
             r#"
             SELECT
-                tahun_anggaran,
-                SUM(jumlah_kebutuhan)::BIGINT     AS total_kebutuhan,
-                SUM(jumlah_existing_baik)::BIGINT  AS total_existing,
-                SUM(gap)::BIGINT                   AS total_gap,
-                COUNT(DISTINCT satker_id)::BIGINT  AS jumlah_satker,
-                SUM(COALESCE(estimasi_total, 0))   AS estimasi_total_biaya
-            FROM perlengkapan.kebutuhan_bmn
+                tahun_rencana                            AS tahun_anggaran,
+                SUM(jumlah_kebutuhan)::BIGINT            AS total_kebutuhan,
+                SUM(COALESCE(jumlah_terpenuhi, 0))::BIGINT AS total_existing,
+                SUM(GREATEST(jumlah_kebutuhan - COALESCE(jumlah_terpenuhi, 0), 0))::BIGINT
+                                                         AS total_gap,
+                COUNT(DISTINCT satker_id)::BIGINT        AS jumlah_satker,
+                SUM(COALESCE(estimasi_anggaran, 0))      AS estimasi_total_biaya
+            FROM perlengkapan.roadmap_sarpras
             {}
-            GROUP BY tahun_anggaran
-            ORDER BY tahun_anggaran ASC
+            GROUP BY tahun_rencana
+            ORDER BY tahun_rencana ASC
             "#,
             where_clause
         );
@@ -122,9 +137,6 @@ impl RoadmapRepository {
         predictions_json: &str,
     ) -> Result<ForecastSnapshot, AppError> {
         let id = Uuid::new_v4();
-
-        // Ensure the table exists (idempotent)
-        self.ensure_snapshot_table().await?;
 
         let query = r#"
             INSERT INTO perlengkapan.roadmap_forecast_snapshots
@@ -158,9 +170,6 @@ impl RoadmapRepository {
         kode_barang: Option<&str>,
         limit: i64,
     ) -> Result<Vec<ForecastSnapshot>, AppError> {
-        // Gracefully handle missing table
-        self.ensure_snapshot_table().await?;
-
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = Vec::new();
         let mut idx = 1usize;
@@ -210,24 +219,10 @@ impl RoadmapRepository {
         Ok(rows.iter().map(ForecastSnapshot::from_row).collect())
     }
 
-    /// Create the snapshot table if it doesn't exist yet.
-    async fn ensure_snapshot_table(&self) -> Result<(), AppError> {
-        let ddl = r#"
-            CREATE TABLE IF NOT EXISTS perlengkapan.roadmap_forecast_snapshots (
-                id UUID PRIMARY KEY,
-                method TEXT NOT NULL,
-                confidence_level DOUBLE PRECISION NOT NULL DEFAULT 0.95,
-                satker_id UUID,
-                kode_barang TEXT,
-                predictions_json TEXT NOT NULL,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-            )
-        "#;
-        let client = self.db.get_connection().await?;
-        client
-            .execute(ddl, &[])
-            .await
-            .map_err(|e| AppError::Database(format!("Failed to ensure snapshot table: {}", e)))?;
-        Ok(())
-    }
+    // NOTE: there is deliberately no `ensure_snapshot_table` here. It ran a
+    // `CREATE TABLE IF NOT EXISTS` before every snapshot read and write, which
+    // made the schema a side effect of serving a request: invisible to anyone
+    // reading `migrations/`, unreviewable, and a DDL round-trip per call. The
+    // table is created by `V008__roadmap_forecast_snapshots.sql` instead, the
+    // same move V007 made for the boot-time indexes.
 }
