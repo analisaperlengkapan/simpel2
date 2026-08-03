@@ -200,8 +200,13 @@ async fn send_initial_notifications(
 
     let rows = client
         .query(
-            "SELECT id, user_id, title, body, category, priority, action_url, created_at, read
-             FROM notifications
+            // `notifications` exists nowhere; the real relation is
+            // `notifikasi.in_app_notifications`, and it names the body column
+            // `message`. Unqualified on top of that, which could not resolve
+            // either — this service never sets `search_path`.
+            "SELECT id, user_id, title, message AS body, category, priority,
+                    action_url, created_at, read
+             FROM notifikasi.in_app_notifications
              WHERE user_id = $1 AND read = false
              ORDER BY created_at DESC
              LIMIT 50",
@@ -210,13 +215,22 @@ async fn send_initial_notifications(
         .await?;
 
     for row in rows {
+        // `category`/`priority` are varchar, not jsonb: reading them straight
+        // into `serde_json::from_value` would fail to decode. Wrap the text in
+        // a JSON string so the `rename_all = "lowercase"` enums parse.
+        // `category` is nullable, `priority` is NOT NULL.
+        let category = row
+            .get::<_, Option<String>>("category")
+            .unwrap_or_else(|| "info".to_string());
+        let priority: String = row.get("priority");
+
         let notification = NotificationMessage {
             id: row.get("id"),
             user_id: row.get("user_id"),
             title: row.get("title"),
             body: row.get("body"),
-            category: serde_json::from_value(row.get("category"))?,
-            priority: serde_json::from_value(row.get("priority"))?,
+            category: serde_json::from_value(serde_json::Value::String(category))?,
+            priority: serde_json::from_value(serde_json::Value::String(priority))?,
             action_url: row.get("action_url"),
             created_at: row
                 .get::<_, chrono::DateTime<chrono::Utc>>("created_at")
@@ -272,7 +286,7 @@ async fn mark_notification_read(
 
     client
         .execute(
-            "UPDATE notifications SET read = true, read_at = NOW()
+            "UPDATE notifikasi.in_app_notifications SET read = true, read_at = NOW()
              WHERE id = $1 AND user_id = $2",
             &[&notification_id, &user_id],
         )
@@ -295,7 +309,7 @@ async fn mark_all_notifications_read(
 
     let count = client
         .execute(
-            "UPDATE notifications SET read = true, read_at = NOW()
+            "UPDATE notifikasi.in_app_notifications SET read = true, read_at = NOW()
              WHERE user_id = $1 AND read = false",
             &[&user_id],
         )
@@ -338,17 +352,33 @@ pub async fn broadcast_notification(
     // Save to database first
     let client = state.pool.get().await?;
 
+    // `notifikasi.in_app_notifications` stores `message` (not `body`) and
+    // requires `notification_type`, which the old INSERT never supplied — so
+    // even against the right table it would have violated NOT NULL. Both
+    // enums are lowercase strings in a varchar column, not jsonb.
+    let category = serde_json::to_value(&notification.category)?
+        .as_str()
+        .unwrap_or("info")
+        .to_string();
+    let priority = serde_json::to_value(&notification.priority)?
+        .as_str()
+        .unwrap_or("normal")
+        .to_string();
+
     client
         .execute(
-            "INSERT INTO notifications (id, user_id, title, body, category, priority, action_url, created_at, read)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), false)",
+            "INSERT INTO notifikasi.in_app_notifications
+                 (id, user_id, notification_type, title, message, category,
+                  priority, action_url, created_at, read)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), false)",
             &[
                 &notification.id,
                 &notification.user_id,
+                &"broadcast",
                 &notification.title,
                 &notification.body,
-                &serde_json::to_value(&notification.category)?,
-                &serde_json::to_value(&notification.priority)?,
+                &category,
+                &priority,
                 &notification.action_url,
             ],
         )

@@ -34,7 +34,6 @@ const CORE_ROUTES = [
 const ADMIN_ROUTES = [
   `${BASE}/analitik/roadmap`,
   `${BASE}/notifikasi`,
-  `${BASE}/admin/users`,
   `${BASE}/admin/roles`,
   `${BASE}/admin/audit`,
   `${BASE}/admin/master`,

@@ -151,11 +151,8 @@ const ADMINISTRASI_GROUPS: &[NavGroup] = &[
         accent: "#f87171",
         admin_only: true,
         items: &[
-            NavItem {
-                href: routes::path::ADMIN_USERS,
-                icon: "fas fa-users",
-                label: "Pengguna",
-            },
+            // No "Pengguna" entry: that page was removed (user administration
+            // lives in portal, against authenc).
             NavItem {
                 href: routes::path::ADMIN_ROLES,
                 icon: "fas fa-user-tag",

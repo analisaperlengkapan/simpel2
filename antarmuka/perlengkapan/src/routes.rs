@@ -32,7 +32,8 @@ pub mod path {
     pub const ANALITIK_ROADMAP: &str = "/perlengkapan/simpel/v2/analitik/roadmap";
     pub const ANALITIK_ROADMAP_BUAT: &str = "/perlengkapan/simpel/v2/analitik/roadmap/buat";
 
-    pub const ADMIN_USERS: &str = "/perlengkapan/simpel/v2/admin/users";
+    // No ADMIN_USERS: the page was removed — it queried relations no migration
+    // creates, and user administration belongs to authenc (portal provides it).
     pub const ADMIN_ROLES: &str = "/perlengkapan/simpel/v2/admin/roles";
     pub const ADMIN_AUDIT: &str = "/perlengkapan/simpel/v2/admin/audit";
     pub const ADMIN_MASTER: &str = "/perlengkapan/simpel/v2/admin/master";

@@ -45,7 +45,7 @@ use pages::workflow::delegation::WorkflowDelegationPage;
 use pages::workflow::monitoring::WorkflowMonitoring;
 
 // Migrated business components
-use components::admin_users::{AdminRolesPage, AdminUsersPage};
+use components::admin_roles::AdminRolesPage;
 use components::analisis_form::AnalisisForm;
 use components::analisis_list::AnalisisList;
 use components::faq::FaqPage;
@@ -375,7 +375,10 @@ pub fn App() -> impl IntoView {
                                         // children (admin role required)
                                         // ══════════════════════════════════════════
                                         <ParentRoute path=path!("/admin") view=AdminLayout>
-                                            <Route path=path!("/users") view=AdminUsersPage />
+                                            // No `/admin/users`: it was backed by
+                                            // relations no migration creates, and
+                                            // user/role administration belongs to
+                                            // authenc (portal already does it).
                                             <Route path=path!("/roles") view=AdminRolesPage />
                                             <Route path=path!("/audit") view=AdminAuditPage />
                                             <Route path=path!("/master") view=AdminMasterDataPage />
