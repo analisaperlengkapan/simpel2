@@ -62,10 +62,15 @@ RUN chmod 555 /app/api_server && \
 USER secreton
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-    CMD curl -sf http://localhost:8200/v1/health || exit 1
+    CMD ["curl", "-sf", "http://localhost:8200/v1/health"]
 
 EXPOSE 8200 8201 8300
 
+# DL3064 pattern-matches "SECRET" inside the variable NAME. This service is
+# literally called Secreton, and the value is a config file path, not a
+# credential. Ignored per-line rather than repo-wide so a genuinely leaked
+# secret elsewhere still trips the rule.
+# hadolint ignore=DL3064
 ENV RUST_LOG=info,secreton=info \
     SECRETON_CONFIG=/app/config/secreton.toml
 

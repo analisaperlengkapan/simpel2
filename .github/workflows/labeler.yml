@@ -160,4 +160,20 @@ jobs:
           fi
 
           "$GH_BIN" pr review --approve "$PR_URL" || true
-          "$GH_BIN" pr merge --auto --squash "$PR_URL"
+
+          # `gh pr merge --auto` merges IMMEDIATELY when the PR is already
+          # mergeable and green, so it races other PRs landing on main and
+          # dies with "Base branch was modified" (observed on #734). That exit
+          # code left auto-merge UNARMED and the PR stranded open, so retry
+          # before giving up. Only a genuinely stuck arm should stay red.
+          for attempt in 1 2 3 4 5; do
+            if "$GH_BIN" pr merge --auto --squash "$PR_URL"; then
+              echo "auto-merge armed (attempt ${attempt})"
+              exit 0
+            fi
+            echo "attempt ${attempt} failed; base branch likely moved, retrying"
+            sleep $((attempt * 10))
+          done
+
+          echo "::error::could not arm auto-merge after 5 attempts"
+          exit 1

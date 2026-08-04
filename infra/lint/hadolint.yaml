@@ -24,5 +24,9 @@ trustedRegistries:
   - ghcr.io
   - registry.access.redhat.com
   - public.ecr.aws
+  # Microsoft's official registry — the only place the Playwright image with
+  # pre-baked browsers is published (antarmuka/*/tests/e2e/Dockerfile.e2e).
+  # Without it DL3026 fires as an *error* on both e2e images.
+  - mcr.microsoft.com
 
 failure-threshold: warning

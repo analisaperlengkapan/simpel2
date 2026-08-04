@@ -160,7 +160,9 @@ updates:
       - "dependencies"
       - "docker"
     commit-message:
-      prefix: "docker"
+      # Conventional-Commits: type harus dari daftar di labeler.yml
+      # (`deps`), area jadi scope (`infra`). "docker" bukan type yang sah.
+      prefix: "deps(infra)"
 
     groups:
       base-images:
@@ -194,7 +196,7 @@ updates:
       - "lang:javascript"
       - "monolith:assets"
     commit-message:
-      prefix: "monolith(deps)"
+      prefix: "deps(monolith)"
     groups:
       vite-build:
         patterns:
@@ -231,7 +233,7 @@ updates:
       - "lang:javascript"
       - "lib:ui"
     commit-message:
-      prefix: "ui(deps)"
+      prefix: "deps(ui)"
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
@@ -252,7 +254,7 @@ updates:
       - "lang:php"
       - "monolith"
     commit-message:
-      prefix: "monolith(deps)"
+      prefix: "deps(monolith)"
     groups:
       laravel:
         patterns:

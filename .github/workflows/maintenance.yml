@@ -66,6 +66,63 @@ jobs:
           docker run --rm -v "$PWD:/repo:ro" -w /repo \
             rhysd/actionlint:1.7.12 -color
 
+      # Dependabot titles its PRs "<commit-message.prefix>: bump ...", so an
+      # invalid prefix makes EVERY bot PR of that ecosystem fail the
+      # Conventional-Commits gate in labeler.yml. That drifted unnoticed for
+      # months: `monolith(deps)`, `ui(deps)` and `docker` each put a SCOPE (or a
+      # bare word) where the TYPE belongs. Nothing caught it because the title
+      # check is not one of the required status checks, so the red never blocked
+      # a merge — #677, #700 and #707 all landed with a failing title job.
+      #
+      # A hand-kept list would rot exactly the same way, so derive both sides
+      # mechanically: every prefix in dependabot.yml must decompose into a type
+      # and optional scope that the gate actually accepts.
+      #
+      # yq runs from a PINNED image for the same reason actionlint does above —
+      # the ARC runner image ships neither yq nor PyYAML.
+      - name: Dependabot prefixes match the PR-title gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_yq() {
+            docker run --rm -v "$PWD:/repo:ro" -w /repo mikefarah/yq:4.44.3 "$@"
+          }
+
+          has() {
+            printf '%s\n' "${@:2}" | grep -qxF -- "$1"
+          }
+
+          mapfile -t prefixes < <(run_yq '.updates[].commit-message.prefix' .github/dependabot.yml)
+          mapfile -t types < <(run_yq '.jobs.pr-title-check.steps[0].with.types' .github/workflows/labeler.yml)
+          mapfile -t scopes < <(run_yq '.jobs.pr-title-check.steps[0].with.scopes' .github/workflows/labeler.yml)
+
+          failed=0
+          for prefix in "${prefixes[@]}"; do
+            ctype=${prefix%%(*}
+            cscope=""
+            case "$prefix" in
+              *"("*)
+                cscope=${prefix#*(}
+                cscope=${cscope%)}
+                ;;
+            esac
+
+            if ! has "$ctype" "${types[@]}"; then
+              echo "::error file=.github/dependabot.yml::commit-message prefix '${prefix}' uses type '${ctype}', which the PR-title gate does not accept"
+              failed=1
+            fi
+            if [ -n "$cscope" ] && ! has "$cscope" "${scopes[@]}"; then
+              echo "::error file=.github/dependabot.yml::commit-message prefix '${prefix}' uses scope '${cscope}', which the PR-title gate does not accept"
+              failed=1
+            fi
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            exit 1
+          fi
+          echo "all ${#prefixes[@]} Dependabot prefixes satisfy the PR-title gate"
+
   dependency-health:
     name: Dependency Health
     runs-on: arc-simpel
