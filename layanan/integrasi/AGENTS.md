@@ -30,7 +30,7 @@
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| Language | Rust | Edition 2024, MSRV 1.90+ |
+| Language | Rust | Edition 2024, MSRV 1.97.1 |
 | HTTP Client | reqwest | 0.12 |
 | Database | tokio-postgres + deadpool | 0.7 |
 | Async Runtime | tokio | 1.47+ |

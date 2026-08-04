@@ -3,6 +3,7 @@ name = "layanan-integrasi"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors = ["SIMPEL Team"]
 description = "SIMPEL - Layanan Integrasi untuk External APIs (MonSAKTI, MySIMKARI, dll)"
 repository = "https://github.com/kejaksaan/simpelv2"

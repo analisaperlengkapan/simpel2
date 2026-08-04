@@ -224,7 +224,7 @@ Implements requirements:
 
 ## Requirements
 
-- Rust 1.90+ (Edition 2024)
+- Rust 1.97.1 (Edition 2024)
 - Dependencies managed via workspace
 
 ## License

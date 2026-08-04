@@ -83,7 +83,7 @@ flowchart TB
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| **Language** | Rust (Edition 2024, MSRV 1.90+) | 1.96+ |
+| **Language** | Rust (Edition 2024, MSRV 1.97.1) | 1.97.1 |
 | **Backend HTTP** | Axum (REST API) | 0.8.9 |
 | **Backend gRPC** | Tonic + Prost | 0.14.x |
 | **Frontend** | Leptos (WASM CSR) | 0.8.19 |

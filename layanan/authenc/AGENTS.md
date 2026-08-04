@@ -18,7 +18,7 @@
 
 | Component | Technology | Version |
 |-----------|------------|---------|
-| Language | Rust | Edition 2024, MSRV 1.90+ |
+| Language | Rust | Edition 2024, MSRV 1.97.1 |
 | Web Framework | Axum | 0.8.x |
 | Database | PostgreSQL | tokio-postgres + deadpool + refinery |
 | Cryptography | Ed25519, X25519, ChaCha20-Poly1305 | jsonwebtoken, argon2 |

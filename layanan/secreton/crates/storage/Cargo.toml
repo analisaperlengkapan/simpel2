@@ -3,6 +3,7 @@ name = "secreton-storage"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors.workspace = true
 description = "Secure storage backend for Secreton vault system"
 keywords = ["storage", "database", "vault", "security"]

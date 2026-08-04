@@ -231,7 +231,7 @@ Multiple implementations of common interfaces:
 - **Build time**: ~15-20 seconds for full workspace (incremental: 2-5s)
 - **Test suite**: Unit tests in each crate, integration tests in tests/
 - **CI/CD**: GitHub Actions workflows validate all crates
-- **MSRV**: Rust 1.90+ (edition 2024)
+- **MSRV**: Rust 1.97.1 (edition 2024)
 
 ## Performance Characteristics
 

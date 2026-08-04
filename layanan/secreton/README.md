@@ -7,7 +7,7 @@ Secrets management and encryption service for [SIMPEL](https://simpel.kejaksaan.
 Secreton provides encrypted secret storage, transit encryption, PKI certificate management, dynamic credential generation, and key rotation. It exposes a REST API (Axum), gRPC API (Tonic), and a CLI tool.
 
 **Current version:** 0.1.0
-**Rust edition:** 2024 (MSRV 1.90+)
+**Rust edition:** 2024 (MSRV 1.97.1)
 **License:** Apache-2.0
 
 ## Architecture

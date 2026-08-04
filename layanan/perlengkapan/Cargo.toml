@@ -2,6 +2,7 @@
 name = "layanan-perlengkapan"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors = ["SIMPEL Team"]
 description = "Unified Perlengkapan service (BMN, workflow, dokumen, notifikasi, bantuan)"
 publish = false

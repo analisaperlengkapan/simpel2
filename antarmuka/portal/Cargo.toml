@@ -3,6 +3,7 @@ name = "portal-microfrontend"
 publish = false
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 authors = ["SIMPEL Team <simpelv2@kejaksaan.go.id>"]
 description = "SIMPEL Portal Utama - Gateway to Justice Technology & SSO Integration"
 repository = "https://gitlab.com/analisiskebutuhan/simpelv2_web"
