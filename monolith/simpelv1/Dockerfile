@@ -110,7 +110,7 @@ COPY monolith/simpelv1/nginx.conf /etc/nginx/nginx.conf
 # Health check — uses Laravel's /health route so the full nginx+PHP-FPM
 # stack is exercised, not just nginx.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD ["curl", "-f", "http://localhost:8080/health"]
 
 # Expose port
 EXPOSE 8080
