@@ -22,7 +22,7 @@ pub use crate::memory::MemoryBackend;
 
 // Re-export storage wrappers
 pub use crate::cache::{CacheBackend, CacheStats, CachedStorage, InMemoryCache};
-pub use crate::encrypted_storage::EncryptedStorage;
+pub use crate::encrypted_storage::{EncryptedStorage, MasterKeyProvider, StaticMasterKey};
 
 // Re-export factory
 pub use crate::factory::{StorageBackendType, StorageFactory, StorageFactoryConfig};

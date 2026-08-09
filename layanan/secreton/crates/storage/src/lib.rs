@@ -95,38 +95,42 @@
 //!
 //! # Example: Adding Encryption Layer
 //!
-//! ```ignore
-//! use secreton_storage::{StorageBackend, MemoryBackend, EncryptedStorage, SecretEntry, SecurityLevel};
+//! [`EncryptedStorage`] seals payloads on their way to the backend it wraps.
+//! The key comes from a [`MasterKeyProvider`] resolved per operation — in the
+//! engine that is the master key, so secret I/O fails while sealed.
+//!
+//! ```rust
+//! use secreton_storage::{
+//!     EncryptedStorage, MemoryBackend, SecretEntry, SecurityLevel, StaticMasterKey,
+//!     StorageBackend,
+//! };
 //! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error.Error>> {
-//! // Create base backend
-//! let base_backend = MemoryBackend::new();
+//! # tokio::runtime::Runtime::new().unwrap().block_on(async {
+//! let base = Arc::new(MemoryBackend::new());
+//! let storage = EncryptedStorage::new(
+//!     base.clone(),
+//!     Arc::new(StaticMasterKey::new(vec![0x42; 32])), // 32 bytes, AES-256
+//!     "primary-key-001",
+//! );
 //!
-//! // Wrap with encryption (specify encryption key ID)
-//! let encrypted = EncryptedStorage::new(Arc::new(base_backend), "primary-key-001".to_string());
+//! let entry = SecretEntry::new(
+//!     "sensitive/data".to_string(),
+//!     b"plaintext".to_vec(),
+//!     serde_json::json!({}),
+//!     SecurityLevel::Secret,
+//!     "system".to_string(),
+//! );
+//! storage.store(&entry).await.unwrap();
 //!
-//! let storage: Arc<dyn StorageBackend + Send + Sync> = Arc::new(encrypted);
+//! // What the wrapper returns is the payload you put in...
+//! let read = storage.get_by_path("sensitive/data").await.unwrap().unwrap();
+//! assert_eq!(read.encrypted_data, b"plaintext".to_vec());
 //!
-//! // All operations use the encryption wrapper
-//! let entry = SecretEntry {
-//!     id: uuid::Uuid::new_v4(),
-//!     path: "sensitive/data".to_string(),
-//!     encrypted_data: b"plaintext".to_vec(),
-//!     security_level: SecurityLevel::Secret,
-//! #   encryption_metadata: serde_json::json!({"key_id": "primary-key-001"}),
-//! #   metadata: serde_json::json!({}),
-//! #   tags: vec![],
-//! #   version: 1,
-//! #   owner_id: "system".to_string(),
-//! #   created_at: chrono::Utc::now(),
-//! #   updated_at: chrono::Utc::now(),
-//! #   expires_at: None,
-//! };
-//! storage.store(&entry).await?;
-//! // Data is stored with encryption key tracking
-//! # Ok(())
-//! # }
+//! // ...but what the backend actually holds is not.
+//! let at_rest = base.get_by_path("sensitive/data").await.unwrap().unwrap();
+//! assert_ne!(at_rest.encrypted_data, b"plaintext".to_vec());
+//! # });
 //! ```
 //!
 //! # Example: Adding Cache Layer
@@ -212,7 +216,7 @@ pub mod raft;
 // Re-export essential backends
 pub use backends::{FileBackend, FileConfig};
 pub use cache::{CacheBackend, CacheStats, CachedStorage, InMemoryCache};
-pub use encrypted_storage::EncryptedStorage;
+pub use encrypted_storage::{EncryptedStorage, MasterKeyProvider, StaticMasterKey};
 pub use kv_adapter::KvBackendAdapter;
 pub use memory::MemoryBackend;
 
@@ -501,6 +505,11 @@ pub enum StorageError {
 
     #[error("Timeout: {operation}")]
     Timeout { operation: String },
+
+    /// Encryption at rest could not be applied or reversed. A sealed engine
+    /// surfaces here too: the master key is unavailable until unseal.
+    #[error("Encryption error: {message}")]
+    EncryptionFailed { message: String },
 }
 
 /// Type alias for Results with StorageError

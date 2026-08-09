@@ -201,10 +201,12 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
 
         // Create engine entry for storage
         let secret_id = uuid::Uuid::new_v4();
-        let encrypted_metadata = serde_json::json!({
-            "algorithm": "aes-256-gcm",
-            "key_id": "default-key",
-        });
+        // Encryption metadata is written by the storage layer that actually
+        // performs the encryption. This used to hard-code
+        // `{"algorithm":"aes-256-gcm"}` here while the payload went to Postgres
+        // as plaintext JSON — a claim stamped on every row by the one component
+        // that did no crypto at all.
+        let encrypted_metadata = serde_json::json!({});
 
         // Serialize secret data
         let secret_data = serde_json::to_vec(&req.data)
