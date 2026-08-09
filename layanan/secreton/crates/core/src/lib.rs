@@ -19,7 +19,6 @@ pub mod namespace;
 pub mod pki; // Renamed from 'crypto' - contains PKI/certificate code only
 pub mod prelude;
 pub mod resilience; // Resilience patterns (circuit breaker, retry)
-pub mod sdk_libraries;
 pub mod security;
 pub mod services;
 pub mod storage;

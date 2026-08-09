@@ -212,7 +212,7 @@ gate-nya:
 
 **Aturan:** cakupan gate diturunkan dari sumber kebenaran lalu di-diff, tidak
 didaftar manual. Penjaganya `infra/scripts/check-crate-ci-coverage.py`
-(**BLOCKING**, di job *Enforce Cargo Versioning*): daftar crate dibaca dari
+(**BLOCKING**, di job *Enforce Repo Invariants*): daftar crate dibaca dari
 `Cargo.toml`, himpunan yang tercakup dari `ci.yml`, lalu selisihnya digagalkan.
 Menambah crate ke workspace tanpa memasukkannya ke matriks = CI merah.
 `COMPILE_ONLY` (3 crate wasm/UI) adalah satu-satunya bagian manual dan tiap
@@ -239,6 +239,27 @@ di memori, lalu memastikan dirinya merah. Ini bukan seremonial — tes itulah ya
 menemukan penjaga versi pertama LULUS saat baris `run:` dihapus, karena **nama
 step** (`- name: cargo test --doc (host)`) masih memuat perintahnya sehingga
 terbaca sebagai cakupan. Tidak ada cara lain menemukannya.
+
+**```ignore boleh melepas EKSEKUSI, tidak boleh menyebut API yang tak ada
+(#126).** rustdoc tak pernah mengompilasi fence ber-`ignore`, jadi contoh di
+dalamnya bebas terus mendokumentasikan tipe yang sudah di-*rename* atau dihapus.
+Bukan sekadar kotor: `secreton_core::utils` memuat ~300 baris doc modul tentang
+`LruCache`/`SecureMemory`/`ConfigLoader` padahal ekspor nyatanya
+`SecretLruCache`/`SecureSecretMemory`/`Config` — pembaca (atau agen) yang
+mengikutinya menulis kode yang tak mungkin dikompilasi, dan makin yakin prosanya
+makin lama ia mencari kesalahan pada dirinya sendiri.
+`infra/scripts/check-doc-examples.py` (**BLOCKING**, job yang sama) mencocokkan
+tiap `use <crate>::…` di dalam fence ber-`ignore` dengan nama yang benar-benar
+diekspor crate itu — menghormati `pub use X as Y` (yang terjangkau **hanya** Y).
+Ia juga punya mutation self-test sendiri. Batas kemampuannya: hanya nama di
+`use`, bukan tanda tangan metode, jadi jalan yang benar tetap **membuang
+`ignore`** bila contohnya bisa jalan; `ignore` sah hanya untuk contoh yang
+butuh server/DB/cluster hidup.
+
+Bukti bahwa penjaga ini menambah sesuatu, bukan duplikasi `--doc`: mengembalikan
+`utils::cache::LruCache` ke fence ber-`ignore` membuat `cargo test --doc`
+melapor `ok. 0 failed` (contohnya cuma pindah dari *passed* ke *ignored*),
+sementara penjaga ini merah.
 
 ## ⚠️ Aturan AI untuk Pengujian
 

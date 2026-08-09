@@ -47,43 +47,43 @@
 //! - **IP Address**: Source of the request
 //! - **Details**: Additional context (encrypted data, error messages, etc.)
 //!
-//! # Example: Manual Audit Logging
+//! # Example: writing and querying an audit log
 //!
-//! ```ignore
-//! use secreton_core::audit::{AuditLogger, AuditLog, AuditStatus};
+//! Entries are assembled with [`AuditLog::builder`]; `action`, `resource_type`,
+//! `resource_id` and `status` are required and [`AuditLogBuilder::build`] fails
+//! without them. The logger fans an entry out to every backend it was given.
+//!
+//! ```rust
+//! use secreton_core::audit::{AuditLog, AuditLogger, AuditQuery, AuditStatus, MemoryBackend};
 //! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let logger = AuditLogger::new(vec![/* backends */]);
+//! # tokio::runtime::Runtime::new().unwrap().block_on(async {
+//! let logger = AuditLogger::new(vec![Arc::new(MemoryBackend::default())]);
 //!
-//! let log = AuditLog::new(
-//!     "secret.read",
-//!     Some("user-123"),
-//!     "secret",
-//!     "app/database/password",
-//!     AuditStatus::Success,
-//! ).with_ip("192.168.1.100")
-//!   .with_detail("namespace", "production");
+//! let entry = AuditLog::builder()
+//!     .action("secret.read")
+//!     .actor("user-123")
+//!     .resource_type("secret")
+//!     .resource_id("app/database/password")
+//!     .status(AuditStatus::Success)
+//!     .ip("192.168.1.100")
+//!     .metadata("namespace", "production")
+//!     .build()
+//!     .unwrap();
 //!
-//! logger.log(log).await?;
-//! # Ok(())
-//! # }
+//! logger.log(entry).await.unwrap();
+//!
+//! let found = logger
+//!     .query(&AuditQuery::new().actor("user-123"))
+//!     .await
+//!     .unwrap();
+//! assert_eq!(found.len(), 1);
+//! assert_eq!(found[0].action, "secret.read");
+//! # });
 //! ```
 //!
-//! # Example: Using Audit Middleware
-//!
-//! ```ignore
-//! use secreton_core::audit::AuditMiddleware;
-//! use axum::{Router, routing::get};
-//!
-//! # async fn example() {
-//! let app = Router::new()
-//!     .route("/secrets/:id", get(handler))
-//!     .layer(AuditMiddleware::new(/* logger */));
-//! // All requests automatically audited
-//! # }
-//! # async fn handler() {}
-//! ```
+//! There is no audit middleware layer: nothing wraps the router to log requests
+//! automatically. Call sites log explicitly, as above.
 //!
 //! # Audit Backends
 //!
@@ -96,50 +96,50 @@
 //!
 //! # Query and Analysis
 //!
-//! ```ignore
-//! use secreton_core::audit::{AuditLogger, AuditQuery};
+//! ```rust
+//! use secreton_core::audit::{AuditLogger, AuditQuery, MemoryBackend};
+//! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let logger = AuditLogger::new(vec![]);
-//! // Find all failed login attempts in last 24 hours
+//! # tokio::runtime::Runtime::new().unwrap().block_on(async {
+//! let logger = AuditLogger::new(vec![Arc::new(MemoryBackend::default())]);
+//!
+//! // Failed login attempts in the last 24 hours.
 //! let query = AuditQuery::new()
 //!     .action("user.login")
 //!     .status_failed()
 //!     .since_hours(24);
 //!
-//! let logs = logger.query(query).await?;
-//! println!("Failed logins: {}", logs.len());
-//! # Ok(())
-//! # }
+//! let logs = logger.query(&query).await.unwrap();
+//! assert!(logs.is_empty()); // nothing logged in this example
+//! # });
 //! ```
 //!
-//! # Compliance Features
+//! # What this layer does and does not guarantee
 //!
-//! - **Immutability**: Audit logs cannot be modified after creation
-//! - **Integrity**: Cryptographic checksums prevent tampering
-//! - **Retention**: Configurable retention policies
-//! - **Export**: JSON/CSV export for compliance reports
-//! - **Encryption**: Sensitive details encrypted at rest
+//! Implemented: append-only writes through [`AuditBackend`], fan-out to several
+//! backends at once, structured query, and time-based cleanup
+//! (`api_audit::AuditLogger::cleanup_expired_events`).
 //!
-//! # Performance
+//! Not implemented — do not rely on these until they are built:
 //!
-//! - **Async**: Non-blocking audit operations
-//! - **Batching**: Logs buffered and written in batches
-//! - **Sampling**: Optional sampling for high-throughput scenarios
-//! - **Circuit Breaker**: Audit failures don't block operations
-//!
-//! # Security Considerations
-//!
-//! - Audit logs stored separately from operational data
-//! - Restricted access (audit admin role required)
-//! - Sensitive data masked or encrypted in logs
-//! - Separate database credentials for audit storage
+//! - **no tamper-evidence.** [`AuditLog`] carries no checksum, signature or hash
+//!   chain, so an edit to a stored entry is not detectable after the fact. A
+//!   separate Ed25519 + HMAC-chain implementation exists in
+//!   [`crate::security::audit`], but nothing calls it outside its property tests —
+//!   it is not on this write path.
+//! - **no batching, sampling or circuit breaker.** [`AuditLogger::log`] awaits
+//!   every backend in turn, so a slow backend slows the caller.
+//! - **no separate credentials or storage.** The PostgreSQL backend uses the same
+//!   connection as operational data.
+//! - **no field-level masking.** Whatever a call site puts in `metadata` is
+//!   stored verbatim — keep secret material out of it.
 //!
 //! # See Also
 //!
 //! - [`AuditLogger`] - Main audit logging interface
 //! - [`AuditBackend`] - Trait for custom backends
-//! - [`AuditMiddleware`] - Automatic request auditing
+//! - [`AuditLog::builder`] - Assemble an entry
+//! - [`crate::security::audit`] - The unwired Ed25519 + HMAC-chain variant
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

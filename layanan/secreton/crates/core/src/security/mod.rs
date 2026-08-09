@@ -1,219 +1,59 @@
-//! Security Level Management and Compliance
+//! Security primitives: FIPS posture, seal wrapping, and a tamper-evident audit
+//! chain.
 //!
-//! This module provides advanced security controls, compliance standards enforcement,
-//! and defense-in-depth mechanisms for Secreton's secret management operations.
+//! Read the module list below before reaching for anything here — two of the
+//! larger pieces are **not compiled into the crate** and one is compiled but not
+//! wired to any call path.
 //!
-//! # Security Architecture
+//! | Module | State |
+//! |---|---|
+//! | [`fips_compliance`] | live — [`fips_compliance::FipsLevel`], the [`fips_compliance::FipsCompliant`] trait |
+//! | [`seal_wrapping`] | live — [`seal_wrapping::SealWrappingEngine`] and the [`seal_wrapping::SealProvider`] trait |
+//! | [`audit`] | compiles, but only its property tests call it; the running audit path is [`crate::audit`] |
+//! | [`optimized_traits`] | live |
+//! | `manager` (`SecurityManager`) | **commented out** in this file — not part of the crate |
+//! | `concrete_implementations` | **commented out** in this file — not part of the crate |
 //!
-//! ```text
-//! ┌─────────────────────────────────────────────────┐
-//! │        Application Layer                        │
-//! └────────────────────┬────────────────────────────┘
-//!                      │
-//!                      ▼
-//! ┌─────────────────────────────────────────────────┐
-//! │     Security Level Enforcement                  │
-//! │  ┌────────────────────────────────────────┐    │
-//! │  │  Classification Levels:                │    │
-//! │  │  - PUBLIC (Level 0)                    │    │
-//! │  │  - INTERNAL (Level 1)                  │    │
-//! │  │  - CONFIDENTIAL (Level 2)              │    │
-//! │  │  - SECRET (Level 3)                    │    │
-//! │  │  - TOP_SECRET (Level 4)                │    │
-//! │  └────────────────────────────────────────┘    │
-//! └────────────────────┬────────────────────────────┘
-//!                      │
-//!       ┌──────────────┴──────────────┐
-//!       ▼                             ▼
-//! ┌──────────────┐            ┌──────────────┐
-//! │ Cryptographic│            │  Compliance  │
-//! │  Controls    │            │   Standards  │
-//! │ (Encryption) │            │ (FIPS, ISO)  │
-//! └──────────────┘            └──────────────┘
+//! There is no `SecurityLevel` in this module. The classification enum lives in
+//! `secreton_types::security` and, for audit records, in
+//! [`crate::models::audit::SecurityLevel`].
+//!
+//! # Seal wrapping
+//!
+//! [`seal_wrapping::SealWrappingEngine`] wraps critical values under one or more
+//! seal providers before they reach storage, so a storage compromise alone does
+//! not yield plaintext. Providers are registered with a priority and the engine
+//! fails over between them.
+//!
+//! ```rust
+//! use secreton_core::security::seal_wrapping::SealWrappingEngine;
+//!
+//! # tokio::runtime::Runtime::new().unwrap().block_on(async {
+//! let engine = SealWrappingEngine::new().await.unwrap();
+//!
+//! engine.add_provider("shamir".to_string(), 10).await.unwrap();
+//! engine.add_provider("kms".to_string(), 20).await.unwrap();
+//!
+//! // Multi-seal is opt-in; a fresh engine wraps under a single provider.
+//! let config = engine.get_multi_seal_config().await;
+//! assert!(!config.enabled);
+//! # });
 //! ```
 //!
-//! # Security Levels (Indonesian Government Classification)
+//! [`seal_wrapping::DataType`] selects the per-kind [`seal_wrapping::WrapConfig`]
+//! — `MasterKey` and `RootKey` are wrapped more strictly than `Configuration`.
 //!
-//! Secreton implements 5-level classification aligned with Indonesian government standards:
+//! # HSM
 //!
-//! - **PUBLIC** (Level 0) - No restrictions, public information
-//! - **INTERNAL** (Level 1) - Internal use only, low sensitivity
-//! - **CONFIDENTIAL** (Level 2) - Restricted access, medium sensitivity
-//! - **SECRET** (Level 3) - High security, government secrets
-//! - **TOP_SECRET** (Level 4) - Maximum security, national security data
+//! HSM support is a separate crate, `secreton_hsm` — `HsmBackend`, `HsmConfig`
+//! and `Pkcs11Provider`. Nothing named `HsmProvider` exists.
 //!
-//! # Example: Set Secret Security Level
+//! # FIPS
 //!
-//! ```ignore
-//! use secreton_core::security::{SecurityLevel, SecurityManager};
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let manager = SecurityManager::new();
-//!
-//! // Store secret with CONFIDENTIAL classification
-//! manager.create_secret(
-//!     "/app/database/password",
-//!     b"secret_value",
-//!     SecurityLevel::Confidential,
-//! ).await?;
-//!
-//! // Enforce: Only users with CONFIDENTIAL+ clearance can read
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Example: Check User Clearance
-//!
-//! ```ignore
-//! use secreton_core::security::{SecurityLevel, SecurityManager};
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let manager = SecurityManager::new();
-//! let user_clearance = SecurityLevel::Secret;
-//! let secret_level = SecurityLevel::Confidential;
-//!
-//! if user_clearance >= secret_level {
-//!     println!("Access granted");
-//!     // Retrieve secret
-//!  else {
-//!     println!("Access denied - insufficient clearance");
-//! }
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Compliance Standards
-//!
-//! Secreton enforces multiple compliance frameworks:
-//!
-//! ## FIPS 140-3 (Cryptographic Module Validation)
-//!
-//! - **Approved Algorithms**: AES-256-GCM, ChaCha20-Poly1305, SHA-256, Ed25519
-//! - **Key Management**: Hardware Security Module (HSM) integration
-//! - **Random Number Generation**: FIPS-approved DRBG
-//!
-//! ## ISO/IEC 27001 (Information Security Management)
-//!
-//! - Access control policies (RBAC + ABAC)
-//! - Audit trail for all operations
-//! - Encryption at rest and in transit
-//! - Secure key lifecycle management
-//!
-//! ## GDPR (Data Privacy Regulation)
-//!
-//! - Data minimization (only store necessary secrets)
-//! - Right to erasure (secure deletion)
-//! - Data portability (export capabilities)
-//! - Breach notification (audit + alerting)
-//!
-//! # Defense-in-Depth Layers
-//!
-//! Multiple security controls applied simultaneously:
-//!
-//! ```text
-//! Layer 1: Network Security (TLS 1.3, mTLS)
-//!          ↓
-//! Layer 2: Authentication (JWT, MFA, PQC)
-//!          ↓
-//! Layer 3: Authorization (RBAC, policies)
-//!          ↓
-//! Layer 4: Data Encryption (AES-256-GCM)
-//!          ↓
-//! Layer 5: Audit Logging (immutable trail)
-//!          ↓
-//! Layer 6: HSM Protection (hardware keys)
-//! ```
-//!
-//! # Seal Wrapping (Enterprise Feature)
-//!
-//! Critical secrets encrypted with master key:
-//!
-//! ```ignore
-//! use secreton_core::security::SealWrapper;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let wrapper = SealWrapper::new(/* master_key */);
-//!
-//! // Wrap sensitive data before storage
-//! let wrapped = wrapper.wrap(b"sensitive_data").await?;
-//!
-//! // Only unwrappable when engine is unsealed
-//! let unwrapped = wrapper.unwrap(&wrapped).await?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Zero-Trust Architecture
-//!
-//! Never trust, always verify:
-//!
-//! - **No Implicit Trust**: Every request authenticated and authorized
-//! - **Least Privilege**: Minimum required permissions only
-//! - **Micro-segmentation**: Network isolation per namespace
-//! - **Continuous Verification**: Token validation on every operation
-//!
-//! # Security Events and Alerting
-//!
-//! Critical security events trigger alerts:
-//!
-//! - **Failed Login Attempts** (brute force detection)
-//! - **Privilege Escalation** (unauthorized admin access)
-//! - **Data Exfiltration** (unusual read patterns)
-//! - **Configuration Changes** (seal/unseal, policy updates)
-//!
-//! # HSM Integration
-//!
-//! Hardware Security Module for cryptographic operations:
-//!
-//! ```ignore
-//! use secreton_core::security::HsmProvider;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let hsm = HsmProvider::connect("pkcs11:///usr/lib/softhsm2.so")?;
-//!
-//! // Generate key in HSM (never leaves hardware)
-//! let key_id = hsm.generate_key("master-key-2025").await?;
-//!
-//! // Encrypt using HSM
-//! let ciphertext = hsm.encrypt(key_id, b"plaintext").await?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Post-Quantum Cryptography (Future-Proof)
-//!
-//! Quantum-resistant algorithms:
-//!
-//! - **ML-DSA (Dilithium)**: Digital signatures (FIPS 204)
-//! - **ML-KEM (Kyber)**: Key encapsulation (FIPS 203)
-//! - **SLH-DSA (SPHINCS+)**: Stateless hash-based signatures (FIPS 205)
-//!
-//! # Performance Considerations
-//!
-//! - **Clearance Checks**: O(1) - simple integer comparison
-//! - **Encryption Overhead**: ~5-10% for AES-256-GCM
-//! - **HSM Operations**: 10-50ms latency (hardware dependent)
-//! - **Audit Logging**: Async, non-blocking
-//!
-//! # Configuration
-//!
-//! ```yaml
-//! security:
-//!   default_level: CONFIDENTIAL
-//!   enforce_mfa: true
-//!   hsm_enabled: true
-//!   compliance_mode: FIPS140-3
-//!   audit_all_access: true
-//! ```
-//!
-//! # See Also
-//!
-//! - [`SecurityLevel`] - Security classification enum
-//! - [`SecurityManager`] - Main security enforcement interface
-//! - [`SealWrapper`] - Master key encryption
-//! - [`HsmProvider`] - Hardware security module integration
-//! - `crate::crypto` - Cryptographic primitives
-//! - `crate::audit` - Security event logging
+//! [`fips_compliance::FipsLevel`] records the target level and
+//! [`fips_compliance::FipsCompliant`] is the trait a component implements to
+//! declare its posture. Declaring a level is not the same as being validated
+//! against it: no module here has been through CMVP.
 
 /// Optimized traits
 pub mod optimized_traits;
