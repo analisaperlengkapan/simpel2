@@ -154,15 +154,30 @@ jobs:
 
           # Every job must declare a timeout; an undeclared one silently
           # inherits GitHub's 360-minute default and would outlive the reaper.
-          missing=$(run_yq '
-            [ .jobs[] | select(has("timeout-minutes") | not) ] | length
-          ' .github/workflows/*.yml | paste -sd+ - | bc)
-          if [ "$missing" -ne 0 ]; then
-            echo "::error::${missing} job(s) have no timeout-minutes; they inherit the 360m default and outlive the reaper"
+          #
+          # Name the offenders rather than counting them: a bare number sends
+          # the next person hunting through eight files by hand. `filename` is
+          # a yq operator, so the file/job pair comes straight out of the query.
+          #
+          # No `bc` here, and that is the point — the ARC runner image does not
+          # ship it, and the first cut of this step died with exit 127 for
+          # exactly that reason. It is the same undeclared-dependency trap that
+          # made this very job a false-red for 40 scheduled runs (PyYAML, see
+          # the actionlint comment above). Shell built-ins only.
+          missing=$(run_yq -r '
+            .jobs
+            | to_entries[]
+            | select(.value | has("timeout-minutes") | not)
+            | filename + " -> " + .key
+          ' .github/workflows/*.yml)
+          if [ -n "$missing" ]; then
+            while read -r job; do
+              echo "::error::${job} has no timeout-minutes; it inherits GitHub's 360m default and would outlive the reaper"
+            done <<< "$missing"
             exit 1
           fi
 
-          longest=$(run_yq '.jobs[].timeout-minutes' .github/workflows/*.yml | sort -n | tail -1)
+          longest=$(run_yq -r '.jobs[].timeout-minutes' .github/workflows/*.yml | sort -n | tail -1)
           required=$((longest + margin))
 
           if [ "$reaper" -lt "$required" ]; then
