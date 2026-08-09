@@ -33,4 +33,22 @@ ignore = [
   # Mirror dengan deny.toml ignore.
   "RUSTSEC-2026-0194", # quick-xml <0.41 quadratic attr check - residual docx-rs, generate-only
   "RUSTSEC-2026-0195", # quick-xml <0.41 namespace alloc DoS - residual docx-rs, generate-only
+  # rkyv 0.7.46 OOB read — TIDAK PERNAH DIKOMPILASI, hanya ada di Cargo.lock.
+  # `rkyv` adalah dependency OPSIONAL rust_decimal (feature `rkyv`) dan feature
+  # itu tak diaktifkan siapa pun di workspace ini. Rantainya:
+  #   rust_decimal 1.41 <- byte-unit 5.2 (feature "byte") <- openraft 0.9
+  #   <- secreton-storage (feature `raft-consensus`)
+  # openraft memakai byte-unit, byte-unit memakai rust_decimal — tapi tak satu
+  # pun mengaktifkan `rust_decimal/rkyv`. Cargo.lock bersifat feature-agnostic
+  # sehingga tetap mencatat dependency opsional yang tak aktif; cargo-audit
+  # membaca Cargo.lock apa adanya, jadi ia melaporkan crate yang tak pernah
+  # masuk binary. Bandingkan cargo-deny (graph-based via `cargo metadata`):
+  # ia TIDAK melaporkan advisory ini — makanya entri ini SENGAJA TIDAK
+  # di-mirror ke deny.toml (beda dengan entri lain di atas). Bukti:
+  #   cargo tree --workspace --all-features --target all -i rkyv  -> kosong
+  # Dijaga mekanis oleh step "Assert lockfile-only audit ignores" di
+  # .github/workflows/security.yml: begitu rkyv benar-benar masuk build graph,
+  # CI merah dan ignore ini WAJIB dicabut.
+  # Tak ada jalur upgrade: rust_decimal 1.42.1 (terbaru) masih `rkyv ^0.7.46`.
+  "RUSTSEC-2026-0235", # rkyv 0.7 OOB read - optional dep yang tak pernah diaktifkan (lockfile-only)
 ]
