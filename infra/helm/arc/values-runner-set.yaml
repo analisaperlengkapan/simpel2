@@ -84,6 +84,29 @@ template:
     labels:
       simpel.ci/runner: "true"
   spec:
+    # JANGAN pasang token ServiceAccount ke pod runner.
+    #
+    # Pod ini menjalankan kode CI dari PR (termasuk PR yang belum ditinjau)
+    # DENGAN sidecar dind privileged. Default Kubernetes memasang token SA di
+    # /var/run/secrets/kubernetes.io/serviceaccount, dan kubelet menyuntikkan
+    # KUBERNETES_SERVICE_HOST sebagai IP — jadi API server terjangkau TANPA DNS
+    # (dnsPolicy: None + resolver publik di bawah TIDAK memitigasi apa pun).
+    #
+    # ARC menamai SA-nya `arc-simpel-gha-rs-no-permission` karena memang
+    # dimaksudkan tanpa hak. Nama itu hanya benar bila RBAC ditegakkan — dan di
+    # cluster ini kube-apiserver berjalan dengan `--authorization-mode=
+    # AlwaysAllow` (addon rbac MicroK8s belum aktif), sehingga SETIAP token,
+    # bahkan milik SA yang tak ada, berwenang penuh: baca seluruh Secret di
+    # seluruh namespace, hapus workload, dsb. Lihat task #124 (blocker F6-A)
+    # untuk penegakan RBAC yang sebenarnya; baris ini memangkas blast radius
+    # terbesarnya sekarang, dan tetap benar setelah RBAC dinyalakan.
+    #
+    # Aman karena tak ada yang kehilangan kemampuan: nol pemakaian
+    # kubectl/helm/KUBECONFIG di seluruh .github/workflows — tak satu pun job CI
+    # menyentuh cluster. Runner bicara ke GitHub, bukan ke API Kubernetes.
+    # Kalau kelak ada job yang MEMANG perlu men-deploy, beri ia KUBECONFIG dari
+    # secret yang ter-scope — jangan hidupkan kembali automount ini.
+    automountServiceAccountToken: false
     # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
     # ns arc-runners dari simpelv2-staging (PAT read:packages).
     imagePullSecrets:
