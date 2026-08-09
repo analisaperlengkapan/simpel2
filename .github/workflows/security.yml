@@ -82,6 +82,32 @@ jobs:
               cargo install cargo-audit --locked
             fi
           fi
+      # Beberapa entri ignore di .cargo/audit.toml dibenarkan HANYA karena
+      # crate-nya tak pernah dikompilasi: ia dependency opsional yang tak
+      # diaktifkan feature mana pun, dan cuma tercatat di Cargo.lock (lockfile
+      # bersifat feature-agnostic). Alasan seperti itu bisa basi diam-diam
+      # begitu ada yang mengaktifkan feature-nya, jadi tegakkan secara mekanis
+      # alih-alih mengandalkan komentar. `cargo tree -i` keluar 0 walau paket
+      # tak ditemukan, jadi yang diperiksa adalah ADA/TIDAKNYA baris output.
+      - name: Assert lockfile-only audit ignores still hold
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          # crate -> advisory yang di-ignore atas dasar "tak pernah dikompilasi"
+          for pair in "rkyv:RUSTSEC-2026-0235"; do
+            crate="${pair%%:*}"
+            advisory="${pair##*:}"
+            if cargo tree --workspace --all-features --target all \
+                 -i "$crate" 2>/dev/null | grep -q "^${crate} v"; then
+              echo "::error file=.cargo/audit.toml::${crate} kini MASUK build graph — ${advisory} tak lagi lockfile-only. Cabut ignore-nya dan tangani advisory sungguhan."
+              fail=1
+            else
+              echo "ok: ${crate} tetap di luar build graph (${advisory} lockfile-only)"
+            fi
+          done
+          exit "$fail"
+
       - name: cargo audit
         run: cargo audit
 
