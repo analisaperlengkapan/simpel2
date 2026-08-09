@@ -221,6 +221,25 @@ entri **wajib** memuat alasannya. Lihat memori `project_gate_scope_must_be_deriv
 > Catatan Leptos: `#[component]` menyalin doc-comment ke `Props` dan
 > `__component_*`, jadi SATU doctest rusak muncul sebagai TIGA kegagalan.
 
+**Langkah `--doc` juga diturunkan, bukan ditempel di semua crate.** Penjaga
+membaca sumber tiap crate: crate yang punya contoh yang benar-benar dikompilasi
+rustdoc (fence kosong / `rust` / `no_run` / `compile_fail` — `ignore` **tidak**)
+WAJIB punya langkah `--doc`; yang tidak punya, tidak. Sebabnya bukan kerapian:
+`perlengkapan-microfrontend` hanya di-build untuk wasm32, jadi langkah `--doc`
+di sana mengompilasi **pohon dependensi host kedua** — dan melakukannya untuk
+NOL doctest (satu-satunya fence-nya `rust,ignore`). Runner ARC 6Gi-nya mati
+("the self-hosted runner lost communication with the server"). Gate tak boleh
+lebih mahal dari yang digerbangnya. Menambah contoh nyata pertama ke crate
+seperti itu = penjaga merah, dan langkahnya wajib dipasang.
+
+**Penjaga wajib diuji lawan regresi yang ia klaim tangkap.** Penjaga cakupan
+menjalankan **mutation self-test** tiap invocation: ia menghapus
+satu entri matriks dan satu perintah `cargo test --doc` dari salinan `ci.yml`
+di memori, lalu memastikan dirinya merah. Ini bukan seremonial — tes itulah yang
+menemukan penjaga versi pertama LULUS saat baris `run:` dihapus, karena **nama
+step** (`- name: cargo test --doc (host)`) masih memuat perintahnya sehingga
+terbaca sebagai cakupan. Tidak ada cara lain menemukannya.
+
 ## ⚠️ Aturan AI untuk Pengujian
 
 ❌ **DON'T:**

@@ -1038,7 +1038,10 @@ jobs:
     name: Test Rust (antarmuka-portal)
     needs: detect
     runs-on: arc-simpel
-    timeout-minutes: 60
+    # Measured 21m end-to-end with the host doctest pass (6.5m wasm check +
+    # 12.7m doctest compile); 45 leaves room for a cold cache and node
+    # contention without letting a wedged job sit for an hour.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1066,6 +1069,11 @@ jobs:
       # still imported `portal_microfrontend::pages::logged_out`, a path the
       # F0-B feature-first move deleted, so the documented import was simply
       # wrong and nothing could tell us. See the note on test-lib-core. (#115)
+      #
+      # Its sibling test-antarmuka-perlengkapan has NO such step, on purpose —
+      # that crate has no runnable doc example, so the same host compile would
+      # buy nothing. check-crate-ci-coverage.py derives which crates need this
+      # from their sources, so the asymmetry cannot drift into a gap.
       - name: cargo test --doc (host)
         env:
           RUST_BACKTRACE: 1
@@ -1075,7 +1083,9 @@ jobs:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
     runs-on: arc-simpel
-    timeout-minutes: 60
+    # Back to 30 now that the host doctest pass is gone: this job is the wasm32
+    # check only, as it was before #115.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1094,11 +1104,13 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo check -p perlengkapan-microfrontend --target wasm32-unknown-unknown
-      # Host-target doctest compile; see the note in test-antarmuka-portal. (#115)
-      - name: cargo test --doc (host)
-        env:
-          RUST_BACKTRACE: 1
-        run: cargo test -p perlengkapan-microfrontend --doc --no-fail-fast
+      # No `cargo test --doc` step here, unlike test-antarmuka-portal: this
+      # crate has no runnable doc example (its single fence is ```rust,ignore),
+      # so the pass would compile a whole second, HOST-target dependency tree to
+      # run zero tests. It did exactly that once and starved its 6Gi ARC runner
+      # ("the self-hosted runner lost communication with the server"). Adding
+      # the first real example here turns check-crate-ci-coverage.py red, which
+      # is where the requirement to re-add this step comes from. (#115)
 
   test-services:
     name: Test Rust (${{ matrix.tier }})
