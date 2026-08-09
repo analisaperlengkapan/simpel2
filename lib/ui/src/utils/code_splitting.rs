@@ -13,77 +13,75 @@
 //! - Feature routes (dashboard, apps) are lazy loaded
 //! - Large components are split into separate chunks
 //! - Preloading on hover for better UX
+//!
+//! **Note**: True lazy loading with dynamic imports is not yet fully supported
+//! in Leptos 0.8 due to WASM limitations. The current approach focuses on:
+//! - Build-time code splitting via Trunk configuration
+//! - Route-based chunking through separate WASM modules
+//! - Preloading strategies for better perceived performance
+//!
+//! Instead of runtime lazy loading, we use build-time optimization:
+//!
+//! 1. **Separate Microfrontends**: Each microfrontend is a separate WASM bundle
+//! 2. **Optimized Builds**: Use `-Oz` optimization for smaller bundles
+//! 3. **Preloading**: Prefetch routes on hover for instant navigation
+//! 4. **Compression**: Enable gzip/brotli in Nginx for 70%+ size reduction
+//!
+//! # Example: Route Organization
+//!
+//! ```rust
+//! use leptos::prelude::*;
+//! use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
+//! use lib_ui::utils::code_splitting::RouteLoadingSkeleton;
+//!
+//! // Placeholder components
+//! #[component] fn HomePage() -> impl IntoView { view! { "Home" } }
+//! #[component] fn LoginPage() -> impl IntoView { view! { "Login" } }
+//! #[component] fn DashboardPage() -> impl IntoView { view! { "Dashboard" } }
+//! #[component] fn AppsPage() -> impl IntoView { view! { "Apps" } }
+//!
+//! // Organize routes by criticality
+//! #[component]
+//! pub fn App() -> impl IntoView {
+//!     view! {
+//!         <Router>
+//!             <Routes fallback=|| "Not found">
+//!                 // Critical routes - always loaded
+//!                 <Route path=StaticSegment("/") view=HomePage />
+//!                 <Route path=StaticSegment("/login") view=LoginPage />
+//!
+//!                 // Feature routes - loaded on demand
+//!                 <Route path=StaticSegment("/dashboard") view=DashboardPage />
+//!                 <Route path=StaticSegment("/apps") view=AppsPage />
+//!             </Routes>
+//!         </Router>
+//!     }
+//! }
+//! ```
+//!
+//! # Preloading Example
+//!
+//! ```rust
+//! use leptos::prelude::*;
+//! use lib_ui::utils::code_splitting::preload_route;
+//!
+//! #[component]
+//! pub fn NavLink() -> impl IntoView {
+//!     view! {
+//!         <a
+//!             href="/dashboard"
+//!             on:mouseenter=move |_| {
+//!                 preload_route("dashboard");
+//!             }
+//!         >
+//!             "Dashboard"
+//!         </a>
+//!     }
+//! }
+//! ```
 
 use leptos::prelude::*;
 
-/// Lazy loading utilities for code splitting
-///
-/// **Note**: True lazy loading with dynamic imports is not yet fully supported
-/// in Leptos 0.8 due to WASM limitations. The current approach focuses on:
-/// - Build-time code splitting via Trunk configuration
-/// - Route-based chunking through separate WASM modules
-/// - Preloading strategies for better perceived performance
-///
-/// # Code Splitting Strategy
-///
-/// Instead of runtime lazy loading, we use build-time optimization:
-///
-/// 1. **Separate Microfrontends**: Each microfrontend is a separate WASM bundle
-/// 2. **Optimized Builds**: Use `-Oz` optimization for smaller bundles
-/// 3. **Preloading**: Prefetch routes on hover for instant navigation
-/// 4. **Compression**: Enable gzip/brotli in Nginx for 70%+ size reduction
-///
-/// # Example: Route Organization
-///
-/// ```rust
-/// use leptos::prelude::*;
-/// use leptos_router::{components::{Router, Routes, Route}, StaticSegment};
-/// use lib_ui::utils::code_splitting::RouteLoadingSkeleton;
-///
-/// // Placeholder components
-/// #[component] fn HomePage() -> impl IntoView { view! { "Home" } }
-/// #[component] fn LoginPage() -> impl IntoView { view! { "Login" } }
-/// #[component] fn DashboardPage() -> impl IntoView { view! { "Dashboard" } }
-/// #[component] fn AppsPage() -> impl IntoView { view! { "Apps" } }
-///
-/// // Organize routes by criticality
-/// #[component]
-/// pub fn App() -> impl IntoView {
-///     view! {
-///         <Router>
-///             <Routes fallback=|| "Not found">
-///                 // Critical routes - always loaded
-///                 <Route path=StaticSegment("/") view=HomePage />
-///                 <Route path=StaticSegment("/login") view=LoginPage />
-///
-///                 // Feature routes - loaded on demand
-///                 <Route path=StaticSegment("/dashboard") view=DashboardPage />
-///                 <Route path=StaticSegment("/apps") view=AppsPage />
-///             </Routes>
-///         </Router>
-///     }
-/// }
-/// ```
-///
-/// # Preloading Example
-///
-/// ```rust
-/// use lib_ui::utils::code_splitting::preload_route;
-///
-/// #[component]
-/// pub fn NavLink() -> impl IntoView {
-///     view! {
-///         <a
-///             href="/dashboard"
-///             on:mouseenter=move |_| {
-///                 preload_route("dashboard");
-///             }
-///         >
-///             "Dashboard"
-///         </a>
-///     }
-/// }
-/// ```
 /// Default loading skeleton for lazy-loaded routes
 ///
 /// Provides a consistent loading experience across the application

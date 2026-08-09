@@ -252,6 +252,15 @@ jobs:
       - name: Validate Cargo versioning
         shell: bash
         run: python3 ./infra/scripts/check-cargo-versioning.py check
+      # A crate added to Cargo.toml but not to the clippy/test matrices in this
+      # file is silently ungated — that is how secreton-auto-unseal and
+      # secreton-k8s-operator went 7.4k lines without ever being linted or
+      # tested (#125). The guard derives the crate list from the workspace
+      # manifest and the covered set from this workflow, so neither side can be
+      # forgotten. Stdlib-only on purpose: the ARC runner image ships no PyYAML.
+      - name: Every workspace crate is covered by a CI cargo job
+        shell: bash
+        run: python3 ./infra/scripts/check-crate-ci-coverage.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
@@ -322,8 +331,14 @@ jobs:
           - name: layanan-integrasi
             packages: "-p layanan-integrasi"
             scope: "--all-targets --all-features"
+          # secreton-auto-unseal and secreton-k8s-operator were absent from this
+          # list AND from the test matrix, so 7.4k lines were never linted or
+          # tested on any PR — a break only surfaced at release time, when
+          # release.yml's `cargo build --workspace` finally compiled them.
+          # `check-crate-ci-coverage.py` (Enforce Cargo Versioning job) now fails
+          # if a workspace member is missing from either matrix. (#125)
           - name: layanan-secreton
-            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
             scope: "--all-targets --all-features"
           - name: layanan-gateway
             packages: "-p layanan-gateway"
@@ -874,6 +889,18 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-core --all-targets --no-fail-fast
+      # `--all-targets` expands to --lib --bins --tests --benches --examples —
+      # it does NOT include doctests, and cargo rejects `--doc` alongside any
+      # other target selector, so this must be its own step. Until it existed no
+      # CI job in the repo had ever compiled a doctest, and five crates shipped
+      # examples that could not compile (stale crate paths from the crate split,
+      # an async fn documented as sync, an HSM API documented but never built).
+      # The step reuses the target/ dir the one above just warmed, so the
+      # marginal cost is the doctest compile alone. (#115)
+      - name: cargo test --doc
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-core --doc --no-fail-fast
 
   test-lib-backend:
     name: Test Rust (lib-backend)
@@ -897,6 +924,11 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-backend --all-targets --no-fail-fast
+      # See the note on test-lib-core: --all-targets excludes doctests. (#115)
+      - name: cargo test --doc
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-backend --doc --no-fail-fast
 
   test-lib-crypto:
     name: Test Rust (lib-crypto)
@@ -920,6 +952,11 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-crypto --all-targets --no-fail-fast
+      # See the note on test-lib-core: --all-targets excludes doctests. (#115)
+      - name: cargo test --doc
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-crypto --doc --no-fail-fast
 
   test-lib-perlengkapan:
     name: Test Rust (lib-perlengkapan)
@@ -943,6 +980,11 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo test -p lib-perlengkapan --all-targets --no-fail-fast
+      # See the note on test-lib-core: --all-targets excludes doctests. (#115)
+      - name: cargo test --doc
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-perlengkapan --doc --no-fail-fast
 
   test-lib-ui:
     name: Test Rust (lib-ui)
@@ -983,12 +1025,20 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo build -p lib-ui --features ssr
+      # Doctests DO run here: they compile for the host, which this job already
+      # does. Worth having — lib-ui's `code_splitting` module shipped a
+      # `#[component]` example missing `use leptos::prelude::*;`, uncatchable by
+      # any other gate. See the note on test-lib-core. (#115)
+      - name: cargo test --doc
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p lib-ui --doc --no-fail-fast
 
   test-antarmuka-portal:
     name: Test Rust (antarmuka-portal)
     needs: detect
     runs-on: arc-simpel
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1010,12 +1060,22 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo check -p portal-microfrontend --target wasm32-unknown-unknown
+      # Doctests run on the HOST target (rustdoc cannot execute wasm32), so this
+      # step adds a host compile of the crate on top of the wasm check above —
+      # hence the raised timeout. It earns it: this crate's `logged_out` example
+      # still imported `portal_microfrontend::pages::logged_out`, a path the
+      # F0-B feature-first move deleted, so the documented import was simply
+      # wrong and nothing could tell us. See the note on test-lib-core. (#115)
+      - name: cargo test --doc (host)
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p portal-microfrontend --doc --no-fail-fast
 
   test-antarmuka-perlengkapan:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
     runs-on: arc-simpel
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1034,6 +1094,11 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: cargo check -p perlengkapan-microfrontend --target wasm32-unknown-unknown
+      # Host-target doctest compile; see the note in test-antarmuka-portal. (#115)
+      - name: cargo test --doc (host)
+        env:
+          RUST_BACKTRACE: 1
+        run: cargo test -p perlengkapan-microfrontend --doc --no-fail-fast
 
   test-services:
     name: Test Rust (${{ matrix.tier }})
@@ -1065,8 +1130,12 @@ jobs:
           - tier: layanan-integrasi
             packages: "-p layanan-integrasi"
             test_args: ""
+          # secreton-auto-unseal / secreton-k8s-operator added here and to the
+          # clippy matrix — they were in neither, so 7.4k lines (including a
+          # ~700-line integration suite) had never been executed by any gate.
+          # See #125 and the guard in the Enforce Cargo Versioning job.
           - tier: layanan-secreton
-            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication"
+            packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
             # Heaviest tier (13 crates, PG property tests). Test binaries
             # default --test-threads to ncpus (dozens on the ARC host class),
             # which resource-kills the runner with no assertion output — the
@@ -1156,9 +1225,11 @@ jobs:
       - name: cargo test (${{ matrix.tier }})
         env:
           RUST_BACKTRACE: 1
-        # `--all-targets` skip doctests. authenc-federation dan
-        # authenc-storage punya beberapa doctest outdated (compile fail)
-        # yang perlu di-rewrite. Unit/integration tests tetap jalan.
+        # `--all-targets` skips doctests — those run in the separate step below
+        # (cargo rejects `--doc` next to any other target selector). The stale
+        # note that used to sit here said authenc-federation/authenc-storage
+        # "punya beberapa doctest outdated yang perlu di-rewrite"; they have now
+        # been rewritten, along with three other crates', and the gate is on.
         # TEST_ARGS is set (possibly empty) by the Postgres step for the
         # perlengkapan tier; for every other tier it is unset, so we fall back
         # to the matrix value. Use ${VAR-default} (no colon) so a deliberate
@@ -1172,6 +1243,27 @@ jobs:
           # flags that must reach cargo as separate argv entries. Quoting them
           # would pass one glued argument and break every matrix tier.
           cargo test ${{ matrix.packages }} $TARGETS --no-fail-fast $ARGS
+      # Doctests, which the step above cannot include. Own step, same warmed
+      # target/ dir, so the marginal cost is the doctest compile alone.
+      #
+      # This is the gate that first ran on 2026-08-09 and found 20 broken
+      # examples across five crates: stale `authenc::` / `secreton_core::` crate
+      # paths left by the crate splits, `HealthCheckRegistry::register`
+      # documented as sync after it became async, and an entire HSM module doc
+      # written against an API (`connect`, `generate_key`, `get_audit_logs`)
+      # that was never built. Every one of them is an example a developer would
+      # copy and find broken. (#115)
+      #
+      # No matrix.target_args here: the secreton `--lib --bins --tests` narrowing
+      # exists only to keep criterion benches from running, and benches are not
+      # doctests.
+      - name: cargo test --doc (${{ matrix.tier }})
+        env:
+          RUST_BACKTRACE: 1
+        run: |
+          # shellcheck disable=SC2086  # see the note above: matrix.packages is
+          # several `-p x` flags that must reach cargo as separate argv entries.
+          cargo test ${{ matrix.packages }} --doc --no-fail-fast
 
   # Test Monolith (PHPUnit) — ENABLED (F5-A #31). Scope = simpelv1 ↔ Rust-service
   # INTEGRATION contract tests only (authenc/secreton via Http::fake): they

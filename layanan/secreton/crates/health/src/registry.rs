@@ -103,7 +103,7 @@ impl HealthCheckRegistry {
     /// #[tokio::main]
     /// async fn main() {
     ///     let mut registry = HealthCheckRegistry::new();
-    ///     registry.register(Box::new(MyCheck)).unwrap();
+    ///     registry.register(Box::new(MyCheck)).await.unwrap();
     /// }
     /// ```
     pub async fn register(&mut self, check: BoxedHealthCheck) -> Result<(), HealthCheckError> {

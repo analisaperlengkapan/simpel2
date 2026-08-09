@@ -735,7 +735,7 @@ impl FipsAuditLogger {
     ///
     /// # Example
     /// ```rust
-    /// use authenc::services::fips::FipsAuditLogger;
+    /// use authenc_core::services::fips::FipsAuditLogger;
     ///
     /// let logger = FipsAuditLogger::new(true); // Enable audit logging
     /// // Logger is ready for compliance event tracking

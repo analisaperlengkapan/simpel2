@@ -17,7 +17,7 @@ use leptos::prelude::*;
 ///
 /// # Example
 /// ```rust
-/// use portal_microfrontend::pages::logged_out::LoggedOutPage;
+/// use portal_microfrontend::features::auth::pages::logged_out::LoggedOutPage;
 /// use leptos::prelude::*;
 /// use leptos_router::{components::{Route, Router, Routes}, StaticSegment};
 ///

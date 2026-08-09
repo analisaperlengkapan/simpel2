@@ -99,9 +99,16 @@ impl AutoUnsealProvider for AzureKeyVaultProvider {
     }
 
     fn metadata(&self) -> ProviderMetadata {
-        ProviderMetadata::new(
-            self.name().to_string(),
-            format!("{}/{}", self.vault_name, self.key_name),
-        )
+        // The key version belongs in the identifier: pinning a version changes
+        // which key material unseals the vault, so two providers differing only
+        // in `key_version` are NOT interchangeable and must not report the same
+        // identity. Including it also stops `key_version` from being a
+        // write-only field — it was stored by `new()` and read by nothing, which
+        // is how the never-read warning arose once this crate was finally linted.
+        let key = match &self.key_version {
+            Some(version) => format!("{}/{}/{}", self.vault_name, self.key_name, version),
+            None => format!("{}/{}", self.vault_name, self.key_name),
+        };
+        ProviderMetadata::new(self.name().to_string(), key)
     }
 }

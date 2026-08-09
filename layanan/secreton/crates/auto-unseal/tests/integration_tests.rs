@@ -425,6 +425,12 @@ async fn test_retry_with_exponential_backoff() {
         max_retry_delay_secs: 0,
     };
 
+    // The mock counts EVERY provider call, and the encrypt above was one, so
+    // measure the delta. Keep a handle on the counter before the provider is
+    // moved into the manager.
+    let calls_before = provider.get_call_count().await;
+    let call_count = provider.call_count.clone();
+
     let manager = AutoUnsealManager::new(Box::new(provider), fallback_config);
 
     let start = std::time::Instant::now();
@@ -435,8 +441,18 @@ async fn test_retry_with_exponential_backoff() {
 
     let elapsed = start.elapsed();
 
-    // Verify retries occurred (4 attempts total: initial + 3 retries)
     assert_eq!(result, UnsealResult::FallbackToManual);
+
+    // Verify the retries actually HAPPENED. Until this assertion existed the
+    // test only proved the fallback verdict, which a provider that gave up
+    // immediately would also produce — the comment claimed "4 attempts total"
+    // and nothing checked it. `attempt_unseal_with_retries` returns once
+    // `attempt > max_retries`, so max_retries=3 means decrypt is called 4 times.
+    let decrypt_attempts = *call_count.lock().await - calls_before;
+    assert_eq!(
+        decrypt_attempts, 4,
+        "expected 1 initial attempt + 3 retries before falling back"
+    );
 
     // With zero delay, should complete quickly
     assert!(elapsed.as_secs() < 1);
