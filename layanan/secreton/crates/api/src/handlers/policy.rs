@@ -12,7 +12,7 @@
 //! - POST /v1/sys/policies/{name}/test - Test policy evaluation
 
 use axum::{
-    Router,
+    Extension, Router,
     extract::{Path, Query, State},
     response::Json,
     routing::{get, post},
@@ -21,11 +21,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::info;
 
-use secreton_core::{error::CoreError, models::PolicyRule};
+use secreton_core::{error::CoreError, models::PolicyRule, namespace::AdminLevel};
 
 use crate::{
     ApiError, ApiResponse, ApiResult, PaginationQuery, handlers::AppState,
-    models::PaginatedResponse,
+    middleware::RequestContext, models::PaginatedResponse,
 };
 
 /// Create policy routes
@@ -161,20 +161,52 @@ fn default_namespace() -> String {
 // Helper Functions
 // ============================================================================
 
-/// Extract user from JWT claims
-fn extract_user(_state: &AppState) -> Result<String, CoreError> {
-    // Extract user ID from request context
-    // In production, this would come from JWT middleware via request extensions
-    // For now, return system user for API operations
-    Ok("system".to_string())
+/// The caller's identity, for `created_by` / `updated_by` attribution.
+///
+/// This used to return the literal `"system"` regardless of who called, so every
+/// policy write was attributed to a principal that never made it. The real
+/// identity is put in the request extensions by
+/// [`crate::middleware::auth_middleware`]; read it.
+fn extract_user(context: &RequestContext) -> Result<String, ApiError> {
+    context
+        .user_email
+        .clone()
+        .or_else(|| context.user_id.clone())
+        .ok_or(ApiError::Unauthorized)
 }
 
-/// Check if user is admin
-fn is_admin(_state: &AppState) -> Result<bool, CoreError> {
-    // Check admin level from user context
-    // In production, this would check JWT claims or user roles
-    // For now, allow admin operations for system user
-    Ok(true)
+/// Whether the caller may administer policies.
+///
+/// This used to be `Ok(true)`. Every `if !is_admin(&state)?` guard below was
+/// therefore a branch on a constant, and any authenticated principal — of any
+/// role — could create, update or delete the policies that are supposed to
+/// govern access to secrets.
+///
+/// Root tokens minted by `/v1/sys/init` carry `roles: ["root", "admin"]`
+/// (`handlers/seal.rs:774`), so bootstrap keeps working.
+fn is_admin(context: &RequestContext) -> bool {
+    if context
+        .user_roles
+        .iter()
+        .any(|r| matches!(r.to_lowercase().as_str(), "admin" | "root" | "superuser"))
+    {
+        return true;
+    }
+
+    context
+        .jwt_claims
+        .as_ref()
+        .is_some_and(|claims| claims.admin_level == AdminLevel::Pusat)
+}
+
+/// Reject a non-admin caller for `operation`.
+fn require_admin(context: &RequestContext, operation: &str) -> Result<(), ApiError> {
+    if is_admin(context) {
+        return Ok(());
+    }
+    Err(ApiError::Core(CoreError::IamPermissionDenied {
+        operation: operation.to_string(),
+    }))
 }
 
 // ============================================================================
@@ -182,9 +214,10 @@ fn is_admin(_state: &AppState) -> Result<bool, CoreError> {
 // ============================================================================
 
 /// List all policies with pagination
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip(state, context))]
 pub async fn list_policies(
     State(state): State<AppState>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<ListPoliciesQuery>,
 ) -> ApiResult<Json<PaginatedResponse<PolicyResponse>>> {
     info!(
@@ -192,12 +225,7 @@ pub async fn list_policies(
         query.namespace, query.is_active, query.search
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "list_policies".to_string(),
-        }));
-    }
+    require_admin(&context, "list_policies")?;
 
     let (policies, total) = state
         .policy_service
@@ -255,6 +283,7 @@ pub async fn list_policies(
 pub async fn create_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Extension(context): Extension<RequestContext>,
     Json(req): Json<CreatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
     info!(
@@ -262,14 +291,9 @@ pub async fn create_policy(
         name, req.namespace
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "create_policy".to_string(),
-        }));
-    }
+    require_admin(&context, "create_policy")?;
 
-    let user = extract_user(&state)?;
+    let user = extract_user(&context)?;
 
     let p = state
         .policy_service
@@ -303,10 +327,11 @@ pub async fn create_policy(
 }
 
 /// Get a policy by name
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip(state, context))]
 pub async fn get_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
     info!(
@@ -314,12 +339,7 @@ pub async fn get_policy(
         name, query.namespace
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "get_policy".to_string(),
-        }));
-    }
+    require_admin(&context, "get_policy")?;
 
     let p = state
         .policy_service
@@ -357,6 +377,7 @@ pub async fn get_policy(
 pub async fn update_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<NamespaceQuery>,
     Json(req): Json<UpdatePolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
@@ -365,14 +386,9 @@ pub async fn update_policy(
         name, query.namespace
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "update_policy".to_string(),
-        }));
-    }
+    require_admin(&context, "update_policy")?;
 
-    let user = extract_user(&state)?;
+    let user = extract_user(&context)?;
 
     let p = state
         .policy_service
@@ -413,10 +429,11 @@ pub async fn update_policy(
 }
 
 /// Delete a policy
-#[tracing::instrument(skip(state))]
+#[tracing::instrument(skip(state, context))]
 pub async fn delete_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Extension(context): Extension<RequestContext>,
     Query(query): Query<NamespaceQuery>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     info!(
@@ -424,12 +441,7 @@ pub async fn delete_policy(
         name, query.namespace
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "delete_policy".to_string(),
-        }));
-    }
+    require_admin(&context, "delete_policy")?;
 
     state
         .policy_service
@@ -445,6 +457,7 @@ pub async fn delete_policy(
 pub async fn test_policy(
     State(state): State<AppState>,
     Path(name): Path<String>,
+    Extension(context): Extension<RequestContext>,
     Json(req): Json<TestPolicyRequest>,
 ) -> ApiResult<Json<ApiResponse<TestPolicyResponse>>> {
     info!(
@@ -452,12 +465,7 @@ pub async fn test_policy(
         name, req.namespace, req.user, req.path, req.action
     );
 
-    // Check admin permission
-    if !is_admin(&state)? {
-        return Err(ApiError::Core(CoreError::IamPermissionDenied {
-            operation: "test_policy".to_string(),
-        }));
-    }
+    require_admin(&context, "test_policy")?;
 
     let res = state
         .policy_service
@@ -479,4 +487,90 @@ pub async fn test_policy(
     };
 
     Ok(Json(ApiResponse::success(response)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    fn ctx(roles: &[&str], admin_level: Option<AdminLevel>) -> RequestContext {
+        RequestContext {
+            request_id: "test".to_string(),
+            user_id: Some("11111111-1111-1111-1111-111111111111".to_string()),
+            user_email: Some("operator@kejaksaan.go.id".to_string()),
+            user_roles: roles.iter().map(|r| r.to_string()).collect(),
+            user_permissions: vec![],
+            start_time: Instant::now(),
+            jwt_claims: admin_level.map(|level| secreton_core::namespace::JwtClaims {
+                sub: "11111111-1111-1111-1111-111111111111".to_string(),
+                name: "Operator".to_string(),
+                email: "operator@kejaksaan.go.id".to_string(),
+                satker_code: Some("KEJARI-01".to_string()),
+                wilayah_code: None,
+                admin_level: level,
+                roles: roles.iter().map(|r| r.to_string()).collect(),
+                permissions: vec![],
+                exp: 0,
+                iat: 0,
+                iss: "secreton".to_string(),
+                metadata: Default::default(),
+            }),
+            auth_token: Some("dummy".to_string()),
+            client_ip: None,
+            user_agent: None,
+            policy_names: vec![],
+        }
+    }
+
+    /// The regression this whole change exists for: `is_admin` returned a
+    /// constant `true`, so an ordinary authenticated user could rewrite the
+    /// policies that gate every secret.
+    #[test]
+    fn an_ordinary_user_is_not_an_admin() {
+        assert!(!is_admin(&ctx(
+            &["operator_satker"],
+            Some(AdminLevel::Satker)
+        )));
+        assert!(!is_admin(&ctx(&[], None)));
+        assert!(!is_admin(&ctx(
+            &["validator_wilayah"],
+            Some(AdminLevel::Wilayah)
+        )));
+    }
+
+    #[test]
+    fn admin_root_and_pusat_are_admins() {
+        assert!(is_admin(&ctx(&["admin"], None)));
+        // Root tokens from /v1/sys/init carry both — bootstrap must keep working.
+        assert!(is_admin(&ctx(&["root", "admin"], None)));
+        assert!(
+            is_admin(&ctx(&["ADMIN"], None)),
+            "role match is case-insensitive"
+        );
+        assert!(is_admin(&ctx(
+            &["operator_satker"],
+            Some(AdminLevel::Pusat)
+        )));
+    }
+
+    #[test]
+    fn require_admin_names_the_operation_it_refused() {
+        let err = require_admin(&ctx(&["operator_satker"], None), "delete_policy").unwrap_err();
+        match err {
+            ApiError::Core(CoreError::IamPermissionDenied { operation }) => {
+                assert_eq!(operation, "delete_policy");
+            }
+            other => panic!("expected IamPermissionDenied, got {other:?}"),
+        }
+        assert!(require_admin(&ctx(&["admin"], None), "delete_policy").is_ok());
+    }
+
+    /// Attribution used to be the literal "system" for every caller.
+    #[test]
+    fn the_writer_is_the_caller_not_system() {
+        let user = extract_user(&ctx(&["admin"], None)).unwrap();
+        assert_eq!(user, "operator@kejaksaan.go.id");
+        assert_ne!(user, "system");
+    }
 }
