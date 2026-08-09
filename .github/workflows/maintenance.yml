@@ -24,6 +24,7 @@ jobs:
   workflow-syntax:
     name: Workflow Syntax (actionlint)
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       # actionlint parses the YAML *and* validates workflow semantics + the
@@ -123,9 +124,58 @@ jobs:
           fi
           echo "all ${#prefixes[@]} Dependabot prefixes satisfy the PR-title gate"
 
+      # The ARC runner reaper deletes an EphemeralRunner that still holds a job
+      # assignment after REAP_AFTER_MINUTES. That is only safe while the
+      # threshold sits ABOVE the longest run GitHub itself would still allow —
+      # otherwise the reaper kills a job that is legitimately still running.
+      # The two numbers live in different files and would drift silently, so
+      # derive both from the files instead of trusting a comment. Same yq image
+      # as the check above: the runner image ships neither yq nor PyYAML.
+      - name: Assert runner-reaper threshold covers every job timeout
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_yq() {
+            docker run --rm -v "$PWD:/repo:ro" -w /repo mikefarah/yq:4.44.3 "$@"
+          }
+
+          margin=30
+          reaper=$(run_yq '
+            select(.kind == "CronJob")
+            | .spec.jobTemplate.spec.template.spec.containers[0].env[]
+            | select(.name == "REAP_AFTER_MINUTES") | .value
+          ' infra/helm/arc/reaper.yaml)
+
+          if [ -z "$reaper" ]; then
+            echo "::error file=infra/helm/arc/reaper.yaml::REAP_AFTER_MINUTES not found"
+            exit 1
+          fi
+
+          # Every job must declare a timeout; an undeclared one silently
+          # inherits GitHub's 360-minute default and would outlive the reaper.
+          missing=$(run_yq '
+            [ .jobs[] | select(has("timeout-minutes") | not) ] | length
+          ' .github/workflows/*.yml | paste -sd+ - | bc)
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::${missing} job(s) have no timeout-minutes; they inherit the 360m default and outlive the reaper"
+            exit 1
+          fi
+
+          longest=$(run_yq '.jobs[].timeout-minutes' .github/workflows/*.yml | sort -n | tail -1)
+          required=$((longest + margin))
+
+          if [ "$reaper" -lt "$required" ]; then
+            echo "::error file=infra/helm/arc/reaper.yaml::REAP_AFTER_MINUTES=${reaper} is below the longest job timeout (${longest}m) plus ${margin}m margin = ${required}m. Raise the reaper threshold or lower the job timeout."
+            exit 1
+          fi
+
+          echo "reaper ${reaper}m >= longest job timeout ${longest}m + ${margin}m margin"
+
   dependency-health:
     name: Dependency Health
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -162,6 +212,7 @@ jobs:
   codeowners-validate:
     name: Validate CODEOWNERS
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Validate CODEOWNERS paths
@@ -191,6 +242,7 @@ jobs:
   label-sync:
     name: Sync Labels
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, 'labels.yml'))
     steps:
       - uses: actions/checkout@v7
@@ -202,6 +254,7 @@ jobs:
   stale:
     name: Stale Issues & PRs
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       issues: write

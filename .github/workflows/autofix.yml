@@ -53,6 +53,7 @@ jobs:
   guard:
     name: Anti-loop guard
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name == github.repository
     outputs:
       is_autofix: ${{ steps.check.outputs.is_autofix }}
@@ -84,6 +85,7 @@ jobs:
     name: Autofix (Rust)
     needs: guard
     runs-on: arc-simpel
+    timeout-minutes: 120
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-rust-${{ github.ref }}
@@ -216,6 +218,7 @@ jobs:
     name: Autofix (TOML)
     needs: guard
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-toml-${{ github.ref }}
@@ -287,6 +290,7 @@ jobs:
     name: Autofix (Markdown)
     needs: guard
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-markdown-${{ github.ref }}
@@ -359,6 +363,7 @@ jobs:
     name: Autofix (PHP Pint)
     needs: guard
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-php-${{ github.ref }}
@@ -439,6 +444,7 @@ jobs:
     name: Autofix (Trailing whitespace)
     needs: guard
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name == github.repository && needs.guard.outputs.is_autofix != 'true'
     concurrency:
       group: autofix-whitespace-${{ github.ref }}
@@ -518,6 +524,7 @@ jobs:
   patch-for-fork:
     name: Autofix patch (PR dari fork)
     runs-on: arc-simpel
+    timeout-minutes: 30
     if: github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout PR branch
@@ -622,6 +629,7 @@ jobs:
       - whitespace
       - patch-for-fork
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - name: Trim autofix artifacts from this runner
         shell: bash

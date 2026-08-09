@@ -68,6 +68,7 @@ jobs:
   detect:
     name: Detect Changes
     runs-on: arc-simpel
+    timeout-minutes: 30
     outputs:
       rust-backend: ${{ steps.changes.outputs.rust-backend }}
       rust-frontend: ${{ steps.changes.outputs.rust-frontend }}
@@ -155,6 +156,7 @@ jobs:
   enforce-structure:
     name: Enforce Structure
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Validate repo structure
@@ -244,6 +246,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Validate Cargo versioning
@@ -258,6 +261,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -273,6 +277,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -349,6 +354,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.monolith-php == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       # shivammathur/setup-php@v2 butuh sudo NOPASSWD untuk install PHP +
@@ -401,6 +407,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.monolith-blade == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node
@@ -462,6 +469,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.docker == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Hadolint
@@ -476,6 +484,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.yaml == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       # Self-hosted runner tidak punya pipx / yamllint / actionlint pre-
@@ -521,6 +530,7 @@ jobs:
     # (mirrors lint-sql). markdownlint lints the whole tree, not just the diff.
     if: needs.detect.outputs.markdown == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: markdownlint
@@ -594,6 +604,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.shell == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: shellcheck
@@ -607,6 +618,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.toml == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Install taplo
@@ -630,6 +642,7 @@ jobs:
     # the check is exercised when the tooling is touched.
     if: needs.detect.outputs.sql == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: SQL migration anti-pattern guard
@@ -650,6 +663,7 @@ jobs:
     # guard itself.
     if: needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - name: Orphaned-test guard
@@ -673,6 +687,7 @@ jobs:
       needs.detect.outputs.e2e == 'true' ||
       needs.detect.outputs.workflows == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       # Ensure Node is on PATH (arc-simpel runners don't ship it globally). The
@@ -694,6 +709,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -723,6 +739,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.rust-frontend == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -752,6 +769,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.rust-backend == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
@@ -794,6 +812,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.monolith-assets == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-node
@@ -808,6 +827,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.docker-has-images == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 120
     permissions:
       contents: read
       actions: read
@@ -836,6 +856,7 @@ jobs:
     name: Test Rust (lib-core)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -858,6 +879,7 @@ jobs:
     name: Test Rust (lib-backend)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -880,6 +902,7 @@ jobs:
     name: Test Rust (lib-crypto)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -902,6 +925,7 @@ jobs:
     name: Test Rust (lib-perlengkapan)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -924,6 +948,7 @@ jobs:
     name: Test Rust (lib-ui)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -963,6 +988,7 @@ jobs:
     name: Test Rust (antarmuka-portal)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -989,6 +1015,7 @@ jobs:
     name: Test Rust (antarmuka-perlengkapan)
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-rust
@@ -1012,6 +1039,7 @@ jobs:
     name: Test Rust (${{ matrix.tier }})
     needs: detect
     runs-on: arc-simpel
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       # No max-parallel cap: the 4 tiers are independent and ARC (maxRunners=20)
@@ -1157,6 +1185,7 @@ jobs:
     needs: detect
     if: needs.detect.outputs.monolith-any == 'true'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       # Sama seperti lint-php — pakai serversideup/php image (PHP 8.2 +
@@ -1260,6 +1289,7 @@ jobs:
         )
       )
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - name: Install Docker Compose v2 plugin
@@ -1321,6 +1351,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       # The ARC runner image ships the docker CLI but not the compose v2 plugin.
@@ -1460,6 +1491,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       # The custom ARC runner image ships the docker CLI (talks to the dind
@@ -1743,6 +1775,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
@@ -1863,6 +1896,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
       - name: Install Docker Compose v2 plugin
@@ -1991,6 +2025,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
@@ -2084,6 +2119,7 @@ jobs:
       needs.build-backend.result != 'failure' &&
       needs.e2e-build-images.result == 'success'
     runs-on: arc-simpel
+    timeout-minutes: 120
     env:
       POSTGRES_PASSWORD: e2e_test_pw
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
@@ -2221,6 +2257,7 @@ jobs:
       - e2e-portal
       - e2e-perlengkapan
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - name: Aggregate results
         shell: bash
@@ -2290,6 +2327,7 @@ jobs:
       - e2e-portal
       - e2e-perlengkapan
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - name: Trim CI artifacts from this runner
         shell: bash

@@ -1,0 +1,186 @@
+# reaper.yaml — pemanen runner ARC yang "zombie".
+#
+# MASALAH YANG DIPECAHKAN (kejadian nyata, 2026-08-01 s/d 2026-08-09):
+# satu EphemeralRunner memegang penugasan job `Autofix (PHP Pint)` dari PR #710.
+# PR itu ter-merge SAAT job-nya jalan; `cancel-in-progress: true` di autofix.yml
+# membuat GitHub membatalkan job dari sisi server, tapi runner tak pernah
+# menerima pesan selesai. Pod-nya idle-listening (TANPA proses `Runner.Worker`)
+# selama 8 HARI sambil tetap dihitung ARC sebagai runner aktif.
+#
+# Akibatnya deadlock: listener membaca `assigned job=1` → `decision=1` → melihat
+# `currentRunnerCount=1` sudah terpenuhi → TIDAK PERNAH membuat runner baru,
+# padahal maxRunners=20. Job `Verus Formal Verification` mengantre 19 JAM. Begitu
+# EphemeralRunner zombie dihapus manual, runner pengganti lahir 10 detik kemudian
+# dan job yang menggantung selesai hijau dalam ~2 menit.
+#
+# ARC 0.14.2 TIDAK punya penanganan bawaan untuk ini — dicek di argumen
+# controller maupun skema CRD EphemeralRunner/AutoscalingRunnerSet: tak ada
+# field lifetime/timeout apa pun. Karena itu pemanen ini dibuat sendiri.
+#
+# ── KENAPA 210 MENIT ──────────────────────────────────────────────────────────
+# Ambang HARUS di atas waktu maksimum yang masih dianggap SAH oleh GitHub.
+# Kalau tidak, pemanen ini membunuh job yang sebenarnya masih hidup.
+#
+# Sebelum ini tak satu pun job mendeklarasikan `timeout-minutes`, jadi semuanya
+# mewarisi default GitHub 360 menit — ambang berapa pun di bawah 6 jam tidak
+# aman secara prinsip. PR yang sama memasang timeout eksplisit di ke-75 job:
+#
+#     30 menit  × 55 job  (lint/scan/label/summary — maks teramati ~11 mnt)
+#    120 menit  × 18 job  (build/e2e/clippy      — maks teramati 47 mnt)
+#    180 menit  ×  2 job  (release build-backend/-frontend: satu job membangun
+#                          SELURUH workspace, belum pernah terukur)
+#
+# Jadi: 180 (deklarasi tertinggi) + 30 (margin) = 210. Di menit ke-210 GitHub
+# SUDAH PASTI membatalkan job-nya, sehingga EphemeralRunner yang masih memegang
+# penugasan secara definisi sudah mati — nol false-positive by construction,
+# bukan karena beruntung.
+#
+# INVARIAN: `REAP_AFTER_MINUTES` >= max(`timeout-minutes` di .github/workflows/)
+# + 30. Ditegakkan mekanis oleh step "Assert runner-reaper threshold" di
+# .github/workflows/maintenance.yml — menaikkan timeout job tanpa menaikkan
+# ambang ini akan memerahkan CI.
+#
+# CATATAN "recreate": tidak perlu, dan sengaja tidak dilakukan. Menghapus
+# EphemeralRunner sudah cukup — listener ARC membuat penggantinya otomatis
+# (terbukti: 10 detik). Pemanen ini hanya menghapus.
+#
+# Dipasang oleh infra/helm/arc/install.sh (idempotent `kubectl apply`), sederet
+# dengan namespace/PSA/PriorityClass — chart gha-runner-scale-set upstream tak
+# men-template objek semacam ini.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: arc-runner-reaper
+  namespace: arc-runners
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: arc-runner-reaper
+  namespace: arc-runners
+rules:
+  # Hanya EphemeralRunner, hanya di namespace ini, hanya baca + hapus.
+  # TIDAK ada akses ke pod/secret/exec — pemanen bekerja murni dari status CR.
+  - apiGroups: ["actions.github.com"]
+    resources: ["ephemeralrunners"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: arc-runner-reaper
+  namespace: arc-runners
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: arc-runner-reaper
+subjects:
+  - kind: ServiceAccount
+    name: arc-runner-reaper
+    namespace: arc-runners
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: arc-runner-reaper
+  namespace: arc-runners
+spec:
+  schedule: "*/15 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  # Sengaja dalam: run yang GAGAL = run yang MEMANEN sesuatu (lihat `exit 1` di
+  # bawah). Riwayatnya adalah catatan kekambuhan, jadi jangan cepat dibuang.
+  failedJobsHistoryLimit: 10
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 604800
+      template:
+        spec:
+          serviceAccountName: arc-runner-reaper
+          restartPolicy: Never
+          # Prioritas negatif yang sama dengan runner: pemanen tak boleh
+          # bersaing dengan produksi demi kerja housekeeping.
+          priorityClassName: arc-ci-runner
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: reaper
+              # Di-pin by DIGEST. Tag mengambang sudah tiga kali menggigit repo
+              # ini (rustlang/rust:nightly, plugin Blade, hadolint-action).
+              # alpine/k8s:1.32.13 — cocok dengan server v1.32.13, punya shell +
+              # kubectl + jq (registry.k8s.io/kubectl distroless, tanpa shell).
+              image: alpine/k8s:1.32.13@sha256:ffb0758383fdd5878419930052e2854afe6c0479303a59edaca4143ce8d3c016
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              env:
+                - name: REAP_AFTER_MINUTES
+                  value: "210"
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+
+                  max_age=$(( REAP_AFTER_MINUTES * 60 ))
+                  now=$(date -u +%s)
+                  tab=$(printf '\t')
+
+                  # Kandidat = runner yang (a) pod-nya hidup, (b) MEMEGANG
+                  # penugasan job, dan (c) sudah lebih tua dari ambang. Syarat
+                  # (b) penting: runner tanpa penugasan sedang menunggu wajar
+                  # dan bukan urusan kita — ARC sendiri yang membereskannya.
+                  kubectl -n arc-runners get ephemeralrunner -o json \
+                    | jq -r --argjson now "$now" --argjson max "$max_age" '
+                        .items[]
+                        | select(.status.phase == "Running")
+                        | select(((.status.jobId // "") | length) > 0)
+                        | ($now - (.metadata.creationTimestamp | fromdateiso8601)) as $age
+                        | select($age > $max)
+                        | [ .metadata.name,
+                            ($age / 60 | floor | tostring),
+                            (.status.jobDisplayName // "?"),
+                            ((.status.workflowRunId // 0) | tostring)
+                          ] | @tsv
+                      ' > /tmp/stale.tsv
+
+                  if [ ! -s /tmp/stale.tsv ]; then
+                    echo "ok: tidak ada EphemeralRunner yang macet (ambang ${REAP_AFTER_MINUTES}m)"
+                    exit 0
+                  fi
+
+                  while IFS="$tab" read -r name age job run; do
+                    echo "REAP runner=${name} umur=${age}m job=\"${job}\" run=${run}"
+                    kubectl -n arc-runners delete ephemeralrunner "$name" --wait=false
+                  done < /tmp/stale.tsv
+
+                  # Keluar TIDAK-NOL walau pemanenan berhasil. Ini disengaja:
+                  # auto-healing yang senyap menyembunyikan kekambuhan, dan
+                  # zombie ini bukan yang pertama. Run yang gagal tersimpan di
+                  # riwayat Job (failedJobsHistoryLimit: 10) sehingga polanya
+                  # tetap terlihat, bukan tertutup rapi.
+                  echo "::wedged-runner-reaped:: $(wc -l < /tmp/stale.tsv) runner dipanen — selidiki penyebabnya"
+                  exit 1
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            # readOnlyRootFilesystem: true → /tmp harus disediakan sendiri.
+            - name: tmp
+              emptyDir: {}

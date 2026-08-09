@@ -31,6 +31,7 @@ jobs:
   validate:
     name: Validate & Generate Changelog
     runs-on: arc-simpel
+    timeout-minutes: 30
     outputs:
       version: ${{ steps.version.outputs.version }}
       previous-tag: ${{ steps.previous.outputs.tag }}
@@ -118,6 +119,7 @@ jobs:
     name: Build Backend Binaries
     needs: validate
     runs-on: arc-simpel
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
@@ -163,6 +165,7 @@ jobs:
     name: Build Microfrontends
     needs: validate
     runs-on: arc-simpel
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v7
         with:
@@ -231,6 +234,7 @@ jobs:
     name: Build & Sign Image (${{ matrix.image.name }})
     needs: validate
     runs-on: arc-simpel
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: write
@@ -406,6 +410,7 @@ jobs:
     needs: [build-docker]
     if: always()
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - name: Trim BuildKit cache & dangling Docker images
         shell: bash
@@ -457,6 +462,7 @@ jobs:
     name: Publish GitHub Release
     needs: [validate, build-backend, build-frontend, build-docker]
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
