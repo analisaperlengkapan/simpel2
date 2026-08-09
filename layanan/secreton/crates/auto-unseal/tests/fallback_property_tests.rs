@@ -46,10 +46,6 @@ impl FailingMockProvider {
             always_fail: true,
         }
     }
-
-    fn get_call_count(&self) -> u32 {
-        self.call_count.load(Ordering::SeqCst)
-    }
 }
 
 #[async_trait::async_trait]

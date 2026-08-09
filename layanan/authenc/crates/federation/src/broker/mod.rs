@@ -113,7 +113,7 @@ impl IdentityBrokerRegistry {
     ///
     /// # Example
     /// ```rust
-    /// use authenc::services::broker::IdentityBrokerRegistry;
+    /// use authenc_federation::broker::IdentityBrokerRegistry;
     ///
     /// let registry = IdentityBrokerRegistry::new();
     /// // Register brokers...
@@ -270,7 +270,7 @@ impl LdapIdentityBroker {
     ///
     /// # Example
     /// ```rust
-    /// use authenc::services::broker::{LdapIdentityBroker, LdapConfig};
+    /// use authenc_federation::broker::{LdapIdentityBroker, LdapConfig};
     ///
     /// let config = LdapConfig {
     ///     host: "ldap.example.com".to_string(),
@@ -683,7 +683,7 @@ impl SocialIdentityBroker {
     ///
     /// # Example
     /// ```rust
-    /// use authenc::services::broker::{SocialIdentityBroker, SocialConfig, IdentityProviderType};
+    /// use authenc_federation::broker::{SocialIdentityBroker, SocialConfig, IdentityProviderType};
     ///
     /// let config = SocialConfig {
     ///     client_id: "google-client-id".to_string(),

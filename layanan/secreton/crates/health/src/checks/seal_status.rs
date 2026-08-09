@@ -33,15 +33,25 @@ pub trait SealStatusProvider: Send + Sync {
 /// # Example
 ///
 /// ```rust
-/// use secreton_health::{HealthCheck, HealthCheckRegistry};
-/// use secreton_health::checks::SealStatusHealthCheck;
-/// use secreton_core::services::seal::SealService;
+/// use secreton_health::HealthCheckRegistry;
+/// use secreton_health::checks::{SealStatusHealthCheck, SealStatusProvider};
+/// use async_trait::async_trait;
 /// use std::sync::Arc;
+///
+/// // In production the provider is secreton-core's `SealService`. The check is
+/// // generic over `SealStatusProvider` precisely so this crate does NOT depend
+/// // on secreton-core — so the example supplies its own implementor rather
+/// // than naming a type this crate cannot see.
+/// struct Unsealed;
+///
+/// #[async_trait]
+/// impl SealStatusProvider for Unsealed {
+///     async fn is_sealed(&self) -> bool { false }
+/// }
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let seal_service = Arc::new(SealService::new(Default::default()));
-///     let health_check = SealStatusHealthCheck::new(seal_service);
+///     let health_check = SealStatusHealthCheck::new(Arc::new(Unsealed));
 ///
 ///     let mut registry = HealthCheckRegistry::new();
 ///     registry.register(Box::new(health_check)).await.unwrap();

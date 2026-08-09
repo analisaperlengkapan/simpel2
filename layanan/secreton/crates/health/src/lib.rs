@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```rust
-//! use secreton_health::{HealthCheck, HealthCheckRegistry, HealthStatus};
+//! use secreton_health::{HealthCheck, HealthCheckRegistry, HealthCheckResult, HealthStatus};
 //! use async_trait::async_trait;
 //!
 //! struct DatabaseHealthCheck;
@@ -34,7 +34,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let mut registry = HealthCheckRegistry::new();
-//!     registry.register(Box::new(DatabaseHealthCheck));
+//!     registry.register(Box::new(DatabaseHealthCheck)).await.unwrap();
 //!
 //!     let results = registry.check_all().await;
 //!     println!("Overall status: {:?}", results.overall_status());

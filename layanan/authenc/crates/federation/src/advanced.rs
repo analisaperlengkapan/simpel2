@@ -161,7 +161,7 @@ impl LdapFederationProvider {
     ///
     /// # Example
     /// ```rust
-    /// use authenc::services::advanced_federation::{LdapFederationProvider, LdapConfig, LdapSyncSettings};
+    /// use authenc_federation::advanced::{LdapFederationProvider, LdapConfig, LdapSyncSettings};
     ///
     /// // Note: LdapConfig requires all fields to be initialized
     /// // This is a simplified example - see LdapConfig struct for all required fields

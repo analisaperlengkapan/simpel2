@@ -3,9 +3,13 @@
 //! Provides easy creation and configuration of different storage backends.
 //! Follows HashiCorp Engine patterns for backend selection and configuration.
 
-use crate::{
-    FileConfig, MemoryBackend, StorageBackend, StorageError, StorageResult, backends::FileBackend,
-};
+// `StorageError` is deliberately NOT imported here: every use of it below sits
+// inside a `#[cfg(feature = ...)]` backend arm, so with no optional backend
+// feature enabled the import is dead and `unused_imports` fires. Referring to it
+// as `crate::StorageError` at the (already cfg-gated) call sites keeps the
+// import list from having to track the feature set — a cfg'd `use` would have to
+// list every backend feature and would rot the next time one is added.
+use crate::{FileConfig, MemoryBackend, StorageBackend, StorageResult, backends::FileBackend};
 
 #[cfg(feature = "postgres")]
 use crate::backends::PostgresBackend;
@@ -129,12 +133,11 @@ impl StorageFactory {
 
             #[cfg(feature = "consul")]
             StorageBackendType::Consul => {
-                let consul_config =
-                    config
-                        .consul_config
-                        .ok_or_else(|| StorageError::ConfigurationError {
-                            message: "Consul backend configuration required".to_string(),
-                        })?;
+                let consul_config = config.consul_config.ok_or_else(|| {
+                    crate::StorageError::ConfigurationError {
+                        message: "Consul backend configuration required".to_string(),
+                    }
+                })?;
                 let backend = ConsulBackend::new(consul_config).await?;
                 let adapter = crate::KvBackendAdapter::new(backend);
                 Ok(Arc::new(adapter))
@@ -145,7 +148,7 @@ impl StorageFactory {
                 let s3_config =
                     config
                         .s3_config
-                        .ok_or_else(|| StorageError::ConfigurationError {
+                        .ok_or_else(|| crate::StorageError::ConfigurationError {
                             message: "S3 backend configuration required".to_string(),
                         })?;
                 let backend = S3Backend::new(s3_config).await?;
@@ -155,18 +158,17 @@ impl StorageFactory {
 
             #[cfg(feature = "postgres")]
             StorageBackendType::Postgres => {
-                let postgres_config =
-                    config
-                        .postgres_config
-                        .ok_or_else(|| StorageError::ConfigurationError {
-                            message: "PostgreSQL backend configuration required".to_string(),
-                        })?;
+                let postgres_config = config.postgres_config.ok_or_else(|| {
+                    crate::StorageError::ConfigurationError {
+                        message: "PostgreSQL backend configuration required".to_string(),
+                    }
+                })?;
                 let backend = PostgresBackend::new(&postgres_config.connection_string).await?;
                 Ok(Arc::new(backend))
             }
 
             #[cfg(feature = "raft-consensus")]
-            StorageBackendType::Raft => Err(StorageError::ConfigurationError {
+            StorageBackendType::Raft => Err(crate::StorageError::ConfigurationError {
                 message: "Raft backend requires RaftCluster - use RaftCluster::new() directly"
                     .to_string(),
             }),

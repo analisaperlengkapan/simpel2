@@ -191,6 +191,55 @@ ia benar-benar kompilasi dan lulus** sebelum diandalkan.
 mempercayai sebuah suite, pastikan ia benar-benar dijalankan dan asersinya bisa
 gagal. Bandingkan dengan asersi lemah di E2E (`ada h1` lolos di halaman 404).
 
+### Cakupan gate WAJIB diturunkan, bukan ditulis-tangan (#115/#125)
+
+Pelajaran yang sama muncul lagi, dua kali, pada **cakupan** gate — bukan pada
+gate-nya:
+
+1. **`--all-targets` TIDAK mencakup doctest.** Ia hanya `--lib --bins --tests
+   --benches --examples`. Jadi sampai 2026-08-09 **tak satu pun doctest pernah
+   dikompilasi** di CI, dan 20 contoh rusak di 5 crate: path crate basi
+   peninggalan crate-split (`authenc::`, `secreton_core::`), `register` yang
+   didokumentasikan sinkron setelah menjadi `async`, serta seluruh doc modul
+   HSM yang ditulis melawan API (`connect`, `generate_key`, `get_audit_logs`)
+   yang **tak pernah dibangun**. Tiap crate kini punya langkah
+   `cargo test -p <crate> --doc` tersendiri (cargo menolak `--doc` bersama
+   selektor target lain).
+2. **Matriks `packages:` di `ci.yml` tak ikut tumbuh.** `secreton-auto-unseal`
+   dan `secreton-k8s-operator` (7,4k baris + suite integrasi ~700 baris) tak ada
+   di matriks clippy MAUPUN test; keduanya baru ter-compile saat
+   `release.yml --workspace` — setelah merge.
+
+**Aturan:** cakupan gate diturunkan dari sumber kebenaran lalu di-diff, tidak
+didaftar manual. Penjaganya `infra/scripts/check-crate-ci-coverage.py`
+(**BLOCKING**, di job *Enforce Cargo Versioning*): daftar crate dibaca dari
+`Cargo.toml`, himpunan yang tercakup dari `ci.yml`, lalu selisihnya digagalkan.
+Menambah crate ke workspace tanpa memasukkannya ke matriks = CI merah.
+`COMPILE_ONLY` (3 crate wasm/UI) adalah satu-satunya bagian manual dan tiap
+entri **wajib** memuat alasannya. Lihat memori `project_gate_scope_must_be_derived`.
+
+> Catatan Leptos: `#[component]` menyalin doc-comment ke `Props` dan
+> `__component_*`, jadi SATU doctest rusak muncul sebagai TIGA kegagalan.
+
+**Langkah `--doc` juga diturunkan, bukan ditempel di semua crate.** Penjaga
+membaca sumber tiap crate: crate yang punya contoh yang benar-benar dikompilasi
+rustdoc (fence kosong / `rust` / `no_run` / `compile_fail` — `ignore` **tidak**)
+WAJIB punya langkah `--doc`; yang tidak punya, tidak. Sebabnya bukan kerapian:
+`perlengkapan-microfrontend` hanya di-build untuk wasm32, jadi langkah `--doc`
+di sana mengompilasi **pohon dependensi host kedua** — dan melakukannya untuk
+NOL doctest (satu-satunya fence-nya `rust,ignore`). Runner ARC 6Gi-nya mati
+("the self-hosted runner lost communication with the server"). Gate tak boleh
+lebih mahal dari yang digerbangnya. Menambah contoh nyata pertama ke crate
+seperti itu = penjaga merah, dan langkahnya wajib dipasang.
+
+**Penjaga wajib diuji lawan regresi yang ia klaim tangkap.** Penjaga cakupan
+menjalankan **mutation self-test** tiap invocation: ia menghapus
+satu entri matriks dan satu perintah `cargo test --doc` dari salinan `ci.yml`
+di memori, lalu memastikan dirinya merah. Ini bukan seremonial — tes itulah yang
+menemukan penjaga versi pertama LULUS saat baris `run:` dihapus, karena **nama
+step** (`- name: cargo test --doc (host)`) masih memuat perintahnya sehingga
+terbaca sebagai cakupan. Tidak ada cara lain menemukannya.
+
 ## ⚠️ Aturan AI untuk Pengujian
 
 ❌ **DON'T:**

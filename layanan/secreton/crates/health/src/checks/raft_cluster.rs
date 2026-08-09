@@ -45,15 +45,30 @@ pub trait RaftClusterProvider: Send + Sync {
 /// # Example
 ///
 /// ```rust
-/// use secreton_health::{HealthCheck, HealthCheckRegistry};
-/// use secreton_health::checks::RaftClusterHealthCheck;
-/// use secreton_storage::raft::RaftCluster;
+/// use secreton_health::HealthCheckRegistry;
+/// use secreton_health::checks::{RaftClusterHealthCheck, RaftClusterProvider};
+/// use async_trait::async_trait;
+/// use std::collections::HashMap;
 /// use std::sync::Arc;
+///
+/// // In production the provider is secreton-storage's `RaftCluster`, adapted
+/// // via `RaftClusterAdapter`. The check is generic over `RaftClusterProvider`
+/// // precisely so this crate does NOT depend on secreton-storage — so the
+/// // example supplies its own implementor rather than naming a type this crate
+/// // cannot see.
+/// struct SingleNode;
+///
+/// #[async_trait]
+/// impl RaftClusterProvider for SingleNode {
+///     async fn get_leader_id(&self) -> Option<u64> { Some(1) }
+///     async fn get_peer_ids(&self) -> Vec<u64> { vec![1] }
+///     async fn get_peer_lags(&self) -> HashMap<u64, u64> { HashMap::new() }
+///     async fn is_available(&self) -> bool { true }
+/// }
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let raft_cluster = Arc::new(RaftCluster::new(Default::default()).await.unwrap());
-///     let health_check = RaftClusterHealthCheck::new(raft_cluster);
+///     let health_check = RaftClusterHealthCheck::new(Arc::new(SingleNode));
 ///
 ///     let mut registry = HealthCheckRegistry::new();
 ///     registry.register(Box::new(health_check)).await.unwrap();

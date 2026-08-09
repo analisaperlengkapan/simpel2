@@ -54,18 +54,23 @@
 //! # Example: Initialize HSM Connection
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::{HsmBackend, HsmConfig};
+//! use secreton_hsm::{HsmBackend, HsmConfig};
+//! use secreton_hsm::config::HsmProvider;
+//! use std::path::PathBuf;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let config = HsmConfig {
-//!     library_path: "/usr/lib/softhsm/libsofthsm2.so".to_string(),
-//!     slot_id: 0,
-//!     pin: "1234".to_string(), // From environment/Engine
-//!     label: "secreton-master-key".to_string(),
+//!     enabled: true,
+//!     provider: HsmProvider::Pkcs11,
+//!     pkcs11_library_path: Some(PathBuf::from("/usr/lib/softhsm/libsofthsm2.so")),
+//!     slot_id: Some(0),
+//!     token_label: Some("secreton".to_string()),
+//!     pin: Some("1234".to_string()), // From Secreton, never hard-coded
+//!     ..Default::default()
 //! };
 //!
 //! let hsm = HsmBackend::new(config)?;
-//! hsm.connect().await?;
+//! hsm.initialize().await?;
 //! println!("HSM connected successfully");
 //! # Ok(())
 //! # }
@@ -74,18 +79,16 @@
 //! # Example: Generate Master Key in HSM
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::HsmBackend;
+//! use secreton_hsm::HsmBackend;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let hsm: HsmBackend = unimplemented!();
-//! // Generate AES-256 master key (never leaves HSM)
-//! let key_handle = hsm.generate_key(
-//!     "master-key-2025",
-//!     256, // key size in bits
-//!     true, // extractable = false (permanent in HSM)
-//! ).await?;
+//! # async fn example(hsm: HsmBackend) -> Result<(), Box<dyn std::error::Error>> {
+//! // Generate an AES-256 master key. HSM keys are never exportable —
+//! // `HsmKeyMetadata::exportable` is fixed at false by the backend.
+//! let key = hsm
+//!     .generate_hsm_key("master-key-2025", "AES", 256, vec!["encrypt".to_string()])
+//!     .await?;
 //!
-//! println!("Master key generated in HSM: {}", key_handle);
+//! println!("Master key generated in HSM: {}", key.key_id);
 //! # Ok(())
 //! # }
 //! ```
@@ -93,18 +96,15 @@
 //! # Example: Encrypt with HSM Key
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::HsmBackend;
+//! use secreton_hsm::HsmBackend;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let hsm: HsmBackend = unimplemented!();
-//! # let key_handle: u64 = 1;
+//! # async fn example(hsm: HsmBackend) -> Result<(), Box<dyn std::error::Error>> {
 //! let plaintext = b"Top secret data";
 //!
-//! // Encryption performed inside HSM
-//! let ciphertext = hsm.encrypt(key_handle, plaintext, None).await?;
+//! // Both directions run inside the HSM; keys are addressed by id, not handle.
+//! let ciphertext = hsm.hsm_encrypt("master-key-2025", plaintext).await?;
+//! let decrypted = hsm.hsm_decrypt("master-key-2025", &ciphertext).await?;
 //!
-//! // Decryption also in HSM
-//! let decrypted = hsm.decrypt(key_handle, &ciphertext, None).await?;
 //! assert_eq!(plaintext, decrypted.as_slice());
 //! # Ok(())
 //! # }
@@ -113,22 +113,18 @@
 //! # Example: Digital Signature with HSM
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::HsmBackend;
+//! use secreton_hsm::HsmBackend;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let hsm: HsmBackend = unimplemented!();
-//! // Generate Ed25519 signing key in HSM
-//! let signing_key = hsm.generate_signing_key("api-signing-key").await?;
+//! # async fn example(hsm: HsmBackend) -> Result<(), Box<dyn std::error::Error>> {
+//! // A signing key is an ordinary HSM key declared with a "sign" usage.
+//! hsm.generate_hsm_key("api-signing-key", "Ed25519", 256, vec!["sign".to_string()])
+//!     .await?;
 //!
 //! let message = b"Important document";
 //!
-//! // Sign using HSM (private key never exposed)
-//! let signature = hsm.sign(signing_key, message).await?;
-//!
-//! // Verify signature (can be done outside HSM)
-//! let public_key = hsm.get_public_key(signing_key).await?;
-//! let valid = hsm.verify(&public_key, message, &signature).await?;
-//! assert!(valid);
+//! // Signing happens inside the HSM; the private key never leaves it.
+//! let signature = hsm.hsm_sign("api-signing-key", message, "Ed25519").await?;
+//! assert!(!signature.is_empty());
 //! # Ok(())
 //! # }
 //! ```
@@ -159,17 +155,19 @@
 //!
 //! ## Audit Trail
 //!
-//! All HSM operations logged:
+//! Every HSM operation is emitted through `tracing` (`info!`/`warn!`) from
+//! [`backend`], so it lands in the service's normal log pipeline. There is no
+//! `get_audit_logs()` accessor on the backend — the audit record lives in the
+//! log sink, not in the HSM client.
+//!
+//! What the backend *can* tell you is which keys it is tracking:
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::HsmBackend;
+//! use secreton_hsm::HsmBackend;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let hsm: HsmBackend = unimplemented!();
-//! let logs = hsm.get_audit_logs().await?;
-//!
-//! for log in logs {
-//!     println!("{}: { by {}", log.timestamp, log.operation, log.user);
+//! # async fn example(hsm: HsmBackend) -> Result<(), Box<dyn std::error::Error>> {
+//! for key in hsm.list_hsm_keys().await? {
+//!     println!("{} ({} {} bits) created {}", key.key_id, key.algorithm, key.key_size, key.created_at);
 //! }
 //! # Ok(())
 //! # }
@@ -247,10 +245,9 @@
 //! ## HSM Not Responding
 //!
 //! ```rust,no_run
-//! use secreton_core::hsm::HsmBackend;
+//! use secreton_hsm::HsmBackend;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! # let hsm: HsmBackend = unimplemented!();
+//! # async fn example(hsm: HsmBackend) -> Result<(), Box<dyn std::error::Error>> {
 //! match hsm.health_check().await {
 //!     Ok(_) => println!("HSM healthy"),
 //!     Err(e) => {
