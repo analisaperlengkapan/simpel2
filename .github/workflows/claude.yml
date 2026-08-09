@@ -21,6 +21,7 @@ jobs:
       group: claude-${{ github.event.pull_request.number || github.event.issue.number || github.ref }}
       cancel-in-progress: true
     runs-on: arc-simpel
+    timeout-minutes: 120
     permissions:
       contents: write
       pull-requests: write

@@ -38,6 +38,7 @@ jobs:
   validate:
     name: Validate input tags
     runs-on: arc-simpel
+    timeout-minutes: 30
     outputs:
       source_clean: ${{ steps.parse.outputs.source }}
       target_clean: ${{ steps.parse.outputs.target }}
@@ -74,6 +75,7 @@ jobs:
   promote-images:
     name: Re-tag (${{ matrix.image }})
     runs-on: arc-simpel
+    timeout-minutes: 120
     needs: validate
     permissions:
       contents: read
@@ -144,6 +146,7 @@ jobs:
   create-git-tag:
     name: Create git tag (final)
     runs-on: arc-simpel
+    timeout-minutes: 30
     needs: [validate, promote-images]
     if: ${{ inputs.git_tag == 'y' || inputs.git_tag == 'yes' }}
     permissions:

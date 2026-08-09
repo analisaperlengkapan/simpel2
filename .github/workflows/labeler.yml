@@ -16,6 +16,7 @@ jobs:
     name: PR Label by Path
     if: github.event_name == 'pull_request_target'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: actions/labeler@v7
         with:
@@ -26,6 +27,7 @@ jobs:
     name: PR Label by Size
     if: github.event_name == 'pull_request_target'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: codelytv/pr-size-labeler@v1
         with:
@@ -47,6 +49,7 @@ jobs:
     name: PR Title (Conventional Commits)
     if: github.event_name == 'pull_request_target'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: amannn/action-semantic-pull-request@v6
         env:
@@ -97,6 +100,7 @@ jobs:
     name: Issue Label by Content
     if: github.event_name == 'issues'
     runs-on: arc-simpel
+    timeout-minutes: 30
     steps:
       - uses: github/issue-labeler@v3.4
         with:
@@ -111,6 +115,7 @@ jobs:
     name: Auto-merge Dependabot
     if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
     runs-on: arc-simpel
+    timeout-minutes: 30
     # Job-level perms override the workflow default (`contents: read`). Enabling
     # auto-merge (`gh pr merge --auto`) needs `contents: write`; approving needs
     # `pull-requests: write`. Without contents:write the merge mutation fails with

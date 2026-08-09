@@ -70,6 +70,13 @@ description: >-
   mengalah agar produksi bisa memakai kapasitas kedua node kapan pun perlu.
 EOF
 
+echo "==> Pemanen runner zombie (CronJob + RBAC) di ${RUNNER_NS}"
+# ARC bisa meninggalkan EphemeralRunner yang memegang penugasan job yang sudah
+# mati di sisi GitHub; runner itu ikut dihitung sebagai kapasitas aktif sehingga
+# listener berhenti menaikkan jumlah runner dan CI menggantung. Alasan lengkap
+# + penurunan angka ambangnya ada di reaper.yaml. Idempotent (apply).
+kubectl apply -f "${SCRIPT_DIR}/reaper.yaml"
+
 echo "==> Secret PAT (arc-github-token) di ${RUNNER_NS}"
 kubectl create secret generic arc-github-token \
   --namespace "${RUNNER_NS}" \
