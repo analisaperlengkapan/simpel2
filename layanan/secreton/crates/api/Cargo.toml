@@ -95,6 +95,10 @@ enable-inline-tests = []
 
 [dev-dependencies]
 axum-test.workspace = true
+# tests/policy_enforcement.rs drives the real router and mints its own bearer
+# tokens; both are dev-only, so they belong here rather than in [dependencies].
+jsonwebtoken.workspace = true
+tower.workspace = true
 criterion.workspace = true
 tempfile.workspace = true
 proptest.workspace = true
