@@ -14,9 +14,6 @@
 //! - [`token`] - Token generation and validation
 //! - [`wrapping`] - Response wrapping for secure secret delivery
 //!
-//! # Dynamic Secrets
-//! - [`dynamic`] - Dynamic secret generation for databases, cloud providers
-//!
 //! # Secrets Management
 //! - [`secrets`] - Secret storage, versioning, and encryption engines
 //!
@@ -28,21 +25,25 @@
 //! - Comprehensive audit logging via [`crate::audit::AuditLogger`]
 //!
 //! # Example
-//! ```ignore
-//! use secreton_core::services::seal::SealManager;
-//! use secreton_core::storage::InMemoryStorage;
-//! use std::sync::Arc;
 //!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let storage = Arc::new(InMemoryStorage::new());
-//! let seal_manager = SealManager::new(storage, 3, 5).await?;
+//! Initialising the engine hands back the Shamir shares and deliberately leaves
+//! it SEALED — the operator must unseal with `threshold` shares afterwards. That
+//! is a security property, so the example asserts it rather than describing it.
 //!
-//! // Initialize seal with shares
-//! let shares = seal_manager.init().await?;
-//! // Unseal engine with threshold shares
-//! seal_manager.unseal(&shares[0]).await?;
-//! # Ok(())
-//! # }
+//! ```rust
+//! use secreton_core::services::seal::{SealConfig, SealService, SealState};
+//!
+//! # tokio::runtime::Runtime::new().unwrap().block_on(async {
+//! let seal = SealService::new(SealConfig::default()); // 5 shares, threshold 3
+//! assert!(seal.is_sealed().await);
+//!
+//! let shares = seal.initialize().await.unwrap();
+//! assert_eq!(shares.len(), 5);
+//!
+//! let status = seal.status().await;
+//! assert_eq!(status.state, SealState::Sealed); // init does NOT auto-unseal
+//! assert_eq!(status.threshold, 3);
+//! # });
 //! ```
 
 // Core services (essential)
@@ -61,10 +62,10 @@ pub mod token;
 pub mod wrapping;
 pub mod zero_knowledge;
 
-// Dynamic secrets
-pub mod dynamic;
-
-// Secrets management
+// Secrets management — including dynamic credentials. There is no separate
+// `dynamic` module: `secrets::database` is the one engine that actually
+// provisions and revokes, and it is what both api/handlers/dynamic.rs and
+// grpc/server.rs call.
 pub mod secrets;
 
 // Refactored services from API crate

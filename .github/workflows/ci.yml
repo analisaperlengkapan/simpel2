@@ -241,10 +241,13 @@ jobs:
 
           [[ $errors -eq 0 ]] && echo "Structure validation passed (5 checks)." || exit 1
 
+  # Cheap stdlib-only guards over repo invariants that no compiler checks. They
+  # share a job because each takes seconds and none needs a toolchain; the `if`
+  # is the union of what they read, so adding a guard here means widening it.
   enforce-versioning:
-    name: Enforce Cargo Versioning
+    name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -261,6 +264,16 @@ jobs:
       - name: Every workspace crate is covered by a CI cargo job
         shell: bash
         run: python3 ./infra/scripts/check-crate-ci-coverage.py
+      # ```ignore is the hole in the doctest gate #115 built: rustdoc never
+      # compiles those fences, so they keep documenting types that were renamed
+      # or deleted. Demonstrated, not assumed — reintroducing
+      # `utils::cache::LruCache` (renamed to SecretLruCache) leaves
+      # `cargo test --doc` reporting "ok, 0 failed" and only moves the example
+      # from passed to ignored. Opting out of EXECUTION stays allowed; naming an
+      # API that does not exist does not. (#126)
+      - name: No ```ignore doc example names a nonexistent API
+        shell: bash
+        run: python3 ./infra/scripts/check-doc-examples.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
@@ -335,7 +348,7 @@ jobs:
           # list AND from the test matrix, so 7.4k lines were never linted or
           # tested on any PR — a break only surfaced at release time, when
           # release.yml's `cargo build --workspace` finally compiled them.
-          # `check-crate-ci-coverage.py` (Enforce Cargo Versioning job) now fails
+          # `check-crate-ci-coverage.py` (Enforce Repo Invariants job) now fails
           # if a workspace member is missing from either matrix. (#125)
           - name: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
@@ -1145,7 +1158,7 @@ jobs:
           # secreton-auto-unseal / secreton-k8s-operator added here and to the
           # clippy matrix — they were in neither, so 7.4k lines (including a
           # ~700-line integration suite) had never been executed by any gate.
-          # See #125 and the guard in the Enforce Cargo Versioning job.
+          # See #125 and the guard in the Enforce Repo Invariants job.
           - tier: layanan-secreton
             packages: "-p secreton -p secreton-types -p secreton-core -p secreton-crypto -p secreton-storage -p secreton-api -p secreton-grpc -p secreton-agent -p secreton-cli -p secreton-backup -p secreton-health -p secreton-hsm -p secreton-replication -p secreton-auto-unseal -p secreton-k8s-operator"
             # Heaviest tier (13 crates, PG property tests). Test binaries

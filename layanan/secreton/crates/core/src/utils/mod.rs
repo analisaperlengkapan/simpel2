@@ -1,304 +1,87 @@
-//! Utility Functions and Helper Modules
+//! Cross-cutting helpers: caching, secure memory, configuration, correlation IDs.
 //!
-//! This module provides cross-cutting utility functions used throughout Secreton,
-//! including caching, memory management, configuration helpers, and common algorithms.
+//! Most of this module is a thin, secret-oriented facade over `lib_backend` and
+//! `lib_core` — the implementations live there and are shared with the other
+//! services. What Secreton adds is naming that makes the sensitivity explicit
+//! ([`SecretLruCache`], [`SecureSecretMemory`]) and the [`cache::SecretCacheManager`]
+//! that groups the four caches a running engine needs.
 //!
-//! # Utility Categories
+//! | Area | Type | Comes from |
+//! |---|---|---|
+//! | caching | [`SecretLruCache`], [`ThreadSafeSecretCache`], [`cache::AsyncSecretCache`] | `lib_backend::cache` (renamed on re-export) |
+//! | secure memory | [`SecureSecretMemory`], [`SecureSecretString`], [`SecretMemoryPool`] | `lib_backend::memory` |
+//! | configuration | [`config::Config`] | local |
+//! | tracing | [`correlation::CorrelationContext`] | local |
+//! | encoding / validation | [`encoding`], [`validation`] | `lib_core` |
 //!
-//! ```text
-//! ┌─────────────────────────────────────────────────┐
-//! │           Secreton Utilities                    │
-//! ├─────────────────────────────────────────────────┤
-//! │  Caching (Performance)                          │
-//! │  ├─ LRU cache with TTL                          │
-//! │  ├─ Token validation cache                      │
-//! │  └─ Policy evaluation cache                     │
-//! ├─────────────────────────────────────────────────┤
-//! │  Memory Management (Security)                   │
-//! │  ├─ Secure memory allocation                    │
-//! │  ├─ Automatic zeroing on drop                   │
-//! │  └─ Memory locking (prevent swapping)           │
-//! ├─────────────────────────────────────────────────┤
-//! │  Configuration (Convenience)                    │
-//! │  ├─ Environment variable parsing                │
-//! │  ├─ Config file loading                         │
-//! │  └─ Default value handling                      │
-//! └─────────────────────────────────────────────────┘
-//! ```
+//! Note the renames: the `LruCache` of `lib_backend` is re-exported here as
+//! [`SecretLruCache`], so `utils::cache::LruCache` is not a path that resolves.
 //!
-//! # Example: LRU Cache with TTL
+//! # Caching
 //!
-//! ```ignore
-//! use secreton_core::utils::cache::LruCache;
+//! Capacity is the only constructor argument; the TTL is per entry, supplied at
+//! insert time, so one cache can hold values with different lifetimes.
+//!
+//! ```rust
+//! use secreton_core::utils::SecretLruCache;
 //! use std::time::Duration;
 //!
-//! # fn example() {
-//! // Cache with max 1000 items, 5 minute TTL
-//! let mut cache = LruCache::new(1000, Duration::from_secs(300));
+//! let mut cache: SecretLruCache<String, String> = SecretLruCache::new(1_000);
+//! cache.insert("token:abc".into(), "user-123".into(), Duration::from_secs(900));
 //!
-//! // Insert
-//! cache.insert("key1".to_string(), "value1".to_string());
+//! assert_eq!(cache.get(&"token:abc".to_string()), Some("user-123".to_string()));
+//! assert_eq!(cache.get(&"token:missing".to_string()), None);
 //!
-//! // Get (returns Option)
-//! if let Some(value) = cache.get("key1") {
-//!     println!("Cached value: {}", value);
-//! }
-//!
-//! // Automatically evicts expired and least-recently-used items
-//! # }
-//! ```
-//!
-//! # Example: Secure Memory for Secrets
-//!
-//! ```ignore
-//! use secreton_core::utils::memory::SecureMemory;
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Allocate secure memory for sensitive data
-//! let mut secure_mem = SecureMemory::new(32)?; // 32 bytes
-//!
-//! // Write secret data
-//! secure_mem.write(b"super_secret_key_123456789012")?;
-//!
-//! // Memory is:
-//! // - Locked (won't be swapped to disk)
-//! // - Automatically zeroed when dropped
-//! // - Protected from core dumps
-//!
-//! // Use the data
-//! let secret_bytes = secure_mem.as_slice();
-//! println!("Secret length: {}", secret_bytes.len());
-//!
-//! // SecureMemory automatically zeroed on drop
-//! drop(secure_mem);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Example: Configuration Loading
-//!
-//! ```ignore
-//! use secreton_core::utils::config::ConfigLoader;
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let loader = ConfigLoader::new();
-//!
-//! // Try environment variable, then config file, then default
-//! let db_url = loader.get_string(
-//!     "DATABASE_URL",                       // env var name
-//!     Some("config.yaml:database.url"),    // config path
-//!     "postgresql://localhost/secreton",   // default
-//! )?;
-//!
-//! println!("Database URL: {}", db_url);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Caching Strategies
-//!
-//! ## Token Validation Cache
-//!
-//! Reduce Authenc load by caching validated tokens:
-//!
-//! ```ignore
-//! use secreton_core::utils::cache::LruCache;
-//! use std::time::Duration;
-//!
-//! # fn example() {
-//! // Cache validated tokens for 15 minutes
-//! let mut token_cache = LruCache::new(10_000, Duration::from_secs(900));
-//!
-//! let token = "eyJhbGc...";
-//!
-//! // Check cache first
-//! if let Some(user_id) = token_cache.get(token) {
-//!     println!("Cache hit: {}", user_id);
-//!     // Skip Authenc validation
-//!  else {
-//!     // Validate with Authenc
-//!     let user_id = validate_with_authenc(token);
-//!     token_cache.insert(token.to_string(), user_id);
-//! }
-//! # }
-//! # fn validate_with_authenc(token: &str) -> String { "user-123".to_string() }
-//! ```
-//!
-//! ## Policy Evaluation Cache
-//!
-//! Cache expensive policy evaluations:
-//!
-//! ```ignore
-//! use secreton_core::utils::cache::LruCache;
-//! use std::time::Duration;
-//!
-//! # fn example() {
-//! // Cache policy decisions for 1 minute
-//! let mut policy_cache = LruCache::new(5_000, Duration::from_secs(60));
-//!
-//! let cache_key = format!("{::}", user_id, resource_path);
-//!
-//! if let Some(allowed) = policy_cache.get(&cache_key) {
-//!     return *allowed; // Use cached decision
-//! }
-//!
-//! // Evaluate policy
-//! let allowed = evaluate_policy(user_id, resource_path);
-//! policy_cache.insert(cache_key, allowed);
-//! # }
-//! # let user_id = "user-123";
-//! # let resource_path = "/app/secret";
-//! # fn evaluate_policy(u: &str, p: &str) -> bool { true }
-//! ```
-//!
-//! # Memory Security
-//!
-//! ## Automatic Zeroing
-//!
-//! Sensitive data automatically cleared from memory:
-//!
-//! ```ignore
-//! use secreton_core::utils::memory::SecureVec;
-//!
-//! # fn example() {
-//! {
-//!     let mut secret = SecureVec::new();
-//!     secret.extend_from_slice(b"password123");
-//!
-//!     // Use secret...
-//!  // <- Memory zeroed here automatically
-//!
-//! // Memory now contains all zeros, not "password123"
-//! # }
-//! ```
-//!
-//! ## Memory Locking
-//!
-//! Prevent sensitive data from being swapped to disk:
-//!
-//! ```ignore
-//! use secreton_core::utils::memory::LockedMemory;
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Allocate and lock 256 bytes
-//! let locked = LockedMemory::new(256)?;
-//!
-//! // This memory:
-//! // - Won't be swapped to disk
-//! // - Won't appear in core dumps
-//! // - Zeroed on drop
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # Performance Optimizations
-//!
-//! ## Cache Hit Rates
-//!
-//! Monitor cache effectiveness:
-//!
-//! ```ignore
-//! use secreton_core::utils::cache::LruCache;
-//!
-//! # fn example() {
-//! # let cache: LruCache<String, String> = LruCache::new(100, std::time::Duration::from_secs(60));
 //! let stats = cache.stats();
-//! println!("Hit rate: {:.2}%", stats.hit_rate() * 100.0);
-//! println!("Hits: {, Misses: {}", stats.hits, stats.misses);
-//! # }
+//! assert_eq!(stats.hit_count, 1);
+//! assert_eq!(stats.miss_count, 1);
 //! ```
 //!
-//! ## Memory Pool
+//! Entries can also carry a sensitivity level, which drives eviction order under
+//! pressure — see [`cache::SecretLruCache::insert_with_sensitivity`] and
+//! [`SensitivityLevel`].
 //!
-//! Reuse memory allocations to reduce overhead:
+//! # Secure memory
 //!
-//! ```ignore
-//! use secreton_core::utils::memory::MemoryPool;
+//! Wrappers that zeroize on drop. They do not lock pages against swapping — if
+//! that guarantee is ever needed it has to be built, not assumed from the name.
 //!
-//! # fn example() {
-//! let pool = MemoryPool::new(1024, 100); // 1KB buffers, max 100
+//! Mind which `SensitivityLevel` you reach for: `cache` and `memory` each define
+//! their own, with identical variants and no conversion between them. This module
+//! re-exports the cache one bare and the memory one as [`MemorySensitivityLevel`],
+//! and the memory APIs take the latter.
 //!
-//! // Get buffer from pool (reused if available)
-//! let buffer = pool.get();
+//! ```rust
+//! use secreton_core::utils::{MemorySensitivityLevel, SecureSecretString};
 //!
-//! // Use buffer...
-//!
-//! // Return to pool (memory zeroed automatically)
-//! pool.return_buffer(buffer);
-//! # }
+//! let password = SecureSecretString::from_str("user_password", MemorySensitivityLevel::High);
+//! assert_eq!(password.as_str(), "user_password");
+//! assert_eq!(password.len(), 13);
+//! // Dropping `password` zeroizes the backing String.
 //! ```
 //!
-//! # Configuration Helpers
+//! [`SecretMemoryPool`] reuses buffers and zeroizes each one as it is returned,
+//! so a pooled allocation never carries a previous secret into its next use.
 //!
-//! ## Environment Variable Parsing
+//! # Configuration
 //!
-//! ```ignore
-//! use secreton_core::utils::config;
+//! [`config::Config`] loads from a TOML file or from the environment. There is no
+//! layered "env, then file, then default" resolver — [`config::Config::from_env`]
+//! reads `VAULT_*` variables and falls back to the same values as
+//! [`config::Config::default`] per field.
 //!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // Parse with type conversion
-//! let port: u16 = config::env_or("SECRETON_PORT", 8200)?;
-//! let debug: bool = config::env_or("SECRETON_DEBUG", false)?;
-//! let workers: usize = config::env_or("SECRETON_WORKERS", 4)?;
-//! # Ok(())
-//! # }
+//! ```rust
+//! use secreton_core::utils::config::Config;
+//!
+//! let config = Config::default();
+//! assert_eq!(config.server_port, 8080);
+//! assert_eq!(config.log_level, "info");
 //! ```
 //!
-//! ## Default Values
+//! # See also
 //!
-//! ```ignore
-//! use secreton_core::utils::config::default_if_empty;
-//!
-//! # fn example() {
-//! let host = default_if_empty(
-//!     std::env::var("HOST").ok(),
-//!     "127.0.0.1".to_string(),
-//! );
-//! # }
-//! ```
-//!
-//! # Common Patterns
-//!
-//! ## Result Caching
-//!
-//! Cache expensive computations:
-//!
-//! ```ignore
-//! use secreton_core::utils::cache::LruCache;
-//! use std::time::Duration;
-//!
-//! # async fn example() {
-//! # let mut cache = LruCache::new(100, Duration::from_secs(300));
-//! # let key = "key";
-//! if let Some(result) = cache.get(key) {
-//!     return result.clone();
-//! }
-//!
-//! let result = expensive_operation().await;
-//! cache.insert(key.to_string(), result.clone());
-//! # }
-//! # async fn expensive_operation() -> String { "result".to_string() }
-//! ```
-//!
-//! ## Secure String Handling
-//!
-//! ```ignore
-//! use secreton_core::utils::memory::SecureString;
-//!
-//! # fn example() {
-//! let password = SecureString::from("user_password");
-//! // Use password...
-//! // Automatically zeroed on drop
-//! # }
-//! ```
-//!
-//! # See Also
-//!
-//! - [`cache`] - LRU cache implementation
-//! - [`memory`] - Secure memory management
-//! - [`config`] - Configuration utilities
-//! - `crate::crypto` - Cryptographic operations
-//! - `crate::storage` - Database caching layer
+//! - [`crate::pki`] — certificate and key material
+//! - [`crate::storage`] — persistence, including the cache backend trait
 
 /// Configuration utilities
 pub mod config;

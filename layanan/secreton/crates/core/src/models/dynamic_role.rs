@@ -13,15 +13,56 @@
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use secreton_core::models::dynamic_role::{DynamicRoleStore, CapabilityChecker};
+//! The authorization decision is two independent checks, both pure: does the rule
+//! cover this path ([`PolicyRule::matches_path`]), and does it grant this
+//! capability ([`PolicyRule::grants_capability`]). `*` is a wildcard in both.
 //!
-//! // Check if user has a capability
-//! let has_access = role_store.user_has_capability(user_id, "encrypt", "default").await?;
+//! ```rust
+//! use secreton_core::models::dynamic_role::{PolicyEffect, PolicyRule};
+//! use chrono::Utc;
+//! use uuid::Uuid;
 //!
-//! // Check path-based access (Vault-style)
-//! let can_access = role_store.check_path_access(&policies, "secret/data/app/*", "read").await?;
+//! let rule = PolicyRule {
+//!     id: Uuid::new_v4(),
+//!     policy_id: 1,
+//!     effect: PolicyEffect::Allow,
+//!     path_pattern: "secret/data/app/*".to_string(),
+//!     capabilities: vec!["read".to_string(), "list".to_string()],
+//!     required_parameters: serde_json::json!({}),
+//!     allowed_parameters: serde_json::json!({}),
+//!     denied_parameters: serde_json::json!({}),
+//!     min_wrapping_ttl: None,
+//!     max_wrapping_ttl: None,
+//!     conditions: serde_json::json!({}),
+//!     created_at: Utc::now(),
+//!     updated_at: Utc::now(),
+//! };
+//!
+//! assert!(rule.matches_path("secret/data/app/database"));
+//! assert!(!rule.matches_path("secret/data/other/database"));
+//! assert!(rule.grants_capability("read"));
+//! assert!(!rule.grants_capability("delete"));
 //! ```
+//!
+//! A user's resolved permissions across roles and policies are an
+//! [`EffectiveCapabilities`]; `is_root` and a `*` capability both short-circuit
+//! [`EffectiveCapabilities::has_capability`].
+//!
+//! ```rust
+//! use secreton_core::models::dynamic_role::EffectiveCapabilities;
+//!
+//! let mut caps = EffectiveCapabilities::default();
+//! caps.capabilities.insert("encrypt".to_string());
+//!
+//! assert!(caps.has_capability("encrypt"));
+//! assert!(!caps.has_capability("decrypt"));
+//!
+//! caps.is_root = true;
+//! assert!(caps.has_capability("decrypt")); // root bypasses the set
+//! ```
+//!
+//! Fetching those from the database is [`DynamicRoleStore`], a trait each storage
+//! backend implements.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
