@@ -182,27 +182,30 @@ run_test "Delete secret (apikeys)" "DELETE" "$BASE_URL/v1/secret/data/apikeys" "
 run_test "Read deleted secret" "GET" "$BASE_URL/v1/secret/data/apikeys" "" "200|404"
 
 # ==============================================================================
-# SECTION 3: KV Engine (Legacy Routes - Multi-Segment Paths)
+# SECTION 3: Hierarchical (multi-segment) secret paths
+#
+# This section used to drive /v1/kv/. That router was an in-memory HashMap:
+# every assertion here passed while the data it wrote was lost on the next
+# restart (#130). It was deleted; the same paths now go to /v1/secret/data/,
+# which is Postgres behind EncryptedStorage.
 # ==============================================================================
-section "SECTION 3: KV Engine /v1/kv/"
+section "SECTION 3: Hierarchical paths /v1/secret/data/"
 
-run_test "KV Write (hierarchical)" "POST" "$BASE_URL/v1/kv/secret/data/test/database/creds" \
+run_test "Write (hierarchical)" "POST" "$BASE_URL/v1/secret/data/test/database/creds" \
     '{"data":{"host":"pg.local","port":"5432","user":"app","pass":"k3y"}}' "200|201"
 
-run_test "KV Read (hierarchical)" "GET" "$BASE_URL/v1/kv/secret/data/test/database/creds" "" "200"
+run_test "Read (hierarchical)" "GET" "$BASE_URL/v1/secret/data/test/database/creds" "" "200"
 
-run_test "KV Write (nested)" "POST" "$BASE_URL/v1/kv/secret/data/prod/api/token" \
+run_test "Write (nested)" "POST" "$BASE_URL/v1/secret/data/prod/api/token" \
     '{"data":{"token":"eyJhbGciOiJIUzI1NiJ9.test"}}' "200|201"
 
-run_test "KV Read (nested)" "GET" "$BASE_URL/v1/kv/secret/data/prod/api/token" "" "200"
+run_test "Read (nested)" "GET" "$BASE_URL/v1/secret/data/prod/api/token" "" "200"
 
-run_test "KV Metadata" "GET" "$BASE_URL/v1/kv/secret/metadata/test/database/creds" "" "200"
+run_test "List secrets" "GET" "$BASE_URL/v1/secrets" "" "200"
 
-run_test "KV List secrets" "GET" "$BASE_URL/v1/kv/secrets" "" "200"
+run_test "Delete (nested)" "DELETE" "$BASE_URL/v1/secret/data/prod/api/token" "" "200|204"
 
-run_test "KV Delete" "DELETE" "$BASE_URL/v1/kv/secret/data/prod/api/token" "" "200|204"
-
-run_test "KV Destroy" "DELETE" "$BASE_URL/v1/kv/secret/destroy/test/database/creds" "" "200|204"
+run_test "Read deleted (nested)" "GET" "$BASE_URL/v1/secret/data/prod/api/token" "" "404"
 
 # ==============================================================================
 # SECTION 4: Secret Keys Management

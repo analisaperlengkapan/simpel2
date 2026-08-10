@@ -14,124 +14,16 @@
 //! means the boundary stopped it — the same discriminator used by the mTLS
 //! suite in `crates/grpc/tests/mtls_enforcement.rs`.
 //!
-//! No database is involved. Tokens are minted with `token_type: "root"`, which
-//! `AuthService::validate_token` accepts without a session lookup; that field
-//! governs *session* handling only and has no bearing on the authorization
-//! decision under test, which reads `policies`.
+//! No database is involved; see `common::unsealed_state` for what that costs
+//! and why it is the interesting case.
 
-use std::sync::Arc;
+mod common;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use jsonwebtoken::{EncodingKey, Header};
-use secreton_api::services::ServiceContainer;
-use secreton_api::{ApiState, create_api_router};
-use secreton_storage::MemoryBackend;
+use common::{token_with_policies, unsealed_state};
+use secreton_api::create_api_router;
 use tower::ServiceExt;
-
-/// Mirrors `crate::config::JwtConfig::default()` — the config
-/// `ServiceContainer::new_mock` installs. Note this is the api crate's
-/// `JwtConfig`, not the similarly named one in secreton-core, which carries
-/// different defaults. If these drift the tests stop authenticating and fail on
-/// a 401, which is loud rather than silent.
-const JWT_SECRET: &str = "change-this-secret-in-production";
-const JWT_ISSUER: &str = "Secreton";
-const JWT_AUDIENCE: &str = "secreton-api";
-
-/// Mint a bearer token carrying `policies`.
-///
-/// Built as raw JSON rather than through the private `Claims` struct so the
-/// test stays outside the crate and exercises it as a consumer would.
-fn token_with_policies(policies: &[&str]) -> String {
-    let now = chrono::Utc::now().timestamp() as usize;
-    let claims = serde_json::json!({
-        "sub": uuid::Uuid::new_v4().to_string(),
-        "iss": JWT_ISSUER,
-        "aud": JWT_AUDIENCE,
-        "exp": now + 3600,
-        "iat": now,
-        "jti": uuid::Uuid::new_v4().to_string(),
-        "roles": ["reader"],
-        "policies": policies,
-        "token_type": "root",
-        "username": "test-caller",
-        "email": "test-caller@example.test",
-        "full_name": null,
-        "is_superuser": false,
-        "is_active": true,
-        "mfa_enabled": false,
-        "namespace": "default",
-        "satker_code": null,
-        "wilayah_code": null,
-        "admin_level": null,
-    });
-
-    jsonwebtoken::encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(JWT_SECRET.as_bytes()),
-    )
-    .expect("mint test token")
-}
-
-/// An unsealed engine on in-memory storage.
-///
-/// Unsealed matters: `seal_check_middleware` runs *outside* the policy check,
-/// so a sealed engine would answer 503 for everything and every assertion below
-/// would pass for the wrong reason.
-async fn unsealed_state() -> ApiState {
-    let storage = Arc::new(MemoryBackend::new());
-
-    // A pool handle that will never connect. Deliberate: the policy store is
-    // unreachable in these tests, so the denial path exercised is "policies
-    // could not be loaded", and the assertion below insists that still refuses
-    // rather than falling open. `dbname` is only needed because deadpool
-    // rejects a config without one at construction time.
-    let mut cfg = deadpool_postgres::Config::new();
-    cfg.dbname = Some("policy_enforcement_no_such_db".to_string());
-    cfg.host = Some("127.0.0.1".to_string());
-    cfg.port = Some(1);
-    let pool = cfg
-        .create_pool(None, tokio_postgres::NoTls)
-        .expect("build pool handle");
-
-    let services = ServiceContainer::new_mock(storage, pool);
-
-    // Shamir threshold is 3 of 5 (SealConfig in `new_mock`), so feed three
-    // shares. `unseal_with_share` takes raw bytes; the string-taking `unseal`
-    // wants base64. The in-crate helper this was adapted from hex-encoded a
-    // single share and discarded the error, so it never unsealed anything —
-    // worth knowing before trusting any assertion built on top of it.
-    let shares = services.seal.initialize().await.expect("initialize seal");
-    for share in shares.iter().take(3) {
-        let bytes = share.to_bytes().expect("serialize share");
-        services
-            .seal
-            .unseal_with_share(&bytes)
-            .await
-            .expect("submit unseal share");
-    }
-    assert!(
-        !services.seal.is_sealed().await,
-        "engine must be unsealed or every assertion below passes on a 503"
-    );
-
-    ApiState {
-        transit: secreton_api::TransitApiState {
-            engine: Arc::new(secreton_crypto::transit::TransitEngine::new()),
-            config: None,
-            metrics: Default::default(),
-        },
-        kv: secreton_api::KVApiState {
-            engine: Arc::new(secreton_api::KVEngine::new()),
-            metrics: Default::default(),
-        },
-        pki: secreton_api::PkiApiState::default(),
-        services: Arc::new(services),
-        metrics: Default::default(),
-        prometheus_handle: None,
-    }
-}
 
 async fn get_secret_as(policies: Option<&[&str]>) -> StatusCode {
     let router = create_api_router(unsealed_state().await);

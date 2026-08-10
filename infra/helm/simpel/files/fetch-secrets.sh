@@ -35,9 +35,14 @@ echo "    OK (token TTL=$(echo "$LOGIN_RESP" | sed -n 's/.*"lease_duration":\([0
 
 # Step 2: Fetch secrets dari paths yang diizinkan policy simpelv1.
 echo ">>> [2/3] Fetch secrets..."
+# /v1/secret/data/<path> is the persistent, encrypted-at-rest route. This used
+# to call /v1/kv/data/<path>, which was never a route at all: the KV router
+# served /v1/kv/secret/data/, and it was an in-memory HashMap regardless. Both
+# are gone (#130). Note this whole script is still gated on the Kubernetes auth
+# backend in step 1, which has no server implementation yet (#105).
 fetch_kv() {
   local path=$1
-  curl -fsS -H "X-Secreton-Token: $TOKEN" "$SECRETON_ADDR/v1/kv/data/$path"
+  curl -fsS -H "X-Secreton-Token: $TOKEN" "$SECRETON_ADDR/v1/secret/data/$path"
 }
 
 # kv/simpelv1/* berisi APP_KEY, dan field lain Laravel-specific.

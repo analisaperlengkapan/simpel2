@@ -1,5 +1,9 @@
 # End-to-End Test Results
 
+> **Historical record.** Point-in-time report; not current API documentation.
+> The `/v1/kv/*` routes it mentions were deleted in #130 (in-memory store) —
+> the persistent equivalent is `/v1/secret/data/{*path}`.
+
 ## Test Environment
 
 - **Container**: secreton:test

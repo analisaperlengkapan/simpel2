@@ -1,5 +1,9 @@
 # ✅ Migration & Testing Complete
 
+> **Historical record.** Point-in-time report; not current API documentation.
+> The `/v1/kv/*` routes it mentions were deleted in #130 (in-memory store) —
+> the persistent equivalent is `/v1/secret/data/{*path}`.
+
 ## Status: SUCCESS
 
 Migrasi dari sistem konfigurasi legacy ke sistem konfigurasi secure berhasil diselesaikan dan ditest end-to-end.
