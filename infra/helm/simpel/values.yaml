@@ -186,8 +186,9 @@ config:
     rpName: SIMPEL Kejaksaan RI
 
 backendConfig:
-  grpcTlsEnabled: "false"
-  grpcMtlsEnabled: "false"
+  # Staging serves gRPC without client certificates while the Secreton PKI is
+  # being provisioned. values-production.yaml sets "false" → fail-closed.
+  grpcAllowInsecure: "true"
   serviceMesh: istio
   mtlsMode: ""                             # default: ikut .Values.mtls.mode
   authencGrpcUrl: ""                       # default: http://authenc.<ns>.svc.cluster.local:9088
@@ -412,6 +413,13 @@ secreton:
       valueFrom: { secretKeyRef: { name: postgres-credentials, key: secreton-url } }
     - name: POD_NAMESPACE
       valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+    # The gRPC listener refuses to start without mTLS material unless this is
+    # "true". Staging says true; production says false (values-production.yaml)
+    # so the pod stays down rather than serving secrets to anonymous callers.
+    # To turn mTLS on, mount the Secreton PKI material and set
+    # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH here.
+    - name: GRPC_ALLOW_INSECURE
+      valueFrom: { configMapKeyRef: { name: backend-config, key: GRPC_ALLOW_INSECURE } }
   volumeMounts:
     - { name: secreton-data, mountPath: /data }
   volumeClaimTemplates:

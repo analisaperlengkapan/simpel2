@@ -19,6 +19,7 @@ use secreton_core::services::secrets::database::{
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::StorageBackend;
 
+use crate::auth::{ClientAuthLayer, PeerAuthorizer};
 use crate::generated::common::v1::*;
 use crate::generated::secreton::v1::secreton_service_server;
 use crate::generated::secreton::v1::*;
@@ -84,10 +85,27 @@ impl SecretonGrpcService {
     //     }
     // }
 
-    /// Start the gRPC server without TLS
-    pub async fn serve(self, addr: SocketAddr) -> Result<(), Box<dyn std::error::Error>> {
-        info!("Starting gRPC server on {} (without TLS)", addr);
-        warn!("Running gRPC server without TLS is not recommended for production");
+    /// Start the gRPC server with **no transport security and no caller
+    /// authentication whatsoever**.
+    ///
+    /// Every request served this way is anonymous: anyone who can reach the
+    /// port can read, write and delete any secret. The name is deliberately
+    /// blunt and `reason` is deliberately mandatory — a call site must state,
+    /// in code, why it is turning the boundary off. `reason` is logged at
+    /// startup so the running system says so too.
+    ///
+    /// Callers must gate this behind [`crate::resolve_listener_security`],
+    /// which fails closed unless the operator opted out explicitly.
+    pub async fn serve_insecure(
+        self,
+        addr: SocketAddr,
+        reason: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        warn!(
+            "gRPC listening on {} with NO client authentication — every caller is \
+             anonymous and fully privileged. Reason given: {}",
+            addr, reason
+        );
 
         Server::builder()
             .add_service(secreton_service_server::SecretonServiceServer::new(self))
@@ -97,13 +115,30 @@ impl SecretonGrpcService {
         Ok(())
     }
 
-    /// Start the gRPC server with TLS
-    pub async fn serve_with_tls(
+    /// Start the gRPC server with mTLS and enforce client authentication on
+    /// every method.
+    ///
+    /// `tls_config` must require client auth (a CA to verify peers against);
+    /// serving "mTLS" without one is one-way TLS with an encouraging name, so
+    /// it is rejected rather than silently accepted.
+    ///
+    /// The [`ClientAuthLayer`] is attached to the builder, not to individual
+    /// services, so a newly added RPC is covered the moment it is routed.
+    pub async fn serve_with_mtls(
         self,
         addr: SocketAddr,
         tls_config: GrpcTlsConfig,
+        authorizer: Arc<dyn PeerAuthorizer>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         use tonic::transport::{Identity, ServerTlsConfig};
+
+        if !tls_config.require_client_auth {
+            return Err(
+                "serve_with_mtls requires client authentication: supply a CA \
+                        certificate with GrpcTlsConfig::with_ca_cert(..).with_client_auth()"
+                    .into(),
+            );
+        }
 
         info!("Starting gRPC server on {} with mTLS", addr);
 
@@ -123,19 +158,23 @@ impl SecretonGrpcService {
         // Build TLS config
         let mut server_tls_config = ServerTlsConfig::new().identity(identity);
 
-        // Add client CA if mTLS is required
-        if let Some(ca_cert) = tls_identity.ca_cert {
-            use tonic::transport::Certificate;
-            let ca = Certificate::from_pem(ca_cert);
-            server_tls_config = server_tls_config.client_ca_root(ca);
-            info!("Client certificate authentication is REQUIRED");
-        } else {
-            info!("Client certificate authentication is OPTIONAL");
-        }
+        // `client_ca_root` is what makes rustls demand and verify a client
+        // certificate during the handshake. `load()` already guaranteed the CA
+        // is present when `require_client_auth` is set, so this is unreachable
+        // as `None` — but an `expect` here would be a panic on a config path,
+        // and an error is the honest outcome.
+        let ca_cert = tls_identity
+            .ca_cert
+            .ok_or("client authentication is required but no CA certificate was loaded")?;
+        use tonic::transport::Certificate;
+        server_tls_config = server_tls_config.client_ca_root(Certificate::from_pem(ca_cert));
+        info!("Client certificate authentication is REQUIRED");
 
-        // Build and start server with TLS
+        // Build and start server with TLS. The auth layer sits on the builder
+        // so it wraps every routed service.
         Server::builder()
             .tls_config(server_tls_config)?
+            .layer(ClientAuthLayer::new(authorizer))
             .add_service(secreton_service_server::SecretonServiceServer::new(self))
             .serve(addr)
             .await?;

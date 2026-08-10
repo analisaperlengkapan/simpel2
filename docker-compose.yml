@@ -118,6 +118,12 @@ services:
     environment:
       RUST_LOG: debug
       GRPC_PORT: "50053"
+      # The gRPC listener refuses to start without mTLS material. The e2e stack
+      # has no PKI, and the gateway connects with `SecretonServiceClient::new`
+      # (no client credentials), so the boundary is opened deliberately here.
+      # Enforcement itself is covered by `secreton-grpc`'s mtls_enforcement
+      # tests, which mint a CA and drive a real handshake.
+      GRPC_ALLOW_INSECURE: "true"
       DB_HOST: postgres
       DB_USER: ${POSTGRES_USER:-postgres}
       DB_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}

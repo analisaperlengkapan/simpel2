@@ -9488,9 +9488,12 @@ dependencies = [
  "deadpool-postgres",
  "flate2",
  "futures",
+ "hex",
+ "http 1.5.0",
  "http-body-util",
  "metrics",
  "prost",
+ "rcgen",
  "rustc_version",
  "rustls",
  "secreton-core",
@@ -9508,8 +9511,10 @@ dependencies = [
  "tonic-build",
  "tonic-prost",
  "tonic-prost-build",
+ "tower",
  "tracing",
  "uuid",
+ "x509-parser 0.18.1",
 ]
 
 [[package]]

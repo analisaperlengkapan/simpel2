@@ -300,6 +300,41 @@ RPCs grouped:
 
 Generated code goes to `crates/grpc/src/generated/`.
 
+### Client authentication is enforced, and it fails closed
+
+Every one of those 36 RPCs reads or mutates secret material, so the listener
+authenticates its callers with **mTLS client certificates** — not bearer tokens.
+Bringing it up:
+
+1. `resolve_listener_security(GrpcTlsConfig::from_env(), allow_insecure_from_env())`
+   decides. Without mTLS material it returns an **error**, and the process
+   refuses to start. The only way past is `GRPC_ALLOW_INSECURE=true`.
+2. `serve_with_mtls(addr, tls, authorizer)` attaches `ClientAuthLayer` to
+   `Server::builder()` — one layer covering every method, so a new RPC is
+   guarded the moment it is routed.
+3. `serve_insecure(addr, reason)` is the opt-out. It logs the reason at WARN on
+   every startup.
+
+| Variable                 | Meaning                                                    |
+|--------------------------|------------------------------------------------------------|
+| `GRPC_TLS_CERT_PATH`     | server certificate (PEM)                                    |
+| `GRPC_TLS_KEY_PATH`      | server private key (PEM)                                    |
+| `GRPC_TLS_CA_PATH`       | CA signing client certs — its presence turns mTLS on         |
+| `GRPC_ALLOW_INSECURE`    | `true` serves anonymous callers; production sets `false`     |
+| `GRPC_ALLOWED_CLIENT_CNS`| comma-separated CN allowlist; unset ⇒ CA trust is the rule   |
+
+Same names as authenc's gRPC boundary — one convention configures both.
+
+**mTLS authenticates a workload, it does not authorize a request.** A valid
+`gateway` certificate proves the caller is the gateway; it says nothing about
+which paths the gateway may read. Per-path scoping is still open (task #129).
+Do not read "mTLS is on" as "secrets are access-controlled".
+
+Istio does **not** cover this hop: `values.yaml` `mtls.disableForHosts`
+excludes authenc, secreton and postgres, and both authenc and secreton run
+`istioInjection: false` — including under production `STRICT`. The mesh cannot
+substitute for the layer.
+
 ## Configuration
 
 Primary config file: `secreton.toml` (see `secreton.toml.example` for all options).
@@ -530,10 +565,17 @@ Test suites in `tests/`:
 - Write an `encryption_metadata` claim by hand. The layer that does the
   encryption owns that field; a hard-coded `"algorithm"` is how #127 stayed
   invisible for as long as it did.
-- Assert a security property with a round-trip test. Storing and reading back
-  passes whether or not anything is encrypted — reach past the wrapper and
-  assert on what the inner backend actually holds
-  (`encrypted_storage::tests::encryption_at_rest_is_real`).
+- Add a `Server::builder()` call of your own, or reach for `.with_interceptor`.
+  Client auth is a tower layer because `PeerAuthorizer::authorize` is async and
+  a tonic interceptor cannot await. Go through `serve_with_mtls`.
+- Check the caller per-RPC. One forgotten line in a 36-RPC service is an
+  unauthenticated hole; the layer is what makes that impossible.
+- Assert a security property with a round-trip. `store` then `get` passes
+  identically whether or not anything is encrypted, and whether or not anything
+  is enforced. Reach past the wrapper:
+  `encrypted_storage::tests::encryption_at_rest_is_real` reads the inner backend
+  directly, and `crates/grpc/tests/mtls_enforcement.rs` mints a CA and drives a
+  real handshake.
 
 **DO:**
 
@@ -619,7 +661,17 @@ Secreton itu sendiri **tidak fetch dari Secreton** (avoid circular). Tapi dokume
 ### TLS / mTLS
 
 - Production: client (consumer pod) WAJIB pakai gRPC mTLS (port 9000) atau HTTPS (port 8200 dengan cert dari Secreton PKI engine).
+  Ini kini **ditegakkan, bukan dianjurkan**: `backendConfig.grpcAllowInsecure`
+  = `"false"` di `values-production.yaml`, jadi pod secreton **menolak start**
+  sampai PKI menerbitkan cert/key/CA-nya (prasyarat F6-A). Lihat
+  "Client authentication is enforced" di bagian gRPC API.
 - Staging: HTTP plain port 8200 boleh untuk debugging (tapi mtls.mode=PERMISSIVE harus tetap aktif via Istio sidecar).
+  gRPC staging jalan lewat opt-out (`grpcAllowInsecure: "true"`) selama PKI
+  belum ada — tercatat di log startup tiap boot, bukan diam-diam.
+- Konsumen yang akan memegang cert: gateway sidecar
+  (`layanan/gateway/src/lib.rs` — sekarang `SecretonServiceClient::new(ch)`
+  tanpa kredensial) dan layanan-perlengkapan. Menyalakan mTLS tanpa
+  menerbitkan cert untuk mereka akan mematahkan `e2e-simpelv1-integration`.
 
 ## 📋 Common Tasks (Operator Perspective)
 

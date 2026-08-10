@@ -167,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("   REST API: {}", http_addr);
     info!("   gRPC API: {}", grpc_addr);
 
-    let rest_handle = if let Some(tls_cfg) = tls_config_opt.clone() {
+    let rest_handle = if let Some(tls_cfg) = tls_config_opt {
         info!("🔐 REST server with TLS on https://{}", http_addr);
         tokio::spawn(async move {
             if let Err(e) = serve_rest_with_tls(http_addr, app, tls_cfg).await {
@@ -184,32 +184,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let grpc_handle = if grpc_enabled {
-        if let Some(tls_cfg) = tls_config_opt {
-            info!("🔐 gRPC server with mTLS on https://{}", grpc_addr);
-            let mut grpc_tls_config =
-                GrpcTlsConfig::new(tls_cfg.cert_file.clone(), tls_cfg.key_file.clone());
+        // Fail-closed. Without mTLS material the listener only comes up when
+        // the operator opted out on purpose; `resolve_listener_security`
+        // returns the error text that says how.
+        //
+        // NOTE: `config.tls` is not the source here. `ApiConfig` carries a
+        // `tls` field, but nothing ever populates it (see `config_adapter.rs`)
+        // — which is precisely why the "mTLS path" in this binary had never
+        // executed. The environment is the source, named to match authenc's
+        // gRPC boundary so one convention configures the whole mesh.
+        let listener_security = secreton_api::grpc::resolve_listener_security(
+            GrpcTlsConfig::from_env(),
+            secreton_api::grpc::allow_insecure_from_env(),
+        )
+        .map_err(|e| {
+            error!("{}", e);
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
+        })?;
 
-            if let Some(ca_file) = &tls_cfg.ca_file {
-                grpc_tls_config = grpc_tls_config
-                    .with_ca_cert(ca_file.clone())
-                    .with_client_auth();
+        match listener_security {
+            secreton_api::grpc::ListenerSecurity::Mtls(grpc_tls_config) => {
+                info!("🔐 gRPC server with enforced mTLS on https://{}", grpc_addr);
+
+                // An explicit allowlist of client common names when one is
+                // configured; otherwise the CA itself is the allowlist.
+                let authorizer: Arc<dyn secreton_api::grpc::PeerAuthorizer> =
+                    match secreton_api::grpc::AllowedCommonNames::from_env() {
+                        Some(allowlist) => Arc::new(allowlist),
+                        None => {
+                            info!(
+                                "No {} configured — every workload holding a CA-signed \
+                                 certificate is accepted",
+                                secreton_api::grpc::auth::ALLOWED_COMMON_NAMES_ENV
+                            );
+                            Arc::new(secreton_api::grpc::AnyTrustedPeer)
+                        }
+                    };
+
+                tokio::spawn(async move {
+                    if let Err(e) = grpc_service
+                        .serve_with_mtls(grpc_addr, *grpc_tls_config, authorizer)
+                        .await
+                    {
+                        error!("gRPC server error: {}", e);
+                    }
+                })
             }
-
-            tokio::spawn(async move {
-                if let Err(e) = grpc_service
-                    .serve_with_tls(grpc_addr, grpc_tls_config)
-                    .await
-                {
-                    error!("gRPC server error: {}", e);
-                }
-            })
-        } else {
-            warn!("⚠️  gRPC server without TLS on http://{}", grpc_addr);
-            tokio::spawn(async move {
-                if let Err(e) = grpc_service.serve(grpc_addr).await {
-                    error!("gRPC server error: {}", e);
-                }
-            })
+            secreton_api::grpc::ListenerSecurity::Insecure { reason } => {
+                warn!(
+                    "⚠️  gRPC server on http://{} with NO client authentication",
+                    grpc_addr
+                );
+                tokio::spawn(async move {
+                    if let Err(e) = grpc_service.serve_insecure(grpc_addr, &reason).await {
+                        error!("gRPC server error: {}", e);
+                    }
+                })
+            }
         }
     } else {
         info!("gRPC server disabled in configuration");

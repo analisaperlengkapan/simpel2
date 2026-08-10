@@ -1,9 +1,89 @@
 //! TLS Configuration for gRPC
 //!
-//! Provides mTLS support for gRPC server with client certificate verification
+//! Provides mTLS support for gRPC server with client certificate verification.
+//!
+//! Environment variables, named to match authenc's gRPC boundary so the mesh
+//! is configured one way:
+//!
+//! | Variable              | Meaning                                            |
+//! |-----------------------|----------------------------------------------------|
+//! | `GRPC_TLS_CERT_PATH`  | server certificate (PEM)                            |
+//! | `GRPC_TLS_KEY_PATH`   | server private key (PEM)                            |
+//! | `GRPC_TLS_CA_PATH`    | CA that signs client certs — presence enables mTLS  |
+//! | `GRPC_ALLOW_INSECURE` | `true` opts out of all of the above, loudly         |
 
 use std::path::PathBuf;
 use tracing::{error, info};
+
+/// Env var: server certificate path.
+pub const TLS_CERT_ENV: &str = "GRPC_TLS_CERT_PATH";
+/// Env var: server private key path.
+pub const TLS_KEY_ENV: &str = "GRPC_TLS_KEY_PATH";
+/// Env var: CA certificate used to verify client certificates.
+pub const TLS_CA_ENV: &str = "GRPC_TLS_CA_PATH";
+/// Env var: explicit opt-out from transport security and client auth.
+pub const ALLOW_INSECURE_ENV: &str = "GRPC_ALLOW_INSECURE";
+
+/// How the gRPC listener is allowed to come up.
+#[derive(Debug, Clone)]
+pub enum ListenerSecurity {
+    /// mTLS with client-certificate authentication enforced.
+    Mtls(Box<GrpcTlsConfig>),
+    /// No transport security, no caller authentication. Carries the operator's
+    /// stated reason so it can be logged at startup.
+    Insecure { reason: String },
+}
+
+/// Decide how the listener must be secured — **fail-closed**.
+///
+/// Without TLS material the only way to serve is an explicit opt-out. This is
+/// the rule the whole change turns on, so it lives in one pure function that
+/// can be unit-tested rather than in the middle of `main`.
+///
+/// `tls` is what [`GrpcTlsConfig::from_env`] found; `allow_insecure` is the
+/// operator's opt-out flag.
+pub fn resolve_listener_security(
+    tls: Option<GrpcTlsConfig>,
+    allow_insecure: bool,
+) -> Result<ListenerSecurity, String> {
+    match (tls, allow_insecure) {
+        // TLS material wins even if the opt-out is also set: a configured
+        // operator who left a stale flag behind should get the secure path.
+        (Some(cfg), _) if cfg.require_client_auth => Ok(ListenerSecurity::Mtls(Box::new(cfg))),
+
+        // Server cert but no CA: one-way TLS authenticates the *server* to the
+        // caller and leaves the caller anonymous. That is not client auth, so
+        // it does not satisfy the requirement.
+        (Some(_), true) => Ok(ListenerSecurity::Insecure {
+            reason: format!(
+                "{TLS_CA_ENV} is unset so callers cannot be authenticated, and \
+                 {ALLOW_INSECURE_ENV}=true"
+            ),
+        }),
+        (Some(_), false) => Err(format!(
+            "gRPC client authentication is required but {TLS_CA_ENV} is unset. Point it at \
+             the CA that signs client certificates (Secreton PKI), or set \
+             {ALLOW_INSECURE_ENV}=true to serve anonymous callers deliberately."
+        )),
+
+        (None, true) => Ok(ListenerSecurity::Insecure {
+            reason: format!("{ALLOW_INSECURE_ENV}=true"),
+        }),
+        (None, false) => Err(format!(
+            "gRPC mTLS is required: set {TLS_CERT_ENV}, {TLS_KEY_ENV} and {TLS_CA_ENV} \
+             (Secreton PKI), or set {ALLOW_INSECURE_ENV}=true for a transitional deploy. \
+             Refusing to serve secrets to unauthenticated callers."
+        )),
+    }
+}
+
+/// Read [`ALLOW_INSECURE_ENV`] as a boolean. Only the exact string `true`
+/// (any case) opts out — a typo must not silently disable authentication.
+pub fn allow_insecure_from_env() -> bool {
+    std::env::var(ALLOW_INSECURE_ENV)
+        .map(|v| v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
 
 /// TLS configuration for gRPC server
 #[derive(Debug, Clone)]
@@ -50,6 +130,22 @@ impl GrpcTlsConfig {
     pub fn with_client_auth(mut self) -> Self {
         self.require_client_auth = true;
         self
+    }
+
+    /// Build from the environment.
+    ///
+    /// Returns `None` when no server certificate is configured. A CA path
+    /// implies client authentication — there is no way to load a CA and
+    /// *not* verify clients against it, because a CA that verifies nobody is
+    /// the configuration that produced this bug in the first place.
+    pub fn from_env() -> Option<Self> {
+        let cert = std::env::var(TLS_CERT_ENV).ok()?;
+        let key = std::env::var(TLS_KEY_ENV).ok()?;
+        let mut config = Self::new(PathBuf::from(cert), PathBuf::from(key));
+        if let Ok(ca) = std::env::var(TLS_CA_ENV) {
+            config = config.with_ca_cert(PathBuf::from(ca)).with_client_auth();
+        }
+        Some(config)
     }
 
     /// Load TLS configuration and return identity
@@ -207,6 +303,68 @@ grpc_tls_success_rate {}
             self.failed_client_cert_verifications,
             self.success_rate(),
         )
+    }
+}
+
+/// Tests for the fail-closed rule. Deliberately NOT behind
+/// `enable-inline-tests`: this is the decision that keeps an unauthenticated
+/// secret store from booting, so it must run on a bare `cargo test`.
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    fn mtls_material() -> GrpcTlsConfig {
+        GrpcTlsConfig::new(PathBuf::from("server.crt"), PathBuf::from("server.key"))
+            .with_ca_cert(PathBuf::from("ca.crt"))
+            .with_client_auth()
+    }
+
+    fn server_cert_only() -> GrpcTlsConfig {
+        GrpcTlsConfig::new(PathBuf::from("server.crt"), PathBuf::from("server.key"))
+    }
+
+    #[test]
+    fn no_tls_and_no_opt_out_refuses_to_serve() {
+        let err = resolve_listener_security(None, false)
+            .expect_err("an unauthenticated secret store must not be allowed to start");
+        assert!(
+            err.contains(ALLOW_INSECURE_ENV),
+            "error must name the escape hatch: {err}"
+        );
+    }
+
+    #[test]
+    fn a_server_cert_without_a_ca_is_not_client_auth() {
+        // One-way TLS proves who the *server* is. Callers stay anonymous, so
+        // this must be refused exactly like plaintext.
+        resolve_listener_security(Some(server_cert_only()), false)
+            .expect_err("one-way TLS must not pass for client authentication");
+    }
+
+    #[test]
+    fn full_mtls_material_selects_the_enforcing_path() {
+        let resolved = resolve_listener_security(Some(mtls_material()), false).unwrap();
+        assert!(matches!(resolved, ListenerSecurity::Mtls(_)));
+    }
+
+    #[test]
+    fn a_stale_opt_out_does_not_downgrade_a_configured_listener() {
+        // Operator configured mTLS and left GRPC_ALLOW_INSECURE=true behind.
+        // The secure path must still win.
+        let resolved = resolve_listener_security(Some(mtls_material()), true).unwrap();
+        assert!(
+            matches!(resolved, ListenerSecurity::Mtls(_)),
+            "a leftover opt-out must never turn off configured mTLS"
+        );
+    }
+
+    #[test]
+    fn the_opt_out_records_why_it_was_taken() {
+        let resolved = resolve_listener_security(None, true).unwrap();
+        match resolved {
+            ListenerSecurity::Insecure { reason } => assert!(reason.contains(ALLOW_INSECURE_ENV)),
+            other => panic!("expected the insecure path, got {other:?}"),
+        }
     }
 }
 
