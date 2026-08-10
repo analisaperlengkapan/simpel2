@@ -28,11 +28,19 @@ use secreton_core::audit::AuditLog;
 /// Create secret management operation routes
 pub fn create_routes() -> Router<AppState> {
     Router::new()
-        // Secret operations
-        .route("/data/{path}", get(get_secret))
-        .route("/data/{path}", post(create_secret))
-        .route("/data/{path}", put(update_secret))
-        .route("/data/{path}", delete(delete_secret))
+        // Secret operations.
+        //
+        // The wildcard is load-bearing: secret paths are hierarchical
+        // (`simpelv1/app`, `postgres/simpelv2`, `prod/api/token`) and a single
+        // `{path}` segment 404s on every one of them. The removed `/v1/kv`
+        // router accepted them, so narrowing here would have turned #130 from
+        // "delete an in-memory store" into "delete the only route that could
+        // address a real secret". Prefix policies (#773) rely on the same
+        // shape.
+        .route("/data/{*path}", get(get_secret))
+        .route("/data/{*path}", post(create_secret))
+        .route("/data/{*path}", put(update_secret))
+        .route("/data/{*path}", delete(delete_secret))
         .route("/secrets", get(list_secrets))
         // Key operations
         .route("/keys", get(list_keys))

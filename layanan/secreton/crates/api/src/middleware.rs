@@ -1748,10 +1748,6 @@ mod middleware_tests {
                 config: None,
                 metrics: Default::default(),
             },
-            kv: crate::kv::KVApiState {
-                engine: Arc::new(crate::kv::KVEngine::new()),
-                metrics: Default::default(),
-            },
             pki: crate::pki::PkiApiState::default(),
             services: Arc::new(services),
             metrics: Default::default(),

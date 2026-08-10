@@ -83,8 +83,8 @@ if [[ $BUNDLE -eq 1 ]]; then
   if [[ $DRY_RUN -eq 1 ]]; then
     echo "DRY-RUN: payload="; echo "$PAYLOAD" | jq '.data | keys'
   else
-    echo "$PAYLOAD" | api PUT "/kv/data/$KV_PREFIX" --data @-
-    api GET "/kv/data/$KV_PREFIX" | jq '.data.data | keys'
+    echo "$PAYLOAD" | api PUT "/secret/data/$KV_PREFIX" --data @-
+    api GET "/secret/data/$KV_PREFIX" | jq '.data.data | keys'
   fi
 else
   # Mode per-key: 1 path per env var.
@@ -92,15 +92,15 @@ else
     LKEY=$(echo "$KEY" | tr '[:upper:]' '[:lower:]')
     PATH_FULL="$KV_PREFIX/$LKEY"
     if [[ $DRY_RUN -eq 1 ]]; then
-      printf "DRY-RUN: PUT kv/data/%s = (%d chars)\n" "$PATH_FULL" "${#VAL}"
+      printf "DRY-RUN: PUT secret/data/%s = (%d chars)\n" "$PATH_FULL" "${#VAL}"
     else
       printf "  - %s ... " "$PATH_FULL"
       jq -nc --arg v "$VAL" '{data: {value: $v}}' \
-        | api PUT "/kv/data/$PATH_FULL" --data @- >/dev/null
+        | api PUT "/secret/data/$PATH_FULL" --data @- >/dev/null
       printf "OK\n"
     fi
   done < <(parse_env)
 fi
 
 echo "✓ Migrasi selesai dari $ENV_FILE → kv/$KV_PREFIX"
-[[ $DRY_RUN -eq 0 ]] && echo "Verifikasi: SECRETON_TOKEN=... curl $SECRETON_ADDR/v1/kv/data/$KV_PREFIX"
+[[ $DRY_RUN -eq 0 ]] && echo "Verifikasi: SECRETON_TOKEN=... curl $SECRETON_ADDR/v1/secret/data/$KV_PREFIX"

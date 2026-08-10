@@ -12,7 +12,6 @@ pub mod error;
 pub mod extractors;
 pub mod handlers;
 pub mod helpers;
-pub mod kv;
 pub mod metrics;
 pub mod middleware;
 pub mod models;
@@ -31,7 +30,6 @@ pub use secreton_grpc as grpc;
 use axum::extract::State;
 pub use error::{ApiError, ApiResult};
 pub use handlers::{AppState, ListQuery};
-pub use kv::{KVApiState, KVEngine, create_kv_router};
 pub use middleware::RequestContext;
 pub use models::{PaginatedResponse, PaginationQuery};
 pub use pki::{PkiApiState, create_pki_router};
@@ -45,7 +43,6 @@ pub use transit::{TransitApiState, create_transit_router};
 #[derive(Clone)]
 pub struct ApiState {
     pub transit: TransitApiState,
-    pub kv: KVApiState,
     pub pki: PkiApiState,
     pub services: std::sync::Arc<crate::services::ServiceContainer>,
     pub prometheus_handle: Option<metrics_exporter_prometheus::PrometheusHandle>,
@@ -94,10 +91,16 @@ pub struct TlsMetricsResponse {
 
 /// Create the main API router combining all endpoints
 pub fn create_api_router(state: ApiState) -> Router {
-    // Legacy v1 routers (transit, kv, pki)
+    // Legacy v1 routers (transit, pki).
+    //
+    // `/v1/kv` used to live here. It was a `HashMap` behind an `RwLock`: every
+    // secret written to it was gone on the next restart, and none of it was
+    // encrypted at rest. It was removed in #130 — the persistent, encrypted,
+    // policy-scoped path is `/v1/secret/data/{path}` below, which goes through
+    // `ServiceContainer::secret_storage`. `tests/no_inmemory_kv.rs` fails if
+    // anything mounts an in-memory secret store here again.
     let v1_legacy = Router::new()
         .nest("/transit", create_transit_router(state.transit.clone()))
-        .nest("/kv", create_kv_router(state.kv.clone()))
         .nest("/pki", create_pki_router(state.pki.clone()));
 
     // New v1 router built from handlers (includes /sys, /auth, /secrets, /dynamic, etc.)

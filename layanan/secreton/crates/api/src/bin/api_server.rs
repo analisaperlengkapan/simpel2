@@ -8,10 +8,7 @@ use tracing::{error, info, warn};
 use secreton_api::grpc::server::SecretonGrpcService;
 use secreton_api::grpc::tls::GrpcTlsConfig;
 use secreton_api::services::ServiceContainer;
-use secreton_api::{
-    ApiState, KVApiState, KVEngine, PkiApiState, TransitApiState, config::ApiConfig,
-    create_api_router,
-};
+use secreton_api::{ApiState, PkiApiState, TransitApiState, config::ApiConfig, create_api_router};
 use secreton_crypto::transit::TransitEngine;
 
 #[tokio::main]
@@ -102,10 +99,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create transit engine (shared between REST and gRPC)
     let transit_engine = Arc::new(TransitEngine::new());
 
-    info!("Creating KV engine...");
-    // Create KV engine (shared between REST and gRPC)
-    let kv_engine = Arc::new(KVEngine::new());
-
     info!("Initializing metrics recorder...");
     // Initialize Prometheus recorder
     let builder = PrometheusBuilder::new();
@@ -132,10 +125,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         transit: TransitApiState {
             engine: Arc::clone(&transit_engine),
             config: config.auth.mtls.clone().map(Arc::new),
-            metrics: Arc::clone(&metrics),
-        },
-        kv: KVApiState {
-            engine: kv_engine,
             metrics: Arc::clone(&metrics),
         },
         pki: PkiApiState::default(),

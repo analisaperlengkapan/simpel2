@@ -118,7 +118,6 @@ Top-level (unauthenticated):
   Merged from:
     1. Legacy routers:
        /v1/transit  — create_transit_router()
-       /v1/kv       — create_kv_router()
        /v1/pki      — create_pki_router()
     2. Handler routers:
        create_protected_router()   — auth, secret, admin, sys/*, dynamic, raft, etc.
@@ -625,6 +624,19 @@ Test suites in `tests/`:
 - Give the policy check its own copy of the auth whitelist. Call
   `is_whitelisted()`. Two lists drift, and the drift stays silent until the day
   something finally mounts the second one.
+- Back a secrets route with process-local state. `/v1/kv` was a `HashMap`
+  behind an `RwLock`, rebuilt in `main()` on every boot: writes answered `200`
+  with a version number, reads were correct for the life of the pod, and the
+  whole store was gone on restart. Nothing in the API surface said so, and no
+  round-trip test could tell (#130). Secrets go through
+  `ServiceContainer::secret_storage`; `crates/api/tests/no_inmemory_kv.rs`
+  reads that handle directly after an HTTP write and fails if a route ever
+  answers out of memory again.
+- Narrow a secret path to a single URL segment. Real paths are hierarchical
+  (`simpelv1/app`, `postgres/simpelv2`), so `/data/{path}` 404s on every caller
+  that matters while `/data/{*path}` works. The 404 reads as "no such secret",
+  not "no such route" — which is why this is worth stating rather than
+  rediscovering.
 
 **DO:**
 
