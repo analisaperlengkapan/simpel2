@@ -20,16 +20,41 @@
 //! - [`health`] - Health checks and readiness probes
 //!
 //! ## Optional Features
-//! - [`raft`] - Raft consensus endpoints (high availability clustering)
+//! - `raft` - Raft consensus endpoints (high availability clustering). Compiled
+//!   only under the `raft-consensus` feature, so this is deliberately not an
+//!   intra-doc link: it would not resolve in a default build.
 //!
 //! # Request Flow
 //!
-//! 1. **Authentication**: All requests pass through [`crate::middleware::auth_middleware`]
-//! 2. **Authorization**: RBAC policy enforcement via [`crate::middleware::rbac_middleware`]
-//! 3. **Rate Limiting**: Request throttling via [`crate::middleware::rate_limit_middleware`]
-//! 4. **Handler Execution**: Async handler processes request
-//! 5. **Audit Logging**: All operations logged via [`crate::middleware::audit_middleware`]
-//! 6. **Response**: Standardized [`ApiResponse`] returned
+//! What the router in [`crate::create_api_router`] actually layers over `/v1`,
+//! outermost first:
+//!
+//! 1. **Rate limiting** — [`crate::middleware::request_rate_middleware`]
+//! 2. **Metrics** — [`crate::middleware::metrics_middleware`]
+//! 3. **Authentication** — [`crate::middleware::auth_middleware`]: validates the
+//!    bearer token and puts a [`crate::middleware::RequestContext`] (roles,
+//!    permissions, JWT claims) into the request extensions
+//! 4. **Seal check** — [`crate::middleware::seal_check_middleware`]: 503 while sealed
+//! 5. **Handler execution**, then a standardized [`ApiResponse`]
+//!
+//! ## What is NOT in that stack
+//!
+//! This list used to claim an `rbac_middleware` and an `audit_middleware`.
+//! **Neither function exists anywhere in the repo** — they were cited as the
+//! enforcement mechanism while nothing enforced anything.
+//!
+//! - **No authorization layer.** Authentication is global; authorization is
+//!   per-handler and currently thin. [`namespace`] checks
+//!   `access_control.check_access`; [`policy`] checks the caller's admin role.
+//!   The secret read/write path checks **nothing** beyond having a valid token —
+//!   `SecretService::get_secret` takes a `user_id` and uses it only as the audit
+//!   actor. Do not assume a handler is guarded because it is behind `/v1`.
+//! - **No audit layer.** Nothing wraps the router to log requests. Audit records
+//!   are written explicitly by the services that choose to, so a new handler
+//!   that forgets to call the audit logger simply produces no trail.
+//!
+//! Anything added here must be layered in [`crate::create_api_router`] to take
+//! effect. A doc entry is not a control.
 //!
 //! # Error Handling
 //!
