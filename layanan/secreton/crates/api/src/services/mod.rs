@@ -40,8 +40,15 @@ pub struct ServiceContainer {
     /// Configuration
     pub config: ApiConfig,
 
-    /// Storage service
+    /// Storage service — RAW backend. Anything written through this handle
+    /// lands unencrypted. Use it only for engine state, sessions and metadata;
+    /// secret payloads go through [`ServiceContainer::secret_storage`].
     pub storage: Arc<dyn StorageBackend + Send + Sync>,
+
+    /// Storage for secret payloads: the raw backend wrapped in
+    /// `EncryptedStorage`, keyed off the seal's master key. Reads and writes
+    /// fail while the engine is sealed, by design.
+    pub secret_storage: Arc<dyn StorageBackend + Send + Sync>,
 
     /// Database connection pool (for direct SQL access)
     pub pool: deadpool_postgres::Pool,
@@ -150,7 +157,7 @@ impl ServiceContainer {
         .await?;
 
         // Initialize engine and seal services
-        let (engine, seal, namespace) = Self::initialize_engine_services(
+        let (engine, seal, namespace, secret_storage) = Self::initialize_engine_services(
             config,
             storage.clone(),
             crypto.clone(),
@@ -184,6 +191,7 @@ impl ServiceContainer {
         Ok(Self {
             config: config.clone(),
             storage,
+            secret_storage,
             pool,
             http_client,
             crypto,
@@ -265,13 +273,11 @@ impl ServiceContainer {
         Arc<engine::SecretService>,
         Arc<SealService>,
         Arc<NamespaceService>,
+        Arc<dyn StorageBackend + Send + Sync>,
     )> {
-        // Initialize engine service
-        let engine = Arc::new(
-            engine::SecretService::new(storage.clone(), crypto.clone(), audit.clone()).await?,
-        );
-
-        // Initialize seal/unseal service
+        // The seal is built BEFORE the engine because the engine's storage is
+        // encrypted under a key derived from the seal's master key. Seal state
+        // itself must NOT go through that wrapper — it is what protects the key.
         let seal_config = SealConfig {
             seal_type: "shamir".to_string(),
             secret_shares: std::env::var("SECRETON_SEAL_SHARES")
@@ -314,6 +320,24 @@ impl ServiceContainer {
             tracing::info!("🔓 Engine is UNSEALED. Secret operations are allowed.");
         }
 
+        // Secret payloads are sealed under a key derived from the master key, so
+        // the bytes that reach Postgres are ciphertext. Only the secret data path
+        // is wrapped: seal state, sessions and namespace metadata keep using the
+        // raw backend, or unsealing would depend on being unsealed.
+        let secret_storage: Arc<dyn StorageBackend + Send + Sync> =
+            Arc::new(secreton_storage::EncryptedStorage::new(
+                storage.clone(),
+                Arc::new(secreton_core::storage::SealMasterKeyProvider::new(
+                    seal.clone(),
+                )),
+                "engine-master-v1",
+            ));
+
+        let engine = Arc::new(
+            engine::SecretService::new(secret_storage.clone(), crypto.clone(), audit.clone())
+                .await?,
+        );
+
         // Initialize namespace service
         let namespace = Arc::new(NamespaceService::new(
             "Kejaksaan Agung RI".to_string(),
@@ -337,7 +361,7 @@ impl ServiceContainer {
             }
         }
 
-        Ok((engine, seal, namespace))
+        Ok((engine, seal, namespace, secret_storage))
     }
 
     /// Initialize secrets engines and policy services
@@ -772,6 +796,10 @@ impl ServiceContainer {
         Self {
             config: ApiConfig::default(),
             storage: storage.clone(),
+            // Mock container: no seal ceremony has run, so there is no master key
+            // to encrypt under. Keep the raw backend rather than a wrapper that
+            // would fail every call.
+            secret_storage: storage.clone(),
             pool,
             http_client,
             crypto: crypto.clone(),

@@ -71,7 +71,32 @@ k8s-operator ─→ (gRPC client to grpc)
 
 The central state is `ServiceContainer` (in `crates/api/src/services/mod.rs`), wrapped in `Arc` as `AppState`.
 
-Key fields: `config`, `storage`, `pool` (deadpool-postgres), `crypto`, `auth`, `engine` (SecretService), `admin`, `audit`, `seal`, `namespace`, `transit_engine`, `pki_engine`, `lease_manager`, `policy_service`, `hsm` (optional), plus the surviving secret engines: `aws_engine`, `rotation_engine`, `wrapping`, `mfa`. The GCP/Azure/LDAP/RabbitMQ/Kafka/KMIP engines were deleted in #103 — see "Secrets engines" below.
+Key fields: `config`, `storage`, `secret_storage`, `pool` (deadpool-postgres), `crypto`, `auth`, `engine` (SecretService), `admin`, `audit`, `seal`, `namespace`, `transit_engine`, `pki_engine`, `lease_manager`, `policy_service`, `hsm` (optional), plus the surviving secret engines: `aws_engine`, `rotation_engine`, `wrapping`, `mfa`. The GCP/Azure/LDAP/RabbitMQ/Kafka/KMIP engines were deleted in #103 — see "Secrets engines" below.
+
+### `storage` vs `secret_storage` — pick the right one
+
+There are **two** storage handles and they are not interchangeable:
+
+| Handle | What it is | Use it for |
+|---|---|---|
+| `storage` | the RAW backend (postgres/file/raft) | engine state, sessions, OAuth state, namespace metadata, injection sessions, stats |
+| `secret_storage` | `storage` wrapped in `EncryptedStorage`, keyed off the seal master key | **every secret payload**, REST and gRPC alike |
+
+Anything written through `storage` lands in Postgres unencrypted. Until #127 that
+was the only handle, which is how KV secrets ended up sitting in
+`vault_entries.encrypted_data` as plaintext JSON under a metadata stamp that
+claimed `"algorithm": "aes-256-gcm"`. If you are adding a path that persists
+secret material, it goes through `secret_storage`.
+
+The wrapper resolves its key per call via `SealMasterKeyProvider`
+(`crates/core/src/storage/seal_key.rs`), so **secret I/O fails while the engine
+is sealed** — that is the ceremony working, not a bug. Seal state itself stays on
+the raw backend; encrypting it under the key it protects would deadlock unseal.
+
+Entries carry `encryption_metadata.envelope = "aes256gcm-v1"`. Rows without it
+predate encryption: they still read (with a warning) and are sealed on next
+write. Do not "fix" that passthrough away until staging and production have been
+re-written; removing it strands every existing secret.
 
 `AppState` = `ApiState { services: Arc<ServiceContainer>, transit, kv, pki, prometheus_handle, metrics }` — passed to Axum via `.with_state(state)`.
 
@@ -500,6 +525,15 @@ Test suites in `tests/`:
 - Use environment variables for production secrets. Use the seal/unseal mechanism.
 - Set Shamir shares=1, threshold=1. Minimum recommended: shares=5, threshold=3.
 - Skip the seal check middleware for authenticated endpoints.
+- Persist secret material through `ServiceContainer::storage`. That handle is the
+  raw backend — use `secret_storage` (see "Application State").
+- Write an `encryption_metadata` claim by hand. The layer that does the
+  encryption owns that field; a hard-coded `"algorithm"` is how #127 stayed
+  invisible for as long as it did.
+- Assert a security property with a round-trip test. Storing and reading back
+  passes whether or not anything is encrypted — reach past the wrapper and
+  assert on what the inner backend actually holds
+  (`encrypted_storage::tests::encryption_at_rest_is_real`).
 
 **DO:**
 

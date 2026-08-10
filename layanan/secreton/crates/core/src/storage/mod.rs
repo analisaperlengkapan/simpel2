@@ -13,6 +13,7 @@ pub use secreton_storage::{
     HealthStatus,
     InMemoryCache,
     ListOptions,
+    MasterKeyProvider,
     MemoryBackend,
     QueryParams,
     SecretEntry,
@@ -30,10 +31,12 @@ pub use secreton_storage::PostgresBackend;
 
 // Application-specific storage modules
 pub mod mfa;
+pub mod seal_key;
 pub mod sealed_keys;
 pub mod secure;
 
 pub use mfa::{MfaRecoveryCodes, MfaSecret, MfaStorage};
+pub use seal_key::SealMasterKeyProvider;
 pub use sealed_keys::{PostgresSealedKeyStorage, ProviderType, SealedKeyStorage, SealedMasterKey};
 pub use secure::{
     KeyConfig, KeyEntry, KeyStore, MemoryKeyStore, SecureStorage, SharedSecureStorage,

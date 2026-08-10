@@ -153,9 +153,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tls_config_opt = config.tls.clone();
     let grpc_enabled = config.grpc.enabled;
 
-    // Create gRPC service (shared state with REST)
+    // Create gRPC service (shared state with REST).
+    // It gets `secret_storage`, not `storage`: gRPC is the path the gateway
+    // sidecar and simpelv1 use, so it must encrypt at rest like REST does.
     let grpc_service = SecretonGrpcService::new(
-        services.storage.clone(),
+        services.secret_storage.clone(),
         Arc::clone(&transit_engine),
         Some(Arc::clone(&metrics.grpc_requests_total)),
     );
