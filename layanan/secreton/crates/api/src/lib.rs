@@ -107,9 +107,27 @@ pub fn create_api_router(state: ApiState) -> Router {
 
     let v1_handlers = protected_routes.merge(unprotected_routes);
 
-    // Combine legacy and new handlers into a single Router
+    // Combine legacy and new handlers into a single Router.
+    //
+    // Layer order is load-bearing: tower wraps the current service on each
+    // `.layer()`, so the LAST one added is the OUTERMOST. Reading the list
+    // bottom-up gives the execution order:
+    //
+    //     metrics -> auth -> seal -> policy -> handler
+    //
+    // `policy_check_middleware` is added first precisely so it runs last, on a
+    // request that is already authenticated (it reads the RequestContext that
+    // `auth_middleware` inserts) and already known to be against an unsealed
+    // engine. Adding it after `auth_middleware` in this list would run it
+    // BEFORE auth, where the context does not exist yet and every request would
+    // be refused. It was written long ago and never mounted at all (#129);
+    // `tests/policy_enforcement.rs` fails if it is removed again.
     let v1_router = v1_legacy
         .merge(v1_handlers)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            middleware::policy_check_middleware,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::seal_check_middleware,

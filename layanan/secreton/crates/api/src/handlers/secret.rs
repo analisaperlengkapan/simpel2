@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use crate::{
     ApiError, ApiResponse, ApiResult,
     extractors::AuthenticatedUser,
-    handlers::{AppState, policy::NamespaceQuery},
+    handlers::AppState,
     helpers::create_audit_log,
     services::engine::{KeyMetadata, SecretMetadata},
 };
@@ -48,12 +48,12 @@ pub fn create_routes() -> Router<AppState> {
         .route("/sign", post(sign_data))
         .route("/verify", post(verify_signature))
         .route("/hash", post(hash_data))
-        // Policy operations
-        .route("/policies", get(list_policies))
-        .route("/policies/{name}", get(get_policy))
-        .route("/policies/{name}", post(create_policy))
-        .route("/policies/{name}", put(update_policy))
-        .route("/policies/{name}", delete(delete_policy))
+        // Policy operations live at /v1/sys/policies (handlers/policy.rs) and
+        // ONLY there. A second, unguarded copy of the same CRUD used to be
+        // mounted here at /v1/secret/policies: it called the same
+        // `state.policy_service` with no admin check, so the `require_admin`
+        // guard added to the /v1/sys routes could be sidestepped by changing
+        // the URL. Do not re-add a policy route to this module.
         // Audit operations
         .route("/audit", get(get_audit_logs))
         .route("/audit/export", get(export_audit_logs))
@@ -644,46 +644,10 @@ pub struct HashResponse {
     pub algorithm: String,
 }
 
-/// Policy models
-#[derive(Debug, Deserialize)]
-pub struct CreatePolicyRequest {
-    pub name: String,
-    pub rules: Vec<PolicyRule>,
-    pub metadata: Option<PolicyMetadata>,
-    #[serde(default = "default_namespace")]
-    pub namespace: String,
-}
-
-fn default_namespace() -> String {
-    "default".to_string()
-}
-
-// Use canonical PolicyRule from core
-pub use secreton_core::models::PolicyRule;
-
-// API-specific extension if capabilities needed
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiPolicyRule {
-    pub path: String,
-    pub capabilities: Vec<String>,
-    pub conditions: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PolicyMetadata {
-    pub description: Option<String>,
-    pub tags: Vec<String>,
-    pub owner: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PolicyResponse {
-    pub name: String,
-    pub rules: Vec<PolicyRule>,
-    pub metadata: PolicyMetadata,
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub updated_at: chrono::DateTime<chrono::Utc>,
-}
+// The policy DTOs that lived here (CreatePolicyRequest, ApiPolicyRule,
+// PolicyMetadata, PolicyResponse) went with the duplicate policy routes. The
+// canonical ones are in handlers/policy.rs. `ApiPolicyRule` never had a single
+// reader even before that.
 
 /// Secret operations
 #[axum::debug_handler]
@@ -1302,132 +1266,6 @@ pub async fn list_key_versions(
         .collect();
 
     Ok(Json(ApiResponse::success(keys)))
-}
-
-// Policy management handlers
-pub async fn list_policies(
-    State(state): State<AppState>,
-    user: AuthenticatedUser,
-) -> ApiResult<Json<ApiResponse<Vec<String>>>> {
-    // List policies via service
-    // Use optimized list_policy_names (limit 1000 default) to match existing contract
-    // This maintains "Vault-like" behavior where listing returns keys/names
-    let (names, _total) = state
-        .policy_service
-        .list_policy_names(None, 1000, 0)
-        .await
-        .map_err(ApiError::Core)?;
-
-    // Audit log (optional for list, but good practice)
-    tracing::info!(user = %user.username, count = names.len(), "Listed policies");
-
-    Ok(Json(ApiResponse::success(names)))
-}
-
-pub async fn get_policy(
-    State(state): State<AppState>,
-    Path(name): Path<String>,
-    Query(query): Query<NamespaceQuery>,
-    user: AuthenticatedUser,
-) -> ApiResult<Json<ApiResponse<PolicyResponse>>> {
-    let p = state
-        .policy_service
-        .get_policy(name.clone(), query.namespace)
-        .await
-        .map_err(ApiError::Core)?;
-
-    let policy = PolicyResponse {
-        name: p.name,
-        rules: p.rules,
-        metadata: PolicyMetadata {
-            description: p.description,
-            tags: vec![], // Tags not currently supported in service
-            owner: Some(p.created_by),
-        },
-        created_at: p.created_at,
-        updated_at: p.updated_at,
-    };
-
-    // Audit log
-    let audit_entry = create_audit_log("policy_read", &user.username, "policy", &name);
-    let _ = state.audit.log(audit_entry).await;
-
-    Ok(Json(ApiResponse::success(policy)))
-}
-
-pub async fn create_policy(
-    State(state): State<AppState>,
-    Path(name): Path<String>,
-    user: AuthenticatedUser,
-    Json(req): Json<CreatePolicyRequest>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let description = req.metadata.as_ref().and_then(|m| m.description.clone());
-
-    state
-        .policy_service
-        .create_policy(
-            name.clone(),
-            req.namespace,
-            description,
-            req.rules,
-            user.username.clone(),
-        )
-        .await
-        .map_err(ApiError::Core)?;
-
-    // Audit log
-    let audit_entry = create_audit_log("policy_created", &user.username, "policy", &name);
-    let _ = state.audit.log(audit_entry).await;
-
-    Ok(Json(ApiResponse::success(())))
-}
-
-pub async fn update_policy(
-    State(state): State<AppState>,
-    Path(name): Path<String>,
-    Query(query): Query<NamespaceQuery>,
-    user: AuthenticatedUser,
-    Json(req): Json<CreatePolicyRequest>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let description = req.metadata.as_ref().and_then(|m| m.description.clone());
-
-    state
-        .policy_service
-        .update_policy(
-            name.clone(),
-            query.namespace,
-            description,
-            Some(req.rules),
-            None, // Don't change active status
-            user.username.clone(),
-        )
-        .await
-        .map_err(ApiError::Core)?;
-
-    // Audit log
-    let audit_entry = create_audit_log("policy_updated", &user.username, "policy", &name);
-    let _ = state.audit.log(audit_entry).await;
-
-    Ok(Json(ApiResponse::success(())))
-}
-
-pub async fn delete_policy(
-    State(state): State<AppState>,
-    Path(name): Path<String>,
-    Query(query): Query<NamespaceQuery>,
-    user: AuthenticatedUser,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    state
-        .policy_service
-        .delete_policy(name.clone(), query.namespace)
-        .await
-        .map_err(ApiError::Core)?;
-
-    // Audit log
-    let audit_entry = create_audit_log("policy_deleted", &user.username, "policy", &name);
-    let _ = state.audit.log(audit_entry).await;
-
-    Ok(Json(ApiResponse::success(())))
 }
 
 // Backup management handlers - delegate to admin service

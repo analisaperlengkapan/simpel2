@@ -974,42 +974,33 @@ fn determine_admin_level(
     AdminLevel::Satker
 }
 
-/// Extract policy names from JWT claims
-/// Looks for policy_names field in JWT claims metadata or as a direct field
-#[allow(dead_code)]
-fn extract_policy_names_from_claims(claims: &crate::auth::Claims) -> Vec<String> {
-    // Check metadata for policy_names
-    if let Some(policies_str) = claims.metadata.get("policy_names") {
-        // Parse comma-separated policy names
-        return policies_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-    }
+// `extract_policy_names_from_claims` lived here behind an #[allow(dead_code)]:
+// a second copy of the policy-name derivation that `auth_middleware` already
+// does inline when it builds the RequestContext. Two copies of an authorization
+// input is one too many — the live one is in `auth_middleware`.
 
-    // Check metadata for policies (alternative field name)
-    if let Some(policies_str) = claims.metadata.get("policies") {
-        return policies_str
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect();
-    }
+/// The policy name that grants everything without any stored rules.
+///
+/// Held only by tokens minted at `/v1/sys/init`. Treated as implicit because a
+/// newly initialised engine contains no policies, so the bootstrap token has to
+/// be able to act before the first policy exists.
+pub const ROOT_POLICY: &str = "root";
 
-    // Default: derive from roles (role-based policies)
-    // Each role can have an associated policy
-    claims
-        .roles
-        .iter()
-        .map(|role| format!("{}-policy", role.to_lowercase()))
-        .collect()
-}
-
-/// Policy check middleware
-/// Enforces policy-based authorization on all operations.
-/// Evaluates policies loaded from JWT claims against the requested path and action.
-/// This middleware should be applied after authentication middleware.
+/// Authorizes every request against the caller's policies.
+///
+/// Mounted in [`crate::create_api_router`] directly inside `auth_middleware`, so
+/// the [`RequestContext`] it reads is already populated and the caller is
+/// already authenticated. Authentication answers *who*; this answers *what they
+/// may reach*. Until it was wired, nothing answered the second question: the
+/// secret handlers passed `user.id` to the engine purely as an audit actor, so
+/// anyone who could log in could read, overwrite and delete every secret at
+/// every path.
+///
+/// Fails closed in both directions — a caller with no context is refused, and a
+/// caller whose policies match no rule is refused (`PolicySet::evaluate`
+/// returns `NoMatch` → deny). Consequence worth stating plainly: with no
+/// policies seeded, every non-root principal is denied. That is the intended
+/// posture, not a misconfiguration.
 pub async fn policy_check_middleware(
     State(state): State<ApiState>,
     request: Request,
@@ -1018,17 +1009,14 @@ pub async fn policy_check_middleware(
     let path = request.uri().path();
     let method = request.method().clone();
 
-    // Skip policy check for system endpoints
-    if path.starts_with("/health")
-        || path.starts_with("/version")
-        || path.starts_with("/metrics")
-        || path == "/v1/sys/seal-status"
-        || path == "/api/v1/sys/seal-status"
-        || path == "/v1/sys/unseal"
-        || path == "/api/v1/sys/unseal"
-        || path == "/v1/sys/init"
-        || path == "/api/v1/sys/init"
-    {
+    // One skip list, not two. This used to be a hand-written copy that had
+    // already drifted: it covered /sys/init, /sys/unseal and /sys/seal-status
+    // but not /sys/rekey/init or /sys/rekey/update. Those are auth-whitelisted,
+    // so they carry no RequestContext, so the no-context branch below would
+    // have 401'd them the moment this middleware was mounted. Deriving the list
+    // from the same predicate the auth middleware uses is what keeps the two
+    // from diverging again.
+    if is_whitelisted(path) {
         return Ok(next.run(request).await);
     }
 
@@ -1037,6 +1025,16 @@ pub async fn policy_check_middleware(
 
     if let Some(ctx) = context {
         let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
+
+        // The root policy is implicit, as in Vault: it grants everything and has
+        // no stored rules. Root tokens minted by `/v1/sys/init` carry
+        // `policies: ["root"]` (handlers/seal.rs), and a freshly initialised
+        // engine has no policies at all — so without this, the very token used
+        // to seed the first policy would be denied permission to seed it.
+        if ctx.policy_names.iter().any(|p| p == ROOT_POLICY) {
+            debug!(user = %user_id, %path, "root policy grants access");
+            return Ok(next.run(request).await);
+        }
 
         // Map HTTP method to capability/action
         let action = map_method_to_action(&method);

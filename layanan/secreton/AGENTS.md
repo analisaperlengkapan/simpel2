@@ -133,9 +133,37 @@ Top-level (unauthenticated):
 4. `security_headers_middleware` (lib-backend) — HSTS, CSP, X-Frame-Options
 5. `request_rate_middleware` — per-IP rate limiting
 6. _(on /v1 only)_
-   - `seal_check_middleware` — returns 503 if vault sealed
-   - `auth_middleware` — JWT validation
    - `metrics_middleware` — per-endpoint latency/counters
+   - `auth_middleware` — JWT validation, inserts `RequestContext`
+   - `seal_check_middleware` — returns 503 if vault sealed
+   - `policy_check_middleware` — **authorization**; 403 if no policy allows it
+
+The `/v1` four are listed in execution order, which is the REVERSE of the
+`.layer()` calls in `create_api_router` — tower makes the last layer added the
+outermost. Authorization is innermost by design: it needs the identity
+`auth_middleware` put in the request.
+
+### Authorization is enforced, and it fails closed
+
+`policy_check_middleware` loads the caller's policies (`RequestContext::
+policy_names`, derived from the token's `policies`, else metadata, else
+`{role}-policy`) and evaluates them against the request path and the HTTP verb
+mapped to a capability. Deny overrides allow; **no matching rule is a denial**.
+If the policy store cannot be reached it answers 500 — never "allow".
+
+Two consequences to know before debugging a 403:
+
+- **With no policies seeded, every non-root principal is refused.** That is the
+  posture, not a misconfiguration. Seed policies via `/v1/sys/policies`.
+- **`root` is implicit** (`middleware::ROOT_POLICY`), as in Vault: it grants
+  everything and has no stored rules, because a freshly initialised engine holds
+  no policies and the token from `/v1/sys/init` has to be able to write the
+  first one.
+
+Paths exempt from authorization are exactly the paths exempt from
+authentication — `policy_check_middleware` calls the same `is_whitelisted()`
+predicate `auth_middleware` uses. It used to keep its own copy, which had
+already drifted (it was missing both `/sys/rekey/*` entries).
 
 ## Handler Modules
 
@@ -150,7 +178,7 @@ All handlers in `crates/api/src/handlers/`:
 | `admin` | `/v1/admin` | Users, roles, config, maintenance, security scan, metrics |
 | `namespace` | `/v1/sys/namespaces` | Multi-tenant namespace CRUD + stats |
 | `lease` | `/v1/sys/leases` | Renew, revoke, lookup, stats |
-| `policy` | `/v1/sys/policies` | Policy CRUD + test |
+| `policy` | `/v1/sys/policies` | Policy CRUD + test — the ONLY policy API |
 | `wrapping` | `/v1/sys/wrapping` | Wrap, unwrap, lookup, rewrap |
 | `rotation` | `/v1/sys/rotation` | Rotation policies, scheduler, history |
 | `totp` | `/v1/sys/totp` | TOTP key management, generate, validate |
@@ -327,8 +355,14 @@ Same names as authenc's gRPC boundary — one convention configures both.
 
 **mTLS authenticates a workload, it does not authorize a request.** A valid
 `gateway` certificate proves the caller is the gateway; it says nothing about
-which paths the gateway may read. Per-path scoping is still open (task #129).
-Do not read "mTLS is on" as "secrets are access-controlled".
+which paths the gateway may read. Do not read "mTLS is on" as "secrets are
+access-controlled".
+
+Per-path scoping on this boundary is **still open** (task #129). The REST side
+got it — see "Authorization is enforced, and it fails closed" — but the tower
+layer cannot do the same job here, because the secret path travels in the
+request body, not in the method name. That check belongs in the handler,
+reading `PeerIdentity` out of the request extensions.
 
 Istio does **not** cover this hop: `values.yaml` `mtls.disableForHosts`
 excludes authenc, secreton and postgres, and both authenc and secreton run
@@ -574,8 +608,23 @@ Test suites in `tests/`:
   identically whether or not anything is encrypted, and whether or not anything
   is enforced. Reach past the wrapper:
   `encrypted_storage::tests::encryption_at_rest_is_real` reads the inner backend
-  directly, and `crates/grpc/tests/mtls_enforcement.rs` mints a CA and drives a
-  real handshake.
+  directly, `crates/grpc/tests/mtls_enforcement.rs` mints a CA and drives a real
+  handshake, and `crates/api/tests/policy_enforcement.rs` drives the real router
+  rather than one it assembled itself.
+- Mount a second policy API. `/v1/sys/policies` is guarded by `require_admin`;
+  an unguarded duplicate at `/v1/secret/policies` called the same
+  `policy_service` with no check at all, so the guard could be skipped by
+  changing the URL. One route, one guard.
+- Write a middleware and leave the mounting for later. `policy_check_middleware`
+  was complete, documented, and referenced in comments — and layered nowhere.
+  It is the **third** control found in that state, after the `rbac_middleware`
+  citation removed in #771 and `interceptor::auth_interceptor` deleted in #772.
+  If you add a middleware, add the `.layer()` call in the same change, plus a
+  test that fails when the layer is removed
+  (`crates/api/tests/policy_enforcement.rs` is the worked example).
+- Give the policy check its own copy of the auth whitelist. Call
+  `is_whitelisted()`. Two lists drift, and the drift stays silent until the day
+  something finally mounts the second one.
 
 **DO:**
 
