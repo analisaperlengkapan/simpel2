@@ -40,6 +40,12 @@ tonic = { workspace = true }
 prost = { workspace = true }
 tonic-prost = { workspace = true }
 
+# Client authentication (tower layer on the server builder + cert parsing)
+tower = { workspace = true }
+http = { workspace = true }
+x509-parser = { workspace = true }
+hex = { workspace = true }
+
 # TLS
 rustls = { workspace = true }
 tokio-rustls = { workspace = true }
@@ -69,3 +75,7 @@ rustc_version = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+# The mTLS enforcement test issues its own CA + server/client certs at runtime,
+# so the assertions run against a real handshake instead of fixture files that
+# would quietly expire.
+rcgen = { workspace = true }

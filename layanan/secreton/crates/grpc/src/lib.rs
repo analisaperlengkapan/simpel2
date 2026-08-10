@@ -5,9 +5,21 @@
 //!
 //! ## Features
 //! - Full gRPC service implementation
-//! - mTLS support for secure communication
+//! - mTLS with **enforced** client-certificate authentication ([`auth`])
 //! - Protocol buffer definitions and generated code
 //! - Integration with core engine services
+//!
+//! ## Bringing the listener up
+//!
+//! Call [`resolve_listener_security`] first. It fails closed: without mTLS
+//! material the listener may only start when the operator set
+//! `GRPC_ALLOW_INSECURE=true`. Then dispatch to
+//! [`SecretonGrpcService::serve_with_mtls`] or, for the opt-out,
+//! [`SecretonGrpcService::serve_insecure`].
+//!
+//! Authentication proves *which workload* called. It does not decide *what
+//! that workload may reach* — that still needs policy evaluation on the secret
+//! path (task #129).
 
 // Generated proto code
 pub mod generated {
@@ -28,10 +40,12 @@ pub mod generated {
     }
 }
 
-pub mod interceptor;
+pub mod auth;
 pub mod server;
 pub mod tls;
 
-pub use interceptor::{AuthConfig, auth_interceptor, extract_bearer_token};
+pub use auth::{AllowedCommonNames, AnyTrustedPeer, ClientAuthLayer, PeerAuthorizer, PeerIdentity};
 pub use server::SecretonGrpcService;
-pub use tls::GrpcTlsConfig;
+pub use tls::{
+    GrpcTlsConfig, ListenerSecurity, allow_insecure_from_env, resolve_listener_security,
+};

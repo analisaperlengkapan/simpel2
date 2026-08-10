@@ -56,7 +56,12 @@ config:
 
 backendConfig:
   mtlsMode: STRICT
-  grpcTlsEnabled: "true"
+  # Fail-closed. authenc and secreton refuse to start their gRPC listeners
+  # without mTLS material, so the Secreton PKI must have issued
+  # GRPC_TLS_CERT_PATH / GRPC_TLS_KEY_PATH / GRPC_TLS_CA_PATH first (F6-A).
+  # Istio does not cover these hops — mtls.disableForHosts excludes authenc and
+  # secreton, and both run with istioInjection: false.
+  grpcAllowInsecure: "false"
 
 # ─── Workload sizing — HA ──────────────────────────────────────────────────────
 postgres:
