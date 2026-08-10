@@ -23,6 +23,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use common::{token_with_policies, unsealed_state};
 use secreton_api::create_api_router;
+use secreton_api::middleware::resource_path;
 use tower::ServiceExt;
 
 async fn get_secret_as(policies: Option<&[&str]>) -> StatusCode {
@@ -135,4 +136,46 @@ async fn auth_whitelisted_paths_are_not_refused_by_the_policy_check() {
             "{path} is auth-whitelisted but the policy check denied it"
         );
     }
+}
+
+/// Policies name resources; requests carry URIs. This is the conversion, and
+/// getting it wrong is invisible in the worst way.
+///
+/// The middleware used to hand `PolicySet::evaluate` the raw URI. Since
+/// `path_matches` is a plain glob with no normalisation, the rules the system
+/// actually ships — `sys/capabilities-self` from
+/// `20260205000002_dynamic_role_system.sql`, `secret/data/<service>/*` from the
+/// Helm block — could never match `/v1/sys/capabilities-self`. Authorization
+/// therefore collapsed to "deny everything that is not root": fail-closed, so
+/// not a hole, but the policy engine could not grant anything either. The
+/// companion test that the glob side agrees is
+/// `secreton-core/tests/policy_path_vocabulary.rs`.
+#[test]
+fn a_request_uri_maps_to_the_resource_path_policies_are_written_against() {
+    // The two shapes that actually appear in shipped rules.
+    assert_eq!(
+        resource_path("/v1/sys/capabilities-self"),
+        "sys/capabilities-self"
+    );
+    assert_eq!(
+        resource_path("/v1/secret/data/simpelv1/app"),
+        "secret/data/simpelv1/app"
+    );
+
+    // Idempotent: feeding an already-normalised path back in must not strip
+    // another segment. A rule named `secret/data/x` must stay that.
+    assert_eq!(resource_path("secret/data/x"), "secret/data/x");
+
+    // A trailing slash is the same resource, or the glob matcher sees two.
+    assert_eq!(resource_path("/v1/secret/data/x/"), "secret/data/x");
+
+    // Only the `v1` prefix is understood. A future `/v2` passes through
+    // unrewritten so it surfaces as an unmatched resource — and therefore a
+    // denial — rather than being quietly folded into the v1 namespace.
+    assert_eq!(resource_path("/v2/secret/data/x"), "v2/secret/data/x");
+
+    // Degenerate inputs must not panic or produce a stray separator.
+    assert_eq!(resource_path("/v1"), "");
+    assert_eq!(resource_path("/v1/"), "");
+    assert_eq!(resource_path("/"), "");
 }

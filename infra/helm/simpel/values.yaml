@@ -129,23 +129,33 @@ secretonAuth:
   # Policy per service — list path glob yang boleh di-read.
   # Map ke ConfigMap secreton-policies (templates/secreton/policies.yaml).
   # Map ke Role di Kubernetes Auth Backend (templates/secreton/auth-config.yaml).
+  #
+  # KOSAKATA: ini RESOURCE path, bukan URI HTTP dan bukan mount Vault.
+  # Secreton mengevaluasi `secret/data/<path>` — hasil normalisasi
+  # `/v1/secret/data/<path>` oleh `middleware::resource_path`. Sebelumnya blok
+  # ini ditulis `kv/data/...` (penamaan mount Vault, bukan rute Secreton), yang
+  # tidak akan pernah cocok dengan apa pun. Belum menggigit karena
+  # `enabled: false` — lihat #129/#105.
+  #
+  # Satu `*` = SATU segmen (`secret/data/simpelv1/*` cocok `.../app`, tidak
+  # cocok `.../db/password`). Pakai `**` bila memang ingin seluruh subtree.
   policies:
     authenc:
-      - "kv/data/authenc/*"
-      - "kv/data/postgres/authenc"
+      - "secret/data/authenc/*"
+      - "secret/data/postgres/authenc"
       - "transit/encrypt/authenc-key"
       - "transit/decrypt/authenc-key"
     layanan-integrasi:
-      - "kv/data/integrasi/tokens/*"
-      - "kv/data/postgres/integrasi"
+      - "secret/data/integrasi/tokens/*"
+      - "secret/data/postgres/integrasi"
     layanan-perlengkapan:
-      - "kv/data/postgres/perlengkapan"
-      - "kv/data/postgres/integrasi"        # read-only ke DB integrasi
-      - "kv/data/perlengkapan/notifikasi/*" # SMTP/SMS/WhatsApp creds
+      - "secret/data/postgres/perlengkapan"
+      - "secret/data/postgres/integrasi"        # read-only ke DB integrasi
+      - "secret/data/perlengkapan/notifikasi/*" # SMTP/SMS/WhatsApp creds
     simpelv1:
-      - "kv/data/simpelv1/*"
-      - "kv/data/postgres/simpelv2"
-    secreton: []                            # secreton tidak akses dirinya via auth backend
+      - "secret/data/simpelv1/*"
+      - "secret/data/postgres/simpelv2"
+    secreton: []                                # secreton tidak akses dirinya via auth backend
 
 # Bootstrap secrets — chart TIDAK render Secret object kecuali toggle on.
 # Default off mengeliminasi bug "apply menimpa secret asli dengan placeholder".
