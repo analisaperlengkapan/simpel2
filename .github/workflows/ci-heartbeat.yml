@@ -84,40 +84,50 @@ jobs:
           gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?status=queued&per_page=100" \
             --jq '.workflow_runs[] | [.created_at, .id, .name] | @tsv' > queued.tsv || true
 
+          # Umur antrean saja BUKAN bukti kematian, dan membedakannya penting:
+          # 20 runner yang jenuh oleh satu PR ber-65-job — atau backlog pasca-
+          # insiden yang sedang mengalir — wajar meninggalkan job menunggu jauh
+          # lebih dari 45 menit. Penjaga yang memerah di hari sibuk akan diabaikan
+          # orang, dan penjaga yang diabaikan persis kegagalan yang mau dicegah
+          # berkas ini (bandingkan actionlint: gagal 40 kali berturut-turut tanpa
+          # ada yang lihat).
+          #
+          # ⚠️ JANGAN pakai `?status=in_progress` sebagai pembeda "sibuk". Status
+          # di level RUN tidak mencerminkan job: run 31761828468 tercatat `queued`
+          # sementara 36 job-nya SELESAI dan 8 sedang BERJALAN, dan filter
+          # repo-wide `in_progress` mengembalikan 0 di detik yang sama. Memakainya
+          # menghasilkan kegagalan palsu tepat saat CI paling sibuk — sudah
+          # diverifikasi lewat API, bukan dugaan.
+          #
+          # Yang benar-benar menjawab "adakah yang mengerjakan ini" adalah JOB
+          # milik run itu sendiri: kapan terakhir salah satunya mulai atau selesai.
+          # Diam >45 menit = tak ada runner yang menyentuhnya.
           stuck=0
           while IFS=$'\t' read -r created id name; do
             [ -z "${created:-}" ] && continue
-            if [[ "$created" < "$cutoff" ]]; then
-              echo "::error::Run ${id} (${name}) mengantre sejak ${created} — tak ada runner yang mengambilnya."
+            [[ "$created" < "$cutoff" ]] || continue
+
+            # per_page=100 cukup: run terbesar di repo ini ~65 job.
+            last=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
+                     --jq '[.jobs[] | (.completed_at // .started_at // empty)] | max // empty' || true)
+            # Tak ada job yang pernah mulai ⇒ patokannya umur run itu sendiri.
+            [ -z "${last:-}" ] && last="$created"
+
+            if [[ "$last" < "$cutoff" ]]; then
+              echo "::error::Run ${id} (${name}) mengantre sejak ${created}; job terakhir bergerak ${last} — tak ada runner yang mengambilnya."
               stuck=$((stuck + 1))
+            else
+              echo "Run ${id} (${name}) mengantre sejak ${created}, tetapi job-nya bergerak ${last} — sibuk, bukan macet."
             fi
           done < queued.tsv
 
           if [ "$stuck" -eq 0 ]; then
-            echo "Tidak ada run yang mengantre melewati ambang."
-            exit 0
-          fi
-
-          # Mengantre lama saja BELUM bukti kematian, dan membedakannya penting:
-          # 20 runner yang jenuh oleh satu PR ber-65-job akan membuat job wajar
-          # menunggu >45 menit, begitu pula saat backlog pasca-insiden mengalir.
-          # Penjaga yang memerah di hari sibuk akan diabaikan orang — dan penjaga
-          # yang diabaikan persis kegagalan yang mau dicegah berkas ini (bandingkan
-          # actionlint yang gagal 40 kali berturut-turut tanpa ada yang lihat).
-          #
-          # Yang membedakan MACET dari SIBUK adalah throughput: kalau ada yang
-          # berjalan, antrean sedang bergerak. Nol berjalan DAN ada yang menunggu
-          # lama = tak ada yang mengambil pekerjaan sama sekali.
-          running=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?status=in_progress" --jq '.total_count')
-          echo "Run berjalan saat ini: ${running}"
-
-          if [ "$running" -gt 0 ]; then
-            echo "::warning::${stuck} run mengantre >45 menit, tetapi ${running} run sedang berjalan — antrean bergerak, bukan macet."
+            echo "Tidak ada run yang diam melewati ambang."
             exit 0
           fi
 
           echo
-          echo "${stuck} run menggantung >45 menit dan NOL run berjalan — tak ada yang mengambil pekerjaan."
+          echo "${stuck} run tak bergerak sama sekali selama >45 menit — tak ada yang mengambil pekerjaan."
           echo "Diagnosis: infra/helm/arc/README.md → 'CI tidak mengambil job'."
           exit 1
 
