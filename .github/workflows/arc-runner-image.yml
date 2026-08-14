@@ -112,20 +112,38 @@ jobs:
       # dengan isi berbeda dari node yang menariknya belakangan — persis kelas
       # bug yang paling sulit dilacak. Jadi PR yang mengubah Dockerfile WAJIB
       # menaikkan tag; ditegakkan di sini, bukan diingat saat review.
+      #
+      # Pembandingnya adalah tag di BASE BRANCH, bukan keberadaan tag di
+      # registry. Keduanya beda pertanyaan: "sudah ada di registry" juga benar
+      # untuk PR yang SUDAH menaikkan tag dan image-nya kebetulan sudah didorong
+      # (mis. saat pemulihan darurat) — memerahkan itu adalah alarm palsu. Yang
+      # benar-benar dilarang adalah mengubah isi image tanpa menggerakkan tag.
       - name: Perubahan Dockerfile wajib menaikkan tag
-        if: github.event_name == 'pull_request' && steps.exists.outputs.exists == 'true'
+        if: github.event_name == 'pull_request'
         run: |
           set -euo pipefail
           base='${{ github.event.pull_request.base.sha }}'
+          values=infra/helm/arc/values-runner-set.yaml
 
           if git diff --quiet "$base" HEAD -- infra/helm/arc/runner-image/; then
-            echo "Dockerfile tak berubah dan tag sudah ada — tak ada yang perlu di-push."
+            echo "runner-image/ tak berubah — tag tak perlu bergerak."
             exit 0
           fi
 
-          echo "::error::infra/helm/arc/runner-image/ berubah tetapi tag masih ${{ steps.ref.outputs.ref }}, yang sudah ada di registry."
-          echo "Naikkan tag di infra/helm/arc/values-runner-set.yaml (semver immutable — jangan timpa tag lama)."
-          exit 1
+          base_ref=$(git show "${base}:${values}" \
+            | grep -oE 'ghcr\.io/[^[:space:]]+/simpel2-arc-runner:[^[:space:]"]+' \
+            | sort -u | head -1)
+          head_ref='${{ steps.ref.outputs.ref }}'
+          echo "Base: ${base_ref:-<tidak ada>}"
+          echo "PR  : ${head_ref}"
+
+          if [ "$base_ref" = "$head_ref" ]; then
+            echo "::error::runner-image/ berubah tetapi tag masih ${head_ref} — sama dengan base."
+            echo "Naikkan tag di ${values} (semver immutable — jangan timpa tag lama)."
+            exit 1
+          fi
+
+          echo "Tag dinaikkan bersama perubahan image."
 
       - name: Setup Buildx
         uses: docker/setup-buildx-action@v4
