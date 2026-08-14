@@ -93,13 +93,33 @@ jobs:
             fi
           done < queued.tsv
 
-          if [ "$stuck" -gt 0 ]; then
-            echo
-            echo "${stuck} run menggantung >45 menit tanpa runner yang mengambilnya."
-            echo "Diagnosis: infra/helm/arc/README.md → 'CI tidak mengambil job'."
-            exit 1
+          if [ "$stuck" -eq 0 ]; then
+            echo "Tidak ada run yang mengantre melewati ambang."
+            exit 0
           fi
-          echo "Tidak ada run yang mengantre melewati ambang."
+
+          # Mengantre lama saja BELUM bukti kematian, dan membedakannya penting:
+          # 20 runner yang jenuh oleh satu PR ber-65-job akan membuat job wajar
+          # menunggu >45 menit, begitu pula saat backlog pasca-insiden mengalir.
+          # Penjaga yang memerah di hari sibuk akan diabaikan orang — dan penjaga
+          # yang diabaikan persis kegagalan yang mau dicegah berkas ini (bandingkan
+          # actionlint yang gagal 40 kali berturut-turut tanpa ada yang lihat).
+          #
+          # Yang membedakan MACET dari SIBUK adalah throughput: kalau ada yang
+          # berjalan, antrean sedang bergerak. Nol berjalan DAN ada yang menunggu
+          # lama = tak ada yang mengambil pekerjaan sama sekali.
+          running=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?status=in_progress" --jq '.total_count')
+          echo "Run berjalan saat ini: ${running}"
+
+          if [ "$running" -gt 0 ]; then
+            echo "::warning::${stuck} run mengantre >45 menit, tetapi ${running} run sedang berjalan — antrean bergerak, bukan macet."
+            exit 0
+          fi
+
+          echo
+          echo "${stuck} run menggantung >45 menit dan NOL run berjalan — tak ada yang mengambil pekerjaan."
+          echo "Diagnosis: infra/helm/arc/README.md → 'CI tidak mengambil job'."
+          exit 1
 
       - name: Versi runner masih diterima GitHub
         # WAJIB always(): versi yang tertinggal adalah PENYEBAB paling umum dari
