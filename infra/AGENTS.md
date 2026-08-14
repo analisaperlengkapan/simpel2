@@ -129,6 +129,7 @@ Prasyarat make-or-break: **Velero** (#50) terpasang; **disiplin migrasi expand/c
 - **Tag**: WAJIB SemVer `vMAJOR.MINOR.PATCH` (mis. `v0.1.0`). DILARANG mutable tag (`latest`, `stag`, `prod`, kosong) — schema `values.schema.json` reject saat `helm lint`.
 - **`imagePullPolicy`**: `IfNotPresent` di staging & production (combined with immutable tag). `Never` di-deprecate (legacy era `localhost:32000` registry).
 - **Build**: Tag git `v*.*.*` → `release.yml` GitHub Actions matrix build & push 7 image (portal, perlengkapan, authenc, layanan-integrasi, layanan-perlengkapan, secreton, simpelv1) dengan SBOM + provenance.
+- **Image runner ARC** (`simpel2-arc-runner`) di luar matrix itu — ia bukan bagian rilis produk, tapi tetap dibangun CI (`arc-runner-image.yml`), **bukan tangan**. Tag diturunkan dari `infra/helm/arc/values-runner-set.yaml`; workflow menolak PR yang mengubah `runner-image/` tanpa menaikkan tag. Prosedur bump + alasan versinya kritis: `infra/helm/arc/README.md`.
 
 ## 🔐 Secret Management Zero-Trust (Secreton + Kubernetes Auth)
 
@@ -246,6 +247,8 @@ layananIntegrasi:
 - **Loloskan temuan `kube-linter`.** Job `Helm Lint & kube-linter` (`security.yml`) = **BLOCKING** (di set `BLOCKING` Security Summary, path-gated `infra/helm/**`): `helm lint` + `kube-linter` atas rendered manifest (staging+production) WAJIB 0 temuan. Tiap workload WAJIB liveness+readiness (boot-lambat → startupProbe via `_probes.tpl`+values), `resources.requests/limits`, securityContext non-root + `readOnlyRootFilesystem` (scratch via emptyDir) + drop ALL caps + seccomp, PDB ber-`unhealthyPodEvictionPolicy`, anti-affinity (soft di single-node), tanpa mutable tag. **False-positive di-suppress per-objek** via annotation `ignore-check.kube-linter.io/<check>: "alasan"` di template (BUKAN blanket `exclude` di `infra/lint/.kube-linter.yaml`). Cek lokal: `helm template … | kube-linter lint`.
 - **Pakai k8s Secret untuk APP_KEY / token API** saat `secretonAuth.enabled=true`. Secret production WAJIB dari Secreton.
 - **Deploy langsung ke production tanpa lewat staging.** Patuhi alur staging → promote → production (lihat "Pemisahan Lingkungan" → "Alur deploy WAJIB").
+- **Taruh penjaga di atas hal yang ia jaga.** Setiap workflow di repo ini `runs-on: arc-simpel`, jadi apa pun yang memantau kesehatan CI harus `runs-on: ubuntu-latest` — kalau tidak, ia mati bersama yang dipantaunya dan diam. Insiden 2026-08-10: runner yang di-deprecate mengunci ARC, job hanya menggantung `queued` (tak pernah merah — `required_status_checks` tak bisa menilai check yang tak pernah mulai), dan CI mati **4 hari tanpa satu pun indikator**. Berlaku sama untuk `ci-heartbeat.yml` dan `arc-runner-image.yml`.
+- **Anggap kredensial yang hanya dipakai saat cache-miss sebagai teruji.** `imagePullPolicy: IfNotPresent` berarti `imagePullSecrets` hanya benar-benar dijalankan sekali, saat image pertama mendarat di node. Kredensial yang kedaluwarsa setelah itu tak terlihat sampai bump image berikutnya — lalu SEMUA runner `ImagePullBackOff` sekaligus, tepat di tengah pemulihan. Bila sebuah paket boleh publik (image tanpa kode SIMPel), lebih baik publik daripada memelihara PAT yang tak pernah diuji.
 
 ✅ **DO:**
 
