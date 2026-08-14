@@ -102,6 +102,11 @@ jobs:
           echo "Tidak ada run yang mengantre melewati ambang."
 
       - name: Versi runner masih diterima GitHub
+        # WAJIB always(): versi yang tertinggal adalah PENYEBAB paling umum dari
+        # antrean menggantung di step sebelumnya. Tanpa ini, step yang menjawab
+        # "kenapa" ter-skip tepat pada run yang paling membutuhkannya — urutan
+        # yang terbalik. Terbukti pada run 31778474651.
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
