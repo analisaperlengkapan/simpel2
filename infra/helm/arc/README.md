@@ -124,10 +124,20 @@ mereset fase ke `Pending`). Jadi bump versi runner sekaligus obat kaskadenya:
 
 ```bash
 # 1) infra/helm/arc/runner-image/Dockerfile: FROM ...actions-runner:<versi-baru>
-# 2) build + push tag image BARU (jangan timpa tag lama — immutable)
-# 3) infra/helm/arc/values-runner-set.yaml: naikkan tag di KEDUA tempat
+# 2) infra/helm/arc/values-runner-set.yaml: naikkan tag image (KEDUA tempat)
+# 3) buka PR → workflow "ARC Runner Image" membangunnya; setelah merge ke main,
+#    workflow yang sama mendorong tag baru ke ghcr. Tak ada build tangan.
+# 4) baru kemudian, dari host yang bisa menjangkau cluster:
 helm upgrade arc-simpel -n arc-runners <chart> -f infra/helm/arc/values-runner-set.yaml
 ```
+
+Langkah (3) berjalan di runner GitHub-hosted, **bukan** `arc-simpel` — kalau
+tidak, image yang dibutuhkan untuk memperbaiki runner yang mati hanya bisa
+dibangun oleh runner yang mati itu. Workflow-nya juga menolak PR yang mengubah
+`runner-image/` tanpa menaikkan tag, jadi tag lama tak bisa tertimpa diam-diam.
+
+⚠️ Jalankan `helm upgrade` **saat tak ada job CI berjalan**: upgrade mengganti
+runner scale set, dan runner ephemeral yang sedang mengerjakan job ikut dibuang.
 
 **2. Listener menunjuk EphemeralRunnerSet yang sudah tiada.**
 Pod listener crashloop ~5 detik sekali dengan `exit 1`; lognya berakhir di

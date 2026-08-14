@@ -1,0 +1,175 @@
+# arc-runner-image.yml — Bangun & dorong image runner ARC dari CI.
+#
+# Sebelum ini image `simpel2-arc-runner` dibangun DENGAN TANGAN di host dev lalu
+# di-push manual. Itu masalah nyata, bukan ketidakrapian:
+#
+#   - Membutuhkan seorang manusia memegang kredensial `write:packages` dan
+#     menjalankan `docker login` tiap kali versi runner perlu naik.
+#   - Naiknya versi runner adalah tindakan MENDESAK (runner yang di-deprecate
+#     mengunci seluruh CI — lihat runner-image/Dockerfile), jadi menaruh manusia
+#     di jalur kritis persis pada saat CI mati adalah urutan yang terbalik.
+#   - Tak ada catatan siapa membangun apa dari commit mana; image yang berjalan
+#     di seluruh CI justru satu-satunya artefak tanpa jejak.
+#
+# ── Kenapa `ubuntu-latest`, bukan `arc-simpel` ────────────────────────────────
+# Ini image yang DIPAKAI runner ARC. Membangunnya di atas runner ARC berarti:
+# saat image rusak/kedaluwarsa dan runner mati, satu-satunya cara memperbaikinya
+# ikut mati. Sama persis dengan alasan ci-heartbeat.yml tinggal di GitHub-hosted.
+#
+# ── Tag: satu sumber kebenaran ────────────────────────────────────────────────
+# Tag TIDAK ditulis di sini. Ia diturunkan dari values-runner-set.yaml — berkas
+# yang benar-benar dipakai Helm untuk menarik image. Dengan begitu yang dibangun
+# CI dan yang ditarik cluster tak bisa menyimpang: kalau menyimpang, tak ada tag
+# untuk di-push.
+
+name: ARC Runner Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/helm/arc/runner-image/**'
+      - 'infra/helm/arc/values-runner-set.yaml'
+      - '.github/workflows/arc-runner-image.yml'
+  pull_request:
+    paths:
+      - 'infra/helm/arc/runner-image/**'
+      - 'infra/helm/arc/values-runner-set.yaml'
+      - '.github/workflows/arc-runner-image.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arc-runner-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build ARC runner image
+    # JANGAN pindahkan ke arc-simpel. Lihat komentar kepala berkas.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Butuh base ref untuk membedakan "Dockerfile berubah" dari "hanya
+          # komentar workflow berubah" di step immutability di bawah.
+          fetch-depth: 0
+
+      - name: Turunkan tag image dari values Helm
+        id: ref
+        run: |
+          set -euo pipefail
+          values=infra/helm/arc/values-runner-set.yaml
+
+          # Semua kemunculan (runner container + spec template) harus setuju.
+          # Dua salinan tag yang ditulis tangan adalah pola kegagalan berulang
+          # di repo ini: satu di-bump, satu tertinggal, dan yang tertinggal itu
+          # yang dipakai. Diperiksa mekanis, bukan diandalkan pada ketelitian.
+          mapfile -t refs < <(grep -oE 'ghcr\.io/[^[:space:]]+/simpel2-arc-runner:[^[:space:]"]+' "$values" | sort -u)
+
+          if [ "${#refs[@]}" -eq 0 ]; then
+            echo "::error::Tidak menemukan referensi image simpel2-arc-runner di ${values}."
+            exit 1
+          fi
+          if [ "${#refs[@]}" -gt 1 ]; then
+            echo "::error::Tag image tidak konsisten di ${values} — Helm akan menarik campuran versi:"
+            printf '  %s\n' "${refs[@]}"
+            exit 1
+          fi
+
+          echo "ref=${refs[0]}" >> "$GITHUB_OUTPUT"
+          echo "Image: ${refs[0]}"
+
+      - name: Login ke GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag belum terpakai (immutability)
+        id: exists
+        run: |
+          set -euo pipefail
+          ref='${{ steps.ref.outputs.ref }}'
+
+          if docker manifest inspect "$ref" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Tag ${ref} SUDAH ada di registry."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Tag ${ref} belum ada — akan dibangun."
+          fi
+
+      # Menimpa tag yang sudah ada melanggar aturan semver-immutable repo ini
+      # dan, lebih buruk, membuat node yang sudah men-cache image lama berjalan
+      # dengan isi berbeda dari node yang menariknya belakangan — persis kelas
+      # bug yang paling sulit dilacak. Jadi PR yang mengubah Dockerfile WAJIB
+      # menaikkan tag; ditegakkan di sini, bukan diingat saat review.
+      - name: Perubahan Dockerfile wajib menaikkan tag
+        if: github.event_name == 'pull_request' && steps.exists.outputs.exists == 'true'
+        run: |
+          set -euo pipefail
+          base='${{ github.event.pull_request.base.sha }}'
+
+          if git diff --quiet "$base" HEAD -- infra/helm/arc/runner-image/; then
+            echo "Dockerfile tak berubah dan tag sudah ada — tak ada yang perlu di-push."
+            exit 0
+          fi
+
+          echo "::error::infra/helm/arc/runner-image/ berubah tetapi tag masih ${{ steps.ref.outputs.ref }}, yang sudah ada di registry."
+          echo "Naikkan tag di infra/helm/arc/values-runner-set.yaml (semver immutable — jangan timpa tag lama)."
+          exit 1
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # PR membangun tanpa mendorong: cukup untuk membuktikan Dockerfile masih
+      # bisa dibangun (base image yang di-deprecate/dihapus ketahuan di sini,
+      # bukan saat cluster gagal menarik).
+      - name: Build (PR — tanpa push)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v7
+        with:
+          context: infra/helm/arc/runner-image
+          push: false
+          platforms: linux/amd64
+          tags: ${{ steps.ref.outputs.ref }}
+          cache-from: type=gha,scope=arc-runner-image
+          cache-to: type=gha,mode=max,scope=arc-runner-image
+
+      # Di main: idempoten. Tag yang sudah ada dilewati (bukan digagalkan) —
+      # push yang hanya menyentuh komentar workflow tak boleh memerahkan main,
+      # dan melewatinya tetap menjaga immutability karena tak ada yang ditimpa.
+      - name: Push (main)
+        if: github.event_name != 'pull_request' && steps.exists.outputs.exists == 'false'
+        uses: docker/build-push-action@v7
+        with:
+          context: infra/helm/arc/runner-image
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.ref.outputs.ref }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=Runner ARC simpel2 (actions-runner + toolchain build Rust)
+            org.opencontainers.image.licenses=Proprietary
+          cache-from: type=gha,scope=arc-runner-image
+          cache-to: type=gha,mode=max,scope=arc-runner-image
+
+      - name: Langkah berikutnya
+        if: github.event_name != 'pull_request' && steps.exists.outputs.exists == 'false'
+        run: |
+          echo "Image ${{ steps.ref.outputs.ref }} sudah di registry."
+          echo
+          echo "Cluster BELUM memakainya — image di-pull saat runner scale set di-upgrade:"
+          echo "  helm upgrade arc-simpel oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \\"
+          echo "    -n arc-runners -f infra/helm/arc/values-runner-set.yaml"
+          echo
+          echo "JANGAN upgrade saat ada job CI berjalan — runner ephemeral yang sedang bekerja akan dibuang."

@@ -78,10 +78,31 @@ echo "==> Pemanen runner zombie (CronJob + RBAC) di ${RUNNER_NS}"
 kubectl apply -f "${SCRIPT_DIR}/reaper.yaml"
 
 echo "==> Secret PAT (arc-github-token) di ${RUNNER_NS}"
+# `kubectl apply` client-side menyimpan SELURUH objek yang di-apply ke annotation
+# `kubectl.kubernetes.io/last-applied-configuration` — termasuk `data`, jadi PAT
+# berakhir DUA KALI di objek yang sama: sekali di `data`, sekali lagi terbaca
+# jelas di metadata.
+#
+# Yang punya `get secret` memang bisa membaca `data` juga, jadi ini bukan jalur
+# akses baru. Yang berubah adalah SEBARANNYA: metadata ikut terbawa ke tempat
+# orang tak menyangka ada kredensial di sana — backup Velero, `kubectl get -o yaml`
+# yang ditempel ke tiket, diff manifest. Kredensial sebaiknya hanya berada di
+# satu tempat yang memang diperlakukan sebagai rahasia.
+#
+# Server-side apply tidak menulis annotation itu sama sekali (kepemilikan field
+# dilacak di `managedFields`), dan tetap idempotent seperti apply biasa.
 kubectl create secret generic arc-github-token \
   --namespace "${RUNNER_NS}" \
   --from-literal=github_token="${GITHUB_PAT}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml \
+  | kubectl apply --server-side --force-conflicts -f -
+
+# Bersihkan sisa dari instalasi client-side sebelumnya. Tanpa ini, salinan lama
+# PAT tetap tertinggal di metadata meski instalasi berikutnya sudah server-side.
+# No-op bila annotation-nya memang tak ada.
+kubectl annotate secret arc-github-token \
+  --namespace "${RUNNER_NS}" \
+  kubectl.kubernetes.io/last-applied-configuration- >/dev/null 2>&1 || true
 
 echo "==> Controller (${RELEASE_CONTROLLER}) di ${CONTROLLER_NS}"
 helm upgrade --install "${RELEASE_CONTROLLER}" \
