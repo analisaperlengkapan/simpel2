@@ -59,20 +59,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Runner terdaftar di GitHub
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          total=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runners" --jq '.total_count')
-          echo "Runner terdaftar: ${total}"
-
-          # minRunners=0, jadi nol runner SAAT IDLE adalah normal dan bukan
-          # bukti kematian. Yang membedakan mati dari idle bukan angka ini
-          # sendiri, melainkan kombinasinya dengan antrean di step berikutnya.
-          # Step ini murni pelapor; step "job menggantung" yang memvonis.
-          echo "runners_total=${total}" >> "$GITHUB_ENV"
-
+      # Catatan sengaja: TIDAK ada step "hitung runner terdaftar" di sini.
+      # `/repos/{o}/{r}/actions/runners` menuntut hak admin repo dan menolak
+      # `github.token` dengan 403 — sudah dicoba, bukan asumsi. Memberi workflow
+      # ini sebuah PAT admin hanya demi angka informatif adalah pertukaran yang
+      # buruk: ia satu-satunya workflow yang berjalan di runner GitHub-hosted,
+      # jadi ia justru yang paling tidak boleh memegang kredensial kuat.
+      #
+      # Angka itu pun bukan vonis. minRunners=0, jadi nol runner saat idle
+      # adalah normal; yang membedakan mati dari idle adalah ANTREAN, dan itu
+      # terbaca lewat endpoint di bawah yang cukup dengan `actions: read`.
       - name: Tidak ada job menggantung di antrean
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,7 +95,7 @@ jobs:
 
           if [ "$stuck" -gt 0 ]; then
             echo
-            echo "${stuck} run menggantung >45 menit sementara ${runners_total} runner terdaftar."
+            echo "${stuck} run menggantung >45 menit tanpa runner yang mengambilnya."
             echo "Diagnosis: infra/helm/arc/README.md → 'CI tidak mengambil job'."
             exit 1
           fi
