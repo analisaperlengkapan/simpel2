@@ -98,7 +98,12 @@ serviceAccounts:
     - perlengkapan
     - simpelv1
     - app-2026                               # Static site APP Kejati 2026
-    - postgres-patroni                     # Postgres butuh izin patch endpoints
+    # Nama historis dari era rencana Patroni; postgres yang berjalan = stock
+    # `postgres:16-alpine` dan TIDAK memanggil API Kubernetes sama sekali. SA ini
+    # sekarang tak terikat Role apa pun (lihat postgres.patroni.enabled) dan
+    # token-nya tak di-mount. Namanya dipertahankan agar tak memaksa restart
+    # postgres hanya demi kosmetik.
+    - postgres-patroni
 
 networkPolicies:
   enabled: true
@@ -254,10 +259,12 @@ postgres:
   istioInjection: false
   init:
     enabled: true                          # render postgres-init-scripts ConfigMap
-  # Patroni bootstraps PG itself and SKIPS /docker-entrypoint-initdb.d, so the
-  # init ConfigMap above never runs on a fresh volume → only dbsimpelv2 (POSTGRES_DB)
-  # gets created. This post-install/post-upgrade hook Job creates dbsimpelv1 +
-  # secreton idempotently (templates/backend/db-create-job.yaml).
+  # /docker-entrypoint-initdb.d runs ONLY on first init (empty PGDATA). Any volume
+  # that already went through that — every existing environment, and every restore
+  # from backup — never re-runs it, so a newly added database would silently not
+  # exist. This post-install/post-upgrade hook Job creates dbsimpelv1 + secreton
+  # idempotently, independent of the image's init mechanism
+  # (templates/backend/db-create-job.yaml).
   dbCreateJob:
     enabled: true
   pdb: { enabled: false, minAvailable: 0 }

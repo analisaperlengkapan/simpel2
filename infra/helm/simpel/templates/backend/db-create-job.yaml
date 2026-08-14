@@ -1,13 +1,25 @@
 {{- /*
   Database bootstrap — Helm post-install/post-upgrade hook Job.
 
-  WHY (fresh-bootstrap gap #4, 2026-06-17): the postgres image is Patroni-based,
-  and Patroni bootstraps PostgreSQL itself — it does NOT run the standard
-  `/docker-entrypoint-initdb.d` scripts. So the `postgres-init-scripts` ConfigMap
-  (which CREATEs dbsimpelv1 + secreton beside the POSTGRES_DB dbsimpelv2) NEVER
-  runs on a fresh volume → only dbsimpelv2 exists → simpelv1 + secreton can't
-  connect. This Job creates the extra databases idempotently, independent of the
-  image's init mechanism.
+  WHY (fresh-bootstrap gap #4, 2026-06-17; alasan diperbaiki 2026-08-14):
+
+  `/docker-entrypoint-initdb.d` — tempat ConfigMap `postgres-init-scripts` yang
+  meng-CREATE dbsimpelv1 + secreton di samping POSTGRES_DB dbsimpelv2 — hanya
+  dijalankan image postgres saat inisialisasi PERTAMA, yaitu ketika PGDATA masih
+  kosong. Volume yang sudah pernah melewati itu tidak pernah menjalankannya lagi:
+  setiap environment yang sudah hidup, dan setiap restore dari backup. Database
+  yang baru ditambahkan ke ConfigMap karena itu diam-diam tak akan pernah ada →
+  simpelv1 + secreton gagal connect.
+
+  Job ini membuat database tambahan secara idempotent, lepas dari mekanisme init
+  image.
+
+  CATATAN: alasan yang tertulis di sini sebelumnya SALAH — ia menyebut "image
+  postgres berbasis Patroni, dan Patroni melewati /docker-entrypoint-initdb.d".
+  Image-nya stock `postgres:16-alpine` dan initdb.d memang dijalankan (pada init
+  pertama). Job-nya tetap benar dibutuhkan, hanya sebabnya yang keliru — dan
+  premis keliru begitulah yang membuat orang berikutnya "membersihkan" hal yang
+  masih dipakai.
 
   Runs as a post-install/post-upgrade hook (NOT pre-install): on a fresh `helm
   install` the postgres StatefulSet + postgres-credentials Secret are normal

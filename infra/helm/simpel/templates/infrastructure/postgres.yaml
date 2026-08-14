@@ -1,5 +1,33 @@
 {{- if .Values.postgres.enabled }}
 {{- $cfg := .Values.postgres -}}
+{{- /*
+  PENJAGA KERAS — jangan longgarkan tanpa mengganti mesin databasenya.
+
+  Image di sini adalah `postgres:16-alpine` STOCK. Ia tidak punya replikasi,
+  tidak punya pemilihan leader, dan StatefulSet ini memberi setiap pod PVC-nya
+  SENDIRI lewat volumeClaimTemplate. Jadi `replicas: 3` TIDAK menghasilkan satu
+  database ber-HA — ia menghasilkan TIGA database independen yang masing-masing
+  menjalankan initdb-nya sendiri.
+
+  Yang membuatnya merusak diam-diam: `DATABASE_URL` semua service menunjuk
+  `postgres.<ns>.svc` (Service HEADLESS — lihat simpel.postgresHost), yang
+  me-resolve ke SELURUH pod. Koneksi tersebar ke tiga database berbeda: tulis
+  mendarat di satu, baca berikutnya di yang lain dan tidak melihatnya; hook
+  migrasi memigrasi salah satu saja. Tak ada yang crash — datanya saja yang
+  bercabang.
+
+  values-production.yaml sempat menyetel `replicas: 3` (tak pernah ketahuan
+  karena produksi belum pernah di-deploy). Digagalkan di sini, bukan sekadar
+  dikomentari, karena kesalahannya senyap: pertama kali terasa saat data sudah
+  bercabang di produksi.
+
+  Butuh HA postgres sungguhan → pakai operator (CloudNativePG): replikasi
+  streaming, failover, dan backup dikelola operatornya, bukan oleh jumlah
+  replica di StatefulSet ini.
+*/ -}}
+{{- if gt (int $cfg.replicas) 1 }}
+{{- fail (printf "postgres.replicas=%v: image `postgres` stock tidak mereplikasi — >1 replica = %v database TERPISAH di balik satu Service headless (data bercabang senyap). Setel 1; untuk HA pakai operator CloudNativePG." $cfg.replicas $cfg.replicas) }}
+{{- end }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,7 +40,6 @@ spec:
   clusterIP: None
   ports:
     - { name: postgres, port: 5432, targetPort: 5432 }
-    - { name: patroni, port: 8008, targetPort: 8008 }
   selector:
     app: postgres
     app.kubernetes.io/name: postgres
@@ -32,30 +59,17 @@ spec:
   selector:
     app: postgres
     app.kubernetes.io/name: postgres
-{{- if gt (int $cfg.replicas) 1 }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: postgres-replicas
-  namespace: {{ include "simpel.namespace" . }}
-  labels:
-    app: postgres
-    {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 4 }}
-  annotations:
-    # The `role: replica` label is assigned to pods at RUNTIME by the HA
-    # controller (Patroni service account is wired), not statically at render
-    # time — so kube-linter's static view sees no matching pods. Read-replica
-    # routing is intentional; suppress the false dangling-service finding.
-    ignore-check.kube-linter.io/dangling-service: "replica role label is set at runtime by the HA controller, not in the rendered manifest"
-spec:
-  type: ClusterIP
-  ports:
-    - { name: postgres, port: 5432, targetPort: 5432 }
-  selector:
-    app: postgres
-    role: replica
-{{- end }}
+{{- /*
+  Service `postgres-replicas` dibuang 2026-08-14. Ia menyeleksi `role: replica`,
+  label yang menurut komentarnya "diberikan saat runtime oleh HA controller" —
+  controller yang tak pernah ada. Nol endpoint selamanya, dan nol konsumen di
+  seluruh repo.
+
+  Yang perlu diingat: kube-linter MENANGKAPNYA (`dangling-service`), lalu temuan
+  itu dibungkam dengan `ignore-check` yang beralasan persis premis palsu tadi.
+  Suppression bertarget tetap butuh premis yang benar — kalau tidak, ia hanya
+  memindahkan fiksi ke tempat yang tak diperiksa siapa pun.
+*/ -}}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -88,6 +102,11 @@ spec:
         {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
     spec:
       serviceAccountName: postgres-patroni
+      # Postgres tidak memanggil API Kubernetes sama sekali, jadi token SA-nya
+      # tak perlu ada di dalam pod. Menyamakan dengan authenc/integrasi/
+      # perlengkapan/portal/secreton yang semuanya sudah `false`; postgres
+      # tertinggal dan justru ia yang paling tak butuh.
+      automountServiceAccountToken: false
       {{- if .Values.priorityClass.enabled }}
       priorityClassName: {{ .Values.priorityClass.name }}
       {{- end }}
@@ -107,8 +126,9 @@ spec:
           securityContext:
             {{- toYaml $cfg.containerSecurityContext | nindent 12 }}
           ports:
+            # 5432 saja. Port 8008 (`patroni`) pernah dideklarasikan di sini dan
+            # tak pernah ada yang mendengarkannya — image ini stock postgres.
             - { containerPort: 5432, name: postgres }
-            - { containerPort: 8008, name: patroni }
           env:
             - { name: POSTGRES_USER, value: {{ .Values.secrets.postgresCredentials.username | quote }} }
             - { name: POSTGRES_DB,   value: {{ index .Values.secrets.postgresCredentials.databases "simpelv2" | quote }} }
