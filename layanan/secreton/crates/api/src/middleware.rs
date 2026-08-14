@@ -1036,6 +1036,23 @@ pub async fn policy_check_middleware(
             return Ok(next.run(request).await);
         }
 
+        // Policies are written against RESOURCE paths, not HTTP URIs. Every
+        // rule this system ships proves it: the migration seeds
+        // `sys/capabilities-self` and `auth/token/lookup-self`, and the Helm
+        // `secretonAuth.policies` block renders `secret/data/<service>/*`.
+        // `PolicySet::path_matches` is a plain glob with no normalisation, so
+        // handing it `/v1/sys/capabilities-self` matched nothing and the whole
+        // engine collapsed to "deny everything that is not root" — fail-closed,
+        // but unable to grant anything either.
+        //
+        // Resource paths are also the only vocabulary the gRPC boundary can
+        // share (task #129): a gRPC call carries the secret path in its body
+        // and has no URI to normalise from.
+        //
+        // Note the ordering: `is_whitelisted` above takes the raw URI, because
+        // that list is about routes. Only the policy decision speaks resources.
+        let resource = resource_path(path);
+
         // Map HTTP method to capability/action
         let action = map_method_to_action(&method);
 
@@ -1065,7 +1082,7 @@ pub async fn policy_check_middleware(
 
         // Evaluate policy
         let start_time = Instant::now();
-        let allowed = policy_set.evaluate(user_id, path, &action, Some(&policy_context));
+        let allowed = policy_set.evaluate(user_id, &resource, &action, Some(&policy_context));
         let evaluation_time = start_time.elapsed();
 
         // Record metrics
@@ -1078,8 +1095,9 @@ pub async fn policy_check_middleware(
 
         if !allowed {
             warn!(
-                "Policy denied access: user={}, path={}, action={}, evaluation_time={:?}",
-                user_id, path, action, evaluation_time
+                "Policy denied access: user={}, uri={}, resource={}, action={}, \
+                 evaluation_time={:?}",
+                user_id, path, resource, action, evaluation_time
             );
 
             // Log to audit with policy decision
@@ -1110,8 +1128,9 @@ pub async fn policy_check_middleware(
         }
 
         debug!(
-            "Policy allowed access: user={}, path={}, action={}, evaluation_time={:?}",
-            user_id, path, action, evaluation_time
+            "Policy allowed access: user={}, uri={}, resource={}, action={}, \
+             evaluation_time={:?}",
+            user_id, path, resource, action, evaluation_time
         );
 
         // Log successful policy evaluation to audit
@@ -1144,6 +1163,37 @@ pub async fn policy_check_middleware(
             })),
         )
             .into_response())
+    }
+}
+
+/// Turn an HTTP request URI into the resource path policies are written
+/// against.
+///
+/// `/v1/secret/data/simpelv1/app` → `secret/data/simpelv1/app`
+///
+/// Policies name resources, not routes. The migration seeds
+/// `sys/capabilities-self`; the Helm block renders `secret/data/<service>/*`;
+/// Vault does the same. The `/v1` API version is a transport detail — a rule
+/// should not have to be rewritten because the prefix moved, and the gRPC
+/// boundary has no URI at all to strip.
+///
+/// Trailing slashes are dropped so `secret/data/x` and `secret/data/x/` cannot
+/// be two different resources to the glob matcher.
+///
+/// Public because it is part of the authorization contract, not a formatting
+/// detail: the gRPC boundary (#129) has to name resources the same way, and
+/// `tests/policy_enforcement.rs` pins the mapping. A private helper here would
+/// be a second, untested definition of the same rule the moment gRPC needs it.
+pub fn resource_path(uri_path: &str) -> String {
+    let trimmed = uri_path.trim_matches('/');
+    match trimmed.strip_prefix("v1/") {
+        Some(rest) => rest.to_string(),
+        // Bare "/v1" carries no resource. Everything else (an unversioned
+        // route, or a future /v2) passes through with only the slashes
+        // trimmed, so a new prefix shows up in the logs as an unmatched
+        // resource rather than being silently rewritten into the v1 namespace.
+        None if trimmed == "v1" => String::new(),
+        None => trimmed.to_string(),
     }
 }
 

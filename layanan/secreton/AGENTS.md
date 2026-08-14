@@ -632,6 +632,16 @@ Test suites in `tests/`:
   `ServiceContainer::secret_storage`; `crates/api/tests/no_inmemory_kv.rs`
   reads that handle directly after an HTTP write and fails if a route ever
   answers out of memory again.
+- Hand the policy engine an HTTP URI. Policies name **resources**
+  (`sys/capabilities-self`, `secret/data/simpelv1/*`) — that is what the
+  migration seeds, what the Helm block renders, and what Vault does. It is also
+  the only vocabulary the gRPC boundary can share, since a gRPC call carries the
+  secret path in its body and has no URI. `PolicySet::path_matches` is a plain
+  glob with no normalisation, so `/v1/sys/capabilities-self` matched nothing and
+  authorization silently collapsed to "deny everything that is not root" —
+  fail-closed, but unable to grant anything either. Convert with
+  `middleware::resource_path` before evaluating. Note the ordering:
+  `is_whitelisted` still takes the raw URI, because that list is about routes.
 - Narrow a secret path to a single URL segment. Real paths are hierarchical
   (`simpelv1/app`, `postgres/simpelv2`), so `/data/{path}` 404s on every caller
   that matters while `/data/{*path}` works. The 404 reads as "no such secret",
