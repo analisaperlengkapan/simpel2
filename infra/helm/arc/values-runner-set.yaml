@@ -107,10 +107,22 @@ template:
     # Kalau kelak ada job yang MEMANG perlu men-deploy, beri ia KUBECONFIG dari
     # secret yang ter-scope — jangan hidupkan kembali automount ini.
     automountServiceAccountToken: false
-    # Pull custom runner image dari ghcr (privat). Secret ghcr-pull disalin ke
-    # ns arc-runners dari simpelv2-staging (PAT read:packages).
-    imagePullSecrets:
-      - name: ghcr-pull
+    # TANPA imagePullSecrets — DISENGAJA. Paket `simpel2-arc-runner` dijadikan
+    # PUBLIK (2026-08-14), jadi pull-nya anonim dan pod runner tak lagi
+    # bergantung pada satu kredensial berumur.
+    #
+    # Kenapa diubah: `ghcr-pull` (PAT read-only, dibuat 2026-06-03) belakangan
+    # ditolak ghcr dengan 403, dan tak ada yang tahu selama ~2 bulan. Sebabnya
+    # `imagePullPolicy: IfNotPresent` — PAT itu hanya benar-benar dipakai SEKALI
+    # saat v0.1.1 pertama mendarat di node; setiap pull sesudahnya cache hit.
+    # Jadi kredensial mati tersembunyi sampai bump image berikutnya, lalu SEMUA
+    # runner `Init:ImagePullBackOff` sekaligus. Kelas kegagalan itu hilang
+    # sepenuhnya kalau tak ada kredensial yang perlu hidup.
+    #
+    # Aman: image ini = `ghcr.io/actions/actions-runner` resmi + apt build
+    # toolchain (gcc/protoc/cmake/clang). NOL kode SIMPel, nol rahasia — jadi
+    # sifat closed-source repo tidak bertaruh apa pun padanya.
+    # JANGAN tambahkan kembali kecuali paketnya dijadikan privat lagi.
     # DNS: dind (netns pod sama) mengganggu jalur ke CoreDNS via iptables →
     # intermittent "Could not resolve host: index.crates.io". Job CI hanya butuh
     # resolusi nama EKSTERNAL (crates.io, ghcr, github), jadi pakai resolver
@@ -155,7 +167,7 @@ template:
         effect: NoSchedule
     initContainers:
       - name: init-dind-externals
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.1
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.2
         command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
         volumeMounts:
           - name: dind-externals
@@ -215,7 +227,7 @@ template:
             mountPath: /home/runner/externals
     containers:
       - name: runner
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.1
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.2
         command: ["/home/runner/run.sh"]
         securityContext:
           allowPrivilegeEscalation: false

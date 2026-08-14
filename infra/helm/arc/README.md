@@ -93,3 +93,67 @@ Lihat catatan di akhir `values-runner-set.yaml`: buildx **registry cache**
 (`--cache-to/from type=registry`) paling robust untuk image; `sccache` untuk objek
 Rust; PVC **RWX** (longhorn) bila ingin cache cargo bersama. Aktifkan setelah ARC
 stabil.
+
+## CI tidak mengambil job (job menggantung `queued`)
+
+Kegagalan paling berbahaya di sini **tidak terlihat merah**. Tanpa runner, job
+tidak gagal — ia menggantung `queued`, lalu GitHub membatalkannya di jam ke-24
+sehingga run terbaca `cancelled`, tak terbedakan dari pembatalan manusia.
+`required_status_checks` tak bisa menangkapnya: check-nya tak pernah MULAI.
+Penjaganya karena itu ada di luar sistem yang sakit —
+`.github/workflows/ci-heartbeat.yml`, satu-satunya workflow yang berjalan di
+runner GitHub-hosted.
+
+Diagnosis berurutan, dari yang paling sering:
+
+**1. Versi runner di-deprecate → seluruh scale set terkunci mati.**
+Ini yang mematikan CI 4 hari pada 2026-08-10. Runner yang lewat batas keluar
+dengan **exit code 7**; ARC merantainya jadi
+`EphemeralRunner → EphemeralRunnerSet → AutoscalingRunnerSet` berfase `Outdated`,
+dan fase terakhir itu **terkunci permanen**: controller membacanya di awal
+`Reconcile`, merobohkan listener + ERS + runner scale set, lalu `return` sebelum
+baris yang mengembalikannya ke `Running`.
+
+```bash
+kubectl get autoscalingrunnerset arc-simpel -n arc-runners -o jsonpath='{.status.phase}'
+# "Outdated" ⇒ terkunci
+```
+
+Satu-satunya jalan keluar adalah **perubahan spec ARS** (hash berubah ⇒ controller
+mereset fase ke `Pending`). Jadi bump versi runner sekaligus obat kaskadenya:
+
+```bash
+# 1) infra/helm/arc/runner-image/Dockerfile: FROM ...actions-runner:<versi-baru>
+# 2) infra/helm/arc/values-runner-set.yaml: naikkan tag image (KEDUA tempat)
+# 3) buka PR → workflow "ARC Runner Image" membangunnya; setelah merge ke main,
+#    workflow yang sama mendorong tag baru ke ghcr. Tak ada build tangan.
+# 4) baru kemudian, dari host yang bisa menjangkau cluster:
+helm upgrade arc-simpel -n arc-runners <chart> -f infra/helm/arc/values-runner-set.yaml
+```
+
+Langkah (3) berjalan di runner GitHub-hosted, **bukan** `arc-simpel` — kalau
+tidak, image yang dibutuhkan untuk memperbaiki runner yang mati hanya bisa
+dibangun oleh runner yang mati itu. Workflow-nya juga menolak PR yang mengubah
+`runner-image/` tanpa menaikkan tag, jadi tag lama tak bisa tertimpa diam-diam.
+
+⚠️ Jalankan `helm upgrade` **saat tak ada job CI berjalan**: upgrade mengganti
+runner scale set, dan runner ephemeral yang sedang mengerjakan job ikut dibuang.
+
+**2. Listener menunjuk EphemeralRunnerSet yang sudah tiada.**
+Pod listener crashloop ~5 detik sekali dengan `exit 1`; lognya berakhir di
+`could not patch ephemeral runner set ... "arc-simpel-xxxxx" not found`.
+Controller tak pernah memperbarui `spec.ephemeralRunnerSetName`, jadi ini tak
+pulih sendiri. Bandingkan lalu hapus CR listener-nya (controller membuat ulang
+menunjuk ERS yang benar):
+
+```bash
+kubectl get autoscalinglistener -n arc-systems -o jsonpath='{.items[0].spec.ephemeralRunnerSetName}'
+kubectl get ephemeralrunnerset -n arc-runners -o jsonpath='{.items[0].metadata.name}'
+# beda ⇒
+kubectl delete autoscalinglistener -n arc-systems <nama>
+```
+
+**3. Runner macet ASSIGNED / JIT secret yatim.** Lihat `reaper.yaml`.
+
+Catatan urutan: perbaiki (1) lebih dulu. Selama fase masih `Outdated`, melepas
+listener di (2) hanya membeli ~45 detik — runner naik, exit 7 lagi, terkunci lagi.

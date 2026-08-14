@@ -1,0 +1,189 @@
+# ci-heartbeat.yml — Apakah CI masih bisa MENJALANKAN apa pun?
+#
+# Setiap workflow lain di repo ini `runs-on: arc-simpel`, jadi tak satu pun bisa
+# melapor ketika ARC mati — termasuk yang seharusnya mengawasinya. Job di sini
+# SATU-SATUNYA yang berjalan di runner GitHub-hosted, dan itu bukan preferensi:
+# penjaga yang berbagi nasib dengan yang dijaga tidak menjaga apa pun.
+#
+# ── Kenapa ini ada ──────────────────────────────────────────────────────────
+# INSIDEN 2026-08-10 s/d 2026-08-14: CI mati total 4 hari dan TIDAK ADA yang
+# merah. Mekanismenya adalah titik buta, bukan kelalaian:
+#
+#   1. GitHub men-deprecate runner 2.334.0; runner keluar dengan exit code 7.
+#   2. ARC menerjemahkannya berantai jadi AutoscalingRunnerSet.phase=Outdated —
+#      fase TERKUNCI yang merobohkan listener + scale set dan tak punya jalan
+#      pulih (detail: infra/helm/arc/runner-image/Dockerfile).
+#   3. Tanpa runner, job tidak GAGAL — ia menggantung `queued`.
+#   4. GitHub membatalkannya di jam ke-24, jadi run terbaca `cancelled`, tak
+#      terbedakan dari pembatalan manusia.
+#
+# `required_status_checks` tak bisa menutup ini: check-nya tak pernah MULAI,
+# jadi tak ada yang bisa dinilai merah. Satu-satunya sinyal jujur adalah
+# bertanya ke GitHub "ada berapa runner terdaftar" dan "adakah job mengantre
+# terlalu lama" — dua hal yang diperiksa di bawah, dari luar sistem yang sakit.
+#
+# Ketiga check di bawah sengaja MENGGAGALKAN job, bukan sekadar memperingatkan:
+# peringatan pada workflow terjadwal tak pernah dilihat siapa pun (itu persis
+# cara actionlint gagal 40 kali berturut-turut tanpa disadari).
+
+name: CI Heartbeat
+
+on:
+  schedule:
+    # Tiap 6 jam. Tak perlu lebih rapat — jendela deteksi terburuk 6 jam masih
+    # jauh di dalam batas 24 jam sebelum GitHub membatalkan job yang mengantre,
+    # jadi kita selalu tahu SEBELUM bukti kematiannya dihapus.
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+  push:
+    # Perubahan pada versi runner atau chart ARC harus divalidasi seketika,
+    # bukan menunggu jadwal berikutnya.
+    paths:
+      - 'infra/helm/arc/**'
+      - '.github/workflows/ci-heartbeat.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ci-heartbeat
+  cancel-in-progress: true
+
+jobs:
+  heartbeat:
+    name: CI Heartbeat (GitHub-hosted)
+    # JANGAN pindahkan ke arc-simpel. Lihat komentar kepala berkas.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Catatan sengaja: TIDAK ada step "hitung runner terdaftar" di sini.
+      # `/repos/{o}/{r}/actions/runners` menuntut hak admin repo dan menolak
+      # `github.token` dengan 403 — sudah dicoba, bukan asumsi. Memberi workflow
+      # ini sebuah PAT admin hanya demi angka informatif adalah pertukaran yang
+      # buruk: ia satu-satunya workflow yang berjalan di runner GitHub-hosted,
+      # jadi ia justru yang paling tidak boleh memegang kredensial kuat.
+      #
+      # Angka itu pun bukan vonis. minRunners=0, jadi nol runner saat idle
+      # adalah normal; yang membedakan mati dari idle adalah ANTREAN, dan itu
+      # terbaca lewat endpoint di bawah yang cukup dengan `actions: read`.
+      - name: Tidak ada job menggantung di antrean
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Ambang 45 menit: job CI terberat di repo ini (e2e) butuh ~30 menit
+          # SETELAH diambil runner, dan penjadwalan normal terjadi dalam hitungan
+          # detik. Sesuatu yang masih `queued` melewati 45 menit tidak lambat —
+          # ia tidak pernah diambil siapa pun.
+          cutoff=$(date -u -d '45 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/runs?status=queued&per_page=100" \
+            --jq '.workflow_runs[] | [.created_at, .id, .name] | @tsv' > queued.tsv || true
+
+          # Umur antrean saja BUKAN bukti kematian, dan membedakannya penting:
+          # 20 runner yang jenuh oleh satu PR ber-65-job — atau backlog pasca-
+          # insiden yang sedang mengalir — wajar meninggalkan job menunggu jauh
+          # lebih dari 45 menit. Penjaga yang memerah di hari sibuk akan diabaikan
+          # orang, dan penjaga yang diabaikan persis kegagalan yang mau dicegah
+          # berkas ini (bandingkan actionlint: gagal 40 kali berturut-turut tanpa
+          # ada yang lihat).
+          #
+          # ⚠️ JANGAN pakai `?status=in_progress` sebagai pembeda "sibuk". Status
+          # di level RUN tidak mencerminkan job: run 31761828468 tercatat `queued`
+          # sementara 36 job-nya SELESAI dan 8 sedang BERJALAN, dan filter
+          # repo-wide `in_progress` mengembalikan 0 di detik yang sama. Memakainya
+          # menghasilkan kegagalan palsu tepat saat CI paling sibuk — sudah
+          # diverifikasi lewat API, bukan dugaan.
+          #
+          # Yang benar-benar menjawab "adakah yang mengerjakan ini" adalah JOB
+          # milik run itu sendiri: kapan terakhir salah satunya mulai atau selesai.
+          # Diam >45 menit = tak ada runner yang menyentuhnya.
+          stuck=0
+          while IFS=$'\t' read -r created id name; do
+            [ -z "${created:-}" ] && continue
+            [[ "$created" < "$cutoff" ]] || continue
+
+            # per_page=100 cukup: run terbesar di repo ini ~65 job.
+            last=$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${id}/jobs?per_page=100" \
+                     --jq '[.jobs[] | (.completed_at // .started_at // empty)] | max // empty' || true)
+            # Tak ada job yang pernah mulai ⇒ patokannya umur run itu sendiri.
+            [ -z "${last:-}" ] && last="$created"
+
+            if [[ "$last" < "$cutoff" ]]; then
+              echo "::error::Run ${id} (${name}) mengantre sejak ${created}; job terakhir bergerak ${last} — tak ada runner yang mengambilnya."
+              stuck=$((stuck + 1))
+            else
+              echo "Run ${id} (${name}) mengantre sejak ${created}, tetapi job-nya bergerak ${last} — sibuk, bukan macet."
+            fi
+          done < queued.tsv
+
+          if [ "$stuck" -eq 0 ]; then
+            echo "Tidak ada run yang diam melewati ambang."
+            exit 0
+          fi
+
+          echo
+          echo "${stuck} run tak bergerak sama sekali selama >45 menit — tak ada yang mengambil pekerjaan."
+          echo "Diagnosis: infra/helm/arc/README.md → 'CI tidak mengambil job'."
+          exit 1
+
+      - name: Versi runner masih diterima GitHub
+        # WAJIB always(): versi yang tertinggal adalah PENYEBAB paling umum dari
+        # antrean menggantung di step sebelumnya. Tanpa ini, step yang menjawab
+        # "kenapa" ter-skip tepat pada run yang paling membutuhkannya — urutan
+        # yang terbalik. Terbukti pada run 31778474651.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Diturunkan dari berkas yang benar-benar dipakai membangun image —
+          # BUKAN angka yang ditulis ulang di sini. Daftar tulis-tangan adalah
+          # pola kegagalan berulang di repo ini: gerbangnya benar, cakupannya
+          # yang tak ikut tumbuh.
+          dockerfile=infra/helm/arc/runner-image/Dockerfile
+          pinned=$(grep -oE 'actions-runner:[0-9]+\.[0-9]+\.[0-9]+' "$dockerfile" \
+                   | head -1 | cut -d: -f2)
+          if [ -z "$pinned" ]; then
+            echo "::error::Tidak menemukan pin versi actions-runner di ${dockerfile}."
+            echo "Penjaga ini menurunkan versinya dari berkas itu; kalau formatnya berubah, perbarui grep di sini."
+            exit 1
+          fi
+
+          latest=$(gh api /repos/actions/runner/releases/latest --jq '.tag_name' | sed 's/^v//')
+          echo "Ter-pin: ${pinned}   Terbaru upstream: ${latest}"
+
+          if [ "$pinned" = "$latest" ]; then
+            echo "Versi runner mutakhir."
+            exit 0
+          fi
+
+          # Tertinggal SATU rilis masih aman — GitHub memberi tenggang beberapa
+          # rilis sebelum menolak. Tertinggal lebih dari itu adalah zona tempat
+          # exit-7 terjadi, dan konsekuensinya bukan satu job gagal melainkan
+          # SELURUH CI terkunci mati. Maka digagalkan, bukan diperingatkan.
+          behind=$(printf '%s\n%s\n' "$pinned" "$latest" | sort -V | tail -1)
+          if [ "$behind" = "$pinned" ]; then
+            echo "::warning::Versi ter-pin (${pinned}) lebih baru dari rilis terakhir — kemungkinan pre-release."
+            exit 0
+          fi
+
+          pinned_minor=$(echo "$pinned" | cut -d. -f2)
+          latest_minor=$(echo "$latest" | cut -d. -f2)
+          gap=$((latest_minor - pinned_minor))
+          echo "Tertinggal ${gap} rilis minor."
+
+          if [ "$gap" -ge 2 ]; then
+            echo "::error::Runner ${pinned} tertinggal ${gap} rilis dari ${latest}."
+            echo "Runner yang di-deprecate keluar dengan exit 7 dan MENGUNCI seluruh scale set ARC."
+            echo "Perbaiki: bump FROM di ${dockerfile}, build+push tag image baru,"
+            echo "lalu naikkan tag di infra/helm/arc/values-runner-set.yaml dan helm upgrade."
+            exit 1
+          fi
+
+          echo "::warning::Runner ${pinned} tertinggal ${gap} rilis dari ${latest} — jadwalkan bump."
