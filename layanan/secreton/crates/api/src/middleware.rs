@@ -984,7 +984,11 @@ fn determine_admin_level(
 /// Held only by tokens minted at `/v1/sys/init`. Treated as implicit because a
 /// newly initialised engine contains no policies, so the bootstrap token has to
 /// be able to act before the first policy exists.
-pub const ROOT_POLICY: &str = "root";
+///
+/// Re-exported rather than redefined: the gRPC boundary honours the same
+/// bypass, and a second `"root"` literal is exactly how the two boundaries
+/// would come to disagree about who is unrestricted.
+pub use secreton_core::services::policy::ROOT_POLICY;
 
 /// Authorizes every request against the caller's policies.
 ///
@@ -1026,16 +1030,6 @@ pub async fn policy_check_middleware(
     if let Some(ctx) = context {
         let user_id = ctx.user_id.as_deref().unwrap_or("anonymous");
 
-        // The root policy is implicit, as in Vault: it grants everything and has
-        // no stored rules. Root tokens minted by `/v1/sys/init` carry
-        // `policies: ["root"]` (handlers/seal.rs), and a freshly initialised
-        // engine has no policies at all — so without this, the very token used
-        // to seed the first policy would be denied permission to seed it.
-        if ctx.policy_names.iter().any(|p| p == ROOT_POLICY) {
-            debug!(user = %user_id, %path, "root policy grants access");
-            return Ok(next.run(request).await);
-        }
-
         // Policies are written against RESOURCE paths, not HTTP URIs. Every
         // rule this system ships proves it: the migration seeds
         // `sys/capabilities-self` and `auth/token/lookup-self`, and the Helm
@@ -1059,30 +1053,36 @@ pub async fn policy_check_middleware(
         // Build policy evaluation context
         let policy_context = build_policy_context(ctx, &request);
 
-        // Get rules from policy service based on user's policy names
+        // One decision function, shared with the gRPC boundary.
+        //
+        // The root bypass, the rule lookup and the glob evaluation all live in
+        // `secreton_core::services::policy::authorize`. They used to be
+        // open-coded here, which was fine while REST was the only caller — but
+        // #129 adds a second one, and an authorization rule that exists in two
+        // places is a rule that will eventually hold in only one of them.
         let namespace = ctx.derive_namespace();
-        let rules = state
-            .services
-            .policy_service
-            .get_rules_for_policies(&ctx.policy_names, &namespace)
-            .await
-            .map_err(|e| {
-                warn!("Failed to load policies: {}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(serde_json::json!({
-                        "error": "Internal error loading policies"
-                    })),
-                )
-                    .into_response()
-            })?;
-
-        // Create temporary policy set for evaluation
-        let policy_set = secreton_core::services::policy::PolicySet::new(rules);
-
-        // Evaluate policy
         let start_time = Instant::now();
-        let allowed = policy_set.evaluate(user_id, &resource, &action, Some(&policy_context));
+        let allowed = secreton_core::services::policy::authorize(
+            state.services.policy_service.as_ref(),
+            &ctx.policy_names,
+            &namespace,
+            user_id,
+            &resource,
+            &action,
+            Some(&policy_context),
+        )
+        .await
+        .map_err(|e| {
+            // A policy store we cannot reach is not permission to proceed.
+            warn!("Failed to load policies: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "Internal error loading policies"
+                })),
+            )
+                .into_response()
+        })?;
         let evaluation_time = start_time.elapsed();
 
         // Record metrics

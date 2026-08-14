@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tonic::{Request, Response, Status, transport::Server};
 #[cfg(feature = "raft-consensus")]
 use tracing::error;
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 
 use secreton_core::services::secrets::database::{
     DatabaseConnection, DatabaseError, DatabaseRole, DatabaseSecretsEngine,
@@ -19,13 +19,48 @@ use secreton_core::services::secrets::database::{
 use secreton_crypto::transit::TransitEngine;
 use secreton_storage::StorageBackend;
 
-use crate::auth::{ClientAuthLayer, PeerAuthorizer};
+use crate::auth::{ClientAuthLayer, PeerAuthorizer, PeerIdentity};
 use crate::generated::common::v1::*;
 use crate::generated::secreton::v1::secreton_service_server;
 use crate::generated::secreton::v1::*;
 use crate::tls::GrpcTlsConfig;
-// ServiceContainer not yet available in grpc crate
-// use crate::services::ServiceContainer;
+use secreton_core::services::policy::PolicyRuleSource;
+
+/// Namespace the gRPC boundary evaluates policies in.
+///
+/// REST derives this from JWT claims (`RequestContext::derive_namespace`) and
+/// falls back to `"default"` when there are none. A gRPC caller is a workload
+/// holding a client certificate, not a user holding a token — there are no
+/// claims to derive from, so it lands on the same fallback. That is also the
+/// namespace the shipped rules live in: both the rows seeded by
+/// `20260205000002_dynamic_role_system.sql` and the Helm `secretonAuth.policies`
+/// ConfigMap are written under `default`.
+const GRPC_POLICY_NAMESPACE: &str = "default";
+
+/// How this service decides whether a caller may touch a given secret path.
+///
+/// Modelled as explicit state rather than an `Option`, because the interesting
+/// case is not "no policy source configured" — it is *why* there is none. An
+/// absent authorizer and a deliberately disabled one look identical in an
+/// `Option`, and the deployment that most needs auditing is exactly the one
+/// running without checks.
+pub enum GrpcAuthorization {
+    /// Consult the shared policy engine using the peer's mTLS identity.
+    ///
+    /// A call carrying no [`PeerIdentity`] is refused: without a certificate
+    /// there is no principal to authorize, and "unauthenticated" must never
+    /// resolve to "permitted".
+    Enforced(Arc<dyn PolicyRuleSource>),
+
+    /// Serve every caller without consulting any policy.
+    ///
+    /// This exists for `GRPC_ALLOW_INSECURE`, the transitional opt-out that lets
+    /// compose and staging talk to Secreton before the gateway has a client
+    /// certificate (#128). Carrying the reason forces the wiring site to say out
+    /// loud why it is off, and puts that sentence in the startup logs where an
+    /// operator will see it.
+    AnonymousOptOut { reason: String },
+}
 
 // Snapshot types are imported from generated protos
 
@@ -43,26 +78,131 @@ pub struct SecretonGrpcService {
     /// single shared instance serves every gRPC call. Configured at runtime via
     /// `configure_database_connection` + `create_database_role`.
     db_engine: Arc<DatabaseSecretsEngine>,
-    // TODO: Re-enable when ServiceContainer is available in grpc crate
-    // /// Service container for namespace and other services
-    // services: Arc<ServiceContainer>,
+    /// Whether and how secret operations are authorized. See
+    /// [`GrpcAuthorization`].
+    authorization: Arc<GrpcAuthorization>,
 }
 
 impl SecretonGrpcService {
-    /// Create a new gRPC service
+    /// Create a new gRPC service.
+    ///
+    /// `authorization` is a required argument, not a setting with a default.
+    /// The earlier shape here was a `TODO` claiming `ServiceContainer` was
+    /// unreachable from this crate and secrets were served with no check at all
+    /// — so the safe configuration was the one you got by remembering to add
+    /// it. Making the decision part of the type means a caller cannot construct
+    /// this service without stating which posture it is running in.
+    ///
+    /// (The `TODO` was also wrong about the cause: `ServiceContainer` lives in
+    /// `secreton-api`, which *depends on this crate*, so the import it proposed
+    /// would have been a dependency cycle. The way through is
+    /// [`PolicyRuleSource`], declared in `secreton-core` and injected by the
+    /// binary that owns both sides.)
     pub fn new(
         storage: Arc<dyn StorageBackend>,
         transit: Arc<TransitEngine>,
         request_counter: Option<Arc<std::sync::atomic::AtomicU64>>,
+        authorization: GrpcAuthorization,
     ) -> Self {
+        match &authorization {
+            GrpcAuthorization::Enforced(_) => {
+                info!("gRPC secret operations are policy-enforced per path");
+            }
+            GrpcAuthorization::AnonymousOptOut { reason } => {
+                warn!(
+                    %reason,
+                    "gRPC secret operations are NOT authorized — every caller that \
+                     reaches this port may read, overwrite and delete any secret"
+                );
+            }
+        }
+
         Self {
             storage,
             transit,
             request_counter,
             db_engine: Arc::new(DatabaseSecretsEngine::new()),
-            // TODO: Re-enable when ServiceContainer is available
-            // services: Arc::new(ServiceContainer::new_mock(storage, pool)),
+            authorization: Arc::new(authorization),
         }
+    }
+
+    /// Authorize one secret operation, or return the `Status` that refuses it.
+    ///
+    /// `path` is the secret path from the request body (`simpelv1/app`), which
+    /// this maps to the resource `secret/data/simpelv1/app` — the same
+    /// vocabulary `middleware::resource_path` produces for the REST route
+    /// `/v1/secret/data/simpelv1/app`. Both boundaries therefore match against
+    /// the identical rule text, which is the entire point of routing them
+    /// through one engine.
+    ///
+    /// The principal is the certificate common name, used directly as a policy
+    /// name — Vault's cert auth backend model, and already the mapping the Helm
+    /// `secretonAuth.policies` block describes (it is keyed by service name:
+    /// `authenc`, `simpelv1`, `layanan-perlengkapan`).
+    ///
+    /// Note what is deliberately *not* consulted: the `user-id` request metadata
+    /// header. It is set by the caller, so it identifies nobody; it is only good
+    /// enough to stamp an owner on a stored row. Authorization uses the identity
+    /// the TLS handshake proved.
+    async fn authorize_secret(
+        &self,
+        peer: Option<&PeerIdentity>,
+        path: &str,
+        action: &str,
+    ) -> Result<(), Status> {
+        let source = match self.authorization.as_ref() {
+            GrpcAuthorization::AnonymousOptOut { .. } => return Ok(()),
+            GrpcAuthorization::Enforced(source) => source,
+        };
+
+        let Some(peer) = peer else {
+            warn!(
+                %path, %action,
+                "refusing gRPC secret operation from a caller with no client certificate"
+            );
+            return Err(Status::unauthenticated("client certificate required"));
+        };
+
+        // An empty path is a whole-store operation (an unfiltered List). It
+        // becomes the bare `secret/data` resource, which no `secret/data/*`
+        // rule matches — so an unscoped list is denied to everyone but root
+        // rather than quietly enumerating every other workload's secrets.
+        let trimmed = path.trim_matches('/');
+        let resource = if trimmed.is_empty() {
+            "secret/data".to_string()
+        } else {
+            format!("secret/data/{}", trimmed)
+        };
+        let policies = [peer.common_name.clone()];
+
+        let allowed = secreton_core::services::policy::authorize(
+            source.as_ref(),
+            &policies,
+            GRPC_POLICY_NAMESPACE,
+            &peer.common_name,
+            &resource,
+            action,
+            None,
+        )
+        .await
+        .map_err(|e| {
+            // Unreachable policy store is a refusal, never a bypass.
+            warn!(peer = %peer.common_name, %resource, error = %e, "policy lookup failed");
+            Status::internal("authorization unavailable")
+        })?;
+
+        if !allowed {
+            warn!(
+                peer = %peer.common_name, %resource, %action,
+                "gRPC secret operation denied by policy"
+            );
+            // Generic on the wire: the caller learns it was refused, not which
+            // paths exist or what its policy does cover.
+            return Err(Status::permission_denied("caller is not authorized"));
+        }
+
+        debug!(peer = %peer.common_name, %resource, %action, "gRPC secret operation authorized");
+        Ok(())
     }
 
     fn increment_request_count(&self) {
@@ -216,15 +356,20 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         request: tonic::Request<StoreSecretRequest>,
     ) -> std::result::Result<tonic::Response<StoreSecretResponse>, tonic::Status> {
         self.increment_request_count();
-        // Extract owner from request metadata before consuming request
+        // Extract owner from request metadata before consuming request.
+        // Caller-supplied, so it is an audit label only — never an authz input.
         let owner_id = request
             .metadata()
             .get("user-id")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("system")
             .to_string();
+        let peer = request.extensions().get::<PeerIdentity>().cloned();
 
         let req = request.into_inner();
+
+        self.authorize_secret(peer.as_ref(), &req.path, "create")
+            .await?;
 
         info!("Storing secret at path: {}", req.path);
 
@@ -300,7 +445,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         request: Request<GetSecretRequest>,
     ) -> Result<Response<GetSecretResponse>, Status> {
         self.increment_request_count();
+        let peer = request.extensions().get::<PeerIdentity>().cloned();
         let req = request.into_inner();
+
+        self.authorize_secret(peer.as_ref(), &req.path, "read")
+            .await?;
 
         info!("Getting secret at path: {}", req.path);
 
@@ -343,7 +492,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         request: Request<DeleteSecretRequest>,
     ) -> Result<Response<DeleteSecretResponse>, Status> {
         self.increment_request_count();
+        let peer = request.extensions().get::<PeerIdentity>().cloned();
         let req = request.into_inner();
+
+        self.authorize_secret(peer.as_ref(), &req.path, "delete")
+            .await?;
 
         info!("Deleting secret at path: {}", req.path);
 
@@ -374,7 +527,11 @@ impl secreton_service_server::SecretonService for SecretonGrpcService {
         request: Request<ListSecretsRequest>,
     ) -> Result<Response<ListSecretsResponse>, Status> {
         self.increment_request_count();
+        let peer = request.extensions().get::<PeerIdentity>().cloned();
         let req = request.into_inner();
+
+        self.authorize_secret(peer.as_ref(), req.prefix.as_deref().unwrap_or(""), "list")
+            .await?;
 
         info!("Listing secrets with prefix: {:?}", req.prefix);
 

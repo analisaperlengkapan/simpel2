@@ -17,9 +17,19 @@
 //! [`SecretonGrpcService::serve_with_mtls`] or, for the opt-out,
 //! [`SecretonGrpcService::serve_insecure`].
 //!
-//! Authentication proves *which workload* called. It does not decide *what
-//! that workload may reach* — that still needs policy evaluation on the secret
-//! path (task #129).
+//! ## Who may reach what
+//!
+//! Authentication proves *which workload* called; authorization decides what it
+//! may reach. The peer's certificate common name is its policy name (Vault's
+//! cert-auth model), and every secret handler evaluates the requested path
+//! against that policy through [`secreton_core::services::policy::authorize`] —
+//! the same decision function the REST middleware calls, so the two boundaries
+//! cannot enforce different rules under one policy name.
+//!
+//! Pass the posture explicitly as [`GrpcAuthorization`]. On the insecure
+//! listener there is no certificate, hence no principal to authorize, so the
+//! opt-out is a named variant carrying its reason rather than a missing policy
+//! source — "nothing is enforced here" is logged at startup instead of inferred.
 
 // Generated proto code
 pub mod generated {
@@ -45,7 +55,7 @@ pub mod server;
 pub mod tls;
 
 pub use auth::{AllowedCommonNames, AnyTrustedPeer, ClientAuthLayer, PeerAuthorizer, PeerIdentity};
-pub use server::SecretonGrpcService;
+pub use server::{GrpcAuthorization, SecretonGrpcService};
 pub use tls::{
     GrpcTlsConfig, ListenerSecurity, allow_insecure_from_env, resolve_listener_security,
 };

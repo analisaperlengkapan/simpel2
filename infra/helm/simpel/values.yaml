@@ -155,6 +155,21 @@ secretonAuth:
     simpelv1:
       - "secret/data/simpelv1/*"
       - "secret/data/postgres/simpelv2"
+    # Sidecar gateway simpelv1. Namanya ada di sini karena boundary gRPC kini
+    # MENEGAKKAN policy (#129): common name pada sertifikat klien = nama policy,
+    # jadi begitu #128 menerbitkan sertifikat untuk gateway, kaller tanpa entri
+    # di sini akan ditolak setiap path — terautentikasi tapi tidak berwenang.
+    #
+    # Gateway bertindak ATAS NAMA simpelv1, maka daftarnya wajib tetap SUBSET
+    # policy simpelv1 di atas: proxy tidak boleh menjangkau lebih jauh daripada
+    # yang diproksikannya. Write/delete sengaja TIDAK diberikan — template
+    # policies.yaml hanya menerbitkan read+list, dan runtime simpelv1 memang
+    # hanya membaca (`SecrethonGrpcClient::getSecret`; tulis/hapus tak punya
+    # pemanggil).
+    gateway:
+      - "secret/data/simpelv1/*"
+      - "secret/data/simpelv1-app-key"          # nama datar yang dipakai bootstrap CI
+      - "secret/data/postgres/simpelv2"
     secreton: []                                # secreton tidak akses dirinya via auth backend
 
 # Bootstrap secrets — chart TIDAK render Secret object kecuali toggle on.

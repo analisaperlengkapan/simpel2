@@ -24,7 +24,8 @@ use secreton_crypto::transit::TransitEngine;
 use secreton_grpc::generated::secreton::v1::GetSecretRequest;
 use secreton_grpc::generated::secreton::v1::secreton_service_client::SecretonServiceClient;
 use secreton_grpc::{
-    AllowedCommonNames, AnyTrustedPeer, GrpcTlsConfig, PeerAuthorizer, SecretonGrpcService,
+    AllowedCommonNames, AnyTrustedPeer, GrpcAuthorization, GrpcTlsConfig, PeerAuthorizer,
+    SecretonGrpcService,
 };
 use secreton_storage::MemoryBackend;
 use tempfile::TempDir;
@@ -104,10 +105,19 @@ async fn serve_with_mtls(
     let addr = listener.local_addr().expect("read bound address");
     drop(listener);
 
+    // Authorization is deliberately opted out here, because this suite is about
+    // the *transport*: which peers complete a handshake and reach a handler at
+    // all. Enforcing policy on top would mean every assertion below could be
+    // satisfied by a policy denial instead of a TLS rejection, and the two are
+    // exactly what this file exists to tell apart. Per-path authorization has
+    // its own suite in `grpc_authorization.rs`.
     let service = SecretonGrpcService::new(
         Arc::new(MemoryBackend::new()),
         Arc::new(TransitEngine::new()),
         None,
+        GrpcAuthorization::AnonymousOptOut {
+            reason: "transport-layer test: policy enforcement covered separately".to_string(),
+        },
     );
 
     let tls = GrpcTlsConfig::new(cert, key)

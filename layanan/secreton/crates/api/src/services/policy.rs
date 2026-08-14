@@ -984,3 +984,23 @@ impl PolicyService {
         Ok(row.get(0))
     }
 }
+
+/// Lets the gRPC boundary consult this exact loader — cache, namespace scoping
+/// and all — without `secreton-grpc` depending on this crate, which it cannot
+/// do because this crate already depends on it. See
+/// [`secreton_core::services::policy::PolicyRuleSource`] for why the edge only
+/// runs one way.
+///
+/// Deliberately a thin delegation: if the gRPC path resolved rules any
+/// differently from REST, the two boundaries would be enforcing two different
+/// policy sets under one name.
+#[async_trait::async_trait]
+impl secreton_core::services::policy::PolicyRuleSource for PolicyService {
+    async fn rules_for_policies(
+        &self,
+        names: &[String],
+        namespace: &str,
+    ) -> Result<Vec<PolicyRule>, CoreError> {
+        self.get_rules_for_policies(names, namespace).await
+    }
+}
