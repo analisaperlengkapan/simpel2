@@ -159,6 +159,14 @@ Two consequences to know before debugging a 403:
   no policies and the token from `/v1/sys/init` has to be able to write the
   first one.
 
+The middleware does not decide any of that itself. It calls
+`secreton_core::services::policy::authorize`, which owns the root bypass, the
+rule lookup and the glob evaluation — the same call the gRPC handlers make. It
+lives in `core` rather than `api` because `api` depends on `grpc`, so `grpc`
+cannot depend back on `api`; the loader is injected as a `PolicyRuleSource`
+implemented by `PolicyService`. Keep it that way: an authorization rule that
+exists in two places is a rule that will eventually hold in only one of them.
+
 Paths exempt from authorization are exactly the paths exempt from
 authentication — `policy_check_middleware` calls the same `is_whitelisted()`
 predicate `auth_middleware` uses. It used to keep its own copy, which had
@@ -357,11 +365,44 @@ Same names as authenc's gRPC boundary — one convention configures both.
 which paths the gateway may read. Do not read "mTLS is on" as "secrets are
 access-controlled".
 
-Per-path scoping on this boundary is **still open** (task #129). The REST side
-got it — see "Authorization is enforced, and it fails closed" — but the tower
-layer cannot do the same job here, because the secret path travels in the
-request body, not in the method name. That check belongs in the handler,
-reading `PeerIdentity` out of the request extensions.
+### Per-path authorization on gRPC, sharing REST's decision function
+
+The four secret handlers each call `SecretonGrpcService::authorize_secret`
+before touching storage. Note where the check lives: a tower layer cannot do
+this job, because the secret path travels in the **request body**, not in the
+method name — so the check is per-handler, and adding a fifth secret RPC means
+adding the call by hand.
+
+The model is Vault's cert auth: **the peer certificate's common name is the
+policy name.** `PeerIdentity` (put in the request extensions by `ClientAuth`) →
+`[common_name]` → `secreton_core::services::policy::authorize`, which is the
+same function `policy_check_middleware` calls on the REST side. Do **not** add a
+second authorizer here. Two of them will drift, and the weaker one becomes the
+way in.
+
+Read the handler's `path` as a **resource path**, not a URI: it is evaluated as
+`secret/data/{path}`, matching what `middleware::resource_path` produces for
+REST and what `values.yaml` `secretonAuth.policies` lists. A `List` with no
+prefix evaluates as bare `secret/data`, so an unscoped enumeration is denied to
+everyone but root.
+
+Two things that must stay true:
+
+- **The posture is a named value, not an absence.** `GrpcAuthorization` is
+  either `Enforced(policy_source)` or `AnonymousOptOut { reason }`, derived from
+  the same `ListenerSecurity` that decides transport, and logged at startup.
+  There is no principal on the insecure listener, so enforcing there would deny
+  every call — the opt-out carries its reason rather than being inferred from a
+  missing policy source.
+- **An unreachable policy store is `Internal`, never a pass.** Same rule as
+  REST.
+
+Metadata like the `user-id` header is caller-supplied, so it is an audit label
+only. Authorization reads the mTLS-proved identity, nothing else.
+
+Adding a workload to this boundary is two steps, and skipping the second gives a
+caller that authenticates and is then denied everything: issue it a certificate
+**and** add its CN to `secretonAuth.policies` in `infra/helm/simpel/values.yaml`.
 
 Istio does **not** cover this hop: `values.yaml` `mtls.disableForHosts`
 excludes authenc, secreton and postgres, and both authenc and secreton run

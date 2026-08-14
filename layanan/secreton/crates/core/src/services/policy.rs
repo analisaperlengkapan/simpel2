@@ -867,6 +867,77 @@ async fn evaluate_wasm_policy(
 
 // TODO: Integrasi Sentinel-style policy (WASM/DSL) di masa depan
 
+/// The implicit policy that grants everything, as in Vault.
+///
+/// It has no stored rules on purpose: a freshly initialised engine holds no
+/// policies at all, so if root were resolved through the policy store like any
+/// other name, the token minted by `/v1/sys/init` could not create the first
+/// policy and the engine would be locked out of its own configuration.
+pub const ROOT_POLICY: &str = "root";
+
+/// Where policy rules come from.
+///
+/// This exists to break a dependency cycle, and the cycle is worth spelling out
+/// because the shape of the fix follows from it. The rule loader
+/// (`PolicyService`, Postgres-backed with a TTL cache) lives in `secreton-api`,
+/// and `secreton-api` depends on `secreton-grpc` — it constructs the gRPC
+/// service in `api_server.rs`. So the gRPC crate can never reach into the api
+/// crate for the loader; the edge only runs one way.
+///
+/// Declaring the capability here instead lets both boundaries consult the *same*
+/// engine: grpc depends on this trait, api implements it, and the binary that
+/// already owns both wires them together. The alternative — giving gRPC its own
+/// authorization path — is specifically what task #129 forbids, because two
+/// authorizers drift and the weaker one becomes the way in.
+#[async_trait::async_trait]
+pub trait PolicyRuleSource: Send + Sync {
+    /// Resolve the named policies into the rules they contain.
+    ///
+    /// Returning `Err` must never be read as "allow": [`authorize`] converts a
+    /// load failure into a denial.
+    async fn rules_for_policies(
+        &self,
+        names: &[String],
+        namespace: &str,
+    ) -> Result<Vec<PolicyRule>, crate::error::CoreError>;
+}
+
+/// The single authorization decision, shared by the REST and gRPC boundaries.
+///
+/// `resource` must already be a resource path (`secret/data/simpelv1/app`), not
+/// an HTTP URI — see `secreton_api::middleware::resource_path`. Handing this an
+/// URI is the defect proven in `tests/policy_path_vocabulary.rs`: the glob
+/// matcher has no normalisation, so `/v1/...` matches nothing and the engine
+/// silently degrades to "deny everything that is not root".
+///
+/// Errors are denials, not exceptions: a caller that cannot reach the policy
+/// store has not been authorized, so the boundary must refuse. Callers may
+/// still distinguish the two to pick a status code (403 vs 500) — REST does —
+/// but neither may proceed.
+#[instrument(skip(source, context), fields(%user, %resource, %action))]
+pub async fn authorize(
+    source: &dyn PolicyRuleSource,
+    policy_names: &[String],
+    namespace: &str,
+    user: &str,
+    resource: &str,
+    action: &str,
+    context: Option<&Value>,
+) -> Result<bool, crate::error::CoreError> {
+    if policy_names.iter().any(|p| p == ROOT_POLICY) {
+        debug!(%user, %resource, "root policy grants access");
+        return Ok(true);
+    }
+
+    let rules = source.rules_for_policies(policy_names, namespace).await?;
+    let allowed = PolicySet::new(rules).evaluate(user, resource, action, context);
+
+    if !allowed {
+        warn!(%user, %resource, %action, "policy denied request");
+    }
+    Ok(allowed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

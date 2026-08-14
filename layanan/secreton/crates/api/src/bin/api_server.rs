@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{error, info, warn};
 
-use secreton_api::grpc::server::SecretonGrpcService;
+use secreton_api::grpc::server::{GrpcAuthorization, SecretonGrpcService};
 use secreton_api::grpc::tls::GrpcTlsConfig;
 use secreton_api::services::ServiceContainer;
 use secreton_api::{ApiState, PkiApiState, TransitApiState, config::ApiConfig, create_api_router};
@@ -142,15 +142,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tls_config_opt = config.tls.clone();
     let grpc_enabled = config.grpc.enabled;
 
-    // Create gRPC service (shared state with REST).
-    // It gets `secret_storage`, not `storage`: gRPC is the path the gateway
-    // sidecar and simpelv1 use, so it must encrypt at rest like REST does.
-    let grpc_service = SecretonGrpcService::new(
-        services.secret_storage.clone(),
-        Arc::clone(&transit_engine),
-        Some(Arc::clone(&metrics.grpc_requests_total)),
-    );
-
     // Start both servers concurrently
     info!("🚀 Starting Secreton servers...");
     info!("   REST API: {}", http_addr);
@@ -190,6 +181,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             error!("{}", e);
             std::io::Error::new(std::io::ErrorKind::InvalidInput, e)
         })?;
+
+        // Transport security and authorization are one decision, so they are
+        // derived from one value. Enforcing policy needs a caller identity, and
+        // the only identity a gRPC caller has is the certificate it presented —
+        // so on the insecure listener there is nothing to enforce against, and
+        // pretending otherwise would just deny every call.
+        //
+        // This is why the opt-out is a named variant rather than a missing
+        // policy source: `AnonymousOptOut` reaches the constructor, which logs a
+        // warning naming the reason. Closing this gap is #128 — issue the
+        // gateway a client certificate, then drop the opt-out.
+        let authorization = match &listener_security {
+            secreton_api::grpc::ListenerSecurity::Mtls(_) => {
+                GrpcAuthorization::Enforced(services.policy_service.clone())
+            }
+            secreton_api::grpc::ListenerSecurity::Insecure { reason } => {
+                GrpcAuthorization::AnonymousOptOut {
+                    reason: reason.clone(),
+                }
+            }
+        };
+
+        // gRPC gets `secret_storage`, not `storage`: it is the path the gateway
+        // sidecar and simpelv1 use, so it must encrypt at rest like REST does.
+        let grpc_service = SecretonGrpcService::new(
+            services.secret_storage.clone(),
+            Arc::clone(&transit_engine),
+            Some(Arc::clone(&metrics.grpc_requests_total)),
+            authorization,
+        );
 
         match listener_security {
             secreton_api::grpc::ListenerSecurity::Mtls(grpc_tls_config) => {
