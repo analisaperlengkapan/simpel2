@@ -2,12 +2,30 @@
 {{- $ns := include "simpel.namespace" . -}}
 {{- $interval := .Values.monitoring.serviceMonitors.interval -}}
 {{- $timeout := .Values.monitoring.serviceMonitors.scrapeTimeout -}}
+{{- /*
+  postgres & redis SENGAJA TIDAK ada di daftar ini (dibuang 2026-08-14).
+
+  Keduanya dulu terdaftar dan tak satu pun bisa menjawab:
+  - postgres di-scrape pada port bernama `patroni` (8008). Tak ada yang
+    mendengarkan di sana — image-nya stock `postgres:16-alpine`, bukan Patroni;
+    diverifikasi di staging, kontainer hanya membuka 5432.
+  - redis di-scrape pada port `redis` (6379) dengan path `/metrics`. 6379
+    berbicara protokol RESP, bukan HTTP, jadi permintaan itu tak akan pernah
+    mengembalikan format Prometheus.
+
+  Ini bukan sekadar bersih-bersih: `monitoring.serviceMonitors.enabled` default
+  `false` TAPI values-production menyalakannya, jadi keduanya akan lahir sebagai
+  target yang selamanya DOWN pada hari pertama produksi — kebisingan alarm yang
+  mengajari orang mengabaikan dasbor.
+
+  Bila metrik keduanya memang diinginkan, yang dibutuhkan adalah exporter
+  (`postgres_exporter` / `redis_exporter`) sebagai sidecar beserta port-nya
+  sendiri — pekerjaan tersendiri, bukan satu baris di sini.
+*/ -}}
 {{- $monitors := list
   (dict "name" "layanan-perlengkapan" "component" "backend"        "port" "http"     "path" "/metrics")
   (dict "name" "authenc"              "component" "infrastructure" "port" "metrics" "path" "/metrics")
   (dict "name" "secreton"             "component" "infrastructure" "port" "metrics" "path" "/metrics")
-  (dict "name" "postgres"             "component" "database"       "port" "patroni" "path" "/metrics")
-  (dict "name" "redis"                "component" "cache"          "port" "redis"   "path" "/metrics")
 -}}
 {{- range $m := $monitors }}
 ---
