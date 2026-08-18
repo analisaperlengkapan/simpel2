@@ -123,8 +123,14 @@ case "$ACTION" in
     # First install butuh kredensial:
     #   ./deploy.sh <env> backup-install \
     #     -f infra/helm/backup/values-secrets.yaml --set secrets.bootstrap=true
+    #
+    # TANPA `--create-namespace` — chart ini me-render Namespace-nya SENDIRI
+    # (dengan `resource-policy: keep` + label istio-injection). Memakai keduanya
+    # membuat `helm install` gagal "namespaces ... already exists": Helm membuat
+    # namespace lebih dulu tanpa metadata kepemilikan, lalu objek Namespace milik
+    # chart menabraknya. Terjadi sungguhan 2026-08-18.
     helm upgrade --install simpel-backup "$BACKUP_CHART_DIR" \
-      --namespace simpelv2-backup --create-namespace \
+      --namespace simpelv2-backup \
       "${EXTRA_ARGS[@]}"
     ;;
   *)
