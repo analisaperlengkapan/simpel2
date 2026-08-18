@@ -35,6 +35,22 @@ if ! command -v jq &> /dev/null; then
     echo ""
 fi
 
+# bc is NOT optional, and it must fail loudly.
+#
+# Every threshold below is written `$(echo "$x > $limit" | bc -l)`.
+# The `|| echo 0` was meant as a safety net; what it actually does when bc is
+# absent is answer "0" — false — to EVERY comparison. So p95 over budget, error
+# rate over budget and throughput under budget all render as green check marks,
+# and the report says the run passed. A report that cannot fail is not a report.
+#
+# The ARC runner image ships no bc, so this is not hypothetical.
+if ! command -v bc &> /dev/null; then
+    echo -e "${RED}Error: bc not installed — every threshold check would silently pass.${NC}"
+    echo "  Ubuntu/Debian: sudo apt-get install bc"
+    echo "  macOS: brew install bc"
+    exit 1
+fi
+
 # Function to extract metrics from log file
 extract_metrics() {
     local log_file=$1
@@ -88,7 +104,7 @@ analyze_performance() {
     # Response time
     if [ -n "$p95_duration" ]; then
         local status="✅"
-        if (( $(echo "$p95_duration > 500" | bc -l 2>/dev/null || echo 0) )); then
+        if (( $(echo "$p95_duration > 500" | bc -l) )); then
             status="❌"
         fi
         echo "| Response Time (p95) | $p95_duration | ≤ 500ms | $status |" >> "$REPORT_FILE"
@@ -97,7 +113,7 @@ analyze_performance() {
     # Error rate
     if [ -n "$error_rate" ]; then
         local status="✅"
-        if (( $(echo "$error_rate > 0.05" | bc -l 2>/dev/null || echo 0) )); then
+        if (( $(echo "$error_rate > 0.05" | bc -l) )); then
             status="❌"
         fi
         echo "| Error Rate | $error_rate | < 5% | $status |" >> "$REPORT_FILE"
@@ -106,7 +122,7 @@ analyze_performance() {
     # Throughput
     if [ -n "$throughput" ]; then
         local status="✅"
-        if (( $(echo "$throughput < 100" | bc -l 2>/dev/null || echo 0) )); then
+        if (( $(echo "$throughput < 100" | bc -l) )); then
             status="❌"
         fi
         echo "| Throughput | $throughput | ≥ 100 req/s | $status |" >> "$REPORT_FILE"
@@ -136,7 +152,7 @@ identify_bottlenecks() {
     # Check for errors
     if grep -q "http_req_failed.*rate=[0-9]\+\.[0-9]\+%" "$log_file"; then
         local error_rate=$(grep "http_req_failed" "$log_file" | grep -oP 'rate=\K[0-9.]+' | head -1)
-        if (( $(echo "$error_rate > 0.01" | bc -l 2>/dev/null || echo 0) )); then
+        if (( $(echo "$error_rate > 0.01" | bc -l) )); then
             echo "- ⚠️ **High error rate detected** ($error_rate%)" >> "$REPORT_FILE"
             echo "  - Recommendation: Check service logs for errors" >> "$REPORT_FILE"
             echo "  - Action: kubectl logs -l app=layanan-perlengkapan" >> "$REPORT_FILE"
@@ -148,7 +164,7 @@ identify_bottlenecks() {
     # Check for low throughput
     if grep -q "http_reqs.*[0-9]\+/s" "$log_file"; then
         local throughput=$(grep "http_reqs" "$log_file" | grep -oP '[0-9.]+(?=/s)' | head -1)
-        if (( $(echo "$throughput < 100" | bc -l 2>/dev/null || echo 0) )); then
+        if (( $(echo "$throughput < 100" | bc -l) )); then
             echo "- ⚠️ **Low throughput detected** ($throughput req/s)" >> "$REPORT_FILE"
             echo "  - Recommendation: Check connection pool configuration" >> "$REPORT_FILE"
             echo "  - Action: Increase database pool size" >> "$REPORT_FILE"
