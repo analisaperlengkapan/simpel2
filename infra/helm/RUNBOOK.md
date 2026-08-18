@@ -481,6 +481,32 @@ kubectl delete namespace simpelv2-restore-drill
 Catat tanggal latihan terakhir. Backup yang terakhir diuji berbulan-bulan lalu
 adalah asumsi, bukan jaminan.
 
+**Latihan terakhir: 2026-08-18 — LULUS.** Bukti, bukan kesan:
+
+| Yang diuji | Hasil |
+|---|---|
+| Backup `simpelv2-staging` | `Completed`, 139/139 item, 0 error, 0 warning |
+| Restore → `simpelv2-restore-drill` | PVC ter-bind ke PV BARU, ukuran benar (20/5/10Gi) |
+| Database yang kembali | `dbsimpelv1`, `dbsimpelv2`, `postgres`, `secreton` |
+| Jumlah baris vs sumber hidup | `authenc.users` 2, `mysimkari_satker` 539, `siman_aset` **624.528**, 47 tabel `perlengkapan` — **identik** |
+| Checksum isi (md5 atas 539 baris satker) | `34335b79…` di **kedua** sisi |
+| Staging setelah drill dibongkar | 12 pod Running, 3 PV asli utuh |
+
+**Restore dilaporkan `PartiallyFailed`, dan itu BUKAN kehilangan data.** 19 dari 74
+PodVolumeRestore dibatalkan; semuanya volume scratch (`istio-envoy`,
+`nginx-cache`, `var-run`, …) yang pod pembantunya ditolak saat klaster sibuk.
+Nol volume data gagal. Sejak itu chart mengecualikan seluruh emptyDir dari
+File System Backup dan CI menjaganya (`infra/scripts/check-velero-volume-excludes.py`),
+supaya `PartiallyFailed` kembali berarti "ada yang salah".
+
+**Yang BELUM diuji** — jangan mengaku lebih dari yang dibuktikan:
+
+- restore ke namespace ASLI (bencana sungguhan), bukan ke namespace drill;
+- unseal Secreton setelah restore;
+- restore production (belum pernah ada backup production).
+
+Jadwalkan ketiganya di jendela uji destruktif F5-E.
+
 ### 8.5 Restore sungguhan
 
 Sama seperti latihan, tanpa `--namespace-mappings`, dan **hanya** setelah

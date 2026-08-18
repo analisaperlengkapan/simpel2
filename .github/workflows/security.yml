@@ -368,6 +368,27 @@ jobs:
             [ "$c" = "infra/helm/simpel" ] && continue
             helm template "$(basename "$c")" "$c" > "rendered/$(basename "$c").yaml"
           done
+      # Volume yang tak pernah berisi data tak boleh ikut File System Backup.
+      # Kalau ikut, ia menghasilkan `PartiallyFailed` yang TIDAK berarti
+      # kehilangan data — dan sinyal merah semacam itu akan diabaikan orang,
+      # yang jauh lebih mahal daripada volume-volume itu sendiri. Terukur pada
+      # latihan restore 2026-08-18: 19 dari 74 volume adalah scratch, semuanya
+      # gagal, seluruh volume data justru berhasil.
+      #
+      # yq HANYA mengubah YAML→JSON; logikanya di skrip stdlib. Versi pertama
+      # guard ini menaruh logikanya di ekspresi yq dan ia LOLOS pada input yang
+      # sengaja dirusak — `as $var` di-cross-product antar dokumen, jadi ia
+      # membandingkan pasangan yang salah. Ketahuan karena diuji dengan kenari,
+      # bukan karena dibaca ulang.
+      - name: Setiap emptyDir dikecualikan dari backup Velero
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-velero-volume-excludes.py "$f"
+          done
       - name: kube-linter (blocking — fails on any finding)
         if: steps.filter.outputs.helm == 'true'
         uses: stackrox/kube-linter-action@v1.0.7

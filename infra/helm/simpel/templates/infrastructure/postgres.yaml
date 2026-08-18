@@ -100,6 +100,10 @@ spec:
         {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 8 }}
       annotations:
         {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+        # postgres-data (PVC) WAJIB ikut; sisanya scratch. Ditulis di sini, bukan
+        # diturunkan, karena volume-nya juga ditulis literal di berkas ini —
+        # daftarnya duduk di sebelah yang dinamainya.
+        backup.velero.io/backup-volumes-excludes: "postgres-run,tmp,{{ include "simpel.veleroIstioVolumes" . }}"
         {{- if (dig "veleroBackupHook" "enabled" true $cfg) }}
         {{- /*
           Backup file-system Velero (kopia) menyalin isi PVC sebagaimana adanya —

@@ -64,6 +64,13 @@ spec:
         app: simpelv1
         version: legacy
         {{- include "simpel.labels" . | nindent 8 }}
+      annotations:
+        # simpelv1 TIDAK punya volume persisten sama sekali — semuanya emptyDir,
+        # jadi seluruhnya dikecualikan dari File System Backup. Yang perlu
+        # dipulihkan dari pod ini adalah objek Kubernetes-nya, bukan isi disknya;
+        # datanya hidup di dbsimpelv1 (PVC postgres). Ditulis di sini, bukan
+        # diturunkan, karena volume-nya juga ditulis literal di berkas ini.
+        backup.velero.io/backup-volumes-excludes: "storage,bootstrap-cache,tmp,nginx-cache,nginx-lib,run,var-run,runtime,{{ include "simpel.veleroIstioVolumes" . }}"
     spec:
       serviceAccountName: simpelv1
       {{- if .Values.priorityClass.enabled }}
