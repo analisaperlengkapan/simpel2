@@ -1409,14 +1409,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       - name: Build every e2e image once
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -1472,14 +1464,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # The ARC runner image ships the docker CLI but not the compose v2 plugin.
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       # SIMPELV1_APP_KEY is required by compose interpolation (the simpelv1
       # service declares ${SIMPELV1_APP_KEY:?...}) even though we do NOT bring
       # simpelv1 up here — set a throwaway value so `docker compose` can load.
@@ -1611,17 +1595,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
-      # The custom ARC runner image ships the docker CLI (talks to the dind
-      # sidecar) but NOT the `docker compose` v2 plugin — install it per-job into
-      # the user's cli-plugins dir (no image rebuild). Pinned version.
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       # F5-A: bring up the real e2e stack (base compose + e2e overlay). The SMOKE
       # suite runs from the official Playwright container (browsers + system deps
       # baked in) — ARC blocks `playwright install --with-deps` (no-new-privileges
@@ -1898,14 +1871,6 @@ jobs:
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
     steps:
       - uses: actions/checkout@v7
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       - name: Pull shared e2e images (both FEs + backend)
         run: |
           # authenc built with captcha-debug (e2e overlay) so the real login can
@@ -2016,14 +1981,6 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       - name: Pull shared e2e images (authenc + secreton + layanan-integrasi)
         env:
           POSTGRES_PASSWORD: e2e_test_pw
@@ -2148,14 +2105,6 @@ jobs:
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
     steps:
       - uses: actions/checkout@v7
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       - name: Build images (secreton + gateway + authenc + layanan-integrasi)
         run: |
           # gateway depends_on authenc + layanan-integrasi (service_started), so
@@ -2242,14 +2191,6 @@ jobs:
       SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
     steps:
       - uses: actions/checkout@v7
-      - name: Install Docker Compose v2 plugin
-        run: |
-          mkdir -p "$HOME/.docker/cli-plugins"
-          curl -fsSL \
-            "https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64" \
-            -o "$HOME/.docker/cli-plugins/docker-compose"
-          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
-          docker compose version
       - name: Build images (authenc + secreton + layanan-integrasi + gateway)
         run: |
           # Images come from the shared `e2e-build-images` job (#111); this job
