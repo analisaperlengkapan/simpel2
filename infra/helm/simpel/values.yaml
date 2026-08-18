@@ -21,7 +21,18 @@ global:
   environment: staging                     # staging | production
   domain: 10.1.7.121
   istioNamespace: istio-system
-  storageClass: longhorn
+  # SATU-SATUNYA tempat kelas penyimpanan ditulis. Komponen stateful
+  # (postgres/redis/secreton) menurunkannya dari sini; jangan tulis ulang
+  # `storageClassName` per-komponen — sebelum 2026-08-18 tiap komponen
+  # menulis literal `longhorn`, sehingga knob ini tampak hidup tapi tak
+  # pernah menang (`default <global> <literal>` selalu memilih literal).
+  #
+  # `longhorn-retain` (chart `infra/helm/storage`) = `reclaimPolicy: Retain`
+  # + `numberOfReplicas: 2`. Retain membuat PV bertahan saat PVC-nya ikut
+  # terhapus — satu-satunya lapisan yang menahan cascade-delete namespace
+  # (insiden 2026-06-17). Staging masih menimpanya ke `longhorn`; alasannya
+  # ada di values-staging.yaml.
+  storageClass: longhorn-retain
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -239,7 +250,6 @@ postgres:
   replicas: 1
   storage:
     size: 20Gi
-    storageClassName: longhorn
     accessModes: [ReadWriteOnce]
   resources:
     requests: { cpu: 250m, memory: 512Mi }
@@ -276,7 +286,6 @@ redis:
     tag: "7-alpine"
   storage:
     size: 5Gi
-    storageClassName: longhorn
     accessModes: [ReadWriteOnce]
   maxmemory: 256mb
   maxmemoryPolicy: allkeys-lru
@@ -404,10 +413,10 @@ secreton:
       - { name: http,    port: 8200 }
       - { name: grpc,    port: 9000, appProtocol: grpc }
       - { name: metrics, port: 9090 }
-  storage:
-    size: 10Gi
-    storageClassName: longhorn
-    accessModes: [ReadWriteOnce]
+  # secreton TIDAK punya blok `storage:` — PVC-nya lahir dari
+  # `volumeClaimTemplates` di bawah. Blok `storage:` yang dulu di sini
+  # (size/storageClassName/accessModes) tak pernah dibaca template mana pun:
+  # dua deklarasi bersaing untuk satu PVC, salah satunya umpan. Dihapus 2026-08-18.
   resources:
     requests: { cpu: 100m, memory: 256Mi }
     limits:   { cpu: 500m, memory: 512Mi }
@@ -459,7 +468,7 @@ secreton:
         name: secreton-data
       spec:
         accessModes: [ReadWriteOnce]
-        storageClassName: longhorn
+        # storageClassName sengaja dikosongkan: diturunkan dari global.storageClass.
         resources:
           requests:
             storage: 10Gi

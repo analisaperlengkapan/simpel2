@@ -1,0 +1,45 @@
+# StorageClass yang di-render. Nilai default = `longhorn-retain`, kelas durabel
+# yang dipakai SEMUA volume stateful SIMPEL (postgres, redis, secreton).
+storageClasses:
+  - name: longhorn-retain
+    # DEFAULT KLASTER: TIDAK. StorageClass default tetap `longhorn` bawaan
+    # rilis Helm longhorn — chart ini tidak mengambil alih objek milik rilis lain.
+    isDefault: false
+
+    # `Retain` = PV + data BERTAHAN saat PVC-nya dihapus.
+    #
+    # WHY (insiden 2026-06-17): `helm uninstall simpel -n simpelv2-staging`
+    # meng-cascade-delete seluruh namespace; PVC ikut terhapus; StorageClass
+    # `longhorn` ber-`reclaimPolicy: Delete` sehingga Longhorn ikut menghapus
+    # volume-nya → dbsimpelv1, dbsimpelv2, dan seal-state Secreton hilang
+    # PERMANEN. Proteksi yang sudah ada (`helm.sh/resource-policy: keep` di
+    # namespace + `persistentVolumeClaimRetentionPolicy: Retain` di StatefulSet)
+    # hanya menahan HELM agar tak menghapus; keduanya tak berdaya bila
+    # NAMESPACE-nya yang dihapus, karena cascade delete berjalan di sisi
+    # Kubernetes, bukan Helm. `Retain` adalah lapisan yang menahan kasus itu:
+    # PV berubah jadi `Released` dengan data utuh, bukan lenyap.
+    reclaimPolicy: Retain
+
+    # 2 replika, BUKAN 3 — dan ini bukan penghematan, ini kejujuran sinyal.
+    #
+    # Klaster ini punya DUA node (simpel.kejaksaan.go.id + simple02) dengan
+    # `replica-soft-anti-affinity: false` (anti-afinitas KETAT: dua replika tak
+    # boleh se-node). Meminta 3 replika di 2 node berarti replika ketiga TAK
+    # PERNAH bisa dijadwalkan, sehingga setiap volume permanen berstatus
+    # `robustness: degraded`. Akibatnya field `degraded` kehilangan daya
+    # bedanya: volume yang benar-benar kehilangan replika terlihat persis sama
+    # dengan volume sehat. Dengan 2, `degraded` kembali berarti "ada yang rusak".
+    #
+    # Yang TIDAK berubah: sebaran data. Dua replika sudah tersebar satu per
+    # node, jadi kehilangan satu node tetap tidak menghilangkan data.
+    # Kalau kelak node ke-3 ditambahkan, naikkan angka ini ke 3.
+    numberOfReplicas: "2"
+
+    # Menit sebelum Longhorn membuang replika yang tak lagi terhubung.
+    staleReplicaTimeout: "30"
+    fsType: ext4
+    # `disabled`: tak perlu memaksa replika lokal — dengan 2 node/2 replika,
+    # node tempat volume ter-attach PASTI sudah memegang satu replika.
+    dataLocality: disabled
+    allowVolumeExpansion: true
+    volumeBindingMode: Immediate

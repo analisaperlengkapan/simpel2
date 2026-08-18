@@ -1,0 +1,24 @@
+{{- range .Values.storageClasses }}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .name }}
+  labels:
+    app.kubernetes.io/name: {{ .name }}
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+    app.kubernetes.io/part-of: simpel
+  {{- if .isDefault }}
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  {{- end }}
+provisioner: driver.longhorn.io
+reclaimPolicy: {{ required "storageClasses[].reclaimPolicy wajib diisi" .reclaimPolicy }}
+allowVolumeExpansion: {{ .allowVolumeExpansion }}
+volumeBindingMode: {{ .volumeBindingMode }}
+parameters:
+  numberOfReplicas: {{ .numberOfReplicas | quote }}
+  staleReplicaTimeout: {{ .staleReplicaTimeout | quote }}
+  fsType: {{ .fsType | quote }}
+  dataLocality: {{ .dataLocality | quote }}
+{{- end }}

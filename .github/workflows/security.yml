@@ -318,19 +318,56 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: v3.20.2
-      - name: helm lint (blocking)
+      # Daftar chart DITURUNKAN dari pohon, tidak ditulis tangan. Sebelumnya job
+      # ini menyebut `infra/helm/simpel` dua kali dan tak menyentuh chart lain,
+      # jadi `metallb` (dan chart apa pun yang lahir kemudian) tak pernah
+      # di-lint — pola berulang "gerbangnya benar, cakupannya daftar statis yang
+      # tak ikut tumbuh".
+      - name: helm lint (blocking — semua chart di infra/helm/)
         if: steps.filter.outputs.helm == 'true'
         run: |
-          helm lint infra/helm/simpel -f infra/helm/simpel/values-staging.yaml
-          helm lint infra/helm/simpel -f infra/helm/simpel/values-production.yaml
-      - name: Render manifests (staging + production)
+          set -euo pipefail
+          mapfile -t charts < <(find infra/helm -mindepth 2 -maxdepth 2 -name Chart.yaml -printf '%h\n' | sort)
+          if [ "${#charts[@]}" -eq 0 ]; then
+            echo "::error::Tidak ada chart ditemukan di infra/helm/ — guard ini pasti salah jalan."
+            exit 1
+          fi
+          for c in "${charts[@]}"; do
+            if [ "$c" = "infra/helm/simpel" ]; then
+              helm lint "$c" -f "$c/values-staging.yaml"
+              helm lint "$c" -f "$c/values-production.yaml"
+            else
+              helm lint "$c"
+            fi
+          done
+      # Kelas penyimpanan hanya boleh ditulis di `global.storageClass`. Kalau
+      # sebuah komponen menulis ulang `storageClassName`, knob global-nya mati
+      # suri (`default <global> <literal>` selalu memilih literal) dan mengganti
+      # kelas klaster jadi butuh mengedit N tempat — melewatkan satu berarti satu
+      # volume diam-diam tertinggal di kelas lama, yang baru ketahuan saat data
+      # sudah di sana.
+      - name: storageClassName hanya di global.storageClass
         if: steps.filter.outputs.helm == 'true'
         run: |
+          set -euo pipefail
+          if grep -rn 'storageClassName:' infra/helm/simpel/values*.yaml | grep -v '^\s*#'; then
+            echo "::error::values*.yaml chart simpel tidak boleh menyebut storageClassName — pakai global.storageClass."
+            exit 1
+          fi
+          echo "OK: tak ada storageClassName literal di values chart simpel."
+      - name: Render manifests (staging + production + chart cluster-scoped)
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
           mkdir -p rendered
           helm template simpel infra/helm/simpel \
             -f infra/helm/simpel/values-staging.yaml > rendered/staging.yaml
           helm template simpel infra/helm/simpel \
             -f infra/helm/simpel/values-production.yaml > rendered/production.yaml
+          for c in $(find infra/helm -mindepth 2 -maxdepth 2 -name Chart.yaml -printf '%h\n' | sort); do
+            [ "$c" = "infra/helm/simpel" ] && continue
+            helm template "$(basename "$c")" "$c" > "rendered/$(basename "$c").yaml"
+          done
       - name: kube-linter (blocking — fails on any finding)
         if: steps.filter.outputs.helm == 'true'
         uses: stackrox/kube-linter-action@v1.0.7

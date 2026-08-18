@@ -1,0 +1,27 @@
+apiVersion: v2
+name: simpel-storage
+description: |
+  StorageClass durabel untuk SIMPEL di klaster Longhorn.
+
+  Cluster-scoped (StorageClass tidak ber-namespace). Apply terpisah dari chart
+  aplikasi, sekali per klaster:
+
+    helm upgrade --install simpel-storage infra/helm/storage \
+      --namespace longhorn-system
+
+  Alasan chart terpisah (bukan di dalam `infra/helm/simpel`): StorageClass
+  cluster-scoped, sedangkan chart aplikasi di-install DUA KALI (staging +
+  production). Kalau SC ikut di chart aplikasi, rilis kedua akan menabrak
+  kepemilikan Helm atas objek yang sama.
+
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+
+maintainers:
+  - name: SIMPEL DevOps Team
+    email: simpel-devops@kejaksaan.go.id
+
+annotations:
+  category: Storage

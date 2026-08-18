@@ -79,12 +79,75 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
 - **Proteksi data ber-lapis di chart (sudah terpasang):** namespace.yaml + redis-pvc
   `helm.sh/resource-policy: keep`; postgres+secreton STS
   `persistentVolumeClaimRetentionPolicy: {whenDeleted: Retain, whenScaled: Retain}`.
-- **TODO max-mitigasi:** Longhorn default SC `reclaimPolicy=Delete` → sediakan SC
-  **Retain**; **Velero (#50) WAJIB** terpasang sebelum uji destruktif lanjutan &
-  MANDATORY pra-prod.
+- **StorageClass `longhorn-retain` (chart `infra/helm/storage`, `deploy.sh <env>
+  storage-install`)** — `reclaimPolicy: Retain` + `numberOfReplicas: 2`. Retain
+  adalah **satu-satunya** lapisan yang menahan skenario 2026-06-17: dua proteksi
+  di atas menahan _Helm_ agar tak menghapus, tapi tak berdaya bila **namespace**-nya
+  yang dihapus — cascade delete berjalan di sisi Kubernetes, bukan Helm. Dengan
+  Retain, PV berubah jadi `Released` dengan data utuh, bukan lenyap.
+- **Kelas penyimpanan ditulis di SATU tempat: `global.storageClass`.** Komponen
+  stateful menurunkannya (`_workload.tpl` menyuntikkannya ke `volumeClaimTemplates`
+  yang tak menyebutkannya). Dijaga CI: `values*.yaml` chart simpel yang menyebut
+  `storageClassName` = job `Helm Lint & kube-linter` merah.
+- **Mengganti kelas pada environment yang SUDAH punya PVC = tidak bisa in-place.**
+  `volumeClaimTemplates` StatefulSet immutable → `helm upgrade` ditolak API server.
+  Peralihan hanya saat bootstrap ulang. Karena itu staging masih `longhorn`
+  (pengecualian bertanggal di `values-staging.yaml`) sementara production lahir
+  langsung di `longhorn-retain`.
+- **TODO max-mitigasi tersisa:** **Velero (#50) WAJIB** terpasang sebelum uji
+  destruktif lanjutan & MANDATORY pra-prod.
 - **Data eksternal:** staging pakai data **mock/sintetis** (seed `integrasi.*`,
   sync OFF); token asli MySIMKARI/SIMAN/Monsakti **HANYA di production** (lihat
   memori `project-staging-mock-external-data` + `layanan/integrasi/AGENTS.md`).
+
+#### 🗄️ Ketersediaan database di klaster 2-node (putusan 2026-08-18)
+
+> **HA otomatis TIDAK bisa dicapai di klaster ini, dan tak boleh dijanjikan.**
+> Bukan karena Postgres-nya, tapi karena lapisan di bawahnya.
+
+Fakta terverifikasi (`kubectl get nodes -o wide`, 2026-08-18): klaster punya **dua**
+node — `simpel.kejaksaan.go.id` (satu-satunya control plane) dan `simple02` (worker).
+User mengonfirmasi node ke-3 **tidak memungkinkan saat ini**.
+
+Konsekuensinya berantai:
+
+- microk8s HA butuh **3 control plane** (kuorum dqlite). Dengan 1, hilangnya node
+  itu = API server hilang.
+- **Semua** operator Postgres HA (CNPG, Patroni, Zalando) memilih primary lewat
+  **API Kubernetes**. API server mati ⇒ tak ada yang bisa mempromosikan standby.
+  Jadi memasang operator HA di atas 1 control plane = membangun failover otomatis
+  yang justru mati bersama penyebab downtime-nya.
+- Longhorn `replica-soft-anti-affinity: false` (ketat) ⇒ maksimum 2 replika. Meminta
+  3 membuat SETIAP volume permanen `degraded`, sehingga statusnya berhenti jadi
+  sinyal. Kelas `longhorn-retain` meminta **2** — lihat bagian di atas.
+
+**Yang berlaku sekarang (Tahap 0 — durabilitas, bukan ketersediaan):** risiko yang
+sudah TERBUKTI di sistem ini adalah **kehilangan data** (insiden 2026-06-17), bukan
+downtime. Karena itu urutannya: `longhorn-retain` ✅ → **Velero (#50)** → WAL
+archiving/PITR → **latihan restore yang benar-benar dijalankan** (backup yang belum
+pernah di-restore belum terbukti jadi backup).
+
+**Kalau nanti butuh lebih:**
+
+| Tahap | Prasyarat | Yang didapat | Yang TIDAK didapat |
+|---|---|---|---|
+| **0** (sekarang) | — | Data tahan hilangnya 1 node; PV tahan cascade-delete namespace; restore ber-RPO = jarak backup | Failover apa pun |
+| **1.5** | node tetap 2 | CNPG 2 instance: replikasi streaming, standby panas, **promosi MANUAL** hitungan detik, RPO≈0 | Promosi otomatis |
+| **1** | **node ke-3** | microk8s HA + CNPG 3 instance sinkron, failover otomatis, RPO 0 | — |
+
+**Aturan sampai Tahap 1 tercapai:**
+
+- **`postgres.replicas` WAJIB 1.** Image `postgres` stock tidak mereplikasi; >1
+  replica di balik satu Service headless = N database TERPISAH yang bercabang
+  diam-diam. Chart sudah `fail` keras kalau dinaikkan (`infrastructure/postgres.yaml`).
+- **Jangan pasang scaffolding HA yang tak menyala.** Sisa Patroni (Role/RoleBinding
+  `endpoints`+`pods`, port 8008, Service `postgres-replicas`, ServiceMonitor
+  `port: patroni`) sudah dihapus 2026-08-18: selama 199 hari ia hanya memberi kesan
+  ada HA sekaligus memberi hak tulis API ke SA yang tak memakainya.
+- **Kalau pindah ke CNPG**, lakukan **sebelum** production pertama — migrasinya
+  dump/restore, dan production belum pernah ter-deploy, jadi sekarang paling murah.
+  CRD CNPG **sudah ada** di klaster (tanpa operator); operator Zalando berjalan
+  tanpa satu pun cluster — keduanya perlu dibereskan saat keputusan diambil.
 
 #### Release Train — kadens 3-lajur (TARGET-STATE; mekanik di-codify di P3/F-REL)
 

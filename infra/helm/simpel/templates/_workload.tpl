@@ -203,7 +203,25 @@ spec:
   {{- if eq $kind "StatefulSet" }}
   {{- with $values.volumeClaimTemplates }}
   volumeClaimTemplates:
-    {{- toYaml . | nindent 4 }}
+    {{- /*
+      storageClassName DITURUNKAN dari `global.storageClass`, tidak ditulis
+      ulang per-komponen. Entri boleh menimpanya secara eksplisit; bila absen
+      atau kosong, kelas global yang berlaku.
+
+      WHY: sebelumnya tiap komponen menulis literal `longhorn` di sini dan di
+      `<komponen>.storage.storageClassName`, sehingga knob `global.storageClass`
+      TAMPAK hidup tapi tak pernah menang — `default <global> <literal>`
+      selalu mengembalikan literal-nya. Mengganti kelas penyimpanan klaster
+      berarti mengedit 4 tempat, dan melewatkan satu berarti satu volume diam-diam
+      tertinggal di kelas lama. Satu sumber, banyak pembaca.
+    */}}
+    {{- range . }}
+    - metadata:
+        {{- toYaml .metadata | nindent 8 }}
+      spec:
+        {{- toYaml (omit .spec "storageClassName") | nindent 8 }}
+        storageClassName: {{ default $ctx.Values.global.storageClass .spec.storageClassName }}
+    {{- end }}
   {{- end }}
   {{- end }}
 {{- end }}
