@@ -107,6 +107,39 @@ kubectl config use-context <production-context>
 kubectl get nodes -o wide
 ```
 
+**Prasyarat klaster (sekali per klaster, bukan per-environment).** StorageClass
+`longhorn-retain` harus ada SEBELUM `helm install`, karena `volumeClaimTemplates`
+StatefulSet immutable — kalau PVC production lahir di kelas yang salah,
+memperbaikinya berarti membongkar volume, bukan `helm upgrade`.
+
+```bash
+./infra/helm/deploy.sh production storage-install
+kubectl get sc longhorn-retain \
+  -o custom-columns='NAME:.metadata.name,RECLAIM:.reclaimPolicy,REPL:.parameters.numberOfReplicas'
+# harapan: longhorn-retain   Retain   2
+```
+
+Sekalian rapikan setelan replika global Longhorn agar `degraded` kembali bermakna
+di klaster 2-node (lihat `infra/AGENTS.md` → "Ketersediaan database di klaster
+2-node"). Tanpa ini setiap volume permanen `degraded` dan status itu berhenti
+membedakan sehat vs rusak:
+
+```bash
+# default untuk volume BARU
+kubectl -n longhorn-system patch setting default-replica-count \
+  --type=merge -p '{"value":"{\"v1\":\"2\",\"v2\":\"2\"}"}'
+
+# volume yang SUDAH ada (aman: tiap volume sudah punya 2 replika sehat,
+# satu per node; yang dilepas hanya replika ketiga yang tak pernah terjadwal)
+for v in $(kubectl -n longhorn-system get volumes.longhorn.io -o name); do
+  kubectl -n longhorn-system patch "$v" --type=merge -p '{"spec":{"numberOfReplicas":2}}'
+done
+
+kubectl -n longhorn-system get volumes.longhorn.io \
+  -o custom-columns='NAME:.metadata.name,ROBUST:.status.robustness,REPL:.spec.numberOfReplicas'
+# harapan: semua `healthy`, REPL=2
+```
+
 ### 1.2 Buat namespace & ghcr-pull secret
 
 ```bash

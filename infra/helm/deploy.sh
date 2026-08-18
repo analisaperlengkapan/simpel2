@@ -6,12 +6,14 @@
 #
 # Env:    staging | production | review-<slug>
 # Action: install | upgrade | template | diff | status | rollback | uninstall
+#         metallb-install | storage-install   (cluster-scoped, env diabaikan)
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHART_DIR="${SCRIPT_DIR}/simpel"
 METALLB_CHART_DIR="${SCRIPT_DIR}/metallb"
+STORAGE_CHART_DIR="${SCRIPT_DIR}/storage"
 
 ENV="${1:-staging}"
 ACTION="${2:-template}"
@@ -103,9 +105,16 @@ case "$ACTION" in
       --namespace metallb-system \
       "${EXTRA_ARGS[@]}"
     ;;
+  storage-install)
+    # Cluster-scoped: StorageClass `longhorn-retain` dipakai BERSAMA oleh staging
+    # dan production, jadi satu rilis untuk seluruh klaster (bukan per-env).
+    helm upgrade --install simpel-storage "$STORAGE_CHART_DIR" \
+      --namespace longhorn-system \
+      "${EXTRA_ARGS[@]}"
+    ;;
   *)
     echo "Error: unknown action '$ACTION'" >&2
-    echo "Valid: install | upgrade | template | diff | status | rollback | uninstall | metallb-install" >&2
+    echo "Valid: install | upgrade | template | diff | status | rollback | uninstall | metallb-install | storage-install" >&2
     exit 2
     ;;
 esac

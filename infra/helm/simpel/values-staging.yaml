@@ -15,6 +15,17 @@ global:
   imageTag: v0.1.0-rc22
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
+  # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
+  # (reclaimPolicy=Delete), bukan `longhorn-retain` seperti default chart.
+  #
+  # Bukan karena Delete lebih baik, tapi karena `volumeClaimTemplates` sebuah
+  # StatefulSet IMMUTABLE: mengganti kelasnya pada environment yang sudah punya
+  # PVC akan membuat `helm upgrade` berikutnya DITOLAK API server, bukan
+  # memigrasikan volume. Peralihan dilakukan saat staging di-bootstrap ulang di
+  # F5-E (datanya mock/sintetis dan memang di-seed ulang), lalu baris ini dihapus.
+  # Production tak punya masalah ini: PVC lamanya `Lost` dan namespace-nya
+  # dibangun dari nol di F6-A, jadi lahir langsung di `longhorn-retain`.
+  storageClass: longhorn
   # Schedule semua workload ke node 'simple02' karena master tidak punya unpigz.
   nodeSelector:
     kubernetes.io/hostname: simple02
