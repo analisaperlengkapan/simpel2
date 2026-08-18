@@ -28,6 +28,31 @@ tujuh peluang gagal jaringan, dan tujuh tempat yang harus diingat saat versinya 
 Image ini hanya dibangun ulang saat berubah — itulah tempat yang tepat untuk
 kebutuhan yang tetap.
 
+#### Paket ghcr harus TERTAUT ke repo (kalau tidak, CI tak bisa push)
+
+`ghcr.io/analisaperlengkapan/simpel2-arc-runner` **publik** — disengaja, supaya
+pod runner tak bergantung pada kredensial berumur (lihat komentar
+`imagePullSecrets` di `values-runner-set.yaml`: PAT `ghcr-pull` pernah mati
+diam-diam ~2 bulan). Tapi publik hanya mengatur siapa boleh **menarik**.
+
+Untuk **mendorong**, GITHUB_TOKEN butuh paketnya **tertaut** ke repository ini.
+Paket ini lahir dari push tangan saat pemulihan darurat, jadi ia tak tertaut ke
+repo mana pun dan setiap push CI ditolak `denied: permission_denied:
+write_package`.
+
+```bash
+gh api /user/packages/container/simpel2-arc-runner --jq .repository
+# null  ⇒ belum tertaut, CI TIDAK bisa push
+```
+
+Perbaikannya **hanya lewat UI** (tak ada REST API): Package settings →
+_Manage Actions access_ → **Add repository** `analisaperlengkapan/simpel2`,
+role **Write**.
+
+Label `org.opencontainers.image.source` **tidak cukup** — ia menautkan paket
+hanya saat paket itu pertama kali dibuat. Diuji 2026-08-18: push dengan label
+tersebut berhasil lewat PAT, `.repository` tetap `null`.
+
 > **Urutan WAJIB saat menambah alat yang akan dipakai workflow: image dulu, baru
 > workflow-nya.** PR di-uji oleh runner yang berjalan di image LAMA, jadi
 > menghapus langkah install di `ci.yml` pada PR yang sama dengan yang menambahkan
