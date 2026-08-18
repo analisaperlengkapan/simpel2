@@ -69,6 +69,30 @@ app.kubernetes.io/instance: {{ .top.Release.Name }}
 {{- end -}}
 {{- end -}}
 
+{{/* ────────── Klien postgres (psql/pg_isready) ────────── */}}
+{{- /*
+  Image klien untuk job yang HANYA menjalankan `psql`/`pg_isready` terhadap
+  server postgres chart ini.
+
+  Diturunkan dari `.Values.postgres.image` — sumber yang sama dengan server —
+  supaya versi klien tak bisa menyimpang darinya. Sebelum 2026-08-18 empat
+  template menuliskan `postgres:15-alpine` sebagai literal sementara server-nya
+  `16-alpine`; skew itu tak menggigit karena keempatnya hanya `psql`/
+  `pg_isready` (yang toleran lintas versi), tapi ia adalah pola kegagalan yang
+  berulang di repo ini: satu nilai punya SATU sumber untuk komponen utamanya
+  dan N salinan tulis-tangan di tempat lain, lalu yang tertinggal baru
+  ketahuan saat sudah telat. `db-create-job.yaml` bahkan sempat memuat komentar
+  yang menyebut `16-alpine` tepat di atas literal `15-alpine`-nya sendiri.
+
+  Catatan yang membuat ini lebih dari kerapian: begitu ada job yang memakai
+  `pg_dump`, skew mulai FATAL — pg_dump menolak berjalan bila server lebih baru
+  daripada dirinya. Menurunkannya sekarang menutup pintu itu sebelum dibuka.
+*/ -}}
+{{- define "simpel.postgresClientImage" -}}
+{{- $img := .Values.postgres.image -}}
+{{- printf "%s:%s" (required "postgres.image.repository wajib diisi" $img.repository) (required "postgres.image.tag wajib diisi" $img.tag) -}}
+{{- end -}}
+
 {{/* ────────── Pull policy & secrets ────────── */}}
 {{- define "simpel.imagePullPolicy" -}}
 {{- default "IfNotPresent" .Values.global.imagePullPolicy -}}

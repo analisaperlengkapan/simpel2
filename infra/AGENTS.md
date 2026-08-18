@@ -221,8 +221,39 @@ Prasyarat make-or-break: **Velero** (#50) terpasang; **disiplin migrasi expand/c
 ### 4. Image Registry & Tag
 
 - **Registry resmi**: `ghcr.io/analisaperlengkapan/simpel2/<service>`. Pull dengan k8s Secret `ghcr-pull` (docker-registry type) per namespace; PAT scope `read:packages`.
-- **Tag**: WAJIB SemVer `vMAJOR.MINOR.PATCH` (mis. `v0.1.0`). DILARANG mutable tag (`latest`, `stag`, `prod`, kosong) — schema `values.schema.json` reject saat `helm lint`.
-- **`imagePullPolicy`**: `IfNotPresent` di staging & production (combined with immutable tag). `Never` di-deprecate (legacy era `localhost:32000` registry).
+- **Tag**: WAJIB SemVer `vMAJOR.MINOR.PATCH` (mis. `v0.1.0`). DILARANG mutable tag (`latest`, `stag`, `prod`, kosong).
+- **`imagePullPolicy`**: `IfNotPresent` di staging & production. **`Never` DILARANG** — bukan sekadar "di-deprecate".
+
+**Dua lapis penegak (2026-08-18), karena satu lapis sebelumnya bocor:**
+
+| Lapis | Menangkap | Tak bisa menangkap |
+|---|---|---|
+| `values.schema.json` (saat `helm lint`) | tag mutable di `global.imageTag` **dan** di `<komponen>.image.tag`; `pullPolicy: Never` di kedua tempat | literal yang di-hardcode di dalam template |
+| `check-image-mutability.py` atas **rendered manifest** (`security.yml`) | semua di atas **plus** literal di template, image pihak ketiga, initContainer & sidecar | — |
+
+Sebelum tanggal itu AGENTS ini mengklaim schema "reject mutable tag saat `helm lint`". Klaim itu
+hanya benar untuk `global.imageTag`. Diuji dengan kenari: `--set authenc.image.tag=prod` dan
+`--set global.imagePullPolicy=Never` **keduanya LOLOS** `helm lint` — `definitions.workload.image.tag`
+tak punya `pattern` sama sekali, dan enum `pullPolicy` justru mendaftarkan `Never` sebagai nilai sah.
+Schema kini menegakkan keduanya; pembedaan first-party vs upstream diturunkan dari bentuk yang sudah
+dipakai chart (`image.name` = first-party ghcr ⇒ wajib semver; `image.repository` = upstream di-pin
+apa adanya ⇒ `16-alpine` tetap sah).
+
+> ⚠️ **Kenapa `Never` diperlakukan sekeras ini.** Namespace **`simpelv2-production` hari ini berjalan
+> persis dengan pola terlarang itu** — `localhost:32000/...:prod` + `imagePullPolicy: Never`, warisan
+> era `kubectl apply` pra-Helm (ia **tidak ada** di `helm list -A`). Akibatnya bukan teoretis: 8 dari 10
+> workload di sana nol replica, dan root `simpel.kejaksaan.go.id` sudah **503 sekitar 30 hari**,
+> sementara `/APP-2026` tetap 200 karena pod-nya kebetulan belum pernah kehilangan image-nya.
+> `Never` berarti kubelet tak pernah menarik; tag yang bisa bergerak berarti tak ada catatan isi mana
+> yang seharusnya ada. Sekali image hilang dari disk node, pod itu **tak bisa dijadwalkan lagi DAN tak
+> ada yang tahu apa yang harus dibangun ulang**. Pemulihannya = jalur F6 (deploy via Helm dari image
+> ghcr ber-digest), bukan menambal namespace itu.
+
+- **Klien postgres di job/initContainer** (`psql`/`pg_isready`) diturunkan dari
+  `.Values.postgres.image` lewat helper `simpel.postgresClientImage` — sumber yang sama dengan
+  server. Sebelumnya empat template menuliskan `postgres:15-alpine` sebagai literal sementara
+  server-nya `16-alpine`; skew itu belum menggigit (keduanya hanya `psql`/`pg_isready`) tapi akan
+  FATAL begitu ada job ber-`pg_dump`, yang menolak jalan bila server lebih baru daripada dirinya.
 - **Build**: Tag git `v*.*.*` → `release.yml` GitHub Actions matrix build & push 7 image (portal, perlengkapan, authenc, layanan-integrasi, layanan-perlengkapan, secreton, simpelv1) dengan SBOM + provenance.
 - **Image runner ARC** (`simpel2-arc-runner`) di luar matrix itu — ia bukan bagian rilis produk, tapi tetap dibangun CI (`arc-runner-image.yml`), **bukan tangan**. Tag diturunkan dari `infra/helm/arc/values-runner-set.yaml`; workflow menolak PR yang mengubah `runner-image/` tanpa menaikkan tag. Prosedur bump + alasan versinya kritis: `infra/helm/arc/README.md`.
 
@@ -338,7 +369,7 @@ layananIntegrasi:
 - Edit chart lewat `kubectl edit` di cluster. Lakukan perubahan di `values-*.yaml` lalu `helm upgrade`.
 - Buat manifest plain YAML baru di luar chart (mis. `kubectl apply -f foo.yaml`). Pendekatan plain-yaml/standalone sudah dihapus saat migrasi dari Kustomize.
 - Hardcode tag image di template; set lewat `global.imageTag` atau `<komponen>.image.tag`.
-- **Pakai mutable image tag** (`latest`, `stag`, `prod`, kosong). Schema validation reject ini saat `helm lint`.
+- **Pakai mutable image tag** (`latest`, `stag`, `prod`, kosong) **atau `imagePullPolicy: Never`.** Ditolak dua lapis: `values.schema.json` saat `helm lint`, dan `check-image-mutability.py` atas rendered manifest di `security.yml`. Kombinasi keduanya = pod yang tak bisa dipulihkan; lihat "Image Registry & Tag" untuk apa yang sedang terjadi di `simpelv2-production`.
 - **Loloskan temuan `kube-linter`.** Job `Helm Lint & kube-linter` (`security.yml`) = **BLOCKING** (di set `BLOCKING` Security Summary, path-gated `infra/helm/**`): `helm lint` + `kube-linter` atas rendered manifest (staging+production) WAJIB 0 temuan. Tiap workload WAJIB liveness+readiness (boot-lambat → startupProbe via `_probes.tpl`+values), `resources.requests/limits`, securityContext non-root + `readOnlyRootFilesystem` (scratch via emptyDir) + drop ALL caps + seccomp, PDB ber-`unhealthyPodEvictionPolicy`, anti-affinity (soft di single-node), tanpa mutable tag. **False-positive di-suppress per-objek** via annotation `ignore-check.kube-linter.io/<check>: "alasan"` di template (BUKAN blanket `exclude` di `infra/lint/.kube-linter.yaml`). Cek lokal: `helm template … | kube-linter lint`.
 - **Pakai k8s Secret untuk APP_KEY / token API** saat `secretonAuth.enabled=true`. Secret production WAJIB dari Secreton.
 - **Deploy langsung ke production tanpa lewat staging.** Patuhi alur staging → promote → production (lihat "Pemisahan Lingkungan" → "Alur deploy WAJIB").
