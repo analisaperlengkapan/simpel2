@@ -16,6 +16,26 @@ dan **dibuang saat job selesai** → akar masalah leak hilang secara struktural.
 Chart-nya **upstream OCI** (`ghcr.io/actions/actions-runner-controller-charts/*`),
 tidak divendor — kita hanya menyimpan values + skrip agar reproducible & ter-version.
 
+### Isi image runner (`runner-image/Dockerfile`)
+
+Di atas `ghcr.io/actions/actions-runner`: toolchain build workspace (build-essential,
+pkg-config, protoc, libssl-dev, cmake, clang, perl), utilitas dasar (curl/wget/git/
+unzip/xz/jq/file), dan **Docker Compose v2** sebagai CLI plugin sistem.
+
+Compose dipanggang di sini (#48) karena sebelumnya **tujuh** job di `ci.yml`
+masing-masing mengunduh biner yang sama sebelum memakainya: tujuh unduhan per run,
+tujuh peluang gagal jaringan, dan tujuh tempat yang harus diingat saat versinya naik.
+Image ini hanya dibangun ulang saat berubah — itulah tempat yang tepat untuk
+kebutuhan yang tetap.
+
+> **Urutan WAJIB saat menambah alat yang akan dipakai workflow: image dulu, baru
+> workflow-nya.** PR di-uji oleh runner yang berjalan di image LAMA, jadi
+> menghapus langkah install di `ci.yml` pada PR yang sama dengan yang menambahkan
+> alatnya akan gagal dengan `command not found` — dan gagalnya terlihat seperti
+> masalah workflow, bukan masalah urutan. Alur benar: (1) PR yang menambah alat +
+> menaikkan tag image, merge, biarkan CI mendorong image; (2) `helm upgrade`
+> runner set saat antrean kosong; (3) PR terpisah yang mencabut langkah install.
+
 ## Prasyarat
 
 1. `kubectl` & `helm` menjangkau cluster: `kubectl get nodes` harus sukses.

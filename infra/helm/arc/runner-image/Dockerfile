@@ -35,4 +35,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       perl \
       curl wget git unzip xz-utils jq file ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+
+# Docker Compose v2 sebagai CLI plugin (#48).
+#
+# Sebelum ini, TUJUH job di ci.yml masing-masing mengunduh biner yang sama ke
+# `$HOME/.docker/cli-plugins` sebelum bisa memakainya. Artinya tujuh unduhan
+# GitHub Releases per run, tujuh peluang gagal karena jaringan, dan tujuh tempat
+# yang harus diingat saat versinya naik — sementara image runner-nya sendiri,
+# yang HANYA dibangun ulang saat berubah, adalah tempat yang tepat untuk itu.
+#
+# Dipasang ke path plugin SISTEM (bukan $HOME) supaya berlaku untuk user mana
+# pun yang menjalankan job. Versi dipertahankan persis seperti yang selama ini
+# diunduh ci.yml (v2.32.4) agar perubahan ini murni "pindah tempat", bukan
+# sekaligus naik versi; menaikkannya kini cukup satu baris di sini.
+#
+# Checksum diverifikasi: unduhan tak-terverifikasi di dalam image CI = jalur
+# supply-chain yang diam-diam dipercaya oleh setiap job.
+ARG COMPOSE_VERSION=v2.32.4
+ARG COMPOSE_SHA256=ed1917fb54db184192ea9d0717bcd59e3662ea79db48bff36d3475516c480a6b
+RUN set -eux; \
+    mkdir -p /usr/local/lib/docker/cli-plugins; \
+    curl -fsSL \
+      "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose; \
+    echo "${COMPOSE_SHA256}  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c -; \
+    chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose; \
+    /usr/local/lib/docker/cli-plugins/docker-compose version
+
 USER runner
