@@ -126,7 +126,7 @@ di klaster 2-node (lihat `infra/AGENTS.md` → "Ketersediaan database di klaster
 membedakan sehat vs rusak:
 
 ```bash
-# default untuk volume BARU
+# Default untuk volume baru yang kelasnya TIDAK memaksakan angka sendiri.
 kubectl -n longhorn-system patch setting default-replica-count \
   --type=merge -p '{"value":"{\"v1\":\"2\",\"v2\":\"2\"}"}'
 
@@ -140,6 +140,18 @@ kubectl -n longhorn-system get volumes.longhorn.io \
   -o custom-columns='NAME:.metadata.name,ROBUST:.status.robustness,REPL:.spec.numberOfReplicas'
 # harapan: semua `healthy`, REPL=2
 ```
+
+> ⚠️ **Setelan global itu TIDAK menjangkau StorageClass `longhorn` bawaan.** Kelas
+> itu menuliskan `parameters.numberOfReplicas: "3"` pada dirinya sendiri, dan
+> parameter kelas selalu menang atas `default-replica-count`. Jadi volume baru
+> yang lahir di kelas default tetap meminta 3 dan tetap lahir `degraded` di
+> klaster 2-node. Kelas itu milik rilis Helm `longhorn` — mengeditnya di sini
+> akan tertimpa saat Longhorn di-upgrade. Perbaikannya bukan menambal kelas
+> bawaan, melainkan **memakai `longhorn-retain`** (yang menuliskan 2 pada dirinya
+> sendiri) untuk semua volume SIMPel.
+>
+> Terverifikasi di klaster 2026-08-18: setelah kedua perintah di atas, ketiga
+> volume staging jadi `healthy` dengan 2 replika, tetap tersebar satu per node.
 
 ### 1.2 Buat namespace & ghcr-pull secret
 
