@@ -108,10 +108,20 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
   menahan kesalahan operasi & penghapusan objek Kubernetes, **bukan** hilangnya
   kedua node/site. Ganti `configuration.backupStorageLocation` di
   `infra/velero/values.yaml` begitu ada object store di luar klaster.
-- **UTANG YANG BELUM LUNAS: latihan restore belum pernah dijalankan.** Sampai
-  §8.4 benar-benar dieksekusi dan hasilnya dicatat, yang kita punya adalah
-  mekanisme backup, bukan kemampuan pulih. Backup yang belum pernah di-restore
-  belum terbukti jadi backup.
+- **Latihan restore SUDAH dijalankan 2026-08-18 dan LULUS** — data staging
+  kembali utuh, dibuktikan dengan jumlah baris DAN checksum md5 yang identik
+  dengan sumber hidupnya, bukan dengan "pod-nya Running". Rincian + tanggal ada
+  di `infra/helm/RUNBOOK.md` §8.4. **Ulangi tiap kali topologi penyimpanan
+  berubah**; backup yang terakhir diuji berbulan-bulan lalu adalah asumsi.
+- **Yang masih belum terbukti:** restore ke namespace ASLI (bukan namespace
+  drill), unseal Secreton pasca-restore, dan restore production. Dijadwalkan di
+  jendela uji destruktif F5-E — jangan mengaku lebih dari yang sudah dibuktikan.
+- **emptyDir dikecualikan dari File System Backup**, diturunkan di
+  `_workload.tpl` + ditulis literal pada workload yang merender pod-spec sendiri,
+  dijaga `infra/scripts/check-velero-volume-excludes.py`. Alasannya bukan
+  penghematan: volume scratch yang ikut ter-backup membuat restore melapor
+  `PartiallyFailed` tanpa ada data yang hilang, dan sinyal merah yang tak berarti
+  apa-apa adalah sinyal yang akan diabaikan.
 - **Data eksternal:** staging pakai data **mock/sintetis** (seed `integrasi.*`,
   sync OFF); token asli MySIMKARI/SIMAN/Monsakti **HANYA di production** (lihat
   memori `project-staging-mock-external-data` + `layanan/integrasi/AGENTS.md`).

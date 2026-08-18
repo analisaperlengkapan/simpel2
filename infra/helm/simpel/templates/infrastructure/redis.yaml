@@ -69,6 +69,9 @@ spec:
         {{- include "simpel.componentLabels" (dict "top" . "name" "redis" "component" "cache") | nindent 8 }}
       annotations:
         {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+        # redis-pvc (PVC) WAJIB ikut; `tmp` scratch. Ditulis di sini, bukan
+        # diturunkan, karena volume-nya juga ditulis literal di berkas ini.
+        backup.velero.io/backup-volumes-excludes: "tmp,{{ include "simpel.veleroIstioVolumes" . }}"
     spec:
       {{- if .Values.priorityClass.enabled }}
       priorityClassName: {{ .Values.priorityClass.name }}

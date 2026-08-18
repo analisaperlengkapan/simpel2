@@ -75,6 +75,7 @@ spec:
         {{- end }}
       annotations:
         {{- include "simpel.istioPodAnnotations" $values | nindent 8 }}
+        {{- include "simpel.veleroExcludedVolumes" $values | nindent 8 }}
         {{- with $values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -286,4 +287,44 @@ spec:
     {{- end }}
 {{- end }}
 {{- end }}
+{{- end -}}
+
+{{/*
+  simpel.veleroIstioVolumes — volume scratch yang DISUNTIKKAN sidecar Istio.
+
+  Tak bisa diturunkan dari values kita: yang membuatnya adalah injector, bukan
+  template ini. Jadi namanya disebut eksplisit — itu kontrak Istio, bukan daftar
+  milik kita yang bisa ikut tumbuh.
+*/}}
+{{- define "simpel.veleroIstioVolumes" -}}
+istio-envoy,istio-data,istio-podinfo,istio-token,workload-certs,workload-socket,credential-socket
+{{- end -}}
+
+{{/*
+  simpel.veleroExcludedVolumes — volume yang TIDAK ikut File System Backup.
+
+  Velero berjalan `defaultVolumesToFsBackup: true` (opt-out), dan itu benar:
+  volume baru otomatis ter-backup tanpa perlu diingat siapa pun. Konsekuensinya,
+  volume yang TAK PERNAH berisi data ikut tersalin — scratch sidecar Istio, cache
+  nginx, direktori soket.
+
+  Latihan restore 2026-08-18 menunjukkan biayanya: dari 74 volume, 19 di antaranya
+  sampah semacam itu; semuanya gagal disalin saat klaster sedang sibuk dan restore
+  dilaporkan `PartiallyFailed` — padahal SELURUH volume data berhasil (checksum
+  dbsimpelv2 identik dengan sumbernya). Sinyal merah yang tidak menandakan
+  kehilangan data adalah sinyal yang akan diabaikan orang, dan itu jauh lebih
+  mahal daripada 19 volume.
+
+  Nama emptyDir DITURUNKAN dari `volumes` komponen + emptyDir yang dirender helper
+  ini (`tmp`), jadi menambah emptyDir baru otomatis terkecuali. Workload yang
+  merender pod-spec sendiri (postgres/redis/simpelv1) menulis daftarnya di berkas
+  masing-masing, tepat di sebelah volume yang dinamainya.
+*/}}
+{{- define "simpel.veleroExcludedVolumes" -}}
+{{- $names := list -}}
+{{- range (default (list) .volumes) }}
+  {{- if hasKey . "emptyDir" }}{{ $names = append $names .name }}{{ end }}
+{{- end }}
+{{- if .tmpVolumeSizeLimit }}{{ $names = append $names "tmp" }}{{ end }}
+backup.velero.io/backup-volumes-excludes: {{ printf "%s,%s" (join "," (uniq $names)) (include "simpel.veleroIstioVolumes" .) | trimPrefix "," | quote }}
 {{- end -}}
