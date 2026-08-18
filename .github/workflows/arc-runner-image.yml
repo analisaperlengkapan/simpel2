@@ -181,10 +181,52 @@ jobs:
           cache-from: type=gha,scope=arc-runner-image
           cache-to: type=gha,mode=max,scope=arc-runner-image
 
-      - name: Langkah berikutnya
-        if: github.event_name != 'pull_request' && steps.exists.outputs.exists == 'false'
+      # Klaim "sudah di registry" harus DIPERIKSA, bukan disimpulkan dari fakta
+      # bahwa langkah sebelumnya tidak gagal.
+      #
+      # WHY (2026-08-18): run di main untuk v0.1.3 GAGAL dengan
+      # `denied: permission_denied: write_package`, dan run main SEBELUMNYA
+      # hijau HANYA karena tag-nya sudah ada (didorong tangan saat pemulihan
+      # darurat) sehingga langkah push di-skip. Jadi jalur push workflow ini
+      # tak pernah sekali pun benar-benar berhasil, dan tak ada satu pun sinyal
+      # merah yang mengatakannya — hijau berarti "tak mencoba", bukan "berhasil".
+      # Sejak sekarang hijau berarti tag yang akan ditarik cluster BENAR-BENAR
+      # ada, apa pun jalannya ke sana.
+      - name: Verifikasi tag benar-benar ada di registry
+        if: github.event_name != 'pull_request'
         run: |
-          echo "Image ${{ steps.ref.outputs.ref }} sudah di registry."
+          set -euo pipefail
+          ref='${{ steps.ref.outputs.ref }}'
+          pushed='${{ steps.exists.outputs.exists }}'
+
+          if ! docker manifest inspect "$ref" >/dev/null 2>&1; then
+            echo "::error::${ref} TIDAK ada di registry setelah job ini."
+            cat <<'HINT'
+            Kalau push barusan ditolak dengan
+              denied: permission_denied: write_package
+            sebabnya BUKAN kode di repo ini, melainkan tautan paket-ke-repo.
+
+            Paket ghcr "simpel2-arc-runner" lahir dari push tangan, jadi ia tidak tertaut
+            ke repository mana pun dan GITHUB_TOKEN tidak punya hak tulis atasnya. Periksa:
+
+              gh api /user/packages/container/simpel2-arc-runner --jq .repository
+
+            Kalau null: buka Package settings -> Manage Actions access -> Add repository
+            analisaperlengkapan/simpel2 dengan role WRITE. Hanya lewat UI; tidak ada REST
+            API untuk tautan ini.
+
+            Label org.opencontainers.image.source TIDAK cukup: ia hanya menautkan paket
+            saat paket PERTAMA KALI dibuat. Diuji 2026-08-18 - push dengan label itu
+            berhasil lewat PAT, .repository tetap null.
+          HINT
+            exit 1
+          fi
+
+          if [ "$pushed" = "false" ]; then
+            echo "Image ${ref} didorong oleh run ini dan terverifikasi ada."
+          else
+            echo "Image ${ref} sudah ada sebelum run ini (push dilewati) — terverifikasi ada."
+          fi
           echo
           echo "Cluster BELUM memakainya — image di-pull saat runner scale set di-upgrade:"
           echo "  helm upgrade arc-simpel oci://ghcr.io/actions/actions-runner-controller-charts/gha-runner-scale-set \\"
