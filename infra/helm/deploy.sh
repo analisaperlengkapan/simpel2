@@ -6,7 +6,8 @@
 #
 # Env:    staging | production | review-<slug>
 # Action: install | upgrade | template | diff | status | rollback | uninstall
-#         metallb-install | storage-install   (cluster-scoped, env diabaikan)
+#         metallb-install | storage-install | backup-install
+#                                             (cluster-scoped, env diabaikan)
 
 set -euo pipefail
 
@@ -14,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHART_DIR="${SCRIPT_DIR}/simpel"
 METALLB_CHART_DIR="${SCRIPT_DIR}/metallb"
 STORAGE_CHART_DIR="${SCRIPT_DIR}/storage"
+BACKUP_CHART_DIR="${SCRIPT_DIR}/backup"
 
 ENV="${1:-staging}"
 ACTION="${2:-template}"
@@ -112,9 +114,22 @@ case "$ACTION" in
       --namespace longhorn-system \
       "${EXTRA_ARGS[@]}"
     ;;
+  backup-install)
+    # Cluster-scoped: satu object store MinIO melayani backup SEMUA environment.
+    # Namespace-nya sengaja di luar namespace aplikasi — backup yang tinggal di
+    # namespace yang sama akan ikut mati bersama insiden yang seharusnya ia
+    # selamatkan (2026-06-17).
+    #
+    # First install butuh kredensial:
+    #   ./deploy.sh <env> backup-install \
+    #     -f infra/helm/backup/values-secrets.yaml --set secrets.bootstrap=true
+    helm upgrade --install simpel-backup "$BACKUP_CHART_DIR" \
+      --namespace simpelv2-backup --create-namespace \
+      "${EXTRA_ARGS[@]}"
+    ;;
   *)
     echo "Error: unknown action '$ACTION'" >&2
-    echo "Valid: install | upgrade | template | diff | status | rollback | uninstall | metallb-install | storage-install" >&2
+    echo "Valid: install | upgrade | template | diff | status | rollback | uninstall | metallb-install | storage-install | backup-install" >&2
     exit 2
     ;;
 esac

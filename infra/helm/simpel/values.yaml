@@ -251,6 +251,13 @@ postgres:
   storage:
     size: 20Gi
     accessModes: [ReadWriteOnce]
+  # Hook pre/post-backup Velero yang menulis `pg_dumpall` konsisten-logis ke
+  # dalam PVC tepat sebelum salinan file-system diambil, lalu membuangnya lagi.
+  # Matikan HANYA kalau backup logis sudah dijamin jalur lain — tanpa ini yang
+  # ter-backup cuma direktori data crash-consistent.
+  # Biaya: sesaat butuh ruang PVC sebesar dump-nya.
+  veleroBackupHook:
+    enabled: true
   resources:
     requests: { cpu: 250m, memory: 512Mi }
     limits:   { cpu: "1",  memory: 2Gi }

@@ -1,0 +1,46 @@
+namespace:
+  create: true
+  name: simpelv2-backup
+
+# Kelas penyimpanan untuk PVC MinIO. Sengaja `longhorn-retain` (chart
+# infra/helm/storage): kalau PVC-nya sendiri ikut terhapus dan volumenya
+# ikut lenyap, kita kehilangan backup DAN sumbernya sekaligus.
+storageClass: longhorn-retain
+
+minio:
+  image:
+    # Tag di-PIN. Tag mengambang sudah tiga kali menggigit repo ini
+    # (rustlang/rust:nightly, plugin Blade, actionlint).
+    repository: quay.io/minio/minio
+    tag: "RELEASE.2025-09-07T16-13-09Z"
+    pullPolicy: IfNotPresent
+  # Satu instance. Bukan kompromi: MinIO mode terdistribusi butuh ≥4 drive
+  # untuk erasure coding, dan di klaster 2-node itu hanya memindahkan ilusi
+  # redundansi ke lapisan lain. Redundansi datanya datang dari Longhorn
+  # (2 replika, satu per node).
+  storage:
+    size: 100Gi
+  bucket: simpel-velero
+  # Region wajib ada dan harus SAMA dengan yang dipakai Velero, walaupun MinIO
+  # tak peduli isinya — SDK AWS menolak request tanpa region.
+  region: id-kejaksaan-1
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: "1",  memory: 2Gi }
+
+mc:
+  image:
+    repository: quay.io/minio/mc
+    tag: "RELEASE.2025-08-13T08-35-41Z"
+    pullPolicy: IfNotPresent
+
+# Kredensial root MinIO. Sama polanya dengan `secrets.bootstrap` di chart utama:
+# default OFF supaya `helm upgrade` rutin tak pernah menimpa nilai yang sudah
+# ada. Isi lewat file terpisah yang TIDAK ikut ter-commit:
+#   ./infra/helm/deploy.sh <env> backup-install \
+#     -f infra/helm/backup/values-secrets.yaml --set secrets.bootstrap=true
+secrets:
+  bootstrap: false
+  minio:
+    rootUser: ""
+    rootPassword: ""

@@ -1,0 +1,18 @@
+{{- if .Values.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "backup.namespace" . }}
+  labels:
+    app.kubernetes.io/name: simpelv2-backup
+    {{- include "backup.labels" . | nindent 4 }}
+    # Tanpa sidecar Istio: Velero bicara S3 polos ke Service ini, dan mTLS
+    # mesh di jalur backup hanya menambah cara backup bisa gagal.
+    istio-injection: disabled
+  annotations:
+    # Pelajaran 2026-06-17 yang sama, di tempat yang lebih penting lagi:
+    # namespace ber-manage Helm akan ikut terhapus saat `helm uninstall`, dan
+    # cascade-nya membawa PVC berisi SELURUH backup. Kalau backup-nya ikut mati
+    # bersama insiden, ia bukan backup.
+    "helm.sh/resource-policy": keep
+{{- end }}
