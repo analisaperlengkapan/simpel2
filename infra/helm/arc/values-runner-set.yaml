@@ -167,7 +167,7 @@ template:
         effect: NoSchedule
     initContainers:
       - name: init-dind-externals
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.2
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.3
         command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
         volumeMounts:
           - name: dind-externals
@@ -227,7 +227,7 @@ template:
             mountPath: /home/runner/externals
     containers:
       - name: runner
-        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.2
+        image: ghcr.io/analisaperlengkapan/simpel2-arc-runner:v0.1.3
         command: ["/home/runner/run.sh"]
         securityContext:
           allowPrivilegeEscalation: false
