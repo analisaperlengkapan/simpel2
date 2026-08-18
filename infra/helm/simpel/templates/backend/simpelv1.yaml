@@ -150,7 +150,7 @@ spec:
         {{- end }}
         {{- if ne $cfg.dbBackup.source "none" }}
         - name: db-migrate
-          image: postgres:15-alpine
+          image: {{ include "simpel.postgresClientImage" . }}
           command: [sh, -c]
           args:
             - |

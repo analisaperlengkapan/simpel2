@@ -389,6 +389,28 @@ jobs:
               < "rendered/${f}.yaml" \
               | python3 ./infra/scripts/check-velero-volume-excludes.py "$f"
           done
+      # `imagePullPolicy: Never` + tag yang bisa bergerak = pod yang TAK BISA
+      # dipulihkan: kubelet tak pernah menarik, dan tak ada catatan isi mana
+      # yang seharusnya jalan. Begitu image-nya hilang dari disk node, pod itu
+      # tak akan pernah terjadwal lagi dan tak ada yang tahu apa yang harus
+      # dibangun ulang. Namespace `simpelv2-production` berjalan persis begitu
+      # hari ini (`localhost:32000/...:prod` + `Never`) — 8 dari 10 workload
+      # nol replica, root domain 503 sejak ~30 hari.
+      #
+      # kube-linter TIDAK menangkap keduanya (diuji dengan kenari 2026-08-18:
+      # Deployment ber-`Never` + `:prod` lolos bersih dari check set default),
+      # jadi guard ini bukan duplikat melainkan penutup lubang.
+      #
+      # Dijalankan SEKALI atas seluruh render supaya chart `backup` (MinIO)
+      # ikut terjaga dan "nol container" tetap berarti render-nya yang rusak —
+      # bukan sekadar chart yang kebetulan tak punya workload.
+      - name: Tak ada image mutable / pullPolicy Never
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          cat rendered/*.yaml \
+            | docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+            | python3 ./infra/scripts/check-image-mutability.py "semua chart"
       - name: kube-linter (blocking — fails on any finding)
         if: steps.filter.outputs.helm == 'true'
         uses: stackrox/kube-linter-action@v1.0.7

@@ -68,7 +68,7 @@ spec:
         # Wait for postgres to accept connections (post-install ordering — the
         # postgres pod may not be Ready yet when this hook fires).
         - name: wait-for-postgres
-          image: postgres:15-alpine
+          image: {{ include "simpel.postgresClientImage" . }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true

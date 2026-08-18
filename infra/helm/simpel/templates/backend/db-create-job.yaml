@@ -71,7 +71,7 @@ spec:
       {{- end }}
       containers:
         - name: db-create
-          image: postgres:15-alpine
+          image: {{ include "simpel.postgresClientImage" . }}
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
