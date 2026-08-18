@@ -100,6 +100,37 @@ spec:
         {{- include "simpel.componentLabels" (dict "top" . "name" "postgres" "component" "database") | nindent 8 }}
       annotations:
         {{- include "simpel.istioPodAnnotations" $cfg | nindent 8 }}
+        {{- if (dig "veleroBackupHook" "enabled" true $cfg) }}
+        {{- /*
+          Backup file-system Velero (kopia) menyalin isi PVC sebagaimana adanya —
+          untuk Postgres yang sedang melayani, itu setara mencabut listrik lalu
+          menyalin disknya: crash-consistent, biasanya bisa di-recover, tapi tak
+          pernah dijanjikan bisa. Hook pre-backup menuliskan `pg_dumpall` yang
+          konsisten secara logis KE DALAM PVC (di luar PGDATA) tepat sebelum
+          salinan diambil, jadi snapshot yang sama memuat dua jalur pemulihan:
+          direktori data mentah, dan dump yang bisa di-restore ke Postgres versi
+          mana pun. Hook post-backup membuangnya lagi supaya PVC hidup tidak
+          menyimpan salinan kedua selamanya.
+
+          `onError: Fail` disengaja: backup yang diam-diam kehilangan dump-nya
+          terlihat persis seperti backup yang sehat, dan itu baru ketahuan saat
+          restore — waktu paling buruk untuk menemukannya.
+        */}}
+        pre.hook.backup.velero.io/container: postgres
+        pre.hook.backup.velero.io/timeout: 30m
+        pre.hook.backup.velero.io/onError: Fail
+        pre.hook.backup.velero.io/command: >-
+          ["/bin/sh","-c","set -eu; d=/var/lib/postgresql/data/backup; mkdir -p \"$d\";
+          PGPASSWORD=\"${POSTGRES_PASSWORD:-}\" pg_dumpall -U \"$POSTGRES_USER\"
+          -h /var/run/postgresql > \"$d/dumpall.sql.tmp\";
+          mv \"$d/dumpall.sql.tmp\" \"$d/dumpall.sql\""]
+        post.hook.backup.velero.io/container: postgres
+        post.hook.backup.velero.io/timeout: 5m
+        post.hook.backup.velero.io/onError: Continue
+        post.hook.backup.velero.io/command: >-
+          ["/bin/sh","-c","rm -f /var/lib/postgresql/data/backup/dumpall.sql
+          /var/lib/postgresql/data/backup/dumpall.sql.tmp"]
+        {{- end }}
     spec:
       serviceAccountName: postgres-patroni
       # Postgres tidak memanggil API Kubernetes sama sekali, jadi token SA-nya

@@ -1,0 +1,77 @@
+{{- $ns := include "backup.namespace" . -}}
+{{- /*
+  Bucket dibuat oleh Job, bukan oleh tangan. Velero tidak membuat bucket-nya
+  sendiri: kalau bucket belum ada, BackupStorageLocation langsung `Unavailable`
+  dan setiap backup gagal — bentuk kegagalan yang mudah tak terlihat karena yang
+  merah adalah objek Velero, bukan deploy-nya.
+*/ -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bucket-init
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: minio-bucket-init
+    {{- include "backup.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio-bucket-init
+        {{- include "backup.labels" . | nindent 8 }}
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: mc
+          image: "{{ .Values.mc.image.repository }}:{{ .Values.mc.image.tag }}"
+          imagePullPolicy: {{ .Values.mc.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: MC_CONFIG_DIR
+              value: /tmp/mc
+          envFrom:
+            - secretRef:
+                name: minio-root
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "menunggu MinIO siap..."
+              until mc alias set store "http://minio.{{ $ns }}.svc.cluster.local:9000" \
+                    "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+                sleep 3
+              done
+              mc mb --ignore-existing "store/{{ .Values.minio.bucket }}"
+              # Versioning: satu objek backup yang tertimpa/rusak masih bisa
+              # ditarik balik. Velero tetap yang mengatur masa simpan lewat TTL.
+              mc version enable "store/{{ .Values.minio.bucket }}" || true
+              mc ls store
+              echo "bucket {{ .Values.minio.bucket }} siap"
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 250m, memory: 256Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

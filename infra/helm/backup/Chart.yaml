@@ -1,0 +1,32 @@
+apiVersion: v2
+name: simpel-backup
+description: |
+  Object store (MinIO) tempat Velero menyimpan backup SIMPEL.
+
+  Hidup di namespace sendiri (`simpelv2-backup`), TERPISAH dari namespace
+  aplikasi — justru itu intinya: kegagalan yang sudah terbukti terjadi di sini
+  (cascade-delete satu namespace, `helm uninstall` salah sasaran, migrasi rusak)
+  menghabisi isi SATU namespace. Backup yang tinggal di namespace yang sama akan
+  ikut mati bersama data yang seharusnya ia selamatkan.
+
+  Install sekali per klaster:
+    ./infra/helm/deploy.sh <env> backup-install \
+      -f infra/helm/backup/values-secrets.yaml --set secrets.bootstrap=true
+
+  BATASNYA JELAS: MinIO ini berdiri di atas disk klaster yang sama. Ia melindungi
+  dari kesalahan operasi & penghapusan objek Kubernetes, TIDAK dari hilangnya
+  kedua node atau site. Pindah ke object store di luar klaster = ubah
+  `configuration.backupStorageLocation` di infra/velero/values.yaml, bukan
+  bangun ulang.
+
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.27.0-0"
+
+maintainers:
+  - name: SIMPEL DevOps Team
+    email: simpel-devops@kejaksaan.go.id
+
+annotations:
+  category: Storage

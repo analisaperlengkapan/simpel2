@@ -94,8 +94,24 @@ Prasyarat production sekali-jalan: bootstrap+unseal Secreton, cert DigiCert di `
   Peralihan hanya saat bootstrap ulang. Karena itu staging masih `longhorn`
   (pengecualian bertanggal di `values-staging.yaml`) sementara production lahir
   langsung di `longhorn-retain`.
-- **TODO max-mitigasi tersisa:** **Velero (#50) WAJIB** terpasang sebelum uji
-  destruktif lanjutan & MANDATORY pra-prod.
+- **Velero + MinIO (chart `infra/helm/backup` + `infra/velero/`)** —
+  `deploy.sh <env> backup-install` lalu `infra/velero/install.sh`. Object store
+  hidup di namespace **sendiri** (`simpelv2-backup`): kegagalan yang terbukti
+  terjadi di sini menghabisi SATU namespace, jadi backup yang tinggal serumah
+  dengan datanya akan ikut mati bersama insiden yang seharusnya ia selamatkan.
+  Prosedur + jadwal + latihan restore: `infra/helm/RUNBOOK.md` §8.
+- **Postgres punya hook pre/post-backup** (`postgres.veleroBackupHook.enabled`):
+  `pg_dumpall` konsisten-logis ditulis ke PVC tepat sebelum salinan file-system
+  diambil, lalu dibuang lagi. Tanpa itu yang ter-backup hanya direktori data
+  crash-consistent — biasanya bisa di-recover, tak pernah dijanjikan bisa.
+- **Batas yang jangan dilupakan:** MinIO ini di disk klaster yang sama. Ia
+  menahan kesalahan operasi & penghapusan objek Kubernetes, **bukan** hilangnya
+  kedua node/site. Ganti `configuration.backupStorageLocation` di
+  `infra/velero/values.yaml` begitu ada object store di luar klaster.
+- **UTANG YANG BELUM LUNAS: latihan restore belum pernah dijalankan.** Sampai
+  §8.4 benar-benar dieksekusi dan hasilnya dicatat, yang kita punya adalah
+  mekanisme backup, bukan kemampuan pulih. Backup yang belum pernah di-restore
+  belum terbukti jadi backup.
 - **Data eksternal:** staging pakai data **mock/sintetis** (seed `integrasi.*`,
   sync OFF); token asli MySIMKARI/SIMAN/Monsakti **HANYA di production** (lihat
   memori `project-staging-mock-external-data` + `layanan/integrasi/AGENTS.md`).
@@ -119,7 +135,13 @@ Konsekuensinya berantai:
   yang justru mati bersama penyebab downtime-nya.
 - Longhorn `replica-soft-anti-affinity: false` (ketat) ⇒ maksimum 2 replika. Meminta
   3 membuat SETIAP volume permanen `degraded`, sehingga statusnya berhenti jadi
-  sinyal. Kelas `longhorn-retain` meminta **2** — lihat bagian di atas.
+  sinyal. Kelas `longhorn-retain` meminta **2** — lihat bagian di atas. Sejak
+  2026-08-18 setelan global `default-replica-count` juga 2 dan ketiga volume live
+  sudah `healthy`. **Tapi StorageClass `longhorn` bawaan tetap memaksa 3** lewat
+  `parameters.numberOfReplicas` pada dirinya sendiri, dan parameter kelas selalu
+  menang atas setelan global — jadi apa pun yang lahir di kelas default masih
+  lahir `degraded`. Kelas itu milik rilis Helm `longhorn`; jangan tambal, pakai
+  `longhorn-retain`.
 
 **Yang berlaku sekarang (Tahap 0 — durabilitas, bukan ketersediaan):** risiko yang
 sudah TERBUKTI di sistem ini adalah **kehilangan data** (insiden 2026-06-17), bukan

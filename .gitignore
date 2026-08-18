@@ -47,6 +47,9 @@ infra/k8s/overlays/staging/staging-secrets.yaml
 infra/k8s/overlays/production/production-secrets.yaml
 layanan/secreton/deploy/staging/01-secrets.local.yaml
 layanan/secreton/deploy/production/01-secrets.local.yaml
+# Helm values yang memuat kredensial nyata. Yang ter-commit hanya
+# `*-secrets.example.yaml`; salinannya yang terisi TIDAK boleh masuk VCS.
+infra/helm/*/values-secrets.yaml
 
 # ================================
 # 🔐 Vault & Encrypted Artifacts

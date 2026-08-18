@@ -1,0 +1,104 @@
+# Values untuk chart resmi Velero (`vmware-tanzu/velero`), BUKAN chart milik repo ini.
+#
+# Velero adalah komponen platform, sekelas Longhorn/Istio/MetalLB: binernya tidak
+# di-vendor ke repo ini, tapi KONFIGURASINYA untuk SIMPel ada di sini dan
+# ter-versi. Pasang lewat `infra/velero/install.sh` (yang memakai file ini),
+# jangan lewat perintah `helm install` yang diketik ulang tiap kali — itulah cara
+# konfigurasi klaster menyimpang diam-diam dari repo.
+#
+# Versi chart yang diuji: velero-12.1.0.
+
+# Pin eksplisit, bukan appVersion chart (12.1.0 default-nya 1.18.1).
+image:
+  repository: velero/velero
+  tag: v1.18.2
+  pullPolicy: IfNotPresent
+
+# Plugin AWS = yang bicara protokol S3; MinIO adalah endpoint S3-compatible,
+# jadi provider-nya tetap `aws` walau tak ada AWS di mana pun.
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.14.2
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits:   { cpu: "1",  memory: 1Gi }
+
+# node-agent WAJIB hidup: tanpanya File System Backup (kopia) tidak jalan, dan
+# tanpa FSB yang ter-backup hanya objek Kubernetes — manifest tanpa datanya.
+# Itu bentuk backup palsu yang paling mudah dipercaya: `velero backup get`
+# hijau, tapi PVC-nya kosong saat restore.
+deployNodeAgent: true
+nodeAgent:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: "1",  memory: 2Gi }
+
+# TIDAK ada VolumeSnapshotLocation: snapshot CSI butuh snapshot-controller +
+# VolumeSnapshotClass Longhorn yang belum terpasang, dan provider snapshot
+# `aws` di sini akan menunjuk EBS yang tak ada. Membiarkannya menyala hanya
+# melahirkan VSL yang selamanya gagal validasi.
+snapshotsEnabled: false
+
+credentials:
+  useSecret: true
+  # Dibuat oleh infra/velero/install.sh dari env, BUKAN dari file di repo.
+  existingSecret: velero-minio
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: simpel-velero
+      default: true
+      accessMode: ReadWrite
+      # Kalau MinIO tak terjangkau, BSL jadi `Unavailable` dalam 1 menit — lebih
+      # cepat ketahuan daripada menunggu backup terjadwal berikutnya gagal.
+      validationFrequency: 1m
+      config:
+        region: id-kejaksaan-1
+        s3ForcePathStyle: "true"
+        s3Url: http://minio.simpelv2-backup.svc.cluster.local:9000
+
+  # Opt-OUT, bukan opt-in. Dengan `true`, SETIAP PVC ikut ter-backup kecuali
+  # di-exclude eksplisit. Opt-in (`backup.velero.io/backup-volumes`) berarti
+  # setiap volume baru harus diingat seseorang — persis pola "gerbangnya benar,
+  # cakupannya daftar tulis-tangan yang tak ikut tumbuh" yang sudah berulang
+  # kali menggigit repo ini.
+  defaultVolumesToFsBackup: true
+  uploaderType: kopia
+  logLevel: info
+  logFormat: text
+
+schedules:
+  # Waktu dalam UTC. WIB = UTC+7.
+  harian-staging:
+    disabled: false
+    schedule: "0 18 * * *"          # 01:00 WIB
+    useOwnerReferencesInBackup: false
+    template:
+      ttl: 336h                     # 14 hari
+      includedNamespaces:
+        - simpelv2-staging
+      # Jangan pernah mem-backup ke dalam dirinya sendiri.
+      excludedNamespaces:
+        - simpelv2-backup
+      storageLocation: default
+      snapshotVolumes: false
+
+  harian-production:
+    disabled: false
+    schedule: "0 17 * * *"          # 00:00 WIB
+    useOwnerReferencesInBackup: false
+    template:
+      ttl: 720h                     # 30 hari
+      includedNamespaces:
+        - simpelv2-production
+      excludedNamespaces:
+        - simpelv2-backup
+      storageLocation: default
+      snapshotVolumes: false

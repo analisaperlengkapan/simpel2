@@ -12,7 +12,8 @@
 6. [Rotasi Secret](#5-rotasi-secret)
 7. [TLS Cert Renewal (DigiCert)](#6-tls-cert-renewal-digicert)
 8. [Bootstrap Secreton (one-shot)](#7-bootstrap-secreton-one-shot)
-9. [Troubleshooting](#8-troubleshooting)
+9. [Backup & Restore (Velero + MinIO)](#8-backup--restore-velero--minio)
+10. [Troubleshooting](#9-troubleshooting)
 
 ---
 
@@ -125,7 +126,7 @@ di klaster 2-node (lihat `infra/AGENTS.md` → "Ketersediaan database di klaster
 membedakan sehat vs rusak:
 
 ```bash
-# default untuk volume BARU
+# Default untuk volume baru yang kelasnya TIDAK memaksakan angka sendiri.
 kubectl -n longhorn-system patch setting default-replica-count \
   --type=merge -p '{"value":"{\"v1\":\"2\",\"v2\":\"2\"}"}'
 
@@ -139,6 +140,18 @@ kubectl -n longhorn-system get volumes.longhorn.io \
   -o custom-columns='NAME:.metadata.name,ROBUST:.status.robustness,REPL:.spec.numberOfReplicas'
 # harapan: semua `healthy`, REPL=2
 ```
+
+> ⚠️ **Setelan global itu TIDAK menjangkau StorageClass `longhorn` bawaan.** Kelas
+> itu menuliskan `parameters.numberOfReplicas: "3"` pada dirinya sendiri, dan
+> parameter kelas selalu menang atas `default-replica-count`. Jadi volume baru
+> yang lahir di kelas default tetap meminta 3 dan tetap lahir `degraded` di
+> klaster 2-node. Kelas itu milik rilis Helm `longhorn` — mengeditnya di sini
+> akan tertimpa saat Longhorn di-upgrade. Perbaikannya bukan menambal kelas
+> bawaan, melainkan **memakai `longhorn-retain`** (yang menuliskan 2 pada dirinya
+> sendiri) untuk semua volume SIMPel.
+>
+> Terverifikasi di klaster 2026-08-18: setelah kedua perintah di atas, ketiga
+> volume staging jadi `healthy` dengan 2 replika, tetap tersebar satu per node.
 
 ### 1.2 Buat namespace & ghcr-pull secret
 
@@ -374,9 +387,113 @@ SECRETON_TOKEN=<root> \
 
 ---
 
-## 8. Troubleshooting
+## 8. Backup & Restore (Velero + MinIO)
 
-### 8.1 Pod CrashLoopBackOff
+> **Backup yang belum pernah di-restore belum terbukti jadi backup.** Bagian
+> restore di bawah bukan lampiran — ia bagian dari pemasangan.
+
+Arsitektur: Velero (namespace `velero`) menulis ke MinIO (namespace
+`simpelv2-backup`) lewat API S3. Datanya disalin per-file dengan kopia
+(File System Backup), bukan snapshot CSI — snapshot CSI butuh
+snapshot-controller + VolumeSnapshotClass Longhorn yang belum terpasang.
+
+Namespace object store sengaja terpisah dari namespace aplikasi. Kegagalan yang
+sudah terbukti terjadi di klaster ini menghabisi **satu** namespace; backup yang
+tinggal di namespace yang sama akan ikut mati bersama data yang seharusnya ia
+selamatkan.
+
+**Batasnya, ditulis supaya tak dilupakan:** MinIO ini berdiri di atas disk
+klaster yang sama. Ia melindungi dari kesalahan operasi dan penghapusan objek
+Kubernetes, **tidak** dari hilangnya kedua node atau site. Pindah ke object store
+di luar klaster = ubah `configuration.backupStorageLocation` di
+`infra/velero/values.yaml` lalu jalankan ulang `install.sh`.
+
+### 8.1 Pasang (sekali per klaster)
+
+```bash
+# 1. Kredensial MinIO — bangkitkan, jangan karang.
+cp infra/helm/backup/values-secrets.example.yaml infra/helm/backup/values-secrets.yaml
+openssl rand -base64 36          # tempel ke rootPassword; file ini ter-gitignore
+
+# 2. Object store + bucket
+./infra/helm/deploy.sh production backup-install \
+  -f infra/helm/backup/values-secrets.yaml --set secrets.bootstrap=true
+kubectl -n simpelv2-backup rollout status statefulset/minio --timeout=5m
+kubectl -n simpelv2-backup get job minio-bucket-init
+
+# 3. Velero (pakai kredensial yang SAMA)
+MINIO_ROOT_USER=<user> MINIO_ROOT_PASSWORD=<password> ./infra/velero/install.sh
+```
+
+`install.sh` berhenti dengan galat kalau BackupStorageLocation tidak mencapai
+`Available`. Itu disengaja: BSL yang `Unavailable` membuat SETIAP backup gagal,
+dan bentuk kegagalan itu mudah tak terlihat karena yang merah adalah objek
+Velero, bukan deploy-nya.
+
+### 8.2 Backup manual sebelum operasi berisiko
+
+Wajib sebelum `helm uninstall`, migrasi besar, atau uji destruktif.
+
+```bash
+velero backup create pra-<alasan>-$(date +%Y%m%d-%H%M) \
+  --include-namespaces simpelv2-production --wait
+velero backup describe <nama> --details
+```
+
+Perhatikan `Phase`. `PartiallyFailed` **bukan** sukses — paling sering artinya
+hook `pg_dumpall` gagal, jadi yang tersimpan hanya direktori data
+crash-consistent tanpa dump logis.
+
+### 8.3 Verifikasi terjadwal
+
+```bash
+velero schedule get
+velero backup get
+kubectl -n velero get backupstoragelocation default \
+  -o custom-columns='NAME:.metadata.name,PHASE:.status.phase,LAST:.status.lastValidationTime'
+```
+
+Jadwal: staging 01:00 WIB (simpan 14 hari), production 00:00 WIB (simpan 30 hari).
+
+### 8.4 Latihan restore (WAJIB, dan wajib DIULANG)
+
+Restore ke namespace **baru**, jangan ke namespace hidup — tujuannya membuktikan
+backup-nya utuh, bukan mempertaruhkan yang sedang berjalan.
+
+```bash
+velero restore create drill-$(date +%Y%m%d) \
+  --from-backup <nama-backup> \
+  --namespace-mappings simpelv2-production:simpelv2-restore-drill --wait
+
+velero restore describe drill-<tanggal> --details
+kubectl -n simpelv2-restore-drill get pods,pvc
+
+# Bukti yang sebenarnya: datanya ADA, bukan sekadar pod-nya Running.
+kubectl -n simpelv2-restore-drill exec statefulset/postgres -- \
+  psql -U <POSTGRES_USER> -d dbsimpelv2 -c '\dt perlengkapan.*'
+kubectl -n simpelv2-restore-drill exec statefulset/postgres -- \
+  ls -la /var/lib/postgresql/data/backup/dumpall.sql
+
+# Bersihkan setelah selesai.
+kubectl delete namespace simpelv2-restore-drill
+```
+
+Catat tanggal latihan terakhir. Backup yang terakhir diuji berbulan-bulan lalu
+adalah asumsi, bukan jaminan.
+
+### 8.5 Restore sungguhan
+
+Sama seperti latihan, tanpa `--namespace-mappings`, dan **hanya** setelah
+namespace tujuan benar-benar kosong (Velero tidak menimpa objek yang sudah ada).
+Untuk kehilangan data logis (bukan hilangnya seluruh namespace), lebih cepat dan
+lebih aman: restore ke namespace drill, ambil `dumpall.sql` dari sana, `psql`
+kembali ke database yang hidup.
+
+---
+
+## 9. Troubleshooting
+
+### 9.1 Pod CrashLoopBackOff
 
 ```bash
 kubectl -n simpelv2-<env> logs <pod> --previous --tail=100
@@ -390,7 +507,7 @@ Common causes:
 - Secret fetch error → cek Secreton sealed/unsealed status, cek SA annotation.
 - Health probe failed → cek path & port di values, lihat container log.
 
-### 8.2 Helm install / upgrade gagal
+### 9.2 Helm install / upgrade gagal
 
 ```bash
 helm history simpel -n simpelv2-<env>
@@ -400,14 +517,14 @@ helm get manifest simpel -n simpelv2-<env> | head -100
 
 Jika `--atomic` rollback otomatis: cek `kubectl events` untuk root cause.
 
-### 8.3 Secreton sealed setelah restart
+### 9.3 Secreton sealed setelah restart
 
 ```bash
 kubectl -n simpelv2-<env> exec secreton-0 -- secreton status
 # Jika Sealed: true, unseal × 3 (lihat §7.3)
 ```
 
-### 8.4 Token API rate-limit
+### 9.4 Token API rate-limit
 
 Cek log integrasi:
 
@@ -417,7 +534,7 @@ kubectl -n simpelv2-production logs deploy/layanan-integrasi --tail=200 | grep -
 
 Action: tunda manual trigger staging, contact provider untuk increase quota.
 
-### 8.5 Frontend not reachable
+### 9.5 Frontend not reachable
 
 ```bash
 kubectl get gw,vs,dr -A
