@@ -56,6 +56,9 @@ outputs:
   workflows:
     description: 'true jika .github/workflows atau .github/actions berubah'
     value: ${{ steps.filter.outputs.workflows }}
+  helm:
+    description: 'true jika chart Helm berubah (values/template)'
+    value: ${{ steps.filter.outputs.helm }}
   e2e:
     description: 'true jika spec/fixture/stack e2e berubah (memicu Playwright e2e)'
     value: ${{ steps.filter.outputs.e2e }}
@@ -177,6 +180,8 @@ runs:
           workflows:
             - '.github/workflows/**'
             - '.github/actions/**'
+          helm:
+            - 'infra/helm/**'
           # Changes that should re-run the Playwright e2e stack even without a
           # Rust change, so e2e specs/fixtures/stack self-validate. ci.yml +
           # detect-changes included so e2e-gate edits trigger their own e2e run.

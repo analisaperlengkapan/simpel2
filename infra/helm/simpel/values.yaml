@@ -695,7 +695,12 @@ simpelv1:
   gateway:
     enabled: true
     image:
-      name: gateway
+      # `layanan-gateway`, not `gateway`: release.yml publishes each backend as
+      # simpelv2-<matrix name>, and the matrix name is the directory under
+      # layanan/. Every other backend here already follows that; this one did
+      # not, so the chart pulled simpelv2-gateway — an image nothing has ever
+      # built. Enforced by infra/scripts/check-chart-release-images.py.
+      name: layanan-gateway
       tag: ""
     logLevel: info
     resources:

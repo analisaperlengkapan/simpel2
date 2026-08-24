@@ -87,6 +87,7 @@ jobs:
       toml: ${{ steps.changes.outputs.toml }}
       sql: ${{ steps.changes.outputs.sql }}
       workflows: ${{ steps.changes.outputs.workflows }}
+      helm: ${{ steps.changes.outputs.helm }}
       e2e: ${{ steps.changes.outputs.e2e }}
       image-portal: ${{ steps.changes.outputs.image-portal }}
       image-perlengkapan-ui: ${{ steps.changes.outputs.image-perlengkapan-ui }}
@@ -247,7 +248,7 @@ jobs:
   enforce-versioning:
     name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -282,6 +283,15 @@ jobs:
       - name: Every job is reported by its required-check summary
         shell: bash
         run: python3 ./infra/scripts/check-ci-summary-scope.py
+      # The chart pulls `simpelv2-<image.name>`; release.yml publishes
+      # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
+      # the chart wanted `simpelv2-gateway` while the release builds
+      # `simpelv2-layanan-gateway`. CI never deploys and the release never reads
+      # the chart, so it would only have surfaced at `helm upgrade` — as a
+      # sidecar ImagePullBackOff taking the whole simpelv1 pod down.
+      - name: Chart image names match what release.yml builds
+        shell: bash
+        run: python3 ./infra/scripts/check-chart-release-images.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
