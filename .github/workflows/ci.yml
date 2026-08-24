@@ -606,6 +606,19 @@ jobs:
             !.kiro/**
             !**/CHANGELOG.md
       - name: Lychee link check
+        # ADVISORY, sengaja. `--accept` di bawah memuat 404 dan 410, jadi
+        # pemeriksa ini TIDAK BISA menemukan tautan mati — dibuktikan dgn kenari:
+        # halaman 404/410 LULUS, dan satu-satunya yang memerahkannya adalah
+        # kegagalan transport (DNS/connect/timeout). Sebagai gate wajib itu berarti
+        # merah ditentukan cuaca jaringan pada 595 URL pihak ketiga, di setiap PR
+        # yang menyentuh .md ATAU workflow. #811 kena persis begitu: 0 error,
+        # 1 timeout ke `microk8s.io` (URL yang sehat) — merge terblokir.
+        # Mempersempit `--accept` agar benar-benar mendeteksi memang mungkin
+        # (terukur: 12 temuan; 4 di antaranya URL repo privat kita sendiri, yang
+        # selalu 404 bagi anonim), tapi 7 tautan mati sisanya ada di berkas docs/
+        # yang tak boleh disunting manual → pekerjaan terpisah.
+        # markdownlint di atas = gate sesungguhnya: deterministik & in-repo.
+        continue-on-error: true
         uses: lycheeverse/lychee-action@v2
         with:
           # Hanya check HTTP/HTTPS links. file:// link check terlalu
