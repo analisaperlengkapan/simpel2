@@ -2,7 +2,8 @@
 # bootstrap-secreton.sh — One-shot setup Kubernetes Auth Backend di Secreton.
 #
 # Pre-requisites:
-#   - Secreton sudah unsealed (secreton operator init && unseal × threshold).
+#   - Secreton sudah unsealed. TIDAK ADA biner `secreton` di image (hanya
+#     `api_server`) — init/unseal lewat REST :8200; lihat infra/helm/RUNBOOK.md §7.
 #   - SECRETON_TOKEN env = root token (akan di-revoke setelah selesai).
 #   - kubectl context sudah switch ke target cluster.
 #   - ConfigMap `secreton-auth-config` & `secreton-policies` sudah di-render Helm.

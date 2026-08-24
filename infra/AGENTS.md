@@ -272,12 +272,28 @@ apa adanya ⇒ `16-alpine` tetap sah).
 ### Bootstrap (sekali per environment)
 
 1. Helm install dengan `secretonAuth.enabled=false` dulu (default).
-2. Init Secreton: `kubectl exec secreton-0 -- secreton operator init -shamir-shares=5 -shamir-threshold=3` (simpan unseal keys offline).
-3. Unseal: `secreton operator unseal <key>` × 3.
-4. Migrasi `.env` ke Secreton: `SECRETON_TOKEN=<root> ./scripts/migrate-env-to-secreton.sh --env-file <path> --kv-prefix <prefix>`.
+2. Init Secreton lewat **REST**, bukan CLI (lihat kotak di bawah). Port-forward
+   `svc/secreton 8200:8200`, lalu `POST /v1/sys/init` dengan
+   `{"secret_shares":5,"secret_threshold":3}` → simpan `keys[]` + `root_token`
+   **OFFLINE**; itu satu-satunya saat keduanya ada.
+3. Unseal: `POST /v1/sys/unseal` `{"key":"<key>"}` × 3, sampai
+   `GET /v1/sys/seal-status` melaporkan `"sealed": false`.
+4. Migrasi `.env` ke Secreton: `SECRETON_TOKEN=<root> ./layanan/secreton/scripts/migrate-env-to-secreton.sh --env-file <path> --kv-prefix <prefix>`.
 5. Bootstrap auth backend + role + policy: `SECRETON_TOKEN=<root> ./infra/helm/bootstrap-secreton.sh <staging|production>`.
 6. Flip `secretonAuth.enabled=true` & `helm upgrade` → service mulai pakai SA token, k8s Secret `simpelv1-secrets` & `integration-secrets` di-deprecate.
 7. Revoke root token: `./infra/helm/bootstrap-secreton.sh <env> --revoke-root`.
+
+> ⚠️ **Tidak ada biner `secreton` di mana pun.** Dockerfile Secreton hanya
+> membangun `api_server` (`cargo build -p secreton-api --bin api_server`) dan
+> runtime stage hanya menyalin biner itu. Diverifikasi di pod staging yang
+> hidup: isi `/app` cuma `api_server`, dan tak ada `secreton` di `PATH`. Semua
+> baris `secreton operator …` / `secreton kv …` yang dulu ada di file ini,
+> di `infra/helm/RUNBOOK.md`, dan di skill `secreton-ops` adalah **prosedur
+> yang tak pernah dijalankan** — hasilnya `command not found`, dan itu
+> memblokir bootstrap produksi (F6-A). Semua operasi Secreton lewat REST
+> `:8200`; image-nya memang punya `curl` (dipakai healthcheck container).
+> `infra/helm/bootstrap-secreton.sh` sudah memakai pola yang benar
+> (port-forward + `curl /v1/...`) — ikuti pola itu.
 
 ### Yang masih k8s Secret (unavoidable)
 
@@ -496,8 +512,11 @@ kubectl -n simpelv2-<env> logs <pod-name> -c <init-container-name>
 # Step 3: main container
 kubectl -n simpelv2-<env> logs <pod-name>
 
-# Step 4: jika fetch-secrets fail karena Secreton sealed, unseal dulu:
-kubectl -n simpelv2-<env> exec -it secreton-0 -- secreton operator unseal
+# Step 4: jika fetch-secrets fail karena Secreton sealed, unseal dulu
+# (REST — tak ada CLI di image):
+kubectl -n simpelv2-<env> port-forward svc/secreton 8200:8200 &
+curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
+  -H 'Content-Type: application/json' -d '{"key":"<unseal-key>"}' | jq -r '.sealed'
 ```
 
 `fetch-secrets` init container sengaja FAIL daripada start dengan

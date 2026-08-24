@@ -12,22 +12,61 @@ mutations to the *deployment* still go via Helm (see `deploy-to-environment`).
 
 ## Init + unseal (once per environment, fresh deploy)
 
+> **There is no `secreton` CLI anywhere.** The Dockerfile builds exactly one
+> binary (`cargo build -p secreton-api --bin api_server`) and the runtime stage
+> copies only that. Verified on the live staging pod: `/app` contains
+> `api_server` and nothing else, and no `secreton` binary is on `PATH`. Every
+> `secreton operator …` / `secreton kv …` line that used to be in this file, in
+> `infra/AGENTS.md` and in `RUNBOOK.md` was **procedure that had never been
+> run** — it fails with `command not found`. Drive the REST API instead. The
+> image does ship `curl` (the container healthcheck uses it).
+
+Operate over a port-forward so `jq` and your key-capture tooling stay on the
+workstation — this is the same transport `infra/helm/bootstrap-secreton.sh`
+already uses for the rest of the bootstrap chain.
+
 ```bash
-kubectl exec secreton-0 -n simpelv2-<env> -- \
-  secreton operator init -shamir-shares=5 -shamir-threshold=3   # save keys OFFLINE
-secreton operator unseal <key>   # × 3 (threshold)
+kubectl -n simpelv2-<env> port-forward svc/secreton 8200:8200 >/dev/null 2>&1 &
+PF=$!; trap 'kill $PF' EXIT
+until curl -fsS http://127.0.0.1:8200/v1/sys/seal-status >/dev/null 2>&1; do sleep 1; done
+
+# 1. Confirm it is actually uninitialized before you generate key material.
+curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq
+# => {"initialized":false,"sealed":true,"t":3,"n":5,...}
+
+# 2. Init. This is the ONLY moment the unseal keys and root token ever exist.
+#    Capture them OFFLINE (password manager / 5 separate holders) — they are
+#    not recoverable and are not stored in k8s.
+curl -fsS -X POST http://127.0.0.1:8200/v1/sys/init \
+  -H 'Content-Type: application/json' \
+  -d '{"secret_shares":5,"secret_threshold":3}' | jq   # => {keys:[...], root_token:"..."}
+
+# 3. Unseal with 3 of the 5 keys (one request each).
+curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
+  -H 'Content-Type: application/json' -d '{"key":"<key-n>"}' | jq -r '.sealed'
+# repeat until .sealed == false
+
+curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -r '.initialized, .sealed'
 ```
+
+⚠️ Do **not** run init through `kubectl exec … curl`: the keys and root token
+would come back through the exec session into terminal scrollback and shell
+history. Port-forward keeps the response in one place you control.
+
+`infra/scripts/secreton-ci-bootstrap.sh` is the reference implementation of
+this exact sequence (real Shamir init + unseal, `jq`-parsed). It is CI-only
+because it *prints* the keys — a fresh throwaway DB every run — but the HTTP
+calls it makes are the same ones above.
 
 - **Unseal keys + root token: NEVER stored in k8s** — offline only (password
   manager / separate KMS). After bootstrap, **revoke root**.
 - A restarted/rescheduled `secreton-0` comes up **sealed** → must be unsealed again
   (auto-unseal via KMS is the F6 hardening).
 
-## CI / docker-compose bootstrap (ephemeral, no CLI/kubectl)
+## CI / docker-compose bootstrap (ephemeral, no kubectl)
 
-The runtime image ships **only `api_server`** (no `secreton` CLI), so the k8s
-`operator init/unseal` path above does **not** work in compose. CI instead drives
-the **REST API on :8200** (`/v1/sys/init` → `{keys[], root_token}`,
+Same REST API as above, reached directly instead of through a port-forward. CI
+drives the **REST API on :8200** (`/v1/sys/init` → `{keys[], root_token}`,
 `/v1/sys/unseal {key}`, `/v1/sys/seal-status {initialized, sealed}` — all
 whitelisted while sealed in `middleware.rs::is_whitelisted`). The `/health`
 route is seal-independent; `/v1/health` is behind `seal_check_middleware`.

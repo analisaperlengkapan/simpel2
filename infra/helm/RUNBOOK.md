@@ -309,7 +309,22 @@ CronJob berikutnya akan pakai secret baru otomatis (token TTL 1 jam, renewal pul
 
 ```bash
 NEW_KEY=$(php artisan key:generate --show)   # lokal, jangan apply ke .env
-secreton kv put kv/simpelv1/app app_key="${NEW_KEY#base64:}"
+
+# Port-forward dulu (tak ada CLI di image — lihat §7).
+kubectl -n simpelv2-production port-forward svc/secreton 8200:8200 >/dev/null 2>&1 &
+PF=$!; trap 'kill $PF' EXIT
+
+# Path & nama field HARUS persis seperti yang dibaca fetch-secrets.sh:
+# `simpelv1/app` → field `app_key` (tanpa prefix `base64:`).
+jq -nc --arg v "${NEW_KEY#base64:}" '{data:{app_key:$v}}' \
+  | curl -fsS -X PUT http://127.0.0.1:8200/v1/secret/data/simpelv1/app \
+      -H "X-Secreton-Token: $SECRETON_TOKEN" \
+      -H 'Content-Type: application/json' --data @-
+
+# Verifikasi tulisan mendarat sebelum restart.
+curl -fsS -H "X-Secreton-Token: $SECRETON_TOKEN" \
+  http://127.0.0.1:8200/v1/secret/data/simpelv1/app | jq '.data.data | keys'
+
 kubectl -n simpelv2-production rollout restart deploy/simpelv1
 ```
 
@@ -320,7 +335,21 @@ kubectl -n simpelv2-production rollout restart deploy/simpelv1
 Multi-step (butuh koordinasi):
 
 1. `ALTER USER <db-user> WITH PASSWORD '<new>';` di Postgres.
-2. Push ke Secreton: `secreton kv put kv/postgres/<db> password="<new>" username="<user>"`.
+2. Push ke Secreton. Path yang dibaca `fetch-secrets.sh` = `postgres/simpelv2`,
+   field `username` + `password`. **Tulis KEDUA field sekaligus** — `PUT`
+   mengganti seluruh objek `data`, jadi mengirim `password` saja akan
+   menghilangkan `username` dan pod gagal render `.env`:
+
+   ```bash
+   jq -nc --arg u "<user>" --arg p "<new>" '{data:{username:$u,password:$p}}' \
+     | curl -fsS -X PUT http://127.0.0.1:8200/v1/secret/data/postgres/simpelv2 \
+         -H "X-Secreton-Token: $SECRETON_TOKEN" \
+         -H 'Content-Type: application/json' --data @-
+
+   curl -fsS -H "X-Secreton-Token: $SECRETON_TOKEN" \
+     http://127.0.0.1:8200/v1/secret/data/postgres/simpelv2 | jq '.data.data | keys'
+   ```
+
 3. Rolling restart consumer service: `kubectl rollout restart deploy/<service>`.
 
 ---
@@ -352,35 +381,45 @@ curl -vI https://simpel.kejaksaan.go.id 2>&1 | grep -E '(SSL|expire)'
 # 7.1 Pastikan secreton pod sudah running tapi sealed
 kubectl -n simpelv2-<env> get pod -l app.kubernetes.io/name=secreton
 
-# 7.2 Init Secreton (sekali per fresh cluster)
-kubectl -n simpelv2-<env> exec secreton-0 -- \
-  secreton operator init -shamir-shares=5 -shamir-threshold=3
-# OUTPUT: Simpan 5 unseal keys & root token OFFLINE.
-# Distribusi keys ke 5 holder berbeda (Shamir).
+# 7.2 Port-forward. TIDAK ADA biner `secreton` di image (cuma `api_server`) —
+#     semua operasi lewat REST :8200. Port-forward, bukan `kubectl exec`, supaya
+#     key material tidak melewati scrollback exec dan supaya jq ada di tangan.
+kubectl -n simpelv2-<env> port-forward svc/secreton 8200:8200 >/dev/null 2>&1 &
+PF=$!; trap 'kill $PF' EXIT
+until curl -fsS http://127.0.0.1:8200/v1/sys/seal-status >/dev/null 2>&1; do sleep 1; done
+curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq   # pastikan initialized=false
 
-# 7.3 Unseal × 3
+# 7.3 Init Secreton (sekali per fresh cluster)
+curl -fsS -X POST http://127.0.0.1:8200/v1/sys/init \
+  -H 'Content-Type: application/json' \
+  -d '{"secret_shares":5,"secret_threshold":3}' | jq
+# OUTPUT: Simpan 5 unseal keys & root token OFFLINE — satu-satunya saat keduanya
+# ada, tidak bisa dipulihkan. Distribusi keys ke 5 holder berbeda (Shamir).
+
+# 7.4 Unseal × 3 (threshold)
 for key in <key1> <key2> <key3>; do
-  kubectl -n simpelv2-<env> exec secreton-0 -- \
-    secreton operator unseal "$key"
+  curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
+    -H 'Content-Type: application/json' \
+    -d "$(jq -nc --arg k "$key" '{key:$k}')" | jq -r '.sealed'
 done
+curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -r '.initialized, .sealed'
 
-# 7.4 Migrasi .env → Secreton (sekali per file)
-SECRETON_TOKEN=<root-from-step-2> \
-  ./scripts/migrate-env-to-secreton.sh \
+# 7.5 Migrasi .env → Secreton (sekali per file)
+SECRETON_TOKEN=<root-from-7.3> \
+  ./layanan/secreton/scripts/migrate-env-to-secreton.sh \
   --env-file layanan/integrasi/.env \
   --kv-prefix integrasi/tokens
 
-# 7.5 Bootstrap auth backend & policies + roles
-SECRETON_TOKEN=<root-from-step-2> \
+# 7.6 Bootstrap auth backend & policies + roles
+#     (script ini sudah pakai port-forward + curl /v1/... sendiri)
+SECRETON_TOKEN=<root-from-7.3> \
   ./infra/helm/bootstrap-secreton.sh <staging|production>
 
-# 7.6 Verify
-kubectl -n simpelv2-<env> exec secreton-0 -- \
-  secreton auth list | grep kubernetes
-kubectl -n simpelv2-<env> exec secreton-0 -- \
-  secreton policy list
+# 7.7 Verify (REST)
+curl -fsS -H "X-Secreton-Token: <root>" http://127.0.0.1:8200/v1/sys/auth | jq 'keys'
+curl -fsS -H "X-Secreton-Token: <root>" http://127.0.0.1:8200/v1/sys/policies | jq
 
-# 7.7 Revoke root token (cleanup)
+# 7.8 Revoke root token (cleanup)
 SECRETON_TOKEN=<root> \
   ./infra/helm/bootstrap-secreton.sh <env> --revoke-root
 ```
