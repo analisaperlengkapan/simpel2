@@ -5,30 +5,55 @@ use serde::{Deserialize, Serialize};
 
 // ============ PAKAIAN DINAS (Official Uniform) Models ============
 
-/// Jenis Pakaian Dinas (Type of official uniform)
+/// Jenis Pakaian Dinas (Type of official uniform).
+///
+/// The description is `deskripsi` on both the entity and the create request.
+/// Calling it `keterangan` here made it a round trip into nothing: the create
+/// request's `keterangan` was an unknown key the backend dropped, and the list
+/// read a `keterangan` the backend never sends, so it always rendered "-".
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct JenisPakaianDinas {
     pub id: String,
     pub nama: String,
-    pub keterangan: Option<String>,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default = "default_true")]
+    pub is_active: bool,
     pub created_at: String,
     pub updated_at: String,
 }
 
+fn default_true() -> bool {
+    true
+}
+
+/// Mirrors backend `CreateJenisPakaianDinasRequest`. `is_active` is omitted on
+/// purpose — the backend defaults it to true and this page has no deactivate
+/// control, so sending a value would be inventing one.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CreateJenisPakaianDinasRequest {
     pub nama: String,
-    pub keterangan: Option<String>,
+    pub deskripsi: Option<String>,
 }
 
-/// Spesifikasi Pakaian Dinas (Uniform specification)
+/// Spesifikasi Pakaian Dinas (Uniform specification).
+///
+/// `keterangan` was `deskripsi` upstream, and `foto` exists on neither the
+/// entity nor the table — both were `Option`, so they read as empty forever
+/// instead of failing. `gender`/`ukuran_group`/`is_active` are what the backend
+/// actually carries, and `ukuran_group` is the key the reports group sizes by.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SpesifikasiPakaianDinas {
     pub id: String,
     pub jenis_pakaian_dinas_id: String,
     pub nama: String,
-    pub keterangan: Option<String>,
-    pub foto: Option<String>,
+    pub gender: String,
+    pub ukuran_group: String,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default = "default_true")]
+    pub is_active: bool,
+    #[serde(default)]
     pub jenis_pakaian_nama: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -135,12 +160,9 @@ pub struct PengajuanSatker {
     pub satker_id: String,
     #[serde(default)]
     pub satker_pusat_id: Option<String>,
-    #[serde(default)]
-    pub id_kejati: Option<String>,
-    #[serde(default)]
-    pub id_kejari: Option<String>,
-    #[serde(default)]
-    pub id_cabjari: Option<String>,
+    // `id_kejati`/`id_kejari`/`id_cabjari` are columns on the table that the
+    // entity does not project, so they were `None` in every response ever sent.
+    // Nothing here read them.
     pub aktivitas_id: i32,
     #[serde(default)]
     pub created_by: Option<String>,

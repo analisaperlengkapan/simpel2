@@ -34,21 +34,24 @@ fn render_spesifikasi_table(items: Vec<SpesifikasiPakaianDinas>) -> AnyView {
             view! { <span class="font-medium text-slate-100">{nama}</span> }.into_any()
         }),
         DataTableColumn::new("Keterangan", |item: &SpesifikasiPakaianDinas| {
-            let text = item.keterangan.clone().unwrap_or_else(|| "-".to_string());
+            let text = item.deskripsi.clone().unwrap_or_else(|| "-".to_string());
             view! { <span class="text-slate-400">{text}</span> }.into_any()
         }),
-        DataTableColumn::new("Foto", |item: &SpesifikasiPakaianDinas| match &item.foto {
-            Some(url) if !url.is_empty() => {
-                let src = url.clone();
-                view! {
-                    <img src=src alt="Foto spesifikasi" class="h-10 w-10 rounded-lg object-cover" />
-                }
-                .into_any()
-            }
-            _ => view! {
-                <span class="text-slate-500 text-xs">"Tidak ada"</span>
-            }
-            .into_any(),
+        // Replaces a "Foto" column. Neither the entity nor the table has a
+        // photo, so it rendered "Tidak ada" for every row that will ever exist.
+        // Gender and ukuran_group are what a specification is actually keyed by,
+        // and ukuran_group is how the reports group sizes.
+        DataTableColumn::new("Gender", |item: &SpesifikasiPakaianDinas| {
+            let text = match item.gender.as_str() {
+                "L" => "Laki-laki".to_string(),
+                "P" => "Perempuan".to_string(),
+                other => other.to_string(),
+            };
+            view! { <span class="text-slate-300">{text}</span> }.into_any()
+        }),
+        DataTableColumn::new("Grup Ukuran", |item: &SpesifikasiPakaianDinas| {
+            let text = item.ukuran_group.clone();
+            view! { <span class="text-slate-300">{text}</span> }.into_any()
         }),
         DataTableColumn::new("Tanggal Dibuat", |item: &SpesifikasiPakaianDinas| {
             let date = item.created_at.chars().take(10).collect::<String>();
