@@ -27,9 +27,18 @@ const EXPORT_ROW_LIMIT: i64 = 10_000;
 /// Query parameters (field names are the portal's `AuditLogQuery`)
 #[derive(Debug, Deserialize)]
 pub struct ListAuditLogsQuery {
-    #[serde(default = "default_page")]
+    // `deserialize_with`: this type is `#[serde(flatten)]`ed into `ExportQuery`,
+    // and flatten strips the type hint serde_urlencoded needs for numbers —
+    // `GET /audit/export?page=2` would answer 400. See `lib_core::serde_query`.
+    #[serde(
+        default = "default_page",
+        deserialize_with = "lib_core::serde_query::de_u32"
+    )]
     pub page: u32,
-    #[serde(default = "default_page_size")]
+    #[serde(
+        default = "default_page_size",
+        deserialize_with = "lib_core::serde_query::de_u32"
+    )]
     pub per_page: u32,
     pub event_type: Option<String>,
     pub user_id: Option<Uuid>,

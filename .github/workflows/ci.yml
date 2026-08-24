@@ -283,6 +283,15 @@ jobs:
       - name: Every job is reported by its required-check summary
         shell: bash
         run: python3 ./infra/scripts/check-ci-summary-scope.py
+      # `#[serde(flatten)]` strips the type hint serde_urlencoded needs, so a
+      # numeric field inside a flattened query type answers 400 to any request
+      # that names it — while still answering 200 when the client sends no
+      # query at all and the defaults apply. Invisible to cargo check and to
+      # any test that builds the struct instead of parsing a query string; six
+      # pakaian-dinas endpoints were live-broken this way until 2026-08-24.
+      - name: Numbers in flattened query types survive a query string
+        shell: bash
+        run: python3 ./infra/scripts/check-query-flatten-numbers.py
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds

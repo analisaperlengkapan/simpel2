@@ -14,6 +14,7 @@ pub mod health;
 pub mod jwt_claims;
 pub mod models;
 pub mod sanitizer;
+pub mod serde_query;
 pub mod validation;
 
 pub use error::CommonError;

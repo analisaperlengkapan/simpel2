@@ -11,6 +11,9 @@ authenc-types = { path = "../types" }
 authenc-core = { path = "../core" }
 authenc-crypto = { path = "../crypto" }
 authenc-storage = { path = "../storage" }
+# For `serde_query`: `ExportQuery` flattens `ListAuditLogsQuery`, and flatten
+# strips the type hint serde_urlencoded needs for `page`/`per_page`.
+lib-core = { workspace = true }
 
 # External dependencies (from workspace)
 tokio = { workspace = true }

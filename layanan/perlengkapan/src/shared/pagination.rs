@@ -11,11 +11,21 @@ use serde::Deserialize;
 use crate::shared::error::{AppError, bad_request};
 
 /// Standard pagination query parameters: `?page=&per_page=&category=`.
+/// `page` / `per_page` go through [`lib_core::serde_query::de_i32`] because
+/// this type is `#[serde(flatten)]`ed into the pakaian-dinas query DTOs, and
+/// flatten strips the type hint serde_urlencoded needs — every `?page=` request
+/// answered 400 until 2026-08-24. See that module for the measured boundary.
 #[derive(Debug, Deserialize)]
 pub struct PaginationQuery {
-    #[serde(default = "default_page")]
+    #[serde(
+        default = "default_page",
+        deserialize_with = "lib_core::serde_query::de_i32"
+    )]
     pub page: i32,
-    #[serde(default = "default_per_page")]
+    #[serde(
+        default = "default_per_page",
+        deserialize_with = "lib_core::serde_query::de_i32"
+    )]
     pub per_page: i32,
     pub category: Option<String>,
 }
