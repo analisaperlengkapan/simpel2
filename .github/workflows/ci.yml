@@ -1523,14 +1523,31 @@ jobs:
             -e PORTAL_URL=http://portal:8080 \
             -e AUTHENC_URL=http://authenc:8088 \
             simpel-e2e-portal
+      # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
+      # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
+      # of a run that had been going for five minutes. Two passes instead — an
+      # UNBOUNDED warn/error digest (small, and the line that names the cause is
+      # always in it), then a wider raw tail for the surrounding context.
       - name: e2e stack logs (on failure)
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
+          echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-            logs --no-color --tail=200 || true
+            logs --no-color 2>/dev/null \
+            | grep -Ei '"level":"(WARN|ERROR)"|\bERROR\b|\bFATAL\b|panicked' \
+            | tail -400 || true
+          echo "::endgroup::"
+          echo "::group::non-2xx/3xx in any nginx access log"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color 2>/dev/null \
+            | grep -Eo '"(GET|POST|PUT|PATCH|DELETE) [^"]*" [0-9]{3}' \
+            | grep -Ev ' (2[0-9]{2}|3[0-9]{2})$' | sort | uniq -c || true
+          echo "::endgroup::"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=800 || true
       - name: Tear down e2e stack
         if: always()
         env:
@@ -1796,14 +1813,31 @@ jobs:
             -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-admin-bantuan
+      # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
+      # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
+      # of a run that had been going for five minutes. Two passes instead — an
+      # UNBOUNDED warn/error digest (small, and the line that names the cause is
+      # always in it), then a wider raw tail for the surrounding context.
       - name: e2e stack logs (on failure)
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
+          echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-            logs --no-color --tail=200 || true
+            logs --no-color 2>/dev/null \
+            | grep -Ei '"level":"(WARN|ERROR)"|\bERROR\b|\bFATAL\b|panicked' \
+            | tail -400 || true
+          echo "::endgroup::"
+          echo "::group::non-2xx/3xx in any nginx access log"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color 2>/dev/null \
+            | grep -Eo '"(GET|POST|PUT|PATCH|DELETE) [^"]*" [0-9]{3}' \
+            | grep -Ev ' (2[0-9]{2}|3[0-9]{2})$' | sort | uniq -c || true
+          echo "::endgroup::"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=800 || true
       - name: Tear down e2e stack
         if: always()
         env:
@@ -2031,14 +2065,31 @@ jobs:
             -e INTEGRASI_PROTO_PATH=/e2e/integrasi.proto \
             simpel-e2e-portal \
             npx playwright test --project=portal-integration
+      # `--tail=200` was useless for diagnosis: the backend logs at DEBUG with
+      # every h2 frame and every SQL statement, so 200 lines covered 1.2 seconds
+      # of a run that had been going for five minutes. Two passes instead — an
+      # UNBOUNDED warn/error digest (small, and the line that names the cause is
+      # always in it), then a wider raw tail for the surrounding context.
       - name: e2e stack logs (on failure)
         if: failure()
         env:
           POSTGRES_PASSWORD: e2e_test_pw
           SIMPELV1_APP_KEY: "base64:dGVzdGtleTMyYnl0ZXNzc3Nzc3Nzc3Nzc3Nzc3Nz"
         run: |
+          echo "::group::warn/error digest (all services, unbounded)"
           docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
-            logs --no-color --tail=200 || true
+            logs --no-color 2>/dev/null \
+            | grep -Ei '"level":"(WARN|ERROR)"|\bERROR\b|\bFATAL\b|panicked' \
+            | tail -400 || true
+          echo "::endgroup::"
+          echo "::group::non-2xx/3xx in any nginx access log"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color 2>/dev/null \
+            | grep -Eo '"(GET|POST|PUT|PATCH|DELETE) [^"]*" [0-9]{3}' \
+            | grep -Ev ' (2[0-9]{2}|3[0-9]{2})$' | sort | uniq -c || true
+          echo "::endgroup::"
+          docker compose -f docker-compose.yml -f docker-compose.e2e.yml \
+            logs --no-color --tail=800 || true
       - name: Tear down e2e stack
         if: always()
         env:

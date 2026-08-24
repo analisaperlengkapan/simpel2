@@ -33,6 +33,7 @@
  */
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
+import { clickAction } from "./helpers/workflow";
 
 const BASE = "/perlengkapan/simpel/v2";
 const PH_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/penghapusan-bmn`;
@@ -100,7 +101,11 @@ test.describe("Penghapusan BMN — operator submits to wilayah", () => {
     await openDetail(page, H1_OPERATOR);
     await expect(page.getByText("E2E Laptop Hapus A").first()).toBeVisible({ timeout: 20000 });
 
-    await page.getByRole("button", { name: "Ajukan ke Validator Wilayah" }).click();
+    await clickAction(
+      page,
+      page.getByRole("button", { name: "Ajukan ke Validator Wilayah" }),
+      "submit-wilayah",
+    );
 
     // UI reflects the transition: the operator submit action is gone after reload
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -120,7 +125,11 @@ test.describe("Penghapusan BMN — validator wilayah forwards to pusat", () => {
     expect(await phStatusKode(request, H2_WILAYAH)).toBe(4001);
 
     await openDetail(page, H2_WILAYAH);
-    await page.getByRole("button", { name: "Teruskan ke Validator Pusat" }).click();
+    await clickAction(
+      page,
+      page.getByRole("button", { name: "Teruskan ke Validator Pusat" }),
+      "validator-wilayah",
+    );
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
@@ -356,7 +365,11 @@ test.describe("Pemakaian BMN — validator satker forwards to approver", () => {
       timeout: 20000,
     });
 
-    await page.getByRole("button", { name: "Teruskan ke Approver Satker" }).click();
+    await clickAction(
+      page,
+      page.getByRole("button", { name: "Teruskan ke Approver Satker" }),
+      "validator-satker-action",
+    );
 
     // The action is gone once the permit has moved on.
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -392,7 +405,11 @@ test.describe("Pemakaian BMN — approver satker approves", () => {
     await expect.poll(() => pmStatus(request, I2_IZIN), { timeout: 30000 }).toBe("SUBMITTED_APPROVER_SATKER");
 
     await openPermit(page, I2_IZIN);
-    await page.getByRole("button", { name: "Setujui Izin" }).click();
+    await clickAction(
+      page,
+      page.getByRole("button", { name: "Setujui Izin" }),
+      "approver-satker-action",
+    );
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
@@ -401,14 +418,15 @@ test.describe("Pemakaian BMN — approver satker approves", () => {
     // APPROVED is a TRANSIENT state here, not the outcome. `approver_satker_approve`
     // commits APPROVED and then immediately calls `activate_permit`, which assigns
     // nomor_izin and commits ACTIVE — so the settled status of a successful approval
-    // is ACTIVE (matching the I1 assertion above). Polling for APPROVED only passed
-    // when a sample happened to land inside the window between those two commits;
-    // that race is why this test failed all three attempts on #811 with
-    // `Expected: "APPROVED" / Received: "ACTIVE"`.
+    // is ACTIVE (matching the I1 assertion above), and APPROVED means activation
+    // never completed.
     //
-    // Asserting ACTIVE is also the stronger check: APPROVED now means activation
-    // FAILED and the service fell back to its degraded path (it logs a warning and
-    // keeps the approval so activation can be retried), which should be red.
+    // What used to make this flip run to run was NOT the poll sampling a moment
+    // between the two commits — it was the test cancelling its own request. The
+    // click was followed straight by `page.reload()`, which tore down the in-flight
+    // POST; nginx logged it `499` and the server dropped the handler mid-chain, so
+    // whether the activation got to run came down to CI host load. `clickAction`
+    // waits for the response, and the service is now cancel-safe besides.
     await expect.poll(() => pmStatus(request, I2_IZIN), { timeout: 15000 }).toBe("ACTIVE");
   });
 });
