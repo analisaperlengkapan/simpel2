@@ -385,28 +385,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      # shivammathur/setup-php@v2 butuh sudo NOPASSWD untuk install PHP +
-      # extensions di self-hosted runner; tanpa itu prompt password dan
-      # job hang ~2 jam. Pakai serversideup/php image yang bundle PHP
-      # 8.2 + composer + extensions Laravel lengkap pre-installed.
-      # Reuse single container untuk install + pint + phpstan supaya
-      # vendor/ tetap di dalam workspace (UID/GID match).
+      # vendor/ sengaja mendarat di dalam workspace (UID/GID match) supaya
+      # step pint + phpstan di bawah bisa memakainya tanpa install ulang.
       - name: composer install (PHP 8.2 docker)
-        working-directory: monolith/simpelv1
-        run: |
-          # serversideup/php:8.2-cli tidak bundle ext-gd (image minimal).
-          # Composer berhenti karena composer.lock dibuat dengan ext-gd
-          # tersedia. Pakai --ignore-platform-req=ext-gd karena lint/
-          # test tidak benar-benar pakai gd; runtime production pakai
-          # image PHP-FPM terpisah yang punya gd.
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            -e COMPOSER_HOME=/tmp/composer \
-            --entrypoint composer \
-            serversideup/php:8.2-cli \
-            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
+        uses: ./.github/actions/composer-install
       - name: Laravel Pint (style check)
         working-directory: monolith/simpelv1
         run: |
@@ -1305,25 +1287,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
-      # Sama seperti lint-php — pakai serversideup/php image (PHP 8.2 +
-      # composer + Laravel extensions). Lebih stabil daripada setup-php
-      # @v2 yang butuh sudo dan ngehang di self-hosted runner.
       - name: composer install (PHP 8.2 docker)
-        working-directory: monolith/simpelv1
-        run: |
-          # serversideup/php:8.2-cli tidak bundle ext-gd (image minimal).
-          # Composer berhenti karena composer.lock dibuat dengan ext-gd
-          # tersedia. Pakai --ignore-platform-req=ext-gd karena lint/
-          # test tidak benar-benar pakai gd; runtime production pakai
-          # image PHP-FPM terpisah yang punya gd.
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            -u "$(id -u):$(id -g)" \
-            -e COMPOSER_HOME=/tmp/composer \
-            --entrypoint composer \
-            serversideup/php:8.2-cli \
-            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
+        uses: ./.github/actions/composer-install
       - name: Prepare test environment
         working-directory: monolith/simpelv1
         run: |
@@ -2240,13 +2205,7 @@ jobs:
             fi
           done
       - name: composer install (simpelv1)
-        working-directory: monolith/simpelv1
-        run: |
-          docker run --rm \
-            -v "$PWD":/app -w /app -u "$(id -u):$(id -g)" \
-            -e COMPOSER_HOME=/tmp/composer \
-            --entrypoint composer serversideup/php:8.2-cli \
-            install --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-req=ext-gd
+        uses: ./.github/actions/composer-install
       - name: Prepare sqlite test DB
         run: |
           rm -f /tmp/simpelv1-test.sqlite
