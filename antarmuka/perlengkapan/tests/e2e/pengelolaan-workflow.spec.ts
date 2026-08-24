@@ -388,7 +388,7 @@ test.describe("Pemakaian BMN — approver satker approves", () => {
 
   // Runs after the forward test above (same file, serial by default within a
   // worker); it asserts the precondition rather than assuming it.
-  test("approver_satker approves I2 (→ APPROVED)", async ({ page, request }) => {
+  test("approver_satker approves I2 (→ ACTIVE, auto-activated)", async ({ page, request }) => {
     await expect.poll(() => pmStatus(request, I2_IZIN), { timeout: 30000 }).toBe("SUBMITTED_APPROVER_SATKER");
 
     await openPermit(page, I2_IZIN);
@@ -398,6 +398,17 @@ test.describe("Pemakaian BMN — approver satker approves", () => {
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
     await expect(page.getByRole("button", { name: "Setujui Izin" })).toHaveCount(0);
 
-    await expect.poll(() => pmStatus(request, I2_IZIN), { timeout: 15000 }).toBe("APPROVED");
+    // APPROVED is a TRANSIENT state here, not the outcome. `approver_satker_approve`
+    // commits APPROVED and then immediately calls `activate_permit`, which assigns
+    // nomor_izin and commits ACTIVE — so the settled status of a successful approval
+    // is ACTIVE (matching the I1 assertion above). Polling for APPROVED only passed
+    // when a sample happened to land inside the window between those two commits;
+    // that race is why this test failed all three attempts on #811 with
+    // `Expected: "APPROVED" / Received: "ACTIVE"`.
+    //
+    // Asserting ACTIVE is also the stronger check: APPROVED now means activation
+    // FAILED and the service fell back to its degraded path (it logs a warning and
+    // keeps the approval so activation can be retried), which should be red.
+    await expect.poll(() => pmStatus(request, I2_IZIN), { timeout: 15000 }).toBe("ACTIVE");
   });
 });
