@@ -248,7 +248,7 @@ jobs:
   enforce-versioning:
     name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -292,6 +292,17 @@ jobs:
       - name: Chart image names match what release.yml builds
         shell: bash
         run: python3 ./infra/scripts/check-chart-release-images.py
+      # Placeholder telanjang di aritmatika tanggal tidak punya tipe, dan
+      # Postgres gagal DUA cara berbeda: `CURRENT_DATE + $1` ditolak saat
+      # PREPARE ("operator is not unique: date + unknown"), sementara
+      # `CURRENT_DATE - $1` justru LOLOS prepare — Postgres menebak $1 = date —
+      # lalu meledak saat bind. Bentuk minus itu sebabnya "SQL-nya parse" bukan
+      # bukti apa-apa. Dua-duanya hidup di main sampai 2026-08-24: notifikasi
+      # izin pemakaian BMN kedaluwarsa (route ter-mount + scheduler) dan
+      # statistik API per-modul integrasi.
+      - name: Tak ada placeholder tanpa cast di aritmatika tanggal SQL
+        shell: bash
+        run: python3 ./infra/scripts/check-sql-date-params.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)

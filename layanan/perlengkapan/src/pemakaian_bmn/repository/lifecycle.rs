@@ -36,7 +36,7 @@ impl PemakaianBmnRepository {
         let query = r#"
             SELECT * FROM perlengkapan.izin_pemakaian_bmn
             WHERE status = 'ACTIVE'
-            AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + $1
+            AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + $1::int
             ORDER BY tanggal_selesai ASC
         "#;
 

@@ -376,7 +376,7 @@ pub async fn get_token_health(db: &Client) -> Result<Vec<Value>, MonsaktiError> 
 pub async fn get_api_stats_by_module(db: &Client, days: i32) -> Result<Vec<Value>, MonsaktiError> {
     let query = r#"
         SELECT * FROM v_api_stats_by_module
-        WHERE call_date >= CURRENT_DATE - $1
+        WHERE call_date >= CURRENT_DATE - $1::int
         ORDER BY call_date DESC, module
     "#;
 
