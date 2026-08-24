@@ -1025,6 +1025,12 @@ pub async fn export_laporan_pakaian_dinas(
     if let Some(ref v) = query.satker_id {
         url.push_str(&format!("&satker_id={}", v));
     }
+    // Sent here too, or the export silently widens: the on-screen table would
+    // be narrowed to one clothing type while the spreadsheet beside it covers
+    // every type in the campaign.
+    if let Some(ref v) = query.jenis_pakaian_id {
+        url.push_str(&format!("&jenis_pakaian_id={}", v));
+    }
     if let Some(ref v) = query.jenis_kelamin {
         url.push_str(&format!("&jenis_kelamin={}", v));
     }

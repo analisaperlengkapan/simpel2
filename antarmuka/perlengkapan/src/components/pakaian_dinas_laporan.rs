@@ -304,6 +304,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                 Some(Ok(options)) => {
                                     view! {
                                         <select
+                                            data-testid="laporan-jenis"
                                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
                                             on:change=move |ev| {
                                                 let val = event_target_value(&ev);
@@ -340,7 +341,13 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                         <label class="mb-1.5 block text-xs font-medium text-slate-400">
                             "Satker"
                         </label>
+                        // Free-text `kode_satker`, which asks the user to know a
+                        // code. The campaign's own satker list
+                        // (`/pengajuan/{id}/satker`) would make this a dropdown;
+                        // left as-is here because this change is about the
+                        // server honouring the filter, not about how it is picked.
                         <input
+                            data-testid="laporan-satker"
                             type="text"
                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200 placeholder-slate-500"
                             placeholder="ID Satker (opsional)"
@@ -601,10 +608,13 @@ fn render_rekap_table(group_name: String, items: Vec<LaporanRekapUkuran>) -> imp
     let ring = format!("ring-{}-500/25", accent);
 
     view! {
-        <div class=format!(
-            "overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}",
-            ring,
-        )>
+        <div
+            data-testid="laporan-rekap-group"
+            class=format!(
+                "overflow-hidden rounded-2xl border border-white/[0.06] bg-surface-panel ring-1 {}",
+                ring,
+            )
+        >
             // Group header
             <div class=format!("flex items-center gap-3 px-5 py-3 {}", header_bg)>
                 <span class=format!("inline-flex {}", header_text)>

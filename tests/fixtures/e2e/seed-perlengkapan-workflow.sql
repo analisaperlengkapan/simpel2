@@ -114,6 +114,79 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
+-- 6b. perlengkapan: a SECOND campaign, for the laporan page only.
+--
+--     The reports read `..._satker` rows at aktivitas 1008 (SELESAI) and JOIN
+--     through to the size rows. Campaign 6 above has neither: its satker rows
+--     sit at 1001/1004 precisely so the workflow tests can advance them, and it
+--     carries no `..._pakaian` or `..._pegawai_ukuran` rows at all. Every
+--     laporan query against it therefore returns zero rows — the tabs render
+--     empty and prove nothing.
+--
+--     It cannot simply be extended. `pakaian-workflow.spec.ts` asserts the
+--     campaign's satker code list with `toEqual`, so extra rows break it; and
+--     the workflow tests move P2 to 1008 mid-run, which would make the report
+--     contents depend on test order. Hence a separate, static campaign.
+--
+--     Shape chosen so each filter can be shown to NARROW, not merely to parse:
+--       2 satker  × 2 jenis pakaian × 1 pegawai each
+--       satker 0200010 → pegawai L, satker 0200020 → pegawai P
+--     so `satker_id` halves the rows and flips the gender split, and
+--     `jenis_pakaian_id` halves them along the other axis.
+-- ----------------------------------------------------------------------------
+INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active)
+VALUES ('d1000000-0000-4d00-8d00-000000000002', 'PDL E2E', 'Seed F-E2E pakaian dinas (jenis kedua)', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas
+  (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000000c2', 'E2E Laporan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1008, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
+  (pengajuan_id, satker_id, is_show_in_form)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000000c2', '0200010', true),
+  ('d1000000-0000-4d00-8d00-0000000000c2', '0200020', true)
+ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
+
+-- Both at 1008: the reports only count satkers that finished.
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
+  (id, pengajuan_id, satker_id, aktivitas_id, created_by)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000a1001', 'd1000000-0000-4d00-8d00-0000000000c2', '0200010', 1008, '11111111-1111-4111-8111-111111111111'),
+  ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-0000000000c2', '0200020', 1008, '22222222-2222-4222-8222-222222222222')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
+  (id, pengajuan_satker_id, nip, nama, jenis_kelamin, jabatan, pangkat, eselon, jenis)
+VALUES
+  ('d1000000-0000-4d00-8d00-00000000e101', 'd1000000-0000-4d00-8d00-0000000a1001', '200000000000000101', 'E2E Laporan Jakpus', 'L', 'Operator Satker', 'Penata Muda', 'IV', '0'),
+  ('d1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-0000000a1002', '200000000000000102', 'E2E Laporan Jaksel', 'P', 'Operator Satker', 'Penata Muda', 'IV', '0')
+ON CONFLICT (id) DO NOTHING;
+
+-- The campaign's clothing items. `jenis_pakaian_nama` is denormalised here by
+-- design — the report header resolves the selected type's label from it.
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
+  (id, pengajuan_id, jenis_pakaian_id, jenis_pakaian_nama, spesifikasi_id, spesifikasi_nama, spesifikasi_ukuran_group)
+VALUES
+  ('d1000000-0000-4d00-8d00-00000000b001', 'd1000000-0000-4d00-8d00-0000000000c2', 'd1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'd1000000-0000-4d00-8d00-00000000f001', 'Kemeja PDH E2E', 'BAJU'),
+  ('d1000000-0000-4d00-8d00-00000000b002', 'd1000000-0000-4d00-8d00-0000000000c2', 'd1000000-0000-4d00-8d00-000000000002', 'PDL E2E', 'd1000000-0000-4d00-8d00-00000000f002', 'Kemeja PDL E2E', 'BAJU')
+ON CONFLICT (id) DO NOTHING;
+
+-- Every (pegawai × item) has a size, so an unfiltered rekap has 2 rows per item
+-- and each filter can be seen to cut the count.
+INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai_ukuran
+  (pengajuan_satker_id, pegawai_id, pakaian_id, ukuran)
+VALUES
+  ('d1000000-0000-4d00-8d00-0000000a1001', 'd1000000-0000-4d00-8d00-00000000e101', 'd1000000-0000-4d00-8d00-00000000b001', 'L'),
+  ('d1000000-0000-4d00-8d00-0000000a1001', 'd1000000-0000-4d00-8d00-00000000e101', 'd1000000-0000-4d00-8d00-00000000b002', 'L'),
+  ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-00000000b001', 'M'),
+  ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-00000000b002', 'M')
+ON CONFLICT (pegawai_id, pakaian_id) DO NOTHING;
+
+-- ----------------------------------------------------------------------------
 -- 7. perlengkapan: Penghapusan BMN workflow preconditions (F-E2E E-3).
 --    Usulan rows at DISTINCT statuses (known UUIDs, deep-linked by the spec) so
 --    each role's transition is exercised independently. RBAC visibility is the
