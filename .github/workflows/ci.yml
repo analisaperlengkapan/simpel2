@@ -245,10 +245,14 @@ jobs:
   # Cheap stdlib-only guards over repo invariants that no compiler checks. They
   # share a job because each takes seconds and none needs a toolchain; the `if`
   # is the union of what they read, so adding a guard here means widening it.
+  # `shell` di sini BUKAN soal skrip .sh: filter itu juga mencakup
+  # `infra/scripts/**`, tempat KEENAM penjaga job ini tinggal. Tanpa itu,
+  # mengedit salah satu check-*.py tidak menjalankan ulang penjaga yang baru
+  # saja diubah — gate-nya benar tapi tak pernah menguji dirinya sendiri.
   enforce-versioning:
     name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true' || needs.detect.outputs.shell == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
