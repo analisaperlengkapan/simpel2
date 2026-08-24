@@ -146,6 +146,12 @@ pub struct LaporanFilter {
     pub tahun: Option<i32>,
     /// MySIMKARI `kode_satker` (V006/#94).
     pub satker_id: Option<String>,
+    /// `ms_jenis_pakaian_dinas.id`, denormalised onto
+    /// `pengajuan_pakaian_dinas_pakaian.jenis_pakaian_id`.
+    ///
+    /// Not to be confused with `jenis` below, which is the *employee* category
+    /// (Jaksa / Tata Usaha) stored on `..._satker_pegawai.jenis`.
+    pub jenis_pakaian_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,

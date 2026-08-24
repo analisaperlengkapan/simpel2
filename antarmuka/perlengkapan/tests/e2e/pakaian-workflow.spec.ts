@@ -68,6 +68,16 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
 
   const LAPORAN = `${BASE}/pakaian-dinas/laporan`;
 
+  // Seed section 6b — a campaign built for reporting, deliberately NOT the one
+  // the workflow tests drive. The reports only count satker rows at aktivitas
+  // 1008, and the workflow tests move a satker to 1008 mid-run; reading the
+  // same campaign would make these assertions depend on test order.
+  //   2 satker × 2 jenis pakaian × 1 pegawai each
+  //   0200010 → one L employee, 0200020 → one P employee
+  const LAPORAN_CAMPAIGN = "d1000000-0000-4d00-8d00-0000000000c2";
+  const JENIS_PDH = "d1000000-0000-4d00-8d00-000000000001";
+  const SATKER_JAKPUS = "0200010";
+
   test("no pengajuan selected: prompts instead of requesting", async ({ page }) => {
     const calls: string[] = [];
     page.on("request", (r) => {
@@ -98,7 +108,7 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
     await reachable(page, LAPORAN);
 
     const rekap = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
-    await page.getByTestId("laporan-pengajuan").selectOption(CAMPAIGN);
+    await page.getByTestId("laporan-pengajuan").selectOption(LAPORAN_CAMPAIGN);
     const rekapResp = await rekap;
     expect(rekapResp.ok(), `GET rekap-ukuran -> ${rekapResp.status()} ${new URL(rekapResp.url()).search}`).toBeTruthy();
 
@@ -109,6 +119,76 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
       daftarResp.ok(),
       `GET daftar-pegawai -> ${daftarResp.status()} ${new URL(daftarResp.url()).search}`,
     ).toBeTruthy();
+  });
+
+  // Both filters were declared by no query type, so axum's `Query` dropped them
+  // and the report came back unchanged — with a 200, so nothing looked wrong.
+  // `satker_id` was worse: three of the four query builders applied it and the
+  // one behind this tab did not, so the table and the spreadsheet exported from
+  // the button beside it disagreed. Asserting "the request succeeded" would
+  // still pass on the broken build; these assert the row count DROPS.
+  test("satker and jenis pakaian filters narrow the rekap", async ({ page }) => {
+    await reachable(page, LAPORAN);
+
+    const groups = page.getByTestId("laporan-rekap-group");
+
+    const unfiltered = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-pengajuan").selectOption(LAPORAN_CAMPAIGN);
+    expect((await unfiltered).ok()).toBeTruthy();
+    await expect(groups, "seed 6b configures two clothing types").toHaveCount(2);
+
+    // Clothing type: drops one of the two groups entirely.
+    const byJenis = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-jenis").selectOption(JENIS_PDH);
+    const jenisResp = await byJenis;
+    expect(
+      new URL(jenisResp.url()).search,
+      "jenis_pakaian_id must reach the server, not be dropped as an unknown key",
+    ).toContain(`jenis_pakaian_id=${JENIS_PDH}`);
+    expect(jenisResp.ok(), `rekap-ukuran -> ${jenisResp.status()}`).toBeTruthy();
+    await expect(groups, "PDL group must disappear").toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "Kemeja PDH E2E (BAJU)" })).toBeVisible();
+
+    // Satker: keeps the group but leaves only the Jakarta Pusat employee, who
+    // is male — so the Perempuan total goes to 0. Counting rows alone would not
+    // catch a filter applied to the wrong column; the gender split does.
+    const bySatker = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-satker").fill(SATKER_JAKPUS);
+    await page.getByTestId("laporan-satker").blur();
+    const satkerResp = await bySatker;
+    expect(new URL(satkerResp.url()).search).toContain(`satker_id=${SATKER_JAKPUS}`);
+    expect(satkerResp.ok(), `rekap-ukuran -> ${satkerResp.status()}`).toBeTruthy();
+
+    const group = groups.first();
+    await expect(group.getByRole("row").filter({ hasText: "Laki-laki (L)" })).toContainText("1");
+    await expect(
+      group.getByRole("row").filter({ hasText: "Perempuan (P)" }),
+      "the only remaining employee is male",
+    ).toContainText("0");
+  });
+
+  // The export must carry the same filters as the table above it, or the
+  // spreadsheet silently covers rows the screen excluded.
+  test("exports carry the active filters", async ({ page }) => {
+    await reachable(page, LAPORAN);
+
+    const loaded = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-pengajuan").selectOption(LAPORAN_CAMPAIGN);
+    await loaded;
+
+    const filtered = page.waitForResponse((r) => r.url().includes("/laporan/rekap-ukuran"));
+    await page.getByTestId("laporan-jenis").selectOption(JENIS_PDH);
+    await filtered;
+
+    const cetak = page.waitForResponse((r) => r.url().includes("/laporan/cetak"));
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByTestId("laporan-cetak-excel").click();
+
+    const search = new URL((await cetak).url()).search;
+    expect(search, "export URL must repeat the on-screen filter").toContain(
+      `jenis_pakaian_id=${JENIS_PDH}`,
+    );
+    await downloadPromise;
   });
 
   // Driven per (tab, format) because the tab is what decides `jenis_laporan`,
@@ -125,7 +205,7 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
     ] as const) {
       test(`export ${format} from the ${tab} tab downloads real bytes`, async ({ page }) => {
         await reachable(page, LAPORAN);
-        await page.getByTestId("laporan-pengajuan").selectOption(CAMPAIGN);
+        await page.getByTestId("laporan-pengajuan").selectOption(LAPORAN_CAMPAIGN);
         await page.getByTestId(`laporan-tab-${tab}`).click();
 
         const cetak = page.waitForResponse((r) => r.url().includes("/laporan/cetak"));
@@ -140,7 +220,7 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
         const search = new URL(resp.url()).search;
         expect(resp.ok(), `GET cetak -> ${resp.status()} ${search}`).toBeTruthy();
         expect(search).toContain(`jenis_laporan=${jenisLaporan}`);
-        expect(search).toContain(`pengajuan_id=${CAMPAIGN}`);
+        expect(search).toContain(`pengajuan_id=${LAPORAN_CAMPAIGN}`);
 
         const download = await downloadPromise;
         expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${ext}$`));

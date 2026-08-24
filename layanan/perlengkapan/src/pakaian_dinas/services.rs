@@ -606,7 +606,17 @@ impl PakaianDinasService {
         filter: &LaporanFilter,
     ) -> AppResult<ReportHeader> {
         let pengajuan = self.get_pengajuan_by_id(pengajuan_id).await?;
+        let labels = self
+            .repository
+            .get_laporan_filter_labels(pengajuan_id, filter)
+            .await?;
         let mut filters: Vec<(String, String)> = Vec::new();
+        if let Some(satker) = labels.satker {
+            filters.push(("Satker".to_string(), satker));
+        }
+        if let Some(jenis_pakaian) = labels.jenis_pakaian {
+            filters.push(("Jenis Pakaian".to_string(), jenis_pakaian));
+        }
         if let Some(jk) = &filter.jenis_kelamin {
             let label = match jk.as_str() {
                 "L" => "Laki-laki",
@@ -643,7 +653,7 @@ impl PakaianDinasService {
         let header = self.build_report_header(pengajuan_id, filter).await?;
         let columns = self
             .repository
-            .get_laporan_daftar_columns(pengajuan_id)
+            .get_laporan_daftar_columns(pengajuan_id, filter)
             .await?;
         let rows = self
             .repository
