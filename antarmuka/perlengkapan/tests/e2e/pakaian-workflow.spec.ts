@@ -80,6 +80,18 @@ test.describe("Pakaian Dinas — laporan tabs & exports", () => {
     expect(calls, "report endpoints must not be called without a pengajuan").toEqual([]);
     await expect(page.getByTestId("laporan-cetak-excel")).toBeDisabled();
     await expect(page.getByTestId("laporan-cetak-pdf")).toBeDisabled();
+
+    // The dropdown must carry real campaigns, not just its placeholder. The
+    // list endpoint answered 200 while the frontend DTO named five fields the
+    // backend never sends, so serde rejected the body and this select rendered
+    // its error arm — a failure `reachable` cannot see, because it watches HTTP
+    // status and the status was fine. Assert on what the user can act on.
+    const options = page.getByTestId("laporan-pengajuan").locator("option");
+    await expect
+      .poll(() => options.count(), {
+        message: "period dropdown has no campaigns — check the FE↔BE contract for /pakaian-dinas/pengajuan",
+      })
+      .toBeGreaterThan(1);
   });
 
   test("selecting a pengajuan loads both tabs without a rejected request", async ({ page }) => {

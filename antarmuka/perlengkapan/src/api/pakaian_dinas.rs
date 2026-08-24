@@ -51,19 +51,50 @@ pub struct Ukuran {
     pub urutan: i32,
 }
 
-/// Pengajuan Pakaian Dinas (Uniform request/application)
+/// Pengajuan Pakaian Dinas (Uniform request/application) — mirrors backend
+/// `pakaian_dinas::models::entities::PengajuanPakaianDinas`.
+///
+/// It did not. Five of the ten fields named here never existed on the wire:
+/// `tgl_open`/`tgl_close` are `tgl_mulai`/`tgl_selesai`, `keterangan` is
+/// `deskripsi`, `status` is `aktivitas_label`, and `is_open` was a method the
+/// backend computed but did not serialise. `is_open` and `status` were not
+/// `Option`, so serde rejected every response outright — which is why the
+/// campaign list and the report page's period dropdown both rendered their
+/// error arm no matter what the backend returned (a 200, in every case).
+///
+/// The joined/computed fields carry `#[serde(default)]`: they come from
+/// subqueries that not every endpoint selects, and a missing one must leave the
+/// field empty rather than sink the whole list again.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PengajuanPakaianDinas {
     pub id: String,
     pub nama: String,
     pub tahun: i32,
-    pub is_open: bool,
-    pub tgl_open: Option<String>,
-    pub tgl_close: Option<String>,
-    pub status: String,
-    pub keterangan: Option<String>,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default)]
+    pub tgl_mulai: Option<String>,
+    #[serde(default)]
+    pub tgl_selesai: Option<String>,
+    pub is_reguler: bool,
+    pub pilihan_satker: String,
+    #[serde(default)]
+    pub dengan_unit_kerja: bool,
+    #[serde(default)]
+    pub jenis_pakaian_dinas_id: Option<String>,
+    pub aktivitas_id: i32,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub jenis_pakaian_nama: Option<String>,
+    #[serde(default)]
+    pub aktivitas_label: Option<String>,
+    #[serde(default)]
+    pub total_satker: Option<i64>,
+    #[serde(default)]
+    pub satker_selesai: Option<i64>,
+    /// Derived on the backend from `is_reguler` + `tgl_selesai`; see the entity.
+    pub is_open: bool,
 }
 
 /// Create request — mirrors backend `pakaian_dinas::models::CreatePengajuanRequest`

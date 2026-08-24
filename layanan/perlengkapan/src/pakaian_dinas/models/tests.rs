@@ -60,6 +60,7 @@ fn test_pengajuan_is_open() {
         aktivitas_label: None,
         total_satker: None,
         satker_selesai: None,
+        is_open: true,
     };
 
     // No end date = open

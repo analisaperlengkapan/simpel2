@@ -90,6 +90,9 @@ mod pengajuan_tests {
             aktivitas_label: None,
             total_satker: None,
             satker_selesai: None,
+            // Fixtures set this straight; `is_open()` recomputes from
+            // `is_reguler`/`tgl_selesai`, which is what these tests assert.
+            is_open: true,
         }
     }
 

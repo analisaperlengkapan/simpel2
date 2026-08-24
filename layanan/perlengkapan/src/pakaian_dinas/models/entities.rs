@@ -150,16 +150,24 @@ pub struct PengajuanPakaianDinas {
     pub aktivitas_label: Option<String>,
     pub total_satker: Option<i64>,
     pub satker_selesai: Option<i64>,
+    /// Derived from `is_reguler` + `tgl_selesai`, not stored. Serialised so the
+    /// period rule stays here: the campaign list renders an open/closed badge,
+    /// and the rule was previously only reachable through `is_open()`, which no
+    /// response carried — so the frontend asked for a field that was never sent
+    /// and failed to deserialise the entire list.
+    pub is_open: bool,
 }
 impl PengajuanPakaianDinas {
     pub fn from_row(row: &Row) -> Self {
+        let is_reguler = row.try_get("is_reguler").unwrap_or(true);
+        let tgl_selesai: Option<NaiveDate> = row.try_get("tgl_selesai").ok();
         Self {
             id: row.get("id"),
             nama: row.get("nama"),
             deskripsi: row.try_get("deskripsi").ok(),
             tgl_mulai: row.try_get("tgl_mulai").ok(),
-            tgl_selesai: row.try_get("tgl_selesai").ok(),
-            is_reguler: row.try_get("is_reguler").unwrap_or(true),
+            tgl_selesai,
+            is_reguler,
             tahun: row.get("tahun"),
             pilihan_satker: row.get("pilihan_satker"),
             dengan_unit_kerja: row.try_get("dengan_unit_kerja").unwrap_or(false),
@@ -172,21 +180,25 @@ impl PengajuanPakaianDinas {
             aktivitas_label: row.try_get("aktivitas_label").ok(),
             total_satker: row.try_get("total_satker").ok(),
             satker_selesai: row.try_get("satker_selesai").ok(),
+            is_open: Self::period_is_open(is_reguler, tgl_selesai),
+        }
+    }
+
+    /// The period rule, in one place. `from_row` stamps it onto the serialised
+    /// field and [`Self::is_open`] reads it for callers holding an entity.
+    fn period_is_open(is_reguler: bool, tgl_selesai: Option<NaiveDate>) -> bool {
+        if !is_reguler {
+            return true; // Non-regular requests are always open
+        }
+        match tgl_selesai {
+            Some(end_date) => chrono::Local::now().date_naive() <= end_date,
+            None => true,
         }
     }
 
     /// Check if the submission period is still open
     pub fn is_open(&self) -> bool {
-        if !self.is_reguler {
-            return true; // Non-regular requests are always open
-        }
-        match self.tgl_selesai {
-            Some(end_date) => {
-                let today = chrono::Local::now().date_naive();
-                today <= end_date
-            }
-            None => true,
-        }
+        Self::period_is_open(self.is_reguler, self.tgl_selesai)
     }
 }
 /// Selected satkers for a pengajuan

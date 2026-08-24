@@ -428,12 +428,16 @@ fn status_badge(status: String, is_open: bool) -> impl IntoView {
             "Dibuka".to_string(),
         )
     } else {
+        // `status` is the backend's `aktivitas_label` — the workflow step's
+        // human label from `ms_aktivitas_bmn` ("Input", "Selesai", …). It is
+        // empty only when the campaign points at an aktivitas code the lookup
+        // table does not carry, so say "Ditutup" rather than render a blank pill.
         match status.as_str() {
-            "draft" => (
+            "" => (
                 "bg-slate-500/15 text-slate-300 ring-slate-500/25",
-                "Draft".to_string(),
+                "Ditutup".to_string(),
             ),
-            "selesai" => (
+            "Selesai" => (
                 "bg-info-500/15 text-info-300 ring-info-500/25",
                 "Selesai".to_string(),
             ),
@@ -482,9 +486,9 @@ fn render_pengajuan_cards(
                 children=move |item: PengajuanPakaianDinas| {
                     let item_id = item.id.clone();
                     let item_id_for_delete = item_id.clone();
-                    let status_str = item.status.clone();
+                    let status_str = item.aktivitas_label.clone().unwrap_or_default();
                     let is_open = item.is_open;
-                    let keterangan = item.keterangan.clone();
+                    let keterangan = item.deskripsi.clone();
                     let has_keterangan = keterangan.is_some();
                     view! {
                         <div class="rounded-2xl border border-white/[0.06] bg-surface-panel p-5 transition hover:border-white/10">
@@ -506,14 +510,14 @@ fn render_pengajuan_cards(
                                         <AppIcon icon=CALENDAR_CHECK />
                                     </span>
                                     "Buka: "
-                                    {item.tgl_open.unwrap_or_else(|| "-".to_string())}
+                                    {item.tgl_mulai.unwrap_or_else(|| "-".to_string())}
                                 </p>
                                 <p>
                                     <span class="mr-1.5 text-danger-400 w-3.5">
                                         <AppIcon icon=CALENDAR_X />
                                     </span>
                                     "Tutup: "
-                                    {item.tgl_close.unwrap_or_else(|| "-".to_string())}
+                                    {item.tgl_selesai.unwrap_or_else(|| "-".to_string())}
                                 </p>
                             </div>
 

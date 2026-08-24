@@ -267,10 +267,19 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                     }
                                         .into_any()
                                 }
+                                // Still "Semua Periode" here until the contract
+                                // drift above was found: the success arm had
+                                // dropped that option, but this arm was the one
+                                // that actually rendered, so the page really did
+                                // offer a view no endpoint can serve.
                                 _ => {
                                     view! {
-                                        <select class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-500">
-                                            <option>"Semua Periode"</option>
+                                        <select
+                                            data-testid="laporan-pengajuan"
+                                            disabled=true
+                                            class="focus-ring w-full rounded-lg border border-danger-500/30 bg-danger-500/5 px-3 py-2 text-sm text-danger-300"
+                                        >
+                                            <option>"Gagal memuat periode"</option>
                                         </select>
                                     }
                                         .into_any()
