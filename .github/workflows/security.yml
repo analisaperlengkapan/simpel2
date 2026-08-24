@@ -110,6 +110,24 @@ jobs:
           done
           exit "$fail"
 
+      # cargo-audit tak punya padanan `-D advisory-not-detected`, jadi
+      # kebasian daftar ignore-nya dijaga di sini. `cargo audit --json`
+      # dijalankan dari direktori SEMENTARA yang tak memuat .cargo/audit.toml,
+      # supaya yang terukur adalah advisory yang benar-benar menyala, bukan
+      # yang tersisa setelah disaring daftar yang sedang kita uji.
+      - name: Tak ada ignore basi di .cargo/audit.toml
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          cp Cargo.lock "$tmp/"
+          # cargo audit keluar non-nol saat ada temuan; di sini kita hanya
+          # butuh laporannya, dan skrip di bawah yang memutuskan lulus/gagal
+          # (termasuk menolak laporan kosong = probe rusak).
+          ( cd "$tmp" && cargo audit --json -f Cargo.lock ) > "$tmp/report.json" || true
+          python3 ./infra/scripts/check-audit-ignores-live.py .cargo/audit.toml \
+            < "$tmp/report.json"
+
       - name: cargo audit
         run: cargo audit
 
@@ -163,6 +181,26 @@ jobs:
           manifest-path: Cargo.toml
           command: check advisories bans licenses sources
           arguments: --workspace
+          # Ketiga flag ini menaikkan supresi BASI dari peringatan jadi
+          # kegagalan. Supresi yang sudah tak cocok apa pun terbaca persis
+          # seperti supresi yang masih perlu, dan ia tetap menekan temuannya
+          # diam-diam kalau crate-nya suatu saat kembali.
+          #   advisory-not-detected  -> entri [advisories] ignore
+          #   unmatched-skip         -> entri [bans] skip
+          #   license-not-encountered-> entri [licenses] allow
+          # 2026-08-23: 10 dari 19 entri ignore, 1 dari 2 skip, dan 1 lisensi
+          # allow ternyata sudah basi; sebagian ignore bahkan sudah memenuhi
+          # syarat pencabutan yang ditulis di komentarnya sendiri. Sebagai
+          # peringatan, tak satu pun dicabut.
+          #
+          # WAJIB `command-arguments`, BUKAN `arguments`: cargo-deny hanya
+          # menerima -D SETELAH subperintah (`cargo deny <args> check <cmd-args>`),
+          # jadi menaruhnya di `arguments` menghasilkan
+          # "error: unexpected argument '-D' found" dan job merah.
+          command-arguments: >-
+            -D advisory-not-detected
+            -D unmatched-skip
+            -D license-not-encountered
 
   semgrep:
     name: Semgrep SAST
