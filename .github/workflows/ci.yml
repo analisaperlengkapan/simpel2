@@ -245,10 +245,14 @@ jobs:
   # Cheap stdlib-only guards over repo invariants that no compiler checks. They
   # share a job because each takes seconds and none needs a toolchain; the `if`
   # is the union of what they read, so adding a guard here means widening it.
+  # `shell` di sini BUKAN soal skrip .sh: filter itu juga mencakup
+  # `infra/scripts/**`, tempat KEENAM penjaga job ini tinggal. Tanpa itu,
+  # mengedit salah satu check-*.py tidak menjalankan ulang penjaga yang baru
+  # saja diubah — gate-nya benar tapi tak pernah menguji dirinya sendiri.
   enforce-versioning:
     name: Enforce Repo Invariants
     needs: detect
-    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true'
+    if: needs.detect.outputs.cargo-manifests == 'true' || needs.detect.outputs.workflows == 'true' || needs.detect.outputs.rust-any == 'true' || needs.detect.outputs.helm == 'true' || needs.detect.outputs.sql == 'true' || needs.detect.outputs.shell == 'true'
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
@@ -301,6 +305,17 @@ jobs:
       - name: Chart image names match what release.yml builds
         shell: bash
         run: python3 ./infra/scripts/check-chart-release-images.py
+      # Placeholder telanjang di aritmatika tanggal tidak punya tipe, dan
+      # Postgres gagal DUA cara berbeda: `CURRENT_DATE + $1` ditolak saat
+      # PREPARE ("operator is not unique: date + unknown"), sementara
+      # `CURRENT_DATE - $1` justru LOLOS prepare — Postgres menebak $1 = date —
+      # lalu meledak saat bind. Bentuk minus itu sebabnya "SQL-nya parse" bukan
+      # bukti apa-apa. Dua-duanya hidup di main sampai 2026-08-24: notifikasi
+      # izin pemakaian BMN kedaluwarsa (route ter-mount + scheduler) dan
+      # statistik API per-modul integrasi.
+      - name: Tak ada placeholder tanpa cast di aritmatika tanggal SQL
+        shell: bash
+        run: python3 ./infra/scripts/check-sql-date-params.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
@@ -600,6 +615,19 @@ jobs:
             !.kiro/**
             !**/CHANGELOG.md
       - name: Lychee link check
+        # ADVISORY, sengaja. `--accept` di bawah memuat 404 dan 410, jadi
+        # pemeriksa ini TIDAK BISA menemukan tautan mati — dibuktikan dgn kenari:
+        # halaman 404/410 LULUS, dan satu-satunya yang memerahkannya adalah
+        # kegagalan transport (DNS/connect/timeout). Sebagai gate wajib itu berarti
+        # merah ditentukan cuaca jaringan pada 595 URL pihak ketiga, di setiap PR
+        # yang menyentuh .md ATAU workflow. #811 kena persis begitu: 0 error,
+        # 1 timeout ke `microk8s.io` (URL yang sehat) — merge terblokir.
+        # Mempersempit `--accept` agar benar-benar mendeteksi memang mungkin
+        # (terukur: 12 temuan; 4 di antaranya URL repo privat kita sendiri, yang
+        # selalu 404 bagi anonim), tapi 7 tautan mati sisanya ada di berkas docs/
+        # yang tak boleh disunting manual → pekerjaan terpisah.
+        # markdownlint di atas = gate sesungguhnya: deterministik & in-repo.
+        continue-on-error: true
         uses: lycheeverse/lychee-action@v2
         with:
           # Hanya check HTTP/HTTPS links. file:// link check terlalu
