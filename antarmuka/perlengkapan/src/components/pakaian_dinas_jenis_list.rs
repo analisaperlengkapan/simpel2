@@ -52,7 +52,7 @@ pub fn PakaianDinasJenisList() -> impl IntoView {
         spawn_local(async move {
             let request = CreateJenisPakaianDinasRequest {
                 nama,
-                keterangan: if keterangan.is_empty() {
+                deskripsi: if keterangan.is_empty() {
                     None
                 } else {
                     Some(keterangan)
@@ -224,7 +224,7 @@ fn render_jenis_table(
                                     let item_id = item.id.clone();
                                     let item_id_for_delete = item_id.clone();
                                     let num = ((page.get() - 1) * 20 + idx as i32 + 1).to_string();
-                                    let ket = item.keterangan.unwrap_or_else(|| "-".to_string());
+                                    let ket = item.deskripsi.unwrap_or_else(|| "-".to_string());
                                     let date = item.created_at.chars().take(10).collect::<String>();
                                     let bg = if idx % 2 == 0 {
                                         "bg-transparent"
