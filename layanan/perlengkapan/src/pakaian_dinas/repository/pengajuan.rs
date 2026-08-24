@@ -69,11 +69,13 @@ impl PakaianDinasRepository {
         let data_sql = format!(
             r#"
             SELECT p.*, j.nama as jenis_pakaian_nama,
+                   COALESCE(a.deskripsi, a.nama) as aktivitas_label,
                    (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
                    (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                     WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
             FROM perlengkapan.pengajuan_pakaian_dinas p
             LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+            LEFT JOIN perlengkapan.ms_aktivitas_bmn a ON p.aktivitas_id = a.kode
             {where_clause}
             ORDER BY p.created_at DESC
             LIMIT ${limit_idx} OFFSET ${offset_idx}
@@ -104,11 +106,13 @@ impl PakaianDinasRepository {
             .query_opt(
                 r#"
                 SELECT p.*, j.nama as jenis_pakaian_nama,
+                       COALESCE(a.deskripsi, a.nama) as aktivitas_label,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih WHERE pengajuan_id = p.id) as total_satker,
                        (SELECT COUNT(*) FROM perlengkapan.pengajuan_pakaian_dinas_satker ps
                         WHERE ps.pengajuan_id = p.id AND ps.aktivitas_id = 1008) as satker_selesai
                 FROM perlengkapan.pengajuan_pakaian_dinas p
                 LEFT JOIN perlengkapan.ms_jenis_pakaian_dinas j ON p.jenis_pakaian_dinas_id = j.id
+                LEFT JOIN perlengkapan.ms_aktivitas_bmn a ON p.aktivitas_id = a.kode
                 WHERE p.id = $1
                 "#,
                 &[&id],

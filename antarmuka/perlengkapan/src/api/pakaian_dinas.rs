@@ -51,19 +51,50 @@ pub struct Ukuran {
     pub urutan: i32,
 }
 
-/// Pengajuan Pakaian Dinas (Uniform request/application)
+/// Pengajuan Pakaian Dinas (Uniform request/application) — mirrors backend
+/// `pakaian_dinas::models::entities::PengajuanPakaianDinas`.
+///
+/// It did not. Five of the ten fields named here never existed on the wire:
+/// `tgl_open`/`tgl_close` are `tgl_mulai`/`tgl_selesai`, `keterangan` is
+/// `deskripsi`, `status` is `aktivitas_label`, and `is_open` was a method the
+/// backend computed but did not serialise. `is_open` and `status` were not
+/// `Option`, so serde rejected every response outright — which is why the
+/// campaign list and the report page's period dropdown both rendered their
+/// error arm no matter what the backend returned (a 200, in every case).
+///
+/// The joined/computed fields carry `#[serde(default)]`: they come from
+/// subqueries that not every endpoint selects, and a missing one must leave the
+/// field empty rather than sink the whole list again.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PengajuanPakaianDinas {
     pub id: String,
     pub nama: String,
     pub tahun: i32,
-    pub is_open: bool,
-    pub tgl_open: Option<String>,
-    pub tgl_close: Option<String>,
-    pub status: String,
-    pub keterangan: Option<String>,
+    #[serde(default)]
+    pub deskripsi: Option<String>,
+    #[serde(default)]
+    pub tgl_mulai: Option<String>,
+    #[serde(default)]
+    pub tgl_selesai: Option<String>,
+    pub is_reguler: bool,
+    pub pilihan_satker: String,
+    #[serde(default)]
+    pub dengan_unit_kerja: bool,
+    #[serde(default)]
+    pub jenis_pakaian_dinas_id: Option<String>,
+    pub aktivitas_id: i32,
     pub created_at: String,
     pub updated_at: String,
+    #[serde(default)]
+    pub jenis_pakaian_nama: Option<String>,
+    #[serde(default)]
+    pub aktivitas_label: Option<String>,
+    #[serde(default)]
+    pub total_satker: Option<i64>,
+    #[serde(default)]
+    pub satker_selesai: Option<i64>,
+    /// Derived on the backend from `is_reguler` + `tgl_selesai`; see the entity.
+    pub is_open: bool,
 }
 
 /// Create request — mirrors backend `pakaian_dinas::models::CreatePengajuanRequest`
@@ -966,4 +997,54 @@ pub async fn fetch_laporan_daftar_pegawai(
         total_pages: 0,
         message: "Server-side stub".to_string(),
     })
+}
+
+/// Fetch a laporan export as bytes.
+///
+/// `/laporan/cetak` is `Claims`-guarded like every other endpoint, so it needs
+/// an `Authorization` header — a `window.open` navigation carries none and can
+/// only ever 401. `laporan_kebutuhan_bmn.rs` already spells this out for its
+/// own export ("endpoint needs the JWT, so a plain `<a href>` cannot be used");
+/// this is the same shape for pakaian dinas.
+///
+/// `jenis_laporan` = "rekap" | "daftar", `jenis_file` = "excel" | "pdf" — the
+/// backend 400s on anything else. `pengajuan_id` is required, not optional.
+#[cfg(target_arch = "wasm32")]
+pub async fn export_laporan_pakaian_dinas(
+    jenis_laporan: &str,
+    jenis_file: &str,
+    pengajuan_id: &str,
+    query: &LaporanQuery,
+) -> Result<Vec<u8>, crate::api::AppError> {
+    use crate::api::client::auth_get_binary;
+
+    let mut url = format!(
+        "/api/v1/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}&pengajuan_id={}",
+        jenis_laporan, jenis_file, pengajuan_id
+    );
+    if let Some(ref v) = query.satker_id {
+        url.push_str(&format!("&satker_id={}", v));
+    }
+    if let Some(ref v) = query.jenis_kelamin {
+        url.push_str(&format!("&jenis_kelamin={}", v));
+    }
+    if let Some(ref v) = query.eselon {
+        url.push_str(&format!("&eselon={}", v));
+    }
+    if let Some(ref v) = query.jenis {
+        url.push_str(&format!("&jenis={}", v));
+    }
+    auth_get_binary(&url).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn export_laporan_pakaian_dinas(
+    _jenis_laporan: &str,
+    _jenis_file: &str,
+    _pengajuan_id: &str,
+    _query: &LaporanQuery,
+) -> Result<Vec<u8>, crate::api::AppError> {
+    Err(crate::api::AppError::Unknown(
+        "Server-side stub".to_string(),
+    ))
 }
