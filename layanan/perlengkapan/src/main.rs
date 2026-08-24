@@ -611,6 +611,13 @@ fn build_router(state: AppState) -> Router {
     Router::new()
         .merge(health_routes)
         .nest("/api/v1/perlengkapan", api_routes)
+        // Innermost layer, so only routing + the handler itself run detached:
+        // a mutation must not be truncated by the client hanging up mid-request,
+        // because several service methods here commit more than once and the
+        // earlier commits cannot be undone. See the module docs.
+        .layer(axum::middleware::from_fn(
+            middleware::cancel_safe::cancel_safe_middleware,
+        ))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             middleware::size_limit::request_size_limit_middleware,

@@ -32,6 +32,7 @@ import {
   TEST_USERS,
   PERLENGKAPAN_API_URL,
 } from './helpers/real-auth';
+import { clickAction } from './helpers/workflow';
 
 const BASE = '/perlengkapan/simpel/v2';
 const CAMPAIGN_ID = 'c1000000-0000-4c00-8c00-000000000001';
@@ -95,7 +96,11 @@ test.describe('Kebutuhan BMN — operator submit to wilayah', () => {
     await expect(page.getByText('E2E Barang UI Operator').first()).toBeVisible({ timeout: 15000 });
 
     // submit to wilayah
-    await page.getByRole('button', { name: /Submit ke Wilayah/i }).click();
+    await clickAction(
+      page,
+      page.getByRole('button', { name: /Submit ke Wilayah/i }),
+      'submit-wilayah',
+    );
 
     // UI reflects the transition: the operator submit action is gone after reload
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -117,7 +122,11 @@ test.describe('Kebutuhan BMN — validator wilayah forwards to pusat', () => {
     expect(await beStatusKode(request, S2_WILAYAH)).toBe(2002);
 
     await openSatker(page, S2_WILAYAH);
-    await page.getByRole('button', { name: /Teruskan ke Pusat/i }).click();
+    await clickAction(
+      page,
+      page.getByRole('button', { name: /Teruskan ke Pusat/i }),
+      'validator-wilayah',
+    );
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(shell(page)).toBeVisible({ timeout: 20000 });
@@ -137,7 +146,11 @@ test.describe('Kebutuhan BMN — validator pusat approves', () => {
     expect(await beStatusKode(request, S3_PUSAT)).toBe(2005);
 
     await openSatker(page, S3_PUSAT);
-    await page.getByRole('button', { name: 'Setujui' }).click();
+    await clickAction(
+      page,
+      page.getByRole('button', { name: 'Setujui' }),
+      'keputusan-pusat',
+    );
 
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(shell(page)).toBeVisible({ timeout: 20000 });

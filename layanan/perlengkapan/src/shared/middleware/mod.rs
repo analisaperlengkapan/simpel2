@@ -2,6 +2,7 @@
 //!
 //! JWT token validation and user authentication using Authenc Service
 
+pub mod cancel_safe;
 pub mod metrics;
 pub mod size_limit;
 
