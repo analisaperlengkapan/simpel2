@@ -24,6 +24,10 @@ dashmap = { workspace = true }
 # Optional dependencies
 garde = { workspace = true, optional = true }
 
+[dev-dependencies]
+# Canaries for `serde_query` deserialize through the same format axum uses.
+serde_urlencoded = { workspace = true }
+
 [features]
 default = []
 validation = ["dep:garde"]

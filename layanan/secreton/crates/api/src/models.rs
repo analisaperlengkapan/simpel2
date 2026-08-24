@@ -7,10 +7,17 @@ use uuid::Uuid;
 /// Pagination parameters for list operations
 #[derive(Debug, Deserialize)]
 pub struct PaginationQuery {
-    #[serde(default = "default_limit")]
+    // `deserialize_with`: this type is `#[serde(flatten)]`ed into
+    // `ListPoliciesQuery`, and flatten strips the type hint serde_urlencoded
+    // needs for numbers — `?limit=50` would answer 400. See
+    // `lib_core::serde_query`.
+    #[serde(
+        default = "default_limit",
+        deserialize_with = "lib_core::serde_query::de_u32"
+    )]
     pub limit: u32,
 
-    #[serde(default)]
+    #[serde(default, deserialize_with = "lib_core::serde_query::de_u32")]
     pub offset: u32,
 
     pub sort: Option<String>,
