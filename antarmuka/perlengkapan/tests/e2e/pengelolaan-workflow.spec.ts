@@ -34,6 +34,7 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { apiLogin, credsFor, storageStatePath, TEST_USERS, PERLENGKAPAN_API_URL } from "./helpers/real-auth";
 import { clickAction } from "./helpers/workflow";
+import { reachable } from "./helpers/page-load";
 
 const BASE = "/perlengkapan/simpel/v2";
 const PH_API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/penghapusan-bmn`;
@@ -316,12 +317,6 @@ test.describe("Izin Pemakaian BMN — scoping & revoke policy", () => {
 // (Full literal paths so the route-coverage gate detects these as visited.)
 test.describe("Pengelolaan — create-form pages are reachable", () => {
   test.use({ storageState: storageStatePath("operator_a") });
-
-  const reachable = async (page: import("@playwright/test").Page, path: string) => {
-    await page.goto(path, { waitUntil: "domcontentloaded" });
-    await expect(shell(page), `shell mounts on ${path}`).toBeVisible({ timeout: 20000 });
-    expect(/login/i.test(page.url()), `must not redirect to login (${page.url()})`).toBeFalsy();
-  };
 
   test("penghapusan create form is reachable", async ({ page }) => {
     await reachable(page, `${BASE}/pengelolaan/penghapusan/buat`);

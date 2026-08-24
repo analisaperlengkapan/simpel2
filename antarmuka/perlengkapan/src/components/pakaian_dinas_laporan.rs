@@ -5,8 +5,9 @@
 
 use crate::api::{
     AppError, JenisPakaianDinas, LaporanDaftarPegawai, LaporanQuery, LaporanRekapUkuran,
-    PaginatedResponse, PengajuanPakaianDinas, fetch_jenis_pakaian_dinas,
-    fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran, fetch_pengajuan_pakaian_dinas,
+    PaginatedResponse, PengajuanPakaianDinas, export_laporan_pakaian_dinas,
+    fetch_jenis_pakaian_dinas, fetch_laporan_daftar_pegawai, fetch_laporan_rekap_ukuran,
+    fetch_pengajuan_pakaian_dinas,
 };
 use crate::components::layout::{EmptyState, ErrorState, LoadingState, PageLayout, SectionCard};
 use leptos::prelude::*;
@@ -40,48 +41,85 @@ async fn query_laporan_daftar(
     fetch_laporan_daftar_pegawai(query, page, 20).await
 }
 
-// ── Helper: build export URL from current filter state ────────────────────
-fn build_export_url(
-    jenis_laporan: &str,
-    jenis_file: &str,
-    pengajuan: &Option<String>,
-    satker: &Option<String>,
-    jenis_kelamin: &Option<String>,
-    eselon: &Option<String>,
-    jenis_pegawai: &Option<String>,
-) -> String {
-    let mut url = format!(
-        "/api/v1/perlengkapan/pakaian-dinas/laporan/cetak?jenis_laporan={}&jenis_file={}",
-        jenis_laporan, jenis_file
-    );
-    if let Some(v) = pengajuan {
-        url.push_str(&format!("&pengajuan_id={}", v));
+/// Translate the active tab id into the `jenis_laporan` the export endpoint
+/// understands.
+///
+/// The tabs are keyed `"rekap"` / `"pegawai"`, but `cetak_laporan` matches on
+/// `"rekap"` / `"daftar"` and 400s on anything else — so passing the tab id
+/// straight through meant every export from the pegawai tab failed.
+fn jenis_laporan_for_tab(tab: &str) -> &'static str {
+    match tab {
+        "pegawai" => "daftar",
+        _ => "rekap",
     }
-    if let Some(v) = satker {
-        url.push_str(&format!("&satker_id={}", v));
-    }
-    if let Some(v) = jenis_kelamin {
-        url.push_str(&format!("&jenis_kelamin={}", v));
-    }
-    if let Some(v) = eselon {
-        url.push_str(&format!("&eselon={}", v));
-    }
-    if let Some(v) = jenis_pegawai {
-        url.push_str(&format!("&jenis={}", v));
-    }
-    url
 }
 
-// `url` is consumed only by the wasm body; unused on the host target.
-#[cfg_attr(not(target_arch = "wasm32"), allow(unused_variables))]
-fn open_url(url: &str) {
-    #[cfg(target_arch = "wasm32")]
-    {
-        if let Some(window) = web_sys::window() {
-            let _ = window.open_with_url_and_target(url, "_blank");
+/// Fetch the export with the JWT attached, then hand the bytes to the browser
+/// through a blob URL and a synthetic anchor.
+///
+/// This replaced a `window.open(url, "_blank")`, which could never work: the
+/// navigation carries no `Authorization` header and `/laporan/cetak` is
+/// `Claims`-guarded, so both buttons 401'd before the query string was even
+/// parsed. `laporan_kebutuhan_bmn.rs:59` had already documented exactly this
+/// for its own export — the pattern is copied from there rather than invented.
+#[cfg(target_arch = "wasm32")]
+fn download_export(jenis_laporan: &'static str, jenis_file: &'static str, query: LaporanQuery) {
+    use leptos::task::spawn_local;
+    use wasm_bindgen::JsCast;
+    use web_sys::{Blob, BlobPropertyBag, Url};
+
+    let Some(pengajuan_id) = query.pengajuan_id.clone() else {
+        return;
+    };
+    spawn_local(async move {
+        let bytes =
+            match export_laporan_pakaian_dinas(jenis_laporan, jenis_file, &pengajuan_id, &query)
+                .await
+            {
+                Ok(b) => b,
+                Err(e) => {
+                    leptos::logging::error!("export {jenis_file} gagal: {e}");
+                    return;
+                }
+            };
+        let (mime, ext) = if jenis_file == "pdf" {
+            ("application/pdf", "pdf")
+        } else {
+            (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "xlsx",
+            )
+        };
+        let array = js_sys::Uint8Array::from(&bytes[..]);
+        let parts = js_sys::Array::new();
+        parts.push(&array);
+        let opts = BlobPropertyBag::new();
+        opts.set_type(mime);
+        let Ok(blob) = Blob::new_with_u8_array_sequence_and_options(&parts, &opts) else {
+            return;
+        };
+        let Ok(url) = Url::create_object_url_with_blob(&blob) else {
+            return;
+        };
+        if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
+            if let Ok(a) = doc.create_element("a") {
+                let a: web_sys::HtmlAnchorElement = a.unchecked_into();
+                a.set_href(&url);
+                let nama = if jenis_laporan == "daftar" {
+                    "Laporan_Daftar"
+                } else {
+                    "Laporan_Rekap"
+                };
+                a.set_download(&format!("{}.{}", nama, ext));
+                a.click();
+            }
         }
-    }
+        let _ = Url::revoke_object_url(&url);
+    });
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+fn download_export(_jenis_laporan: &'static str, _jenis_file: &'static str, _query: LaporanQuery) {}
 
 /// Helper to render a filter select with dark-theme styling.
 fn filter_select(
@@ -102,6 +140,21 @@ fn filter_select(
                 {children}
             </select>
         </div>
+    }
+}
+
+/// Shown in place of both report tabs while no pengajuan is selected.
+///
+/// The reports are per-pengajuan by definition — the backend rejects a
+/// request without one — so there is no meaningful "all pengajuan" view to
+/// render here.
+fn pilih_pengajuan_prompt() -> impl IntoView {
+    view! {
+        <EmptyState
+            icon="fas fa-filter"
+            title="Pilih Pengajuan"
+            description="Laporan rekap ukuran dan daftar pegawai dihitung per pengajuan. Pilih pengajuan pada filter di atas untuk menampilkan datanya."
+        />
     }
 }
 
@@ -150,6 +203,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             // Tabs
             <div class="mb-5 flex border-b border-white/[0.06]">
                 <button
+                    data-testid="laporan-tab-rekap"
                     class=move || tab_class("rekap")
                     on:click=move |_| set_active_tab.set("rekap")
                 >
@@ -159,6 +213,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     "Rekap Ukuran"
                 </button>
                 <button
+                    data-testid="laporan-tab-pegawai"
                     class=move || tab_class("pegawai")
                     on:click=move |_| set_active_tab.set("pegawai")
                 >
@@ -188,6 +243,7 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                 Some(Ok(options)) => {
                                     view! {
                                         <select
+                                            data-testid="laporan-pengajuan"
                                             class="focus-ring w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-slate-200"
                                             on:change=move |ev| {
                                                 let val = event_target_value(&ev);
@@ -196,7 +252,10 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                                                 set_daftar_page.set(1);
                                             }
                                         >
-                                            <option value="">"Semua Periode"</option>
+                                            // Not "Semua Periode": every report endpoint here
+                                            // requires a `pengajuan_id`, so an all-periods view
+                                            // does not exist to be offered.
+                                            <option value="">"— Pilih Periode —"</option>
                                             {options
                                                 .into_iter()
                                                 .map(|p| {
@@ -332,20 +391,30 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             </SectionCard>
 
             // Export buttons
+            //
+            // `/laporan/cetak` takes the same required `pengajuan_id` as the
+            // two tab endpoints (`CetakQuery`), so the buttons stay disabled
+            // until one is picked — otherwise the only possible outcome is a
+            // 400 the user never sees, since the download happens in the
+            // background.
             <div class="mt-4 flex flex-wrap gap-3">
                 <button
-                    class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2.5 text-sm font-medium text-success-300 transition hover:bg-success-500/20"
+                    data-testid="laporan-cetak-excel"
+                    class="inline-flex items-center gap-2 rounded-lg border border-success-500/30 bg-success-500/10 px-4 py-2.5 text-sm font-medium text-success-300 transition hover:bg-success-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-success-500/10"
+                    disabled=move || selected_pengajuan.get().is_none()
                     on:click=move |_| {
-                        let url = build_export_url(
-                            active_tab.get(),
+                        download_export(
+                            jenis_laporan_for_tab(active_tab.get()),
                             "excel",
-                            &selected_pengajuan.get(),
-                            &selected_satker.get(),
-                            &selected_jenis_kelamin.get(),
-                            &selected_eselon.get(),
-                            &selected_jenis_pegawai.get(),
+                            LaporanQuery {
+                                pengajuan_id: selected_pengajuan.get(),
+                                satker_id: selected_satker.get(),
+                                jenis_pakaian_id: selected_jenis.get(),
+                                jenis_kelamin: selected_jenis_kelamin.get(),
+                                eselon: selected_eselon.get(),
+                                jenis: selected_jenis_pegawai.get(),
+                            },
                         );
-                        open_url(&url);
                     }
                 >
                     <span class="text-xs">
@@ -354,18 +423,22 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
                     "Cetak Excel"
                 </button>
                 <button
-                    class="inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-2.5 text-sm font-medium text-danger-300 transition hover:bg-danger-500/20"
+                    data-testid="laporan-cetak-pdf"
+                    class="inline-flex items-center gap-2 rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-2.5 text-sm font-medium text-danger-300 transition hover:bg-danger-500/20 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-danger-500/10"
+                    disabled=move || selected_pengajuan.get().is_none()
                     on:click=move |_| {
-                        let url = build_export_url(
-                            active_tab.get(),
+                        download_export(
+                            jenis_laporan_for_tab(active_tab.get()),
                             "pdf",
-                            &selected_pengajuan.get(),
-                            &selected_satker.get(),
-                            &selected_jenis_kelamin.get(),
-                            &selected_eselon.get(),
-                            &selected_jenis_pegawai.get(),
+                            LaporanQuery {
+                                pengajuan_id: selected_pengajuan.get(),
+                                satker_id: selected_satker.get(),
+                                jenis_pakaian_id: selected_jenis.get(),
+                                jenis_kelamin: selected_jenis_kelamin.get(),
+                                eselon: selected_eselon.get(),
+                                jenis: selected_jenis_pegawai.get(),
+                            },
                         );
-                        open_url(&url);
                     }
                 >
                     <span class="text-xs">
@@ -376,28 +449,39 @@ pub fn PakaianDinasLaporan() -> impl IntoView {
             </div>
 
             // Tab Content
+            //
+            // Both report endpoints take `pengajuan_id` as a REQUIRED `Uuid`
+            // (`LaporanRekapQuery`/`LaporanDaftarQuery` in
+            // `layanan/perlengkapan/src/pakaian_dinas/handlers.rs`), so the
+            // outer `<Show>` is what keeps the tab from mounting — and
+            // therefore from fetching — before one is picked. Gating here
+            // rather than inside the tab matters: a `local_resource` starts
+            // its fetch as soon as the component is built, so a guard placed
+            // around the `<Suspense>` would still fire the request.
             <div class="mt-4">
-                <Show when=move || active_tab.get() == "rekap">
-                    <RekapUkuranTab
-                        pengajuan_id=selected_pengajuan
-                        satker_id=selected_satker
-                        jenis_pakaian_id=selected_jenis
-                        jenis_kelamin=selected_jenis_kelamin
-                        jenis=selected_jenis_pegawai
-                        eselon=selected_eselon
-                    />
-                </Show>
-                <Show when=move || active_tab.get() == "pegawai">
-                    <DaftarPegawaiTab
-                        pengajuan_id=selected_pengajuan
-                        satker_id=selected_satker
-                        jenis_pakaian_id=selected_jenis
-                        jenis_kelamin=selected_jenis_kelamin
-                        jenis=selected_jenis_pegawai
-                        eselon=selected_eselon
-                        page=daftar_page
-                        set_page=set_daftar_page
-                    />
+                <Show when=move || selected_pengajuan.get().is_some() fallback=pilih_pengajuan_prompt>
+                    <Show when=move || active_tab.get() == "rekap">
+                        <RekapUkuranTab
+                            pengajuan_id=selected_pengajuan
+                            satker_id=selected_satker
+                            jenis_pakaian_id=selected_jenis
+                            jenis_kelamin=selected_jenis_kelamin
+                            jenis=selected_jenis_pegawai
+                            eselon=selected_eselon
+                        />
+                    </Show>
+                    <Show when=move || active_tab.get() == "pegawai">
+                        <DaftarPegawaiTab
+                            pengajuan_id=selected_pengajuan
+                            satker_id=selected_satker
+                            jenis_pakaian_id=selected_jenis
+                            jenis_kelamin=selected_jenis_kelamin
+                            jenis=selected_jenis_pegawai
+                            eselon=selected_eselon
+                            page=daftar_page
+                            set_page=set_daftar_page
+                        />
+                    </Show>
                 </Show>
             </div>
         </PageLayout>
