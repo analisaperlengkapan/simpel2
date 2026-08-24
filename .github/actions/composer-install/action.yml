@@ -1,0 +1,96 @@
+name: 'Composer Install (dockerized)'
+description: >-
+  `composer install` untuk monolith Laravel lewat image PHP ter-pin, dengan
+  cache paket yang persist antar-run dan retry untuk kegagalan jaringan
+  transien.
+
+inputs:
+  working-directory:
+    description: 'Direktori yang memuat composer.json / composer.lock.'
+    required: false
+    default: 'monolith/simpelv1'
+  php-image:
+    description: 'Image PHP CLI yang sudah membawa composer.'
+    required: false
+    default: 'serversideup/php:8.2-cli'
+
+# Tiga `composer install` dockerized lain di repo ini SENGAJA tidak memakai
+# action ini — bukan kelupaan:
+#   - security.yml `composer audit --locked` tidak meng-install apa pun; ia
+#     hanya butuh cache advisory-DB, dan advisory JUSTRU harus segar.
+#   - autofix.yml (2 tempat) memanggil composer di tengah kendali alir shell
+#     (`if [ ! -f vendor/bin/pint ]`, `cd && … && pint`), jadi tak bisa jadi
+#     step tersendiri; keduanya juga sudah fail-soft (gagal ⇒ skip, bukan
+#     job merah), sehingga retry di sini tak menambah apa pun untuk mereka.
+runs:
+  using: composite
+  steps:
+    # Kenapa image docker, bukan shivammathur/setup-php@v2: action itu butuh
+    # sudo NOPASSWD untuk memasang PHP + extensions di runner self-hosted;
+    # tanpa itu ia menunggu prompt password dan job HANG ~2 jam.
+    # serversideup/php:8.2-cli sudah membawa PHP 8.2 + composer + extensions
+    # Laravel yang dipakai repo ini.
+    # COMPOSER_HOME sebelumnya diarahkan ke /tmp/composer DI DALAM container
+    # yang dijalankan dengan --rm, jadi cache-nya ikut terhapus tiap step dan
+    # tak pernah dipakai ulang. Taruh di runner.temp (host) supaya bisa
+    # di-mount ke container DAN di-cache oleh actions/cache. Jangan di
+    # workspace: direktorinya akan ikut ter-lint dan mengotori `git status`.
+    - name: Siapkan COMPOSER_HOME di host
+      id: composer-home
+      shell: bash
+      run: |
+        dir="${RUNNER_TEMP}/composer-home"
+        mkdir -p "$dir/cache"
+        echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+    # composer.lock menentukan set paket secara utuh, jadi ia adalah kunci
+    # cache yang tepat. `restore-keys` membuat perubahan lock hanya mengunduh
+    # paket yang benar-benar berubah, bukan seluruh 159 paket.
+    #
+    # Kegagalan layanan cache TIDAK menggagalkan step (actions/cache hanya
+    # memperingatkan), jadi runner tanpa akses cache tetap jalan — hanya
+    # kehilangan percepatannya, dan retry di bawah tetap menjaganya.
+    - name: Cache paket Composer
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.composer-home.outputs.dir }}/cache
+        key: composer-${{ hashFiles(format('{0}/composer.lock', inputs.working-directory)) }}
+        restore-keys: composer-
+
+    # serversideup/php:8.2-cli tidak bundle ext-gd (image minimal). Composer
+    # berhenti karena composer.lock dibuat dengan ext-gd tersedia. Pakai
+    # --ignore-platform-req=ext-gd karena lint/test tidak benar-benar pakai
+    # gd; runtime production pakai image PHP-FPM terpisah yang punya gd.
+    #
+    # Retry-nya BUKAN kosmetik: `--prefer-dist` mematikan source fallback
+    # ("Source fallback is disabled. Not trying alternative sources."), jadi
+    # SATU `curl error 28` di antara 159 unduhan langsung mematikan job —
+    # persis yang menjatuhkan `E2E simpelv1 ↔ gateway` di main @202aea6f.
+    - name: composer install
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        COMPOSER_HOME_HOST: ${{ steps.composer-home.outputs.dir }}
+        PHP_IMAGE: ${{ inputs.php-image }}
+      run: |
+        set -uo pipefail
+        for attempt in 1 2 3; do
+          if docker run --rm \
+              -v "$PWD":/app \
+              -v "${COMPOSER_HOME_HOST}":/composer \
+              -w /app \
+              -u "$(id -u):$(id -g)" \
+              -e COMPOSER_HOME=/composer \
+              --entrypoint composer \
+              "$PHP_IMAGE" \
+              install --prefer-dist --no-progress --no-interaction \
+                      --optimize-autoloader --ignore-platform-req=ext-gd; then
+            exit 0
+          fi
+          if [ "$attempt" -lt 3 ]; then
+            echo "::warning::composer install gagal (percobaan ${attempt}/3) — ulangi dalam $((attempt * 10))s"
+            sleep $((attempt * 10))
+          fi
+        done
+        echo "::error::composer install gagal setelah 3 percobaan"
+        exit 1

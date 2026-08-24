@@ -121,11 +121,17 @@ runs:
           cargo-manifests:
             - '**/Cargo.toml'
             - 'Cargo.lock'
+          # The composer-install action is shared by lint-php, test-monolith and
+          # the simpelv1 e2e job. Without it listed here, editing that action
+          # does NOT re-run the two PHP jobs that consume it — which is exactly
+          # what happened when it was introduced: only the e2e job exercised the
+          # change, because the `e2e` filter below does list workflow paths.
           monolith-php:
             - 'monolith/simpelv1/**/*.php'
             - 'monolith/simpelv1/composer.json'
             - 'monolith/simpelv1/composer.lock'
             - 'monolith/simpelv1/phpunit.xml'
+            - '.github/actions/composer-install/**'
           monolith-blade:
             - 'monolith/simpelv1/**/*.blade.php'
           monolith-assets:
@@ -136,6 +142,7 @@ runs:
             - 'monolith/simpelv1/public/assets/**'
           monolith-any:
             - 'monolith/**'
+            - '.github/actions/composer-install/**'
           typescript:
             - '**/*.ts'
             - '**/*.tsx'
