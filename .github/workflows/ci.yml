@@ -274,6 +274,14 @@ jobs:
       - name: No ```ignore doc example names a nonexistent API
         shell: bash
         run: python3 ./infra/scripts/check-doc-examples.py
+      # `CI Summary` and `Security Summary` are the only two required checks,
+      # and both aggregate via a hand-written `needs:`. A job missing from one
+      # can be red while the gate is green — which is what let
+      # `E2E simpelv1 ↔ gateway` fail on main @202aea6f under a SUCCESS summary.
+      # Derive the scope instead of trusting the lists to be kept up to date.
+      - name: Every job is reported by its required-check summary
+        shell: bash
+        run: python3 ./infra/scripts/check-ci-summary-scope.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
@@ -2314,6 +2322,17 @@ jobs:
       - test-monolith
       - e2e-portal
       - e2e-perlengkapan
+      # Keempat job e2e lintas-service di bawah PERNAH tak ada di daftar ini,
+      # dan `E2E simpelv1 ↔ gateway` sempat merah di main @202aea6f sementara
+      # `CI Summary` melapor success — gate-nya hijau, jobnya merah.
+      # `e2e-build-images` ikut masuk karena kegagalannya men-SKIP semua e2e di
+      # bawahnya, dan skip dihitung lulus oleh agregator.
+      # Dijaga mekanis oleh infra/scripts/check-ci-summary-scope.py.
+      - e2e-build-images
+      - e2e-integrasi-authenc
+      - e2e-portal-cross-app
+      - e2e-secreton-gateway
+      - e2e-simpelv1-integration
     runs-on: arc-simpel
     timeout-minutes: 30
     steps:
