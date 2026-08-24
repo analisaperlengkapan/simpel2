@@ -55,6 +55,9 @@ pub struct PengajuanFilterQuery {
 #[derive(Debug, Deserialize)]
 pub struct LaporanRekapQuery {
     pub pengajuan_id: Uuid,
+    /// MySIMKARI `kode_satker` (V006/#94).
+    pub satker_id: Option<String>,
+    pub jenis_pakaian_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,
@@ -67,6 +70,7 @@ pub struct LaporanDaftarQuery {
     pub pengajuan_id: Uuid,
     /// MySIMKARI `kode_satker` (V006/#94).
     pub satker_id: Option<String>,
+    pub jenis_pakaian_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,
@@ -627,6 +631,8 @@ pub async fn get_laporan_rekap_ukuran(
 ) -> Result<Json<ApiResponse<Vec<LaporanRekapUkuran>>>, AppError> {
     let filter = LaporanFilter {
         pengajuan_id: Some(query.pengajuan_id),
+        satker_id: query.satker_id,
+        jenis_pakaian_id: query.jenis_pakaian_id,
         jenis_kelamin: query.jenis_kelamin,
         eselon: query.eselon,
         jenis: query.jenis,
@@ -653,6 +659,7 @@ pub async fn get_laporan_daftar_pegawai(
     let filter = LaporanFilter {
         pengajuan_id: Some(query.pengajuan_id),
         satker_id: query.satker_id,
+        jenis_pakaian_id: query.jenis_pakaian_id,
         jenis_kelamin: query.jenis_kelamin,
         eselon: query.eselon,
         jenis: query.jenis,
@@ -776,6 +783,7 @@ pub struct CetakQuery {
     pub pengajuan_id: Uuid,
     /// MySIMKARI `kode_satker` (V006/#94).
     pub satker_id: Option<String>,
+    pub jenis_pakaian_id: Option<Uuid>,
     pub jenis_kelamin: Option<String>,
     pub eselon: Option<String>,
     pub jenis: Option<String>,
@@ -794,6 +802,7 @@ pub async fn cetak_laporan(
     let filter = LaporanFilter {
         pengajuan_id: Some(query.pengajuan_id),
         satker_id: query.satker_id,
+        jenis_pakaian_id: query.jenis_pakaian_id,
         jenis_kelamin: query.jenis_kelamin,
         eselon: query.eselon,
         jenis: query.jenis,
