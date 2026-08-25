@@ -3,8 +3,35 @@
 use crate::dashboard::models::*;
 use crate::dashboard::repository;
 use crate::shared::error::AppError;
+use crate::shared::pdf::{PageGeometry, PdfBuilder};
 use deadpool_postgres::Pool;
 use rust_xlsxwriter::*;
+
+/// Left margin of the dashboard PDF (mm) — shared by the headings and the table
+/// so section titles line up with the column grid.
+const DASHBOARD_MARGIN_L: f32 = 15.0;
+
+/// Gap-analysis column widths (mm), in header order; sums to the drawable width
+/// of A4 portrait at the margins below (210 - 15 - 15 = 180).
+const GAP_COL_W: [f32; 3] = [40.0, 115.0, 25.0];
+
+/// A4 **portrait**: three columns fit comfortably, unlike the eight-column
+/// kebutuhan rekap which needs landscape.
+fn dashboard_geom() -> PageGeometry {
+    PageGeometry {
+        page_w: 210.0,
+        page_h: 297.0,
+        margin_l: DASHBOARD_MARGIN_L,
+        margin_r: 15.0,
+        margin_top: 280.0,
+        margin_bottom: 15.0,
+        row_h: 6.0,
+        cell_font: 8.0,
+        cell_pad_x: 1.5,
+        cell_trunc_pad: 2.0,
+        auto_paginate: true,
+    }
+}
 
 /// Service to aggregate all dashboard metrics
 #[derive(Clone)]
@@ -105,21 +132,104 @@ impl DashboardService {
     }
 
     /// Export dashboard metrics to PDF
+    /// Render the dashboard as a REAL PDF via the shared [`PdfBuilder`].
+    ///
+    /// This used to build an HTML string and return `html.as_bytes()` while the
+    /// handler stamped `Content-Type: application/pdf` and
+    /// `filename="dashboard_perlengkapan_<year>.pdf"` — so "Export PDF" handed
+    /// the user a .pdf file that no PDF reader can open, with a 200 and no
+    /// error anywhere. The e2e test could not see it either: it asserted only
+    /// that the downloaded filename ended in `.pdf`.
+    ///
+    /// The placeholder's own TODO pointed at the `dokumen` template pipeline,
+    /// which needs a `dashboard_perlengkapan` template seeded in the database
+    /// first. That indirection is unnecessary: `crate::shared::pdf::PdfBuilder`
+    /// is the printpdf-based renderer four other reports already use
+    /// (kebutuhan_bmn rekap, pakaian_dinas, pemakaian_bmn SK, penghapusan), it
+    /// needs no template row, and it paginates tables. Using it here makes the
+    /// dashboard export consistent with every other PDF this service emits.
     pub async fn export_dashboard_to_pdf(
         &self,
         metrics: &PerlengkapanDashboardMetrics,
         tahun_anggaran: i32,
     ) -> Result<Vec<u8>, AppError> {
-        // For PDF, we'll create a simple HTML representation and convert
-        // In production, you'd want to use a proper PDF library or service
+        let total_kebutuhan: i64 = metrics.kebutuhan_metrics.total_by_status.values().sum();
+        let total_pakaian: i64 = metrics.pakaian_dinas_metrics.total_by_jenis.values().sum();
 
-        let html = self.generate_dashboard_html(metrics, tahun_anggaran)?;
+        let mut pdf = PdfBuilder::new("Dashboard Perlengkapan", dashboard_geom())?;
 
-        // For now, return a simple PDF with text
-        // In production, integrate with wkhtmltopdf or headless Chrome
-        let pdf_bytes = self.html_to_simple_pdf(&html)?;
+        pdf.write_centered("DASHBOARD PERLENGKAPAN", 14.0, true);
+        pdf.advance(6.0);
+        pdf.write_centered(&format!("Tahun Anggaran {}", tahun_anggaran), 10.0, false);
+        pdf.advance(5.0);
+        pdf.write_centered(
+            &format!(
+                "Dibuat: {}",
+                chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+            ),
+            8.0,
+            false,
+        );
+        pdf.advance(9.0);
 
-        Ok(pdf_bytes)
+        pdf.write_text("Kebutuhan BMN", 11.0, true, DASHBOARD_MARGIN_L);
+        pdf.advance(5.0);
+        pdf.write_text(
+            &format!("Total pengajuan: {}", total_kebutuhan),
+            9.0,
+            false,
+            DASHBOARD_MARGIN_L,
+        );
+        pdf.advance(9.0);
+
+        pdf.write_text("Pakaian Dinas", 11.0, true, DASHBOARD_MARGIN_L);
+        pdf.advance(5.0);
+        pdf.write_text(
+            &format!("Total pengajuan: {}", total_pakaian),
+            9.0,
+            false,
+            DASHBOARD_MARGIN_L,
+        );
+        pdf.advance(9.0);
+
+        pdf.write_text("Gap Analysis (Top 10)", 11.0, true, DASHBOARD_MARGIN_L);
+        pdf.advance(6.0);
+
+        let headers: Vec<String> = ["Kode Barang", "Nama Barang", "Gap"]
+            .iter()
+            .map(|h| h.to_string())
+            .collect();
+        pdf.row(&GAP_COL_W, &headers, true, true);
+
+        if metrics.gap_analysis.is_empty() {
+            // An empty section must SAY it is empty. A table that just stops
+            // is indistinguishable from a table that failed to render.
+            pdf.row(
+                &GAP_COL_W,
+                &[
+                    "-".to_string(),
+                    "Tidak ada data gap analysis".to_string(),
+                    "-".to_string(),
+                ],
+                false,
+                true,
+            );
+        } else {
+            for item in &metrics.gap_analysis {
+                pdf.row(
+                    &GAP_COL_W,
+                    &[
+                        item.kode_barang.to_string(),
+                        item.nama_barang.to_string(),
+                        item.gap.to_string(),
+                    ],
+                    false,
+                    true,
+                );
+            }
+        }
+
+        pdf.finish()
     }
 
     // Helper methods for Excel export
@@ -326,91 +436,4 @@ impl DashboardService {
     }
 
     // Helper methods for PDF export
-
-    fn generate_dashboard_html(
-        &self,
-        metrics: &PerlengkapanDashboardMetrics,
-        tahun_anggaran: i32,
-    ) -> Result<String, AppError> {
-        let total_kebutuhan: i64 = metrics.kebutuhan_metrics.total_by_status.values().sum();
-        let total_pakaian: i64 = metrics.pakaian_dinas_metrics.total_by_jenis.values().sum();
-
-        let html = format!(
-            r#"
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard Perlengkapan {}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; margin: 20px; }}
-        h1 {{ color: #333; }}
-        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
-        th {{ background-color: #4472C4; color: white; }}
-        .section {{ margin: 30px 0; }}
-    </style>
-</head>
-<body>
-    <h1>Dashboard Perlengkapan</h1>
-    <p>Tahun Anggaran: {}</p>
-    <p>Generated: {}</p>
-
-    <div class="section">
-        <h2>Kebutuhan BMN</h2>
-        <p>Total: {}</p>
-    </div>
-
-    <div class="section">
-        <h2>Gap Analysis (Top 10)</h2>
-        <table>
-            <tr>
-                <th>Kode Barang</th>
-                <th>Nama Barang</th>
-                <th>Gap</th>
-            </tr>
-            {}
-        </table>
-    </div>
-
-    <div class="section">
-        <h2>Pakaian Dinas</h2>
-        <p>Total: {}</p>
-    </div>
-</body>
-</html>
-            "#,
-            tahun_anggaran,
-            tahun_anggaran,
-            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S"),
-            total_kebutuhan,
-            metrics
-                .gap_analysis
-                .iter()
-                .map(|item| format!(
-                    "<tr><td>{}</td><td>{}</td><td>{}</td></tr>",
-                    item.kode_barang, item.nama_barang, item.gap
-                ))
-                .collect::<Vec<_>>()
-                .join("\n"),
-            total_pakaian,
-        );
-
-        Ok(html)
-    }
-
-    fn html_to_simple_pdf(&self, html: &str) -> Result<Vec<u8>, AppError> {
-        // This is a placeholder implementation
-        // In production, use wkhtmltopdf, headless Chrome, or a PDF library
-
-        // For now, return a simple text-based PDF
-        // You would integrate with printpdf or similar library here
-
-        // Placeholder: return HTML as bytes (not a real PDF).
-        // TODO(dashboard-pdf-export): route through the unified
-        // `Arc<dyn DocumentGenerator>` port (see crate::dokumen::service)
-        // once a `dashboard_perlengkapan` template is seeded. Until then
-        // the dashboard export emits HTML bytes so callers don't 500.
-        Ok(html.as_bytes().to_vec())
-    }
 }

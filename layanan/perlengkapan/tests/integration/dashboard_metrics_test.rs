@@ -166,23 +166,35 @@ async fn dashboard_stats_aggregates_the_siman_sot() {
 /// they inherit every metrics fault — which is why #116 reported BOTH formats
 /// failing even though pdf never touches the spreadsheet writer.
 ///
-/// Asserting a non-empty body matters: a handler that returns 200 with zero
-/// bytes would satisfy a status-only check while producing an unopenable file.
+/// Asserting a non-empty body was NOT enough, and this test proves why it now
+/// checks the file SIGNATURE instead.
+///
+/// `export/pdf` returned 200 with a non-empty body for months while serving an
+/// HTML document under `Content-Type: application/pdf` and
+/// `filename="dashboard_perlengkapan_<year>.pdf"` — `html_to_simple_pdf` was a
+/// placeholder that returned `html.as_bytes()`. Users clicking "Export PDF" got
+/// a .pdf no reader can open, with no error anywhere in the stack. Status +
+/// length could never see it; the first four bytes can.
 #[tokio::test]
-async fn dashboard_exports_produce_a_non_empty_document() {
+async fn dashboard_exports_produce_a_document_of_the_declared_format() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    for fmt in ["excel", "pdf"] {
+    // (format, magic bytes). XLSX is a ZIP container, hence "PK".
+    for (fmt, magic) in [("excel", b"PK".as_slice()), ("pdf", b"%PDF-".as_slice())] {
         let res = get(
             &server,
             &format!("/dashboard/perlengkapan/export/{fmt}?tahun_anggaran=2026"),
         )
         .await;
         assert_eq!(res.status_code(), 200, "export/{fmt}: {}", res.text());
+        let body = res.as_bytes();
+        assert!(!body.is_empty(), "export/{fmt} returned an empty body");
         assert!(
-            !res.as_bytes().is_empty(),
-            "export/{fmt} returned an empty body"
+            body.starts_with(magic),
+            "export/{fmt} is not really {fmt}: expected it to start with {:?}, got {:?}",
+            String::from_utf8_lossy(magic),
+            String::from_utf8_lossy(&body[..body.len().min(32)])
         );
     }
 
