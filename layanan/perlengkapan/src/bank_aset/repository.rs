@@ -17,6 +17,32 @@ fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSq
         .collect()
 }
 
+/// SQL for an asset's type ("kategori") — deliberately read from SIMAN's
+/// `jenis_aset`, not from `kategori_aset`.
+///
+/// `kategori_aset` is written by NO ingest path: grepping `layanan/integrasi`
+/// for it returns nothing, and on staging it is NULL in 624 528 of 624 533 rows
+/// — the only populated rows are the five the e2e seed inserts itself. So every
+/// surface keyed on it was dead against real data: the dashboard breakdown
+/// panicked on the NULL group (killing the process, since `panic = "abort"`),
+/// the "Total Kategori" tile counted 0, the filter dropdown came back empty
+/// (`WHERE col IS NOT NULL`), and the list table rendered a blank column on
+/// every row.
+///
+/// `jenis_aset` is the SIMAN discriminator the owning service itself filters on
+/// ("unified siman_aset table filtered by jenis_aset",
+/// `layanan/integrasi/src/grpc/service.rs`), it is populated for all 624 533
+/// rows, and it carries the real BMN taxonomy: Tanah, Gedung dan Bangunan,
+/// Alat Angkutan Bermotor, Peralatan Mesin Khusus/Non TIK, Alat Persenjataan,
+/// Alat Besar, Aset Tetap Lainnya, Aset Tak Berwujud, Konstruksi Dalam
+/// Pengerjaan, Rumah Negara, Instalasi dan Jaringan, Jalan dan Jembatan,
+/// Bangunan Air, Aset Tetap Renovasi.
+///
+/// Kept as one constant because the list projection, the aggregate, the filter
+/// predicate and the dropdown options MUST agree — if the dropdown offers a
+/// value the predicate cannot match, filtering silently returns nothing.
+const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DIKETAHUI')";
+
 #[derive(Clone)]
 pub struct BankAsetRepository {
     pool: Pool,
@@ -53,7 +79,7 @@ impl BankAsetRepository {
         }
         if let Some(cat) = &filter.kategori {
             params.push(Box::new(cat.clone()));
-            conditions.push(format!("kategori_aset = ${}", params.len()));
+            conditions.push(format!("{ASSET_KATEGORI_SQL} = ${}", params.len()));
         }
         if let Some(kondisi) = &filter.kondisi {
             params.push(Box::new(kondisi.clone()));
@@ -112,7 +138,7 @@ impl BankAsetRepository {
         };
 
         let list_sql = format!(
-            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
+            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
              (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
              tgl_perlh, updated_at
              FROM integrasi.siman_aset
@@ -231,7 +257,7 @@ impl BankAsetRepository {
             None => String::new(),
         };
         let sql = format!(
-            "SELECT id, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
+            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
              (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
              tgl_perlh, updated_at
              FROM integrasi.siman_aset WHERE id = $1{scope_clause}"
@@ -274,7 +300,7 @@ impl BankAsetRepository {
                     COUNT(*)::BIGINT AS total_aset,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS total_nilai,
                     COUNT(DISTINCT nama_satker)::BIGINT AS total_satker,
-                    COUNT(DISTINCT kategori_aset)::BIGINT AS total_kategori
+                    COUNT(DISTINCT {ASSET_KATEGORI_SQL})::BIGINT AS total_kategori
                  FROM integrasi.siman_aset{where_clause}"
                 ),
                 &p,
@@ -310,11 +336,13 @@ impl BankAsetRepository {
         let kat_rows = client
             .query(
                 &format!(
-                    "SELECT kategori_aset,
+                    // The asset-type axis comes from SIMAN's `jenis_aset`, NOT
+                    // from `kategori_aset` — see ASSET_KATEGORI_SQL.
+                    "SELECT {ASSET_KATEGORI_SQL} AS kategori_aset,
                     COUNT(*)::BIGINT AS count,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS nilai
                  FROM integrasi.siman_aset{where_clause}
-                 GROUP BY kategori_aset
+                 GROUP BY {ASSET_KATEGORI_SQL}
                  ORDER BY count DESC"
                 ),
                 &p,
@@ -524,7 +552,10 @@ impl BankAsetRepository {
 
         Ok(BankAsetFilterOptions {
             jenis: distinct(&client, "jenis_aset", &and_clause, &scope_p).await?,
-            kategori: distinct(&client, "kategori_aset", &and_clause, &scope_p).await?,
+            // Same expression as the list projection and the filter predicate:
+            // a dropdown that offers values the predicate cannot match filters
+            // to nothing.
+            kategori: distinct(&client, ASSET_KATEGORI_SQL, &and_clause, &scope_p).await?,
             kondisi: distinct(&client, "ur_kondisi", &and_clause, &scope_p).await?,
             satker: distinct(&client, "nama_satker", &and_clause, &scope_p).await?,
         })
