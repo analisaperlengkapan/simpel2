@@ -153,10 +153,23 @@ pub struct AuthencClient {
 }
 
 impl AuthencClient {
-    pub async fn connect(addr: String) -> Result<Self> {
-        let client = AuthencServiceClient::connect(addr).await?;
+    /// Connect lazily.
+    ///
+    /// The eager `AuthencServiceClient::connect` this replaced resolved the
+    /// upstream ONCE at boot. Losing that race — authenc not yet listening
+    /// while perlengkapan burned its five retries — left `client: None`
+    /// permanently, and `None` is the accept-all dev dummy below. That is not
+    /// a hypothetical: staging ran 69 days that way, authenticating every
+    /// bearer token as `admin`, because the failure is silent and `401 without
+    /// a token` keeps working the whole time.
+    ///
+    /// `connect_lazy` never fails at startup and reconnects transparently, so
+    /// a slow upstream produces a failed *call* (surfaced as 401) instead of a
+    /// permanently degraded *client*. Same pattern as `layanan/gateway`.
+    pub fn connect_lazy(addr: String) -> Result<Self> {
+        let channel = Channel::from_shared(addr)?.connect_lazy();
         Ok(Self {
-            client: Some(client),
+            client: Some(AuthencServiceClient::new(channel)),
         })
     }
 
