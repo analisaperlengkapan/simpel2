@@ -41,6 +41,12 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "003_satker_code_mapping.sql",
         include_str!("../../migrations/003_satker_code_mapping.sql"),
     ),
+    // MUST stay after 003: it repoints `v_satker_code_map` at the materialized
+    // snapshot, and 003 recreates the slow definition on every run.
+    (
+        "004_satker_code_map_materialized.sql",
+        include_str!("../../migrations/004_satker_code_map_materialized.sql"),
+    ),
 ];
 
 #[tokio::main]
@@ -76,6 +82,26 @@ async fn main() {
             error!("Database connection error: {e}");
         }
     });
+
+    // `--refresh-satker-map`: refresh ONLY the satker code-map snapshot, without
+    // re-applying any DDL. Used by the `integrasi-satker-map-refresh` CronJob,
+    // which has to run between deploys (see 004_satker_code_map_materialized.sql:
+    // a stale snapshot makes satker-scoped users fail closed to zero rows). The
+    // full migrate path also refreshes, but re-running every CREATE OR REPLACE
+    // against a live database on a 6-hourly timer is more blast radius than a
+    // refresh needs.
+    if std::env::args().any(|a| a == "--refresh-satker-map") {
+        info!("integrasi-migrate: refreshing satker code-map snapshot…");
+        if let Err(e) = client
+            .batch_execute("REFRESH MATERIALIZED VIEW integrasi.mv_satker_code_map_auto;")
+            .await
+        {
+            error!("integrasi-migrate: satker code-map refresh failed: {e}");
+            std::process::exit(1);
+        }
+        info!("integrasi-migrate: satker code-map refreshed ✅");
+        return;
+    }
 
     for (name, sql) in MIGRATIONS {
         info!("integrasi-migrate: applying {name}…");
