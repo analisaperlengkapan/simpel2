@@ -765,6 +765,20 @@ app-2026:
   containerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
+  # nginx menulis ke /var/cache/nginx dan /var/run saat start, sementara chart
+  # menyetel `readOnlyRootFilesystem: true`. Tanpa dua emptyDir ini nginx mati
+  # sebelum melayani apa pun:
+  #   [emerg] mkdir() "/var/cache/nginx/client_temp" failed (30: Read-only file system)
+  # Sama persis dengan yang sudah dipunyai portal dan FE perlengkapan; app-2026
+  # satu-satunya yang terlewat karena ia workload paling baru. Anotasi
+  # pengecualian Velero DITURUNKAN dari daftar `volumes` ini oleh
+  # `simpel.veleroExcludedVolumes`, jadi tak ada langkah manual menyusul.
+  volumeMounts:
+    - { name: nginx-cache, mountPath: /var/cache/nginx }
+    - { name: nginx-run,   mountPath: /var/run }
+  volumes:
+    - { name: nginx-cache, emptyDir: {} }
+    - { name: nginx-run,   emptyDir: {} }
   probes:
     liveness:
       type: http
