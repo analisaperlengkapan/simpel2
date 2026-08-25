@@ -231,45 +231,23 @@ async fn main() -> anyhow::Result<()> {
         ));
     }
 
+    // Authenc is the ONLY thing standing between a bearer token and admin, so
+    // this client must never silently become the accept-all dummy. It used to:
+    // five eager retries at boot, then fall through to `dummy()` on anything
+    // short of production. Staging lost that race and spent 69 days accepting
+    // every token as `admin` — silently, because a missing token still 401s.
+    //
+    // Lazy connect removes the fallback entirely. An unreachable authenc now
+    // fails the *call* (401 for that request) instead of downgrading the
+    // *process* for its whole lifetime, and it recovers on its own once
+    // authenc comes up — no restart, no ordering requirement between pods.
     let authenc_client = if skip_authenc {
         info!("SKIP_AUTHENC=true, using dummy Authenc client (dev mode)");
         AuthencClient::dummy()
     } else {
-        info!("Connecting to Authenc at {}", authenc_url);
-        let mut retries = 5;
-        let mut client = None;
-        let mut delay = tokio::time::Duration::from_secs(1);
-
-        while retries > 0 {
-            match AuthencClient::connect(authenc_url.clone()).await {
-                Ok(c) => {
-                    client = Some(c);
-                    break;
-                }
-                Err(e) => {
-                    error!(
-                        "Failed to connect to Authenc: {}. Retrying in {:?}...",
-                        e, delay
-                    );
-                    tokio::time::sleep(delay).await;
-                    delay *= 2;
-                    retries -= 1;
-                }
-            }
-        }
-        match client {
-            Some(c) => c,
-            None if is_production => {
-                return Err(anyhow::anyhow!(
-                    "Could not connect to Authenc at {} after retries; refusing to start in production",
-                    authenc_url
-                ));
-            }
-            None => {
-                error!("Could not connect to Authenc after retries, starting with dummy client");
-                AuthencClient::dummy()
-            }
-        }
+        info!("Authenc client (lazy) targeting {}", authenc_url);
+        AuthencClient::connect_lazy(authenc_url.clone())
+            .map_err(|e| anyhow::anyhow!("Invalid AUTHENC_GRPC_URL {}: {}", authenc_url, e))?
     };
 
     // Initialize Integrasi Client (optional, service continues if unavailable)
