@@ -751,7 +751,17 @@ app-2026:
   resources:
     requests: { cpu: 10m,  memory: 32Mi }
     limits:   { cpu: 100m, memory: 64Mi }
-  podSecurityContext: {}
+  # uid/gid NUMERIK wajib. Chart menyetel `runAsNonRoot: true`, dan kubelet
+  # menolak menjalankan container kalau image mendeklarasikan user non-numerik
+  # (`USER nginx`): ia tak bisa membuktikan uid-nya bukan 0, jadi pod berhenti
+  # di `CreateContainerConfigError` — bukan CrashLoop, jadi tak ada log aplikasi
+  # yang menjelaskannya. Terukur 2026-08-25 saat rc25 pertama kali membuat
+  # workload ini. 101 = uid nginx di image resmi, sama dengan portal & FE
+  # perlengkapan di bawah.
+  podSecurityContext:
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
   containerSecurityContext:
     allowPrivilegeEscalation: false
     capabilities: { drop: [ALL] }
