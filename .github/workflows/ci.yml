@@ -1690,14 +1690,33 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color --tail=300 || true
             exit 1
           fi
-      - name: Wait for stack (authenc + perlengkapan FE, on compose network)
+      # `layanan-perlengkapan` (the BACKEND) is in this gate, not just the FE.
+      # It is the only service in the stack whose migrations do NOT run in a
+      # one-shot `*-migrate` container: it self-migrates (refinery) at boot, so
+      # the bring-up step's "wait for migrate containers to complete" covers
+      # authenc and integrasi but structurally cannot cover perlengkapan. With
+      # only authenc + the FE nginx probed, "stack ready" could — and did —
+      # fire while the `perlengkapan` schema did not yet exist, and the seed
+      # step immediately after failed with
+      #   relation "perlengkapan.pengajuan_kebutuhan_bmn" does not exist.
+      # Observed race (run 32906148313): gate passed at :39.567 while the
+      # backend was still in its Integrasi connect-retry loop — that loop runs
+      # BEFORE the DB connection and migrations, so an OPTIONAL dependency was
+      # delaying mandatory schema work; integrasi's gRPC only bound at :41.228,
+      # 0.3s after the seed had already failed at :40.965.
+      # `/health` is served from the router that is built and bound only after
+      # `migrations::run` (layanan/perlengkapan/src/main.rs), so a 200 here is a
+      # DERIVED proof that the schema exists — not a hand-maintained list of
+      # things someone remembered to wait for.
+      - name: Wait for stack (authenc + perlengkapan FE + perlengkapan API, on compose network)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
           echo "stack network: ${NET:?simpel-network not found}"
           docker run --rm --network "$NET" curlimages/curl:8.11.1 sh -c '
             for i in $(seq 1 60); do
               if curl -sf http://authenc:8088/health >/dev/null \
-                 && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null; then
+                 && curl -sf http://perlengkapan:8080/perlengkapan/ >/dev/null \
+                 && curl -sf http://layanan-perlengkapan:3020/health >/dev/null; then
                 echo "stack ready after $i tries"; exit 0; fi
               sleep 5
             done

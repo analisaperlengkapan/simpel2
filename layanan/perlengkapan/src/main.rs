@@ -250,7 +250,37 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| anyhow::anyhow!("Invalid AUTHENC_GRPC_URL {}: {}", authenc_url, e))?
     };
 
-    // Initialize Integrasi Client (optional, service continues if unavailable)
+    // Initialize database connection
+    info!("Connecting to database...");
+    let db = Database::new(&database_url).await?;
+
+    // Keep the dynamic DB lease alive. Renewal extends the issued Postgres
+    // role's validity in place — the pool keeps working with the same
+    // credentials, so no in-process pool swap is needed in steady state. Only
+    // at the hard rotation boundary (max renewals reached, or renewal failure)
+    // do we exit so Kubernetes restarts the pod and re-acquires fresh creds.
+    if let (Some(client), Some(lease)) = (secreton_client.clone(), db_lease.clone()) {
+        spawn_db_lease_renewal(client, lease);
+    }
+
+    // Run migrations:
+    // 1. Refinery against the SQL files under `migrations/` (real schema).
+    // 2. Legacy hand-coded `CREATE TABLE` statements in
+    //    `Database::migrate` — kept for now until every table they create
+    //    has a corresponding refinery migration.
+    info!("Running refinery migrations...");
+    layanan_perlengkapan::migrations::run(db.pool()).await?;
+
+    // Initialize Integrasi Client (optional, service continues if unavailable).
+    //
+    // Deliberately AFTER the migrations above: this client is optional (a
+    // failure here only disables the MySIMKARI rekap), while the migrations are
+    // mandatory — they create the `perlengkapan` schema. Running the retry loop
+    // first meant an optional dependency delayed mandatory schema work by up to
+    // ~7s, which is how a slow `layanan-integrasi` made the e2e seed step fail
+    // with `relation "perlengkapan.pengajuan_kebutuhan_bmn" does not exist`
+    // (run 32906148313): the schema simply did not exist yet. It also spent the
+    // startupProbe budget on a dependency the service does not need to serve.
     let integrasi_client = {
         info!("Connecting to Integrasi at {}", integrasi_url);
         let mut retries = 3;
@@ -282,27 +312,6 @@ async fn main() -> anyhow::Result<()> {
         }
         client
     };
-
-    // Initialize database connection
-    info!("Connecting to database...");
-    let db = Database::new(&database_url).await?;
-
-    // Keep the dynamic DB lease alive. Renewal extends the issued Postgres
-    // role's validity in place — the pool keeps working with the same
-    // credentials, so no in-process pool swap is needed in steady state. Only
-    // at the hard rotation boundary (max renewals reached, or renewal failure)
-    // do we exit so Kubernetes restarts the pod and re-acquires fresh creds.
-    if let (Some(client), Some(lease)) = (secreton_client.clone(), db_lease.clone()) {
-        spawn_db_lease_renewal(client, lease);
-    }
-
-    // Run migrations:
-    // 1. Refinery against the SQL files under `migrations/` (real schema).
-    // 2. Legacy hand-coded `CREATE TABLE` statements in
-    //    `Database::migrate` — kept for now until every table they create
-    //    has a corresponding refinery migration.
-    info!("Running refinery migrations...");
-    layanan_perlengkapan::migrations::run(db.pool()).await?;
 
     // NOTE: there is deliberately no boot-time index step here. `add_essential_indexes`
     // used to run 19 DDL statements at startup; measured against the real baseline, 10
