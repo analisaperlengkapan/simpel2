@@ -16,12 +16,18 @@
  * Pure API (no browser): uses Playwright's `request` fixture against
  * AUTHENC_URL (login) + PERLENGKAPAN_API_URL (layanan-perlengkapan). Requires
  * the e2e stack up AND the multi-satker fixture loaded
- * (tests/fixtures/e2e/seed-multisatker.sql). Counts are exact because the CI
- * stack starts from an empty dbsimpelv2 that only this seed populates.
+ * (tests/fixtures/e2e/seed-multisatker.sql).
+ *
+ * Every expectation is DERIVED from the environment under test — no row counts
+ * and no satker codes are written down here. That is what lets one suite certify
+ * both the empty CI stack and staging's real 624k-row SIMAN snapshot; see the
+ * fixture-table comment in helpers/real-auth.ts for what the hard-coded form
+ * did when it was first pointed at staging.
  */
 import { test, expect } from '@playwright/test';
 import {
   TEST_USERS,
+  userByKey,
   credsFor,
   apiLogin,
   bankAsetList,
@@ -29,6 +35,8 @@ import {
   bankAsetDetail,
   adminMasterList,
   decodeJwtIdentity,
+  deriveScope,
+  scopedTotalFor,
 } from './helpers/real-auth';
 
 test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
@@ -45,37 +53,117 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
     });
   }
 
-  // ── Layer 2: the backend enforces the scope (exact counts + isolation) ────
-  for (const user of TEST_USERS) {
-    test(`bank-aset scoped to ${user.expectedAsetCount} row(s) — ${user.key} (${user.role})`, async ({
-      request,
-    }) => {
+  // ── Layer 2: the backend enforces the scope ──────────────────────────────
+  //
+  // A satker-bound role must see exactly ONE satker. This is the leak detector:
+  // a second satker in the result is a counter-example no matter how much data
+  // the environment holds, and it needs no allowlist to recognise one.
+  for (const user of TEST_USERS.filter((u) => u.tier === 'satker')) {
+    test(`sees exactly one satker — ${user.key} (${user.role})`, async ({ request }) => {
       const { accessToken } = await apiLogin(request, credsFor(user));
-      const body = await bankAsetListJson(request, accessToken);
+      const scope = await deriveScope(request, accessToken);
 
-      expect(body.total, `total visible to ${user.key}`).toBe(user.expectedAsetCount);
-      expect(body.data.length, `rows returned to ${user.key}`).toBe(user.expectedAsetCount);
+      expect(scope.total, `${user.key} should see some assets`).toBeGreaterThan(0);
+      expect(
+        scope.satkerNames,
+        `${user.key} (${user.role}) is satker-bound but saw ${scope.satkerNames.length} satkers`,
+      ).toHaveLength(1);
+    });
+  }
 
-      // Per-row isolation: every visible asset belongs to an allowed satker.
-      const seen = [...new Set(body.data.map((a) => a.kode_satker))].sort();
-      for (const kd of seen) {
-        expect(
-          user.allowedKdsatkerKeu,
-          `${user.key} (${user.role}) leaked an asset of kdsatker_keu=${kd}`,
-        ).toContain(kd);
-      }
+  // The cross-path check: what a satker-bound user sees IMPLICITLY must equal
+  // what a national user sees when filtering EXPLICITLY to that same satker.
+  // Two independent code paths (`AsetScope::from_claims` vs the `satker` query
+  // filter) agreeing on an exact total is strong evidence the scope is right —
+  // and it holds whatever the underlying row count is.
+  for (const user of TEST_USERS.filter((u) => u.tier === 'satker')) {
+    test(`implicit scope equals explicit national filter — ${user.key}`, async ({ request }) => {
+      const pusat = userByKey('validator_pusat');
+      const tok = (await apiLogin(request, credsFor(user))).accessToken;
+      const tokPusat = (await apiLogin(request, credsFor(pusat))).accessToken;
+
+      const scope = await deriveScope(request, tok);
+      const satkerName = scope.satkerNames[0];
+      expect(satkerName, `${user.key} must resolve to a satker`).toBeTruthy();
+
+      const national = await scopedTotalFor(request, tokPusat, satkerName);
+      expect(
+        scope.total,
+        `${user.key} sees ${scope.total} rows for "${satkerName}" but a national ` +
+          `user filtering to that satker sees ${national}`,
+      ).toBe(national);
+    });
+  }
+
+  // A filter must INTERSECT the caller's scope, never replace it. Asking for
+  // someone else's satker returns nothing rather than widening access.
+  test('a satker-bound user cannot widen scope via the satker filter', async ({ request }) => {
+    const opA = userByKey('operator_a');
+    const opB = userByKey('operator_b');
+    const tokA = (await apiLogin(request, credsFor(opA))).accessToken;
+    const tokB = (await apiLogin(request, credsFor(opB))).accessToken;
+
+    const foreignName = (await deriveScope(request, tokB)).satkerNames[0];
+    expect(foreignName, 'operator_b must resolve to a satker').toBeTruthy();
+
+    const widened = await scopedTotalFor(request, tokA, foreignName);
+    expect(
+      widened,
+      `operator_a asked for "${foreignName}" and got ${widened} rows — the ` +
+        `satker filter replaced the scope instead of intersecting it`,
+    ).toBe(0);
+  });
+
+  // Tier ordering: a wilayah user must see at least its member satkers, and a
+  // national user at least the wilayah. Exact totals via the explicit filter,
+  // so this is not a sampled comparison.
+  test('scope widens monotonically satker → wilayah → nasional', async ({ request }) => {
+    const opA = userByKey('operator_a');
+    const wil = userByKey('validator_wilayah');
+    const pusat = userByKey('validator_pusat');
+    const tokA = (await apiLogin(request, credsFor(opA))).accessToken;
+    const tokW = (await apiLogin(request, credsFor(wil))).accessToken;
+    const tokP = (await apiLogin(request, credsFor(pusat))).accessToken;
+
+    const scopeA = await deriveScope(request, tokA);
+    const scopeW = await deriveScope(request, tokW);
+    const scopeP = await deriveScope(request, tokP);
+    const satkerA = scopeA.satkerNames[0];
+
+    expect(scopeW.total, 'wilayah must be at least as wide as its satker').toBeGreaterThanOrEqual(scopeA.total);
+    expect(scopeP.total, 'nasional must be at least as wide as wilayah').toBeGreaterThanOrEqual(scopeW.total);
+
+    // Containment, exactly: the wilayah user sees operator_a's satker in full.
+    expect(
+      await scopedTotalFor(request, tokW, satkerA),
+      `validator_wilayah must see all of "${satkerA}" (operator_a sees ${scopeA.total})`,
+    ).toBe(scopeA.total);
+  });
+
+  // Satker-internal chain (#96): same satker ⇒ identical scope, whatever its size.
+  for (const user of TEST_USERS.filter((u) => u.sameScopeAs)) {
+    test(`${user.key} has the same scope as ${user.sameScopeAs}`, async ({ request }) => {
+      const peer = userByKey(user.sameScopeAs!);
+      const tok = (await apiLogin(request, credsFor(user))).accessToken;
+      const tokPeer = (await apiLogin(request, credsFor(peer))).accessToken;
+
+      const scope = await deriveScope(request, tok);
+      const peerScope = await deriveScope(request, tokPeer);
+
+      expect(scope.total, `${user.key} vs ${peer.key} total`).toBe(peerScope.total);
+      expect(scope.satkerNames, `${user.key} vs ${peer.key} satkers`).toEqual(peerScope.satkerNames);
     });
   }
 
   // ── Cross-satker isolation: two operators see mutually disjoint data ──────
   test('operators in different satkers are mutually isolated', async ({ request }) => {
-    const opA = TEST_USERS.find((u) => u.key === 'operator_a')!;
-    const opB = TEST_USERS.find((u) => u.key === 'operator_b')!;
+    const opA = userByKey('operator_a');
+    const opB = userByKey('operator_b');
     const tokA = (await apiLogin(request, credsFor(opA))).accessToken;
     const tokB = (await apiLogin(request, credsFor(opB))).accessToken;
 
-    const kdA = new Set((await bankAsetListJson(request, tokA)).data.map((a) => a.kode_satker));
-    const kdB = new Set((await bankAsetListJson(request, tokB)).data.map((a) => a.kode_satker));
+    const kdA = new Set((await deriveScope(request, tokA)).kdCodes);
+    const kdB = new Set((await deriveScope(request, tokB)).kdCodes);
 
     expect(kdA.size, 'operator_a should see at least one satker').toBeGreaterThan(0);
     expect(kdB.size, 'operator_b should see at least one satker').toBeGreaterThan(0);
@@ -88,17 +176,18 @@ test.describe('Perlengkapan RBAC data-scoping (bank_aset)', () => {
   test('bank-aset detail fails closed across satkers (404), open within (200)', async ({
     request,
   }) => {
-    const opA = TEST_USERS.find((u) => u.key === 'operator_a')!;
-    const pusat = TEST_USERS.find((u) => u.key === 'validator_pusat')!;
+    const opA = userByKey('operator_a');
+    const opB = userByKey('operator_b');
     const tokA = (await apiLogin(request, credsFor(opA))).accessToken;
-    const tokPusat = (await apiLogin(request, credsFor(pusat))).accessToken;
+    const tokB = (await apiLogin(request, credsFor(opB))).accessToken;
 
-    // validator_pusat sees everything → use it to discover concrete asset ids.
-    const all = (await bankAsetListJson(request, tokPusat)).data;
-    const own = all.find((a) => opA.allowedKdsatkerKeu.includes(a.kode_satker));
-    const foreign = all.find((a) => !opA.allowedKdsatkerKeu.includes(a.kode_satker));
-    expect(own, 'seed must contain an operator_a-owned asset').toBeTruthy();
-    expect(foreign, 'seed must contain an asset outside operator_a').toBeTruthy();
+    // Each operator's OWN list is by definition in-scope for them and — proven
+    // by the isolation test above — out of scope for the other. Deriving the
+    // two ids this way needs no national listing and no hard-coded codes.
+    const own = (await bankAsetListJson(request, tokA, { per_page: 1 })).data[0];
+    const foreign = (await bankAsetListJson(request, tokB, { per_page: 1 })).data[0];
+    expect(own, 'operator_a must own at least one asset').toBeTruthy();
+    expect(foreign, 'operator_b must own at least one asset').toBeTruthy();
 
     const ownResp = await bankAsetDetail(request, tokA, own!.id);
     expect(ownResp.status(), 'operator_a must read its own asset').toBe(200);

@@ -107,21 +107,35 @@ export async function seedRealAuth(context: BrowserContext, creds: SeedCredentia
 // ───────────────────────────────────────────────────────────────────────────
 // Per-role RBAC data-scoping fixtures (#33 / F5-C).
 //
-// These mirror EXACTLY the synthetic users + assets in
-// `tests/fixtures/e2e/seed-multisatker.sql` (loaded by the `e2e-seed` service
-// onto a FRESH dbsimpelv2). Because the CI e2e stack starts empty and only this
-// seed populates `integrasi.siman_aset`, the expected counts below are exact.
-// (On staging — real snapshot, many more rows — only the per-row *isolation*
-// invariant holds, not these absolute counts.)
+// These mirror the synthetic users in `tests/fixtures/e2e/seed-multisatker.sql`.
+// Only facts that are TRUE OF THE USER live here — login, role, satker code and
+// the tier the backend must scope that role to. What each user can *see* is
+// deliberately NOT recorded: it is derived at runtime from the environment.
 //
-// Seed asset distribution (5 total):
-//   satker 0200010 (Jakpus, DKI, kdsatker_keu 006019999010001KD) → 2
-//   satker 0200020 (Jaksel, DKI, kdsatker_keu 006019999020001KD) → 2
-//   satker 0300010 (Bandung, JABAR, kdsatker_keu 006018888010001KD) → 1
-// Wilayah tier groups by substring(kdsatker_keu, 6, 4): DKI = '9999', JABAR = '8888'.
+// The earlier form of this table hard-coded `expectedAsetCount` (2/2/4/5) and an
+// `allowedKdsatkerKeu` allowlist of three synthetic codes. Both are properties of
+// a FRESH, EMPTY CI database that only this seed populates — so the suite could
+// only ever run against CI. Pointed at staging (real SIMAN snapshot: operator_a
+// 1 681 rows, validator_pusat 624 533) every count assertion failed, and the
+// isolation check failed *backwards*: it flagged `006010100005037000KD` — JakPus's
+// own real assets, correctly scoped — as a leak, because the code was not in a
+// list written before that data existed.
+//
+// That is the failure mode catalogued in `project_gate_scope_must_be_derived`:
+// the gate was right, its scope was a hand-written list that did not grow with
+// reality. So the expectations are now DERIVED from the environment under test
+// (see `deriveScope`), which makes the same suite valid on CI and on staging —
+// the environment the release plan requires it to certify.
 // ───────────────────────────────────────────────────────────────────────────
 
-/** A seeded single-role user plus its seed-derived expected `bank_aset` scope. */
+/**
+ * The tier the backend must scope a role to. This IS a property of the role
+ * (`bank_aset::AsetScope::from_claims`), so it belongs in the fixture table;
+ * the row counts each tier yields do not.
+ */
+export type ScopeTier = "satker" | "wilayah" | "nasional";
+
+/** A seeded single-role user. Scope expectations are derived, not stored. */
 export interface ScopedTestUser {
   /** Short stable id — used in storageState filenames + test titles. */
   key: string;
@@ -131,70 +145,74 @@ export interface ScopedTestUser {
   role: string;
   /** Caller MySIMKARI `kode_satker` (`Claims.satker_code`). */
   satkerCode: string;
-  /** Exact number of `integrasi.siman_aset` rows visible to this user on the seed. */
-  expectedAsetCount: number;
-  /** SIMAN `kdsatker_keu` codes this user is allowed to see (per-row isolation). */
-  allowedKdsatkerKeu: string[];
+  /** Tier the backend must scope this role to. */
+  tier: ScopeTier;
+  /**
+   * Key of another user whose visible set this user's must EQUAL. Set for the
+   * satker-internal approval chain (#96): validator/approver sit in the
+   * operator's own satker, so identical scope is the invariant — in any
+   * environment, whatever the row count happens to be.
+   */
+  sameScopeAs?: string;
 }
 
-const KD_JAKPUS = "006019999010001KD";
-const KD_JAKSEL = "006019999020001KD";
-const KD_BANDUNG = "006018888010001KD";
-
-/** All four per-role scoping users from the multi-satker seed. */
+/** All per-role scoping users from the multi-satker seed. */
 export const TEST_USERS: ScopedTestUser[] = [
   {
     key: "operator_a",
     username: "200000000000000001",
     role: "operator_satker",
     satkerCode: "0200010",
-    expectedAsetCount: 2,
-    allowedKdsatkerKeu: [KD_JAKPUS],
+    tier: "satker",
   },
   {
     key: "operator_b",
     username: "200000000000000002",
     role: "operator_satker",
     satkerCode: "0200020",
-    expectedAsetCount: 2,
-    allowedKdsatkerKeu: [KD_JAKSEL],
+    tier: "satker",
   },
   {
     key: "validator_wilayah",
     username: "200000000000000003",
     role: "validator_wilayah",
     satkerCode: "0200010",
-    expectedAsetCount: 4,
-    allowedKdsatkerKeu: [KD_JAKPUS, KD_JAKSEL],
+    tier: "wilayah",
   },
   {
     key: "validator_pusat",
     username: "200000000000000004",
     role: "validator_pusat",
     satkerCode: "0100000",
-    expectedAsetCount: 5,
-    allowedKdsatkerKeu: [KD_JAKPUS, KD_JAKSEL, KD_BANDUNG],
+    tier: "nasional",
   },
-  // Satker-internal approval chain (#96). Both sit in 0200010 with operator_a:
-  // the Pemakaian chain is satker-internal, so validator and approver are the
-  // operator's own colleagues and see exactly the same 2 assets.
+  // Satker-internal approval chain (#96): both sit in 0200010 with operator_a.
   {
     key: "validator_satker",
     username: "200000000000000006",
     role: "validator_satker",
     satkerCode: "0200010",
-    expectedAsetCount: 2,
-    allowedKdsatkerKeu: [KD_JAKPUS],
+    tier: "satker",
+    sameScopeAs: "operator_a",
   },
   {
     key: "approver_satker",
     username: "200000000000000007",
     role: "approver_satker",
     satkerCode: "0200010",
-    expectedAsetCount: 2,
-    allowedKdsatkerKeu: [KD_JAKPUS],
+    tier: "satker",
+    sameScopeAs: "operator_a",
   },
 ];
+
+/** Look up a seeded user by key, failing loudly rather than returning undefined. */
+export function userByKey(key: string): ScopedTestUser {
+  const user = TEST_USERS.find((u) => u.key === key);
+  if (!user) {
+    throw new Error(`unknown seeded test user: ${key} (known: ${TEST_USERS.map((u) => u.key).join(", ")})`);
+  }
+  return user;
+}
 
 /**
  * Access token for a seeded test user key, for direct API assertions.
@@ -218,13 +236,7 @@ export async function tokenFor(
     const { accessToken } = await apiLogin(request, SEED_USER);
     return accessToken;
   }
-  const user = TEST_USERS.find((u) => u.key === userKey);
-  if (!user) {
-    throw new Error(
-      `unknown seeded test user: ${userKey} (known: admin, ${TEST_USERS.map((u) => u.key).join(", ")})`,
-    );
-  }
-  const { accessToken } = await apiLogin(request, credsFor(user));
+  const { accessToken } = await apiLogin(request, credsFor(userByKey(userKey)));
   return accessToken;
 }
 
@@ -296,6 +308,57 @@ export async function bankAsetListJson(
     throw new Error(`bank-aset list failed (${resp.status()}): ${await resp.text()}`);
   }
   return resp.json();
+}
+
+/**
+ * What a token can actually SEE, measured rather than assumed.
+ *
+ * `total` is the backend's own count for the whole scope (not the page), so it
+ * is exact regardless of how many rows a page returns. `satkerNames`/`kdCodes`
+ * are distinct values over the sampled page — enough to prove a leak (one
+ * foreign row is a counter-example) but NOT enough to prove containment, since
+ * a page is a sample. Containment is therefore asserted via `scopedTotalFor`,
+ * which compares exact totals instead of sampled sets.
+ */
+export interface DerivedScope {
+  total: number;
+  satkerNames: string[];
+  kdCodes: string[];
+}
+
+/** Measure a token's visible scope. `perPage` bounds the sample, not the count. */
+export async function deriveScope(
+  request: APIRequestContext,
+  token: string,
+  query: Record<string, string | number> = {},
+  perPage = 200,
+): Promise<DerivedScope> {
+  const body = await bankAsetListJson(request, token, { per_page: perPage, ...query });
+  const names = new Set<string>();
+  const kds = new Set<string>();
+  for (const row of body.data) {
+    if (row.satker) names.add(row.satker);
+    if (row.kode_satker) kds.add(row.kode_satker);
+  }
+  return { total: body.total, satkerNames: [...names].sort(), kdCodes: [...kds].sort() };
+}
+
+/**
+ * Exact number of rows a token sees when the list is filtered to one satker.
+ *
+ * The cross-check this enables is the point of the whole suite: a national user
+ * filtering EXPLICITLY to satker X must get the same count a satker-bound user
+ * of X gets IMPLICITLY. Those are two different code paths — a user-supplied
+ * `satker` filter versus `AsetScope::from_claims` — so their agreeing is real
+ * evidence, and it needs no knowledge of how many assets X happens to own.
+ */
+export async function scopedTotalFor(
+  request: APIRequestContext,
+  token: string,
+  satkerName: string,
+): Promise<number> {
+  const body = await bankAsetListJson(request, token, { per_page: 1, satker: satkerName });
+  return body.total;
 }
 
 /** Call `GET /api/v1/perlengkapan/bank-aset/{id}` with a Bearer token. */
