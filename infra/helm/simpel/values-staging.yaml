@@ -8,11 +8,19 @@
 global:
   environment: staging
   # Tag dipindahkan dari mutable 'stag' ke semver immutable.
-  # Staging tracks the latest RC (post-build cosign failures di rc22 menggagalkan
-  # workflow conclusion, tapi docker push semua 7 image sukses — verified via
-  # `docker manifest inspect` dengan ghcr-pull PAT).
-  # Override via --set global.imageTag=v0.1.0-rcN saat helm install jika perlu.
-  imageTag: v0.1.0-rc22
+  #
+  # NILAI DI SINI = APA YANG STAGING JALANKAN. Bukan sekadar default: rc24
+  # di-deploy dengan `--set global.imageTag=v0.1.0-rc24` sementara baris ini
+  # tetap rc22, jadi selama dua bulan repo dan cluster menyebut versi berbeda
+  # dan tak ada yang bisa memerahkan itu. Naikkan baris ini di commit yang SAMA
+  # dengan yang di-tag, lalu deploy tanpa `--set` supaya keduanya tak bisa
+  # menyimpang lagi.
+  #
+  # Catatan rc22: cosign pasca-build menggagalkan conclusion workflow, tapi
+  # docker push seluruh image sukses (diverifikasi `docker manifest inspect`
+  # dengan ghcr-pull PAT). Matrix build kini 9 image, bukan 7 — `layanan-gateway`
+  # (sidecar simpelv1) dan `app-2026` masuk setelah rc24.
+  imageTag: v0.1.0-rc25
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
