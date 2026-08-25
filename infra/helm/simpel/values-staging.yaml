@@ -20,7 +20,7 @@ global:
   # docker push seluruh image sukses (diverifikasi `docker manifest inspect`
   # dengan ghcr-pull PAT). Matrix build kini 9 image, bukan 7 — `layanan-gateway`
   # (sidecar simpelv1) dan `app-2026` masuk setelah rc24.
-  imageTag: v0.1.0-rc25
+  imageTag: v0.1.0-rc26
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
