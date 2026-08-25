@@ -294,3 +294,92 @@ async fn bank_aset_dashboard_reports_siman_jenis_and_survives_null() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// The `nup` column is the second column in `integrasi.siman_aset` that the
+/// ingest never writes, found after the `kategori_aset` fix above.
+///
+/// The ingest builds its INSERT column list from the SIMAN payload's own JSON
+/// keys (`layanan/integrasi/src/db.rs`), so a schema column only ever fills if
+/// SIMAN sends a field of that name. SIMAN sends `no_aset`; it never sends
+/// `nup`. On staging `nup` was non-empty in 5 of 624 533 rows — exactly the five
+/// the e2e seed inserts — so the list rendered "-" in its NUP column for every
+/// real asset and `GET /bank-aset/lookup?nup=` 404'd for all of them.
+///
+/// The fixture reproduces that shape deliberately: `nup` NULL everywhere, real
+/// values only in `no_aset`. Reverting `ASSET_NUP_SQL` makes both halves fail.
+#[tokio::test]
+async fn bank_aset_reads_nup_from_siman_no_aset() {
+    let (app, db, db_name) = setup_test_app().await;
+
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute("TRUNCATE integrasi.siman_aset", &[])
+        .await
+        .unwrap();
+    client
+        .execute(
+            // `nup` deliberately NULL — the production shape. NUP lives in no_aset.
+            "INSERT INTO integrasi.siman_aset
+                (jenis_aset, nup, no_aset, ur_sskel, nama, kd_brg, ur_kondisi, kdsatker_keu, rph_aset)
+             VALUES
+                ('Peralatan Mesin Non TIK', NULL, '43', 'Display',  'Display',  '3050105039', 'BAIK', 'KEU-A', '250000000'),
+                ('Peralatan Mesin Non TIK', NULL, '44', 'Display',  'Display',  '3050105039', 'BAIK', 'KEU-A', '15000000'),
+                ('Peralatan Mesin Non TIK', NULL, '',   'Tanpa NUP','Tanpa NUP','3050105039', 'BAIK', 'KEU-A', '1000')",
+            &[],
+        )
+        .await
+        .unwrap();
+    drop(client);
+
+    let server = TestServer::new(app);
+
+    // 1) The list projection must surface no_aset as the NUP.
+    let res = get(&server, "/bank-aset?per_page=50").await;
+    assert_eq!(res.status_code(), 200, "list failed: {}", res.text());
+    let body: serde_json::Value = res.json();
+    let rows = body["data"].as_array().expect("data array");
+    let nups: Vec<Option<&str>> = rows.iter().map(|r| r["nup"].as_str()).collect();
+    assert!(
+        nups.contains(&Some("43")) && nups.contains(&Some("44")),
+        "NUP must come from SIMAN no_aset; had this still read the `nup` column \
+         every row would be null. got {nups:?}"
+    );
+    // A blank no_aset must render as absent, not as an invented value.
+    assert!(
+        nups.contains(&None),
+        "a row with a blank no_aset must yield a null NUP, got {nups:?}"
+    );
+
+    // 2) The lookup endpoint must FIND a real asset by its NUP. This is the half
+    //    that returned 404 for all 624 533 staging rows.
+    let res = get(&server, "/bank-aset/lookup?nup=43").await;
+    assert_eq!(
+        res.status_code(),
+        200,
+        "lookup by a real NUP must resolve, not 404: {}",
+        res.text()
+    );
+    let body: serde_json::Value = res.json();
+    assert_eq!(
+        body["data"]["nup"], "43",
+        "lookup must echo the NUP it matched on, got {body}"
+    );
+
+    // 3) Search must reach NUP, which is what the FE placeholder
+    //    "Cari nama/kode/NUP/merk..." promises.
+    let res = get(&server, "/bank-aset?per_page=50&search=44").await;
+    assert_eq!(res.status_code(), 200, "search failed: {}", res.text());
+    let body: serde_json::Value = res.json();
+    let found: Vec<Option<&str>> = body["data"]
+        .as_array()
+        .expect("data array")
+        .iter()
+        .map(|r| r["nup"].as_str())
+        .collect();
+    assert!(
+        found.contains(&Some("44")),
+        "searching a NUP must match it, got {found:?}"
+    );
+
+    teardown_test_db(&db_name).await;
+}

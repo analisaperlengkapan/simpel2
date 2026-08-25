@@ -28,13 +28,18 @@
  * is a global, any-authenticated-user artifact, unlike every other module which
  * gates writes with require_role. Asserted below as the behaviour that exists.
  *
- * Seeded assets (integrasi.siman_aset, shared seed section 3):
- *   E2E-A-1 Toyota Avanza  Peralatan dan Mesin / Alat Angkutan / BAIK         0200010
- *   E2E-A-2 Laptop Dell    Peralatan dan Mesin / Alat Kantor   / BAIK         0200010
- *   E2E-B-1 Honda Vario    Peralatan dan Mesin / Alat Angkutan / BAIK         0200020
- *   E2E-B-2 Tanah Kantor   Tanah               / Tanah         / BAIK         0200020
- *   E2E-C-1 Printer Epson  Peralatan dan Mesin / Alat Kantor   / RUSAK RINGAN 0300010
- * validator_pusat sees all 5 → the only role for which filter maths is stable.
+ * Seeded assets (integrasi.siman_aset, shared seed section 3). `jenis_aset` now
+ * uses the REAL SIMAN taxonomy — the seed previously invented "Peralatan dan
+ * Mesin"/"Alat Kantor", which existed nowhere in the 624 533-row snapshot and
+ * showed up as a 16th phantom category next to the 15 real ones:
+ *   E2E-A-1 Toyota Avanza  Alat Angkutan Bermotor     / BAIK         0200010
+ *   E2E-A-2 Laptop Dell    Peralatan Mesin Khusus TIK / BAIK         0200010
+ *   E2E-B-1 Honda Vario    Alat Angkutan Bermotor     / BAIK         0200020
+ *   E2E-B-2 Tanah Kantor   Tanah                      / BAIK         0200020
+ *   E2E-C-1 Printer Epson  Peralatan Mesin Khusus TIK / RUSAK RINGAN 0300010
+ * The NUP markers live in `no_aset` (where real SIMAN NUPs live), so every test
+ * below narrows the list with `gotoSeededList` and works in ANY environment
+ * rather than only against an empty CI database.
  *
  * WHAT THE UI ACTUALLY SHOWS (verified, do not "fix" back to siman_aset.nama):
  *   `repository.rs:563` maps `BankAsetItem.nama_aset` from `ur_sskel` (the BMN
@@ -58,6 +63,8 @@ import {
   tokenFor,
   TEST_USERS,
   PERLENGKAPAN_API_URL,
+  deriveScope,
+  formatThousands,
 } from "./helpers/real-auth";
 
 const BASE = "/perlengkapan/simpel/v2";
@@ -106,25 +113,52 @@ async function nupsInDomOrder(page: Page): Promise<string[]> {
     .map(([n]) => n);
 }
 
+/**
+ * Shared marker on every seeded asset's NUP. The seed puts it in `no_aset`
+ * (which is where a real SIMAN NUP lives — see ASSET_NUP_SQL in
+ * layanan/perlengkapan/src/bank_aset/repository.rs), and the backend's search
+ * ILIKEs `no_aset`, so searching this prefix isolates exactly the seeded rows.
+ */
+const SEED_MARKER = "E2E-";
+
+/**
+ * Open the asset list narrowed to the seeded rows, in ANY environment.
+ *
+ * Without this, the filter/sort maths below is only valid on a fresh CI database
+ * that contains nothing but the 5 seeded assets. Against staging the list is
+ * PER_PAGE=25 rows out of 624 533 ordered by `updated_at DESC`, so the seeded
+ * rows are usually not on page 1 at all — `visibleNups` (which filters a fixed
+ * array against the page text) would return [] and every `toHaveLength(5)`
+ * would fail, while the negative assertions passed for the wrong reason.
+ *
+ * Searching the seed marker makes the working set deterministic and equal in
+ * both environments, so the same spec certifies CI and staging. Real SIMAN rows
+ * cannot collide: their `no_aset` is numeric (624 528 of 624 533 rows).
+ */
+async function gotoSeededList(page: Page): Promise<void> {
+  await page.goto(`${BASE}/bank-aset/daftar`);
+  await expect(shell(page)).toBeVisible({ timeout: 20000 });
+  await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill(SEED_MARKER);
+  await page.getByRole("button", { name: "Terapkan" }).click();
+  await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+}
+
 // ---------------------------------------------------------------------------
 // Bank Aset — filters / search / sort / pagination drive the real list
 // ---------------------------------------------------------------------------
-test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in scope)", () => {
+test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the seeded rows)", () => {
   test.use({ storageState: storageStatePath("validator_pusat") });
 
   test("list renders every seeded asset before filtering", async ({ page }) => {
-    await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
+    await gotoSeededList(page);
     await expect(page.getByText("Daftar Aset").first()).toBeVisible();
     await expect
       .poll(() => visibleNups(page), { timeout: 20000 })
       .toEqual(["E2E-A-1", "E2E-A-2", "E2E-B-1", "E2E-B-2", "E2E-C-1"]);
   });
 
-  test("search narrows to the matching asset and Reset restores the full list", async ({ page }) => {
-    await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+  test("search narrows to the matching asset and Reset restores the full list", async ({ page, request }) => {
+    await gotoSeededList(page);
 
     await page.getByPlaceholder("Cari nama/kode/NUP/merk...").fill("Toyota");
     await page.getByRole("button", { name: "Terapkan" }).click();
@@ -132,14 +166,21 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1"]);
     await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
 
+    // Reset clears the search too, so the list returns to the caller's FULL
+    // scope — which is 5 only on an empty CI database. Assert the real claim
+    // ("all filters cleared") against the total the backend reports for this
+    // token, so it holds against staging's 624 533-row snapshot as well.
+    const token = await tokenFor(request, "validator_pusat");
+    const full = await deriveScope(request, token);
     await page.getByRole("button", { name: "Reset" }).click();
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+    await expect(
+      page.getByText(`Total: ${formatThousands(full.total)} aset`),
+      "Reset must restore the unfiltered scope total",
+    ).toBeVisible({ timeout: 20000 });
   });
 
   test("kondisi filter isolates the single RUSAK RINGAN asset", async ({ page }) => {
-    await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+    await gotoSeededList(page);
 
     // Select by VALUE, not label: the FE renders each dynamic option as
     // `format!("{} ({})", o.value, o.count)` (list_page.rs:264), so the label is
@@ -151,9 +192,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
   });
 
   test("jenis filter isolates the single Tanah asset", async ({ page }) => {
-    await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+    await gotoSeededList(page);
 
     await page.getByRole("combobox").filter({ hasText: "Semua Jenis BMN" }).selectOption("Tanah");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-2"]);
@@ -161,9 +200,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat: all 5 assets in s
   });
 
   test("sort by Nama A→Z reorders the rows server-side", async ({ page }) => {
-    await page.goto(`${BASE}/bank-aset/daftar`);
-    await expect(shell(page)).toBeVisible({ timeout: 20000 });
-    await expect.poll(() => visibleNups(page), { timeout: 20000 }).toHaveLength(5);
+    await gotoSeededList(page);
 
     await page.getByRole("combobox").filter({ hasText: "Terbaru diperbarui" }).selectOption("nama_asc");
     // `nama_asc` is ORDER BY ur_sskel ASC server-side, so the row order becomes:

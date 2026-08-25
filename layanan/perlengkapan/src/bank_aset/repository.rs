@@ -43,6 +43,32 @@ fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSq
 /// value the predicate cannot match, filtering silently returns nothing.
 const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DIKETAHUI')";
 
+/// SQL for an asset's NUP (Nomor Urut Pendaftaran) — read from SIMAN's
+/// `no_aset`, not from the `nup` column.
+///
+/// Same defect as `ASSET_KATEGORI_SQL` above, in the same table, found the same
+/// way. The ingest builds its INSERT column list **directly from the keys of
+/// the SIMAN API payload** (`layanan/integrasi/src/db.rs` — `first_obj.keys()`
+/// lowercased), so a column exists in the schema but stays empty forever unless
+/// SIMAN happens to send a field of that exact name. SIMAN sends `no_aset`; it
+/// does not send `nup`. On staging `nup` is non-empty in 5 of 624 533 rows —
+/// and those five are the e2e seed's own rows, which is why every test passed.
+///
+/// `no_aset` carries NUP semantics: it is numeric in 624 528 of 624 533 rows,
+/// ranges 0–21 727, and runs consecutively within one `kd_brg` (e.g. 43 and 44
+/// for 3050105039), which is exactly "sequence number of this item within its
+/// barang code" — the BMN identity pair being `kode_barang` + NUP. It is the
+/// only populated candidate; `raw_data` is empty for every row.
+///
+/// Caveat recorded rather than smoothed over: (kdsatker_keu, kd_brg, no_aset)
+/// is NOT unique — 3 503 groups repeat (0.56%). NUP is assigned per registering
+/// unit (UAKPB), which `kdsatker_keu` does not always resolve to one-to-one, so
+/// this is expected rather than a contradiction; do not treat NUP as a key.
+///
+/// Note `NULLIF(no_aset, '')` yields NULL, which the FE renders as "-" — the
+/// correct display for an asset SIMAN gave no NUP, instead of a misleading "0".
+const ASSET_NUP_SQL: &str = "NULLIF(no_aset, '')";
+
 #[derive(Clone)]
 pub struct BankAsetRepository {
     pool: Pool,
@@ -90,6 +116,10 @@ impl BankAsetRepository {
             conditions.push(format!("nama_satker = ${}", params.len()));
         }
         if let Some(q) = &filter.search {
+            // `no_aset` in this list is what makes the FE placeholder
+            // "Cari nama/kode/NUP/merk..." truthful: NUP *is* `no_aset` (see
+            // ASSET_NUP_SQL), so searching by NUP resolves here. Searching the
+            // `nup` column instead would match nothing but the e2e seed rows.
             params.push(Box::new(format!("%{}%", q)));
             let idx = params.len();
             conditions.push(format!(
@@ -138,7 +168,7 @@ impl BankAsetRepository {
         };
 
         let list_sql = format!(
-            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
+            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, {ASSET_NUP_SQL} AS nup,
              (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
              tgl_perlh, updated_at
              FROM integrasi.siman_aset
@@ -186,10 +216,13 @@ impl BankAsetRepository {
             None => String::new(),
         };
         let sql = format!(
-            "SELECT id, nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
+            // Both the projection AND the predicate must use ASSET_NUP_SQL: with
+            // `WHERE nup = $1` this endpoint 404'd for every real asset, because
+            // the `nup` column is empty outside the e2e seed (see ASSET_NUP_SQL).
+            "SELECT id, {ASSET_NUP_SQL} AS nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
                     (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE NULL END) AS nilai_perolehan
              FROM integrasi.siman_aset
-             WHERE nup = $1{scope_clause}
+             WHERE {ASSET_NUP_SQL} = $1{scope_clause}
              LIMIT 1"
         );
         let row = client
@@ -257,7 +290,7 @@ impl BankAsetRepository {
             None => String::new(),
         };
         let sql = format!(
-            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup,
+            "SELECT id, {ASSET_KATEGORI_SQL} AS kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, {ASSET_NUP_SQL} AS nup,
              (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END) AS rph_aset,
              tgl_perlh, updated_at
              FROM integrasi.siman_aset WHERE id = $1{scope_clause}"
