@@ -406,6 +406,22 @@ jobs:
             [ "$c" = "infra/helm/simpel" ] && continue
             helm template "$(basename "$c")" "$c" > "rendered/$(basename "$c").yaml"
           done
+      # Pemisah `---` yang hilang menelan satu objek utuh TANPA error di mana
+      # pun: `helm template` sukses, `helm lint` hijau, kube-linter hijau —
+      # hasilnya tetap YAML yang sah, hanya saja satu dokumen lebih sedikit.
+      # Yang terjadi di cluster: `helm upgrade` MENGHAPUS objek yang hilang itu.
+      # Terukur 2026-08-25: Service `postgres-primary` raib dari render karena
+      # sebuah komentar template ditutup dengan trailing dash, sementara
+      # DestinationRule `postgres-primary-mtls` masih menunjuk host tersebut.
+      #
+      # Guard-nya menurunkan jawaban dari hasil render (jumlah `kind:` vs
+      # jumlah dokumen ter-parse), bukan mencocokkan pola di template.
+      - name: Tak ada dokumen yang ditelan pemisah `---`
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          python3 ./infra/scripts/check-chart-document-separators.py \
+            "semua chart" rendered/*.yaml
       # Volume yang tak pernah berisi data tak boleh ikut File System Backup.
       # Kalau ikut, ia menghasilkan `PartiallyFailed` yang TIDAK berarti
       # kehilangan data — dan sinyal merah semacam itu akan diabaikan orang,

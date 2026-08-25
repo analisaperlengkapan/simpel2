@@ -69,7 +69,14 @@ spec:
   itu dibungkam dengan `ignore-check` yang beralasan persis premis palsu tadi.
   Suppression bertarget tetap butuh premis yang benar — kalau tidak, ia hanya
   memindahkan fiksi ke tempat yang tak diperiksa siapa pun.
-*/ -}}
+  CATATAN DELIMITER: penutup blok ini TIDAK boleh memakai trailing dash. Dash
+  itu memangkas newline SESUDAH komentar, sehingga pemisah dokumen di bawahnya
+  menempel ke baris sebelumnya (jadi `app.kubernetes.io/name: postgres` diikuti
+  tiga tanda hubung pada baris yang sama). YAML lalu membaca Service dan
+  StatefulSet sebagai SATU dokumen — kunci ganda, yang terakhir menang — dan
+  Service `postgres-primary` HILANG dari manifest tanpa satu pun error. helm
+  lint dan kube-linter tidak menangkapnya karena hasilnya tetap YAML yang sah.
+*/}}
 ---
 apiVersion: apps/v1
 kind: StatefulSet
