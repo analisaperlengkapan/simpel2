@@ -212,14 +212,40 @@ pub async fn setup_test_db() -> (Database, String) {
     // had no `nup` column at all — the lookup errored and degraded to "no value",
     // so the integrity rule silently never ran. With a faithful schema the rule
     // applies, which is the behaviour we actually want asserted.
+    //
+    // ── SHAPE NOTE (do not tidy this back) ──────────────────────────────────
+    // Every value below is written into a column production ACTUALLY fills, and
+    // the columns production leaves empty are left NULL here. That asymmetry is
+    // the whole point.
+    //
+    // This fixture used to populate `kategori_aset`, `kode_barang` and `nup`.
+    // None of the three is ever written outside our own seed: the SIMAN ingest
+    // derives its INSERT column list from the keys of the API payload
+    // (`layanan/integrasi/src/db.rs`), and SIMAN sends `no_aset`, `kd_brg`,
+    // `nama`, `ur_kondisi` — never those. Census of 624 533 staging rows:
+    // `kategori_aset` and `nup` non-empty in 5 rows (our seed), `kode_barang`,
+    // `nama_barang` and `kondisi` in 0.
+    //
+    // A fixture that fills a dead column does not merely miss the bug, it
+    // CERTIFIES the broken query — which is exactly how the dashboard read a
+    // column nothing writes (#829) and how `WHERE nup = $1` shipped while
+    // 404-ing for all 624 533 real assets (#832). Same failure the stub comment
+    // above describes, in data rather than in DDL.
+    //
+    // Formats are copied from staging, not invented: `kd_brg` is ten digits with
+    // NO dots (3050201002), NUP carries no leading zeros, `ur_kondisi` reads
+    // "Baik" rather than "BAIK", and `jenis_aset` is a real SIMAN taxonomy value.
+    // Because `kd_brg` is now populated, the kode_barang-consistency branch in
+    // `find_nilai_perolehan` finally executes instead of being skipped for want
+    // of a value to compare against.
     client
         .execute(
             "INSERT INTO integrasi.siman_aset
-                (jenis_aset, kategori_aset, nama, ur_kondisi, kode_barang, nup, rph_aset)
+                (jenis_aset, nama, ur_kondisi, kd_brg, no_aset, rph_aset)
              VALUES
-                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 003/015', 'BAIK', '3.06.02.01.003', '015', '12500000'),
-                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 003/099', 'BAIK', '3.06.02.01.003', '099', '9750000'),
-                ('Peralatan dan Mesin', 'Alat Kantor', 'BMN Uji 004/016', 'BAIK', '3.06.02.01.004', '016', '4300000')
+                ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Baik', '3060201003', '15', '12500000'),
+                ('Peralatan Mesin Non TIK', 'BMN Uji 003/99', 'Baik', '3060201003', '99', '9750000'),
+                ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Baik', '3060201004', '16', '4300000')
              ON CONFLICT DO NOTHING",
             &[],
         )

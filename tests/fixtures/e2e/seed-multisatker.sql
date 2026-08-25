@@ -102,14 +102,23 @@ DELETE FROM integrasi.siman_aset
 -- `jenis_aset` uses the real SIMAN taxonomy rather than invented labels.
 -- Keeping the marker STRINGS unchanged means specs that assert on "E2E-A-1"
 -- keep working — they now just read it from the column production fills.
+--
+-- FORMATS are copied from the staging snapshot, not invented, because format is
+-- part of shape: `kd_brg` is TEN DIGITS WITH NO DOTS (3050201002 — 624 528 of
+-- 624 533 rows; the only five 14-char dotted values were this seed's) and
+-- `ur_kondisi` is Title Case ("Baik" 548 038, "Rusak Berat" 64 522, "Rusak
+-- Ringan" 11 936 — the four uppercase "BAIK" rows were, again, this seed's).
+-- That mattered: penghapusan-bmn refuses a create whose kode_barang disagrees
+-- with SIMAN's, so a fixture in the wrong format either fails a correct check or
+-- (as here) hides one behind values no real asset carries.
 INSERT INTO integrasi.siman_aset
   (jenis_aset, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup, rph_aset, tgl_perlh)
 VALUES
-  ('Alat Angkutan Bermotor',      NULL, 'E2E-A-1', 'Kendaraan Dinas Roda 4', 'Toyota Avanza', '3.05.01.04.001', 'Toyota', 'Avanza 1.3', 'BAIK', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '250000000', '2020-01-15'),
-  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-A-2', 'Personal Computer Unit',  'Laptop Dell',   '3.10.01.02.003', 'Dell',   'Latitude',   'BAIK', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '15000000',  '2021-03-10'),
-  ('Alat Angkutan Bermotor',      NULL, 'E2E-B-1', 'Kendaraan Dinas Roda 2', 'Honda Vario',   '3.05.02.01.002', 'Honda',  'Vario 125',  'BAIK', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '22000000',  '2019-07-01'),
-  ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor',  'Tanah Kantor',  '2.01.01.01.001', NULL,     NULL,         'BAIK', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
-  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Personal Computer Unit',  'Printer Epson', '3.10.01.05.010', 'Epson',  'L3210',      'RUSAK RINGAN', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-A-1', 'Kendaraan Dinas Roda 4', 'Toyota Avanza', '3050104001', 'Toyota', 'Avanza 1.3', 'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '250000000', '2020-01-15'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-A-2', 'Personal Computer Unit',  'Laptop Dell',   '3100102003', 'Dell',   'Latitude',   'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '15000000',  '2021-03-10'),
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-B-1', 'Kendaraan Dinas Roda 2', 'Honda Vario',   '3050201002', 'Honda',  'Vario 125',  'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '22000000',  '2019-07-01'),
+  ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor',  'Tanah Kantor',  '2010101001', NULL,     NULL,         'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Personal Computer Unit',  'Printer Epson', '3100105010', 'Epson',  'L3210',      'Rusak Ringan', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
 
 -- ----------------------------------------------------------------------------
 -- 4. authenc: per-role test users (single role each so the JWT role is

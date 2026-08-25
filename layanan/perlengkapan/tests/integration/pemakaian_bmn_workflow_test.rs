@@ -54,7 +54,7 @@ fn create_permit_body(nup: &str) -> serde_json::Value {
         "pegawai_satker_nama": "Kejaksaan Negeri Jakarta Selatan",
         "jenis_bmn": "LAPTOP",
         "bmn_nup": nup,
-        "bmn_kode_barang": "3.06.02.01.003",
+        "bmn_kode_barang": "3060201003",
         "bmn_nama_barang": "Laptop Dell Latitude 5520",
         "bmn_merk": "Dell",
         "serial_number": "SN-12345678",
@@ -130,7 +130,7 @@ async fn test_complete_pemakaian_bmn_workflow() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    let permit_id = drive_to_active(&server, "015").await;
+    let permit_id = drive_to_active(&server, "15").await;
 
     // Permit should now be ACTIVE.
     let mut req = server.get(&format!("/pemakaian-bmn/{}", permit_id));
@@ -155,7 +155,7 @@ async fn test_permit_renewal_workflow() {
     let (app, _db, db_name) = setup_test_app().await;
     let server = TestServer::new(app);
 
-    let permit_id = drive_to_active(&server, "016").await;
+    let permit_id = drive_to_active(&server, "16").await;
 
     // Renew the active permit (operator).
     let mut req = server

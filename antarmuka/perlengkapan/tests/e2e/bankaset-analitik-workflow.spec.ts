@@ -32,11 +32,11 @@
  * uses the REAL SIMAN taxonomy — the seed previously invented "Peralatan dan
  * Mesin"/"Alat Kantor", which existed nowhere in the 624 533-row snapshot and
  * showed up as a 16th phantom category next to the 15 real ones:
- *   E2E-A-1 Toyota Avanza  Alat Angkutan Bermotor     / BAIK         0200010
- *   E2E-A-2 Laptop Dell    Peralatan Mesin Khusus TIK / BAIK         0200010
- *   E2E-B-1 Honda Vario    Alat Angkutan Bermotor     / BAIK         0200020
- *   E2E-B-2 Tanah Kantor   Tanah                      / BAIK         0200020
- *   E2E-C-1 Printer Epson  Peralatan Mesin Khusus TIK / RUSAK RINGAN 0300010
+ *   E2E-A-1 Toyota Avanza  Alat Angkutan Bermotor     / Baik         0200010
+ *   E2E-A-2 Laptop Dell    Peralatan Mesin Khusus TIK / Baik         0200010
+ *   E2E-B-1 Honda Vario    Alat Angkutan Bermotor     / Baik         0200020
+ *   E2E-B-2 Tanah Kantor   Tanah                      / Baik         0200020
+ *   E2E-C-1 Printer Epson  Peralatan Mesin Khusus TIK / Rusak Ringan 0300010
  * The NUP markers live in `no_aset` (where real SIMAN NUPs live), so every test
  * below narrows the list with `gotoSeededList` and works in ANY environment
  * rather than only against an empty CI database.
@@ -179,14 +179,14 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     ).toBeVisible({ timeout: 20000 });
   });
 
-  test("kondisi filter isolates the single RUSAK RINGAN asset", async ({ page }) => {
+  test("kondisi filter isolates the single Rusak Ringan asset", async ({ page }) => {
     await gotoSeededList(page);
 
     // Select by VALUE, not label: the FE renders each dynamic option as
     // `format!("{} ({})", o.value, o.count)` (list_page.rs:264), so the label is
-    // "RUSAK RINGAN (1)" and matching on the bare value is both correct and
+    // "Rusak Ringan (1)" and matching on the bare value is both correct and
     // immune to the seeded row count changing.
-    await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption("RUSAK RINGAN");
+    await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption("Rusak Ringan");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-C-1"]);
     await expect(page.getByText("Personal Computer Unit").first()).toBeVisible();
   });
@@ -230,7 +230,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     await expect(page).toHaveURL(/\/bank-aset\/daftar\/\d+/);
     await expect(page.getByText("Detail Aset").first()).toBeVisible();
     await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
-    await expect(page.getByText("3.05.01.04.001").first()).toBeVisible(); // kode barang
+    await expect(page.getByText("3050104001").first()).toBeVisible(); // kode barang
   });
 });
 

@@ -49,9 +49,9 @@ async fn test_complete_penghapusan_bmn_workflow() {
     let mut req = server.post("/penghapusan-bmn").json(&json!({
         "satker_id": "00000000-0000-0000-0000-000000000001",
         "asset_id": "00000000-0000-0000-0000-000000000001",
-        "kode_barang": "3.06.02.01.003",
+        "kode_barang": "3060201003",
         "nama_barang": "Laptop Dell Latitude 5520",
-        "nup": "015",
+        "nup": "15",
         "tanggal_penghapusan": "2026-01-01",
         "alasan": "Rusak berat dan sudah usang, tidak ekonomis untuk diperbaiki",
         "metode_penghapusan": "Pemusnahan",
@@ -165,9 +165,9 @@ async fn test_penghapusan_bmn_rejection_workflow() {
     let mut req = server.post("/penghapusan-bmn").json(&json!({
         "satker_id": "00000000-0000-0000-0000-000000000001",
         "asset_id": "00000000-0000-0000-0000-000000000002",
-        "kode_barang": "3.06.02.01.004",
+        "kode_barang": "3060201004",
         "nama_barang": "Printer HP LaserJet",
-        "nup": "016",
+        "nup": "16",
         "tanggal_penghapusan": "2026-01-01",
         "alasan": "Rusak berat dan tidak dapat diperbaiki lagi",
         "metode_penghapusan": "Pemusnahan",

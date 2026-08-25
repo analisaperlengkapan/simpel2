@@ -1769,6 +1769,14 @@ jobs:
       # in-scope rows. Browser-driven against the FE (perlengkapan:8080), whose
       # nginx now proxies origin-relative /api to the compose backend (the
       # FE→BE upstream fix in this PR). Reuses per-role storageState from `setup`.
+      #
+      # PERLENGKAPAN_API_URL is required even though this project drives a
+      # BROWSER: the spec no longer hard-codes seed markers (which only held on a
+      # small, fresh CI database and passed vacuously against a real snapshot).
+      # It now DERIVES what to expect — the row total and the exact in-scope
+      # satker set — from the backend for the same token, then asserts the page
+      # renders that. Without this variable the helper falls back to
+      # http://localhost:3020, which inside the runner container is nothing.
       - name: Run Playwright UI scoping (perlengkapan-ui-rbac)
         run: |
           NET="$(docker network ls --format '{{.Name}}' | grep -m1 simpel-network)"
@@ -1777,6 +1785,7 @@ jobs:
             -e BASE_URL=http://perlengkapan:8080 \
             -e PERLENGKAPAN_URL=http://perlengkapan:8080 \
             -e AUTHENC_URL=http://authenc:8088 \
+            -e PERLENGKAPAN_API_URL=http://layanan-perlengkapan:3020 \
             simpel-e2e-smoke \
             npx playwright test --project=perlengkapan-ui-rbac
       # F5-C route-coverage: every feature-module route mounts the authenticated
