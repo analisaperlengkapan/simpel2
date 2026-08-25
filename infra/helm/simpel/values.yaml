@@ -583,6 +583,20 @@ layananIntegrasi:
       timeZone: "Asia/Jakarta"
       command: [scheduler]
       args: ["--provider=monsakti"]
+    # Snapshot pemetaan satker (integrasi.mv_satker_code_map_auto) — lihat
+    # migrations/004_satker_code_map_materialized.sql. Jadwalnya HARUS lebih
+    # rapat dari sync tercepat (MySIMKARI 6 jam) supaya satker yang baru
+    # tersinkron tidak "hilang": snapshot basi = pengguna tier satker fail-closed
+    # ke NOL baris, bukan sekadar data lama. TIDAK di-suspend di staging — ini
+    # tidak memanggil API eksternal mana pun, hanya me-refresh dari data lokal.
+    satker-map-refresh:
+      enabled: true
+      suspend: false
+      schedule: "30 */3 * * *"             # tiap 3 jam
+      timeZone: "Asia/Jakarta"
+      command: ["./integrasi-migrate"]
+      args: ["--refresh-satker-map"]
+      activeDeadlineSeconds: 600
   cronjobDefaults:
     successfulJobsHistoryLimit: 3
     failedJobsHistoryLimit: 1
