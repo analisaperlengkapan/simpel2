@@ -561,28 +561,33 @@ layananIntegrasi:
   #   - SIMAN:     tiap Minggu pukul 04:00 WIB
   #   - MySIMKARI: tiap 6 jam
   #   - MonSAKTI:  tiap hari pukul 03:00 WIB
+  #
+  # `command` WAJIB "./scheduler" (relatif WORKDIR /usr/app), BUKAN "scheduler":
+  # /usr/app tidak ada di PATH image. `args` WAJIB "--source <p>", BUKAN
+  # "--provider=<p>": flag itu tak pernah ada di CLI (bin/scheduler.rs
+  # mendefinisikan --source), jadi clap menolaknya dan job gagal.
   cronjobs:
     siman:
       enabled: true
       suspend: true                        # staging: suspend; production override false
       schedule: "0 4 * * 0"                # Minggu 04:00
       timeZone: "Asia/Jakarta"
-      command: [scheduler]
-      args: ["--provider=siman"]
+      command: ["./scheduler"]
+      args: ["--source", "siman"]
     mysimkari:
       enabled: true
       suspend: true
       schedule: "0 */6 * * *"              # tiap 6 jam
       timeZone: "Asia/Jakarta"
-      command: [scheduler]
-      args: ["--provider=mysimkari"]
+      command: ["./scheduler"]
+      args: ["--source", "mysimkari"]
     monsakti:
       enabled: true
       suspend: true
       schedule: "0 3 * * *"                # setiap hari pukul 03:00 WIB
       timeZone: "Asia/Jakarta"
-      command: [scheduler]
-      args: ["--provider=monsakti"]
+      command: ["./scheduler"]
+      args: ["--source", "monsakti"]
     # Snapshot pemetaan satker (integrasi.mv_satker_code_map_auto) — lihat
     # migrations/004_satker_code_map_materialized.sql. Jadwalnya HARUS lebih
     # rapat dari sync tercepat (MySIMKARI 6 jam) supaya satker yang baru

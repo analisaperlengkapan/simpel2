@@ -21,10 +21,19 @@ COPY . .
 RUN sed -i '/^members = \[/,/^\]/c\members = [\n    "lib/core", "lib/backend", "lib/crypto",\n    "lib/perlengkapan",\n    "layanan/integrasi",\n]' Cargo.toml && \
     sed -i '/^default-members = \[/,/^\]/c\default-members = [\n    "layanan/integrasi",\n]' Cargo.toml
 
-# Build the gRPC server plus the out-of-band schema migration runner. The
-# migrate binary doesn't need the grpc feature but builds fine under it.
+# Build the gRPC server, the out-of-band schema migration runner, and the
+# scheduler. The migrate binary doesn't need the grpc feature but builds fine
+# under it.
+#
+# `scheduler` is what the three sync CronJobs (siman/mysimkari/monsakti) run. It
+# was NOT built or copied here, so every scheduled sync in production would have
+# failed with `exec: "scheduler": executable file not found in $PATH` — external
+# master data would never have synced at all. Staging could not catch it: staging
+# suspends all three CronJobs by design and runs on mock data
+# (project_staging_mock_external_data), so the first execution would have been in
+# production. Keep this list in sync with the COPY lines below.
 RUN cargo build --release -p layanan-integrasi --features grpc \
-    --bin layanan-integrasi-server --bin integrasi-migrate
+    --bin layanan-integrasi-server --bin integrasi-migrate --bin scheduler
 
 # ============================================
 # Runtime stage
@@ -37,6 +46,7 @@ RUN apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=20 -o Acquire::https
 
 COPY --from=builder /usr/src/app/target/release/layanan-integrasi-server /usr/app/layanan-integrasi
 COPY --from=builder /usr/src/app/target/release/integrasi-migrate /usr/app/integrasi-migrate
+COPY --from=builder /usr/src/app/target/release/scheduler /usr/app/scheduler
 
 # Run as a non-root system user (Trivy DS-0002). The server binds 8080/50051
 # (>1024, no privilege needed) and only writes under /usr/app/output.
