@@ -50,6 +50,7 @@
  *   no_aset OR merk, so "Toyota" narrows to E2E-A-1 by `nama`/`merk`.)
  */
 import { test, expect, type Page, type APIRequestContext } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import {
   credsFor,
   apiLogin,
@@ -292,7 +293,17 @@ test.describe("Dashboard", () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       expect(res.status(), `dashboard export/${fmt} status`).toBeLessThan(400);
-      expect((await res.body()).length, `dashboard export/${fmt} body`).toBeGreaterThan(0);
+      const body = await res.body();
+      expect(body.length, `dashboard export/${fmt} body`).toBeGreaterThan(0);
+      // Assert the file IS what the Content-Type claims, by magic bytes.
+      // "status 200 + non-empty body" passed while export/pdf returned an HTML
+      // document under `Content-Type: application/pdf` — a .pdf no reader can
+      // open. A format assertion is the only thing that can catch that.
+      const magic = { pdf: "%PDF-", excel: "PK" } as const;
+      expect(
+        body.subarray(0, magic[fmt].length).toString("latin1"),
+        `dashboard export/${fmt} must really be ${fmt}, not something mislabelled`,
+      ).toBe(magic[fmt]);
     });
   }
 
@@ -315,6 +326,16 @@ test.describe("Dashboard", () => {
       expect(download.suggestedFilename(), `${label} filename`).toMatch(
         new RegExp(`\\.${ext}$`),
       );
+      // The extension alone proves nothing about the bytes — the PDF export
+      // shipped HTML named .pdf and this assertion passed. Read the saved file
+      // and check its signature.
+      const path = await download.path();
+      const head = (await readFile(path)).subarray(0, 5).toString("latin1");
+      const expected = ext === "pdf" ? "%PDF-" : "PK";
+      expect(
+        head.startsWith(expected),
+        `${label} downloaded a file whose contents are not ${ext} (starts with ${JSON.stringify(head)})`,
+      ).toBe(true);
     });
   }
 
