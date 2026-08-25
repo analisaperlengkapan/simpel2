@@ -436,5 +436,4 @@ impl DashboardService {
     }
 
     // Helper methods for PDF export
-
 }
