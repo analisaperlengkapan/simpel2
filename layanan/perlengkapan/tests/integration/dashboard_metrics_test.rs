@@ -188,3 +188,97 @@ async fn dashboard_exports_produce_a_non_empty_document() {
 
     teardown_test_db(&db_name).await;
 }
+
+/// `/bank-aset/dashboard` must report the SIMAN asset taxonomy, and must not
+/// die on a NULL.
+///
+/// Two faults met here, and the endpoint had NO test of any kind.
+///
+/// 1. The breakdown read `kategori_aset` with a bare `r.get()` into a `String`.
+///    That column is written by no ingest path at all, and in real SIMAN data
+///    it is NULL in 624 528 of 624 533 rows — the only populated rows were the
+///    five the e2e seed inserts itself. `r.get()` panics on NULL, and
+///    `panic = "abort"` makes that process death rather than a 500: opening the
+///    Bank Aset dashboard killed the backend for every user and the frontend
+///    retried into a crash loop. It surfaced only as unrelated e2e flakiness
+///    and intermittent 401s while the process restarted.
+///
+/// 2. Even guarded, `kategori_aset` is the wrong source. The real taxonomy is
+///    SIMAN's `jenis_aset` (Tanah, Gedung dan Bangunan, Alat Angkutan Bermotor,
+///    Peralatan Mesin Khusus/Non TIK, ...), which is populated for every row.
+///    Keyed on the dead column, the tile counted 0 categories and the dropdown
+///    was empty.
+///
+/// So the fixture below is shaped like production — `kategori_aset` NULL
+/// throughout — plus one row with a BLANK `jenis_aset` to pin the fallback.
+/// Blank rather than NULL because `jenis_aset` is NOT NULL in the schema (both
+/// in the test harness and on staging), so the empty string is the only
+/// degenerate value actually reachable; that is exactly why it is the safe
+/// column to key on and `kategori_aset` was not.
+#[tokio::test]
+async fn bank_aset_dashboard_reports_siman_jenis_and_survives_null() {
+    let (app, db, db_name) = setup_test_app().await;
+
+    let client = db.pool().get().await.unwrap();
+    client
+        .execute("TRUNCATE integrasi.siman_aset", &[])
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.siman_aset
+                (jenis_aset, kategori_aset, nama, ur_kondisi, kdsatker_keu, kode_barang, rph_aset)
+             VALUES
+                ('Peralatan Mesin Non TIK', NULL, 'Avanza',  'BAIK', 'KEU-A', 'KB-1', '250000000'),
+                ('Peralatan Mesin Non TIK', NULL, 'Laptop',  'BAIK', 'KEU-A', 'KB-2', '15000000'),
+                ('Tanah',                   NULL, 'Kavling', 'BAIK', 'KEU-B', 'KB-3', '4000000'),
+                ('',                        NULL, 'Misteri', 'BAIK', 'KEU-B', 'KB-4', '1000')",
+            &[],
+        )
+        .await
+        .unwrap();
+    drop(client);
+
+    let server = TestServer::new(app);
+    let res = get(&server, "/bank-aset/dashboard").await;
+    assert_eq!(
+        res.status_code(),
+        200,
+        "a NULL asset type must not kill the endpoint: {}",
+        res.text()
+    );
+
+    let body: serde_json::Value = res.json();
+    let data = &body["data"];
+    let breakdown = data["kategori_breakdown"]
+        .as_array()
+        .expect("kategori_breakdown array");
+    let by_name: std::collections::HashMap<&str, i64> = breakdown
+        .iter()
+        .map(|k| {
+            (
+                k["kategori"].as_str().unwrap_or_default(),
+                k["count"].as_i64().unwrap_or_default(),
+            )
+        })
+        .collect();
+
+    // Reading the SIMAN column, not the dead one: had this still read
+    // `kategori_aset` every row here would collapse into a single NULL bucket.
+    assert_eq!(
+        by_name.get("Peralatan Mesin Non TIK"),
+        Some(&2),
+        "SIMAN jenis_aset must drive the breakdown, got {by_name:?}"
+    );
+    assert_eq!(by_name.get("Tanah"), Some(&1), "got {by_name:?}");
+    assert_eq!(
+        by_name.get("TIDAK DIKETAHUI"),
+        Some(&1),
+        "a row with a blank jenis_aset must fall back to a label, got {by_name:?}"
+    );
+
+    // Three distinct types, counted off the same expression the breakdown uses.
+    assert_eq!(data["total_kategori"], 3);
+
+    teardown_test_db(&db_name).await;
+}
