@@ -41,9 +41,14 @@ curl -fsS -X POST http://127.0.0.1:8200/v1/sys/init \
   -H 'Content-Type: application/json' \
   -d '{"secret_shares":5,"secret_threshold":3}' | jq   # => {keys:[...], root_token:"..."}
 
-# 3. Unseal with 3 of the 5 keys (one request each).
+# 3. Unseal with 3 of the 5 keys (one request each). Read progress from
+#    seal-status, NOT from the unseal response: /sys/unseal wraps its body in
+#    ApiResponse (`.data.sealed`) while /sys/seal-status and /sys/init return
+#    bare objects, so `.sealed` on an unseal response is always null and
+#    "repeat until .sealed == false" can never terminate.
 curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
-  -H 'Content-Type: application/json' -d '{"key":"<key-n>"}' | jq -r '.sealed'
+  -H 'Content-Type: application/json' -d '{"key":"<key-n>"}' >/dev/null
+curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c '{sealed,progress,t}'
 # repeat until .sealed == false
 
 curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -r '.initialized, .sealed'

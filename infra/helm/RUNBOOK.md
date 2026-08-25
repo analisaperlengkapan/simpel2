@@ -397,10 +397,21 @@ curl -fsS -X POST http://127.0.0.1:8200/v1/sys/init \
 # ada, tidak bisa dipulihkan. Distribusi keys ke 5 holder berbeda (Shamir).
 
 # 7.4 Unseal × 3 (threshold)
+#
+# Progress dibaca dari /sys/seal-status, BUKAN dari respons unseal. Ketiga
+# endpoint seal memakai amplop berbeda: /sys/seal-status dan /sys/init
+# mengembalikan objek telanjang, sedangkan /sys/unseal membungkusnya dalam
+# ApiResponse -> field seal-nya ada di `.data.sealed`, jadi `.sealed` di respons
+# unseal SELALU null. Versi lama blok ini membaca `.sealed` langsung dan
+# mencetak "null" tiga kali; syarat berhenti "ulangi sampai sealed=false" tak
+# pernah bisa terpenuhi. secreton-ci-bootstrap.sh tidak pernah menangkap ini
+# karena ia membuang respons unseal (>/dev/null) lalu memverifikasi lewat
+# seal-status — CI hijau tanpa menguji prosedur yang ditulis di sini.
 for key in <key1> <key2> <key3>; do
   curl -fsS -X POST http://127.0.0.1:8200/v1/sys/unseal \
     -H 'Content-Type: application/json' \
-    -d "$(jq -nc --arg k "$key" '{key:$k}')" | jq -r '.sealed'
+    -d "$(jq -nc --arg k "$key" '{key:$k}')" >/dev/null
+  curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -c '{sealed,progress,t}'
 done
 curl -fsS http://127.0.0.1:8200/v1/sys/seal-status | jq -r '.initialized, .sealed'
 
