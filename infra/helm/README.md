@@ -30,7 +30,14 @@ helm upgrade simpel infra/helm/simpel \
   -f infra/helm/simpel/values-staging.yaml \
   -f /tmp/values-secrets.yaml \
   --set secrets.bootstrap=true \
-  --namespace simpelv2-staging --reuse-values
+  --namespace simpelv2-staging --reuse-values --timeout 20m
+# --timeout 20m: default helm 5m < activeDeadlineSeconds 1800 milik hook Job
+# migrasi, jadi default-nya bisa menggagalkan upgrade yang masih berjalan sah
+# (staging revisi 6, 2026-08-25).
+#
+# CATATAN untuk UPGRADE rutin (bukan bootstrap di atas): jangan pakai
+# `--reuse-values`, pakai overlay carry-forward yang diturunkan dari rilis
+# hidup. Alasannya + perintahnya ada di header values-staging.yaml.
 
 # 4. Verifikasi
 kubectl get all -n simpelv2-staging
