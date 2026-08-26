@@ -87,7 +87,14 @@ global:
   # (#827-#836), dan koreksi arti tier "wilayah": kolom yang dibaca RBAC
   # berisi I/II/III (238 satker), bukan Kejati — sejak rc27 diturunkan dari
   # hierarki MySIMKARI lewat view integrasi 005.
-  imageTag: v0.1.0-rc27
+  #
+  # rc28 membawa SATU perubahan kode: verifikasi SIMAN sebelum SK mencocokkan
+  # aset hanya lewat NUP, padahal NUP hanya unik dalam satu kode barang di satu
+  # satker. 44.017 aset di staging ber-NUP `1`, jadi pencocokan itu memilih baris
+  # yang salah sembilan kali dari sepuluh (#842). Tiga PR lain yang mendarat
+  # bersamanya TIDAK butuh image baru: #840 hanya berkas values ini, #841 dan
+  # #843 hanya fixture dan helper e2e.
+  imageTag: v0.1.0-rc28
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
