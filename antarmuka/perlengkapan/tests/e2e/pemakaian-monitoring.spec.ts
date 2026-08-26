@@ -105,6 +105,23 @@ test.describe('Monitoring pemakaian BMN — API scoping', () => {
       wilayah.length,
       `wilayah tier should be wider than one satker (saw ${JSON.stringify(wilayah)})`,
     ).toBeGreaterThan(satker.length);
+
+    // …and STRICTLY narrower than nasional. Every assertion above is satisfied
+    // by a wilayah tier that leaks the whole country, since a superset relation
+    // holds trivially when the two sets are equal. The seed therefore puts one
+    // ACTIVE permit under a DIFFERENT Kejati (Bandung, 0300010) with no user of
+    // its own, purely so this comparison has something to exclude.
+    const OTHER_KEJATI = '0300010';
+    expect(
+      pusat,
+      `nasional tier must include the out-of-wilayah satker ${OTHER_KEJATI}; ` +
+        'without it this test proves nothing about exclusion',
+    ).toContain(OTHER_KEJATI);
+    expect(
+      wilayah,
+      `wilayah tier leaked ${OTHER_KEJATI}, which sits under another Kejati ` +
+        `(saw ${JSON.stringify(wilayah)})`,
+    ).not.toContain(OTHER_KEJATI);
   });
 
   test('two satker-bound callers never see each other', async ({ request }) => {

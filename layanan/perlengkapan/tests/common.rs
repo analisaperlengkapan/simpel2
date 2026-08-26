@@ -196,7 +196,10 @@ pub async fn setup_test_db() -> (Database, String) {
                 id BIGSERIAL PRIMARY KEY,
                 kode_satker TEXT NOT NULL UNIQUE,
                 nama_satker TEXT,
-                wilayah TEXT
+                wilayah TEXT,
+                tipe_satker TEXT,
+                api_id TEXT,
+                parent_id TEXT
             )",
             &[],
         )
@@ -330,23 +333,69 @@ pub async fn setup_test_db() -> (Database, String) {
         .await
         .unwrap();
 
-    // Two satkers in ONE wilayah plus a third in another. That combination is
-    // what makes the tiers distinguishable: with a single satker, a wilayah
+    // Two satkers under ONE Kejati plus a third under another. That combination
+    // is what makes the tiers distinguishable: with a single satker, a wilayah
     // filter and a satker filter return the same rows and a broken tier passes.
     //
     // `kdsatker_keu` digits 6-9 carry the wilayah, so SKR001/SKR002 share 0199
     // while SKR003 sits in 1100. The codes are real staging values.
+    //
+    // The two KEJATI rows and the `parent_id -> api_id` links are REQUIRED:
+    // `v_satker_wilayah` derives the tier by climbing that hierarchy, so a
+    // fixture without them resolves every satker to NO wilayah and the wilayah
+    // tier quietly tests the empty set.
+    //
+    // `wilayah` is 'II' for ALL of them on purpose. That is the shape of the
+    // real column (a JAM grouping spanning many Kejati, never a Kejati name),
+    // and it makes this fixture a canary: if a scope ever goes back to reading
+    // it, SKR003 becomes visible to SKR001's wilayah validator and the
+    // cross-wilayah assertions fail.
     client
         .execute(
-            "INSERT INTO integrasi.mysimkari_satker (kode_satker, nama_satker, wilayah)
-             VALUES ('SKR001', 'KEJAKSAAN NEGERI UJI A', 'W01'),
-                    ('SKR002', 'KEJAKSAAN NEGERI UJI B', 'W01'),
-                    ('SKR003', 'KEJAKSAAN NEGERI UJI C', 'W02')
+            "INSERT INTO integrasi.mysimkari_satker
+                 (kode_satker, nama_satker, wilayah, tipe_satker, api_id, parent_id)
+             VALUES ('KJT01', 'KEJAKSAAN TINGGI UJI SATU', 'II', 'Kejaksaan Tinggi', 'api-kjt01', NULL),
+                    ('KJT02', 'KEJAKSAAN TINGGI UJI DUA',  'II', 'Kejaksaan Tinggi', 'api-kjt02', NULL),
+                    ('SKR001', 'KEJAKSAAN NEGERI UJI A', 'II', 'Kejaksaan Negeri', 'api-skr001', 'api-kjt01'),
+                    ('SKR002', 'KEJAKSAAN NEGERI UJI B', 'II', 'Kejaksaan Negeri', 'api-skr002', 'api-kjt01'),
+                    ('SKR003', 'KEJAKSAAN NEGERI UJI C', 'II', 'Kejaksaan Negeri', 'api-skr003', 'api-kjt02')
              ON CONFLICT (kode_satker) DO NOTHING",
             &[],
         )
         .await
         .unwrap();
+
+    // The wilayah tier's single definition. READ FROM THE OWNER'S MIGRATION
+    // rather than restated here: a hand-written cross-schema stub is what
+    // certified bugs in #17 (the old stub made 14 tests pass and 3 fail; the
+    // faithful one inverted that exactly). If 005 changes, these tests change
+    // with it or fail loudly — they cannot drift into agreeing with a schema
+    // that no longer exists.
+    let wilayah_view_sql = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../integrasi/migrations/005_satker_wilayah.sql"
+    ))
+    .expect("integrasi migration 005 must be readable — it defines the wilayah tier");
+    {
+        // On a DEDICATED connection, never one from the pool. The file opens
+        // with `SET search_path TO integrasi, public`, which is a session
+        // setting: a pooled connection carries it back into the pool, and every
+        // later borrower of that connection resolves unqualified names in the
+        // wrong schema. Nothing here would fail — the queries would just answer
+        // about different tables, intermittently, depending on which connection
+        // the pool handed out.
+        let cfg: Config = test_url_str.parse().unwrap();
+        let (mig_client, mig_conn) = cfg.connect(NoTls).await.unwrap();
+        let conn_handle = tokio::spawn(async move {
+            let _ = mig_conn.await;
+        });
+        mig_client
+            .batch_execute(&wilayah_view_sql)
+            .await
+            .expect("wilayah view (integrasi 005) must apply to the test schema");
+        drop(mig_client);
+        let _ = conn_handle.await;
+    }
     client
         .execute(
             "INSERT INTO integrasi.satker_code_map (kode_satker, kdsatker_keu, nama_satker, verified)

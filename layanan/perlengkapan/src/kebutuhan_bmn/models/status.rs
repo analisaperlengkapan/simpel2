@@ -183,7 +183,7 @@ pub enum PilihanSatker {
     Semua,
     Sebagian,
     /// Cakupan satu wilayah Kejaksaan Tinggi — sistem otomatis resolve
-    /// semua satker dlm wilayah tsb dari `integrasi.mysimkari_satker`
+    /// semua satker di bawah Kejati tsb dari `integrasi.v_satker_wilayah`
     /// (V029, Fase 1.7).
     Wilayah,
 }

@@ -25,7 +25,7 @@ pub struct PengajuanKebutuhanBmn {
     /// Cakupan satker per V029 (Fase 1.7): semua | sebagian | wilayah.
     pub scope_satker: PilihanSatker,
     /// Nama wilayah Kejaksaan Tinggi (text label, match
-    /// `integrasi.mysimkari_satker.wilayah`). WAJIB jika scope=wilayah;
+    /// `integrasi.v_satker_wilayah.wilayah_code` = kode_satker Kejati). WAJIB jika scope=wilayah;
     /// `None` untuk scope lain.
     pub wilayah_id: Option<String>,
     pub id_jenis_asset: Value,

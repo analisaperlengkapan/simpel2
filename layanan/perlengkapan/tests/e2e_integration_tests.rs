@@ -10,6 +10,7 @@ mod integration {
     mod pemakaian_monitoring_scope_test;
     mod penghapusan_bmn_workflow_test;
     mod rbac_403_test;
+    mod satker_wilayah_test;
     mod siman_dead_columns_test;
     mod sql_relations_exist_test;
 }

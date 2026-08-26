@@ -191,7 +191,8 @@ impl PakaianDinasRepository {
         }
 
         // Resolve & insert selected satkers.
-        // - "wilayah" (#19): auto-resolve dari integrasi.mysimkari_satker.wilayah.
+        // - "wilayah" (#19): auto-resolve dari integrasi.v_satker_wilayah
+        //   (satker di bawah satu Kejaksaan Tinggi).
         // - "sebagian": pakai satker_ids dari operator.
         // - "all"/"semua": kosong (artinya seluruh satker).
         let resolved_satker_codes: Vec<String> = if request.pilihan_satker == "wilayah" {
@@ -226,7 +227,7 @@ impl PakaianDinasRepository {
     }
 
     /// Resolve `kode_satker` untuk satu wilayah Kejaksaan Tinggi (#19), sumber
-    /// `integrasi.mysimkari_satker`. Kembar dgn
+    /// `integrasi.v_satker_wilayah`. Kembar dgn
     /// `KebutuhanBmnRepository::list_satker_codes_by_wilayah` — nama dan bentuk
     /// sengaja disamakan.
     ///
@@ -241,8 +242,11 @@ impl PakaianDinasRepository {
             .map_err(|e| bad_request(&e.to_string()))?;
         let rows = client
             .query(
-                "SELECT kode_satker FROM integrasi.mysimkari_satker \
-                 WHERE wilayah = $1 ORDER BY kode_satker",
+                // `wilayah_code` = kode_satker Kejati penaung. Dulu ini
+                // membaca `mysimkari_satker.wilayah`, yang berisi I/II/III:
+                // menargetkan satu "wilayah" berarti menargetkan 238 satker.
+                "SELECT kode_satker FROM integrasi.v_satker_wilayah \
+                 WHERE wilayah_code = $1 ORDER BY kode_satker",
                 &[&wilayah],
             )
             .await

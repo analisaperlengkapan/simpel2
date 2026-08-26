@@ -13,8 +13,8 @@
 //!     satkers by MySIMKARI `kode_satker`, same as kebutuhan (V006/#94 — it
 //!     used to be a `uuid` compared against a `bigint` PK, which was invalid
 //!     SQL). The satker tier can therefore compare the column directly; only
-//!     the wilayah tier still joins `integrasi.mysimkari_satker`, because it
-//!     needs that table's `wilayah`.
+//!     the wilayah tier still joins, and it joins `integrasi.v_satker_wilayah`
+//!     — the one definition of the tier, shared with every other scope.
 //!
 //! Tiers (derived via [`SatkerScope`], reusing its role mapping):
 //! - `All`     — cross-satker roles (pusat/validator_pusat/admin = the campaign
@@ -53,7 +53,7 @@ pub fn campaign_visibility_condition(
                 "p.id IN (SELECT pp.id FROM perlengkapan.pengajuan_pakaian_dinas pp \
                  WHERE pp.scope_satker IS NULL OR pp.scope_satker IN ('semua', 'all') \
                     OR (pp.scope_satker = 'wilayah' AND pp.wilayah_id = \
-                        (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
+                        (SELECT s.wilayah_code FROM integrasi.v_satker_wilayah s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih pt \
                         WHERE pt.pengajuan_id = pp.id AND pt.satker_id = ${i}))"
@@ -66,12 +66,12 @@ pub fn campaign_visibility_condition(
                 "p.id IN (SELECT pp.id FROM perlengkapan.pengajuan_pakaian_dinas pp \
                  WHERE pp.scope_satker IS NULL OR pp.scope_satker IN ('semua', 'all') \
                     OR (pp.scope_satker = 'wilayah' AND pp.wilayah_id = \
-                        (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
+                        (SELECT s.wilayah_code FROM integrasi.v_satker_wilayah s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas_satker_terpilih pt \
-                        JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = pt.satker_id \
-                        WHERE pt.pengajuan_id = pp.id AND ms.wilayah = \
-                          (SELECT s2.wilayah FROM integrasi.mysimkari_satker s2 \
+                        JOIN integrasi.v_satker_wilayah ms ON ms.kode_satker = pt.satker_id \
+                        WHERE pt.pengajuan_id = pp.id AND ms.wilayah_code = \
+                          (SELECT s2.wilayah_code FROM integrasi.v_satker_wilayah s2 \
                            WHERE s2.kode_satker = ${i})))"
             ))
         }
@@ -110,11 +110,11 @@ mod tests {
         // wilayah tier resolves the caller's wilayah name
         assert!(cond.contains("pp.scope_satker = 'wilayah'"));
         // Explicit targets compare kode_satker DIRECTLY — no join through
-        // mysimkari_satker, because the column now holds kode_satker (V006/#94).
+        // the wilayah view, because the column now holds kode_satker (V006/#94).
         assert!(cond.contains("pengajuan_pakaian_dinas_satker_terpilih pt"));
         assert!(cond.contains("pt.satker_id = $1"));
         assert!(
-            !cond.contains("JOIN integrasi.mysimkari_satker ms"),
+            !cond.contains("JOIN integrasi.v_satker_wilayah ms"),
             "satker tier must not need the surrogate-id join any more"
         );
         assert_eq!(p.len(), 1);
@@ -127,9 +127,12 @@ mod tests {
             campaign_visibility_condition(&SatkerScope::Wilayah("02.28".to_string()), &mut p)
                 .unwrap();
         assert!(
-            cond.contains("JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = pt.satker_id")
+            cond.contains("JOIN integrasi.v_satker_wilayah ms ON ms.kode_satker = pt.satker_id")
         );
-        assert!(cond.contains("ms.wilayah ="));
+        assert!(cond.contains("ms.wilayah_code ="));
+        // The column this tier used to read groups 15 Kejati together; it must
+        // not come back.
+        assert!(!cond.contains("mysimkari_satker"));
         assert!(cond.contains("$1"));
         assert_eq!(p.len(), 1);
     }

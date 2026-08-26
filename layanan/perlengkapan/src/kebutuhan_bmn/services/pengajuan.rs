@@ -82,10 +82,12 @@ impl KebutuhanBmnService {
         self.repository.get_rekap_laporan(filter, scope).await
     }
 
-    /// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
-    /// `integrasi.mysimkari_satker.wilayah`. Dipakai FE untuk dropdown
+    /// V029 (Fase 1.7): Daftar Kejaksaan Tinggi dari `integrasi.v_satker_wilayah`
+    /// — satu-satunya definisi tier wilayah. Dipakai FE untuk dropdown
     /// "Scope satker = wilayah".
-    pub async fn list_wilayah(&self) -> AppResult<Vec<String>> {
+    pub async fn list_wilayah(
+        &self,
+    ) -> AppResult<Vec<crate::kebutuhan_bmn::models::WilayahKejati>> {
         self.repository.list_wilayah().await
     }
 

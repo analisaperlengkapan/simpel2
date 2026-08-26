@@ -226,13 +226,13 @@ pub async fn export_pengajuan(
 }
 /// GET /kebutuhan-bmn/wilayah
 ///
-/// V029 (Fase 1.7): Daftar nama wilayah Kejaksaan Tinggi distinct dari
-/// `integrasi.mysimkari_satker`. Dipakai FE saat user pilih
-/// `pilihan_satker = wilayah` untuk dropdown wilayah.
+/// V029 (Fase 1.7): Daftar Kejaksaan Tinggi dari `integrasi.v_satker_wilayah`.
+/// Dipakai FE saat user pilih `pilihan_satker = wilayah` untuk dropdown wilayah;
+/// nilai yang dikirim balik sebagai `wilayah_id` adalah `kode`.
 pub async fn list_wilayah_kejati(
     State(service): State<KebutuhanBmnService>,
     _claims: Claims,
-) -> Result<Json<ApiResponse<Vec<String>>>, AppError> {
+) -> Result<Json<ApiResponse<Vec<crate::kebutuhan_bmn::models::WilayahKejati>>>, AppError> {
     let wilayah = service.list_wilayah().await?;
     Ok(Json(ApiResponse::success(
         wilayah,

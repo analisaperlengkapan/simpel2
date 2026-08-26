@@ -7,8 +7,9 @@
 //! target the caller?", not "does the caller own it":
 //!
 //! - `scope_satker = 'semua'`   → nationwide: every satker sees it.
-//! - `scope_satker = 'wilayah'` → `wilayah_id` (a wilayah NAME, matches
-//!   `integrasi.mysimkari_satker.wilayah`): satkers in that wilayah see it.
+//! - `scope_satker = 'wilayah'` → `wilayah_id` (the Kejaksaan Tinggi's
+//!   `kode_satker`, matching `integrasi.v_satker_wilayah.wilayah_code`):
+//!   satkers under that Kejati see it.
 //! - `scope_satker = 'sebagian'`→ only the satkers listed as children see it.
 //!
 //! Tiers (derived via [`SatkerScope`], reusing its role mapping):
@@ -46,7 +47,7 @@ pub fn campaign_visibility_condition(
                 "id IN (SELECT p.id FROM perlengkapan.pengajuan_kebutuhan_bmn p \
                  WHERE p.scope_satker = 'semua' \
                     OR (p.scope_satker = 'wilayah' AND p.wilayah_id = \
-                        (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
+                        (SELECT s.wilayah_code FROM integrasi.v_satker_wilayah s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps \
                         WHERE ps.pengajuan_id = p.id AND ps.satker_id = ${i}))"
@@ -59,12 +60,12 @@ pub fn campaign_visibility_condition(
                 "id IN (SELECT p.id FROM perlengkapan.pengajuan_kebutuhan_bmn p \
                  WHERE p.scope_satker = 'semua' \
                     OR (p.scope_satker = 'wilayah' AND p.wilayah_id = \
-                        (SELECT s.wilayah FROM integrasi.mysimkari_satker s \
+                        (SELECT s.wilayah_code FROM integrasi.v_satker_wilayah s \
                          WHERE s.kode_satker = ${i})) \
                     OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker ps \
-                        JOIN integrasi.mysimkari_satker ms ON ms.kode_satker = ps.satker_id \
-                        WHERE ps.pengajuan_id = p.id AND ms.wilayah = \
-                          (SELECT s2.wilayah FROM integrasi.mysimkari_satker s2 \
+                        JOIN integrasi.v_satker_wilayah ms ON ms.kode_satker = ps.satker_id \
+                        WHERE ps.pengajuan_id = p.id AND ms.wilayah_code = \
+                          (SELECT s2.wilayah_code FROM integrasi.v_satker_wilayah s2 \
                            WHERE s2.kode_satker = ${i})))"
             ))
         }
@@ -110,8 +111,11 @@ mod tests {
         let cond =
             campaign_visibility_condition(&SatkerScope::Wilayah("02.28".to_string()), &mut p)
                 .unwrap();
-        assert!(cond.contains("JOIN integrasi.mysimkari_satker ms"));
-        assert!(cond.contains("ms.wilayah ="));
+        assert!(cond.contains("JOIN integrasi.v_satker_wilayah ms"));
+        assert!(cond.contains("ms.wilayah_code ="));
+        // The column this tier used to read groups 15 Kejati together; it must
+        // not come back.
+        assert!(!cond.contains("mysimkari_satker"));
         assert!(cond.contains("$1"));
         assert_eq!(p.len(), 1);
     }

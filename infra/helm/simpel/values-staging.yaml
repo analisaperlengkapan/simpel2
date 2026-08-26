@@ -24,8 +24,10 @@ global:
   # rc27 membawa sembilan commit yang belum pernah ada di image mana pun:
   # tiga kolom mati SIMAN (jenis aset, NUP, gap analysis), export PDF yang
   # menyajikan HTML, cronjob sync produksi yang memanggil biner tak terbangun,
-  # cache nginx app-2026, dan scoping monitoring pemakaian BMN per role
-  # (#827-#836).
+  # cache nginx app-2026, scoping monitoring pemakaian BMN per role
+  # (#827-#836), dan koreksi arti tier "wilayah": kolom yang dibaca RBAC
+  # berisi I/II/III (238 satker), bukan Kejati — sejak rc27 diturunkan dari
+  # hierarki MySIMKARI lewat view integrasi 005.
   imageTag: v0.1.0-rc27
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121

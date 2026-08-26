@@ -357,18 +357,28 @@ pub async fn fetch_jenis_pakaian_dinas(
     })
 }
 
-/// `GET /kebutuhan-bmn/wilayah` — daftar wilayah Kejaksaan Tinggi (#19).
-/// Dipakai bersama dgn Kebutuhan BMN; sumber `integrasi.mysimkari_satker`.
+/// Satu Kejaksaan Tinggi untuk dropdown "Scope satker = wilayah".
+///
+/// Cermin `layanan/perlengkapan/src/kebutuhan_bmn/models/responses.rs`.
+/// `kode` yang dikirim balik sebagai `wilayah_id`, `nama` yang ditampilkan.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WilayahKejati {
+    pub kode: String,
+    pub nama: String,
+}
+
+/// `GET /kebutuhan-bmn/wilayah` — daftar Kejaksaan Tinggi (#19).
+/// Dipakai bersama dgn Kebutuhan BMN; sumber `integrasi.v_satker_wilayah`.
 #[cfg(target_arch = "wasm32")]
-pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+pub async fn fetch_wilayah_kejati() -> Result<Vec<WilayahKejati>, crate::api::AppError> {
     use crate::api::client::auth_get_json;
-    let resp: ApiResponse<Vec<String>> =
+    let resp: ApiResponse<Vec<WilayahKejati>> =
         auth_get_json("/api/v1/perlengkapan/kebutuhan-bmn/wilayah").await?;
     Ok(resp.data)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn fetch_wilayah_kejati() -> Result<Vec<String>, crate::api::AppError> {
+pub async fn fetch_wilayah_kejati() -> Result<Vec<WilayahKejati>, crate::api::AppError> {
     Ok(vec![])
 }
 

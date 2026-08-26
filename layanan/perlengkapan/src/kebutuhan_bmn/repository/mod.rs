@@ -186,15 +186,14 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         laporan_format: &str,
     ) -> AppResult<()>;
 
-    /// V029 (Fase 1.7): Resolve daftar `kode_satker` yg termasuk dalam
-    /// `wilayah` tertentu (Kejaksaan Tinggi). Sumber: tabel cache
-    /// `integrasi.mysimkari_satker`. Kosong jika tidak ada satker /
-    /// wilayah tidak dikenal.
+    /// V029 (Fase 1.7): Resolve daftar `kode_satker` di bawah satu Kejaksaan
+    /// Tinggi. `wilayah` = `kode_satker` Kejati itu. Sumber:
+    /// `integrasi.v_satker_wilayah`. Kosong jika Kejati tak dikenal.
     async fn list_satker_codes_by_wilayah(&self, wilayah: &str) -> AppResult<Vec<String>>;
 
-    /// V029 (Fase 1.7): Daftar wilayah distinct yg ada di
-    /// `integrasi.mysimkari_satker` — dipakai FE utk dropdown.
-    async fn list_wilayah(&self) -> AppResult<Vec<String>>;
+    /// V029 (Fase 1.7): Daftar Kejaksaan Tinggi dari
+    /// `integrasi.v_satker_wilayah` — dipakai FE utk dropdown.
+    async fn list_wilayah(&self) -> AppResult<Vec<crate::kebutuhan_bmn::models::WilayahKejati>>;
 
     /// Object-level counterpart of [`SatkerScope::push_condition`]: apakah satu
     /// `kode_satker` MySIMKARI (`code`) masuk dalam scope pemanggil?
@@ -205,9 +204,10 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     /// lain di dalam campaign nasional (`scope_satker = 'semua'`).
     ///
     /// Tier `Wilayah` sengaja memakai subquery **yang sama persis** dengan
-    /// `push_condition` (self-join `integrasi.mysimkari_satker` atas kolom
-    /// `wilayah`) supaya scoping daftar dan scoping objek tak bisa menyimpang
-    /// satu sama lain — kalau salah satu berubah, keduanya harus berubah.
+    /// `push_condition` (self-join `integrasi.v_satker_wilayah` atas
+    /// `wilayah_code`) supaya scoping daftar dan scoping objek tak bisa
+    /// menyimpang satu sama lain — kalau salah satu berubah, keduanya harus
+    /// berubah.
     ///
     /// Tier murni (`All`/`Denied`/`Satker`) tidak menyentuh DB sama sekali.
     async fn satker_code_in_scope(&self, scope: &SatkerScope, code: &str) -> AppResult<bool>;
