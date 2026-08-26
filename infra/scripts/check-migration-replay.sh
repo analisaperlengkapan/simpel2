@@ -81,8 +81,16 @@ rc=0
 for pass in 1 2; do
   echo "--- pass $pass ---"
   for m in "${FILES[@]}"; do
+    # --single-transaction is not tidiness: `batch_execute` hands Postgres the
+    # whole file as ONE implicit transaction, so a migration is all-or-nothing
+    # and statements Postgres forbids inside a transaction block (CREATE INDEX
+    # CONCURRENTLY, VACUUM, ALTER SYSTEM) fail there. psql's default — each
+    # statement in its own transaction — accepts all of them, so without this
+    # flag the guard would certify a migration the deploy hook cannot run.
+    # See layanan/integrasi/AGENTS.md §0 for the rule this enforces.
     if out=$(docker exec -i "$CONTAINER" \
-               psql -U postgres -d replaytest -v ON_ERROR_STOP=1 -q < "$MIG_DIR/$m" 2>&1); then
+               psql -U postgres -d replaytest --single-transaction \
+                    -v ON_ERROR_STOP=1 -q < "$MIG_DIR/$m" 2>&1); then
       echo "  ok    $m"
     else
       echo "  GAGAL $m"
