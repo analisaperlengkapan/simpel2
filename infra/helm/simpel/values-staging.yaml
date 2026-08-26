@@ -1,9 +1,68 @@
 # Staging overrides untuk SIMPEL.
 #
-# Pakai bersama values.yaml:
+# Rilis staging yang hidup merekam 24 nilai `secrets.*` yang TIDAK ADA di
+# berkas ini — kredensial Postgres, `APP_KEY`/`DB_PASSWORD` simpelv1, dan token
+# MySIMKARI/SIMAN/Monsakti — dipasok saat bootstrap lewat `values-secrets.yaml`
+# di luar repo. Yang benar soal itu, diperiksa bukan diduga:
+#
+# * `helm upgrade -f values-staging.yaml` saja AMAN hari ini. Dibuktikan dengan
+#   me-render dua arah (dengan dan tanpa overlay rahasia) lalu mem-diff-nya:
+#   **0 objek berbeda**. Sebabnya dua: satu-satunya template Secret ada di
+#   balik gerbang `secrets.bootstrap`, yang kini `false` (rilis hidup memuat
+#   **0 objek Secret** — Secret di namespace bukan milik Helm), dan nilai yang
+#   dipakai DI LUAR gerbang itu kebetulan sama dengan default chart.
+# * Yang dipakai di luar gerbang bukan hal sepele:
+#   `secrets.postgresCredentials.username` dan `.databases` dibaca oleh
+#   StatefulSet postgres, `postgres-init` ConfigMap, `db-create-job`, dan loop
+#   tunggu-postgres di KEDUA hook Job migrasi. Kalau suatu hari default chart
+#   dan nilai hidup berbeda, hook-nya menunggu user yang salah lalu kehabisan
+#   waktu — persis mode gagal revisi 6 di bawah, tapi dengan penyebab yang
+#   tak kelihatan.
+# * Bahaya yang nyata tapi tertunda: upgrade tanpa overlay MENGHAPUS 24 nilai
+#   itu dari rekaman rilis. Orang berikutnya yang menyalakan
+#   `secrets.bootstrap=true` mengira kredensial lama masih ada, padahal yang
+#   dipakai default chart — dan Secret kredensial Postgres ditulis ulang
+#   dengan placeholder.
+#
+# Karena itu bawa overlay-nya; ia satu perintah dan DITURUNKAN, bukan ditulis
+# tangan. "Default-nya kebetulan sama" bukan sesuatu yang dijaga siapa pun.
+#
+#   # 1. Turunkan overlay carry-forward dari rilis hidup. JANGAN commit.
+#   helm get values simpel -n simpelv2-staging -o json \
+#     | jq '{secrets: .secrets}' > /run/user/$UID/secrets-carry.yaml
+#   # jq, bukan PyYAML: image runner ARC tak punya PyYAML, dan JSON adalah YAML
+#   # yang sah — helm menerimanya sebagai `-f` apa adanya.
+#
+#   # 2. Upgrade: berkas ini otoritatif untuk SEMUA yang bukan rahasia.
 #   helm upgrade --install simpel infra/helm/simpel \
 #     -f infra/helm/simpel/values-staging.yaml \
-#     --namespace simpelv2-staging --create-namespace
+#     -f /run/user/$UID/secrets-carry.yaml \
+#     --namespace simpelv2-staging --timeout 20m
+#
+# Kenapa overlay, bukan `--reuse-values`: `--reuse-values` mempertahankan JUGA
+# nilai yang sudah DIHAPUS dari berkas ini, jadi ia mesin drift yang sama yang
+# menyembunyikan `namespace.create=false` selama delapan revisi. Overlay
+# menjaga rahasianya saja dan membiarkan berkas ini jadi kebenaran untuk sisanya.
+#
+# Tiga hal yang dulu diketik di terminal dan sekarang ada di berkas ini,
+# supaya perintah di atas mereproduksi staging apa adanya (rahasia tetap di
+# luar repo — yang dicatat di sini hanya nilai non-rahasia):
+#
+# * `--create-namespace` DIBUANG. Namespace-nya sengaja di luar release —
+#   lihat blok `namespace:` di bawah.
+# * `--set namespace.create=false` dan `--set postgres.dbCreateJob.enabled=false`
+#   kini tertulis di bawah (dulu flag terminal sejak revisi 8).
+# * `--timeout 20m` WAJIB, bukan hiasan. Default helm 5 menit, sedangkan hook
+#   Job migrasi diberi `activeDeadlineSeconds: 1800`. Revisi 6 (2026-08-25)
+#   gagal persis di celah itu: "post-upgrade hooks failed: timed out waiting
+#   for the condition" — helm menyerah sementara Job-nya masih berjalan sah,
+#   dan release-nya berakhir `failed` lalu harus di-rollback ke revisi 5.
+#   Angka helm harus >= jatah Job-nya, bukan sebaliknya.
+#
+# CATATAN: `--timeout` mengatur berapa lama helm MENUNGGU; ia tidak mengubah
+# nilai apa pun, jadi ia bukan sumber drift repo-vs-cluster seperti `--set`.
+# Ia ditulis di sini karena perintah yang salah waktunya menggagalkan upgrade
+# yang sebenarnya berhasil, dan itu sama mahalnya.
 
 global:
   environment: staging
@@ -47,6 +106,20 @@ global:
     kubernetes.io/hostname: simple02
 
 namespace:
+  # `create: false` — the namespace object predates this release lineage and stays
+  # OUTSIDE the release on purpose. Two incidents argue for it: (a) 2026-06-17,
+  # `helm uninstall` cascade-deleted the whole namespace and every PVC in it; (b)
+  # adopting a pre-existing object into Helm makes a rollback to an older revision
+  # able to rewrite or delete it (that is how staging egress was cut once). The
+  # object already carries `helm.sh/resource-policy: keep` from when the chart did
+  # template it, so nothing is lost by leaving it out.
+  #
+  # This line is not new behaviour: staging has run with `--set namespace.create=false`
+  # since revision 8. It was only ever a flag typed at the terminal, so the repo said
+  # `true` (chart default) while the cluster ran `false` — the same repo-vs-cluster
+  # drift that made the chart pull an image nothing built (#837). Written down here so
+  # `helm upgrade -f values-staging.yaml`, with no `--set`, reproduces staging exactly.
+  create: false
   name: simpelv2-staging
   istioInjection: enabled
 
@@ -73,6 +146,10 @@ backendConfig:
 postgres:
   replicas: 1
   storage: { size: 20Gi }
+  # Off since revision 8, for the same reason as `namespace.create`: it was a
+  # `--set` flag the repo never recorded. dbsimpelv2 / dbsimpelv1 / secreton already
+  # exist on this instance, so the create hook has nothing left to do.
+  dbCreateJob: { enabled: false }
 redis: {}
 authenc:
   replicas: 1

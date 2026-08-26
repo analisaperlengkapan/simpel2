@@ -27,8 +27,16 @@ guardrails; the values/specifics live there.
 1. **Build & push** — push git tag `vX.Y.Z-rcN` → `release.yml` builds+pushes all
    images (immutable digest) + cosign + SBOM/provenance + Trivy.
 2. **Deploy STAGING** — `helm upgrade --install simpel infra/helm/simpel -f
-   infra/helm/simpel/values-staging.yaml -n simpelv2-staging` (or
-   `infra/helm/deploy.sh staging`). Pin the `-rcN` tag.
+   infra/helm/simpel/values-staging.yaml -f <secrets-carry> -n simpelv2-staging
+   --timeout 20m`. The tag lives in `values-staging.yaml`, not in a `--set`.
+   `<secrets-carry>` is derived, never hand-written, and never committed:
+   `helm get values simpel -n simpelv2-<env> -o json | jq '{secrets: .secrets}'`.
+   It carries the 24 `secrets.*` values supplied at bootstrap that the repo
+   values file does not hold. Not `--reuse-values` — that also preserves values
+   you *deleted* from the repo file, which is the drift mechanism itself.
+   `--timeout 20m` because helm's default 5m is shorter than the migration hook
+   Job's `activeDeadlineSeconds: 1800` (staging revision 6 failed in that gap).
+   See the header of `values-staging.yaml` for what was measured.
 3. **Test STAGING** — smoke + Playwright e2e + `cargo test` against staging. Fail →
    fix, bump `-rc(N+1)`, back to (1). Destructive tests stay on staging.
 4. **Promote** — `gh workflow run promote.yml` (re-tag `vX.Y.Z-rcN` → `vX.Y.Z`,
@@ -40,7 +48,10 @@ guardrails; the values/specifics live there.
 6. **Test PRODUCTION** — smoke + non-destructive e2e. Regression → rollback (below).
 
 Pre-flight: `helm lint infra/helm/simpel -f infra/helm/simpel/values-<env>.yaml`
-and render-diff (`infra/helm/deploy.sh <env> template`) before upgrading.
+and render-diff (`infra/helm/deploy.sh <env> template`) before upgrading. Render
+BOTH ways — with and without the secrets overlay — and diff the objects: the
+answer should be "0 objects differ", and if it is not, the overlay is load-bearing
+and you have just learned which objects depend on it.
 
 ## Rollback
 
@@ -82,8 +93,15 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
    **MOCK** integration (`.invalid` URLs, sync off — real gov-API tokens are prod-only,
    see `layanan/integrasi/AGENTS.md`). Use a **URL-safe** pg password (`openssl rand -hex 24`).
 4. **Install (no `--wait`):** `helm upgrade --install simpel infra/helm/simpel -f
-   values-<env>.yaml -f values-secrets.yaml --set global.imageTag=vX.Y.Z-rcN
-   --set namespace.create=false -n simpelv2-<env> --timeout 20m`. Skip `--wait`:
+   values-<env>.yaml -f values-secrets.yaml -n simpelv2-<env> --timeout 20m`.
+   **No `--set`** — `global.imageTag` and `namespace.create` are recorded in
+   `values-<env>.yaml`; passing them here is how the repo and the cluster came
+   to describe different systems twice (rc24's tag, and `namespace.create`
+   since revision 8). Bump the values file in the same commit you tag.
+   `--timeout 20m` is required, not decorative: helm's default is 5m while the
+   migration hook Job gets `activeDeadlineSeconds: 1800`, and staging revision 6
+   failed in exactly that gap ("timed out waiting for the condition") while the
+   Job was still running legitimately. Skip `--wait`:
    secreton-0 comes up **sealed** (no auto-unseal); with `secretonAuth.enabled=false`
    nothing depends on it so apps still boot from k8s secrets. `deploy.sh` forces
    `--wait 5m` → would time out; call `helm` directly here.
