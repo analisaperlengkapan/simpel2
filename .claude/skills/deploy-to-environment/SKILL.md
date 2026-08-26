@@ -105,9 +105,16 @@ Reloader for simpelv1 secret rotation. See `infra/AGENTS.md` "Bootstrap".
    secreton-0 comes up **sealed** (no auto-unseal); with `secretonAuth.enabled=false`
    nothing depends on it so apps still boot from k8s secrets. `deploy.sh` forces
    `--wait 5m` → would time out; call `helm` directly here.
-   - **post-install hooks run in order:** `db-create` (creates `dbsimpelv1`+`secreton` —
-     the Patroni image SKIPS `/docker-entrypoint-initdb.d`, so only `dbsimpelv2` exists
-     otherwise) → `integrasi-migrate` → `authenc-migrate` (each waits-for-postgres).
+   - **post-install hooks run in order:** `db-create` (creates `dbsimpelv1`+`secreton`;
+     `/docker-entrypoint-initdb.d` runs only on the FIRST init of an empty PGDATA, so
+     any volume that already exists — including every restore — never re-runs it and
+     newly-added databases would silently not exist) → `integrasi-migrate` →
+     `authenc-migrate` (each waits-for-postgres).
+   - **On UPGRADE the same three run as `pre-upgrade`, not post-.** The schema must
+     land before the new pods roll out; expand/contract only guarantees the reverse
+     direction (old code tolerating new schema, which is what makes `helm rollback`
+     safe without a DB restore). A `pre-upgrade` failure aborts the upgrade with
+     nothing rolled out — the outcome you want.
      perlengkapan self-migrates on boot AFTER authenc+integrasi schemas exist (may
      crashloop briefly — tolerated by its startupProbe).
 5. **Secreton:** bootstrap + unseal fresh (skill `secreton-ops`; **new** Shamir keys —

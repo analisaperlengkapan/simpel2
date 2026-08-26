@@ -1,5 +1,5 @@
 {{- /*
-  Database bootstrap — Helm post-install/post-upgrade hook Job.
+  Database bootstrap — Helm post-install/pre-upgrade hook Job.
 
   WHY (fresh-bootstrap gap #4, 2026-06-17; alasan diperbaiki 2026-08-14):
 
@@ -21,11 +21,13 @@
   premis keliru begitulah yang membuat orang berikutnya "membersihkan" hal yang
   masih dipakai.
 
-  Runs as a post-install/post-upgrade hook (NOT pre-install): on a fresh `helm
-  install` the postgres StatefulSet + postgres-credentials Secret are normal
-  resources created BEFORE post-* hooks, so they exist here; a pre-install hook
-  would deadlock (postgres/secret not created yet). The init wait-loop tolerates
-  postgres not being Ready yet. Weight -20 → before the migrate hooks (-6/-5).
+  Runs as post-install + pre-upgrade — different phases on purpose. Fresh install
+  must be post-*: the postgres StatefulSet + postgres-credentials Secret are
+  normal resources, created BEFORE post-install hooks but AFTER pre-install ones,
+  so a pre-install hook would deadlock on a database Helm has not created yet.
+  Upgrades must be pre-*: postgres is already running, and every schema change
+  has to land before the new pods roll out. Weight -20 → before the migrate
+  hooks (-6/-5). The init wait-loop tolerates postgres not being Ready yet.
 */ -}}
 {{- /*
   Nil-safe, absent-vs-false-aware gate. `and` does NOT short-circuit in Go
@@ -47,7 +49,28 @@ metadata:
   labels:
     {{- include "simpel.componentLabels" (dict "top" $ctx "name" "db-create" "component" "backend") | nindent 4 }}
   annotations:
-    "helm.sh/hook": post-install,post-upgrade
+    # post-install + pre-upgrade — deliberately different phases per lifecycle.
+    #
+    # FRESH INSTALL must be post-*: postgres and postgres-credentials are normal
+    # resources, created BEFORE post-install hooks but AFTER pre-install ones, so
+    # a pre-install hook would deadlock waiting for a database that Helm has not
+    # created yet.
+    #
+    # UPGRADE must be pre-*: on an upgrade postgres is already running, and the
+    # schema has to land BEFORE the new pods roll out. This used to say
+    # post-upgrade, justified as "safe under the expand/contract migration
+    # discipline" — but that reverses the guarantee. Expand/contract makes the
+    # OLD code tolerate the NEW schema, which is what lets `helm rollback` work
+    # without a DB restore (infra/AGENTS.md "Migrasi WAJIB expand/contract").
+    # It promises nothing about NEW code meeting OLD schema, and post-upgrade
+    # produces exactly that: pods carrying the new image serve traffic during the
+    # window before the migration Job runs.
+    #
+    # A pre-upgrade failure now aborts the upgrade with nothing rolled out, which
+    # is the outcome we want: better than shipping code onto a schema that failed
+    # to migrate.
+    # Weight -20 → First: creates the databases the two migration Jobs then populate.
+    "helm.sh/hook": post-install,pre-upgrade
     "helm.sh/hook-weight": "-20"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
