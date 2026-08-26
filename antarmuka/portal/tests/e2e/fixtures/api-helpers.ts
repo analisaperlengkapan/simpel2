@@ -1137,22 +1137,6 @@ export async function getActiveUsageDashboard(
   return { status: res.status(), body: await safeJson(res) };
 }
 
-export async function getBmnUtilizationReport(
-  request: APIRequestContext,
-  user: MockUser,
-  params?: { satker_id?: string; jenis_bmn?: string; start_date?: string; end_date?: string }
-) {
-  const sp = new URLSearchParams();
-  if (params?.satker_id) sp.set('satker_id', params.satker_id);
-  if (params?.jenis_bmn) sp.set('jenis_bmn', params.jenis_bmn);
-  if (params?.start_date) sp.set('start_date', params.start_date);
-  if (params?.end_date) sp.set('end_date', params.end_date);
-  const res = await request.get(`${API_BASE}/pemakaian-bmn/monitoring/utilization-report?${sp}`, {
-    headers: authHeaders(user),
-  });
-  return { status: res.status(), body: await safeJson(res) };
-}
-
 export async function getPermitDocument(
   request: APIRequestContext,
   user: MockUser,

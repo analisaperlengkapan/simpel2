@@ -2,6 +2,14 @@
 
 use crate::dashboard::models::*;
 use crate::shared::error::AppError;
+// Which half of `integrasi.siman_aset` the SIMAN ingest actually writes, and in
+// what format. Shared with bank_aset and pemakaian_bmn so a fix in one place
+// cannot leave the others reading the dead half — which is exactly what
+// happened here after the condition column was corrected but `kode_barang`
+// and `kategori_aset` were not.
+use crate::shared::siman_columns::{
+    ASSET_KATEGORI_SQL, ASSET_KODE_BARANG_SQL, ASSET_KONDISI_BAIK_PREDICATE,
+};
 use deadpool_postgres::Pool;
 use std::collections::HashMap;
 
@@ -103,7 +111,30 @@ pub async fn fetch_gap_analysis(
     // Requested items live on `..._satker_barang` (nama / kode_barang / jumlah);
     // the year filter has to climb to the campaign. Aggregated per kode_barang so
     // one row per asset type, which is what "top N gaps" means.
-    let query = r#"
+    //
+    // The SIMAN side had TWO independent reasons to match nothing, so every gap
+    // came back equal to the full requested quantity — the exact symptom the
+    // condition-column comment below says was already fixed:
+    //
+    //   1. `sa.kode_barang` is populated in 0 of 624 533 rows. The ingest derives
+    //      its INSERT columns from the SIMAN payload's keys
+    //      (`layanan/integrasi/src/db.rs`), and SIMAN sends `kd_brg`.
+    //   2. FORMAT: `kd_brg` is ten digits with NO dots (3050201002) while the
+    //      request side stores the dotted presentation form (3.05.02.01.002), so
+    //      fixing the column alone still matches nothing. Both sides are
+    //      normalised at comparison time.
+    //
+    // Measured on staging: 0 -> 36 787 and 1 902 existing good assets for the
+    // two requested codes that have any.
+    //
+    // Shape change: the per-request `LEFT JOIN LATERAL` scanned all 624 533 rows
+    // ONCE PER REQUESTED CODE — fine while the predicate matched nothing and an
+    // index on the all-NULL `kode_barang` answered instantly, but ~1.9 s for
+    // three codes once it started matching, growing linearly with the campaign.
+    // Pre-aggregating SIMAN once and joining costs one scan regardless: 776 ms
+    // for the same result.
+    let query = format!(
+        r#"
         WITH requested AS (
             SELECT b.kode_barang,
                    MIN(b.nama) AS nama_barang,
@@ -114,6 +145,24 @@ pub async fn fetch_gap_analysis(
             WHERE p.tahun = EXTRACT(YEAR FROM CURRENT_DATE)::int
               AND b.kode_barang IS NOT NULL
             GROUP BY b.kode_barang
+        ),
+        good AS (
+            -- Both sides are normalised, but only the REQUEST side is load-
+            -- bearing today: `kd_brg` holds undotted digits in 624 528 of
+            -- 624 533 rows, so stripping dots here is a no-op and reverting it
+            -- does NOT turn the test red (unlike the other three halves, which
+            -- do). It is kept anyway rather than trimmed as dead weight,
+            -- because dotted values HAVE occurred in this column — 5 rows on
+            -- staging carry them — so this defends against a format the column
+            -- has actually held, not a hypothetical one.
+            SELECT replace({kode_barang}, '.', '') AS kb,
+                   COUNT(*)::bigint AS good_count
+            FROM integrasi.siman_aset
+            -- see fetch_asset_utilization: `kondisi` alone is NULL in every
+            -- environment fed by ur_kondisi, which silently made every gap
+            -- equal to the full requested quantity.
+            WHERE {kondisi_baik}
+            GROUP BY 1
         )
         SELECT
             r.kode_barang,
@@ -122,20 +171,15 @@ pub async fn fetch_gap_analysis(
             COALESCE(g.good_count, 0) AS existing_good_quantity,
             r.standard_quantity - COALESCE(g.good_count, 0) AS gap
         FROM requested r
-        LEFT JOIN LATERAL (
-            SELECT COUNT(*)::bigint AS good_count
-            FROM integrasi.siman_aset sa
-            WHERE sa.kode_barang = r.kode_barang
-              -- see fetch_asset_utilization: `kondisi` alone is NULL in every
-              -- environment fed by ur_kondisi, which silently made every gap
-              -- equal to the full requested quantity.
-              AND UPPER(COALESCE(sa.kondisi, sa.ur_kondisi, '')) = 'BAIK'
-        ) g ON TRUE
+        LEFT JOIN good g ON g.kb = replace(r.kode_barang, '.', '')
         ORDER BY gap DESC
         LIMIT $1
-    "#;
+    "#,
+        kode_barang = ASSET_KODE_BARANG_SQL,
+        kondisi_baik = ASSET_KONDISI_BAIK_PREDICATE
+    );
 
-    let rows = client.query(query, &[&limit]).await?;
+    let rows = client.query(query.as_str(), &[&limit]).await?;
 
     let gap_analysis: Vec<GapAnalysisResult> = rows
         .into_iter()
@@ -428,14 +472,22 @@ pub async fn fetch_dashboard_stats(db_pool: &Pool) -> Result<DashboardStats, App
 
     let cat_rows = client
         .query(
-            "SELECT COALESCE(kategori_aset, '(tanpa kategori)') AS kategori_aset,
-                    COUNT(*)                                    AS total_aset,
-                    COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$'
-                                      THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8
+            // `COALESCE(kategori_aset, '(tanpa kategori)')` stopped the NULL
+            // panic but did not fix the breakdown: falling back to a string
+            // LITERAL rather than to a column SIMAN fills put all 624 533 assets
+            // into a single made-up bucket. `jenis_aset` is the real taxonomy
+            // and is populated for every row.
+            &format!(
+                "SELECT {kategori}                              AS kategori_aset,
+                        COUNT(*)                                AS total_aset,
+                        COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$'
+                                          THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8
                                                                 AS total_nilai
-               FROM integrasi.siman_aset
-              GROUP BY kategori_aset
-              ORDER BY total_aset DESC",
+                   FROM integrasi.siman_aset
+                  GROUP BY {kategori}
+                  ORDER BY total_aset DESC",
+                kategori = ASSET_KATEGORI_SQL
+            ),
             &[],
         )
         .await

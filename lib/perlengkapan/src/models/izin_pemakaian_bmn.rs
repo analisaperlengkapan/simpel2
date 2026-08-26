@@ -121,15 +121,3 @@ pub struct PegawaiUsageHistory {
     pub active_permits: i64,
     pub history: Vec<IzinPemakaianBmn>,
 }
-
-/// BMN utilization report
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct BmnUtilizationReport {
-    pub satker_id: Uuid,
-    pub bmn_type: String,
-    pub total_bmn: i64,
-    pub bmn_with_active_permit: i64,
-    pub bmn_available: i64,
-    pub utilization_rate: f64,
-}

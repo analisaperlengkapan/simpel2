@@ -191,45 +191,6 @@ pub struct RecentActivationInfo {
     pub pegawai_nama: String,
     pub activated_at: DateTime<Utc>,
 }
-/// BMN utilization report
-/// Requirements: REQ-P013
-#[derive(Debug, Clone, Serialize)]
-pub struct BmnUtilizationReport {
-    pub total_bmn: i64,
-    pub bmn_with_active_permits: i64,
-    pub bmn_without_permits: i64,
-    pub utilization_rate: f64,
-    pub bmn_by_type: Vec<BmnUtilizationByType>,
-    pub top_utilized_bmn: Vec<TopUtilizedBmn>,
-    pub underutilized_bmn: Vec<UnderutilizedBmn>,
-}
-/// BMN utilization by type
-#[derive(Debug, Clone, Serialize)]
-pub struct BmnUtilizationByType {
-    pub jenis_bmn: String,
-    pub total_bmn: i64,
-    pub utilized_bmn: i64,
-    pub utilization_rate: f64,
-}
-/// Top utilized BMN
-#[derive(Debug, Clone, Serialize)]
-pub struct TopUtilizedBmn {
-    pub bmn_nup: String,
-    pub bmn_nama: String,
-    pub jenis_bmn: String,
-    pub total_permits: i64,
-    pub total_days_used: i64,
-    pub current_holder: Option<String>,
-}
-/// Underutilized BMN
-#[derive(Debug, Clone, Serialize)]
-pub struct UnderutilizedBmn {
-    pub bmn_nup: String,
-    pub bmn_nama: String,
-    pub jenis_bmn: String,
-    pub last_used_date: Option<NaiveDate>,
-    pub days_since_last_use: Option<i64>,
-}
 /// Tiga kartu agregat headline dashboard monitoring Pemakaian BMN (Fase 2.6).
 ///
 /// Stakeholder (Validator Wilayah & Pusat, read-only) eksplisit meminta tiga

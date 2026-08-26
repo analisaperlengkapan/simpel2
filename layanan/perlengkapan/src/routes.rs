@@ -534,10 +534,6 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/monitoring/active-usage",
             get(pemakaian_bmn::get_active_usage_dashboard),
         )
-        .route(
-            "/pemakaian-bmn/monitoring/utilization-report",
-            get(pemakaian_bmn::get_bmn_utilization_report),
-        )
         // ============ Workflow Definition Routes ============
         .route(
             // Read-only: the four workflows are defined in Rust

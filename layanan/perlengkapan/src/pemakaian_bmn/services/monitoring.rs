@@ -15,17 +15,6 @@ impl PemakaianBmnService {
         self.repository.get_active_usage_dashboard(query).await
     }
 
-    /// Get BMN utilization report
-    ///
-    /// Requirements: REQ-P013
-    pub async fn get_bmn_utilization_report(
-        &self,
-        query: MonitoringDashboardQuery,
-    ) -> AppResult<BmnUtilizationReport> {
-        info!("Generating BMN utilization report");
-        self.repository.get_bmn_utilization_report(query).await
-    }
-
     /// Tiga kartu agregat headline monitoring (Fase 2.6):
     /// sedang dipakai / tidak dipakai / akan expired.
     pub async fn get_monitoring_summary(

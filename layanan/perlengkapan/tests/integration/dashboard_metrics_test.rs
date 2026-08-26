@@ -125,13 +125,20 @@ async fn dashboard_stats_aggregates_the_siman_sot() {
         .unwrap();
     client
         .execute(
+            // Production shape: `kategori_aset` and `kode_barang` stay NULL
+            // (SIMAN writes neither), the taxonomy lives in `jenis_aset` and the
+            // barang code in `kd_brg`. This fixture used to fill the dead pair
+            // and assert the breakdown off `kategori_aset` — so the test PASSED
+            // while the endpoint bucketed all 624 533 production assets under a
+            // single '(tanpa kategori)' label. `jenis_aset` values are real
+            // SIMAN taxonomy entries.
             "INSERT INTO integrasi.siman_aset
-                (jenis_aset, kategori_aset, nama, ur_kondisi, kdsatker_keu, kode_barang, rph_aset)
+                (jenis_aset, nama, ur_kondisi, kdsatker_keu, kd_brg, rph_aset)
              VALUES
-                ('Peralatan dan Mesin', 'Alat Angkutan', 'Avanza',  'BAIK',         'KEU-A', 'KB-1', '250000000'),
-                ('Peralatan dan Mesin', 'Alat Kantor',   'Laptop',  'BAIK',         'KEU-A', 'KB-2', '15000000'),
-                ('Peralatan dan Mesin', 'Alat Kantor',   'Printer', 'RUSAK RINGAN', 'KEU-B', 'KB-3', '4000000'),
-                ('Peralatan dan Mesin', 'Alat Kantor',   'Scanner', 'BAIK',         'KEU-B', 'KB-4', 'n/a')",
+                ('Alat Angkutan Bermotor',   'Avanza',  'Baik',         'KEU-A', '3020104001', '250000000'),
+                ('Peralatan Mesin Non TIK',  'Laptop',  'Baik',         'KEU-A', '3050105039', '15000000'),
+                ('Peralatan Mesin Non TIK',  'Printer', 'Rusak Ringan', 'KEU-B', '3050105040', '4000000'),
+                ('Peralatan Mesin Non TIK',  'Scanner', 'Baik',         'KEU-B', '3050105041', 'n/a')",
             &[],
         )
         .await
@@ -152,12 +159,128 @@ async fn dashboard_stats_aggregates_the_siman_sot() {
     // The 'n/a' row contributes 0 rather than throwing.
     assert_eq!(data["total_nilai_aset"], 269_000_000.0);
 
+    // Breakdown driven by `jenis_aset`. Had it still read `kategori_aset` —
+    // NULL in every real row — all four would collapse into one bucket, which
+    // is precisely what production served.
     let categories = data["categories"].as_array().expect("categories array");
-    assert_eq!(categories.len(), 2, "Alat Kantor + Alat Angkutan");
-    // Ordered by count DESC: Alat Kantor has 3 rows, Alat Angkutan 1.
-    assert_eq!(categories[0]["category"], "Alat Kantor");
+    assert_eq!(
+        categories.len(),
+        2,
+        "Peralatan Mesin Non TIK + Alat Angkutan Bermotor, got {categories:?}"
+    );
+    // Ordered by count DESC: Non TIK has 3 rows, Angkutan Bermotor 1.
+    assert_eq!(categories[0]["category"], "Peralatan Mesin Non TIK");
     assert_eq!(categories[0]["count"], 3);
     assert_eq!(categories[0]["value"], 19_000_000.0);
+
+    teardown_test_db(&db_name).await;
+}
+
+/// Gap analysis matched ZERO SIMAN assets, so every gap was reported as the
+/// full requested quantity — including for asset types the organisation already
+/// owns tens of thousands of.
+///
+/// Two independent reasons, either alone fatal, and the second is the one a
+/// column-level fix misses:
+///
+///   1. the join read `sa.kode_barang`, populated in 0 of 624 533 rows;
+///   2. FORMAT — `kd_brg`, the column SIMAN does fill, holds ten digits with NO
+///      dots (`3050201002`), while the request side stores the dotted
+///      presentation form (`3.05.02.01.002`). Correcting the column alone still
+///      matches nothing.
+///
+/// The fixture reproduces exactly that asymmetry: dotted on the request side,
+/// undotted in SIMAN. Reverting either half of the fix makes this fail.
+/// Measured on staging after the fix: 0 -> 36 787 existing good assets for one
+/// requested code.
+#[tokio::test]
+async fn gap_analysis_matches_siman_across_the_dotted_kode_barang_divide() {
+    let (app, db, db_name) = setup_test_app().await;
+    let client = db.pool().get().await.unwrap();
+
+    client
+        .execute("TRUNCATE integrasi.siman_aset", &[])
+        .await
+        .unwrap();
+    // Four assets under one barang code: three serviceable, one not. The
+    // condition column is the live one, in the Title Case production uses.
+    client
+        .execute(
+            "INSERT INTO integrasi.siman_aset
+                (jenis_aset, nama, ur_kondisi, kdsatker_keu, kd_brg, rph_aset)
+             VALUES
+                ('Peralatan Mesin Non TIK', 'Kursi A', 'Baik',       'KEU-A', '3050201002', '1000'),
+                ('Peralatan Mesin Non TIK', 'Kursi B', 'Baik',       'KEU-A', '3050201002', '1000'),
+                ('Peralatan Mesin Non TIK', 'Kursi C', 'Baik',       'KEU-A', '3050201002', '1000'),
+                ('Peralatan Mesin Non TIK', 'Kursi D', 'Rusak Berat','KEU-A', '3050201002', '1000')",
+            &[],
+        )
+        .await
+        .unwrap();
+
+    // A campaign in the CURRENT year — the query filters on
+    // `EXTRACT(YEAR FROM CURRENT_DATE)`, so a hard-coded year would make this
+    // test start passing vacuously next January.
+    let campaign = uuid::Uuid::new_v4();
+    let satker_row = uuid::Uuid::new_v4();
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn
+                (id, nama, tahun, tgl_mulai, tgl_selesai, status_kode, scope_satker)
+             VALUES ($1, 'Uji Gap', EXTRACT(YEAR FROM CURRENT_DATE)::int,
+                     CURRENT_DATE, CURRENT_DATE, 2000, 'semua')",
+            &[&campaign],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
+                (id, pengajuan_id, satker_id, satker_nama, status_kode)
+             VALUES ($1, $2, '005001', 'KEJAKSAAN NEGERI UJI', 2001)",
+            &[&satker_row, &campaign],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            // DOTTED on the request side — the format the app actually stores.
+            "INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_barang
+                (pengajuan_satker_id, nama, kode_barang, jumlah)
+             VALUES ($1, 'Kursi Kerja', '3.05.02.01.002', 10)",
+            &[&satker_row],
+        )
+        .await
+        .unwrap();
+    drop(client);
+
+    let server = TestServer::new(app);
+    // `tahun_anggaran` is required by the extractor. The gap query itself keys
+    // on CURRENT_DATE, so the year is derived rather than hard-coded — a literal
+    // would make this test pass vacuously the moment the calendar rolls over.
+    let year = chrono::Utc::now().format("%Y").to_string();
+    let res = get(
+        &server,
+        &format!("/dashboard/perlengkapan?tahun_anggaran={year}"),
+    )
+    .await;
+    assert_eq!(res.status_code(), 200, "metrics: {}", res.text());
+
+    let data: serde_json::Value = res.json();
+    let gaps = data["gap_analysis"].as_array().expect("gap_analysis array");
+    let row = gaps
+        .iter()
+        .find(|g| g["kode_barang"] == "3.05.02.01.002")
+        .unwrap_or_else(|| panic!("requested code absent from gap analysis: {gaps:?}"));
+
+    // Three of the four are serviceable. Had the join read the dead column, or
+    // compared the dotted form against the undotted one, this would be 0 and the
+    // gap would be the full 10.
+    assert_eq!(
+        row["existing_good_quantity"], 3,
+        "SIMAN assets must be counted through kd_brg with dots normalised: {row}"
+    );
+    assert_eq!(row["gap"], 7, "gap = requested 10 - existing 3: {row}");
 
     teardown_test_db(&db_name).await;
 }

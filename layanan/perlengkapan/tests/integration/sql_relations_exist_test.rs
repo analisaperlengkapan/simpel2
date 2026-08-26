@@ -50,7 +50,11 @@ struct RelationRef {
 /// builds its statement with `String::from("SELECT … FROM v_user_role_summary")`
 /// — a plain literal. A raw-only scanner has a blind spot precisely where #123
 /// lives, which is how that bug survived the first version of this guard.
-fn string_literals(src: &str) -> Vec<(usize, String)> {
+///
+/// `pub(super)` because `siman_dead_columns_test` walks the same source the
+/// same way; two extractors would drift and one of them would develop a blind
+/// spot, which is exactly how #123 survived the first version of this guard.
+pub(super) fn string_literals(src: &str) -> Vec<(usize, String)> {
     let b = src.as_bytes();
     let mut out = Vec::new();
     let mut i = 0usize;
