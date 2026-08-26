@@ -378,9 +378,17 @@ jobs:
         shell: bash
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_NAME: ${{ matrix.image.name }}
+          IMAGE_TIER: ${{ matrix.image.tier }}
         run: |
-          echo "${{ matrix.image.name }} ${DIGEST}" > "image-${{ matrix.image.name }}.digest"
-          echo "digest-${{ matrix.image.name }}=${DIGEST}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          # TSV, bukan spasi: `tier` memuat spasi ("Backend (Rust/Axum)"), jadi
+          # pembacanya di job publish memakai IFS=tab dan tier tetap utuh.
+          # Baris ini yang membuat tabel Komponen di catatan rilis TURUNAN dari
+          # matrix build, bukan salinan tulis-tangan yang bisa tertinggal.
+          printf '%s\t%s\t%s\n' "$IMAGE_NAME" "$DIGEST" "$IMAGE_TIER" \
+            > "image-${IMAGE_NAME}.digest"
+          echo "digest-${IMAGE_NAME}=${DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM + digest
         uses: actions/upload-artifact@v7
@@ -473,6 +481,37 @@ jobs:
         with:
           path: release-input
 
+      - name: Setiap image di matrix punya artefak digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tabel Komponen di catatan rilis dibangun dengan menyapu berkas-berkas
+          # `image-*.digest`. Sapuan seperti itu tak bisa membedakan "image ini
+          # tidak ada" dari "artefaknya gagal diunduh" — keduanya cuma jadi baris
+          # yang hilang, dalam rilis yang tetap terlihat sukses. Jadi hitung.
+          #
+          # Angka pembandingnya DITURUNKAN dari matrix di berkas ini juga, bukan
+          # ditulis tangan, supaya image ke-10 ikut terhitung tanpa ada yang perlu
+          # ingat memperbarui pemeriksaan ini.
+          expected=$(grep -cE '^[[:space:]]*-[[:space:]]*\{[[:space:]]*name:.*dockerfile:' \
+            .github/workflows/release.yml)
+          found=$(find release-input -type f -name 'image-*.digest' | wc -l)
+
+          if [ "$expected" -eq 0 ]; then
+            echo "GAGAL: tak satu pun entri matrix terbaca dari release.yml."
+            echo "Itu bukan 'tak ada image' — itu bentuk matrix yang berubah dan"
+            echo "pemeriksaan ini berhenti mengukur apa pun."
+            exit 1
+          fi
+
+          if [ "$found" -ne "$expected" ]; then
+            echo "GAGAL: $found artefak digest untuk $expected image di matrix."
+            find release-input -type f -name 'image-*.digest' -printf '  ada: %f\n' | sort
+            exit 1
+          fi
+
+          echo "OK: $found/$expected artefak digest lengkap."
+
       - name: Compose release body
         id: body
         shell: bash
@@ -501,24 +540,12 @@ jobs:
             echo
             echo "## Komponen"
             echo
-            echo "| Komponen | Tier | Image |"
-            echo "|---|---|---|"
-            echo "| antarmuka-portal | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-antarmuka-portal:v${VERSION}\` |"
-            echo "| antarmuka-perlengkapan | Microfrontend (Leptos WASM) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-antarmuka-perlengkapan:v${VERSION}\` |"
-            echo "| layanan-authenc | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-authenc:v${VERSION}\` |"
-            echo "| layanan-integrasi | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-integrasi:v${VERSION}\` |"
-            echo "| layanan-perlengkapan | Backend (Rust/Axum) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-perlengkapan:v${VERSION}\` |"
-            echo "| layanan-secreton | Backend (Rust/Axum, workspace terpisah) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-layanan-secreton:v${VERSION}\` |"
-            echo "| simpelv1 | Monolith (PHP/Laravel) | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-simpelv1:v${VERSION}\` |"
-            echo
-            echo "## Image Digests"
-            echo
-            echo "| Image | Digest |"
-            echo "|---|---|"
+            echo "| Komponen | Tier | Image | Digest |"
+            echo "|---|---|---|---|"
             for f in release-input/sbom-*/image-*.digest; do
               [ -f "$f" ] || continue
-              read -r name digest < "$f"
-              echo "| \`${IMAGE_PREFIX}-${name}\` | \`${digest}\` |"
+              IFS=$'\t' read -r name digest tier < "$f"
+              echo "| ${name} | ${tier} | \`${REGISTRY}/${OWNER}/${IMAGE_PREFIX}-${name}:v${VERSION}\` | \`${digest}\` |"
             done
             echo
             echo "## Verifikasi Image (cosign keyless)"
@@ -579,3 +606,79 @@ jobs:
           fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setiap berkas yang dipentaskan benar-benar mendarat
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          # rc28 terbit TANPA `simpelv2-frontend-*.tar.gz`: unggahannya kena
+          # ECONNRESET di tengah jalan sementara berkas `.sha256` pasangannya
+          # mendarat — jadi rilis membawa checksum yang menunjuk artefak yang
+          # tidak ada, dan badan rilis tetap menjanjikan tarball itu. Job-nya
+          # memang MERAH, tapi merah saja tak memulihkan apa pun: yang terbit
+          # tetap terbit, dan pemulihannya menunggu ada manusia yang menyadari.
+          #
+          # `curl`+`jq`, bukan `gh`: image runner ARC tak memuat gh CLI (lihat
+          # labeler.yml yang mengunduhnya sendiri), dan memanggilnya di sini
+          # akan exit 127.
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          uploads="https://uploads.github.com/repos/${GITHUB_REPOSITORY}"
+          auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}"
+                -H "Accept: application/vnd.github+json"
+                -H "X-GitHub-Api-Version: 2022-11-28")
+
+          staged=$(find release-assets -maxdepth 1 -type f | wc -l)
+          if [ "$staged" -eq 0 ]; then
+            echo "GAGAL: tak ada berkas di release-assets/ untuk diperiksa."
+            echo "Pemeriksaan yang tak punya apa-apa untuk dibandingkan selalu"
+            echo "lulus, dan itu persis yang harus dicegah di sini."
+            exit 1
+          fi
+
+          release_id=$(curl -fsS "${auth[@]}" "${api}/releases/tags/${TAG}" | jq -r '.id')
+          if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
+            echo "GAGAL: rilis ${TAG} tak ditemukan padahal langkah sebelumnya"
+            echo "baru saja membuatnya."
+            exit 1
+          fi
+
+          for attempt in 1 2 3; do
+            # Jeda menaik: ECONNRESET biasanya sesaat, dan mengunggah ulang
+            # seketika cenderung menabrak keadaan yang sama.
+            if [ "$attempt" -gt 1 ]; then
+              sleep $(( (attempt - 1) * 10 ))
+            fi
+
+            curl -fsS "${auth[@]}" "${api}/releases/${release_id}/assets?per_page=100" \
+              | jq -r '.[].name' | sort > landed.txt
+
+            : > missing.txt
+            for f in release-assets/*; do
+              [ -f "$f" ] || continue
+              n=$(basename "$f")
+              grep -qxF "$n" landed.txt || printf '%s\n' "$n" >> missing.txt
+            done
+
+            if [ ! -s missing.txt ]; then
+              echo "OK: $staged aset dipentaskan, semuanya mendarat di ${TAG}."
+              exit 0
+            fi
+
+            echo "Percobaan ${attempt}: $(wc -l < missing.txt) aset belum mendarat:"
+            sed 's/^/  - /' missing.txt
+
+            while read -r n; do
+              echo "  mengunggah ulang ${n}"
+              curl -fsS -X POST "${auth[@]}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary "@release-assets/${n}" \
+                "${uploads}/releases/${release_id}/assets?name=${n}" >/dev/null || true
+            done < missing.txt
+          done
+
+          echo "GAGAL: aset berikut tetap tak mendarat setelah 3 percobaan:"
+          sed 's/^/  - /' missing.txt
+          exit 1
