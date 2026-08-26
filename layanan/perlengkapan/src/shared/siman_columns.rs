@@ -14,7 +14,15 @@
 //!
 //! | populated (624 533 rows) | populated in 5 rows (our own e2e seed) | populated in 0 rows |
 //! |---|---|---|
-//! | `no_aset`, `kd_brg`, `nama`, `ur_kondisi`, `ur_sskel`, `rph_aset`, `jenis_aset` | `kategori_aset`, `nup` | `kode_barang`, `nama_barang`, `kondisi`, `satker_id` |
+//! | `no_aset`, `kd_brg`, `ur_sskel`, `ur_kondisi`, `rph_aset`, `jenis_aset`, `nama_satker`, `kdsatker_keu`, `tgl_perlh` | `kategori_aset`, `nup` | `kode_barang`, `nama_barang`, `kondisi`, `satker_id`, `raw_data` |
+//!
+//! Partly populated: `merk` 483 471, `tipe` 141 561, `alamat` 11 757.
+//!
+//! One correction worth keeping, because it nearly repeated the original
+//! mistake: `nama` was first recorded as populated in all 624 533 rows. It is
+//! not — the test used `<> ''`, which whitespace defeats. Trimmed, `nama` is
+//! blank in **138 607 rows (22%)**. Test emptiness with
+//! `btrim(col) <> ''`, never `col <> ''`.
 //!
 //! The `5 / 624533` ratio is the signature of "only our own seed" — which is
 //! why a `LIMIT 10` spot-check is worthless here and every claim below was
@@ -56,7 +64,7 @@
 /// `panic = "abort"` that killed the process.
 pub const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DIKETAHUI')";
 
-/// An asset's NUP (Nomor Urut Perolehan) — SIMAN's `no_aset`.
+/// An asset's NUP (Nomor Urut Pendaftaran) — SIMAN's `no_aset`.
 ///
 /// SIMAN sends `no_aset`; it does not send `nup`. `no_aset` is numeric in
 /// 624 528 of 624 533 rows, ranges 0–21 727, and runs consecutively within one
@@ -100,8 +108,36 @@ pub const ASSET_NUP_SQL: &str = "NULLIF(no_aset, '')";
 /// nothing, which is a silent empty result rather than an error.
 pub const ASSET_KODE_BARANG_SQL: &str = "COALESCE(NULLIF(kode_barang, ''), NULLIF(kd_brg, ''), '')";
 
-/// An asset's name — SIMAN's `nama`. `nama_barang` is populated in 0 rows.
-pub const ASSET_NAMA_SQL: &str = "COALESCE(NULLIF(nama_barang, ''), NULLIF(nama, ''), '')";
+/// An asset's **nama barang** — the STANDARD name, which is `ur_sskel`.
+///
+/// This distinction is domain, not cosmetics, and getting it wrong silently
+/// swaps a taxonomy for free text:
+///
+/// * `ur_sskel` is the standard name belonging to the barang code. Measured:
+///   2 038 distinct `kd_brg` and 2 038 distinct `(kd_brg, ur_sskel)` pairs, so
+///   it is a strict function of the code — one code, exactly one name. It is
+///   non-blank in all 624 533 rows.
+/// * `nama`, `merk` and `tipe` are what the SIMAN operator typed for this
+///   particular item. `nama` takes 64 220 distinct values across those same
+///   2 038 codes, is blank once trimmed in **138 607 rows (22%)**, and simply
+///   repeats `merk` in 482 971 rows (77%).
+/// * `nama_barang`, the canonical column, is populated in 0 rows.
+///
+/// So `nama` is a per-item label, not the item's name. Anything that means
+/// "nama barang" — a report column, a grouping, a match against a requested
+/// barang — must read `ur_sskel`; `nama`/`merk`/`tipe` belong in a "keterangan"
+/// or "penamaan SIMAN" column if they are shown at all.
+///
+/// (`bank_aset::row_to_item` already had this right: `nama_aset` reads
+/// `ur_sskel` and only falls back to `nama`.)
+pub const ASSET_NAMA_BARANG_SQL: &str =
+    "COALESCE(NULLIF(btrim(nama_barang), ''), NULLIF(btrim(ur_sskel), ''), '')";
+
+/// The SIMAN operator's own label for one item — `nama`, else `merk`. NOT the
+/// nama barang; see [`ASSET_NAMA_BARANG_SQL`]. Blank for 22% of rows, so
+/// callers must tolerate an empty string rather than assume a value.
+pub const ASSET_LABEL_SIMAN_SQL: &str =
+    "COALESCE(NULLIF(btrim(nama), ''), NULLIF(btrim(merk), ''), '')";
 
 /// An asset's condition — SIMAN's `ur_kondisi`. `kondisi` is populated in 0 rows.
 ///

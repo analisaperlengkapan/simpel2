@@ -564,23 +564,6 @@ pub async fn get_active_usage_dashboard(
     )))
 }
 
-/// GET /pemakaian-bmn/monitoring/utilization-report
-/// Get BMN utilization report
-/// Requirements: REQ-P013
-pub async fn get_bmn_utilization_report(
-    State(service): State<PemakaianBmnService>,
-    axum::extract::Query(query): axum::extract::Query<MonitoringDashboardQuery>,
-    claims: Claims,
-) -> Result<Json<ApiResponse<BmnUtilizationReport>>, AppError> {
-    crate::shared::policy::enforce_monitoring_read(&claims)?;
-    let report = service.get_bmn_utilization_report(query).await?;
-
-    Ok(Json(ApiResponse::success(
-        report,
-        "BMN utilization report generated successfully".to_string(),
-    )))
-}
-
 // ============================================================================
 // V035 (Fase 1.5): Endpoints alur internal-satker 3-step.
 //

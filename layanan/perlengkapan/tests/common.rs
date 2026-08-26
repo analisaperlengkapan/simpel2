@@ -249,17 +249,25 @@ pub async fn setup_test_db() -> (Database, String) {
             // dropping a live one would make it reject legitimate queries.
             //
             // Cardinalities the shape is copied from (624 533 staging rows):
-            // always set — jenis_aset, no_aset, ur_sskel, nama, kd_brg,
-            // nama_satker, kdsatker_keu, rph_aset, tgl_perlh; partly set —
-            // merk 483 471, tipe 141 561, alamat 11 757 (so one row each is
-            // left NULL deliberately, mirroring a sparse column rather than
-            // pretending SIMAN fills everything).
+            // always set — jenis_aset, no_aset, ur_sskel, kd_brg, nama_satker,
+            // kdsatker_keu, rph_aset, tgl_perlh; partly set — merk 483 471,
+            // tipe 141 561, alamat 11 757, and `nama` blank-once-trimmed in
+            // 138 607 rows (22%). One row each is left empty deliberately,
+            // mirroring a sparse column rather than pretending SIMAN fills
+            // everything.
+            //
+            // `ur_sskel` is the nama barang: it is a strict function of
+            // `kd_brg` (2 038 codes, 2 038 distinct pairs), so the two rows
+            // sharing 3060201003 share its name. `nama`/`merk`/`tipe` are the
+            // SIMAN operator's own labels for one item — free text, 64 220
+            // distinct values across those same 2 038 codes — so they vary
+            // per row here and one is blank.
             "INSERT INTO integrasi.siman_aset
                 (jenis_aset, nama, ur_sskel, ur_kondisi, kd_brg, no_aset,
                  rph_aset, tgl_perlh, nama_satker, kdsatker_keu, merk, tipe, alamat)
              VALUES
                 ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Meja Kerja', 'Baik', '3060201003', '15', '12500000', '2021-03-11', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk A', 'Tipe-1', 'Jl. Uji No. 1'),
-                ('Peralatan Mesin Non TIK', 'BMN Uji 003/99', 'Meja Kerja', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk B', NULL,      NULL),
+                ('Peralatan Mesin Non TIK', '  ',             'Meja Kerja', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk B', NULL,      NULL),
                 ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Kursi Kerja','Baik', '3060201004', '16', '4300000',  '2022-07-04', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk C', NULL,      NULL)
              ON CONFLICT DO NOTHING",
             &[],

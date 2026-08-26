@@ -237,9 +237,14 @@ async fn no_sql_reads_a_siman_column_the_ingest_never_writes() {
     for col in &columns {
         // `col` comes from the catalog, not from user input, and is quoted as
         // an identifier regardless.
+        // `btrim`, not a bare `<> ''`. The first census of this table recorded
+        // `nama` as populated in all 624 533 rows; trimmed, it is blank in
+        // 138 607 of them (22%) — the column is full of whitespace. A column
+        // holding only spaces is dead in every way that matters here, and a
+        // test that cannot see that would hand back a too-small dead set.
         let sql = format!(
             "SELECT count(*) AS c FROM integrasi.siman_aset \
-             WHERE \"{col}\" IS NOT NULL AND \"{col}\"::text <> ''"
+             WHERE \"{col}\" IS NOT NULL AND btrim(\"{col}\"::text) <> ''"
         );
         let n: i64 = client
             .query_one(sql.as_str(), &[])
