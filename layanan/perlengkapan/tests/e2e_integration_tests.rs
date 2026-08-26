@@ -6,6 +6,7 @@ mod integration {
     mod kebutuhan_bmn_workflow_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
+    mod pemakaian_asset_identity_test;
     mod pemakaian_bmn_workflow_test;
     mod pemakaian_monitoring_scope_test;
     mod penghapusan_bmn_workflow_test;

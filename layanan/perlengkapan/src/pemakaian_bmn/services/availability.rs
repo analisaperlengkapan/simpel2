@@ -3,15 +3,55 @@ use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 
 impl PemakaianBmnService {
-    /// Check if a BMN is available for new permit (no active permit exists)
+    /// Satker yang aset-nya sedang ditanyakan, setelah dipastikan boleh
+    /// dilihat pemanggil.
+    ///
+    /// `diminta` = `None` berarti "satker saya sendiri". Di luar scope
+    /// jawabannya **404, bukan 403**: 403 akan mengonfirmasi bahwa satker itu
+    /// ada dan punya aset — oracle keberadaan yang sama yang ditutup #93.
+    pub(crate) async fn resolve_target_satker(
+        &self,
+        scope: &crate::shared::satker_scope::SatkerScope,
+        milik_sendiri: Option<&str>,
+        diminta: Option<&str>,
+    ) -> AppResult<String> {
+        let target = diminta
+            .or(milik_sendiri)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                AppError::BadRequest(
+                    "Tidak ada identitas satker pada sesi Anda; sebutkan satker \
+                     yang asetnya ingin diperiksa"
+                        .to_string(),
+                )
+            })?
+            .to_string();
+
+        if !self.repository.satker_code_in_scope(scope, &target).await? {
+            return Err(AppError::NotFound(format!(
+                "Satker {target} tidak ditemukan"
+            )));
+        }
+        Ok(target)
+    }
+
+    /// Check if a BMN is available for new permit (no active permit exists).
+    ///
+    /// Aset dikenali dari kode satker + kode barang + NUP; NUP saja tidak
+    /// mengidentifikasi apa pun (lihat header `repository::lookup`).
     ///
     /// Requirements: REQ-P002, REQ-P003
     pub async fn check_bmn_availability(
         &self,
-        bmn_nup: &str,
-        scope: &crate::shared::satker_scope::SatkerScope,
+        aset: AssetIdentityQuery<'_>,
     ) -> AppResult<BmnAvailabilityResponse> {
-        self.repository.check_bmn_availability(bmn_nup, scope).await
+        let satker = self
+            .resolve_target_satker(aset.scope, aset.milik_sendiri, aset.satker_diminta)
+            .await?;
+        self.repository
+            .check_bmn_availability(aset.bmn_nup, aset.bmn_kode_barang, &satker)
+            .await
     }
 
     // ========================================================================
@@ -62,10 +102,11 @@ impl PemakaianBmnService {
     pub async fn cek_bmn_availability_for_period(
         &self,
         pool: &deadpool_postgres::Pool,
-        bmn_nup: &str,
+        aset: AssetIdentityQuery<'_>,
         tgl_mulai: chrono::NaiveDate,
         tgl_selesai: chrono::NaiveDate,
     ) -> AppResult<CekBmnResponse> {
+        let bmn_nup = aset.bmn_nup;
         if tgl_selesai < tgl_mulai {
             return Err(AppError::BadRequest(
                 "Tanggal selesai harus setelah tanggal mulai".into(),
@@ -92,9 +133,18 @@ impl PemakaianBmnService {
             return Err(AppError::BadRequest("BMN tidak ditemukan".into()));
         }
 
+        let satker = self
+            .resolve_target_satker(aset.scope, aset.milik_sendiri, aset.satker_diminta)
+            .await?;
         let status = self
             .repository
-            .check_bmn_availability_for_period(bmn_nup, tgl_mulai, tgl_selesai)
+            .check_bmn_availability_for_period(
+                bmn_nup,
+                aset.bmn_kode_barang,
+                &satker,
+                tgl_mulai,
+                tgl_selesai,
+            )
             .await?;
         Ok(CekBmnResponse {
             bmn_nup: bmn_nup.to_string(),

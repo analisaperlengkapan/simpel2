@@ -27,8 +27,16 @@ impl PemakaianBmnRepository {
     ///
     /// Note the aggregation is keyed on `bmn_nup` alone, which is not an asset
     /// identity — that takes kode satker + kode barang + NUP. Scoping narrows
-    /// the collision (within one satker a NUP repeats far less), but does not
-    /// remove it; see the note on `ASSET_NUP_SQL`.
+    /// the collision but does NOT remove it, and the margin is smaller than
+    /// that sentence used to imply: measured on the real SIMAN snapshot, 41,6%
+    /// of (satker, NUP) pairs point at more than one kode barang, up to 425.
+    /// So even an operator scoped to a single satker can see the histories of
+    /// several different assets merged into one.
+    ///
+    /// Left keyed on NUP here on purpose: fixing it needs a UI decision first
+    /// (how a cross-satker role names the asset it means), so it is tracked
+    /// with the other read-side site listed in the `repository::lookup` module
+    /// header rather than half-fixed here.
     /// Requirements: REQ-P012
     pub async fn get_bmn_usage_history(
         &self,

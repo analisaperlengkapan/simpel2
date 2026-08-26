@@ -395,13 +395,20 @@ pub async fn create_pemakaian_bmn(
 }
 
 // --- Check BMN Availability ---
+//
+// `kode_barang` wajib dikirim: sebuah aset dikenali oleh kode satker + kode
+// barang + NUP, dan NUP sendirian tidak mengidentifikasi apa pun (44.017 aset
+// SIMAN memakai NUP `1`). Backend menolak permintaan tanpa parameter ini.
 #[cfg(target_arch = "wasm32")]
 pub async fn check_bmn_availability(
     bmn_nup: &str,
+    bmn_kode_barang: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
     auth_get_json(&format!(
-        "{}/bmn/{}/availability",
-        PEMAKAIAN_BMN_BASE, bmn_nup
+        "{}/bmn/{}/availability?kode_barang={}",
+        PEMAKAIAN_BMN_BASE,
+        urlencoding::encode(bmn_nup),
+        urlencoding::encode(bmn_kode_barang)
     ))
     .await
 }
@@ -409,6 +416,7 @@ pub async fn check_bmn_availability(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn check_bmn_availability(
     _bmn_nup: &str,
+    _bmn_kode_barang: &str,
 ) -> Result<ApiResponse<BmnAvailabilityResponse>, crate::api::AppError> {
     Err(crate::api::AppError::Unknown(
         "Server-side stub".to_string(),

@@ -45,6 +45,22 @@ pub struct PaginatedPermitsResponse {
     pub per_page: i64,
     pub total_pages: i64,
 }
+/// Tabrakan pemesanan pada jalur TULIS. **Bukan wire shape** — ini carrier
+/// internal repository → service, dan sengaja tidak `Serialize` agar tak
+/// pernah bocor apa adanya ke respons API.
+///
+/// Tak ada field opsional "kalau boleh dilihat" di sini: karena kunci
+/// tabrakannya memuat kode satker (lihat header `repository::lookup`), izin
+/// yang ditemukan selalu milik satker pemanggil sendiri.
+#[derive(Debug, Clone)]
+pub struct BookingConflict {
+    pub permit_id: Uuid,
+    /// Nama pegawai pemegang izin aktif.
+    pub holder: String,
+    /// Tanggal izin aktif itu berakhir.
+    pub expires: NaiveDate,
+}
+
 /// BMN availability check response
 #[derive(Debug, Clone, Serialize)]
 pub struct BmnAvailabilityResponse {

@@ -69,26 +69,20 @@ impl PemakaianBmnService {
             ));
         }
 
-        // Check BMN availability. `All` for the same reason as create: the
-        // renewal must not be allowed to collide with a booking the caller
-        // cannot see, and the `active_permit_id != Some(id)` comparison below
-        // needs the id even when the holder is another satker.
-        let availability = self
-            .repository
-            .check_bmn_availability(
-                &current.bmn_nup,
-                &crate::shared::satker_scope::SatkerScope::All,
-            )
-            .await?;
-        if !availability.is_available && availability.active_permit_id != Some(id) {
+        // Cek tabrakan untuk perpanjangan. Asetnya diambil dari izin yang
+        // sedang diperpanjang itu sendiri — kode satker + kode barang + NUP
+        // milik baris itu — sehingga tak perlu ditebak dari sesi pemanggil.
+        //
+        // Versi lama ber-key `bmn_nup` saja lalu membandingkan
+        // `active_permit_id != Some(id)` untuk mengecualikan diri sendiri. Dua
+        // kesalahan sekaligus: kuncinya menyatukan 44.017 aset berbeda (lihat
+        // header `repository::lookup`), dan pengecualian-diri lewat id yang
+        // bisa teredaksi akan diam-diam menolak perpanjangan yang sah. Kini
+        // pengecualiannya dilakukan di SQL.
+        if let Some(bentrok) = self.repository.find_renewal_conflict(id).await? {
             return Err(AppError::BadRequest(format!(
-                "BMN {} sedang digunakan oleh {} hingga {}",
-                current.bmn_nup,
-                availability.active_permit_holder.unwrap_or_default(),
-                availability
-                    .active_permit_expires
-                    .map(|d| d.to_string())
-                    .unwrap_or_default()
+                "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
+                current.bmn_nup, current.bmn_kode_barang, bentrok.holder, bentrok.expires
             )));
         }
 

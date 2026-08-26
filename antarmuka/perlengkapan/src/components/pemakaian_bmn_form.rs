@@ -76,18 +76,23 @@ pub fn PemakaianBmnForm() -> impl IntoView {
     let (loading, set_loading) = signal(false);
     let navigate = use_navigate();
 
-    // Check BMN availability + auto-fill catalog fields (kode_barang,
-    // nama_barang, merk, tahun_perolehan) when the operator enters a NUP.
-    // Both calls are kicked off in parallel from the same handler so the UI
-    // only has one "check" button.
+    // Cari asetnya di SIMAN, lalu cek ketersediaannya.
+    //
+    // Urutannya WAJIB berurutan, bukan paralel seperti sebelumnya. Cek
+    // ketersediaan butuh `kode_barang`, dan kode barang baru diketahui setelah
+    // lookup SIMAN menjawab. Versi lama menembakkan keduanya bersamaan lalu
+    // bertanya "apakah NUP 2 sedang dipakai" — pertanyaan yang tak punya
+    // jawaban: NUP adalah nomor urut DI DALAM satu satker untuk satu kode
+    // barang, jadi 44.017 aset di 553 satker sama-sama ber-NUP 1.
     let check_availability = move |_| {
         let nup = bmn_nup.get();
-        if nup.is_empty() {
+        if nup.trim().is_empty() {
             return;
         }
 
         set_checking_availability.set(true);
         set_bmn_availability.set(None);
+        set_error.set(None);
         // Reset previous lookup so the operator sees a clean slate while
         // the new query is in flight.
         set_bmn_kode_barang.set(String::new());
@@ -95,37 +100,51 @@ pub fn PemakaianBmnForm() -> impl IntoView {
         set_bmn_merk.set(String::new());
         set_bmn_tahun_perolehan.set(String::new());
 
-        let nup_for_avail = nup.clone();
         leptos::task::spawn_local(async move {
-            match check_bmn_availability(&nup_for_avail).await {
+            let kode_barang = match lookup_by_nup(&nup).await {
+                Ok(Some(item)) => {
+                    let kode = item.kode_barang.clone().unwrap_or_default();
+                    set_bmn_kode_barang.set(kode.clone());
+                    set_bmn_nama_barang.set(item.nama_barang.unwrap_or_default());
+                    set_bmn_merk.set(item.merk.unwrap_or_default());
+                    set_bmn_tahun_perolehan.set(item.tahun_perolehan.unwrap_or_default());
+                    kode
+                }
+                Ok(None) => {
+                    set_error.set(Some(format!(
+                        "BMN dengan NUP {nup} tidak ditemukan pada data SIMAN satker Anda"
+                    )));
+                    set_checking_availability.set(false);
+                    return;
+                }
+                Err(e) => {
+                    set_error.set(Some(format!("Gagal mencari BMN: {e}")));
+                    set_checking_availability.set(false);
+                    return;
+                }
+            };
+
+            if kode_barang.is_empty() {
+                // Tanpa kode barang asetnya tak bisa dipastikan, dan menebak
+                // lebih berbahaya daripada berhenti.
+                set_error.set(Some(
+                    "Data SIMAN untuk NUP ini tidak memuat kode barang, sehingga asetnya \
+                     tidak dapat dipastikan. Hubungi pengelola BMN satker."
+                        .to_string(),
+                ));
+                set_checking_availability.set(false);
+                return;
+            }
+
+            match check_bmn_availability(&nup, &kode_barang).await {
                 Ok(response) => {
                     set_bmn_availability.set(Some(response.data));
                 }
                 Err(e) => {
-                    set_error.set(Some(format!("Gagal memeriksa ketersediaan: {}", e)));
+                    set_error.set(Some(format!("Gagal memeriksa ketersediaan: {e}")));
                 }
             }
             set_checking_availability.set(false);
-        });
-
-        leptos::task::spawn_local(async move {
-            match lookup_by_nup(&nup).await {
-                Ok(Some(item)) => {
-                    set_bmn_kode_barang.set(item.kode_barang.unwrap_or_default());
-                    set_bmn_nama_barang.set(item.nama_barang.unwrap_or_default());
-                    set_bmn_merk.set(item.merk.unwrap_or_default());
-                    set_bmn_tahun_perolehan.set(item.tahun_perolehan.unwrap_or_default());
-                }
-                Ok(None) => {
-                    // Don't surface this as a hard error — the availability
-                    // check above will tell the user whether the NUP exists
-                    // in any meaningful sense.
-                    tracing::warn!(nup = %nup, "NUP not found in bank-aset lookup");
-                }
-                Err(e) => {
-                    tracing::warn!(nup = %nup, error = %e, "bank-aset lookup failed");
-                }
-            }
         });
     };
 
@@ -302,7 +321,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
             </Show>
 
             <Show when=move || error.get().is_some()>
-                <div class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2">
+                <div
+                    data-testid="form-error"
+                    class="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-100 flex items-center gap-2"
+                >
                     <AppIcon icon=WARNING_CIRCLE />
                     {error.get()}
                 </div>
@@ -457,6 +479,23 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                         </div>
                     </div>
 
+                    // Identitas aset yang benar-benar sedang diperiksa.
+                    // Dulu kode barang & nama barang hanya diisi diam-diam ke
+                    // payload dan tak pernah ditampilkan, jadi operator tak
+                    // punya cara melihat aset mana yang dimaksud sistem.
+                    <Show when=move || !bmn_kode_barang.get().is_empty()>
+                        <div
+                            data-testid="bmn-identitas"
+                            class="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700"
+                        >
+                            <span class="font-medium">{move || bmn_nama_barang.get()}</span>
+                            " — kode barang "
+                            <span class="font-mono">{move || bmn_kode_barang.get()}</span>
+                            ", NUP "
+                            <span class="font-mono">{move || bmn_nup.get()}</span>
+                        </div>
+                    </Show>
+
                     // Availability Status
                     <Show when=move || {
                         bmn_availability.get().is_some()
@@ -465,7 +504,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                             let availability = bmn_availability.get().unwrap();
                             if availability.is_available {
                                 view! {
-                                    <div class="mt-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2">
+                                    <div
+                                        data-testid="bmn-ketersediaan"
+                                        class="mt-2 p-3 bg-green-50 text-green-700 rounded-lg border border-green-100 flex items-center gap-2"
+                                    >
                                         <AppIcon icon=CHECK_CIRCLE />
                                         "BMN tersedia untuk digunakan"
                                     </div>
@@ -473,7 +515,10 @@ pub fn PemakaianBmnForm() -> impl IntoView {
                                     .into_any()
                             } else {
                                 view! {
-                                    <div class="mt-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100">
+                                    <div
+                                        data-testid="bmn-ketersediaan"
+                                        class="mt-2 p-3 bg-red-50 text-red-700 rounded-lg border border-red-100"
+                                    >
                                         <div class="flex items-center gap-2 mb-1">
                                             <AppIcon icon=WARNING_CIRCLE />
                                             <span class="font-semibold">"BMN sedang digunakan"</span>

@@ -80,6 +80,25 @@ pub struct CreateBmnItemRequest {
     pub detail_bmn: Option<serde_json::Value>,
     pub keterangan: Option<String>,
 }
+/// Aset yang ditanyakan, plus siapa yang bertanya.
+///
+/// Dikelompokkan karena kelima bagian ini selalu bergerak bersama: identitas
+/// aset ada TIGA bagian (kode satker + kode barang + NUP), dan bagian
+/// satker-nya diturunkan dari pemanggil — dari klaimnya, atau dari satker yang
+/// ia sebut eksplisit dan harus lolos pemeriksaan scope. Melewatkannya sebagai
+/// argumen lepas membuat pemanggil mudah tertukar urutannya, dan keduanya
+/// `&str`.
+#[derive(Debug, Clone, Copy)]
+pub struct AssetIdentityQuery<'a> {
+    pub bmn_nup: &'a str,
+    pub bmn_kode_barang: &'a str,
+    pub scope: &'a crate::shared::satker_scope::SatkerScope,
+    /// Kode satker pemanggil, dari klaim.
+    pub milik_sendiri: Option<&'a str>,
+    /// Satker yang diminta eksplisit; `None` = satker pemanggil sendiri.
+    pub satker_diminta: Option<&'a str>,
+}
+
 /// Request to upload signed PDF
 #[derive(Debug, Clone, Deserialize)]
 pub struct UploadSignedPdfRequest {

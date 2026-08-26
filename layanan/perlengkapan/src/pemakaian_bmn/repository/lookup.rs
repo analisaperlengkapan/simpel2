@@ -1,3 +1,43 @@
+//! Lookup + ketersediaan BMN untuk alur pemakaian.
+//!
+//! # NUP saja BUKAN identitas aset
+//!
+//! Sebuah aset dikenali oleh **kode satker + kode barang + NUP**. NUP adalah
+//! "nomor urut pendaftaran" — nomor urut DI DALAM satu satker untuk satu kode
+//! barang, jadi ia berulang di seluruh negeri.
+//!
+//! Diukur pada snapshot SIMAN staging (624.533 baris, 2026-06-17):
+//!
+//! | | |
+//! |---|---|
+//! | baris aset | 624.533 |
+//! | nilai NUP berbeda | 14.142 |
+//! | (satker, kode barang, NUP) berbeda | 620.676 |
+//! | rata-rata aset per NUP | 44,2 |
+//! | **aset yang memakai NUP `1`** | **44.017, tersebar di 553 satker** |
+//!
+//! Cek tabrakan yang ber-key NUP saja karena itu memperlakukan 44.017 aset
+//! berbeda sebagai satu benda: satu izin aktif atas NUP `1` di mana pun akan
+//! memblokir 553 satker lain memakai aset mereka SENDIRI yang kebetulan juga
+//! bernomor 1 — sambil menyebutkan nama pegawai satker lain sebagai
+//! pemegangnya. Setiap query di berkas ini yang menjawab "apakah aset ini
+//! sedang dipakai" WAJIB ber-key pada ketiganya.
+//!
+//! # Yang BELUM ber-key lengkap (sengaja, di luar cakupan perubahan ini)
+//!
+//! Dua permukaan BACA masih ber-key NUP saja, dan keduanya butuh keputusan UI
+//! lebih dulu — bagaimana peran lintas-satker menyebut aset yang dimaksud —
+//! jadi dikerjakan terpisah, bukan diselundupkan ke sini:
+//!
+//! * `repository::history::get_bmn_usage_history` — riwayat izin diagregasi
+//!   per NUP, sehingga riwayat beberapa aset berbeda tercampur.
+//! * `bank_aset::repository::find_lookup_by_nup` — `LIMIT 1` tanpa `ORDER BY`
+//!   atas kandidat yang, di dalam satu satker saja, rata-rata berjumlah 3,2
+//!   dan bisa mencapai 425. Ia mengisi otomatis kode barang di formulir
+//!   pemakaian dan menjadi dasar `verify_asset_siman` di penghapusan, yang
+//!   lalu melaporkan "kode_barang SIMAN berbeda dari usulan" untuk aset yang
+//!   sebenarnya cocok.
+
 use super::PemakaianBmnRepository;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
@@ -101,14 +141,19 @@ impl PemakaianBmnRepository {
     /// Cek ketersediaan BMN utk periode tertentu (Fase 1.11). Mengembalikan
     /// `Available`, `PemakaianBerurutan` (existing berakhir sebelum
     /// usulan mulai → boleh), atau `Overlap` (tolak).
+    ///
+    /// Ber-key pada IDENTITAS aset — kode satker + kode barang + NUP — bukan
+    /// NUP saja; alasannya ada di header modul ini.
     pub async fn check_bmn_availability_for_period(
         &self,
         bmn_nup: &str,
+        bmn_kode_barang: &str,
+        satker_code: &str,
         tgl_mulai: chrono::NaiveDate,
         tgl_selesai: chrono::NaiveDate,
     ) -> AppResult<BmnCheckStatus> {
         let client = self.pool.client().await?;
-        // Cari izin ACTIVE utk NUP ini, urutkan tanggal_selesai DESC agar
+        // Cari izin ACTIVE utk ASET ini, urutkan tanggal_selesai DESC agar
         // izin paling baru di atas. Kita evaluasi overlap thd usulan
         // periode operator.
         let rows = client
@@ -116,10 +161,13 @@ impl PemakaianBmnRepository {
                 r#"
                 SELECT pegawai_nama, tanggal_mulai, tanggal_selesai
                 FROM perlengkapan.izin_pemakaian_bmn
-                WHERE bmn_nup = $1 AND status = 'ACTIVE'
+                WHERE bmn_nup = $1
+                  AND bmn_kode_barang = $2
+                  AND satker_code = $3
+                  AND status = 'ACTIVE'
                 ORDER BY tanggal_selesai DESC
                 "#,
-                &[&bmn_nup],
+                &[&bmn_nup, &bmn_kode_barang, &satker_code],
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
@@ -159,70 +207,165 @@ impl PemakaianBmnRepository {
         }
     }
 
-    /// Check if BMN is available (no active permit) — legacy, kept for
-    /// existing callers. Fase 1.11 callers harus pakai
-    /// `check_bmn_availability_for_period`.
+    /// Apakah aset ini sedang dipakai?
     ///
-    /// Scoping here is deliberately NOT a plain row filter. The availability
-    /// answer must stay truthful across satker or the UI would offer to book an
-    /// asset another satker is already holding; what must not cross the
-    /// boundary is **who** is holding it. So the query keeps its national reach
-    /// and evaluates the caller's scope predicate as a column: in scope, the
-    /// holder is named; out of scope, the caller learns only that the asset is
-    /// taken.
+    /// Ber-key pada identitas aset penuh (kode satker + kode barang + NUP —
+    /// lihat header modul). Karena satker sudah ikut jadi kunci, izin yang
+    /// ditemukan PASTI milik satker yang ditanyakan, jadi tak ada lagi
+    /// kebocoran nama pemegang lintas satker yang perlu diredaksi: pemanggil
+    /// hanya boleh menanyakan satker yang ada dalam scope-nya, dan itu
+    /// ditegakkan oleh [`Self::satker_code_in_scope`] di lapisan service.
     ///
-    /// `NULL` from the predicate (a row whose `satker_code` was never
-    /// backfilled) is treated as out of scope — fail closed.
+    /// Sebelumnya query ini ber-key `bmn_nup` saja dan memakai scope sebagai
+    /// kolom terproyeksi (`in_scope`) untuk memutuskan apakah nama pemegang
+    /// disebut. Redaksi itu obat untuk gejala: penyebabnya adalah kuncinya
+    /// yang salah, dan `is_available = false` dari satker lain tetap SALAH
+    /// walau namanya disembunyikan.
     /// Requirements: REQ-P002, REQ-P003
     pub async fn check_bmn_availability(
         &self,
         bmn_nup: &str,
-        scope: &crate::shared::satker_scope::SatkerScope,
+        bmn_kode_barang: &str,
+        satker_code: &str,
     ) -> AppResult<BmnAvailabilityResponse> {
-        let client = self.pool.client().await?;
+        let conflict = self
+            .find_booking_conflict(bmn_nup, bmn_kode_barang, satker_code, None)
+            .await?;
 
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
-            vec![Box::new(bmn_nup.to_string())];
-        let in_scope_expr = scope
-            .push_condition("satker_code", &mut params)
-            .unwrap_or_else(|| "TRUE".to_string());
-        let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-            .iter()
-            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-            .collect();
-
-        let query = format!(
-            r#"
-            SELECT id, nomor_izin, pegawai_nama, tanggal_selesai,
-                   COALESCE(({in_scope_expr}), FALSE) AS in_scope
-            FROM perlengkapan.izin_pemakaian_bmn
-            WHERE bmn_nup = $1 AND status = 'ACTIVE'
-            LIMIT 1
-        "#
-        );
-
-        let row_opt = client
-            .query_opt(&query, &refs)
-            .await
-            .map_err(|e| AppError::Database(e.to_string()))?;
-
-        if let Some(row) = row_opt {
-            let in_scope: bool = row.get("in_scope");
-            Ok(BmnAvailabilityResponse {
+        Ok(match conflict {
+            Some(c) => BmnAvailabilityResponse {
                 bmn_nup: bmn_nup.to_string(),
                 is_available: false,
-                active_permit_id: in_scope.then(|| row.get("id")),
-                active_permit_holder: in_scope.then(|| row.get("pegawai_nama")),
-                active_permit_expires: in_scope.then(|| row.get("tanggal_selesai")),
-            })
-        } else {
-            Ok(BmnAvailabilityResponse {
+                active_permit_id: Some(c.permit_id),
+                active_permit_holder: Some(c.holder),
+                active_permit_expires: Some(c.expires),
+            },
+            None => BmnAvailabilityResponse {
                 bmn_nup: bmn_nup.to_string(),
                 is_available: true,
                 active_permit_id: None,
                 active_permit_holder: None,
                 active_permit_expires: None,
-            })
-        }
+            },
+        })
+    }
+
+    /// Cek tabrakan untuk jalur TULIS (create / renew).
+    ///
+    /// Mengembalikan `None` bila aset bebas, atau tabrakannya bila sudah ada
+    /// izin `ACTIVE` atas aset yang SAMA. `exclude_permit_id` dipakai saat
+    /// perpanjangan: izin yang sedang diperpanjang tidak boleh menabrak
+    /// dirinya sendiri. Pengecualian itu dilakukan DI SQL, bukan dengan
+    /// membandingkan id yang dikembalikan — id yang diredaksi akan membuat
+    /// perbandingan itu diam-diam menolak perpanjangan yang sah.
+    pub async fn find_booking_conflict(
+        &self,
+        bmn_nup: &str,
+        bmn_kode_barang: &str,
+        satker_code: &str,
+        exclude_permit_id: Option<uuid::Uuid>,
+    ) -> AppResult<Option<BookingConflict>> {
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                SELECT id, pegawai_nama, tanggal_selesai
+                FROM perlengkapan.izin_pemakaian_bmn
+                WHERE bmn_nup = $1
+                  AND bmn_kode_barang = $2
+                  AND satker_code = $3
+                  AND status = 'ACTIVE'
+                  AND ($4::uuid IS NULL OR id <> $4::uuid)
+                ORDER BY tanggal_selesai DESC
+                LIMIT 1
+                "#,
+                &[&bmn_nup, &bmn_kode_barang, &satker_code, &exclude_permit_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(row_opt.map(|row| BookingConflict {
+            permit_id: row.get("id"),
+            holder: row.get("pegawai_nama"),
+            expires: row.get("tanggal_selesai"),
+        }))
+    }
+
+    /// Tabrakan untuk PERPANJANGAN.
+    ///
+    /// Asetnya diidentifikasi dari izin yang sedang diperpanjang itu sendiri
+    /// (kode satker + kode barang + NUP milik baris itu), jadi satker-nya tak
+    /// perlu ditebak dari sesi pemanggil dan izin milik satker lain tak bisa
+    /// ikut terhitung. `IS NOT DISTINCT FROM` dipakai agar dua baris legacy
+    /// yang sama-sama ber-`satker_code` NULL tetap dianggap bertabrakan —
+    /// arah yang aman.
+    pub async fn find_renewal_conflict(
+        &self,
+        permit_id: uuid::Uuid,
+    ) -> AppResult<Option<BookingConflict>> {
+        let client = self.pool.client().await?;
+        let row_opt = client
+            .query_opt(
+                r#"
+                SELECT lain.id, lain.pegawai_nama, lain.tanggal_selesai
+                FROM perlengkapan.izin_pemakaian_bmn ini
+                JOIN perlengkapan.izin_pemakaian_bmn lain
+                  ON  lain.bmn_nup = ini.bmn_nup
+                  AND lain.bmn_kode_barang = ini.bmn_kode_barang
+                  AND lain.satker_code IS NOT DISTINCT FROM ini.satker_code
+                  AND lain.id <> ini.id
+                  AND lain.status = 'ACTIVE'
+                WHERE ini.id = $1
+                ORDER BY lain.tanggal_selesai DESC
+                LIMIT 1
+                "#,
+                &[&permit_id],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        Ok(row_opt.map(|row| BookingConflict {
+            permit_id: row.get("id"),
+            holder: row.get("pegawai_nama"),
+            expires: row.get("tanggal_selesai"),
+        }))
+    }
+
+    /// Apakah `code` boleh dilihat oleh pemanggil dgn scope ini?
+    ///
+    /// Kembar dgn `KebutuhanBmnRepository::satker_code_in_scope`: tier murni
+    /// (All/Denied/Satker) diputuskan tanpa DB oleh `SatkerScope` sendiri agar
+    /// aturannya tak punya salinan kedua; hanya Wilayah yang perlu
+    /// `integrasi.v_satker_wilayah`.
+    pub async fn satker_code_in_scope(
+        &self,
+        scope: &crate::shared::satker_scope::SatkerScope,
+        code: &str,
+    ) -> AppResult<bool> {
+        use crate::shared::satker_scope::SatkerScope;
+        let SatkerScope::Wilayah(caller) = scope else {
+            return Ok(scope.contains_code_local(code).unwrap_or(false));
+        };
+
+        let client = self.pool.client().await?;
+        let row = client
+            .query_one(
+                r#"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM integrasi.v_satker_wilayah s
+                    WHERE s.kode_satker = $1
+                      AND s.wilayah_code = (
+                          SELECT w.wilayah_code
+                          FROM integrasi.v_satker_wilayah w
+                          WHERE w.kode_satker = $2
+                      )
+                ) AS in_scope
+                "#,
+                &[&code, &caller],
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+        Ok(row.get::<_, bool>("in_scope"))
     }
 }
