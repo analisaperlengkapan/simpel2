@@ -472,7 +472,11 @@ mengembalikan spek manifest.
 - **Rename = 3 langkah lintas-rilis:** (1) add kolom baru + dual-write; (2)
   backfill + baca kolom baru; (3) drop kolom lama. Bukan `ALTER … RENAME` sekali jalan.
 - **Migrasi idempotent + reversibel-secara-data:** hook `*-migrate-job.yaml` boleh
-  jalan ulang (pre-upgrade); jangan ada operasi yang merusak saat re-run.
+  jalan ulang; jangan ada operasi yang merusak saat re-run. **Lifecycle-nya
+  `post-install,pre-upgrade`** — post- saat install pertama (postgres baru ada
+  setelah fase pre-install), pre- saat upgrade (skema WAJIB mendarat sebelum pod
+  baru rollout). Baris ini sempat benar sementara chart-nya `post-upgrade`;
+  disamakan 2026-08-26.
 - Konsekuensi: pada rollback app, **JANGAN** rollback DB. Skema BARU (aditif)
   tetap kompatibel dengan kode LAMA. Restore DB hanya bila migrasi melanggar aturan
   ini (insiden) — gunakan Velero/`pg_dump` terbaru, dengan human gate.

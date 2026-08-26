@@ -23,13 +23,28 @@ metadata:
   labels:
     {{- include "simpel.componentLabels" (dict "top" $ctx "name" "authenc-migrate" "component" "identity") | nindent 4 }}
   annotations:
-    # post-* (NOT pre-*): on a fresh `helm install` postgres + postgres-credentials
-    # are normal resources created BEFORE post-* hooks, so they exist here; a
-    # pre-install hook would deadlock (postgres/secret not yet created). The
-    # wait-for-postgres init tolerates postgres not being Ready yet. Weight -5 →
-    # after db-create (-20) + integrasi-migrate (-6). On upgrades this runs
-    # post-rollout — safe under the expand/contract migration discipline.
-    "helm.sh/hook": post-install,post-upgrade
+    # post-install + pre-upgrade — deliberately different phases per lifecycle.
+    #
+    # FRESH INSTALL must be post-*: postgres and postgres-credentials are normal
+    # resources, created BEFORE post-install hooks but AFTER pre-install ones, so
+    # a pre-install hook would deadlock waiting for a database that Helm has not
+    # created yet.
+    #
+    # UPGRADE must be pre-*: on an upgrade postgres is already running, and the
+    # schema has to land BEFORE the new pods roll out. This used to say
+    # post-upgrade, justified as "safe under the expand/contract migration
+    # discipline" — but that reverses the guarantee. Expand/contract makes the
+    # OLD code tolerate the NEW schema, which is what lets `helm rollback` work
+    # without a DB restore (infra/AGENTS.md "Migrasi WAJIB expand/contract").
+    # It promises nothing about NEW code meeting OLD schema, and post-upgrade
+    # produces exactly that: pods carrying the new image serve traffic during the
+    # window before the migration Job runs.
+    #
+    # A pre-upgrade failure now aborts the upgrade with nothing rolled out, which
+    # is the outcome we want: better than shipping code onto a schema that failed
+    # to migrate.
+    # Weight -5 → After db-create (-20) and integrasi-migrate (-6).
+    "helm.sh/hook": post-install,pre-upgrade
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:

@@ -326,6 +326,19 @@ jobs:
       - name: Tak ada placeholder tanpa cast di aritmatika tanggal SQL
         shell: bash
         run: python3 ./infra/scripts/check-sql-date-params.py
+      # Hook Job yang menyentuh DB harus `post-install,pre-upgrade`. Ketiganya
+      # sempat `post-upgrade`, dengan alasan tertulis "safe under the
+      # expand/contract migration discipline" — yang membalik arah jaminannya.
+      # Expand/contract membuat kode LAMA tahan skema BARU (itu yang membuat
+      # `helm rollback` aman tanpa restore DB); ia tak menjanjikan apa pun soal
+      # kode BARU bertemu skema LAMA, dan `post-upgrade` menghasilkan persis
+      # itu. rc28 membuatnya konkret: seluruh scoping RBAC membaca
+      # `integrasi.v_satker_wilayah`, yang baru dibuat migrasi integrasi 005.
+      # `infra/AGENTS.md:474` sudah menulis "(pre-upgrade)"; chart-nya yang tak
+      # ikut — dokumentasi benar bukan penegakan.
+      - name: Hook migrasi jalan sebelum rollout, bukan sesudah
+        shell: bash
+        run: python3 ./infra/scripts/check-migrate-hook-lifecycle.py
 
   # ─────────────────────────────────────────────────────
   # Phase 2 — Lint per bahasa (agresif: skip kalau bahasa tidak berubah)
