@@ -242,14 +242,14 @@ impl PemakaianBmnRepository {
         let bmn_with_active_permits: i64 = utilized_row.get("count");
 
         // Numerator and denominator do not have the same unit, and no query can
-        // fix that: `izin_pemakaian_bmn` identifies an asset by `bmn_nup`
-        // alone, but NUP is not an asset identity (14 141 distinct NUPs across
-        // 548 042 serviceable assets), so `COUNT(DISTINCT bmn_nup)` counts NUP
-        // strings while `total_bmn` counts assets. Joining the two on NUP would
-        // be worse, not better — a single permit on NUP "43" would match every
-        // asset numbered 43 in every satker. The rate is therefore a lower
-        // bound; making it exact requires the permit to carry the full BMN
-        // identity (kdsatker_keu + kode_barang + NUP), which is a schema change.
+        // fix that. A BMN asset is identified by kode satker + kode barang +
+        // NUP; NUP is unique only WITHIN one barang code at one satker. But
+        // `izin_pemakaian_bmn` stores `bmn_nup` alone, and 548 042 serviceable
+        // assets share just 14 141 distinct NUPs — so `COUNT(DISTINCT bmn_nup)`
+        // counts NUP strings while `total_bmn` counts assets, and a join on NUP
+        // would be worse still: one permit on NUP "43" would match every asset
+        // numbered 43 in every satker in the country. The rate is a lower bound
+        // until the permit carries the full triple, which is a schema change.
         let bmn_without_permits = total_bmn - bmn_with_active_permits;
         let utilization_rate = if total_bmn > 0 {
             (bmn_with_active_permits as f64 / total_bmn as f64) * 100.0

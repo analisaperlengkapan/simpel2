@@ -56,7 +56,7 @@
 /// `panic = "abort"` that killed the process.
 pub const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DIKETAHUI')";
 
-/// An asset's NUP (Nomor Urut Pendaftaran) — SIMAN's `no_aset`.
+/// An asset's NUP (Nomor Urut Perolehan) — SIMAN's `no_aset`.
 ///
 /// SIMAN sends `no_aset`; it does not send `nup`. `no_aset` is numeric in
 /// 624 528 of 624 533 rows, ranges 0–21 727, and runs consecutively within one
@@ -66,13 +66,29 @@ pub const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DI
 /// `NULLIF` yields NULL rather than `''`, which the FE renders as "-" — the
 /// correct display for an asset SIMAN gave no NUP, instead of a misleading "0".
 ///
-/// **NUP is not a key.** `(kdsatker_keu, kd_brg, no_aset)` is not unique either
-/// (3 503 groups repeat, 0.56%) — NUP is assigned per registering unit (UAKPB),
-/// which `kdsatker_keu` does not always resolve to one-to-one. Measured on the
-/// 548 042 assets in "Baik" condition: 548 042 rows, 544 337 distinct
-/// `(kdsatker_keu, kd_brg, no_aset)`, 106 670 distinct `(kd_brg, no_aset)`, and
-/// only **14 141 distinct `no_aset`**. So `COUNT(DISTINCT nup)` under-counts
-/// assets by a factor of ~39 and must never be used as an asset population.
+/// # NUP alone is not an identity; the identity is a TRIPLE
+///
+/// A BMN asset is identified by **kode satker + kode barang + NUP**
+/// (`kdsatker_keu`, `kd_brg`, `no_aset`). NUP is unique only WITHIN one barang
+/// code at one satker — "Kejari Mamuju / kendaraan unit tahanan / NUP 2" names
+/// exactly one physical asset.
+///
+/// So NUP on its own identifies nothing: the 548 042 assets in "Baik" condition
+/// carry only **14 141 distinct `no_aset`** values between them. Anything keyed
+/// on NUP alone — `COUNT(DISTINCT nup)` as an asset population, or a join
+/// `WHERE bmn_nup = …` — is wrong by roughly a factor of 39, and matches assets
+/// belonging to other satkers.
+///
+/// The triple IS meant to be unique, and very nearly is: 620 676 distinct out
+/// of 624 533 rows. The 3 503 groups that repeat (7 360 rows, 0.62%) are a
+/// **source-data fault, not a modelling nuance** — inspection shows genuinely
+/// different assets sharing one NUP, e.g. `006010199005016000KP / 3050201004 /
+/// 677` holds one item acquired 2015-05-06 for Rp 1 650 000 and another
+/// acquired 2020-12-30 for Rp 9 801 000. None of the 3 503 groups is a
+/// re-ingest of an identical row (every one differs in name, value, date or
+/// condition), so deduplicating them would destroy data. They are worth raising
+/// with the SIMAN owner; they are NOT a licence to treat the triple as
+/// non-identifying.
 pub const ASSET_NUP_SQL: &str = "NULLIF(no_aset, '')";
 
 /// An asset's barang code — SIMAN's `kd_brg`, with the canonical `kode_barang`
