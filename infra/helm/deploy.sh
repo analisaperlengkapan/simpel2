@@ -8,6 +8,13 @@
 # Action: install | upgrade | template | diff | status | rollback | uninstall
 #         metallb-install | storage-install | backup-install
 #                                             (cluster-scoped, env diabaikan)
+#
+# Env vars (install/upgrade):
+#   SIMPEL_HELM_WAIT=false     jangan tunggu kesiapan. WAJIB untuk bootstrap:
+#                              Secreton lahir sealed dan tak pernah Ready sampai
+#                              di-unseal, jadi install yang menunggu pasti gagal.
+#   SIMPEL_HELM_TIMEOUT=20m    batas tunggu saat SIMPEL_HELM_WAIT aktif.
+#   SIMPEL_CONFIRM_DESTROY=yes izin eksplisit untuk `uninstall` di production.
 
 set -euo pipefail
 
@@ -51,16 +58,55 @@ fi
 
 case "$ACTION" in
   install|upgrade)
+    # --create-namespace is decided by ASKING THE CHART, not by a rule kept here.
+    # `templates/namespace.yaml` renders a Namespace when `namespace.create` is
+    # true; values-staging sets it false (the object predates this lineage and is
+    # kept outside the release on purpose), while values-production inherits the
+    # default true. Passing both makes Helm create the namespace WITHOUT ownership
+    # metadata and the chart's own Namespace object then collides:
+    #   Error: namespaces "simpelv2-production" already exists
+    # That is the same defect as `backup-install` below, which hit for real on
+    # 2026-08-18 (#794). Deriving the flag from the rendered output means it stays
+    # correct if a values file flips `namespace.create` either way.
+    #
+    # Rendered into a variable rather than piped straight into `grep -q`: this
+    # script runs under `pipefail`, and `grep -q` exits at the first match, which
+    # SIGPIPEs helm and makes the PIPELINE fail exactly when the pattern IS found.
+    # Piped that way the test reports the opposite of the truth.
+    rendered="$(helm template "$RELEASE" "$CHART_DIR" -f "$VALUES_FILE" \
+                  --namespace "$NAMESPACE" "${EXTRA_ARGS[@]}" 2>/dev/null || true)"
+    ns_flag=()
+    grep -q '^kind: Namespace$' <<<"$rendered" || ns_flag=(--create-namespace)
+
+    # `--wait` blocks until every workload reports Ready, so it is WRONG for the
+    # documented bootstrap: Secreton comes up sealed and never becomes Ready until
+    # an operator unseals it, so a waiting install times out and rolls back the
+    # very release the unseal needs. And 5m never fit this chart — a full bring-up
+    # pulls nine images and runs the migration hooks. Both are knobs now; the
+    # bootstrap invocation is SIMPEL_HELM_WAIT=false.
+    wait_flag=()
+    if [ "${SIMPEL_HELM_WAIT:-true}" = "true" ]; then
+      wait_flag=(--wait --timeout "${SIMPEL_HELM_TIMEOUT:-20m}")
+    else
+      echo "NOTE: SIMPEL_HELM_WAIT=false — not waiting for readiness (bootstrap mode)."
+      echo "      Secreton starts sealed; unseal it, then re-run without the flag."
+    fi
+
     helm upgrade --install "$RELEASE" "$CHART_DIR" \
       -f "$VALUES_FILE" \
       --namespace "$NAMESPACE" \
-      --create-namespace \
-      --wait --timeout 5m \
+      "${ns_flag[@]+"${ns_flag[@]}"}" \
+      "${wait_flag[@]+"${wait_flag[@]}"}" \
       "${EXTRA_ARGS[@]}"
-    echo
-    echo "─── Rollout status ───"
-    kubectl rollout status -n "$NAMESPACE" deployment --timeout=300s 2>/dev/null || true
-    kubectl rollout status -n "$NAMESPACE" statefulset --timeout=300s 2>/dev/null || true
+
+    # Only meaningful when we asked Helm to wait; in bootstrap mode the workloads
+    # are legitimately not Ready and this would just burn ten minutes saying so.
+    if [ "${SIMPEL_HELM_WAIT:-true}" = "true" ]; then
+      echo
+      echo "─── Rollout status ───"
+      kubectl rollout status -n "$NAMESPACE" deployment --timeout=300s 2>/dev/null || true
+      kubectl rollout status -n "$NAMESPACE" statefulset --timeout=300s 2>/dev/null || true
+    fi
     ;;
   template)
     helm template "$RELEASE" "$CHART_DIR" \

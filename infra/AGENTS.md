@@ -417,16 +417,23 @@ microk8s enable dns storage istio metallb:10.64.140.43-10.64.140.49
 
 # 3. Helm install — values-staging.yaml dengan `secretonAuth.enabled=false`
 #    untuk first boot (bootstrap loop)
+#
+#    SIMPEL_HELM_WAIT=false WAJIB di langkah ini: Secreton lahir SEALED dan tak
+#    pernah Ready sampai langkah 5 meng-unseal-nya, jadi install yang menunggu
+#    kesiapan pasti timeout — lalu membatalkan rilis yang justru dibutuhkan
+#    unseal itu. Urutan di bawah mustahil dijalankan tanpa flag ini.
 ./infra/helm/deploy.sh staging template     # ← review dulu
-./infra/helm/deploy.sh staging install
+SIMPEL_HELM_WAIT=false ./infra/helm/deploy.sh staging install
 
-# 4. Tunggu sampai pods Ready (≤ 5 menit di staging)
+# 4. Tunggu sampai pods selain secreton Ready (secreton tetap sealed di sini)
 kubectl -n simpelv2-staging get pods -w
 
 # 5. Bootstrap Secreton (init + unseal + K8s auth + seed KV)
 ./infra/helm/bootstrap-secreton.sh staging
 
 # 6. Flip `secretonAuth.enabled=true` di values-staging.yaml lalu upgrade
+#    (di sini `--wait` sudah benar: semuanya seharusnya bisa Ready. Default
+#    timeout 20m; naikkan dgn SIMPEL_HELM_TIMEOUT bila image belum ter-cache.)
 ./infra/helm/deploy.sh staging upgrade
 
 # 7. Verify zero-trust: pods restart, log "fetched secret from secreton"
