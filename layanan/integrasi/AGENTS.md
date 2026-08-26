@@ -233,12 +233,23 @@ kosong":
   `DROP ... CASCADE`) — lihat 003 sebagai contoh.
 - Menambahkan `.sql` ke `migrations/` **tidak** membuatnya berjalan; ia harus
   masuk array `MIGRATIONS`. Berkas yang tak terdaftar diam-diam mati.
+- **Satu berkas = SATU transaksi implisit.** `batch_execute` menyerahkan seluruh
+  berkas ke Postgres sekaligus, jadi migrasi bersifat semua-atau-tak-ada **dan**
+  pernyataan yang dilarang Postgres di dalam blok transaksi akan gagal di sini:
+  `CREATE INDEX CONCURRENTLY`, `VACUUM`, `REINDEX ... CONCURRENTLY`,
+  `ALTER SYSTEM`, `CREATE DATABASE`. Jangan pula menulis `BEGIN;`/`COMMIT;`
+  sendiri — itu memotong transaksi runner di tengah (persis cacat yang membuat
+  perlengkapan V007/V008 tak pernah fresh-apply). Butuh indeks tanpa mengunci
+  tabel? Bangun lewat pekerjaan terpisah di luar runner, bukan di migrasi.
 
 Ditegakkan oleh `infra/scripts/check-migration-replay.sh` (job CI
 **Migrasi integrasi bisa dijalankan ulang**): menerapkan migrasi **dua kali** ke
-database yang sama, dan menolak berkas yang ada di disk tapi tak terdaftar.
-Setiap stack e2e memigrasi DB kosong — lintasan pertama justru yang selalu
-berhasil — jadi lintasan kedua itulah yang mewakili deploy sungguhan.
+database yang sama, **satu transaksi per berkas** (`psql --single-transaction`,
+menyamai `batch_execute` — tanpa flag itu psql menjalankan tiap pernyataan di
+transaksinya sendiri dan akan meloloskan `CONCURRENTLY` yang tak bisa dijalankan
+hook deploy), dan menolak berkas yang ada di disk tapi tak terdaftar. Setiap
+stack e2e memigrasi DB kosong — lintasan pertama justru yang selalu berhasil —
+jadi lintasan kedua itulah yang mewakili deploy sungguhan.
 
 ### 1. Scheduler Configuration
 
