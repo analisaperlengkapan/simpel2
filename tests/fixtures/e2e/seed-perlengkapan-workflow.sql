@@ -14,7 +14,19 @@
 -- file ONLY in jobs that bring layanan-perlengkapan up, AFTER
 -- seed-multisatker.sql (it references the users/satkers seeded there).
 --
--- Idempotent: PK rows use ON CONFLICT DO NOTHING.
+-- RE-RUNNABLE, not merely idempotent. The distinction matters the moment this
+-- runs against a database that survives the run — i.e. staging.
+--
+-- `ON CONFLICT DO NOTHING` only means "create if absent". It is enough in CI,
+-- where every job starts from an empty database, and it is NOT enough anywhere
+-- else: the suite's whole purpose is to DRIVE these rows forward, so the second
+-- run finds izin I2 already ACTIVE instead of SUBMITTED, penghapusan H1 already
+-- at 4001, the kebutuhan barang count at 2 instead of 1 — and reports those as
+-- product failures. The first staging run left exactly that residue.
+--
+-- So: `DO UPDATE` restores every column the workflow can write, the reset block
+-- below removes the child rows the UI created, and applying this file returns
+-- the fixture to its documented starting state no matter what ran before it.
 -- ============================================================================
 
 BEGIN;
@@ -22,6 +34,63 @@ BEGIN;
 -- Rows below are schema-qualified, but perlengkapan triggers/defaults may
 -- resolve unqualified relations via search_path (see seed-multisatker.sql).
 SET search_path TO perlengkapan, authenc, integrasi, public;
+
+-- ----------------------------------------------------------------------------
+-- 0. Reset: drop what the SUITE created, keep what the FIXTURE creates.
+--
+--    `DO UPDATE` below restores rows this file owns by id, but it cannot remove
+--    rows it never inserted. The specs add some: E-1 adds a barang through the
+--    modal and asserts the count goes 1 -> 2, which on a second run reads 2 -> 3.
+--
+--    Identified structurally — "child of a fixture parent, but not a fixture
+--    row" — rather than by a hand-kept list of ids that would fall behind the
+--    moment a spec adds a different row. Nothing outside the fixture can match:
+--    every parent id here is an e2e-only UUID, and the `E2E-` NUP prefix is a
+--    marker space no SIMAN import produces.
+-- ----------------------------------------------------------------------------
+DELETE FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_barang
+WHERE pengajuan_satker_id IN (
+        'c1000000-0000-4c00-8c00-0000000a0001',
+        'c1000000-0000-4c00-8c00-0000000a0002',
+        'c1000000-0000-4c00-8c00-0000000a0003')
+  AND id NOT IN (
+        'c1000000-0000-4c00-8c00-00000000b001',
+        'c1000000-0000-4c00-8c00-00000000b002',
+        'c1000000-0000-4c00-8c00-00000000b003');
+
+DELETE FROM perlengkapan.penghapusan_bmn_item
+WHERE penghapusan_id IN (
+        'e1000000-0000-4e00-8e00-0000000a0001',
+        'e1000000-0000-4e00-8e00-0000000a0002',
+        'e1000000-0000-4e00-8e00-0000000a0003')
+  AND id NOT IN (
+        'e1c00000-0000-4e00-8e00-000000000001',
+        'e1c00000-0000-4e00-8e00-000000000002',
+        'e1c00000-0000-4e00-8e00-000000000003');
+
+DELETE FROM perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
+WHERE pengajuan_satker_id IN (
+        'd1000000-0000-4d00-8d00-0000000a0001',
+        'd1000000-0000-4d00-8d00-0000000a0002',
+        'd1000000-0000-4d00-8d00-0000000a1001',
+        'd1000000-0000-4d00-8d00-0000000a1002')
+  AND id NOT IN (
+        'd1000000-0000-4d00-8d00-00000000e001',
+        'd1000000-0000-4d00-8d00-00000000e002',
+        'd1000000-0000-4d00-8d00-00000000e101',
+        'd1000000-0000-4d00-8d00-00000000e102');
+
+-- A permit the suite created and left ACTIVE is not just residue: since the
+-- booking check became keyed on kode satker + kode barang + NUP, an extra
+-- ACTIVE permit on a fixture asset makes the availability specs report it busy
+-- — correctly, which is the worst kind of red to diagnose.
+DELETE FROM perlengkapan.izin_pemakaian_bmn
+WHERE bmn_nup LIKE 'E2E-%'
+  AND id NOT IN (
+        'e2000000-0000-4e00-8e00-0000000b0001',
+        'e2000000-0000-4e00-8e00-0000000b0002',
+        'e2000000-0000-4e00-8e00-0000000b0003',
+        'e2000000-0000-4e00-8e00-0000000b0004');
 
 -- ----------------------------------------------------------------------------
 -- 5. perlengkapan: Kebutuhan BMN workflow preconditions (F-E2E E-1).
@@ -42,7 +111,16 @@ INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn
   (id, nama, deskripsi, tahun, tgl_mulai, tgl_selesai, pilihan_satker, status_kode, created_by, scope_satker)
 VALUES
   ('c1000000-0000-4c00-8c00-000000000001', 'E2E Periode Kebutuhan BMN 2026', 'Seed F-E2E kebutuhan workflow', 2026, '2026-01-01', '2026-12-31', 'semua', 2000, '44444444-4444-4444-8444-444444444444', 'semua')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nama = EXCLUDED.nama,
+  deskripsi = EXCLUDED.deskripsi,
+  tahun = EXCLUDED.tahun,
+  tgl_mulai = EXCLUDED.tgl_mulai,
+  tgl_selesai = EXCLUDED.tgl_selesai,
+  pilihan_satker = EXCLUDED.pilihan_satker,
+  status_kode = EXCLUDED.status_kode,
+  scope_satker = EXCLUDED.scope_satker,
+  version = 1;
 
 INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker
   (id, pengajuan_id, satker_id, satker_nama, status_kode, created_by)
@@ -50,7 +128,11 @@ VALUES
   ('c1000000-0000-4c00-8c00-0000000a0001', 'c1000000-0000-4c00-8c00-000000000001', '0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',   2001, '11111111-1111-4111-8111-111111111111'),
   ('c1000000-0000-4c00-8c00-0000000a0002', 'c1000000-0000-4c00-8c00-000000000001', '0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN', 2002, '22222222-2222-4222-8222-222222222222'),
   ('c1000000-0000-4c00-8c00-0000000a0003', 'c1000000-0000-4c00-8c00-000000000001', '0300010', 'KEJAKSAAN NEGERI BANDUNG',         2005, '44444444-4444-4444-8444-444444444444')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_id = EXCLUDED.pengajuan_id,
+  satker_id = EXCLUDED.satker_id,
+  satker_nama = EXCLUDED.satker_nama,
+  status_kode = EXCLUDED.status_kode;
 
 -- One pre-existing barang per satker row so (a) the operator's "Submit ke
 -- Wilayah" is valid without depending on the add-barang modal, and (b) the
@@ -62,7 +144,13 @@ VALUES
   ('c1000000-0000-4c00-8c00-00000000b001', 'c1000000-0000-4c00-8c00-0000000a0001', 'E2E Barang Seed A', '3.10.01.02.003', 3, 'Unit', 'Seed justifikasi kebutuhan'),
   ('c1000000-0000-4c00-8c00-00000000b002', 'c1000000-0000-4c00-8c00-0000000a0002', 'E2E Barang Seed B', '3.05.02.01.002', 2, 'Unit', 'Seed justifikasi kebutuhan'),
   ('c1000000-0000-4c00-8c00-00000000b003', 'c1000000-0000-4c00-8c00-0000000a0003', 'E2E Barang Seed C', '3.10.01.05.010', 1, 'Unit', 'Seed justifikasi kebutuhan')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_satker_id = EXCLUDED.pengajuan_satker_id,
+  nama = EXCLUDED.nama,
+  kode_barang = EXCLUDED.kode_barang,
+  jumlah = EXCLUDED.jumlah,
+  satuan = EXCLUDED.satuan,
+  alasan = EXCLUDED.alasan;
 
 -- ----------------------------------------------------------------------------
 -- 6. perlengkapan: Pakaian Dinas workflow preconditions (F-E2E E-2).
@@ -76,15 +164,27 @@ ON CONFLICT (id) DO NOTHING;
 --      P1 0200010 @1001 -> validator_wilayah (DKI): Teruskan ke Pusat
 --      P2 0200020 @1004 -> validator_pusat: decide
 -- ----------------------------------------------------------------------------
-INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active)
+INSERT INTO perlengkapan.ms_jenis_pakaian_dinas
+  (id, nama, deskripsi, is_active)
 VALUES ('d1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'Seed F-E2E pakaian dinas', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nama = EXCLUDED.nama,
+  deskripsi = EXCLUDED.deskripsi,
+  is_active = EXCLUDED.is_active;
 
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas
   (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
 VALUES
   ('d1000000-0000-4d00-8d00-0000000000c1', 'E2E Pengajuan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1000, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nama = EXCLUDED.nama,
+  tahun = EXCLUDED.tahun,
+  pilihan_satker = EXCLUDED.pilihan_satker,
+  scope_satker = EXCLUDED.scope_satker,
+  jenis_pakaian_dinas_id = EXCLUDED.jenis_pakaian_dinas_id,
+  aktivitas_id = EXCLUDED.aktivitas_id,
+  tgl_mulai = EXCLUDED.tgl_mulai,
+  tgl_selesai = EXCLUDED.tgl_selesai;
 
 -- Per-satker rows (restored by V006/#94 — they could not be seeded before,
 -- because `satker_id` was a uuid the BE compared against a bigint PK).
@@ -93,7 +193,10 @@ INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
 VALUES
   ('d1000000-0000-4d00-8d00-0000000a0001', 'd1000000-0000-4d00-8d00-0000000000c1', '0200010', 1001, '11111111-1111-4111-8111-111111111111'),
   ('d1000000-0000-4d00-8d00-0000000a0002', 'd1000000-0000-4d00-8d00-0000000000c1', '0200020', 1004, '22222222-2222-4222-8222-222222222222')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_id = EXCLUDED.pengajuan_id,
+  satker_id = EXCLUDED.satker_id,
+  aktivitas_id = EXCLUDED.aktivitas_id;
 
 -- The campaign explicitly targets both satkers, so the scope.rs satker tier has
 -- a row to match (its predicate now compares kode_satker directly).
@@ -102,7 +205,8 @@ INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
 VALUES
   ('d1000000-0000-4d00-8d00-0000000000c1', '0200010', true),
   ('d1000000-0000-4d00-8d00-0000000000c1', '0200020', true)
-ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
+ON CONFLICT (pengajuan_id, satker_id) DO UPDATE SET
+  is_show_in_form = EXCLUDED.is_show_in_form;
 
 -- One employee row per satker so the rekap/daftar reports have something to
 -- aggregate over (they JOIN pengajuan_pakaian_dinas_satker → mysimkari_satker).
@@ -111,7 +215,13 @@ INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
 VALUES
   ('d1000000-0000-4d00-8d00-00000000e001', 'd1000000-0000-4d00-8d00-0000000a0001', '200000000000000001', 'E2E Operator Jakpus', 'L', 'Operator Satker', 'Penata Muda'),
   ('d1000000-0000-4d00-8d00-00000000e002', 'd1000000-0000-4d00-8d00-0000000a0002', '200000000000000002', 'E2E Operator Jaksel', 'P', 'Operator Satker', 'Penata Muda')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_satker_id = EXCLUDED.pengajuan_satker_id,
+  nip = EXCLUDED.nip,
+  nama = EXCLUDED.nama,
+  jenis_kelamin = EXCLUDED.jenis_kelamin,
+  jabatan = EXCLUDED.jabatan,
+  pangkat = EXCLUDED.pangkat;
 
 -- ----------------------------------------------------------------------------
 -- 6b. perlengkapan: a SECOND campaign, for the laporan page only.
@@ -134,22 +244,35 @@ ON CONFLICT (id) DO NOTHING;
 --     so `satker_id` halves the rows and flips the gender split, and
 --     `jenis_pakaian_id` halves them along the other axis.
 -- ----------------------------------------------------------------------------
-INSERT INTO perlengkapan.ms_jenis_pakaian_dinas (id, nama, deskripsi, is_active)
+INSERT INTO perlengkapan.ms_jenis_pakaian_dinas
+  (id, nama, deskripsi, is_active)
 VALUES ('d1000000-0000-4d00-8d00-000000000002', 'PDL E2E', 'Seed F-E2E pakaian dinas (jenis kedua)', true)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nama = EXCLUDED.nama,
+  deskripsi = EXCLUDED.deskripsi,
+  is_active = EXCLUDED.is_active;
 
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas
   (id, nama, tahun, pilihan_satker, scope_satker, jenis_pakaian_dinas_id, aktivitas_id, created_by, tgl_mulai, tgl_selesai)
 VALUES
   ('d1000000-0000-4d00-8d00-0000000000c2', 'E2E Laporan Pakaian Dinas 2026', 2026, 'semua', 'semua', 'd1000000-0000-4d00-8d00-000000000001', 1008, '44444444-4444-4444-8444-444444444444', '2026-01-01', '2026-12-31')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nama = EXCLUDED.nama,
+  tahun = EXCLUDED.tahun,
+  pilihan_satker = EXCLUDED.pilihan_satker,
+  scope_satker = EXCLUDED.scope_satker,
+  jenis_pakaian_dinas_id = EXCLUDED.jenis_pakaian_dinas_id,
+  aktivitas_id = EXCLUDED.aktivitas_id,
+  tgl_mulai = EXCLUDED.tgl_mulai,
+  tgl_selesai = EXCLUDED.tgl_selesai;
 
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_terpilih
   (pengajuan_id, satker_id, is_show_in_form)
 VALUES
   ('d1000000-0000-4d00-8d00-0000000000c2', '0200010', true),
   ('d1000000-0000-4d00-8d00-0000000000c2', '0200020', true)
-ON CONFLICT (pengajuan_id, satker_id) DO NOTHING;
+ON CONFLICT (pengajuan_id, satker_id) DO UPDATE SET
+  is_show_in_form = EXCLUDED.is_show_in_form;
 
 -- Both at 1008: the reports only count satkers that finished.
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
@@ -157,14 +280,25 @@ INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker
 VALUES
   ('d1000000-0000-4d00-8d00-0000000a1001', 'd1000000-0000-4d00-8d00-0000000000c2', '0200010', 1008, '11111111-1111-4111-8111-111111111111'),
   ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-0000000000c2', '0200020', 1008, '22222222-2222-4222-8222-222222222222')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_id = EXCLUDED.pengajuan_id,
+  satker_id = EXCLUDED.satker_id,
+  aktivitas_id = EXCLUDED.aktivitas_id;
 
 INSERT INTO perlengkapan.pengajuan_pakaian_dinas_satker_pegawai
   (id, pengajuan_satker_id, nip, nama, jenis_kelamin, jabatan, pangkat, eselon, jenis)
 VALUES
   ('d1000000-0000-4d00-8d00-00000000e101', 'd1000000-0000-4d00-8d00-0000000a1001', '200000000000000101', 'E2E Laporan Jakpus', 'L', 'Operator Satker', 'Penata Muda', 'IV', '0'),
   ('d1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-0000000a1002', '200000000000000102', 'E2E Laporan Jaksel', 'P', 'Operator Satker', 'Penata Muda', 'IV', '0')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_satker_id = EXCLUDED.pengajuan_satker_id,
+  nip = EXCLUDED.nip,
+  nama = EXCLUDED.nama,
+  jenis_kelamin = EXCLUDED.jenis_kelamin,
+  jabatan = EXCLUDED.jabatan,
+  pangkat = EXCLUDED.pangkat,
+  eselon = EXCLUDED.eselon,
+  jenis = EXCLUDED.jenis;
 
 -- The campaign's clothing items. `jenis_pakaian_nama` is denormalised here by
 -- design — the report header resolves the selected type's label from it.
@@ -173,7 +307,13 @@ INSERT INTO perlengkapan.pengajuan_pakaian_dinas_pakaian
 VALUES
   ('d1000000-0000-4d00-8d00-00000000b001', 'd1000000-0000-4d00-8d00-0000000000c2', 'd1000000-0000-4d00-8d00-000000000001', 'PDH E2E', 'd1000000-0000-4d00-8d00-00000000f001', 'Kemeja PDH E2E', 'BAJU'),
   ('d1000000-0000-4d00-8d00-00000000b002', 'd1000000-0000-4d00-8d00-0000000000c2', 'd1000000-0000-4d00-8d00-000000000002', 'PDL E2E', 'd1000000-0000-4d00-8d00-00000000f002', 'Kemeja PDL E2E', 'BAJU')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_id = EXCLUDED.pengajuan_id,
+  jenis_pakaian_id = EXCLUDED.jenis_pakaian_id,
+  jenis_pakaian_nama = EXCLUDED.jenis_pakaian_nama,
+  spesifikasi_id = EXCLUDED.spesifikasi_id,
+  spesifikasi_nama = EXCLUDED.spesifikasi_nama,
+  spesifikasi_ukuran_group = EXCLUDED.spesifikasi_ukuran_group;
 
 -- Every (pegawai × item) has a size, so an unfiltered rekap has 2 rows per item
 -- and each filter can be seen to cut the count.
@@ -184,7 +324,9 @@ VALUES
   ('d1000000-0000-4d00-8d00-0000000a1001', 'd1000000-0000-4d00-8d00-00000000e101', 'd1000000-0000-4d00-8d00-00000000b002', 'L'),
   ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-00000000b001', 'M'),
   ('d1000000-0000-4d00-8d00-0000000a1002', 'd1000000-0000-4d00-8d00-00000000e102', 'd1000000-0000-4d00-8d00-00000000b002', 'M')
-ON CONFLICT (pegawai_id, pakaian_id) DO NOTHING;
+ON CONFLICT (pegawai_id, pakaian_id) DO UPDATE SET
+  pengajuan_satker_id = EXCLUDED.pengajuan_satker_id,
+  ukuran = EXCLUDED.ukuran;
 
 -- ----------------------------------------------------------------------------
 -- 7. perlengkapan: Penghapusan BMN workflow preconditions (F-E2E E-3).
@@ -218,7 +360,34 @@ VALUES
    '2026-06-01', 'Usia teknis terlampaui, akan dilelang', 'DIJUAL', 22000000,
    'SUBMIT_PUSAT', 4003, 'Seed F-E2E penghapusan (pusat step)', 'PUSAT',
    '22222222-2222-4222-8222-222222222222', '0200020')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  satker_id = EXCLUDED.satker_id,
+  asset_id = EXCLUDED.asset_id,
+  kode_barang = EXCLUDED.kode_barang,
+  nama_barang = EXCLUDED.nama_barang,
+  nup = EXCLUDED.nup,
+  tanggal_penghapusan = EXCLUDED.tanggal_penghapusan,
+  alasan = EXCLUDED.alasan,
+  metode_penghapusan = EXCLUDED.metode_penghapusan,
+  nilai_perolehan = EXCLUDED.nilai_perolehan,
+  status = EXCLUDED.status,
+  status_kode = EXCLUDED.status_kode,
+  catatan_operator = EXCLUDED.catatan_operator,
+  kewenangan_penetap_sk = EXCLUDED.kewenangan_penetap_sk,
+  satker_code = EXCLUDED.satker_code,
+  konsep_sk_url = NULL,
+  konsep_sk_pdf_url = NULL,
+  konsep_sk_docx_path = NULL,
+  konsep_sk_pdf_path = NULL,
+  konsep_sk_generated_at = NULL,
+  konsep_sk_pdf_generated_at = NULL,
+  konsep_sk_wilayah_url = NULL,
+  konsep_sk_wilayah_pdf_url = NULL,
+  konsep_sk_wilayah_generated_at = NULL,
+  signed_sk_pdf_url = NULL,
+  signed_sk_pdf_uploaded_at = NULL,
+  signed_sk_wilayah_pdf_url = NULL,
+  signed_sk_wilayah_pdf_uploaded_at = NULL;
 
 -- One item per usulan (Fase 2.8 multi-item; the seed bypasses the create
 -- endpoint that would normally insert these, and the detail + generated SK
@@ -229,7 +398,15 @@ VALUES
   ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-H-1', 15000000, 'RUSAK BERAT', 1),
   ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.05.010', 'E2E Printer Hapus B', 'E2E-H-2', 4000000, 'RUSAK BERAT', 1),
   ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Motor Hapus C', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  penghapusan_id = EXCLUDED.penghapusan_id,
+  asset_id = EXCLUDED.asset_id,
+  kode_barang = EXCLUDED.kode_barang,
+  nama_barang = EXCLUDED.nama_barang,
+  nup = EXCLUDED.nup,
+  nilai_perolehan = EXCLUDED.nilai_perolehan,
+  kondisi = EXCLUDED.kondisi,
+  urutan = EXCLUDED.urutan;
 
 -- ----------------------------------------------------------------------------
 -- 8. perlengkapan: Izin Pemakaian BMN precondition (F-E2E E-3).
@@ -293,7 +470,25 @@ VALUES
    'SN-E2E-0004', '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000003', 'KEJAKSAAN NEGERI BANDUNG', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Bandung', '0300010')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  nomor_izin = EXCLUDED.nomor_izin,
+  jenis_bmn = EXCLUDED.jenis_bmn,
+  bmn_nup = EXCLUDED.bmn_nup,
+  bmn_kode_barang = EXCLUDED.bmn_kode_barang,
+  bmn_nama_barang = EXCLUDED.bmn_nama_barang,
+  serial_number = EXCLUDED.serial_number,
+  pegawai_nip = EXCLUDED.pegawai_nip,
+  pegawai_nama = EXCLUDED.pegawai_nama,
+  pegawai_jabatan = EXCLUDED.pegawai_jabatan,
+  pegawai_satker_id = EXCLUDED.pegawai_satker_id,
+  pegawai_satker_nama = EXCLUDED.pegawai_satker_nama,
+  tanggal_mulai = EXCLUDED.tanggal_mulai,
+  tanggal_selesai = EXCLUDED.tanggal_selesai,
+  status = EXCLUDED.status,
+  status_kode = EXCLUDED.status_kode,
+  keperluan = EXCLUDED.keperluan,
+  satker_code = EXCLUDED.satker_code,
+  version = 1;
 
 -- ----------------------------------------------------------------------------
 -- 9. notifikasi: per-user in-app inbox (F-E2E E-4).
@@ -322,6 +517,15 @@ VALUES
   ('f1000000-0000-4f00-8f00-0000000c0004', '22222222-2222-4222-8222-222222222222',
    'workflow', 'E2E Notifikasi Operator B', 'Hanya untuk operator_b (isolasi per-user).',
    'normal', 'info', NULL, false, NULL)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  user_id = EXCLUDED.user_id,
+  notification_type = EXCLUDED.notification_type,
+  title = EXCLUDED.title,
+  message = EXCLUDED.message,
+  priority = EXCLUDED.priority,
+  category = EXCLUDED.category,
+  action_url = EXCLUDED.action_url,
+  read = EXCLUDED.read,
+  read_at = EXCLUDED.read_at;
 
 COMMIT;
