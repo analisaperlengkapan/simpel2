@@ -20,7 +20,13 @@ global:
   # docker push seluruh image sukses (diverifikasi `docker manifest inspect`
   # dengan ghcr-pull PAT). Matrix build kini 9 image, bukan 7 — `layanan-gateway`
   # (sidecar simpelv1) dan `app-2026` masuk setelah rc24.
-  imageTag: v0.1.0-rc26
+  #
+  # rc27 membawa sembilan commit yang belum pernah ada di image mana pun:
+  # tiga kolom mati SIMAN (jenis aset, NUP, gap analysis), export PDF yang
+  # menyajikan HTML, cronjob sync produksi yang memanggil biner tak terbangun,
+  # cache nginx app-2026, dan scoping monitoring pemakaian BMN per role
+  # (#827-#836).
+  imageTag: v0.1.0-rc27
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
