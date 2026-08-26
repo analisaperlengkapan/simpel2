@@ -260,7 +260,16 @@ VALUES
   ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3.10.01.02.003', 'E2E Laptop Ajuan Satker',
    'SN-E2E-0002', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-02-01', '2026-11-30',
-   'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010')
+   'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010'),
+  -- I3 @ACTIVE, satker 0200020 (operator_b). Without a permit in a SECOND
+  -- satker every cross-satker monitoring assertion is vacuous: one satker's
+  -- rows and "all rows" are the same set, so a scope that does nothing passes.
+  -- 0200020 shares operator_a's wilayah (both kdsatker_keu carry 9999), which
+  -- is what makes the wilayah tier distinguishable from the satker tier.
+  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3.10.01.02.003', 'E2E Laptop Jaksel',
+   'SN-E2E-0003', '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
+   'e2a00000-0000-4e00-8e00-000000000002', 'KEJAKSAAN NEGERI JAKARTA SELATAN', '2026-03-01', '2026-10-31',
+   'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020')
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------

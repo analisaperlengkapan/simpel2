@@ -7,6 +7,7 @@ mod integration {
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
     mod pemakaian_bmn_workflow_test;
+    mod pemakaian_monitoring_scope_test;
     mod penghapusan_bmn_workflow_test;
     mod rbac_403_test;
     mod siman_dead_columns_test;

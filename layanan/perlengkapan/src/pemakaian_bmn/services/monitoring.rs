@@ -1,6 +1,8 @@
 use super::PemakaianBmnService;
+use crate::bank_aset::scope::AsetScope;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::info;
 
 impl PemakaianBmnService {
@@ -10,19 +12,42 @@ impl PemakaianBmnService {
     pub async fn get_active_usage_dashboard(
         &self,
         query: MonitoringDashboardQuery,
+        scope: &SatkerScope,
     ) -> AppResult<ActiveUsageMonitoringDashboard> {
         info!("Fetching active usage monitoring dashboard");
-        self.repository.get_active_usage_dashboard(query).await
+        self.repository
+            .get_active_usage_dashboard(query, scope)
+            .await
+    }
+
+    /// Daftar pemakaian BMN ter-scope: satker mana, nama barang, NUP, pegawai
+    /// pemakai, dan jangka waktunya.
+    pub async fn list_pemakaian_monitoring(
+        &self,
+        query: PemakaianMonitoringQuery,
+        scope: &SatkerScope,
+    ) -> AppResult<PemakaianBmnMonitoringPage> {
+        info!("Listing scoped pemakaian BMN monitoring rows");
+        self.repository
+            .list_pemakaian_monitoring(query, scope)
+            .await
     }
 
     /// Tiga kartu agregat headline monitoring (Fase 2.6):
     /// sedang dipakai / tidak dipakai / akan expired.
+    ///
+    /// Dua scope karena kartunya melintasi dua sumber: izin dikunci lewat
+    /// MySIMKARI `satker_code`, aset SIMAN lewat `kdsatker_keu`.
     pub async fn get_monitoring_summary(
         &self,
         query: MonitoringDashboardQuery,
+        scope: &SatkerScope,
+        aset_scope: &AsetScope,
     ) -> AppResult<MonitoringSummaryCards> {
         info!("Fetching pemakaian BMN monitoring summary cards");
-        self.repository.get_monitoring_summary(query).await
+        self.repository
+            .get_monitoring_summary(query, scope, aset_scope)
+            .await
     }
 
     /// Validate BMN type-specific required fields

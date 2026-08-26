@@ -9,8 +9,9 @@ impl PemakaianBmnService {
     pub async fn check_bmn_availability(
         &self,
         bmn_nup: &str,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<BmnAvailabilityResponse> {
-        self.repository.check_bmn_availability(bmn_nup).await
+        self.repository.check_bmn_availability(bmn_nup, scope).await
     }
 
     // ========================================================================

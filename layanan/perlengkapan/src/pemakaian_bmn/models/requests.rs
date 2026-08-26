@@ -159,11 +159,44 @@ pub struct ListPermitsQuery {
     pub satker_id: Option<Uuid>,
     pub search: Option<String>,
 }
-/// Query parameters for monitoring dashboard
-#[derive(Debug, Clone, Deserialize)]
+/// Query parameters for the monitoring dashboard.
+///
+/// `satker_code` is a **narrowing** filter, never a widening one. The caller's
+/// visibility is derived from their claims (`SatkerScope::from_claims`) and
+/// ANDed on top of whatever is passed here, so a satker operator who supplies
+/// another satker's code gets zero rows rather than that satker's data.
+///
+/// It replaces the previous `satker_id: Option<Uuid>`, which was the legacy
+/// client-supplied `pegawai_satker_id` — a UUID with no foreign key and no link
+/// to the MySIMKARI `kode_satker` the rest of the system authenticates with
+/// (see migration V003). Filtering on it could not be reconciled with the
+/// caller's identity, which is why these endpoints ended up unscoped.
+///
+/// Typing it as `String` also removes a latent 400: the frontend already sent
+/// this parameter as a string, and `Option<Uuid>` makes axum's `Query`
+/// extractor reject the request *before* the handler runs the moment a
+/// non-UUID value is passed.
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct MonitoringDashboardQuery {
-    pub satker_id: Option<Uuid>,
+    pub satker_code: Option<String>,
     pub jenis_bmn: Option<String>,
     pub start_date: Option<NaiveDate>,
     pub end_date: Option<NaiveDate>,
+}
+
+/// Query parameters for the scoped "siapa memakai BMN apa" listing.
+///
+/// Same narrowing rule as [`MonitoringDashboardQuery`]: every filter here can
+/// only shrink what the caller's scope already permits.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PemakaianMonitoringQuery {
+    pub page: Option<i64>,
+    pub per_page: Option<i64>,
+    pub satker_code: Option<String>,
+    pub jenis_bmn: Option<String>,
+    /// Permit status. Defaults to `ACTIVE` — the dashboard answers "what is
+    /// being used right now"; pass `SEMUA` to include finished permits.
+    pub status: Option<String>,
+    /// Free-text over nama barang / NUP / kode barang / nama pegawai / NIP.
+    pub search: Option<String>,
 }

@@ -386,9 +386,13 @@ pub async fn renew_permit(
 pub async fn check_bmn_availability(
     State(service): State<PemakaianBmnService>,
     Path(bmn_nup): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BmnAvailabilityResponse>>, AppError> {
-    let response = service.check_bmn_availability(&bmn_nup).await?;
+    // Availability itself stays truthful across satker (otherwise the UI would
+    // offer an asset someone else holds); the scope only decides whether the
+    // holder is named. See `PemakaianBmnRepository::check_bmn_availability`.
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let response = service.check_bmn_availability(&bmn_nup, &scope).await?;
 
     let message = if response.is_available {
         "BMN is available".to_string()
@@ -463,9 +467,10 @@ pub async fn cek_bmn(
 pub async fn get_bmn_usage_history(
     State(service): State<PemakaianBmnService>,
     Path(bmn_nup): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<BmnUsageStats>>, AppError> {
-    let stats = service.get_bmn_usage_history(&bmn_nup).await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let stats = service.get_bmn_usage_history(&bmn_nup, &scope).await?;
 
     Ok(Json(ApiResponse::success(
         stats,
@@ -478,9 +483,12 @@ pub async fn get_bmn_usage_history(
 pub async fn get_pegawai_usage_history(
     State(service): State<PemakaianBmnService>,
     Path(pegawai_nip): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PegawaiUsageStats>>, AppError> {
-    let stats = service.get_pegawai_usage_history(&pegawai_nip).await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let stats = service
+        .get_pegawai_usage_history(&pegawai_nip, &scope)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         stats,
@@ -493,14 +501,15 @@ pub async fn get_pegawai_usage_history(
 pub async fn get_expiring_permits(
     State(service): State<PemakaianBmnService>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<IzinPemakaianBmn>>>, AppError> {
     let days_threshold = params
         .get("days")
         .and_then(|d| d.parse::<i32>().ok())
         .unwrap_or(30);
 
-    let permits = service.get_expiring_permits(days_threshold).await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let permits = service.get_expiring_permits(days_threshold, &scope).await?;
     let count = permits.len();
 
     Ok(Json(ApiResponse::success(
@@ -539,7 +548,14 @@ pub async fn get_monitoring_summary(
     claims: Claims,
 ) -> Result<Json<ApiResponse<MonitoringSummaryCards>>, AppError> {
     crate::shared::policy::enforce_monitoring_read(&claims)?;
-    let summary = service.get_monitoring_summary(query).await?;
+    // Role guard says WHETHER you may read monitoring; scope says WHICH rows.
+    // Only the first existed, so any monitoring role reading without a filter
+    // got the national picture.
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let aset_scope = crate::bank_aset::scope::AsetScope::from_claims(&claims);
+    let summary = service
+        .get_monitoring_summary(query, &scope, &aset_scope)
+        .await?;
 
     Ok(Json(ApiResponse::success(
         summary,
@@ -556,11 +572,34 @@ pub async fn get_active_usage_dashboard(
     claims: Claims,
 ) -> Result<Json<ApiResponse<ActiveUsageMonitoringDashboard>>, AppError> {
     crate::shared::policy::enforce_monitoring_read(&claims)?;
-    let dashboard = service.get_active_usage_dashboard(query).await?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let dashboard = service.get_active_usage_dashboard(query, &scope).await?;
 
     Ok(Json(ApiResponse::success(
         dashboard,
         "Active usage dashboard retrieved successfully".to_string(),
+    )))
+}
+
+/// GET /pemakaian-bmn/monitoring/pemakaian
+///
+/// Daftar pemakaian BMN yang dapat dilihat pemanggil: satker mana, nama
+/// barangnya, NUP berapa, siapa pegawai yang memakai, dan berapa jangka waktu
+/// pemakaiannya. Batasnya turun dari klaim — pusat melihat semua, validator
+/// wilayah sebatas wilayahnya, operator/validator satker sebatas satkernya,
+/// dan pemanggil tanpa identitas satker tidak melihat apa pun.
+pub async fn list_pemakaian_monitoring(
+    State(service): State<PemakaianBmnService>,
+    axum::extract::Query(query): axum::extract::Query<PemakaianMonitoringQuery>,
+    claims: Claims,
+) -> Result<Json<ApiResponse<PemakaianBmnMonitoringPage>>, AppError> {
+    crate::shared::policy::enforce_monitoring_read(&claims)?;
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
+    let page = service.list_pemakaian_monitoring(query, &scope).await?;
+
+    Ok(Json(ApiResponse::success(
+        page,
+        "Daftar pemakaian BMN".to_string(),
     )))
 }
 

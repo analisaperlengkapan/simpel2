@@ -3,7 +3,10 @@
 //! Monitoring dashboard for BMN usage statistics.
 //! Requirements: REQ-P011, REQ-P012, REQ-P013
 
-use crate::api::pemakaian_bmn::{MonitoringSummaryCards, fetch_monitoring_summary};
+use crate::api::pemakaian_bmn::{
+    MonitoringSummaryCards, PemakaianBmnMonitoringPage, fetch_monitoring_summary,
+    fetch_pemakaian_monitoring,
+};
 use crate::api::{
     BmnUsageStats, IzinPemakaianBmn, PegawaiUsageStats, fetch_bmn_usage_history,
     fetch_expiring_permits, fetch_pegawai_usage_history,
@@ -29,10 +32,23 @@ async fn query_expiring_permits(days: i32) -> Option<Vec<IzinPemakaianBmn>> {
 }
 
 /// Read-only ringkasan tiga kartu headline (Fase 2.6): sedang dipakai /
-/// tidak dipakai / akan expired. Audiens Validator Wilayah & Pusat.
-/// Unit key — satu entri cache global (tanpa filter satker/jenis di sini).
+/// tidak dipakai / akan expired.
+///
+/// Tanpa argumen satker: batas visibilitas diturunkan backend dari klaim
+/// pemanggil, jadi frontend tidak perlu — dan tidak boleh — memintanya. Kunci
+/// unit = satu entri cache global.
 async fn query_monitoring_summary(_: ()) -> Option<MonitoringSummaryCards> {
     fetch_monitoring_summary(None, None)
+        .await
+        .ok()
+        .map(|response| response.data)
+}
+
+/// Daftar pemakaian BMN yang boleh dilihat pemanggil. Kuncinya `(halaman,
+/// pencarian)` sehingga ganti halaman/kata kunci memakai entri cache sendiri.
+async fn query_pemakaian_monitoring(key: (i64, String)) -> Option<PemakaianBmnMonitoringPage> {
+    let (page, search) = key;
+    fetch_pemakaian_monitoring(page, 20, Some(search))
         .await
         .ok()
         .map(|response| response.data)
@@ -50,9 +66,16 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
     // leptos-fetch. The keyer signal returns the lookahead window
     // (30 days). Multiple components asking for the same window
     // share a single in-flight request and a single cached result.
+    // Daftar pemakaian: halaman + kata kunci pencarian.
+    let (pemakaian_page, set_pemakaian_page) = signal(1i64);
+    let (pemakaian_search, set_pemakaian_search) = signal(String::new());
+
     let client: QueryClient = expect_context();
     let expiring_permits = client.local_resource(query_expiring_permits, || 30);
     let monitoring_summary = client.local_resource(query_monitoring_summary, || ());
+    let pemakaian_rows = client.local_resource(query_pemakaian_monitoring, move || {
+        (pemakaian_page.get(), pemakaian_search.get())
+    });
 
     // Handle search
     let handle_search = move |_| {
@@ -155,6 +178,206 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                     }
                 }}
             </Suspense>
+
+            // Daftar pemakaian BMN — batas per-role diturunkan backend dari
+            // klaim: pusat semua, wilayah sebatas wilayahnya, satker sebatas
+            // satkernya. Frontend tidak mengirim satker apa pun.
+            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">
+                        "Daftar Pemakaian BMN"
+                    </h3>
+                    <input
+                        type="text"
+                        class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-full sm:w-80"
+                        placeholder="Cari nama barang / NUP / pegawai"
+                        prop:value=move || pemakaian_search.get()
+                        on:input=move |ev| {
+                            set_pemakaian_page.set(1);
+                            set_pemakaian_search.set(event_target_value(&ev));
+                        }
+                    />
+                </div>
+                <Suspense fallback=move || {
+                    view! {
+                        <div class="text-center py-4">
+                            <span class="fa-spin text-gray-400">
+                                <AppIcon icon=SPINNER />
+                            </span>
+                        </div>
+                    }
+                }>
+                    {move || {
+                        match pemakaian_rows.get().flatten() {
+                            None => {
+                                view! {
+                                    <p class="text-gray-600 text-center py-4">"Gagal memuat data"</p>
+                                }
+                                    .into_any()
+                            }
+                            Some(page) if page.data.is_empty() => {
+                                view! {
+                                    <p class="text-gray-600 text-center py-4">
+                                        "Tidak ada pemakaian BMN pada cakupan Anda"
+                                    </p>
+                                }
+                                    .into_any()
+                            }
+                            Some(page) => {
+                                let total = page.total;
+                                let current = page.page;
+                                let total_pages = page.total_pages;
+                                let rows = page.data.clone();
+                                view! {
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full" data-testid="tabel-pemakaian-bmn">
+                                            <thead class="bg-gray-50 border-b">
+                                                <tr>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Satker"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Nama Barang"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "NUP"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Pegawai Pemakai"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Jangka Waktu"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Status"
+                                                    </th>
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        "Aksi"
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y">
+                                                <For
+                                                    each=move || rows.clone()
+                                                    key=|r| r.id.clone()
+                                                    children=move |row| {
+                                                        let satker = row
+                                                            .satker_nama
+                                                            .clone()
+                                                            .or_else(|| row.satker_code.clone())
+                                                            .unwrap_or_else(|| "-".to_string());
+                                                        let satker_code = row.satker_code.clone();
+                                                        // merk/tipe = label bebas operator SIMAN,
+                                                        // ditaruh di baris kedua supaya tidak
+                                                        // tertukar dengan nama resmi barang.
+                                                        let merk_tipe = row.merk_tipe.clone();
+                                                        let jabatan = row.pegawai_jabatan.clone();
+                                                        let sisa = row.sisa_hari;
+                                                        let sisa_label = if sisa < 0 {
+                                                            format!("lewat {} hari", -sisa)
+                                                        } else {
+                                                            format!("sisa {sisa} hari")
+                                                        };
+                                                        let sisa_class = if sisa < 0 {
+                                                            "text-xs text-red-600"
+                                                        } else if sisa <= 30 {
+                                                            "text-xs text-yellow-600"
+                                                        } else {
+                                                            "text-xs text-gray-500"
+                                                        };
+                                                        view! {
+                                                            <tr class="hover:bg-gray-50">
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <div>{satker}</div>
+                                                                    {satker_code
+                                                                        .map(|c| {
+                                                                            view! {
+                                                                                <div class="text-xs text-gray-500">{c}</div>
+                                                                            }
+                                                                        })}
+                                                                </td>
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <div>{row.nama_barang.clone()}</div>
+                                                                    <div class="text-xs text-gray-500">
+                                                                        {row.kode_barang.clone()}
+                                                                    </div>
+                                                                    {merk_tipe
+                                                                        .map(|m| {
+                                                                            view! {
+                                                                                <div class="text-xs text-gray-400">{m}</div>
+                                                                            }
+                                                                        })}
+                                                                </td>
+                                                                <td class="px-4 py-3 text-sm">{row.nup.clone()}</td>
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <div>{row.pegawai_nama.clone()}</div>
+                                                                    <div class="text-xs text-gray-500">
+                                                                        {row.pegawai_nip.clone()}
+                                                                    </div>
+                                                                    {jabatan
+                                                                        .map(|j| {
+                                                                            view! {
+                                                                                <div class="text-xs text-gray-400">{j}</div>
+                                                                            }
+                                                                        })}
+                                                                </td>
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <div>
+                                                                        {format!(
+                                                                            "{} s.d. {}",
+                                                                            row.tanggal_mulai,
+                                                                            row.tanggal_selesai,
+                                                                        )}
+                                                                    </div>
+                                                                    <div class="text-xs text-gray-500">
+                                                                        {format!("{} hari", row.durasi_hari)}
+                                                                    </div>
+                                                                    <div class=sisa_class>{sisa_label}</div>
+                                                                </td>
+                                                                <td class="px-4 py-3 text-sm">{row.status.clone()}</td>
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <a
+                                                                        href=crate::routes::url::pemakaian_detail(&row.id)
+                                                                        class="text-blue-600 hover:text-blue-800"
+                                                                    >
+                                                                        "Detail"
+                                                                    </a>
+                                                                </td>
+                                                            </tr>
+                                                        }
+                                                    }
+                                                />
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-4">
+                                        <p class="text-sm text-gray-600">
+                                            {format!("{total} pemakaian — halaman {current} dari {}", total_pages.max(1))}
+                                        </p>
+                                        <div class="flex gap-2">
+                                            <button
+                                                class="px-3 py-1 border rounded disabled:opacity-40"
+                                                prop:disabled=move || current <= 1
+                                                on:click=move |_| set_pemakaian_page.update(|p| *p = (*p - 1).max(1))
+                                            >
+                                                "Sebelumnya"
+                                            </button>
+                                            <button
+                                                class="px-3 py-1 border rounded disabled:opacity-40"
+                                                prop:disabled=move || current >= total_pages
+                                                on:click=move |_| set_pemakaian_page.update(|p| *p += 1)
+                                            >
+                                                "Berikutnya"
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                                    .into_any()
+                            }
+                        }
+                    }}
+                </Suspense>
+            </div>
 
             // Expiring Permits Alert
             <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">

@@ -50,7 +50,12 @@ pub struct IzinPemakaianBmn {
     // Permit Details
     pub tanggal_mulai: NaiveDate,
     pub tanggal_selesai: NaiveDate,
-    pub keperluan: String,
+    /// Nullable in the schema (`keperluan text`) and `Option<String>` in the
+    /// shared `lib-perlengkapan` model — this entity was the only place
+    /// declaring it required, so any row with a NULL `keperluan` (seed and
+    /// pre-`V003` rows have them) panicked `row_to_permit` instead of
+    /// deserialising.
+    pub keperluan: Option<String>,
     pub lokasi_pemakaian: Option<String>,
 
     // Renewal

@@ -4,14 +4,19 @@ use crate::shared::error::AppResult;
 use tracing::{info, warn};
 
 impl PemakaianBmnService {
-    /// Get permits expiring soon (for notifications)
+    /// Get permits expiring soon, restricted to `scope`.
     ///
+    /// The scheduler passes [`SatkerScope::All`] (it must reach every satker);
+    /// the HTTP endpoint passes the caller's own scope.
     /// Requirements: REQ-P007
     pub async fn get_expiring_permits(
         &self,
         days_threshold: i32,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<Vec<IzinPemakaianBmn>> {
-        self.repository.get_expiring_permits(days_threshold).await
+        self.repository
+            .get_expiring_permits(days_threshold, scope)
+            .await
     }
 
     /// Auto-expire permits that have passed their end date

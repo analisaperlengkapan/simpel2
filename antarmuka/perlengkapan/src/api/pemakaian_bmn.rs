@@ -254,12 +254,55 @@ pub struct PegawaiUsageStats {
 }
 
 /// Three headline monitoring cards (read-only Validator Wilayah/Pusat dashboard).
-/// `tidak_dipakai` is best-effort from SIMAN; `None` when unavailable or scoped.
+/// All three are scoped to the caller's role; `tidak_dipakai` is best-effort
+/// from SIMAN and `None` when SIMAN is unreachable or a `jenis_bmn` filter is
+/// applied (that filter has no SIMAN-side counterpart).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MonitoringSummaryCards {
     pub sedang_dipakai: i64,
     pub akan_expired_30d: i64,
     pub tidak_dipakai: Option<i64>,
+}
+
+/// One row of "siapa memakai BMN apa".
+///
+/// Field names and types mirror `PemakaianBmnMonitoringRow` in
+/// `layanan/perlengkapan/src/pemakaian_bmn/models/responses.rs`. Naming a field
+/// the backend does not send makes serde reject the whole 200 response — the
+/// failure has no HTTP status of its own, so it looks like an empty screen
+/// rather than an error (#820).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PemakaianBmnMonitoringRow {
+    pub id: String,
+    pub nomor_izin: Option<String>,
+    pub satker_code: Option<String>,
+    pub satker_nama: Option<String>,
+    pub kode_barang: String,
+    /// Nama standar barang menurut kode barangnya.
+    pub nama_barang: String,
+    /// NUP — Nomor Urut Pendaftaran.
+    pub nup: String,
+    /// Merk/tipe: penamaan bebas operator SIMAN, bukan nama resmi barang.
+    pub merk_tipe: Option<String>,
+    pub jenis_bmn: String,
+    pub pegawai_nip: String,
+    pub pegawai_nama: String,
+    pub pegawai_jabatan: Option<String>,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: String,
+    pub durasi_hari: i64,
+    pub sisa_hari: i64,
+    pub status: String,
+}
+
+/// A page of monitoring rows.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PemakaianBmnMonitoringPage {
+    pub data: Vec<PemakaianBmnMonitoringRow>,
+    pub total: i64,
+    pub page: i64,
+    pub per_page: i64,
+    pub total_pages: i64,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -569,15 +612,20 @@ pub async fn fetch_expiring_permits(
 }
 
 // --- Monitoring Summary (3 headline cards) ---
+/// `satker_code` is the MySIMKARI kode_satker and can only NARROW what the
+/// caller's role already permits — the backend ANDs the caller's scope on top.
+/// It replaces the old `satker_id`, which the backend parsed as a `Uuid` while
+/// this function sent a `String`: any non-UUID value produced a 400 from the
+/// query extractor before the handler ever ran.
 #[cfg(target_arch = "wasm32")]
 pub async fn fetch_monitoring_summary(
-    satker_id: Option<String>,
+    satker_code: Option<String>,
     jenis_bmn: Option<String>,
 ) -> Result<ApiResponse<MonitoringSummaryCards>, crate::api::AppError> {
     let mut url = format!("{}/monitoring/summary", PEMAKAIAN_BMN_BASE);
     let mut sep = '?';
-    if let Some(sid) = satker_id {
-        url.push_str(&format!("{}satker_id={}", sep, sid));
+    if let Some(code) = satker_code {
+        url.push_str(&format!("{}satker_code={}", sep, code));
         sep = '&';
     }
     if let Some(j) = jenis_bmn {
@@ -588,7 +636,7 @@ pub async fn fetch_monitoring_summary(
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn fetch_monitoring_summary(
-    _satker_id: Option<String>,
+    _satker_code: Option<String>,
     _jenis_bmn: Option<String>,
 ) -> Result<ApiResponse<MonitoringSummaryCards>, crate::api::AppError> {
     Ok(ApiResponse {
@@ -597,6 +645,42 @@ pub async fn fetch_monitoring_summary(
             sedang_dipakai: 0,
             akan_expired_30d: 0,
             tidak_dipakai: None,
+        },
+        message: "Server-side stub".to_string(),
+    })
+}
+
+// --- Monitoring: daftar pemakaian BMN (ter-scope per-role) ---
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_pemakaian_monitoring(
+    page: i64,
+    per_page: i64,
+    search: Option<String>,
+) -> Result<ApiResponse<PemakaianBmnMonitoringPage>, crate::api::AppError> {
+    let mut url = format!(
+        "{}/monitoring/pemakaian?page={}&per_page={}",
+        PEMAKAIAN_BMN_BASE, page, per_page
+    );
+    if let Some(q) = search.as_deref().map(str::trim).filter(|q| !q.is_empty()) {
+        url.push_str(&format!("&search={}", q));
+    }
+    auth_get_json(&url).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_pemakaian_monitoring(
+    _page: i64,
+    _per_page: i64,
+    _search: Option<String>,
+) -> Result<ApiResponse<PemakaianBmnMonitoringPage>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: PemakaianBmnMonitoringPage {
+            data: vec![],
+            total: 0,
+            page: 1,
+            per_page: 20,
+            total_pages: 0,
         },
         message: "Server-side stub".to_string(),
     })

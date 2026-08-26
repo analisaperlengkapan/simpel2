@@ -183,7 +183,10 @@ fn render_halaman_pegawai(pdf: &mut PdfBuilder, permit: &IzinPemakaianBmn) {
     );
     pdf.advance(6.5);
     pdf.write_text(
-        &format!("Keperluan: {}", permit.keperluan),
+        // A permit created through the API always carries a keperluan (the
+        // create request requires it); the dash is for legacy/seed rows, so the
+        // SK prints a blank line rather than the word "None".
+        &format!("Keperluan: {}", permit.keperluan.as_deref().unwrap_or("-")),
         BODY_FONT,
         false,
         MARGIN_L,
