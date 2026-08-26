@@ -39,6 +39,21 @@ use crate::common::{setup_test_db, teardown_test_db};
 use regex::Regex;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+/// Compiled once. `strip_permitted` runs per COALESCE span per literal per
+/// file, so building these inside it recompiles the same four patterns
+/// thousands of times per run — and clippy's `regex_creation_in_loops` is
+/// right to refuse the innermost one.
+static IDENTIFIER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)\b[a-z_][a-z0-9_]*\b").expect("static regex compiles"));
+static SQL_COMMENT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)--[^\n]*").expect("static regex compiles"));
+static FORMAT_PLACEHOLDER: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{[^{}]*\}").expect("static regex compiles"));
+static OUTPUT_ALIAS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?i)\bAS\s+"?[a-z_][a-z0-9_]*"?"#).expect("static regex compiles")
+});
 
 /// Columns that MUST come back empty from the fixture.
 ///
@@ -144,8 +159,7 @@ fn strip_permitted(literal: &str, dead: &BTreeSet<String>, live: &BTreeSet<Strin
     spans.sort_by_key(|(a, _)| std::cmp::Reverse(*a));
     for (open, close) in spans {
         let inner = &out[open..close];
-        let names: BTreeSet<String> = Regex::new(r"(?i)\b[a-z_][a-z0-9_]*\b")
-            .expect("static regex compiles")
+        let names: BTreeSet<String> = IDENTIFIER
             .find_iter(inner)
             .map(|m| m.as_str().to_ascii_lowercase())
             .collect();
@@ -156,13 +170,9 @@ fn strip_permitted(literal: &str, dead: &BTreeSet<String>, live: &BTreeSet<Strin
         }
     }
 
-    let comments = Regex::new(r"(?m)--[^\n]*").expect("static regex compiles");
-    let placeholders = Regex::new(r"\{[^{}]*\}").expect("static regex compiles");
-    let aliases = Regex::new(r#"(?i)\bAS\s+"?[a-z_][a-z0-9_]*"?"#).expect("static regex compiles");
-
-    let out = comments.replace_all(&out, " ").into_owned();
-    let out = placeholders.replace_all(&out, " ").into_owned();
-    aliases.replace_all(&out, " ").into_owned()
+    let out = SQL_COMMENT.replace_all(&out, " ").into_owned();
+    let out = FORMAT_PLACEHOLDER.replace_all(&out, " ").into_owned();
+    OUTPUT_ALIAS.replace_all(&out, " ").into_owned()
 }
 
 /// Every `src/` string literal that names `integrasi.siman_aset`, with its file
