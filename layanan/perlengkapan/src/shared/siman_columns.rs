@@ -108,6 +108,39 @@ pub const ASSET_NUP_SQL: &str = "NULLIF(no_aset, '')";
 /// nothing, which is a silent empty result rather than an error.
 pub const ASSET_KODE_BARANG_SQL: &str = "COALESCE(NULLIF(kode_barang, ''), NULLIF(kd_brg, ''), '')";
 
+/// The same barang code reduced to its **comparison** form: dots stripped.
+///
+/// `alias` is the table alias (`""` unaliased, `"s."` for
+/// `FROM integrasi.siman_aset s`).
+///
+/// SIMAN stores ten undotted digits (`3050201002`) in 624 528 of 624 533 rows,
+/// but the rest of the system writes the dotted presentation form
+/// (`3.05.02.01.002`) — the e2e penghapusan fixture does, and 5 live rows of
+/// `perlengkapan.pengajuan_kebutuhan_bmn_satker_barang` do. Comparing the two
+/// spellings directly is an equality that can never hold, and it fails as an
+/// empty result rather than an error: the gap-analysis query (#829) reported
+/// every requested item as 100% missing for exactly this reason.
+///
+/// Pair it with [`normalize_kode_barang`] on the Rust side so BOTH halves of a
+/// comparison are reduced the same way. Normalising only one half is the bug
+/// this exists to prevent.
+pub fn kode_barang_norm_sql(alias: &str) -> String {
+    format!(
+        "replace(COALESCE(NULLIF({a}kode_barang, ''), NULLIF({a}kd_brg, ''), ''), '.', '')",
+        a = alias
+    )
+}
+
+/// Rust-side counterpart of [`kode_barang_norm_sql`]: strip dots so a value
+/// read from a request, a form or another table compares equal to SIMAN's.
+///
+/// Deliberately narrow — it removes `.` and nothing else. Trimming whitespace
+/// or upper-casing here would quietly widen what counts as "the same barang",
+/// and a barang code is digits.
+pub fn normalize_kode_barang(kode: &str) -> String {
+    kode.replace('.', "")
+}
+
 /// An asset's **nama barang** — the STANDARD name, which is `ur_sskel`.
 ///
 /// This distinction is domain, not cosmetics, and getting it wrong silently

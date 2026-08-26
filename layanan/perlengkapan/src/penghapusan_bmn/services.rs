@@ -16,6 +16,7 @@ use super::models::*;
 use super::repository::PenghapusanBmnRepository;
 use crate::bank_aset::repository::BankAsetRepository;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::siman_columns::normalize_kode_barang;
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
@@ -157,26 +158,75 @@ impl PenghapusanBmnService {
         let bank_repo = BankAsetRepository::new(self.pool.clone());
         // Authoritative SIMAN cross-check — unscoped on purpose; the penghapusan
         // record's satker ownership was validated when it was created.
-        let lookup = bank_repo
-            .find_lookup_by_nup(&record.nup, &crate::bank_aset::AsetScope::All)
+        //
+        // Two lookups, because the three outcomes this endpoint reports are
+        // genuinely different questions and one query cannot answer both:
+        //
+        //   1. full identity (satker + kode barang + NUP) -> the asset exists
+        //      and matches the usulan;
+        //   2. satker + NUP only -> an asset with that NUP exists at this
+        //      satker but under a DIFFERENT barang code, which is the
+        //      "verifikasi manual" case;
+        //   3. neither -> not in SIMAN.
+        //
+        // It used to be one lookup keyed on NUP alone. NUP repeats across the
+        // whole country (14 142 distinct values over 624 533 assets), so the
+        // arbitrary row it picked carried the usulan's barang code for an
+        // expected 10% of assets — meaning branch 2 fired, and `layak_lanjut`
+        // came back false, for roughly nine of every ten valid usulan.
+        let scope = crate::bank_aset::AsetScope::All;
+        let satker_code = record.satker_code.as_deref();
+        let exact = bank_repo
+            .find_lookup_by_identity(
+                crate::bank_aset::AsetIdentity {
+                    nup: &record.nup,
+                    kode_barang: Some(&record.kode_barang),
+                    satker_code,
+                },
+                &scope,
+            )
             .await?;
+        let lookup = match exact {
+            Some(asset) => Some(asset),
+            None => {
+                bank_repo
+                    .find_lookup_by_identity(
+                        crate::bank_aset::AsetIdentity {
+                            nup: &record.nup,
+                            kode_barang: None,
+                            satker_code,
+                        },
+                        &scope,
+                    )
+                    .await?
+            }
+        };
 
         let verification = match lookup {
             Some(asset) => {
                 let kode_barang_siman = asset.kode_barang.clone();
                 let kode_barang_cocok = kode_barang_siman
                     .as_deref()
-                    .map(|k| k == record.kode_barang)
+                    .map(|k| normalize_kode_barang(k) == normalize_kode_barang(&record.kode_barang))
                     .unwrap_or(false);
+                // Every message names all three parts of the identity, because
+                // "NUP 677" on its own is ambiguous to the validator reading it
+                // just as it was to the query that produced it.
+                let aset_disebut = format!(
+                    "satker {} / kode barang {} / NUP {}",
+                    record.satker_code.as_deref().unwrap_or("-"),
+                    record.kode_barang,
+                    record.nup
+                );
                 let pesan = if kode_barang_cocok {
                     format!(
-                        "Aset NUP {} terdaftar di SIMAN dengan kondisi {}.",
-                        record.nup,
+                        "Aset {aset_disebut} terdaftar di SIMAN dengan kondisi {}.",
                         asset.kondisi.as_deref().unwrap_or("tidak diketahui")
                     )
                 } else {
                     format!(
-                        "Aset NUP {} ditemukan, namun kode_barang SIMAN ({}) berbeda dari usulan ({}). Mohon verifikasi manual.",
+                        "Di satker {} ada aset ber-NUP {}, namun kode barangnya di SIMAN ({}) berbeda dari usulan ({}). Mohon verifikasi manual.",
+                        record.satker_code.as_deref().unwrap_or("-"),
                         record.nup,
                         kode_barang_siman.as_deref().unwrap_or("-"),
                         record.kode_barang
@@ -207,7 +257,9 @@ impl PenghapusanBmnService {
                 kondisi: None,
                 nilai_perolehan_siman: None,
                 pesan: format!(
-                    "Aset NUP {} TIDAK ditemukan di SIMAN. Aset mungkin sudah dihapus/dipindahkan — penerbitan SK perlu kehati-hatian.",
+                    "Aset satker {} / kode barang {} / NUP {} TIDAK ditemukan di SIMAN. Aset mungkin sudah dihapus/dipindahkan — penerbitan SK perlu kehati-hatian.",
+                    record.satker_code.as_deref().unwrap_or("-"),
+                    record.kode_barang,
                     record.nup
                 ),
                 layak_lanjut: false,

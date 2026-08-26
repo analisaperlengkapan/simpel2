@@ -183,6 +183,62 @@ test.describe("Penghapusan BMN — pusat verifies + generates konsep SK", () => 
   });
 });
 
+
+// ── Penghapusan: SIMAN cross-check identifies an asset by all THREE parts ───
+//
+// `verifikasi-siman` is what a validator reads before an SK is issued, so its
+// verdict has to be about the right asset. It used to look the asset up by NUP
+// alone; NUP is a sequence number within one barang code at one satker, so on
+// real data that returned some other satker's asset (asking about NUP 677 at
+// 006010199005016000KP — a "Kursi Kayu" — returned a "Pistol" from
+// 006010199419345000KP) and the barang codes then disagreed for an expected
+// 90% of assets. Each of the three fixture records covers one verdict.
+test.describe("Penghapusan BMN — verifikasi SIMAN by kode satker + kode barang + NUP", () => {
+  async function verifikasi(request: APIRequestContext, id: string) {
+    const { accessToken } = await apiLogin(request, credsFor(userFor("validator_pusat")));
+    const resp = await request.get(`${PH_API}/${id}/verifikasi-siman`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    expect(resp.ok(), `GET verifikasi-siman/${id} (${resp.status()})`).toBeTruthy();
+    return (await resp.json()).data;
+  }
+
+  test("H1 matches its own satker's asset, dotted kode barang and all", async ({ request }) => {
+    const v = await verifikasi(request, H1_OPERATOR);
+    expect(v.ditemukan, "asset found").toBe(true);
+    // The usulan carries `3.10.01.02.003`; SIMAN stores `3100102003`. This
+    // assertion is what fails if either half of the comparison stops being
+    // normalised — the query would match nothing and report "tidak ditemukan".
+    expect(v.kode_barang_cocok, "dotted usulan matches undotted SIMAN").toBe(true);
+    expect(v.layak_lanjut, "safe to proceed").toBe(true);
+    // nama barang = the STANDARD name that belongs to the barang code
+    // (`ur_sskel`), never the SIMAN operator's own label for the item.
+    expect(v.nama_barang_siman).toBe("Personal Computer Unit");
+  });
+
+  test("H2 finds the NUP at its own satker but under a different barang code", async ({ request }) => {
+    const v = await verifikasi(request, H2_WILAYAH);
+    expect(v.ditemukan, "an asset with that NUP exists here").toBe(true);
+    expect(v.kode_barang_cocok).toBe(false);
+    expect(v.layak_lanjut, "validator must check manually").toBe(false);
+    // Reachable ONLY because satker is part of the key: keyed on NUP alone the
+    // fallback would have matched an arbitrary row anywhere in the country.
+    expect(v.kode_barang_siman).toBe("3050104001");
+    expect(v.pesan).toContain("0200010");
+  });
+
+  test("H3 reports a genuine absence, naming all three parts", async ({ request }) => {
+    const v = await verifikasi(request, H3_PUSAT);
+    expect(v.ditemukan).toBe(false);
+    expect(v.layak_lanjut).toBe(false);
+    expect(v.kode_barang_siman).toBeNull();
+    // The message has to name the satker and barang code too — "NUP E2E-H-3"
+    // on its own does not identify anything a validator could go and check.
+    expect(v.pesan).toContain("0200020");
+    expect(v.pesan).toContain("3.05.02.01.002");
+  });
+});
+
 // ── Penghapusan: list is satker_code-scoped per role (#70) ───────────────────
 test.describe("Penghapusan BMN — list scoping by satker_code", () => {
   test("operators see only their own satker; pusat sees all", async ({ request }) => {

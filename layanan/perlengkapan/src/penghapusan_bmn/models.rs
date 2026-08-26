@@ -304,6 +304,15 @@ pub struct PenghapusanBmn {
     pub document_id: Option<Uuid>,
     pub document_url: Option<String>,
 
+    /// Authoritative MySIMKARI `kode_satker` of the satker that owns this
+    /// usulan, taken from the creator's JWT claims (#66) — not from the
+    /// client-supplied `satker_id` UUID, which nothing resolves.
+    ///
+    /// Already the RBAC visibility predicate (`repository::list`); exposed on
+    /// the model because it is also one third of the asset identity that
+    /// `verify_asset_siman` needs to look the asset up in SIMAN.
+    pub satker_code: Option<String>,
+
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -568,6 +577,7 @@ impl PenghapusanBmn {
                 .flatten(),
             document_id: row.get("document_id"),
             document_url: row.get("document_url"),
+            satker_code: row.try_get("satker_code").ok().flatten(),
             created_by: row.get("created_by"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
