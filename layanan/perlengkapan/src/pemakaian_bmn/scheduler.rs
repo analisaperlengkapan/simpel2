@@ -86,9 +86,15 @@ impl PemakaianBmnScheduler {
 
                 info!("Running expiry notification job");
 
-                // Check for permits expiring in 30, 14, and 7 days
+                // Check for permits expiring in 30, 14, and 7 days.
+                // `All`: this job has no caller and must notify every satker.
+                // Stating it explicitly is the point — the HTTP endpoint used
+                // to share this method and silently inherited the national view.
                 for days in [30, 14, 7] {
-                    match service.get_expiring_permits(days).await {
+                    match service
+                        .get_expiring_permits(days, &crate::shared::satker_scope::SatkerScope::All)
+                        .await
+                    {
                         Ok(permits) => {
                             info!("Found {} permits expiring in {} days", permits.len(), days);
 
@@ -109,7 +115,10 @@ impl PemakaianBmnScheduler {
                 }
 
                 // Also check for permits that expired today (day 0)
-                match service.get_expiring_permits(0).await {
+                match service
+                    .get_expiring_permits(0, &crate::shared::satker_scope::SatkerScope::All)
+                    .await
+                {
                     Ok(permits) => {
                         info!("Found {} permits that expired today", permits.len());
 

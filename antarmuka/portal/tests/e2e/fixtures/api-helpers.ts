@@ -1124,10 +1124,13 @@ export async function autoExpirePermits(
 export async function getActiveUsageDashboard(
   request: APIRequestContext,
   user: MockUser,
-  params?: { satker_id?: string; jenis_bmn?: string; start_date?: string; end_date?: string }
+  // `satker_code` (MySIMKARI kode_satker), not the old `satker_id` UUID. It
+  // NARROWS the caller's scope; it can never widen it, because the backend ANDs
+  // the scope derived from the caller's claims on top.
+  params?: { satker_code?: string; jenis_bmn?: string; start_date?: string; end_date?: string }
 ) {
   const sp = new URLSearchParams();
-  if (params?.satker_id) sp.set('satker_id', params.satker_id);
+  if (params?.satker_code) sp.set('satker_code', params.satker_code);
   if (params?.jenis_bmn) sp.set('jenis_bmn', params.jenis_bmn);
   if (params?.start_date) sp.set('start_date', params.start_date);
   if (params?.end_date) sp.set('end_date', params.end_date);

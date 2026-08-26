@@ -534,6 +534,11 @@ pub fn create_routes(state: AppState) -> Router {
             "/pemakaian-bmn/monitoring/active-usage",
             get(pemakaian_bmn::get_active_usage_dashboard),
         )
+        // Daftar per-izin: satker, nama barang, NUP, pegawai, jangka waktu.
+        .route(
+            "/pemakaian-bmn/monitoring/pemakaian",
+            get(pemakaian_bmn::list_pemakaian_monitoring),
+        )
         // ============ Workflow Definition Routes ============
         .route(
             // Read-only: the four workflows are defined in Rust

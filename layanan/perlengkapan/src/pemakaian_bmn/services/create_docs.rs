@@ -26,10 +26,20 @@ impl PemakaianBmnService {
         // Validate BMN type-specific fields
         self.validate_bmn_type_fields(&request)?;
 
-        // Check BMN availability (REQ-P002, REQ-P003)
+        // Check BMN availability (REQ-P002, REQ-P003).
+        //
+        // `All` on purpose: this is a write-path integrity check, and whether a
+        // BMN is already booked must not depend on who is asking — a scoped
+        // check would report "available" for an asset another satker holds and
+        // create the double booking. The scoped variant is for the read
+        // endpoints. Note this leaves the holder's name in the error message
+        // below, which is a narrower issue tracked separately.
         let availability = self
             .repository
-            .check_bmn_availability(&request.bmn_nup)
+            .check_bmn_availability(
+                &request.bmn_nup,
+                &crate::shared::satker_scope::SatkerScope::All,
+            )
             .await?;
         if !availability.is_available {
             return Err(AppError::BadRequest(format!(
@@ -65,9 +75,13 @@ impl PemakaianBmnService {
         if !request.additional_bmn_items.is_empty() {
             for item in &request.additional_bmn_items {
                 // Check availability for each additional BMN
+                // `All` for the same reason as the primary BMN above.
                 let avail = self
                     .repository
-                    .check_bmn_availability(&item.bmn_nup)
+                    .check_bmn_availability(
+                        &item.bmn_nup,
+                        &crate::shared::satker_scope::SatkerScope::All,
+                    )
                     .await?;
                 if !avail.is_available {
                     return Err(AppError::BadRequest(format!(

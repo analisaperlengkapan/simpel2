@@ -162,32 +162,58 @@ impl PemakaianBmnRepository {
     /// Check if BMN is available (no active permit) — legacy, kept for
     /// existing callers. Fase 1.11 callers harus pakai
     /// `check_bmn_availability_for_period`.
+    ///
+    /// Scoping here is deliberately NOT a plain row filter. The availability
+    /// answer must stay truthful across satker or the UI would offer to book an
+    /// asset another satker is already holding; what must not cross the
+    /// boundary is **who** is holding it. So the query keeps its national reach
+    /// and evaluates the caller's scope predicate as a column: in scope, the
+    /// holder is named; out of scope, the caller learns only that the asset is
+    /// taken.
+    ///
+    /// `NULL` from the predicate (a row whose `satker_code` was never
+    /// backfilled) is treated as out of scope — fail closed.
     /// Requirements: REQ-P002, REQ-P003
     pub async fn check_bmn_availability(
         &self,
         bmn_nup: &str,
+        scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<BmnAvailabilityResponse> {
         let client = self.pool.client().await?;
 
-        let query = r#"
-            SELECT id, nomor_izin, pegawai_nama, tanggal_selesai
+        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> =
+            vec![Box::new(bmn_nup.to_string())];
+        let in_scope_expr = scope
+            .push_condition("satker_code", &mut params)
+            .unwrap_or_else(|| "TRUE".to_string());
+        let refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
+            .iter()
+            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+            .collect();
+
+        let query = format!(
+            r#"
+            SELECT id, nomor_izin, pegawai_nama, tanggal_selesai,
+                   COALESCE(({in_scope_expr}), FALSE) AS in_scope
             FROM perlengkapan.izin_pemakaian_bmn
             WHERE bmn_nup = $1 AND status = 'ACTIVE'
             LIMIT 1
-        "#;
+        "#
+        );
 
         let row_opt = client
-            .query_opt(query, &[&bmn_nup])
+            .query_opt(&query, &refs)
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
         if let Some(row) = row_opt {
+            let in_scope: bool = row.get("in_scope");
             Ok(BmnAvailabilityResponse {
                 bmn_nup: bmn_nup.to_string(),
                 is_available: false,
-                active_permit_id: Some(row.get("id")),
-                active_permit_holder: Some(row.get("pegawai_nama")),
-                active_permit_expires: Some(row.get("tanggal_selesai")),
+                active_permit_id: in_scope.then(|| row.get("id")),
+                active_permit_holder: in_scope.then(|| row.get("pegawai_nama")),
+                active_permit_expires: in_scope.then(|| row.get("tanggal_selesai")),
             })
         } else {
             Ok(BmnAvailabilityResponse {

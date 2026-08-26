@@ -1,48 +1,90 @@
 use super::PemakaianBmnRepository;
+use crate::bank_aset::scope::AsetScope;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
+use crate::shared::satker_scope::SatkerScope;
 // Which half of `integrasi.siman_aset` is actually written by the SIMAN ingest,
 // and in what format. Shared so this report and the bank-aset surfaces cannot
 // disagree — they did for four releases, and this file was the last holdout.
 use crate::shared::siman_columns::{ASSET_KONDISI_BAIK_PREDICATE, jenis_bmn_sql};
 
+type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+
+/// Build the shared `WHERE` fragment for the permit-derived monitoring reads.
+///
+/// The caller's [`SatkerScope`] goes in FIRST and unconditionally: it is derived
+/// from the JWT, not from the request, so no combination of query parameters can
+/// remove it. Everything the client supplies is ANDed on top and can therefore
+/// only narrow the result — asking for another satker's `satker_code` yields
+/// zero rows rather than that satker's data.
+fn permit_where(
+    scope: &SatkerScope,
+    satker_code: Option<&str>,
+    jenis_bmn: Option<&str>,
+    status: Option<&str>,
+    params: &mut Vec<BoxedParam>,
+) -> String {
+    let mut clauses = Vec::new();
+
+    match status {
+        // `SEMUA` is the explicit opt-out: show finished permits too.
+        Some(s) if s.eq_ignore_ascii_case("semua") => {}
+        Some(s) => {
+            params.push(Box::new(s.to_ascii_uppercase()));
+            clauses.push(format!("status = ${}", params.len()));
+        }
+        None => clauses.push("status = 'ACTIVE'".to_string()),
+    }
+
+    if let Some(cond) = scope.push_condition("satker_code", params) {
+        clauses.push(cond);
+    }
+    if let Some(code) = satker_code {
+        params.push(Box::new(code.to_string()));
+        clauses.push(format!("satker_code = ${}", params.len()));
+    }
+    if let Some(jenis) = jenis_bmn {
+        params.push(Box::new(jenis.to_string()));
+        clauses.push(format!("jenis_bmn = ${}", params.len()));
+    }
+
+    clauses.join(" AND ")
+}
+
+fn param_refs(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
+    params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect()
+}
+
 impl PemakaianBmnRepository {
     /// Get active usage monitoring dashboard data
+    ///
+    /// Scoped: pusat/admin nasional, validator wilayah sebatas wilayahnya,
+    /// operator/validator satker sebatas satkernya, caller tanpa identitas
+    /// satker tidak melihat apa pun (fail-closed).
     /// Requirements: REQ-P011
     pub async fn get_active_usage_dashboard(
         &self,
         query: crate::pemakaian_bmn::models::MonitoringDashboardQuery,
+        scope: &SatkerScope,
     ) -> AppResult<crate::pemakaian_bmn::models::ActiveUsageMonitoringDashboard> {
         let client = self.pool.client().await?;
 
-        // Build WHERE clause for filters
-        let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
-        let mut param_idx = 1;
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
-
-        if let Some(ref satker_id) = query.satker_id {
-            where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
-            param_idx += 1;
-            params.push(Box::new(*satker_id));
-        }
-
-        if let Some(ref jenis_bmn) = query.jenis_bmn {
-            where_clauses.push(format!("jenis_bmn = ${}", param_idx));
-            param_idx += 1;
-            params.push(Box::new(jenis_bmn.clone()));
-        }
-        let _ = param_idx;
-
-        let where_clause = where_clauses.join(" AND ");
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-            .iter()
-            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-            .collect();
+        let mut params: Vec<BoxedParam> = Vec::new();
+        let where_clause = permit_where(
+            scope,
+            query.satker_code.as_deref(),
+            query.jenis_bmn.as_deref(),
+            None,
+            &mut params,
+        );
+        let param_refs = param_refs(&params);
 
         // Total active permits
         let total_query = format!(
-            "SELECT COUNT(*) as total FROM perlengkapan.izin_pemakaian_bmn WHERE {}",
-            where_clause
+            "SELECT COUNT(*) as total FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
         );
 
         let total_row = client
@@ -56,11 +98,10 @@ impl PemakaianBmnRepository {
             r#"
             SELECT jenis_bmn, COUNT(*) as count
             FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {}
+            WHERE {where_clause}
             GROUP BY jenis_bmn
             ORDER BY count DESC
-            "#,
-            where_clause
+            "#
         );
 
         let jenis_rows = client
@@ -85,17 +126,19 @@ impl PemakaianBmnRepository {
             })
             .collect();
 
-        // Permits by satker
+        // Permits by satker. Grouped on the authoritative MySIMKARI
+        // `satker_code` (V003), not the legacy client-supplied
+        // `pegawai_satker_id` UUID — grouping on the UUID split the same satker
+        // across however many distinct UUIDs its rows happened to carry.
         let satker_query = format!(
             r#"
-            SELECT pegawai_satker_id, pegawai_satker_nama, COUNT(*) as active_permits
+            SELECT satker_code, MIN(pegawai_satker_nama) AS satker_nama, COUNT(*) as active_permits
             FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {}
-            GROUP BY pegawai_satker_id, pegawai_satker_nama
+            WHERE {where_clause}
+            GROUP BY satker_code
             ORDER BY active_permits DESC
             LIMIT 10
-            "#,
-            where_clause
+            "#
         );
 
         let satker_rows = client
@@ -106,8 +149,8 @@ impl PemakaianBmnRepository {
         let permits_by_satker = satker_rows
             .into_iter()
             .map(|row| crate::pemakaian_bmn::models::PermitsBySatker {
-                satker_id: row.get("pegawai_satker_id"),
-                satker_nama: row.get("pegawai_satker_nama"),
+                satker_code: row.get("satker_code"),
+                satker_nama: row.get("satker_nama"),
                 active_permits: row.get("active_permits"),
             })
             .collect();
@@ -116,13 +159,17 @@ impl PemakaianBmnRepository {
         let expiring_query = format!(
             r#"
             SELECT id, nomor_izin, bmn_nama_barang, pegawai_nama, tanggal_selesai,
-                   (tanggal_selesai - CURRENT_DATE) as days_until_expiry
+                   -- `date - date` is int4 in Postgres and this field is i64,
+                   -- so an uncast difference makes `row.get` panic on the FIRST
+                   -- row this query ever returns. Under `panic = "abort"` that
+                   -- is not a 500, it is the process. Cast in SQL, matching how
+                   -- every other aggregate in this crate declares its type.
+                   (tanggal_selesai - CURRENT_DATE)::bigint as days_until_expiry
             FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
+            WHERE {where_clause} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30
             ORDER BY tanggal_selesai ASC
             LIMIT 10
-            "#,
-            where_clause
+            "#
         );
 
         let expiring_rows = client
@@ -147,11 +194,10 @@ impl PemakaianBmnRepository {
             r#"
             SELECT id, nomor_izin, bmn_nama_barang, pegawai_nama, approved_at
             FROM perlengkapan.izin_pemakaian_bmn
-            WHERE {} AND approved_at >= CURRENT_DATE - 7
+            WHERE {where_clause} AND approved_at >= CURRENT_DATE - 7
             ORDER BY approved_at DESC
             LIMIT 10
-            "#,
-            where_clause
+            "#
         );
 
         let recent_rows = client
@@ -181,52 +227,175 @@ impl PemakaianBmnRepository {
         )
     }
 
+    /// Daftar "siapa memakai BMN apa", ter-scope per-role.
+    ///
+    /// Ini jawaban langsung atas permintaan stakeholder: satker mana, nama
+    /// barangnya, NUP berapa, siapa pegawai yang memakai, dan berapa jangka
+    /// waktu pemakaiannya — dengan batas pusat / wilayah / satker.
+    pub async fn list_pemakaian_monitoring(
+        &self,
+        query: crate::pemakaian_bmn::models::PemakaianMonitoringQuery,
+        scope: &SatkerScope,
+    ) -> AppResult<crate::pemakaian_bmn::models::PemakaianBmnMonitoringPage> {
+        let client = self.pool.client().await?;
+
+        let page = query.page.unwrap_or(1).max(1);
+        let per_page = query.per_page.unwrap_or(20).clamp(1, 100);
+        let offset = (page - 1) * per_page;
+
+        let mut params: Vec<BoxedParam> = Vec::new();
+        let mut where_clause = permit_where(
+            scope,
+            query.satker_code.as_deref(),
+            query.jenis_bmn.as_deref(),
+            query.status.as_deref(),
+            &mut params,
+        );
+
+        if let Some(search) = query
+            .search
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            // Escape LIKE metacharacters so a search term cannot become a
+            // pattern (`%` would otherwise match everything in scope).
+            let escaped = search
+                .replace('\\', "\\\\")
+                .replace('%', "\\%")
+                .replace('_', "\\_");
+            params.push(Box::new(format!("%{escaped}%")));
+            let i = params.len();
+            where_clause.push_str(&format!(
+                " AND (bmn_nama_barang ILIKE ${i} OR bmn_nup ILIKE ${i} \
+                 OR bmn_kode_barang ILIKE ${i} OR pegawai_nama ILIKE ${i} \
+                 OR pegawai_nip ILIKE ${i} OR COALESCE(nomor_izin, '') ILIKE ${i})"
+            ));
+        }
+
+        let total: i64 = client
+            .query_one(
+                &format!(
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
+                ),
+                &param_refs(&params),
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .get("c");
+
+        params.push(Box::new(per_page));
+        let limit_idx = params.len();
+        params.push(Box::new(offset));
+        let offset_idx = params.len();
+
+        // `id` breaks the ORDER BY tie. Without it, rows sharing a
+        // `tanggal_selesai` can swap between pages and a permit is silently
+        // shown twice or not at all.
+        let rows = client
+            .query(
+                &format!(
+                    r#"
+                    SELECT id, nomor_izin, satker_code, pegawai_satker_nama,
+                           bmn_kode_barang, bmn_nama_barang, bmn_nup, bmn_merk, bmn_tipe,
+                           jenis_bmn, pegawai_nip, pegawai_nama, pegawai_jabatan,
+                           tanggal_mulai, tanggal_selesai, status,
+                           (tanggal_selesai - tanggal_mulai)::bigint AS durasi_hari,
+                           (tanggal_selesai - CURRENT_DATE)::bigint AS sisa_hari
+                    FROM perlengkapan.izin_pemakaian_bmn
+                    WHERE {where_clause}
+                    ORDER BY tanggal_selesai ASC, id ASC
+                    LIMIT ${limit_idx} OFFSET ${offset_idx}
+                    "#
+                ),
+                &param_refs(&params),
+            )
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?;
+
+        let data = rows
+            .into_iter()
+            .map(|row| {
+                // merk and tipe are the SIMAN operator's own labels, kept apart
+                // from `nama_barang` (which is fixed by the kode barang) so the
+                // table never presents a free-text label as the official name.
+                let merk: Option<String> = row.get("bmn_merk");
+                let tipe: Option<String> = row.get("bmn_tipe");
+                let merk_tipe = match (
+                    merk.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+                    tipe.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+                ) {
+                    (Some(m), Some(t)) => Some(format!("{m} {t}")),
+                    (Some(m), None) => Some(m.to_string()),
+                    (None, Some(t)) => Some(t.to_string()),
+                    (None, None) => None,
+                };
+                crate::pemakaian_bmn::models::PemakaianBmnMonitoringRow {
+                    id: row.get("id"),
+                    nomor_izin: row.get("nomor_izin"),
+                    satker_code: row.get("satker_code"),
+                    satker_nama: row.get("pegawai_satker_nama"),
+                    kode_barang: row.get("bmn_kode_barang"),
+                    nama_barang: row.get("bmn_nama_barang"),
+                    nup: row.get("bmn_nup"),
+                    merk_tipe,
+                    jenis_bmn: row.get("jenis_bmn"),
+                    pegawai_nip: row.get("pegawai_nip"),
+                    pegawai_nama: row.get("pegawai_nama"),
+                    pegawai_jabatan: row.get("pegawai_jabatan"),
+                    tanggal_mulai: row.get("tanggal_mulai"),
+                    tanggal_selesai: row.get("tanggal_selesai"),
+                    durasi_hari: row.get("durasi_hari"),
+                    sisa_hari: row.get("sisa_hari"),
+                    status: row.get("status"),
+                }
+            })
+            .collect();
+
+        Ok(crate::pemakaian_bmn::models::PemakaianBmnMonitoringPage {
+            data,
+            total,
+            page,
+            per_page,
+            // Integer ceil-div. The f64 idiom used elsewhere in this
+            // crate loses precision past 2^53 rows; this does not.
+            total_pages: (total + per_page - 1) / per_page,
+        })
+    }
+
     /// Tiga kartu agregat headline dashboard monitoring (Fase 2.6):
     /// **sedang dipakai / tidak dipakai / akan expired**.
     ///
-    /// Kartu turunan-izin (`sedang_dipakai`, `akan_expired_30d`) menghormati
-    /// filter `satker_id`/`jenis_bmn`. `tidak_dipakai` hanya dihitung saat
-    /// TANPA filter — angka SIMAN tidak ter-scope per-satker di sini, jadi
-    /// menampilkannya saat ter-filter akan menyesatkan (→ `None`). SIMAN
-    /// best-effort: jika query SIMAN gagal, `tidak_dipakai = None` dan kartu
-    /// lain tetap tersaji (dashboard tidak ikut tumbang).
+    /// Ketiganya ter-scope per-role. Kartu `tidak_dipakai` melintasi batas
+    /// layanan — sisi izin dikunci lewat MySIMKARI `satker_code`, sisi SIMAN
+    /// lewat `kdsatker_keu` — jadi ia memakai [`AsetScope`] yang memetakan
+    /// keduanya via `integrasi.v_satker_code_map`. SIMAN best-effort: bila
+    /// query SIMAN gagal, `tidak_dipakai = None` dan kartu lain tetap tersaji.
     pub async fn get_monitoring_summary(
         &self,
         query: crate::pemakaian_bmn::models::MonitoringDashboardQuery,
+        scope: &SatkerScope,
+        aset_scope: &AsetScope,
     ) -> AppResult<crate::pemakaian_bmn::models::MonitoringSummaryCards> {
         let client = self.pool.client().await?;
 
-        // WHERE dinamis utk kartu turunan-izin (parameterized, anti-SQLi).
-        let mut where_clauses = vec!["status = 'ACTIVE'".to_string()];
-        let mut param_idx = 1;
-        let mut params: Vec<Box<dyn tokio_postgres::types::ToSql + Sync + Send>> = vec![];
-
-        if let Some(ref satker_id) = query.satker_id {
-            where_clauses.push(format!("pegawai_satker_id = ${}", param_idx));
-            param_idx += 1;
-            params.push(Box::new(*satker_id));
-        }
-        if let Some(ref jenis_bmn) = query.jenis_bmn {
-            where_clauses.push(format!("jenis_bmn = ${}", param_idx));
-            param_idx += 1;
-            params.push(Box::new(jenis_bmn.clone()));
-        }
-        let _ = param_idx;
-
-        let where_clause = where_clauses.join(" AND ");
-        let param_refs: Vec<&(dyn tokio_postgres::types::ToSql + Sync)> = params
-            .iter()
-            .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-            .collect();
+        let mut params: Vec<BoxedParam> = Vec::new();
+        let where_clause = permit_where(
+            scope,
+            query.satker_code.as_deref(),
+            query.jenis_bmn.as_deref(),
+            None,
+            &mut params,
+        );
+        let refs = param_refs(&params);
 
         // Kartu 1: sedang dipakai (izin ACTIVE).
         let sedang_dipakai: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {}",
-                    where_clause
+                    "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE {where_clause}"
                 ),
-                &param_refs,
+                &refs,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
@@ -237,19 +406,22 @@ impl PemakaianBmnRepository {
             .query_one(
                 &format!(
                     "SELECT COUNT(*) AS c FROM perlengkapan.izin_pemakaian_bmn \
-                     WHERE {} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30",
-                    where_clause
+                     WHERE {where_clause} AND tanggal_selesai BETWEEN CURRENT_DATE AND CURRENT_DATE + 30"
                 ),
-                &param_refs,
+                &refs,
             )
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
             .get("c");
 
-        // Kartu 3: tidak dipakai — hanya saat tanpa filter (SIMAN tidak
-        // ter-scope per-satker di sini). Best-effort: error SIMAN → None.
-        let tidak_dipakai = if query.satker_id.is_none() && query.jenis_bmn.is_none() {
-            match Self::count_idle_bmn(&client).await {
+        // Kartu 3: tidak dipakai. Filter `jenis_bmn` tidak punya padanan tepat
+        // di sisi SIMAN (`jenis_bmn` izin adalah 4 kelas turunan, bukan kolom
+        // SIMAN), jadi saat difilter kartu ini disembunyikan alih-alih
+        // menyajikan angka yang tak sebanding.
+        let tidak_dipakai = if query.jenis_bmn.is_none() {
+            match Self::count_idle_bmn(&client, scope, aset_scope, query.satker_code.as_deref())
+                .await
+            {
                 Ok(n) => Some(n),
                 Err(e) => {
                     tracing::warn!(
@@ -271,10 +443,10 @@ impl PemakaianBmnRepository {
     }
 
     /// Jumlah BMN **kelas ber-izin** (kondisi Baik di SIMAN) yang tidak sedang
-    /// dipakai. Feeds the "BMN Tidak Dipakai" card. Dipisah agar kegagalan
-    /// SIMAN dapat ditangani best-effort oleh pemanggil.
+    /// dipakai, dalam scope pemanggil. Feeds the "BMN Tidak Dipakai" card.
+    /// Dipisah agar kegagalan SIMAN dapat ditangani best-effort oleh pemanggil.
     ///
-    /// Dua perbaikan sekaligus, dan yang kedua BUKAN sekadar bug:
+    /// Dua perbaikan sebelumnya, dan yang kedua BUKAN sekadar bug:
     ///
     /// 1. Kolom mati. `WHERE kondisi = 'BAIK'` cocok 0 dari 624 533 baris —
     ///    kolom `kondisi` tak pernah diisi ingest, dan `ur_kondisi` yang terisi
@@ -286,43 +458,65 @@ impl PemakaianBmnRepository {
     ///    (1) saja mengubah kartu dari 0 menjadi ~548 042 — yaitu seluruh BMN
     ///    kondisi baik se-Indonesia, termasuk 377 985 "Peralatan Mesin Non TIK"
     ///    (kursi, meja, lemari). Izin pemakaian tidak pernah diterbitkan untuk
-    ///    kursi, jadi angka itu benar secara aritmatika tapi tak ada artinya —
-    ///    dan justru lebih menyesatkan daripada 0 karena terlihat otoritatif.
-    ///    Jadi hitungannya dibatasi ke kelas yang MEMANG dipakai lewat izin,
-    ///    memakai pemetaan yang sama dengan `jenis_bmn` pada izin itu sendiri.
+    ///    kursi, jadi angka itu benar secara aritmatika tapi tak ada artinya.
     ///
-    /// ⚠️ Masih NASIONAL, belum ter-scope per-role. Itu disengaja untuk saat
-    /// ini: `izin_pemakaian_bmn.pegawai_satker_id` bertipe UUID sedangkan
-    /// seluruh sistem lain mengidentifikasi satker lewat MySIMKARI
-    /// `kode_satker`, jadi hierarki pusat/wilayah/satker belum bisa di-join ke
-    /// tabel ini sama sekali. Pemanggil sudah mengembalikan `None` begitu ada
-    /// filter (lihat `get_monitoring_summary`) supaya angka nasional tidak
-    /// tersaji seolah-olah angka satker.
+    /// Yang ketiga diperbaiki di sini: angkanya **nasional untuk semua orang**.
+    /// Kini kedua sisi ter-scope — sisi SIMAN lewat [`AsetScope`]
+    /// (`kdsatker_keu` via `integrasi.v_satker_code_map`), sisi izin lewat
+    /// [`SatkerScope`] (`satker_code`), sehingga selisihnya bermakna per-role.
+    ///
+    /// Pengurangannya tetap hampiran: sebuah izin bisa menunjuk aset yang tak
+    /// lolos filter kelas/kondisi di sisi SIMAN, jadi `utilized` dapat melebihi
+    /// bagiannya dari `total`. `max(0)` menjaga hasil tetap masuk akal.
     async fn count_idle_bmn(
         client: &deadpool_postgres::Object,
+        scope: &SatkerScope,
+        aset_scope: &AsetScope,
+        satker_code: Option<&str>,
     ) -> Result<i64, tokio_postgres::Error> {
+        let mut aset_params: Vec<BoxedParam> = Vec::new();
+        let mut aset_clauses = vec![
+            ASSET_KONDISI_BAIK_PREDICATE.to_string(),
+            format!("{} <> 'LAINNYA'", jenis_bmn_sql("")),
+        ];
+        if let Some(cond) = aset_scope.push_condition(&mut aset_params) {
+            aset_clauses.push(cond);
+        }
+        if let Some(code) = satker_code {
+            aset_params.push(Box::new(code.to_string()));
+            let i = aset_params.len();
+            aset_clauses.push(format!(
+                "kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
+                 WHERE kode_satker = ${i} AND kdsatker_keu IS NOT NULL)"
+            ));
+        }
         let total: i64 = client
             .query_one(
                 &format!(
-                    "SELECT COUNT(*) AS c FROM integrasi.siman_aset \
-                     WHERE {kondisi_baik} AND {jenis_bmn} <> 'LAINNYA'",
-                    kondisi_baik = ASSET_KONDISI_BAIK_PREDICATE,
-                    jenis_bmn = jenis_bmn_sql("")
+                    "SELECT COUNT(*) AS c FROM integrasi.siman_aset WHERE {}",
+                    aset_clauses.join(" AND ")
                 ),
-                &[],
+                &param_refs(&aset_params),
             )
             .await?
             .get("c");
-        // NUP alone is not an asset identity, so this subtraction is an
-        // approximation — see the note on ASSET_NUP_SQL. It cannot be made
-        // exact until the permit carries kode satker + kode barang + NUP.
+
+        // Counted on (kode barang, NUP) rather than NUP alone: NUP is only
+        // unique within a satker AND a kode barang, so a bare `DISTINCT nup`
+        // collapsed genuinely different assets into one.
+        let mut izin_params: Vec<BoxedParam> = Vec::new();
+        let izin_where = permit_where(scope, satker_code, None, None, &mut izin_params);
         let utilized: i64 = client
             .query_one(
-                "SELECT COUNT(DISTINCT bmn_nup) AS c FROM perlengkapan.izin_pemakaian_bmn WHERE status = 'ACTIVE'",
-                &[],
+                &format!(
+                    "SELECT COUNT(DISTINCT (bmn_kode_barang, bmn_nup)) AS c \
+                     FROM perlengkapan.izin_pemakaian_bmn WHERE {izin_where}"
+                ),
+                &param_refs(&izin_params),
             )
             .await?
             .get("c");
+
         Ok((total - utilized).max(0))
     }
 }

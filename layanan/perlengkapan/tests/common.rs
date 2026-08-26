@@ -235,6 +235,12 @@ pub async fn setup_test_db() -> (Database, String) {
     // Formats are copied from staging, not invented: `kd_brg` is ten digits with
     // NO dots (3050201002), NUP carries no leading zeros, `ur_kondisi` reads
     // "Baik" rather than "BAIK", and `jenis_aset` is a real SIMAN taxonomy value.
+    // `kdsatker_keu` is TWENTY characters (006010199005016000KP), not the
+    // six-digit code this fixture used to carry: `AsetScope` reads the wilayah
+    // out of it as `substring(kdsatker_keu FROM 6 FOR 4)`, which on a six-digit
+    // value returns a one-character fragment. A short code here would not fail
+    // — it would quietly put every satker in a different "wilayah" and let a
+    // broken wilayah tier pass.
     // Because `kd_brg` is now populated, the kode_barang-consistency branch in
     // `find_nilai_perolehan` finally executes instead of being skipped for want
     // of a value to compare against.
@@ -266,10 +272,88 @@ pub async fn setup_test_db() -> (Database, String) {
                 (jenis_aset, nama, ur_sskel, ur_kondisi, kd_brg, no_aset,
                  rph_aset, tgl_perlh, nama_satker, kdsatker_keu, merk, tipe, alamat)
              VALUES
-                ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Meja Kerja', 'Baik', '3060201003', '15', '12500000', '2021-03-11', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk A', 'Tipe-1', 'Jl. Uji No. 1'),
-                ('Peralatan Mesin Non TIK', '  ',             'Meja Kerja', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk B', NULL,      NULL),
-                ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Kursi Kerja','Baik', '3060201004', '16', '4300000',  '2022-07-04', 'KEJAKSAAN NEGERI UJI', '005001', 'Uji Merk C', NULL,      NULL)
+                ('Peralatan Mesin Non TIK', 'BMN Uji 003/15', 'Meja Kerja', 'Baik', '3060201003', '15', '12500000', '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk A', 'Tipe-1', 'Jl. Uji No. 1'),
+                ('Peralatan Mesin Non TIK', '  ',             'Meja Kerja', 'Baik', '3060201003', '99', '9750000',  '2021-03-11', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk B', NULL,      NULL),
+                ('Peralatan Mesin Non TIK', 'BMN Uji 004/16', 'Kursi Kerja','Baik', '3060201004', '16', '4300000',  '2022-07-04', 'KEJAKSAAN NEGERI UJI A', '006010199005016000KP', 'Uji Merk C', NULL,      NULL)
              ON CONFLICT DO NOTHING",
+            &[],
+        )
+        .await
+        .unwrap();
+
+    // ── Cross-schema SoT stub: MySIMKARI kode_satker ↔ SIMAN kdsatker_keu ──
+    //
+    // `AsetScope` resolves both the satker and the wilayah tier through
+    // `integrasi.v_satker_code_map` (integrasi migration 003/004). Without it,
+    // every scoped SIMAN read errors — and because the "BMN Tidak Dipakai" card
+    // handles SIMAN failure best-effort, the scoped path would silently degrade
+    // to `null` and the test would see a plausible answer instead of a broken
+    // one. That is the shape of failure this whole fixture exists to prevent.
+    //
+    // The base table mirrors the owner's DDL. The view is the owner's
+    // expression with the auto-derive UNION arm omitted — that arm needs the
+    // name-normalisation function chain, and reproducing it here would be a
+    // second implementation to drift from. Omitting it only makes the map
+    // SMALLER, so a scoping leak still surfaces; a larger stub could hide one.
+    // `wilayah_kode` in particular is COPIED, not invented: it is
+    // `substring(kdsatker_keu FROM 6 FOR 4)`, and hand-writing a different
+    // formula here would certify a broken wilayah tier.
+    client
+        .execute(
+            "CREATE TABLE IF NOT EXISTS integrasi.satker_code_map (
+                kode_satker  TEXT PRIMARY KEY,
+                kdsatker_keu TEXT,
+                nama_satker  TEXT,
+                match_method TEXT NOT NULL DEFAULT 'manual',
+                verified     BOOLEAN NOT NULL DEFAULT FALSE,
+                notes        TEXT,
+                created_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )",
+            &[],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "CREATE OR REPLACE VIEW integrasi.v_satker_code_map AS
+             SELECT kode_satker,
+                    kdsatker_keu,
+                    substring(kdsatker_keu FROM 6 FOR 4) AS wilayah_kode,
+                    (right(kdsatker_keu, 2) = 'KP')      AS is_pusat,
+                    nama_satker,
+                    match_method,
+                    TRUE AS verified
+             FROM integrasi.satker_code_map
+             WHERE kdsatker_keu IS NOT NULL",
+            &[],
+        )
+        .await
+        .unwrap();
+
+    // Two satkers in ONE wilayah plus a third in another. That combination is
+    // what makes the tiers distinguishable: with a single satker, a wilayah
+    // filter and a satker filter return the same rows and a broken tier passes.
+    //
+    // `kdsatker_keu` digits 6-9 carry the wilayah, so SKR001/SKR002 share 0199
+    // while SKR003 sits in 1100. The codes are real staging values.
+    client
+        .execute(
+            "INSERT INTO integrasi.mysimkari_satker (kode_satker, nama_satker, wilayah)
+             VALUES ('SKR001', 'KEJAKSAAN NEGERI UJI A', 'W01'),
+                    ('SKR002', 'KEJAKSAAN NEGERI UJI B', 'W01'),
+                    ('SKR003', 'KEJAKSAAN NEGERI UJI C', 'W02')
+             ON CONFLICT (kode_satker) DO NOTHING",
+            &[],
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.satker_code_map (kode_satker, kdsatker_keu, nama_satker, verified)
+             VALUES ('SKR001', '006010199005016000KP', 'KEJAKSAAN NEGERI UJI A', TRUE),
+                    ('SKR002', '006010199666405000KP', 'KEJAKSAAN NEGERI UJI B', TRUE),
+                    ('SKR003', '006011100007102000KD', 'KEJAKSAAN NEGERI UJI C', TRUE)
+             ON CONFLICT (kode_satker) DO NOTHING",
             &[],
         )
         .await

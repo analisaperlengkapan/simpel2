@@ -165,11 +165,17 @@ pub struct PermitsByJenisBmn {
     pub count: i64,
     pub percentage: f64,
 }
-/// Permits grouped by satker
+/// Permits grouped by satker.
+///
+/// Keyed on the authoritative MySIMKARI `satker_code` (V003). The previous
+/// `satker_id: Uuid` was the legacy client-supplied `pegawai_satker_id`, which
+/// carried no foreign key and no relation to the code the caller authenticates
+/// with — so grouping on it split one satker across as many buckets as its rows
+/// had distinct UUIDs, and could not be reconciled with the caller's scope.
 #[derive(Debug, Clone, Serialize)]
 pub struct PermitsBySatker {
-    pub satker_id: Uuid,
-    pub satker_nama: String,
+    pub satker_code: Option<String>,
+    pub satker_nama: Option<String>,
     pub active_permits: i64,
 }
 /// Permit expiring soon information
@@ -203,8 +209,63 @@ pub struct MonitoringSummaryCards {
     pub sedang_dipakai: i64,
     /// Izin ACTIVE yg `tanggal_selesai` jatuh dalam 30 hari ke depan.
     pub akan_expired_30d: i64,
-    /// BMN (kondisi BAIK di SIMAN) yg TIDAK sedang dipakai = total − terpakai.
-    /// `None` bila SIMAN tidak tersedia, atau bila ada filter satker/jenis
-    /// (data SIMAN tidak ter-scope per-satker di sini, agar tidak menyesatkan).
+    /// BMN kelas ber-izin (kondisi Baik di SIMAN) yg TIDAK sedang dipakai =
+    /// total − terpakai, **dalam scope pemanggil**: pusat/admin nasional,
+    /// validator wilayah sebatas wilayahnya, operator sebatas satkernya.
+    ///
+    /// `None` hanya bila SIMAN tidak terjangkau (best-effort — kartu lain tetap
+    /// tersaji) atau bila pemanggil memfilter `jenis_bmn`, yang tidak punya
+    /// padanan tepat di sisi SIMAN.
     pub tidak_dipakai: Option<i64>,
+}
+
+/// Satu baris "siapa memakai BMN apa" pada dashboard monitoring.
+///
+/// Kolomnya mengikuti permintaan stakeholder: satker mana, nama barangnya, NUP
+/// berapa, siapa pegawai yang memakai, dan berapa jangka waktu pemakaiannya.
+///
+/// Catatan penamaan (koreksi stakeholder): `nama_barang` adalah nama standar
+/// yang melekat pada kode barang, sedangkan `merk`/`tipe` adalah penamaan bebas
+/// milik operator SIMAN. Keduanya dipisah agar tidak tertukar — satu kolom
+/// gabungan akan menampilkan label bebas seolah-olah nama resmi barang.
+///
+/// Identitas aset di sini adalah tiga serangkai **kode satker + kode barang +
+/// NUP**, jadi ketiganya ikut, bukan NUP saja.
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianBmnMonitoringRow {
+    pub id: Uuid,
+    pub nomor_izin: Option<String>,
+    /// MySIMKARI `kode_satker` — kolom otoritatif hasil turunan klaim saat
+    /// izin dibuat (V003), bukan UUID `pegawai_satker_id` warisan.
+    pub satker_code: Option<String>,
+    pub satker_nama: Option<String>,
+    pub kode_barang: String,
+    /// Nama standar barang sesuai kode barang.
+    pub nama_barang: String,
+    /// NUP — Nomor Urut Pendaftaran.
+    pub nup: String,
+    /// Label bebas dari operator SIMAN (merk/tipe), bila ada.
+    pub merk_tipe: Option<String>,
+    pub jenis_bmn: String,
+    pub pegawai_nip: String,
+    pub pegawai_nama: String,
+    pub pegawai_jabatan: Option<String>,
+    pub tanggal_mulai: NaiveDate,
+    pub tanggal_selesai: NaiveDate,
+    /// Jangka waktu pemakaian dalam hari (selesai − mulai).
+    pub durasi_hari: i64,
+    /// Sisa hari sampai izin berakhir. Negatif = sudah lewat tanggal selesai
+    /// namun izin belum di-expire — kondisi yang memang perlu terlihat.
+    pub sisa_hari: i64,
+    pub status: String,
+}
+
+/// Halaman hasil listing monitoring pemakaian BMN.
+#[derive(Debug, Clone, Serialize)]
+pub struct PemakaianBmnMonitoringPage {
+    pub data: Vec<PemakaianBmnMonitoringRow>,
+    pub total: i64,
+    pub page: i64,
+    pub per_page: i64,
+    pub total_pages: i64,
 }

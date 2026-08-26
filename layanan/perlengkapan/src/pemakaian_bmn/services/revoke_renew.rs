@@ -69,10 +69,16 @@ impl PemakaianBmnService {
             ));
         }
 
-        // Check BMN availability
+        // Check BMN availability. `All` for the same reason as create: the
+        // renewal must not be allowed to collide with a booking the caller
+        // cannot see, and the `active_permit_id != Some(id)` comparison below
+        // needs the id even when the holder is another satker.
         let availability = self
             .repository
-            .check_bmn_availability(&current.bmn_nup)
+            .check_bmn_availability(
+                &current.bmn_nup,
+                &crate::shared::satker_scope::SatkerScope::All,
+            )
             .await?;
         if !availability.is_available && availability.active_permit_id != Some(id) {
             return Err(AppError::BadRequest(format!(
