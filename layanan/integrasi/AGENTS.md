@@ -211,6 +211,35 @@ Idealnya: **token staging berbeda dari token production** (request ke vendor unt
 
 ## 📏 Critical Conventions
 
+### 0. Migrasi di-REPLAY setiap invokasi — tulislah untuk dijalankan ulang
+
+`integrasi-migrate` **tidak** punya tabel pelacak. Ia menerapkan **seluruh**
+berkas di `MIGRATIONS` (`src/bin/migrate.rs`) dalam urutan array, **setiap kali
+dipanggil** — dan ia dipanggil sebagai hook `pre-upgrade` di setiap deploy.
+Berbeda dari authenc (`schema_migrations`) dan perlengkapan (refinery
+`refinery_schema_history`), yang melewati apa yang sudah diterapkan.
+
+Konsekuensinya, tiap migrasi harus **konvergen**, bukan sekadar "berhasil di DB
+kosong":
+
+- `CREATE ... IF NOT EXISTS` / `CREATE OR REPLACE` — bukan `CREATE` telanjang.
+- **`DROP` tanpa syarat adalah jebakan.** Migrasi berikutnya boleh membangun
+  objek di atas milik Anda; begitu itu terjadi, DROP Anda gagal
+  (`other objects depend on it`) dan seluruh runner mati — bukan hanya satu
+  migrasi. Persis ini yang memblokir upgrade staging rc28: 003 men-DROP
+  `v_satker_code_map_auto`, sementara 004 mem-materialisasi view itu. Bila
+  sebuah reshape memang butuh DROP, jalankan **hanya saat dibutuhkan** (coba
+  `CREATE OR REPLACE` dulu, tangkap `invalid_table_definition`, baru
+  `DROP ... CASCADE`) — lihat 003 sebagai contoh.
+- Menambahkan `.sql` ke `migrations/` **tidak** membuatnya berjalan; ia harus
+  masuk array `MIGRATIONS`. Berkas yang tak terdaftar diam-diam mati.
+
+Ditegakkan oleh `infra/scripts/check-migration-replay.sh` (job CI
+**Migrasi integrasi bisa dijalankan ulang**): menerapkan migrasi **dua kali** ke
+database yang sama, dan menolak berkas yang ada di disk tapi tak terdaftar.
+Setiap stack e2e memigrasi DB kosong — lintasan pertama justru yang selalu
+berhasil — jadi lintasan kedua itulah yang mewakili deploy sungguhan.
+
 ### 1. Scheduler Configuration
 
 **IMPORTANT:** Scheduler is **DISABLED** by default. Use K8s CronJob for scheduling.
