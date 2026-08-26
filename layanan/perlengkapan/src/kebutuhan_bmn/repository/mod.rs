@@ -194,7 +194,7 @@ pub trait KebutuhanBmnRepository: Send + Sync {
 
     /// V029 (Fase 1.7): Daftar wilayah distinct yg ada di
     /// `integrasi.mysimkari_satker` — dipakai FE utk dropdown.
-    async fn list_wilayah(&self) -> AppResult<Vec<String>>;
+    async fn list_wilayah(&self) -> AppResult<Vec<crate::kebutuhan_bmn::models::WilayahKejati>>;
 
     /// Object-level counterpart of [`SatkerScope::push_condition`]: apakah satu
     /// `kode_satker` MySIMKARI (`code`) masuk dalam scope pemanggil?

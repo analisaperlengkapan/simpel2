@@ -7,7 +7,7 @@
 
 use crate::api::{
     AppError, CreatePengajuanPakaianDinasRequest, JenisPakaianDinas, PaginatedResponse,
-    PengajuanPakaianDinas, SpesifikasiPakaianDinas, create_pengajuan_pakaian_dinas,
+    PengajuanPakaianDinas, SpesifikasiPakaianDinas, WilayahKejati, create_pengajuan_pakaian_dinas,
     delete_pengajuan_pakaian_dinas, fetch_jenis_pakaian_dinas, fetch_pengajuan_pakaian_dinas,
     fetch_spesifikasi_pakaian, fetch_wilayah_kejati,
 };
@@ -34,7 +34,7 @@ async fn query_jenis(_: ()) -> Vec<JenisPakaianDinas> {
         .unwrap_or_default()
 }
 
-async fn query_wilayah(_: ()) -> Vec<String> {
+async fn query_wilayah(_: ()) -> Vec<WilayahKejati> {
     fetch_wilayah_kejati().await.unwrap_or_default()
 }
 
@@ -345,7 +345,11 @@ pub fn PakaianDinasPengajuanList() -> impl IntoView {
                                                 .unwrap_or_default()
                                                 .into_iter()
                                                 .map(|w| {
-                                                    view! { <option value=w.clone()>{w.clone()}</option> }
+                                                    // Nilai = kode_satker Kejati (stabil, disimpan
+                                                    // sebagai wilayah_id); label = namanya.
+                                                    view! {
+                                                        <option value=w.kode.clone()>{w.nama.clone()}</option>
+                                                    }
                                                 })
                                                 .collect_view()
                                         }}

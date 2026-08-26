@@ -22,6 +22,27 @@
 //! `v_satker_code_map` (e.g. an unmapped/unverified satker), the `Satker`/
 //! `Wilayah` subqueries return the empty set, so `IN (…)` yields no rows. This
 //! is intentional — an unmapped satker sees nothing rather than everything.
+//!
+//! WILAYAH MEANS THE SAME THING HERE AS EVERYWHERE ELSE — but it is spelled
+//! differently, and that is deliberate. Every MySIMKARI-side scope resolves the
+//! tier through `integrasi.v_satker_wilayah` (the Kejaksaan Tinggi above a
+//! satker). This one keeps reading SIMAN's own `wilayah_kode`, because the two
+//! are a measured bijection: across the 488 staging satkers carrying both, no
+//! Kejati splits across two `wilayah_kode` and no `wilayah_kode` is shared by
+//! two Kejati. Joining the view in here instead would add a join to the exact
+//! predicate that caused the 11 s → sub-second incident in integrasi migration
+//! 004, buying nothing today.
+//!
+//! That equivalence is a premise, so it is pinned by a test rather than left to
+//! hold by luck: `wilayah_kode_and_kejati_are_the_same_partition` in
+//! `tests/integration/satker_wilayah_test.rs` fails the build if MySIMKARI's
+//! hierarchy and SIMAN's regional code ever stop agreeing. Without it, a
+//! divergence would surface only as two different populations counted side by
+//! side on the monitoring summary — silently.
+//!
+//! Keeping the prefix form also keeps SIMAN-only satkers visible: rows whose
+//! `kdsatker_keu` is in the region but whose `kode_satker` MySIMKARI does not
+//! know (65 such rows on staging) still belong to the wilayah's asset picture.
 
 use crate::shared::middleware::Claims;
 

@@ -269,7 +269,19 @@ VALUES
   ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3.10.01.02.003', 'E2E Laptop Jaksel',
    'SN-E2E-0003', '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000002', 'KEJAKSAAN NEGERI JAKARTA SELATAN', '2026-03-01', '2026-10-31',
-   'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020')
+   'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020'),
+  -- I4 @ACTIVE, satker 0300010 (Bandung) — under a DIFFERENT Kejati.
+  --
+  -- I3 makes the satker tier distinguishable; this one makes the WILAYAH tier
+  -- distinguishable. Without a permit outside the caller's Kejati, "everything
+  -- in my wilayah" and "everything" are the same set at e2e level, so a wilayah
+  -- scope that leaks nationwide still passes. There is no user seeded at this
+  -- satker on purpose: the row exists to be INVISIBLE to the DKI validator, not
+  -- to be acted on.
+  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3.10.01.02.003', 'E2E Laptop Bandung',
+   'SN-E2E-0004', '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
+   'e2a00000-0000-4e00-8e00-000000000003', 'KEJAKSAAN NEGERI BANDUNG', '2026-03-01', '2026-10-31',
+   'ACTIVE', 3004, 'Penunjang tugas kedinasan Bandung', '0300010')
 ON CONFLICT (id) DO NOTHING;
 
 -- ----------------------------------------------------------------------------

@@ -2,11 +2,12 @@
 //! carry an authoritative MySIMKARI `satker_code` (e.g. `izin_pemakaian_bmn`,
 //! `penghapusan_bmn` — see migration V003).
 //!
-//! This is the sibling of `bank_aset::AsetScope`. The difference is the join
-//! key: `AsetScope` filters SIMAN assets (`kdsatker_keu`) via the cross-ref view
-//! `integrasi.v_satker_code_map`, whereas workflow rows store the caller's
-//! MySIMKARI `kode_satker` directly, so we filter on that column and resolve the
-//! wilayah tier straight from `integrasi.mysimkari_satker.wilayah`.
+//! This is the sibling of `bank_aset::AsetScope`. The difference is only the
+//! column each one filters: `AsetScope` filters SIMAN assets by `kdsatker_keu`
+//! via the cross-ref view `integrasi.v_satker_code_map`, whereas workflow rows
+//! store the caller's MySIMKARI `kode_satker` directly. Both resolve the wilayah
+//! tier from the SAME definition, `integrasi.v_satker_wilayah` — see the note on
+//! [`SatkerScope::push_condition`] for why that matters.
 //!
 //! Tiers (same model as AsetScope):
 //! - [`SatkerScope::All`]     — cross-satker roles ([`Claims::is_cross_satker_role`]).
@@ -64,7 +65,7 @@ impl SatkerScope {
     /// dalam scope ini, untuk tier yang **tak butuh DB**?
     ///
     /// Mengembalikan `None` untuk [`Self::Wilayah`] — satu-satunya tier yang
-    /// harus di-resolve lewat `integrasi.mysimkari_satker`, jadi keputusannya
+    /// harus di-resolve lewat `integrasi.v_satker_wilayah`, jadi keputusannya
     /// milik repository (lihat `KebutuhanBmnRepository::satker_code_in_scope`).
     /// Memisahkannya begini membuat tier murni bisa diuji tanpa Postgres,
     /// sekaligus menjaga satu sumber kebenaran: repository mendelegasikan ke
@@ -97,12 +98,25 @@ impl SatkerScope {
             Self::Wilayah(code) => {
                 params.push(Box::new(code.clone()));
                 let i = params.len();
-                // Rows whose satker shares the caller's wilayah. Wilayah is
-                // resolved from integrasi.mysimkari_satker (cross-schema SoT).
+                // Rows whose satker shares the caller's wilayah, where wilayah
+                // means the Kejaksaan Tinggi above them — resolved through
+                // `integrasi.v_satker_wilayah`, the single definition every
+                // scope reads (migration 005).
+                //
+                // This used to compare `integrasi.mysimkari_satker.wilayah`
+                // instead. That column does not hold a Kejati: measured against
+                // the real MySIMKARI snapshot it holds `I`/`II`/`III`, the
+                // JAM-level supervision grouping, and `I` alone spans 15
+                // Kejaksaan Tinggi = 238 satkers. A validator at Kejati Kepri
+                // was reading Sumatera Utara and Kalimantan Selatan rows.
+                //
+                // A caller with no Kejati above them (Kejagung / pusat units)
+                // has no row in the view, so the inner SELECT yields NULL and
+                // the comparison matches nothing: fail closed, as intended.
                 Some(format!(
-                    "{col} IN (SELECT s.kode_satker FROM integrasi.mysimkari_satker s \
-                     WHERE s.wilayah IS NOT NULL AND s.wilayah = (\
-                       SELECT w.wilayah FROM integrasi.mysimkari_satker w \
+                    "{col} IN (SELECT s.kode_satker FROM integrasi.v_satker_wilayah s \
+                     WHERE s.wilayah_code = (\
+                       SELECT w.wilayah_code FROM integrasi.v_satker_wilayah w \
                        WHERE w.kode_satker = ${i}))"
                 ))
             }
@@ -253,12 +267,15 @@ mod tests {
     }
 
     #[test]
-    fn push_condition_wilayah_resolves_via_mysimkari() {
+    fn push_condition_wilayah_resolves_via_the_shared_kejati_view() {
         let mut p: Vec<BoxedParam> = Vec::new();
         let cond = SatkerScope::Wilayah("02.28".to_string())
             .push_condition("satker_code", &mut p)
             .unwrap();
-        assert!(cond.contains("integrasi.mysimkari_satker"));
+        assert!(cond.contains("integrasi.v_satker_wilayah"));
+        assert!(cond.contains("wilayah_code"));
+        // The column that used to back this tier must not come back.
+        assert!(!cond.contains("mysimkari_satker"));
         assert!(cond.contains("satker_code IN"));
         assert!(cond.contains("$1"));
         assert_eq!(p.len(), 1);

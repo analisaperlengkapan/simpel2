@@ -47,6 +47,10 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "004_satker_code_map_materialized.sql",
         include_str!("../../migrations/004_satker_code_map_materialized.sql"),
     ),
+    (
+        "005_satker_wilayah.sql",
+        include_str!("../../migrations/005_satker_wilayah.sql"),
+    ),
 ];
 
 #[tokio::main]
@@ -115,4 +119,54 @@ async fn main() {
         "integrasi-migrate: schema up to date ✅ ({} migrations)",
         MIGRATIONS.len()
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MIGRATIONS;
+
+    /// Every `.sql` in `migrations/` is actually embedded here.
+    ///
+    /// This list is hand-written while the directory beside it grows on its
+    /// own, which is the shape of bug this repository keeps re-finding: the
+    /// gate is right, its scope is a list nobody remembers to extend. A
+    /// migration left out of the array is not a compile error and not a
+    /// runtime error — the deploy hook simply never applies it, and the first
+    /// symptom is a missing relation in production.
+    #[test]
+    fn every_migration_file_is_embedded() {
+        let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/migrations");
+        let mut on_disk: Vec<String> = std::fs::read_dir(dir)
+            .expect("migrations/ must be readable")
+            .filter_map(Result::ok)
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.ends_with(".sql"))
+            // The down-migration is deliberately excluded from the array.
+            .filter(|n| n != "002_rollback.sql")
+            .collect();
+        on_disk.sort();
+
+        let mut embedded: Vec<String> = MIGRATIONS.iter().map(|(n, _)| n.to_string()).collect();
+        embedded.sort();
+
+        assert_eq!(
+            embedded, on_disk,
+            "migrations/ and the MIGRATIONS array disagree — a file on disk \
+             that is not in the array is never applied by the deploy hook"
+        );
+    }
+
+    /// The array is applied in order, so its order must be the lexical order
+    /// the filenames encode. 004 repointing a view that 003 recreates is only
+    /// correct because 003 runs first.
+    #[test]
+    fn migrations_are_embedded_in_lexical_order() {
+        let names: Vec<&str> = MIGRATIONS.iter().map(|(n, _)| *n).collect();
+        let mut sorted = names.clone();
+        sorted.sort_unstable();
+        assert_eq!(
+            names, sorted,
+            "MIGRATIONS must be in lexical filename order"
+        );
+    }
 }

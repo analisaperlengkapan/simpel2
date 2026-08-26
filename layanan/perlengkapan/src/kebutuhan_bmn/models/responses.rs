@@ -230,3 +230,19 @@ pub struct RekapLaporanRow {
     pub status_kode: i32,
     pub status_nama: Option<String>,
 }
+
+/// Satu Kejaksaan Tinggi, untuk dropdown "Scope satker = wilayah".
+///
+/// Dulu endpoint ini mengembalikan `Vec<String>` berisi
+/// `DISTINCT integrasi.mysimkari_satker.wilayah`, yang di data nyata bernilai
+/// `I` / `II` / `III` — bukan Kejati, meski nama fungsinya `list_wilayah_kejati`.
+/// Nilai yang disimpan kampanye (`wilayah_id`) sekarang `kode`, bukan `nama`:
+/// kode satker stabil, nama bisa berubah ejaan dan tak punya keunikan yang
+/// dijamin.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WilayahKejati {
+    /// `kode_satker` milik Kejati — nilai yang disimpan sebagai `wilayah_id`.
+    pub kode: String,
+    /// Nama Kejati untuk ditampilkan.
+    pub nama: String,
+}

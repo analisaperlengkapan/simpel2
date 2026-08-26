@@ -83,7 +83,7 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         }
 
         // V029: scope=wilayah → auto-resolve satker dari
-        // integrasi.mysimkari_satker.wilayah. Fallback ke satker_ids
+        // integrasi.v_satker_wilayah (Kejati penaung). Fallback ke satker_ids
         // eksplisit untuk scope lain.
         let satker_codes: Vec<String> = if scope_satker == "wilayah" {
             if let Some(ref wid) = request.wilayah_id {
@@ -264,8 +264,8 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             }
             SatkerScope::Wilayah(code) => {
                 conditions.push(format!(
-                    "ps.satker_id IN (SELECT s.kode_satker FROM integrasi.mysimkari_satker s \
-                     WHERE s.wilayah = (SELECT s2.wilayah FROM integrasi.mysimkari_satker s2 \
+                    "ps.satker_id IN (SELECT s.kode_satker FROM integrasi.v_satker_wilayah s \
+                     WHERE s.wilayah_code = (SELECT s2.wilayah_code FROM integrasi.v_satker_wilayah s2 \
                      WHERE s2.kode_satker = ${}))",
                     param_idx
                 ));
@@ -1148,8 +1148,8 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .query(
                 r#"
                 SELECT kode_satker
-                FROM integrasi.mysimkari_satker
-                WHERE wilayah = $1
+                FROM integrasi.v_satker_wilayah
+                WHERE wilayah_code = $1
                 ORDER BY kode_satker
                 "#,
                 &[&wilayah],
@@ -1162,21 +1162,28 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .collect())
     }
 
-    async fn list_wilayah(&self) -> AppResult<Vec<String>> {
+    async fn list_wilayah(&self) -> AppResult<Vec<crate::kebutuhan_bmn::models::WilayahKejati>> {
         let client = self.get_client().await?;
         let rows = client
             .query(
                 r#"
-                SELECT DISTINCT wilayah
-                FROM integrasi.mysimkari_satker
-                WHERE wilayah IS NOT NULL AND wilayah <> ''
-                ORDER BY wilayah
+                SELECT DISTINCT wilayah_code, wilayah_nama
+                FROM integrasi.v_satker_wilayah
+                ORDER BY wilayah_nama
                 "#,
                 &[],
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
-        Ok(rows.iter().map(|r| r.get::<_, String>("wilayah")).collect())
+        Ok(rows
+            .iter()
+            .map(|r| crate::kebutuhan_bmn::models::WilayahKejati {
+                kode: r.get("wilayah_code"),
+                nama: r
+                    .get::<_, Option<String>>("wilayah_nama")
+                    .unwrap_or_default(),
+            })
+            .collect())
     }
 
     async fn satker_code_in_scope(&self, scope: &SatkerScope, code: &str) -> AppResult<bool> {
@@ -1190,21 +1197,20 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
 
         // Sengaja kembar dgn cabang Wilayah di `SatkerScope::push_condition`:
         // "satker target berada di wilayah yang sama dengan satker pemanggil",
-        // wilayah di-resolve dari SoT `integrasi.mysimkari_satker`. Bentuk
-        // EXISTS dipakai di sini karena kita menguji SATU kode, bukan
-        // memfilter sekumpulan baris.
+        // wilayah di-resolve dari `integrasi.v_satker_wilayah`. Bentuk EXISTS
+        // dipakai di sini karena kita menguji SATU kode, bukan memfilter
+        // sekumpulan baris.
         let client = self.get_client().await?;
         let row = client
             .query_one(
                 r#"
                 SELECT EXISTS (
                     SELECT 1
-                    FROM integrasi.mysimkari_satker s
+                    FROM integrasi.v_satker_wilayah s
                     WHERE s.kode_satker = $1
-                      AND s.wilayah IS NOT NULL
-                      AND s.wilayah = (
-                          SELECT w.wilayah
-                          FROM integrasi.mysimkari_satker w
+                      AND s.wilayah_code = (
+                          SELECT w.wilayah_code
+                          FROM integrasi.v_satker_wilayah w
                           WHERE w.kode_satker = $2
                       )
                 ) AS in_scope

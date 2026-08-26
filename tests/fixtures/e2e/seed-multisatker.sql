@@ -34,22 +34,59 @@ BEGIN;
 SET search_path TO authenc, integrasi, public;
 
 -- ----------------------------------------------------------------------------
--- 1. integrasi: satker master (MySIMKARI). Two wilayah: DKI JAKARTA (2 satkers)
---    + JAWA BARAT (1). PUSAT entry backs the validator_pusat / existing seed user.
+-- 1. integrasi: satker master (MySIMKARI). Two wilayah, where wilayah means the
+--    Kejaksaan Tinggi above a satker (integrasi migration 005): Kejati DKI
+--    Jakarta with 2 Kejari, Kejati Jawa Barat with 1. The Kejagung entry backs
+--    validator_pusat / the existing seed user.
+--
+--    THE HIERARCHY IS LOAD-BEARING, NOT DECORATION. `v_satker_wilayah` climbs
+--    `parent_id -> api_id`, so a satker seeded without those columns resolves to
+--    NO wilayah and every wilayah-tier assertion silently tests an empty set.
+--
+--    `wilayah` deliberately carries the SOURCE's value space (`I`/`II`/`III`,
+--    the JAM supervision grouping) instead of the province names this fixture
+--    used to invent. Real MySIMKARI never returns a province here — measured on
+--    the 2026-06-17 staging snapshot, `I` alone spans 15 Kejaksaan Tinggi. The
+--    invented values are why the tier looked province-grained to every test
+--    while production grouped 238 satkers together. Seeding the real value space
+--    also makes this fixture a canary: DKI and Jawa Barat share `II`, so anyone
+--    who reverts a scope to `mysimkari_satker.wilayah` makes the DKI validator
+--    see Bandung, and the cross-satker assertions go red.
 -- ----------------------------------------------------------------------------
-INSERT INTO integrasi.mysimkari_satker (kode_satker, nama_satker, wilayah, tipe_satker, kategori_satker)
+INSERT INTO integrasi.mysimkari_satker
+  (kode_satker, nama_satker, wilayah, tipe_satker, kategori_satker, api_id, parent_id)
 VALUES
-  ('0100000', 'KEJAKSAAN AGUNG REPUBLIK INDONESIA', 'PUSAT',        'Kejaksaan Agung',  'pusat'),
-  ('0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',     'DKI JAKARTA',  'Kejaksaan Negeri', 'daerah'),
-  ('0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN',   'DKI JAKARTA',  'Kejaksaan Negeri', 'daerah'),
-  ('0300010', 'KEJAKSAAN NEGERI BANDUNG',           'JAWA BARAT',   'Kejaksaan Negeri', 'daerah')
-ON CONFLICT (kode_satker) DO NOTHING;
+  ('0100000', 'KEJAKSAAN AGUNG REPUBLIK INDONESIA', 'PUSAT', 'Kejaksaan Agung',  'pusat',
+   'api-kejagung', NULL),
+  ('0200000', 'KEJAKSAAN TINGGI DKI JAKARTA',       'II',    'Kejaksaan Tinggi', 'A',
+   'api-kejati-dki', 'api-kejagung'),
+  ('0300000', 'KEJAKSAAN TINGGI JAWA BARAT',        'II',    'Kejaksaan Tinggi', 'A',
+   'api-kejati-jabar', 'api-kejagung'),
+  ('0200010', 'KEJAKSAAN NEGERI JAKARTA PUSAT',     'II',    'Kejaksaan Negeri', 'daerah',
+   'api-kejari-jakpus', 'api-kejati-dki'),
+  ('0200020', 'KEJAKSAAN NEGERI JAKARTA SELATAN',   'II',    'Kejaksaan Negeri', 'daerah',
+   'api-kejari-jaksel', 'api-kejati-dki'),
+  ('0300010', 'KEJAKSAAN NEGERI BANDUNG',           'II',    'Kejaksaan Negeri', 'daerah',
+   'api-kejari-bandung', 'api-kejati-jabar')
+-- DO UPDATE, not DO NOTHING: environments seeded before the hierarchy existed
+-- already hold these kode_satker with NULL api_id/parent_id, and DO NOTHING
+-- would leave them unresolvable forever.
+ON CONFLICT (kode_satker) DO UPDATE SET
+  nama_satker     = EXCLUDED.nama_satker,
+  wilayah         = EXCLUDED.wilayah,
+  tipe_satker     = EXCLUDED.tipe_satker,
+  kategori_satker = EXCLUDED.kategori_satker,
+  api_id          = EXCLUDED.api_id,
+  parent_id       = EXCLUDED.parent_id;
 
 -- ----------------------------------------------------------------------------
 -- 2. integrasi: canonical satker code map (kode_satker ↔ SIMAN kdsatker_keu).
 --    kdsatker_keu = 20-char finance code; v_satker_code_map derives
 --    wilayah_kode = substring(kdsatker_keu,6,4): DKI satkers share '9999',
---    Bandung '8888' — so the wilayah tier groups the two DKI satkers together.
+--    Bandung '8888'. That must agree with the Kejati grouping above — SIMAN's
+--    regional code and MySIMKARI's hierarchy are a measured bijection, and
+--    `wilayah_kode_and_kejati_are_the_same_partition` fails the build if a
+--    fixture (or reality) breaks it.
 -- ----------------------------------------------------------------------------
 INSERT INTO integrasi.satker_code_map (kode_satker, kdsatker_keu, nama_satker, match_method, verified)
 VALUES
