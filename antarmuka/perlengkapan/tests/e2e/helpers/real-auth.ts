@@ -55,10 +55,74 @@ export interface LoginTokens {
 }
 
 /**
+ * Seconds of remaining lifetime below which a cached token is thrown away.
+ * authenc issues 900s tokens; a test that starts with 60s left can outlive it
+ * mid-request, so refresh well before the edge.
+ */
+const TOKEN_MIN_REMAINING_SECONDS = 120;
+
+/** Per-worker token cache, keyed by username. Playwright workers are separate
+ *  processes, so this is per-worker rather than global — which is fine: the
+ *  point is to stop logging in once per TEST. */
+const tokenCache = new Map<string, { tokens: LoginTokens; expEpoch: number }>();
+
+/** `exp` out of a JWT payload, in epoch seconds; 0 if it cannot be read. */
+function jwtExpEpoch(token: string): number {
+  const part = token.split(".")[1];
+  if (!part) return 0;
+  try {
+    const json = Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+    const exp = JSON.parse(json).exp;
+    return typeof exp === "number" ? exp : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Log in via the real authenc REST API and return the JWT pair.
  * Throws if authenc is unreachable or the response lacks an access token.
+ *
+ * CACHED per worker, per user, until the token nears expiry. That is not a
+ * micro-optimisation — it is what makes this suite runnable outside CI:
+ *
+ *   - `docker-compose.e2e.yml` sets `AUTHENC_RATE_LIMIT_ENABLED: "false"`.
+ *     The Helm chart has no such knob, so against staging (and production)
+ *     the limiter is ON. There are ~45 direct `apiLogin` call sites across
+ *     seven specs; at four workers they tripped it, and the failure surfaced
+ *     as `429 Rate limit exceeded` — with a message blaming a stack that was
+ *     in fact perfectly healthy.
+ *   - Running serially to dodge the limiter took 9.7 minutes, which is longer
+ *     than authenc's 900-second token lifetime, so the tail of the run failed
+ *     with `401 Token validation failed` instead. Both directions failed for
+ *     harness reasons, and neither said so.
+ *
+ * Caching removes the rate-limit pressure, and the expiry check means a long
+ * run refreshes instead of dying. See memory `project_staging_shape_blindness`.
  */
 export async function apiLogin(request: APIRequestContext, creds: SeedCredentials = SEED_USER): Promise<LoginTokens> {
+  const nowEpoch = Math.floor(Date.now() / 1000);
+  const cached = tokenCache.get(creds.username);
+  if (cached && cached.expEpoch - nowEpoch > TOKEN_MIN_REMAINING_SECONDS) {
+    return cached.tokens;
+  }
+
+  const tokens = await apiLoginUncached(request, creds);
+  const expEpoch = jwtExpEpoch(tokens.accessToken);
+  // A token whose `exp` we cannot read is used once and never cached — better
+  // an extra login than handing every later test a token of unknown lifetime.
+  if (expEpoch > nowEpoch) {
+    tokenCache.set(creds.username, { tokens, expEpoch });
+  }
+  return tokens;
+}
+
+/** The actual round trip. Use `apiLogin` unless a test is specifically
+ *  exercising the login endpoint itself and must not be served from cache. */
+export async function apiLoginUncached(
+  request: APIRequestContext,
+  creds: SeedCredentials = SEED_USER,
+): Promise<LoginTokens> {
   const resp = await request.post(`${AUTHENC_URL}/api/v1/auth/login`, {
     data: { username: creds.username, password: creds.password },
     headers: { "Content-Type": "application/json" },
