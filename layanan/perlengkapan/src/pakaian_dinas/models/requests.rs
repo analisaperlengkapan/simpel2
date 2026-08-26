@@ -62,7 +62,8 @@ pub struct CreatePengajuanRequest {
     /// `kode_satker` — not the bigint surrogate id (V006/#94).
     pub satker_ids: Option<Vec<String>>,
     /// Wilayah Kejaksaan Tinggi (#19) — wajib jika `pilihan_satker = "wilayah"`.
-    /// Satker di-resolve otomatis dari `integrasi.mysimkari_satker.wilayah`.
+    /// Satker di-resolve otomatis dari `integrasi.v_satker_wilayah`: nilainya
+    /// adalah `kode_satker` Kejaksaan Tinggi penaung.
     #[serde(default)]
     pub wilayah_id: Option<String>,
 }

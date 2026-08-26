@@ -35,7 +35,9 @@ pub struct CreatePengajuanRequest {
     #[serde(default)]
     pub pilihan_satker: Option<String>,
 
-    /// Nama wilayah Kejaksaan Tinggi (match `integrasi.mysimkari_satker.wilayah`).
+    /// `kode_satker` Kejaksaan Tinggi penaung (match
+    /// `integrasi.v_satker_wilayah.wilayah_code`). BUKAN
+    /// `mysimkari_satker.wilayah` — kolom itu berisi I/II/III, 15 Kejati per nilai.
     /// WAJIB jika `pilihan_satker = "wilayah"`. Server akan resolve semua
     /// satker di wilayah tsb otomatis (V029, Fase 1.7).
     #[serde(default)]
