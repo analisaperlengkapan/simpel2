@@ -26,30 +26,41 @@ impl PemakaianBmnService {
         // Validate BMN type-specific fields
         self.validate_bmn_type_fields(&request)?;
 
+        // Sebuah izin melekat pada SATU satker: tanpa itu barisnya tak punya
+        // identitas aset, tak terlihat oleh operator satker mana pun, dan tak
+        // bisa ikut cek tabrakan. Tolak di depan alih-alih menulis baris yatim.
+        let satker = satker_code
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| {
+                AppError::BadRequest(
+                    "Tidak ada identitas satker pada sesi Anda; izin pemakaian \
+                     harus melekat pada satu satker"
+                        .to_string(),
+                )
+            })?
+            .to_string();
+
         // Check BMN availability (REQ-P002, REQ-P003).
         //
-        // `All` on purpose: this is a write-path integrity check, and whether a
-        // BMN is already booked must not depend on who is asking — a scoped
-        // check would report "available" for an asset another satker holds and
-        // create the double booking. The scoped variant is for the read
-        // endpoints. Note this leaves the holder's name in the error message
-        // below, which is a narrower issue tracked separately.
-        let availability = self
+        // Ber-key pada identitas aset penuh — kode satker + kode barang + NUP.
+        // Versi lama ber-key `bmn_nup` saja dgn `SatkerScope::All`, "supaya
+        // jawabannya tak bergantung siapa yang bertanya". Niatnya benar,
+        // kuncinya salah: 44.017 aset di 553 satker sama-sama ber-NUP `1`
+        // (lihat header `repository::lookup`), jadi satu izin di mana pun
+        // memblokir ratusan satker atas aset mereka sendiri — dan pesan error
+        // di bawah menyebut nama pegawai satker lain sebagai pemegangnya.
+        // Karena satker kini ikut jadi kunci, tabrakan yang ditemukan pasti
+        // milik satker pemanggil: tak ada lagi yang bocor untuk diredaksi.
+        if let Some(bentrok) = self
             .repository
-            .check_bmn_availability(
-                &request.bmn_nup,
-                &crate::shared::satker_scope::SatkerScope::All,
-            )
-            .await?;
-        if !availability.is_available {
+            .find_booking_conflict(&request.bmn_nup, &request.bmn_kode_barang, &satker, None)
+            .await?
+        {
             return Err(AppError::BadRequest(format!(
-                "BMN {} sedang digunakan oleh {} hingga {}",
-                request.bmn_nup,
-                availability.active_permit_holder.unwrap_or_default(),
-                availability
-                    .active_permit_expires
-                    .map(|d| d.to_string())
-                    .unwrap_or_default()
+                "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
+                request.bmn_nup, request.bmn_kode_barang, bentrok.holder, bentrok.expires
             )));
         }
 
@@ -68,30 +79,22 @@ impl PemakaianBmnService {
         // Create permit
         let mut permit = self
             .repository
-            .create(request.clone(), user_id, user_nama, satker_code)
+            .create(request.clone(), user_id, user_nama, Some(satker.clone()))
             .await?;
 
         // Create additional BMN items if any (multi-BMN support)
         if !request.additional_bmn_items.is_empty() {
             for item in &request.additional_bmn_items {
-                // Check availability for each additional BMN
-                // `All` for the same reason as the primary BMN above.
-                let avail = self
+                // Setiap BMN tambahan dicek dgn identitas aset penuh, sama
+                // seperti BMN utama di atas.
+                if let Some(bentrok) = self
                     .repository
-                    .check_bmn_availability(
-                        &item.bmn_nup,
-                        &crate::shared::satker_scope::SatkerScope::All,
-                    )
-                    .await?;
-                if !avail.is_available {
+                    .find_booking_conflict(&item.bmn_nup, &item.bmn_kode_barang, &satker, None)
+                    .await?
+                {
                     return Err(AppError::BadRequest(format!(
-                        "BMN {} sedang digunakan oleh {} hingga {}",
-                        item.bmn_nup,
-                        avail.active_permit_holder.unwrap_or_default(),
-                        avail
-                            .active_permit_expires
-                            .map(|d| d.to_string())
-                            .unwrap_or_default()
+                        "BMN {} (kode barang {}) sedang digunakan oleh {} hingga {}",
+                        item.bmn_nup, item.bmn_kode_barang, bentrok.holder, bentrok.expires
                     )));
                 }
                 self.repository

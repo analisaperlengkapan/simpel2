@@ -381,18 +381,38 @@ pub async fn renew_permit(
     ))
 }
 
+/// Query untuk cek ketersediaan. `kode_barang` wajib — bersama kode satker
+/// dan NUP ia melengkapi identitas aset.
+#[derive(Debug, serde::Deserialize)]
+pub struct AvailabilityQuery {
+    pub kode_barang: String,
+    /// Satker pemilik aset. Kosong = satker pemanggil sendiri.
+    #[serde(default)]
+    pub satker_code: Option<String>,
+}
+
 /// GET /pemakaian-bmn/bmn/:bmn_nup/availability
 /// Check if a BMN is available for new permit
 pub async fn check_bmn_availability(
     State(service): State<PemakaianBmnService>,
     Path(bmn_nup): Path<String>,
+    axum::extract::Query(query): axum::extract::Query<AvailabilityQuery>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<BmnAvailabilityResponse>>, AppError> {
-    // Availability itself stays truthful across satker (otherwise the UI would
-    // offer an asset someone else holds); the scope only decides whether the
-    // holder is named. See `PemakaianBmnRepository::check_bmn_availability`.
+    // `kode_barang` wajib: NUP saja tidak mengidentifikasi aset (44.017 aset
+    // memakai NUP `1`), jadi tanpa itu jawabannya tak punya arti. Satker
+    // default = satker pemanggil; bila disebut eksplisit, harus berada dalam
+    // scope pemanggil — di luar itu 404, bukan 403.
     let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
-    let response = service.check_bmn_availability(&bmn_nup, &scope).await?;
+    let response = service
+        .check_bmn_availability(AssetIdentityQuery {
+            bmn_nup: &bmn_nup,
+            bmn_kode_barang: &query.kode_barang,
+            scope: &scope,
+            milik_sendiri: claims.satker_code.as_deref(),
+            satker_diminta: query.satker_code.as_deref(),
+        })
+        .await?;
 
     let message = if response.is_available {
         "BMN is available".to_string()
@@ -434,6 +454,9 @@ pub async fn cek_pegawai(
 #[derive(Debug, serde::Deserialize)]
 pub struct CekBmnQuery {
     pub nup: String,
+    /// Wajib: NUP saja tidak mengidentifikasi aset.
+    pub kode_barang: String,
+    /// Satker pemilik aset. Kosong = satker pemanggil sendiri.
     #[serde(default)]
     pub satker_id: Option<String>,
     pub tgl_mulai: chrono::NaiveDate,
@@ -451,10 +474,25 @@ pub async fn cek_bmn(
     State(service): State<PemakaianBmnService>,
     State(pool): State<deadpool_postgres::Pool>,
     axum::extract::Query(query): axum::extract::Query<CekBmnQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<CekBmnResponse>>, AppError> {
+    // `satker_id` dulu diterima lalu diabaikan, dan `claims` tak dipakai sama
+    // sekali (`_claims`) — jadi endpoint ini menjawab secara nasional dan
+    // menyebut nama pemegang dari satker mana pun. Kini keduanya dipakai.
+    let scope = crate::shared::satker_scope::SatkerScope::from_claims(&claims);
     let resp = service
-        .cek_bmn_availability_for_period(&pool, &query.nup, query.tgl_mulai, query.tgl_selesai)
+        .cek_bmn_availability_for_period(
+            &pool,
+            AssetIdentityQuery {
+                bmn_nup: &query.nup,
+                bmn_kode_barang: &query.kode_barang,
+                scope: &scope,
+                milik_sendiri: claims.satker_code.as_deref(),
+                satker_diminta: query.satker_id.as_deref(),
+            },
+            query.tgl_mulai,
+            query.tgl_selesai,
+        )
         .await?;
     Ok(Json(ApiResponse::success(
         resp,

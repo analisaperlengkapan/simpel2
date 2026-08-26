@@ -230,8 +230,21 @@ flowchart TB
   kolom `satker_code` (MySIMKARI, V003) yang **di-derive dari claims saat create** (bukan
   client `satker_id` UUID yg tak ber-FK). List endpoint memakai `shared::satker_scope::SatkerScope`
   (sibling `bank_aset::AsetScope`, tier sama: operator=satker sendiri, validator_wilayah=wilayah
-  via `integrasi.mysimkari_satker.wilayah`, pusat/admin=semua, tanpa identitas=fail-closed).
+  via `integrasi.v_satker_wilayah`, pusat/admin=semua, tanpa identitas=fail-closed).
+  **JANGAN** memakai `integrasi.mysimkari_satker.wilayah` untuk tier ini: kolom itu berisi
+  gugus pengawasan JAM `I`/`II`/`III` — 15 Kejati (238 satker) per nilai — bukan Kejati.
   Baris lama ber-`satker_code` NULL hanya terlihat role pusat/admin (default aman).
+- **Identitas aset BMN = kode satker + kode barang + NUP.** NUP (nomor urut
+  pendaftaran) adalah nomor urut DI DALAM satu satker untuk satu kode barang, jadi ia
+  berulang di seluruh negeri: pada snapshot SIMAN nyata, 14.142 nilai NUP menampung
+  624.533 aset, dan NUP `1` sendirian dipakai **44.017 aset di 553 satker**. Bahkan di
+  dalam satu satker, 41,6% pasangan (satker, NUP) menunjuk lebih dari satu kode barang.
+  Setiap query yang menjawab "aset yang mana" — cek tabrakan pemakaian, lookup SIMAN,
+  verifikasi penghapusan, agregasi riwayat — **WAJIB ber-key pada ketiganya**. Ber-key
+  NUP saja tidak menghasilkan jawaban yang salah sesekali; ia menyatukan puluhan ribu
+  aset berbeda menjadi satu, dan efek sampingnya menyeberangi batas satker (nama
+  pemegang dari satker lain muncul di pesan error). Lihat header
+  `pemakaian_bmn/repository/lookup.rs` + `tests/integration/pemakaian_asset_identity_test.rs`.
 - Use prepared statements for frequently executed queries
 - Implement proper transaction handling
 

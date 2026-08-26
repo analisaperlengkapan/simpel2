@@ -310,19 +310,71 @@ test.describe("Izin Pemakaian BMN — scoping & revoke policy", () => {
   });
 });
 
-// ── Create-form pages are reachable (route-coverage) ─────────────────────────
-// The create forms need an asset picker fed by bank_aset/siman — driving a
-// full UI create lands with the E-5 negative/edge pass. Here the typed routes
-// must at least mount the authenticated shell (no auth bounce).
+// ── Create-form pages ────────────────────────────────────────────────────────
 // (Full literal paths so the route-coverage gate detects these as visited.)
-test.describe("Pengelolaan — create-form pages are reachable", () => {
+test.describe("Pengelolaan — create-form pages", () => {
   test.use({ storageState: storageStatePath("operator_a") });
 
   test("penghapusan create form is reachable", async ({ page }) => {
     await reachable(page, `${BASE}/pengelolaan/penghapusan/buat`);
   });
-  test("pemakaian create form is reachable", async ({ page }) => {
-    await reachable(page, `${BASE}/pengelolaan/pemakaian/buat`);
+
+  // The pemakaian form used to be checked with `reachable()` alone — the
+  // authenticated shell mounts, therefore green. That proves nothing about the
+  // step the form exists for. It now drives the NUP lookup end to end, because
+  // the order of those two calls is load-bearing: asking "is this NUP free"
+  // has no answer until the asset is resolved. An aset is identified by kode
+  // satker + kode barang + NUP, and on real SIMAN data 44.017 assets across
+  // 553 satkers share the NUP `1`.
+  test("pemakaian form resolves the asset, then reports it free", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Nomor Urut Pendaftaran").fill("E2E-A-1");
+    await page.getByRole("button", { name: "Cek Ketersediaan" }).click();
+
+    // The identity the backend was actually asked about, rendered so the
+    // operator can see which asset the system means. Structural locator, not
+    // getByText: substring + case-insensitive matching has passed against the
+    // wrong element here before.
+    const identitas = page.getByTestId("bmn-identitas");
+    await expect(identitas, "asset identity never rendered").toBeVisible({ timeout: 20000 });
+    await expect(identitas, "kode barang must come from SIMAN kd_brg").toContainText("3050104001");
+    await expect(identitas).toContainText("E2E-A-1");
+
+    // E2E-A-1 carries permit I2 at SUBMITTED, not ACTIVE — so it is free.
+    await expect(page.getByTestId("bmn-ketersediaan")).toContainText("tersedia", {
+      timeout: 20000,
+    });
+  });
+
+  test("pemakaian form reports an asset its own satker already holds", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    await page.getByPlaceholder("Nomor Urut Pendaftaran").fill("E2E-A-2");
+    await page.getByRole("button", { name: "Cek Ketersediaan" }).click();
+
+    const identitas = page.getByTestId("bmn-identitas");
+    await expect(identitas).toBeVisible({ timeout: 20000 });
+    await expect(identitas).toContainText("3100102003");
+
+    // Permit I1 is ACTIVE on this asset, held by the caller's own colleague —
+    // inside the satker the holder MUST be named, or the operator has no way
+    // to know who to ask.
+    const status = page.getByTestId("bmn-ketersediaan");
+    await expect(status).toContainText("sedang digunakan", { timeout: 20000 });
+    await expect(status, "in-satker holder must be named").toContainText("E2E Operator Jakpus");
+  });
+
+  test("pemakaian form refuses an asset belonging to another satker", async ({ page }) => {
+    await page.goto(`${BASE}/pengelolaan/pemakaian/buat`, { waitUntil: "domcontentloaded" });
+    // E2E-B-1 sits in satker 0200020. operator_a is in 0200010.
+    await page.getByPlaceholder("Nomor Urut Pendaftaran").fill("E2E-B-1");
+    await page.getByRole("button", { name: "Cek Ketersediaan" }).click();
+
+    await expect(page.getByTestId("form-error"), "another satker's asset resolved").toBeVisible({
+      timeout: 20000,
+    });
+    // Nothing about the other satker's holder may appear.
+    await expect(page.getByTestId("bmn-identitas")).toHaveCount(0);
+    await expect(page.locator("body")).not.toContainText("E2E Operator Jaksel");
   });
 });
 

@@ -244,20 +244,31 @@ ON CONFLICT (id) DO NOTHING;
 --    driven from a DRAFT permit created by the spec.
 --    jenis_bmn LAPTOP avoids the vehicle/housing CHECK constraints.
 -- ----------------------------------------------------------------------------
+-- SHAPE NOTE — `bmn_kode_barang` HARUS sama persis dengan `kd_brg` aset SIMAN
+-- yang ditunjuk `bmn_nup`, karena identitas aset = kode satker + kode barang +
+-- NUP dan cek tabrakan pemakaian ber-key ketiganya.
+--
+-- Sebelum ini keempat baris memakai '3.10.01.02.003': format bertitik yang
+-- TIDAK ADA di `integrasi.siman_aset` (di sana sepuluh digit tanpa titik —
+-- 624.528 dari 624.533 baris), dan untuk tiga dari empat baris menunjuk barang
+-- yang sama sekali berbeda dari aset yang NUP-nya disebut (izin "laptop" atas
+-- Toyota Avanza, Honda Vario, dan printer Epson). Tak ada yang bisa
+-- memerahkannya selama cek tabrakan hanya melihat NUP. Ini instans lain dari
+-- `project_staging_shape_blindness`: format adalah bagian dari bentuk data.
 INSERT INTO perlengkapan.izin_pemakaian_bmn
   (id, nomor_izin, jenis_bmn, bmn_nup, bmn_kode_barang, bmn_nama_barang,
    serial_number, pegawai_nip, pegawai_nama, pegawai_jabatan,
    pegawai_satker_id, pegawai_satker_nama, tanggal_mulai, tanggal_selesai,
    status, status_kode, keperluan, satker_code)
 VALUES
-  ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3.10.01.02.003', 'E2E Laptop Dinas Pinjam',
+  ('e2000000-0000-4e00-8e00-0000000b0001', 'E2E-IZIN-001', 'LAPTOP', 'E2E-A-2', '3100102003', 'E2E Laptop Dinas Pinjam',
    'SN-E2E-0001', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-01-01', '2026-12-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan harian', '0200010'),
   -- I2 @SUBMITTED(3001): the entry point of the satker approval chain (#96).
   -- validator_satker forwards it, then approver_satker approves it, both
   -- through the UI.
-  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3.10.01.02.003', 'E2E Laptop Ajuan Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3050104001', 'E2E Laptop Ajuan Satker',
    'SN-E2E-0002', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-02-01', '2026-11-30',
    'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010'),
@@ -266,7 +277,7 @@ VALUES
   -- rows and "all rows" are the same set, so a scope that does nothing passes.
   -- 0200020 shares operator_a's wilayah (both kdsatker_keu carry 9999), which
   -- is what makes the wilayah tier distinguishable from the satker tier.
-  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3.10.01.02.003', 'E2E Laptop Jaksel',
+  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3050201002', 'E2E Laptop Jaksel',
    'SN-E2E-0003', '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000002', 'KEJAKSAAN NEGERI JAKARTA SELATAN', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020'),
@@ -278,7 +289,7 @@ VALUES
   -- scope that leaks nationwide still passes. There is no user seeded at this
   -- satker on purpose: the row exists to be INVISIBLE to the DKI validator, not
   -- to be acted on.
-  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3.10.01.02.003', 'E2E Laptop Bandung',
+  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3100105010', 'E2E Laptop Bandung',
    'SN-E2E-0004', '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000003', 'KEJAKSAAN NEGERI BANDUNG', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Bandung', '0300010')

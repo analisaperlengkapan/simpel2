@@ -456,42 +456,67 @@ async fn pegawai_usage_history_is_scoped() {
     teardown_test_db(&db_name).await;
 }
 
+/// Ketersediaan dijawab tentang aset MILIK PEMANGGIL.
+///
+/// Tes ini dulu meng-assert kebalikannya: satker A harus tetap diberi tahu
+/// bahwa "NUP 16" terpakai walau yang memegangnya satker B, dengan alasan
+/// kalau tidak, UI akan menawarkan aset milik orang lain. Alasannya berdiri di
+/// atas premis yang salah — bahwa NUP menunjuk satu aset. NUP adalah nomor
+/// urut di dalam satu satker untuk satu kode barang: pada data SIMAN nyata,
+/// 44.017 aset di 553 satker sama-sama ber-NUP `1`. Jadi "terpakai oleh satker
+/// lain" bukan kabar yang perlu diredaksi, melainkan jawaban yang keliru.
+///
+/// Yang tetap berlaku dari kontrak lama: nama pemegang dari satker lain tak
+/// pernah ikut, dan di dalam satker sendiri nama itu justru harus disebut.
 #[tokio::test]
-async fn availability_stays_truthful_but_does_not_name_the_out_of_scope_holder() {
+async fn availability_is_about_the_callers_own_asset() {
     let (app, db, db_name) = setup_test_app().await;
     seed_permits(&db).await;
     let server = TestServer::new(app);
 
-    // Satker B holds NUP 16. Satker A must still learn it is taken — otherwise
-    // the UI would offer to book it and create a double booking — but must not
-    // learn who holds it.
+    // Satker B memegang (SKR002, 3060201004, NUP 16). Satker A menanyakan NUP
+    // dan kode barang yang sama = aset LAIN, miliknya sendiri.
     let res = get(
         &server,
-        &format!("/pemakaian-bmn/bmn/{NUP_B}/availability"),
+        &format!("/pemakaian-bmn/bmn/{NUP_B}/availability?kode_barang=3060201004"),
         "operator_satker",
         SATKER_A,
     )
     .await;
     assert_eq!(res.status_code(), 200, "{}", res.text());
     let json: serde_json::Value = res.json();
-    assert_eq!(json["data"]["is_available"], false, "{json}");
-    assert!(
-        json["data"]["active_permit_holder"].is_null(),
-        "named an out-of-scope holder: {json}"
+    assert_eq!(
+        json["data"]["is_available"], true,
+        "aset satker A dilaporkan terpakai karena izin satker B: {json}"
     );
     assert_absent(&res.text(), SATKER_B, "availability");
 
-    // In scope, the holder IS named — the redaction must be scope-driven, not
-    // a blanket removal that would make the field useless.
+    // Aset satker A sendiri yang memang sedang dipakai: pemegangnya disebut,
+    // karena operator perlu tahu harus menghubungi siapa.
     let res = get(
         &server,
-        &format!("/pemakaian-bmn/bmn/{NUP_A}/availability"),
+        &format!("/pemakaian-bmn/bmn/{NUP_A}/availability?kode_barang=3060201003"),
         "operator_satker",
         SATKER_A,
     )
     .await;
     let json: serde_json::Value = res.json();
+    assert_eq!(json["data"]["is_available"], false, "{json}");
     assert_eq!(json["data"]["active_permit_holder"], PEGAWAI_A, "{json}");
+
+    // NUP yang sama di satker yang sama tapi kode barang lain = aset lain.
+    let res = get(
+        &server,
+        &format!("/pemakaian-bmn/bmn/{NUP_A}/availability?kode_barang=3060201004"),
+        "operator_satker",
+        SATKER_A,
+    )
+    .await;
+    let json: serde_json::Value = res.json();
+    assert_eq!(
+        json["data"]["is_available"], true,
+        "kode barang berbeda dianggap aset yang sama: {json}"
+    );
 
     teardown_test_db(&db_name).await;
 }
