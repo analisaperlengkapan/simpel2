@@ -23,11 +23,47 @@ fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSq
 // `crate::shared::siman_columns`. It used to be duplicated here, which is how
 // the BMN utilisation report in `pemakaian_bmn` kept reading the dead half long
 // after the bank-aset surfaces were fixed.
-use crate::shared::siman_columns::{ASSET_KATEGORI_SQL, ASSET_NUP_SQL};
+use crate::shared::siman_columns::{
+    ASSET_KATEGORI_SQL, ASSET_NAMA_BARANG_SQL, ASSET_NUP_SQL, kode_barang_norm_sql,
+    normalize_kode_barang,
+};
 
 #[derive(Clone)]
 pub struct BankAsetRepository {
     pool: Pool,
+}
+
+/// Build the extra `AND` conditions that narrow a NUP match down to a single
+/// asset, pushing each bind value onto `params` in the order the placeholders
+/// reference it.
+///
+/// Split out of [`BankAsetRepository::find_lookup_by_identity`] so the SQL can
+/// be asserted without a database: the failure mode this guards against —
+/// comparing a dotted barang code against SIMAN's undotted one — produces an
+/// empty result rather than an error, which no smoke test notices.
+fn push_identity_conditions(aset: &AsetIdentity<'_>, params: &mut Vec<BoxedParam>) -> String {
+    let mut extra = String::new();
+    if let Some(kode_barang) = aset.kode_barang {
+        // Both halves normalised through the same pair of helpers: SIMAN stores
+        // undotted digits, callers hand us the dotted presentation form, and
+        // comparing them raw is an equality that never holds.
+        params.push(Box::new(normalize_kode_barang(kode_barang)));
+        let i = params.len();
+        extra.push_str(&format!(" AND {} = ${i}", kode_barang_norm_sql("")));
+    }
+    if let Some(satker_code) = aset.satker_code {
+        // MySIMKARI `kode_satker` -> SIMAN `kdsatker_keu` through the
+        // integrasi-owned map; the two coding schemes are different, and
+        // matching on `nama_satker` (as this module once did) is the
+        // string-equality trap that map exists to replace.
+        params.push(Box::new(satker_code.to_string()));
+        let i = params.len();
+        extra.push_str(&format!(
+            " AND kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
+               WHERE kode_satker = ${i} AND kdsatker_keu IS NOT NULL)"
+        ));
+    }
+    extra
 }
 
 impl BankAsetRepository {
@@ -151,13 +187,58 @@ impl BankAsetRepository {
         Ok((items, total))
     }
 
-    /// Find the slim lookup record for a NUP. Used by the pemakaian-bmn
-    /// form to auto-fill `kode_barang` + `nama_barang` (+ a few extras the
-    /// UI may want to display) the moment the user types a NUP. Returns
-    /// `None` when no asset with that NUP exists.
+    /// Find the slim lookup record for a NUP alone.
+    ///
+    /// Kept for the one surface that genuinely has nothing else to go on: the
+    /// pemakaian-bmn form auto-fills `kode_barang` + `nama_barang` the moment
+    /// the user types a NUP, before any barang has been chosen. Everywhere the
+    /// caller already knows the satker and the barang code, use
+    /// [`Self::find_lookup_by_identity`] instead — see its docs for why NUP
+    /// alone picks the right asset only about a tenth of the time.
     pub async fn find_lookup_by_nup(
         &self,
         nup: &str,
+        scope: &AsetScope,
+    ) -> AppResult<Option<BankAsetLookup>> {
+        self.find_lookup_by_identity(
+            AsetIdentity {
+                nup,
+                kode_barang: None,
+                satker_code: None,
+            },
+            scope,
+        )
+        .await
+    }
+
+    /// Find the slim lookup record for an asset identified the way the domain
+    /// identifies one: **kode satker + kode barang + NUP**.
+    ///
+    /// `AsetIdentity` lets a caller supply the parts it actually holds; the
+    /// query narrows by each part that is `Some`. Supplying only `nup`
+    /// reproduces the old NUP-only behaviour.
+    ///
+    /// # Why the extra parts matter, measured
+    ///
+    /// NUP is a sequence number *within* one barang code at one satker, so on
+    /// its own it names an enormous set: the 624 533-row staging snapshot holds
+    /// only 14 142 distinct NUPs — **44 candidate rows per NUP on average, up
+    /// to 44 017** — and 8 555 of those NUPs cover more than one barang code.
+    ///
+    /// Picking one of them arbitrarily therefore returns an asset whose
+    /// `kd_brg` matches the caller's for an expected **10% of rows**. That is
+    /// not a tail case, it is the common case, and it had a live consequence:
+    /// `penghapusan_bmn::services::verify_asset_siman` compares the returned
+    /// `kode_barang` against the usulan and sets `layak_lanjut` from the
+    /// result, so a validator about to issue an SK saw "kode_barang SIMAN
+    /// berbeda dari usulan" for roughly nine of every ten perfectly valid
+    /// assets.
+    ///
+    /// `ORDER BY id` is not cosmetic either: `LIMIT 1` over those candidates
+    /// with no ordering let the same request answer differently between calls.
+    pub async fn find_lookup_by_identity(
+        &self,
+        aset: AsetIdentity<'_>,
         scope: &AsetScope,
     ) -> AppResult<Option<BankAsetLookup>> {
         let client = self
@@ -166,7 +247,9 @@ impl BankAsetRepository {
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
-        let mut params: Vec<BoxedParam> = vec![Box::new(nup.to_string())];
+        let mut params: Vec<BoxedParam> = vec![Box::new(aset.nup.to_string())];
+        let extra = push_identity_conditions(&aset, &mut params);
+
         let scope_clause = match scope.push_condition(&mut params) {
             Some(cond) => format!(" AND {cond}"),
             None => String::new(),
@@ -175,10 +258,21 @@ impl BankAsetRepository {
             // Both the projection AND the predicate must use ASSET_NUP_SQL: with
             // `WHERE nup = $1` this endpoint 404'd for every real asset, because
             // the `nup` column is empty outside the e2e seed (see ASSET_NUP_SQL).
-            "SELECT id, {ASSET_NUP_SQL} AS nup, kd_brg, nama, merk, tgl_perlh, ur_kondisi, nama_satker,
+            // `nama_barang` reads ASSET_NAMA_BARANG_SQL (`ur_sskel`), not `nama`.
+            // The two are different facts: `ur_sskel` is the standard name that
+            // belongs to the barang code (2 038 codes, 2 038 distinct names —
+            // a strict function of the code), while `nama` is whatever the SIMAN
+            // operator typed for this one item. Measured on staging, `nama` is
+            // blank in 138 607 rows and differs from the standard name in
+            // 484 228 more — 99.7% of the table — and simply repeats `merk` in
+            // 344 364. Auto-filling a pemakaian form's "nama barang" from it
+            // put a brand string in a taxonomy field.
+            "SELECT id, {ASSET_NUP_SQL} AS nup, kd_brg, {ASSET_NAMA_BARANG_SQL} AS nama_barang,
+                    merk, tgl_perlh, ur_kondisi, nama_satker,
                     (CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE NULL END) AS nilai_perolehan
              FROM integrasi.siman_aset
-             WHERE {ASSET_NUP_SQL} = $1{scope_clause}
+             WHERE {ASSET_NUP_SQL} = $1{extra}{scope_clause}
+             ORDER BY id
              LIMIT 1"
         );
         let row = client
@@ -192,9 +286,13 @@ impl BankAsetRepository {
                 .try_get::<_, Option<String>>("nup")
                 .ok()
                 .flatten()
-                .unwrap_or_else(|| nup.to_string()),
+                .unwrap_or_else(|| aset.nup.to_string()),
             kode_barang: r.try_get::<_, Option<String>>("kd_brg").ok().flatten(),
-            nama_barang: r.try_get::<_, Option<String>>("nama").ok().flatten(),
+            nama_barang: r
+                .try_get::<_, Option<String>>("nama_barang")
+                .ok()
+                .flatten()
+                .filter(|s| !s.is_empty()),
             merk: r.try_get::<_, Option<String>>("merk").ok().flatten(),
             tahun_perolehan: r.try_get::<_, Option<String>>("tgl_perlh").ok().flatten(),
             kondisi: r.try_get::<_, Option<String>>("ur_kondisi").ok().flatten(),
@@ -212,25 +310,29 @@ impl BankAsetRepository {
     /// Dipakai oleh penghapusan-bmn untuk mengisi field `nilai_perolehan`
     /// dari sumber otoritatif (SIMAN cache di `integrasi.siman_aset`)
     /// daripada percaya input operator.
+    ///
+    /// `kode_barang` masuk ke PREDIKAT, bukan disaring setelah baris terpilih.
+    /// Hasil akhirnya sama untuk baris yang cocok, tapi penyaringan-setelah
+    /// menyerah begitu `LIMIT 1` kebetulan memilih salah satu dari puluhan
+    /// kandidat ber-NUP sama: nilai yang benar ada di tabel dan tetap tak
+    /// terambil.
     pub async fn find_nilai_perolehan(
         &self,
         nup: &str,
         kode_barang: Option<&str>,
         scope: &AsetScope,
     ) -> AppResult<Option<f64>> {
-        let lookup = self.find_lookup_by_nup(nup, scope).await?;
-        let Some(l) = lookup else {
-            return Ok(None);
-        };
-        if let (Some(expected), Some(actual)) = (kode_barang, l.kode_barang.as_deref())
-            && expected != actual
-        {
-            // NUP cocok tapi kode_barang berbeda → data tidak konsisten
-            // → jangan kembalikan nilai (caller akan handle sebagai
-            // "tidak ditemukan").
-            return Ok(None);
-        }
-        Ok(l.nilai_perolehan)
+        let lookup = self
+            .find_lookup_by_identity(
+                AsetIdentity {
+                    nup,
+                    kode_barang,
+                    satker_code: None,
+                },
+                scope,
+            )
+            .await?;
+        Ok(lookup.and_then(|l| l.nilai_perolehan))
     }
 
     pub async fn get(&self, id: i64, scope: &AsetScope) -> AppResult<BankAsetItem> {
@@ -595,5 +697,120 @@ fn row_to_item(row: &Row) -> BankAsetItem {
         nilai_perolehan: row.try_get("rph_aset").ok(),
         tgl_perolehan: row.try_get("tgl_perlh").ok(),
         updated_at: row.try_get("updated_at").unwrap_or_else(|_| Utc::now()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The bind values, rendered as the debug strings tokio-postgres would
+    /// serialise — enough to assert ORDER and CONTENT without a connection.
+    fn render(params: &[BoxedParam]) -> Vec<String> {
+        params.iter().map(|p| format!("{p:?}")).collect()
+    }
+
+    #[test]
+    fn nup_alone_adds_no_conditions() {
+        let mut params: Vec<BoxedParam> = vec![Box::new("677".to_string())];
+        let extra = push_identity_conditions(
+            &AsetIdentity {
+                nup: "677",
+                kode_barang: None,
+                satker_code: None,
+            },
+            &mut params,
+        );
+        assert_eq!(extra, "");
+        assert_eq!(params.len(), 1, "no extra binds");
+    }
+
+    #[test]
+    fn kode_barang_is_compared_dot_insensitively_on_both_sides() {
+        let mut params: Vec<BoxedParam> = vec![Box::new("677".to_string())];
+        let extra = push_identity_conditions(
+            &AsetIdentity {
+                nup: "677",
+                // Dotted presentation form, as the penghapusan record stores it.
+                kode_barang: Some("3.05.02.01.002"),
+                satker_code: None,
+            },
+            &mut params,
+        );
+        // The COLUMN side strips dots...
+        assert!(
+            extra.contains("replace(") && extra.contains("'.', ''"),
+            "column side must be normalised: {extra}"
+        );
+        // ...and so does the BOUND VALUE. Normalising only one half is the bug
+        // this pair of assertions exists to catch: SIMAN holds `3050201002`,
+        // so a raw comparison matches zero rows and reads as "not in SIMAN".
+        assert_eq!(render(&params)[1], "\"3050201002\"");
+        assert!(extra.contains("= $2"), "binds in order: {extra}");
+    }
+
+    #[test]
+    fn satker_is_translated_through_the_integrasi_code_map() {
+        let mut params: Vec<BoxedParam> = vec![Box::new("677".to_string())];
+        let extra = push_identity_conditions(
+            &AsetIdentity {
+                nup: "677",
+                kode_barang: None,
+                satker_code: Some("0200010"),
+            },
+            &mut params,
+        );
+        // MySIMKARI kode_satker is NOT SIMAN's kdsatker_keu; a direct
+        // comparison would silently match nothing.
+        assert!(
+            extra.contains("integrasi.v_satker_code_map"),
+            "must go through the map: {extra}"
+        );
+        assert!(
+            !extra.contains("nama_satker"),
+            "never match on name: {extra}"
+        );
+        assert_eq!(render(&params)[1], "\"0200010\"");
+    }
+
+    #[test]
+    fn placeholders_follow_the_order_values_are_pushed() {
+        let mut params: Vec<BoxedParam> = vec![Box::new("677".to_string())];
+        let extra = push_identity_conditions(
+            &AsetIdentity {
+                nup: "677",
+                kode_barang: Some("3050201002"),
+                satker_code: Some("0200010"),
+            },
+            &mut params,
+        );
+        assert_eq!(render(&params).len(), 3);
+        assert_eq!(render(&params)[1], "\"3050201002\"");
+        assert_eq!(render(&params)[2], "\"0200010\"");
+        // $2 is the barang code, $3 the satker — swapping them would compare a
+        // satker code against a barang column and return nothing, with no error.
+        let kb = extra.find("= $2").expect("barang bound at $2");
+        let sk = extra.find("kode_satker = $3").expect("satker bound at $3");
+        assert!(kb < sk, "conditions appear in bind order: {extra}");
+    }
+
+    #[test]
+    fn scope_binds_after_the_identity_binds() {
+        // Regression guard for the numbering: AsetScope::push_condition appends
+        // to the SAME vector, so it must be called last or its $n would point
+        // at an identity value.
+        let mut params: Vec<BoxedParam> = vec![Box::new("677".to_string())];
+        let extra = push_identity_conditions(
+            &AsetIdentity {
+                nup: "677",
+                kode_barang: Some("3050201002"),
+                satker_code: None,
+            },
+            &mut params,
+        );
+        let scope = AsetScope::Satker("0200010".to_string());
+        let cond = scope.push_condition(&mut params).expect("restricted");
+        assert!(extra.contains("$2"), "identity took $2: {extra}");
+        assert!(cond.contains("$3"), "scope took $3: {cond}");
     }
 }

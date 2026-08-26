@@ -42,6 +42,29 @@ pub struct BankAsetLookup {
     pub nilai_perolehan: Option<f64>,
 }
 
+/// How the domain identifies one BMN asset: **kode satker + kode barang +
+/// NUP**.
+///
+/// Each part is separately optional so a caller can pass what it holds — the
+/// pemakaian form has only a NUP typed into a box, while a penghapusan record
+/// carries all three. Every part supplied narrows the match; a `None` is an
+/// admission of ambiguity, not a wildcard the caller wanted.
+///
+/// NUP is required because it is the only part that is never implied by the
+/// others: "Kejari Mamuju / kendaraan unit tahanan / NUP 2" names exactly one
+/// physical asset, and dropping any of the three names a set.
+#[derive(Debug, Clone, Copy)]
+pub struct AsetIdentity<'a> {
+    /// SIMAN `no_aset` — the Nomor Urut Pendaftaran.
+    pub nup: &'a str,
+    /// Barang code in either spelling; normalised before comparison.
+    pub kode_barang: Option<&'a str>,
+    /// MySIMKARI `kode_satker` of the owning satker (NOT SIMAN's
+    /// `kdsatker_keu` — the lookup translates through
+    /// `integrasi.v_satker_code_map`).
+    pub satker_code: Option<&'a str>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BankAsetDetail {
     #[serde(flatten)]

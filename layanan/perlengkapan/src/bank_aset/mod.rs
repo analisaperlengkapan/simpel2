@@ -11,4 +11,5 @@ pub mod repository;
 pub mod scope;
 
 pub use handlers::*;
+pub use models::AsetIdentity;
 pub use scope::AsetScope;

@@ -112,14 +112,39 @@ impl PemakaianBmnService {
                 "Tanggal selesai harus setelah tanggal mulai".into(),
             ));
         }
+        // NOTE on reach: `/pemakaian-bmn/cek-bmn`, the only caller of this
+        // method, has no consumer yet — the pemakaian form uses
+        // `/bank-aset/lookup` then `/availability`. It is corrected here rather
+        // than left to be wired wrong later, and kept rather than deleted
+        // because period-aware booking (Available / PemakaianBerurutan /
+        // Overlap) is the capability the form still lacks.
+        //
+        // Resolve the satker FIRST: it is one third of the asset's identity, so
+        // looking the asset up before knowing it can only be a guess. This used
+        // to run the other way round and key the lookup on NUP alone, which
+        // returned an arbitrary one of the ~44 rows that share a NUP nationally
+        // — so the "BMN tidak ditemukan" guard passed on someone else's asset,
+        // and the reference block shown next to the booking described it.
+        let satker = self
+            .resolve_target_satker(aset.scope, aset.milik_sendiri, aset.satker_diminta)
+            .await?;
+
         // Lookup BMN info dari SIMAN cache via BankAsetRepository — reuse
         // helper yg sudah ada agar konsisten dgn `/bank-aset/lookup`.
         let bank_repo = crate::bank_aset::repository::BankAsetRepository::new(pool.clone());
-        // Authoritative SIMAN enrichment read (BMN reference info) — unscoped on
-        // purpose; satker ownership of the BMN is enforced by the pemakaian
-        // workflow, not this lookup.
+        // Authoritative SIMAN enrichment read (BMN reference info) — the row
+        // filter is the identity itself, so no additional AsetScope restriction
+        // is needed: `satker` already came from the caller's own scope via
+        // `resolve_target_satker`.
         let lookup = bank_repo
-            .find_lookup_by_nup(bmn_nup, &crate::bank_aset::AsetScope::All)
+            .find_lookup_by_identity(
+                crate::bank_aset::AsetIdentity {
+                    nup: bmn_nup,
+                    kode_barang: Some(aset.bmn_kode_barang),
+                    satker_code: Some(&satker),
+                },
+                &crate::bank_aset::AsetScope::All,
+            )
             .await?;
         let bmn_info = lookup.map(|l| BmnRefInfo {
             nup: l.nup.clone(),
@@ -130,12 +155,12 @@ impl PemakaianBmnService {
             kondisi: l.kondisi,
         });
         if bmn_info.is_none() {
-            return Err(AppError::BadRequest("BMN tidak ditemukan".into()));
+            return Err(AppError::BadRequest(format!(
+                "BMN tidak ditemukan di SIMAN untuk satker {satker} (kode barang {}, NUP {bmn_nup})",
+                aset.bmn_kode_barang
+            )));
         }
 
-        let satker = self
-            .resolve_target_satker(aset.scope, aset.milik_sendiri, aset.satker_diminta)
-            .await?;
         let status = self
             .repository
             .check_bmn_availability_for_period(

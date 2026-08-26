@@ -341,6 +341,13 @@ ON CONFLICT (pegawai_id, pakaian_id) DO UPDATE SET
 --      H1 0200010 @4000 -> operator_a: "Ajukan ke Validator Wilayah"
 --      H2 0200010 @4001 -> validator_wilayah (DKI): "Teruskan ke Validator Pusat"
 --      H3 0200020 @4003 -> validator_pusat: verifikasi (API; FE gap) + Generate SK (UI)
+--
+--    The three also cover the three verdicts of `/penghapusan-bmn/{id}/
+--    verifikasi-siman`, one each: H1 matches a real SIMAN asset of its own
+--    satker, H2 names a NUP that exists at that satker under a different
+--    barang code, H3 names one that exists nowhere. They used to all name
+--    NUPs absent from `integrasi.siman_aset`, so every call returned "tidak
+--    ditemukan" and the other two branches were unreachable from the suite.
 -- ----------------------------------------------------------------------------
 INSERT INTO perlengkapan.penghapusan_bmn
   (id, satker_id, asset_id, kode_barang, nama_barang, nup,
@@ -348,15 +355,33 @@ INSERT INTO perlengkapan.penghapusan_bmn
    status, status_kode, catatan_operator, kewenangan_penetap_sk,
    created_by, satker_code)
 VALUES
-  ('e1000000-0000-4e00-8e00-0000000a0001', 'e1a00000-0000-4e00-8e00-000000000001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-H-1',
+  -- H1 names a REAL seeded SIMAN asset of its own satker: 0200010 owns
+  -- kdsatker_keu 006019999010001KD, which holds NUP E2E-A-2 / kd_brg
+  -- 3100102003. `verifikasi-siman` must therefore report ditemukan +
+  -- kode_barang_cocok.
+  --
+  -- The kode_barang here is written in the DOTTED presentation form on
+  -- purpose. SIMAN stores ten undotted digits, so this row only matches if
+  -- both halves of the comparison are normalised; drop the normalisation and
+  -- H1 falls into H2's branch and the spec goes red. That is the point — the
+  -- dotted spelling is what the rest of the system actually writes (5 live
+  -- rows of pengajuan_kebutuhan_bmn_satker_barang carry it).
+  ('e1000000-0000-4e00-8e00-0000000a0001', 'e1a00000-0000-4e00-8e00-000000000001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2',
    '2026-06-01', 'Rusak berat, tidak ekonomis diperbaiki', 'DIMUSNAHKAN', 15000000,
    'DRAFT', 4000, 'Seed F-E2E penghapusan (operator step)', 'PUSAT',
    '11111111-1111-4111-8111-111111111111', '0200010'),
-  ('e1000000-0000-4e00-8e00-0000000a0002', 'e1a00000-0000-4e00-8e00-000000000002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.05.010', 'E2E Printer Hapus B', 'E2E-H-2',
+  -- H2 names an asset that EXISTS at 0200010 under a different barang code:
+  -- NUP E2E-A-1 is kd_brg 3050104001 (kendaraan), not the laptop code asked
+  -- for. This is the "mohon verifikasi manual" branch — reachable only
+  -- because satker is part of the key, since NUP alone would have matched
+  -- some arbitrary asset anywhere in the country.
+  ('e1000000-0000-4e00-8e00-0000000a0002', 'e1a00000-0000-4e00-8e00-000000000002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1',
    '2026-06-01', 'Rusak berat, biaya perbaikan melebihi nilai', 'DIMUSNAHKAN', 4000000,
    'SUBMIT_WILAYAH', 4001, 'Seed F-E2E penghapusan (wilayah step)', 'PUSAT',
    '11111111-1111-4111-8111-111111111111', '0200010'),
-  ('e1000000-0000-4e00-8e00-0000000a0003', 'e1a00000-0000-4e00-8e00-000000000003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Motor Hapus C', 'E2E-H-3',
+  -- H3 keeps a NUP that is in NO satker's SIMAN data, so the third branch
+  -- ("aset mungkin sudah dihapus/dipindahkan") stays covered.
+  ('e1000000-0000-4e00-8e00-0000000a0003', 'e1a00000-0000-4e00-8e00-000000000003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3',
    '2026-06-01', 'Usia teknis terlampaui, akan dilelang', 'DIJUAL', 22000000,
    'SUBMIT_PUSAT', 4003, 'Seed F-E2E penghapusan (pusat step)', 'PUSAT',
    '22222222-2222-4222-8222-222222222222', '0200020')
@@ -395,9 +420,9 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO perlengkapan.penghapusan_bmn_item
   (id, penghapusan_id, asset_id, kode_barang, nama_barang, nup, nilai_perolehan, kondisi, urutan)
 VALUES
-  ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-H-1', 15000000, 'RUSAK BERAT', 1),
-  ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.05.010', 'E2E Printer Hapus B', 'E2E-H-2', 4000000, 'RUSAK BERAT', 1),
-  ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Motor Hapus C', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
+  ('e1c00000-0000-4e00-8e00-000000000001', 'e1000000-0000-4e00-8e00-0000000a0001', 'e1b00000-0000-4e00-8e00-000000000001', '3.10.01.02.003', 'E2E Laptop Hapus A', 'E2E-A-2', 15000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000002', 'e1000000-0000-4e00-8e00-0000000a0002', 'e1b00000-0000-4e00-8e00-000000000002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1', 4000000, 'RUSAK BERAT', 1),
+  ('e1c00000-0000-4e00-8e00-000000000003', 'e1000000-0000-4e00-8e00-0000000a0003', 'e1b00000-0000-4e00-8e00-000000000003', '3.05.02.01.002', 'E2E Aset Hapus C (tidak ada di SIMAN)', 'E2E-H-3', 22000000, 'RUSAK RINGAN', 1)
 ON CONFLICT (id) DO UPDATE SET
   penghapusan_id = EXCLUDED.penghapusan_id,
   asset_id = EXCLUDED.asset_id,
