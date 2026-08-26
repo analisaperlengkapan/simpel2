@@ -9,5 +9,6 @@ mod integration {
     mod pemakaian_bmn_workflow_test;
     mod penghapusan_bmn_workflow_test;
     mod rbac_403_test;
+    mod siman_dead_columns_test;
     mod sql_relations_exist_test;
 }
