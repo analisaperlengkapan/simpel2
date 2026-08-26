@@ -71,11 +71,31 @@ echo "Menjalankan ${#FILES[@]} migrasi integrasi dua kali di $IMAGE…"
 docker run -d --rm --name "$CONTAINER" \
   -e POSTGRES_PASSWORD=replay -e POSTGRES_DB=replaytest "$IMAGE" >/dev/null
 
-for _ in $(seq 60); do
-  docker exec "$CONTAINER" pg_isready -U postgres -q 2>/dev/null && break
+# `pg_isready` is NOT proof of readiness for this image, and trusting it made
+# this job flaky: the official postgres entrypoint starts a TEMPORARY server on
+# a unix socket to run initdb, answers pg_isready from it, then shuts it down
+# and starts the real one. A client that connects inside that window is dropped
+# mid-statement — which is what happened on PR #856 while the identical script
+# passed on #850.
+#
+# So wait for what we actually need: a real query, against the real target
+# database, succeeding three times in a row. The repetition is the point — one
+# success can be the doomed temporary server; three across ~2s cannot.
+ready=0
+for _ in $(seq 90); do
+  if docker exec "$CONTAINER" psql -U postgres -d replaytest -tAc 'SELECT 1' >/dev/null 2>&1; then
+    ready=$((ready + 1))
+    [ "$ready" -ge 3 ] && break
+  else
+    ready=0
+  fi
   sleep 1
 done
-docker exec "$CONTAINER" pg_isready -U postgres -q || { echo "GAGAL: postgres tak pernah siap."; exit 1; }
+if [ "$ready" -lt 3 ]; then
+  echo "GAGAL: postgres tak pernah siap menerima kueri. Log kontainer:"
+  docker logs "$CONTAINER" 2>&1 | tail -20 | sed 's/^/    /'
+  exit 1
+fi
 
 rc=0
 for pass in 1 2; do
@@ -94,7 +114,15 @@ for pass in 1 2; do
       echo "  ok    $m"
     else
       echo "  GAGAL $m"
-      printf '%s\n' "$out" | grep -E '^(ERROR|DETAIL|HINT)' | sed 's/^/        /'
+      # Print the REASON, not just the filename. Filtering to ^ERROR/DETAIL/HINT
+      # silently produced nothing whenever psql failed for a reason that is not
+      # a server-side rejection — a dropped connection, a missing database, psql
+      # itself erroring — and the job then reported `GAGAL 001_init_schema.sql`
+      # with no explanation at all. That is the same defect #849 fixed in the
+      # migrate binary: naming the file and withholding everything needed to act.
+      reason=$(printf '%s\n' "$out" | grep -E '^(ERROR|DETAIL|HINT|FATAL|psql:)' || true)
+      [ -z "$reason" ] && reason=$(printf '%s\n' "$out" | tail -20)
+      printf '%s\n' "$reason" | sed 's/^/        /'
       rc=1
     fi
   done
