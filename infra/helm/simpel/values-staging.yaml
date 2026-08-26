@@ -94,7 +94,31 @@ global:
   # yang salah sembilan kali dari sepuluh (#842). Tiga PR lain yang mendarat
   # bersamanya TIDAK butuh image baru: #840 hanya berkas values ini, #841 dan
   # #843 hanya fixture dan helper e2e.
-  imageTag: v0.1.0-rc28
+  #
+  # rc29 membawa perbaikan yang membuat rc28 TAK PERNAH terpasang. Upgrade rc28
+  # mati di hook `pre-upgrade`: `integrasi-migrate` menerapkan SEMUA migrasi tiap
+  # invokasi, dan 003 men-DROP `v_satker_code_map_auto` tanpa syarat sementara
+  # 004 mem-materialisasi view itu — jadi runner hanya bisa sukses SEKALI seumur
+  # database (#847). Staging karena itu masih menjalankan rc26, bukan rc28.
+  # Kedua perbaikan tertanam via `include_str!` ke dalam biner, jadi keduanya
+  # BUTUH image baru:
+  #   #847  003 mencoba CREATE OR REPLACE dulu, menangkap
+  #         `invalid_table_definition`, baru DROP ... CASCADE — sehingga migrasi
+  #         konvergen, bukan sekadar berhasil di DB kosong.
+  #   #849  hook itu dulu hanya mencetak `db error` dan menahan pesan Postgres
+  #         yang SUDAH dikirim server; kini mencetak SQLSTATE + message +
+  #         DETAIL/HINT dan memetakan kursor galat ke baris berkas migrasi.
+  #
+  # Diverifikasi sebelum tag, terhadap BENTUK staging yang sebenarnya (dump
+  # schema-only `integrasi` dari postgres-0, bukan DB kosong): 003 lama gagal di
+  # sana dengan `cannot drop view ... because other objects depend on it` —
+  # kegagalan rc28 persis — sementara migrasi main lulus dua lintasan berturut
+  # dan menghasilkan `integrasi.v_satker_wilayah`, view yang belum ada di
+  # staging dan dibutuhkan scoping tier wilayah (#838).
+  #
+  # PR lain yang mendarat bersamanya TIDAK butuh image: #845 (urutan hook Helm)
+  # dan #851 (deploy.sh) hanya infra, #846/#848/#850 hanya CI.
+  imageTag: v0.1.0-rc29
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
