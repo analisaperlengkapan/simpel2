@@ -744,6 +744,32 @@ jobs:
         # Waive a single line with `-- guard:allow` (plus a reason) if needed.
         run: ./infra/lint/check-sql-migrations.sh
 
+  migration-replay:
+    name: Migrasi integrasi bisa dijalankan ulang
+    needs: detect
+    # Digerbang oleh .sql (migrasinya), shell (skrip penjaganya, di
+    # infra/scripts/**), rust-backend (migrate.rs, tempat daftar MIGRATIONS
+    # diturunkan), dan workflows (supaya penjaga ini teruji saat tooling-nya
+    # disentuh).
+    if: >-
+      needs.detect.outputs.sql == 'true' ||
+      needs.detect.outputs.shell == 'true' ||
+      needs.detect.outputs.rust-backend == 'true' ||
+      needs.detect.outputs.workflows == 'true'
+    runs-on: arc-simpel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Terapkan migrasi integrasi dua kali ke database yang sama
+        shell: bash
+        # Setiap stack e2e memigrasi database KOSONG, dan lintasan pertama
+        # justru lintasan yang selalu berhasil. Staging dan produksi tak pernah
+        # kosong. Perbedaan itu menyembunyikan kegagalan yang memblokir upgrade
+        # rc28: 003 men-DROP view yang matview 004 dibangun di atasnya, jadi
+        # integrasi-migrate — yang menerapkan SEMUA migrasi di SETIAP invokasi —
+        # hanya bisa berhasil sekali seumur database.
+        run: ./infra/scripts/check-migration-replay.sh
+
   lint-orphan-tests:
     name: Lint Orphaned Tests
     needs: detect
@@ -2412,6 +2438,7 @@ jobs:
       - lint-shell
       - lint-toml
       - lint-sql
+      - migration-replay
       - lint-orphan-tests
       - route-coverage
       - build-antarmuka-portal

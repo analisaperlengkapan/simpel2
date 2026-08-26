@@ -87,11 +87,10 @@ RETURNS TEXT LANGUAGE sql IMMUTABLE AS $$
     )
 $$;
 
--- Re-shaping the views changes their column set, which CREATE OR REPLACE VIEW
--- cannot do — drop first (idempotent). Drop the resolved view before the auto
--- view it depends on.
+-- Re-shaping a view changes its column set, which CREATE OR REPLACE VIEW cannot
+-- do — so a reshape needs a real DROP. This one is unconditional and safe:
+-- nothing depends on the resolved view (004 only CREATE-OR-REPLACEs it).
 DROP VIEW IF EXISTS integrasi.v_satker_code_map;
-DROP VIEW IF EXISTS integrasi.v_satker_code_map_auto;
 
 -- ----------------------------------------------------------------------------
 -- Auto-derive view (SIMAN-FIRST): every distinct SIMAN satker, LEFT JOIN'd to its
@@ -101,6 +100,26 @@ DROP VIEW IF EXISTS integrasi.v_satker_code_map_auto;
 -- Exact-normalized match only (safe, fast, no false positives) — NOT authoritative;
 -- promote confirmed rows into satker_code_map with verified=TRUE.
 -- ----------------------------------------------------------------------------
+-- `v_satker_code_map_auto` is NOT dropped unconditionally, and that is
+-- load-bearing: 004 materializes this very view
+-- (`CREATE MATERIALIZED VIEW mv_satker_code_map_auto AS SELECT * FROM` it), so
+-- once 004 has run anywhere, an unconditional DROP fails with
+--
+--   cannot drop view v_satker_code_map_auto because other objects depend on it
+--   DETAIL: materialized view mv_satker_code_map_auto depends on it
+--
+-- and since this runner re-applies EVERY migration on EVERY invocation, that
+-- turned integrasi-migrate into something that could only ever succeed once.
+-- It blocked the rc28 staging upgrade outright.
+--
+-- So: try CREATE OR REPLACE first, which is what a re-run actually needs and
+-- which touches no dependent. Only a genuine reshape raises
+-- `invalid_table_definition`, and only then do we DROP ... CASCADE and rebuild —
+-- 004 recreates the snapshot and its indexes right after, in the same run.
+-- The DDL is held in one variable so the two paths can never drift apart.
+DO $do$
+DECLARE
+    ddl CONSTANT text := $ddl$
 CREATE OR REPLACE VIEW integrasi.v_satker_code_map_auto AS
 WITH siman_satker AS (
     SELECT DISTINCT
@@ -129,7 +148,15 @@ SELECT
     s.nama_satker AS nama_satker_siman,
     CASE WHEN m.kode_satker IS NULL THEN 'siman_only' ELSE 'nama_norm_exact' END AS match_method
 FROM siman_satker s
-LEFT JOIN mysimkari m ON m.nama_norm = s.nama_norm;
+LEFT JOIN mysimkari m ON m.nama_norm = s.nama_norm
+    $ddl$;
+BEGIN
+    EXECUTE ddl;
+EXCEPTION WHEN invalid_table_definition THEN
+    DROP VIEW IF EXISTS integrasi.v_satker_code_map_auto CASCADE;
+    EXECUTE ddl;
+END
+$do$;
 
 -- ----------------------------------------------------------------------------
 -- Resolved view: verified manual mappings take precedence; everything else falls
