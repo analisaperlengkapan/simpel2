@@ -29,15 +29,45 @@ async fn query_jenis_options(_: ()) -> Result<Vec<JenisPakaianDinas>, AppError> 
 
 /// Rekap query keyed by the entire filter struct — so toggling
 /// back to a previously seen filter combination is instant.
+///
+/// `pengajuan_id` is OPTIONAL on this side and REQUIRED on the other: the
+/// handler takes `Query<LaporanRekapQuery>` whose `pengajuan_id` is a plain
+/// `Uuid`, so axum rejects a request without it before the handler runs —
+///
+///     400  Failed to deserialize query string: missing field `pengajuan_id`
+///
+/// The page mounts before anything is selected, so it fired that request on
+/// every load and the user was shown an error state instead of being told to
+/// pick a pengajuan. `download_export` in this same file already guards on
+/// exactly this (`let Some(pengajuan_id) = … else { return }`); the guard was
+/// simply never carried across to the two read paths.
 async fn query_laporan_rekap(query: LaporanQuery) -> Result<Vec<LaporanRekapUkuran>, AppError> {
+    if query.pengajuan_id.is_none() {
+        return Ok(Vec::new());
+    }
     fetch_laporan_rekap_ukuran(query).await.map(|r| r.data)
 }
 
 /// Daftar pegawai query keyed by `(filter, page)`.
+/// Same required-vs-optional mismatch as `query_laporan_rekap`:
+/// `get_laporan_daftar_pegawai` takes `Query<LaporanDaftarQuery>` with a plain
+/// `Uuid` `pengajuan_id`, so it 400s before the handler for a request that
+/// omits it — page and limit make no difference.
 async fn query_laporan_daftar(
     key: (LaporanQuery, i32),
 ) -> Result<PaginatedResponse<LaporanDaftarPegawai>, AppError> {
     let (query, page) = key;
+    if query.pengajuan_id.is_none() {
+        return Ok(PaginatedResponse {
+            success: true,
+            data: Vec::new(),
+            total: 0,
+            page,
+            per_page: 20,
+            total_pages: 0,
+            message: String::new(),
+        });
+    }
     fetch_laporan_daftar_pegawai(query, page, 20).await
 }
 
@@ -548,11 +578,19 @@ fn RekapUkuranTab(
                 Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                 Some(Ok(rekap)) => {
                     if rekap.is_empty() {
+                        // An empty result and an unselected pengajuan look
+                        // identical here, but they are not the same thing:
+                        // without a pengajuan nothing was ever asked for.
+                        let unselected = pengajuan_id.get().is_none();
                         view! {
                             <EmptyState
                                 icon="fas fa-chart-bar"
-                                title="Tidak Ada Data"
-                                description="Tidak ada data untuk filter yang dipilih."
+                                title=if unselected { "Pilih Pengajuan" } else { "Tidak Ada Data" }
+                                description=if unselected {
+                                    "Pilih pengajuan pakaian dinas terlebih dahulu untuk menampilkan rekap ukuran."
+                                } else {
+                                    "Tidak ada data untuk filter yang dipilih."
+                                }
                             />
                         }
                             .into_any()
@@ -756,11 +794,19 @@ fn DaftarPegawaiTab(
                 Some(Err(e)) => view! { <ErrorState error=e /> }.into_any(),
                 Some(Ok(response)) => {
                     if response.data.is_empty() {
+                        // An empty result and an unselected pengajuan look
+                        // identical here, but they are not the same thing:
+                        // without a pengajuan nothing was ever asked for.
+                        let unselected = pengajuan_id.get().is_none();
                         view! {
                             <EmptyState
                                 icon="fas fa-users"
-                                title="Tidak Ada Data"
-                                description="Tidak ada data untuk filter yang dipilih."
+                                title=if unselected { "Pilih Pengajuan" } else { "Tidak Ada Data" }
+                                description=if unselected {
+                                    "Pilih pengajuan pakaian dinas terlebih dahulu untuk menampilkan daftar pegawai."
+                                } else {
+                                    "Tidak ada data untuk filter yang dipilih."
+                                }
                             />
                         }
                             .into_any()
