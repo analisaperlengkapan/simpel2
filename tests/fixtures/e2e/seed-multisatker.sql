@@ -83,14 +83,42 @@ ON CONFLICT (nip) DO NOTHING;
 DELETE FROM integrasi.siman_aset
  WHERE kdsatker_keu IN ('006019999010001KD', '006019999020001KD', '006018888010001KD');
 
+-- SHAPE NOTE (do not "tidy" this back). The ingest builds its INSERT column
+-- list from the SIMAN payload's own JSON keys (layanan/integrasi/src/db.rs), so
+-- a schema column stays empty forever unless SIMAN sends a field of that exact
+-- name. SIMAN sends `no_aset`, `kd_brg`, `ur_sskel`, `ur_kondisi`; it sends
+-- neither `nup` nor `kategori_aset`. Measured on the staging snapshot: `nup`
+-- and `kategori_aset` are populated in 5 of 624 533 rows — and those five were
+-- THIS SEED's own rows.
+--
+-- That is precisely how two production defects survived a green suite: the
+-- dashboard read `kategori_aset` (NULL in real data → panic under
+-- panic="abort", killing the backend) and the list/lookup read `nup` (empty in
+-- real data → a "-" column and a 404 for every real asset). The seed populated
+-- both columns, so the tests certified queries that could never work.
+--
+-- So this fixture now carries PRODUCTION'S SHAPE: `nup` and `kategori_aset` are
+-- left NULL, the E2E markers live in `no_aset` (where a real NUP lives), and
+-- `jenis_aset` uses the real SIMAN taxonomy rather than invented labels.
+-- Keeping the marker STRINGS unchanged means specs that assert on "E2E-A-1"
+-- keep working — they now just read it from the column production fills.
+--
+-- FORMATS are copied from the staging snapshot, not invented, because format is
+-- part of shape: `kd_brg` is TEN DIGITS WITH NO DOTS (3050201002 — 624 528 of
+-- 624 533 rows; the only five 14-char dotted values were this seed's) and
+-- `ur_kondisi` is Title Case ("Baik" 548 038, "Rusak Berat" 64 522, "Rusak
+-- Ringan" 11 936 — the four uppercase "BAIK" rows were, again, this seed's).
+-- That mattered: penghapusan-bmn refuses a create whose kode_barang disagrees
+-- with SIMAN's, so a fixture in the wrong format either fails a correct check or
+-- (as here) hides one behind values no real asset carries.
 INSERT INTO integrasi.siman_aset
   (jenis_aset, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup, rph_aset, tgl_perlh)
 VALUES
-  ('Peralatan dan Mesin', 'Alat Angkutan', 'A-001', 'Kendaraan Dinas Roda 4', 'Toyota Avanza', '3.05.01.04.001', 'Toyota', 'Avanza 1.3', 'BAIK', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', 'E2E-A-1', '250000000', '2020-01-15'),
-  ('Peralatan dan Mesin', 'Alat Kantor',   'A-002', 'Personal Computer Unit',  'Laptop Dell',   '3.10.01.02.003', 'Dell',   'Latitude',   'BAIK', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', 'E2E-A-2', '15000000',  '2021-03-10'),
-  ('Peralatan dan Mesin', 'Alat Angkutan', 'B-001', 'Kendaraan Dinas Roda 2', 'Honda Vario',   '3.05.02.01.002', 'Honda',  'Vario 125',  'BAIK', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', 'E2E-B-1', '22000000',  '2019-07-01'),
-  ('Tanah',               'Tanah',         'B-002', 'Tanah Bangunan Kantor',  'Tanah Kantor',  '2.01.01.01.001', NULL,     NULL,         'BAIK', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', 'E2E-B-2', '5000000000','2010-01-01'),
-  ('Peralatan dan Mesin', 'Alat Kantor',   'C-001', 'Personal Computer Unit',  'Printer Epson', '3.10.01.05.010', 'Epson',  'L3210',      'RUSAK RINGAN', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', 'E2E-C-1', '4000000', '2022-11-20');
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-A-1', 'Kendaraan Dinas Roda 4', 'Toyota Avanza', '3050104001', 'Toyota', 'Avanza 1.3', 'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '250000000', '2020-01-15'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-A-2', 'Personal Computer Unit',  'Laptop Dell',   '3100102003', 'Dell',   'Latitude',   'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '15000000',  '2021-03-10'),
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-B-1', 'Kendaraan Dinas Roda 2', 'Honda Vario',   '3050201002', 'Honda',  'Vario 125',  'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '22000000',  '2019-07-01'),
+  ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor',  'Tanah Kantor',  '2010101001', NULL,     NULL,         'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Personal Computer Unit',  'Printer Epson', '3100105010', 'Epson',  'L3210',      'Rusak Ringan', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
 
 -- ----------------------------------------------------------------------------
 -- 4. authenc: per-role test users (single role each so the JWT role is

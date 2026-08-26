@@ -410,3 +410,59 @@ export function decodeJwtIdentity(token: string): JwtIdentity {
     : [];
   return { satkerCode, realmRoles };
 }
+
+/** One dropdown choice from `GET /bank-aset/filter-options` (value + row count). */
+export interface FilterOption {
+  value: string;
+  count: number;
+}
+
+/** Scoped filter-dropdown values, as the FE loads them on mount. */
+export interface BankAsetFilterOptions {
+  jenis: FilterOption[];
+  kategori: FilterOption[];
+  kondisi: FilterOption[];
+  satker: FilterOption[];
+}
+
+/**
+ * Fetch the filter dropdown options the FE populates its selects from.
+ *
+ * These are RBAC-scoped server-side (`repository::filter_options` applies the
+ * same `AsetScope::push_condition` predicate as the list query), so the satker
+ * dropdown is an EXACT, page-size-independent statement of which satkers a user
+ * may see — unlike the rendered table, which is only ever page 1 of N. That is
+ * what makes it usable as a scope probe against a 624 533-row staging snapshot
+ * where nothing seeded is guaranteed to appear on the first page.
+ */
+export async function filterOptions(
+  request: APIRequestContext,
+  token: string,
+): Promise<BankAsetFilterOptions> {
+  const resp = await request.get(`${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/bank-aset/filter-options`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok()) {
+    throw new Error(`bank-aset filter-options failed (${resp.status()}): ${await resp.text()}`);
+  }
+  const body = await resp.json();
+  return body.data ?? body;
+}
+
+/** Distinct satker names a token may see, derived from its scoped dropdown. */
+export async function allowedSatkerNames(request: APIRequestContext, token: string): Promise<string[]> {
+  const opts = await filterOptions(request, token);
+  return opts.satker.map((o) => o.value).sort();
+}
+
+/**
+ * Render an integer the way the FE does (`format_thousands`): Indonesian
+ * thousands separator `.`, so 1681 → "1.681". Lets a UI assertion compare
+ * against a number measured from the API instead of a hard-coded literal.
+ */
+export function formatThousands(n: number): string {
+  return Math.abs(n)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+    .replace(/^/, n < 0 ? "-" : "");
+}

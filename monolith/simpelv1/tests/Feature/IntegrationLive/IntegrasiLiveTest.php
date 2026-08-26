@@ -15,8 +15,14 @@ use Tests\TestCase;
  * (integrasi.mysimkari_pegawai). NOTE the SIMAN assertion uses the "Tanah" asset
  * E2E-B-2: the gateway's by-id inventory scan only queries the Tanah /
  * GedungBangunan / AlatBesar / AngkutanBermotor categories, so the seeded
- * "Peralatan dan Mesin" rows (E2E-A-x and E2E-C-x) are intentionally NOT
+ * "Peralatan Mesin Khusus TIK" rows (E2E-A-2 and E2E-C-1) are intentionally NOT
  * reachable by id.
+ *
+ * The marker now lives in siman_aset.`no_aset`, not `nup`, because `nup` is a
+ * column the SIMAN ingest never writes (empty in all 624 533 staging rows). The
+ * gRPC projection COALESCEs no_aset into the `nup` field it returns, so this
+ * lookup exercises the same path a real asset takes; before that fix it could
+ * only ever match the seed's own rows.
  */
 class IntegrasiLiveTest extends TestCase
 {
