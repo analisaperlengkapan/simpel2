@@ -17,57 +17,13 @@ fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSq
         .collect()
 }
 
-/// SQL for an asset's type ("kategori") — deliberately read from SIMAN's
-/// `jenis_aset`, not from `kategori_aset`.
-///
-/// `kategori_aset` is written by NO ingest path: grepping `layanan/integrasi`
-/// for it returns nothing, and on staging it is NULL in 624 528 of 624 533 rows
-/// — the only populated rows are the five the e2e seed inserts itself. So every
-/// surface keyed on it was dead against real data: the dashboard breakdown
-/// panicked on the NULL group (killing the process, since `panic = "abort"`),
-/// the "Total Kategori" tile counted 0, the filter dropdown came back empty
-/// (`WHERE col IS NOT NULL`), and the list table rendered a blank column on
-/// every row.
-///
-/// `jenis_aset` is the SIMAN discriminator the owning service itself filters on
-/// ("unified siman_aset table filtered by jenis_aset",
-/// `layanan/integrasi/src/grpc/service.rs`), it is populated for all 624 533
-/// rows, and it carries the real BMN taxonomy: Tanah, Gedung dan Bangunan,
-/// Alat Angkutan Bermotor, Peralatan Mesin Khusus/Non TIK, Alat Persenjataan,
-/// Alat Besar, Aset Tetap Lainnya, Aset Tak Berwujud, Konstruksi Dalam
-/// Pengerjaan, Rumah Negara, Instalasi dan Jaringan, Jalan dan Jembatan,
-/// Bangunan Air, Aset Tetap Renovasi.
-///
-/// Kept as one constant because the list projection, the aggregate, the filter
-/// predicate and the dropdown options MUST agree — if the dropdown offers a
-/// value the predicate cannot match, filtering silently returns nothing.
-const ASSET_KATEGORI_SQL: &str = "COALESCE(NULLIF(jenis_aset, ''), 'TIDAK DIKETAHUI')";
-
-/// SQL for an asset's NUP (Nomor Urut Pendaftaran) — read from SIMAN's
-/// `no_aset`, not from the `nup` column.
-///
-/// Same defect as `ASSET_KATEGORI_SQL` above, in the same table, found the same
-/// way. The ingest builds its INSERT column list **directly from the keys of
-/// the SIMAN API payload** (`layanan/integrasi/src/db.rs` — `first_obj.keys()`
-/// lowercased), so a column exists in the schema but stays empty forever unless
-/// SIMAN happens to send a field of that exact name. SIMAN sends `no_aset`; it
-/// does not send `nup`. On staging `nup` is non-empty in 5 of 624 533 rows —
-/// and those five are the e2e seed's own rows, which is why every test passed.
-///
-/// `no_aset` carries NUP semantics: it is numeric in 624 528 of 624 533 rows,
-/// ranges 0–21 727, and runs consecutively within one `kd_brg` (e.g. 43 and 44
-/// for 3050105039), which is exactly "sequence number of this item within its
-/// barang code" — the BMN identity pair being `kode_barang` + NUP. It is the
-/// only populated candidate; `raw_data` is empty for every row.
-///
-/// Caveat recorded rather than smoothed over: (kdsatker_keu, kd_brg, no_aset)
-/// is NOT unique — 3 503 groups repeat (0.56%). NUP is assigned per registering
-/// unit (UAKPB), which `kdsatker_keu` does not always resolve to one-to-one, so
-/// this is expected rather than a contradiction; do not treat NUP as a key.
-///
-/// Note `NULLIF(no_aset, '')` yields NULL, which the FE renders as "-" — the
-/// correct display for an asset SIMAN gave no NUP, instead of a misleading "0".
-const ASSET_NUP_SQL: &str = "NULLIF(no_aset, '')";
+// The SIMAN column mapping (which half of `integrasi.siman_aset` is actually
+// written, and in what format) lives in one place so every consumer inherits
+// the same answer instead of rediscovering the census: see
+// `crate::shared::siman_columns`. It used to be duplicated here, which is how
+// the BMN utilisation report in `pemakaian_bmn` kept reading the dead half long
+// after the bank-aset surfaces were fixed.
+use crate::shared::siman_columns::{ASSET_KATEGORI_SQL, ASSET_NUP_SQL};
 
 #[derive(Clone)]
 pub struct BankAsetRepository {

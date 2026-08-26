@@ -1,6 +1,12 @@
 use super::PemakaianBmnRepository;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
+// Which half of `integrasi.siman_aset` is actually written by the SIMAN ingest,
+// and in what format. Shared so this report and the bank-aset surfaces cannot
+// disagree — they did for four releases, and this file was the last holdout.
+use crate::shared::siman_columns::{
+    ASSET_KONDISI_BAIK_PREDICATE, ASSET_NAMA_SQL, ASSET_NUP_SQL, jenis_bmn_sql,
+};
 
 impl PemakaianBmnRepository {
     /// Get active usage monitoring dashboard data
@@ -188,15 +194,36 @@ impl PemakaianBmnRepository {
         // For this report, we need to query SIMAN data (from integrasi schema)
         // to get total BMN count and compare with permits
 
-        // Total BMN count (from SIMAN integration)
-        let total_bmn_query = r#"
-            SELECT COUNT(DISTINCT nup) as total
+        // Total BMN count (from SIMAN integration).
+        //
+        // Two defects lived in the one line this replaces, and each alone
+        // zeroed the report:
+        //
+        //   1. `WHERE kondisi = 'BAIK'` — `kondisi` is populated in 0 of
+        //      624 533 rows, and the column that IS populated (`ur_kondisi`)
+        //      spells it "Baik", not "BAIK". Measured on staging the predicate
+        //      matched exactly 0 rows, so `total_bmn` was 0, which made
+        //      `utilization_rate` 0.0, `bmn_without_permits` negative-clamped,
+        //      and the whole report a page of zeroes that never once errored.
+        //   2. `COUNT(DISTINCT nup)` — `nup` is populated in 5 of 624 533 rows
+        //      (our own e2e seed), and even read from `no_aset` it is NOT an
+        //      asset identity: 548 042 serviceable assets carry only 14 141
+        //      distinct NUPs. Counting distinct NUP under-reports the asset
+        //      population ~39-fold. Each row of `siman_aset` is one asset, so
+        //      the population is `COUNT(*)`.
+        //
+        // Corrected against the same snapshot: 0 -> 548 042.
+        let total_bmn_query = format!(
+            r#"
+            SELECT COUNT(*) as total
             FROM integrasi.siman_aset
-            WHERE kondisi = 'BAIK'
-        "#;
+            WHERE {kondisi_baik}
+        "#,
+            kondisi_baik = ASSET_KONDISI_BAIK_PREDICATE
+        );
 
         let total_bmn_row = client
-            .query_one(total_bmn_query, &[])
+            .query_one(total_bmn_query.as_str(), &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
         let total_bmn: i64 = total_bmn_row.get("total");
@@ -214,6 +241,15 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
         let bmn_with_active_permits: i64 = utilized_row.get("count");
 
+        // Numerator and denominator do not have the same unit, and no query can
+        // fix that: `izin_pemakaian_bmn` identifies an asset by `bmn_nup`
+        // alone, but NUP is not an asset identity (14 141 distinct NUPs across
+        // 548 042 serviceable assets), so `COUNT(DISTINCT bmn_nup)` counts NUP
+        // strings while `total_bmn` counts assets. Joining the two on NUP would
+        // be worse, not better — a single permit on NUP "43" would match every
+        // asset numbered 43 in every satker. The rate is therefore a lower
+        // bound; making it exact requires the permit to carry the full BMN
+        // identity (kdsatker_keu + kode_barang + NUP), which is a schema change.
         let bmn_without_permits = total_bmn - bmn_with_active_permits;
         let utilization_rate = if total_bmn > 0 {
             (bmn_with_active_permits as f64 / total_bmn as f64) * 100.0
@@ -221,19 +257,24 @@ impl PemakaianBmnRepository {
             0.0
         };
 
-        // BMN utilization by type
-        let by_type_query = r#"
+        // BMN utilization by type.
+        //
+        // The CASE ladder this used to inline keyed on `kode_barang LIKE
+        // '03.01%'`, which could not match: `kode_barang` is empty in every
+        // real row, and `kd_brg` — the column SIMAN actually fills — holds ten
+        // undotted digits. Every asset fell through to 'LAINNYA', and since the
+        // `WHERE` matched 0 rows anyway the CTE was empty and `bmn_by_type`
+        // came back as an empty list. Derived from `jenis_aset` instead, via
+        // the shared mapping so this and `underutilized_query` below cannot
+        // drift apart.
+        let by_type_query = format!(
+            r#"
             WITH bmn_counts AS (
                 SELECT
-                    CASE
-                        WHEN kode_barang LIKE '03.01%' THEN 'KENDARAAN_BERMOTOR'
-                        WHEN kode_barang LIKE '03.02%' THEN 'RUMAH_NEGARA'
-                        WHEN kode_barang LIKE '03.03%' THEN 'LAPTOP'
-                        ELSE 'LAINNYA'
-                    END as jenis_bmn,
-                    COUNT(DISTINCT nup) as total_bmn
+                    {jenis_bmn} as jenis_bmn,
+                    COUNT(*) as total_bmn
                 FROM integrasi.siman_aset
-                WHERE kondisi = 'BAIK'
+                WHERE {kondisi_baik}
                 GROUP BY jenis_bmn
             ),
             utilized_counts AS (
@@ -248,10 +289,13 @@ impl PemakaianBmnRepository {
                 COALESCE(uc.utilized_bmn, 0) as utilized_bmn
             FROM bmn_counts bc
             LEFT JOIN utilized_counts uc ON bc.jenis_bmn = uc.jenis_bmn
-        "#;
+        "#,
+            jenis_bmn = jenis_bmn_sql(""),
+            kondisi_baik = ASSET_KONDISI_BAIK_PREDICATE
+        );
 
         let by_type_rows = client
-            .query(by_type_query, &[])
+            .query(by_type_query.as_str(), &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -307,32 +351,52 @@ impl PemakaianBmnRepository {
             })
             .collect();
 
-        // Underutilized BMN (no permits in last 180 days)
-        let underutilized_query = r#"
+        // Underutilized BMN (no permits in last 180 days).
+        //
+        // Every column this projected was one of the dead ones: `s.nup` (5/624
+        // 533), `s.nama_barang` (0), `s.kode_barang` (0), `s.kondisi` (0). The
+        // rows it did produce would have carried NULL name and NULL NUP — but
+        // it produced none, because `WHERE s.kondisi = 'BAIK'` matched nothing.
+        //
+        // `NOT IN` over a subquery that can yield NULL is a trap of its own:
+        // `x NOT IN (…, NULL)` is NULL, never true, so one permit row with a
+        // NULL `bmn_nup` would empty this list again — silently. Hence the
+        // `IS NOT NULL` guard inside the subquery.
+        let underutilized_query = format!(
+            r#"
+            WITH aset AS (
+                SELECT
+                    {nup}        AS bmn_nup,
+                    {nama}       AS bmn_nama,
+                    {jenis_bmn}  AS jenis_bmn
+                FROM integrasi.siman_aset
+                WHERE {kondisi_baik}
+            )
             SELECT
-                s.nup as bmn_nup,
-                s.nama_barang as bmn_nama,
-                CASE
-                    WHEN s.kode_barang LIKE '03.01%' THEN 'KENDARAAN_BERMOTOR'
-                    WHEN s.kode_barang LIKE '03.02%' THEN 'RUMAH_NEGARA'
-                    WHEN s.kode_barang LIKE '03.03%' THEN 'LAPTOP'
-                    ELSE 'LAINNYA'
-                END as jenis_bmn,
+                a.bmn_nup,
+                a.bmn_nama,
+                a.jenis_bmn,
                 (SELECT MAX(tanggal_selesai) FROM perlengkapan.izin_pemakaian_bmn
-                 WHERE bmn_nup = s.nup) as last_used_date,
+                 WHERE bmn_nup = a.bmn_nup) as last_used_date,
                 (CURRENT_DATE - (SELECT MAX(tanggal_selesai) FROM perlengkapan.izin_pemakaian_bmn
-                 WHERE bmn_nup = s.nup)) as days_since_last_use
-            FROM integrasi.siman_aset s
-            WHERE s.kondisi = 'BAIK'
-            AND s.nup NOT IN (
-                SELECT DISTINCT bmn_nup FROM perlengkapan.izin_pemakaian_bmn
+                 WHERE bmn_nup = a.bmn_nup)) as days_since_last_use
+            FROM aset a
+            WHERE a.bmn_nup IS NOT NULL
+            AND a.bmn_nup NOT IN (
+                SELECT bmn_nup FROM perlengkapan.izin_pemakaian_bmn
                 WHERE tanggal_selesai >= CURRENT_DATE - 180
+                  AND bmn_nup IS NOT NULL
             )
             LIMIT 20
-        "#;
+        "#,
+            nup = ASSET_NUP_SQL,
+            nama = ASSET_NAMA_SQL,
+            jenis_bmn = jenis_bmn_sql(""),
+            kondisi_baik = ASSET_KONDISI_BAIK_PREDICATE
+        );
 
         let underutilized_rows = client
-            .query(underutilized_query, &[])
+            .query(underutilized_query.as_str(), &[])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
 
@@ -453,9 +517,16 @@ impl PemakaianBmnRepository {
     async fn count_idle_bmn(
         client: &deadpool_postgres::Object,
     ) -> Result<i64, tokio_postgres::Error> {
+        // Feeds the "Tidak Dipakai" card on the monitoring page. Same two
+        // defects as `total_bmn` above (dead column + wrong aggregate), so the
+        // card read a flat 0 for every user in every satker: `total` was 0, and
+        // `(0 - utilized).max(0)` is 0.
         let total: i64 = client
             .query_one(
-                "SELECT COUNT(DISTINCT nup) AS c FROM integrasi.siman_aset WHERE kondisi = 'BAIK'",
+                &format!(
+                    "SELECT COUNT(*) AS c FROM integrasi.siman_aset WHERE {}",
+                    ASSET_KONDISI_BAIK_PREDICATE
+                ),
                 &[],
             )
             .await?

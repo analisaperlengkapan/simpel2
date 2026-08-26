@@ -41,3 +41,4 @@ pub mod repo;
 pub mod resilience;
 pub mod satker_scope;
 pub mod search_db;
+pub mod siman_columns;
