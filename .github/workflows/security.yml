@@ -426,6 +426,12 @@ jobs:
         run: |
           set -euo pipefail
           for f in rendered/*.yaml; do
+            # `$f` DIBACA dua kali dan tak pernah ditulis: yq membacanya lewat
+            # stdin, lalu check-chart-document-separators.py membuka path yang
+            # sama dengan `open(path)` mode baca. Linter tak bisa melihat ke
+            # dalam skrip python itu, jadi ia menduga argumen berkas mungkin
+            # ditulisi. Pengecualian ini SATU aturan, bukan sapuan.
+            # shellcheck disable=SC2094
             docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
               < "$f" \
               | python3 ./infra/scripts/check-chart-document-separators.py "$f"
