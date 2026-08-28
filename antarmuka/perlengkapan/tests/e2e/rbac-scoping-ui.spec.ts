@@ -63,10 +63,14 @@ function satkerCells(page: Page) {
  * the "offers exactly the in-scope satkers" assertion could never hold. The
  * satker select is identified by the reset option only it contains.
  */
+function satkerSelect(page: Page) {
+  return page.locator('select:has(option:text-is("Semua Satker"))');
+}
+
+/** Pure reader — no assertions inside, so it is safe to drive from
+ *  `expect.poll` (a throwing poll target aborts instead of retrying). */
 async function dropdownSatkerNames(page: Page): Promise<string[]> {
-  const select = page.locator('select:has(option:text-is("Semua Satker"))');
-  await expect(select, 'satker filter dropdown should exist').toHaveCount(1);
-  const labels = await select.locator('option').allTextContents();
+  const labels = await satkerSelect(page).locator('option').allTextContents();
   return labels
     .map((l) => l.trim())
     .filter((l) => l && l !== 'Semua Satker')
@@ -116,10 +120,23 @@ for (const user of TEST_USERS) {
       // (3) The filter dropdown must offer EXACTLY the in-scope satkers —
       // page-size independent, so this covers the whole scope and not just
       // page 1. An extra option here is a data leak even if no row shows it.
-      expect(
-        await dropdownSatkerNames(page),
-        `${user.key} satker dropdown must offer exactly its in-scope satkers`,
-      ).toEqual(allowed);
+      //
+      // POLLED, not read once. The rows and the dropdown come from two
+      // different requests: the list lands in ~0.6s, `filter-options` in ~1.8s
+      // because it aggregates counts over the whole scope. Step (1) waits for
+      // rows, so by the time we get here the list has arrived and the options
+      // usually have not. `allTextContents()` is a snapshot with no auto-wait
+      // and `expect(array)` does not retry, so this read raced the fetch and
+      // returned `[]` — indistinguishable, in the failure output, from a
+      // backend that returned nothing. Against staging it failed every run;
+      // on CI the stack is local and fast enough to hide it.
+      await expect(satkerSelect(page), 'satker filter dropdown should exist').toHaveCount(1);
+      await expect
+        .poll(() => dropdownSatkerNames(page), {
+          timeout: 20000,
+          message: `${user.key} satker dropdown must offer exactly its in-scope satkers`,
+        })
+        .toEqual(allowed);
 
       // (4) A satker-tier user sees exactly ONE satker — the strongest form of
       // the isolation claim, and true in any environment.
