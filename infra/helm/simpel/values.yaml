@@ -629,21 +629,28 @@ layananPerlengkapan:
     fsGroup: 1000
   containerSecurityContext: {}
   probes:
-    startup:                               # BE jalankan refinery migrations + add_essential_indexes saat boot → window besar
+    # Tiga probe ini dulu semuanya menunjuk `/health` — endpoint DETAIL yang
+    # mengecek DB + Redis + authenc + circuit breaker. Salah untuk dua-duanya:
+    # liveness jadi me-restart pod karena DEPENDENSI mati, dan readiness ikut
+    # membayar query DB tiap 5 detik. `/health/live` dan `/health/ready` sudah
+    # ada di `main.rs` sejak awal, hanya tak pernah dipakai chart. authenc
+    # (values.yaml:342-356) memakai pemisahan yang benar; perlengkapan satu-
+    # satunya backend yang tidak.
+    startup:                               # migrasi refinery jalan SEBELUM bind (main.rs:272 vs :542) → respons HTTP apa pun = migrasi selesai
       type: http
-      path: /health
+      path: /health/live
       port: 3020
       periodSeconds: 10
       failureThreshold: 30                 # ~300s cold start; kalibrasi dari boot-time nyata @staging (F5-E)
-    liveness:
+    liveness:                              # BEBAS-dependensi: hanya "proses ini masih melayani?"
       type: http
-      path: /health
+      path: /health/live
       port: 3020
       initialDelaySeconds: 20
       periodSeconds: 10
-    readiness:
+    readiness:                             # dependensi keras (DB + authenc) → 503 ⇒ pod dikeluarkan dari LB, TIDAK di-restart
       type: http
-      path: /health
+      path: /health/ready
       port: 3020
       initialDelaySeconds: 5
       periodSeconds: 5
