@@ -157,6 +157,81 @@ def import_hint(text: str, type_name: str) -> str | None:
     return None
 
 
+def strip_comments(text: str) -> str:
+    """Blank out Rust comments, preserving every offset and line break.
+
+    This guard derives its scope from the `Query<…>` extractors in the tree,
+    and reports one it cannot resolve as a BLIND SPOT rather than a pass —
+    deliberately, because an unresolvable name means the check stopped
+    measuring. That strictness turns any PROSE mention of `Query<SomeType>`
+    into a hard failure: a doc comment in a frontend file explaining what the
+    backend handler expects named two backend types that cannot be resolved
+    from a WASM crate, and the run went red for a comment.
+
+    Comment characters become spaces (newlines kept) so line numbers in any
+    later diagnostic still point at the real line. String literals — including
+    raw strings `r"…"` and `r#"…"#` — are left ALONE: a `//` inside one is
+    code, not a comment, and blanking through it could hide a real extractor,
+    which would be a false pass rather than a false failure.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == "r" and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")):
+            j = i + 1
+            hashes = 0
+            while j < n and text[j] == "#":
+                hashes += 1
+                j += 1
+            if j < n and text[j] == '"':
+                close = '"' + "#" * hashes
+                end = text.find(close, j + 1)
+                i = n if end == -1 else end + len(close)
+                continue
+        if c == '"':
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == '"':
+                    break
+                j += 1
+            i = j + 1
+            continue
+        if c == "'":
+            m = re.match(r"'(?:\\.|[^\\'])'", text[i:])
+            i += m.end() if m else 1
+            continue
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+            for k in range(i, j):
+                out[k] = " "
+            i = j
+            continue
+        if text.startswith("/*", i):
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/*", j):
+                    depth += 1
+                    j += 2
+                    continue
+                if text.startswith("*/", j):
+                    depth -= 1
+                    j += 2
+                    continue
+                j += 1
+            for k in range(i, min(j, n)):
+                if out[k] != "\n":
+                    out[k] = " "
+            i = j
+            continue
+        i += 1
+    return "".join(out)
+
+
 def collect(
     paths: list[Path], repo: Path
 ) -> tuple[dict[str, list[tuple[Path, Path, str]]], list[tuple[Path, str]]]:
@@ -169,6 +244,8 @@ def collect(
         except OSError:
             continue
         root = crate_root(p, repo)
+        # Scan CODE, not prose. See `strip_comments`.
+        text = strip_comments(text)
         for qt in QUERY_EXTRACTOR_RE.findall(text):
             queries.append((p, qt))
         for name in STRUCT_RE.findall(text):
