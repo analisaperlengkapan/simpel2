@@ -7,7 +7,7 @@
  * every /api/** request is proxied by page.route() to the real authenc, and
  * the captcha is solved via the CAPTCHA_DEBUG answer endpoint.
  */
-import { Page, Route, expect } from '@playwright/test';
+import { APIRequestContext, Page, Route, expect, test } from '@playwright/test';
 
 export const PORTAL_URL = process.env.PORTAL_URL || 'http://localhost:18080';
 export const AUTHENC_URL = process.env.AUTHENC_URL || 'http://localhost:18088';
@@ -24,12 +24,50 @@ const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-headers': 'content-type, authorization',
 };
 
-/** Strip the /portal/ prefix for assets when the FE is served from root. */
+/**
+ * Cached answer to "does this origin already serve the portal under /portal/?"
+ *
+ * `null` until probed. Probing beats naming: the previous form of this check
+ * asked whether the host was `localhost`, which is a guess about topology
+ * dressed up as a fact — a compose stack published on a LAN address would have
+ * answered it wrong.
+ */
+let ingressServesPortalPath: boolean | null = null;
+
+async function servesPortalNatively(page: Page): Promise<boolean> {
+  if (ingressServesPortalPath !== null) return ingressServesPortalPath;
+  try {
+    const resp = await page.request.get(`${PORTAL_URL}/portal/`, { timeout: 10000 });
+    const body = resp.ok() ? await resp.text() : '';
+    ingressServesPortalPath = resp.ok() && body.includes('<base href="/portal/"');
+  } catch {
+    ingressServesPortalPath = false;
+  }
+  return ingressServesPortalPath;
+}
+
+/**
+ * Strip the /portal/ prefix for assets when — and ONLY when — the frontend is
+ * served from the origin root.
+ *
+ * In compose the portal container answers at `/`, so a request for
+ * `/portal/login` has to be rewritten to `/login`. Behind the staging ingress
+ * the opposite is true: `/portal/login` is served natively and `/login`
+ * returns 404, so the rewrite fetched a page that does not exist. The document
+ * came back empty, the WASM app never mounted, and every assertion failed with
+ * `element(s) not found` — including `getByText('Masuk ke Sistem')`, which
+ * renders perfectly well when the page is opened directly.
+ *
+ * The condition for this already existed here, with a comment saying exactly
+ * what should happen under an ingress. The `if` body was empty, so the route
+ * was installed regardless: the knowledge was present and the enforcement was
+ * not.
+ */
 async function setupPortalAssetProxy(page: Page): Promise<void> {
-  const portalHost = new URL(PORTAL_URL).hostname;
-  if (portalHost !== 'localhost' && portalHost !== '127.0.0.1') {
-    // Under an ingress the /portal/ routing is native — only the /api proxy
-    // below is needed.
+  if (await servesPortalNatively(page)) {
+    // The origin routes /portal/** itself. Rewriting here would send every
+    // asset request to a path this origin does not serve.
+    return;
   }
 
   await page.route(`${PORTAL_URL}/portal/**`, async (route: Route) => {
@@ -53,6 +91,74 @@ async function setupPortalAssetProxy(page: Page): Promise<void> {
       await route.continue();
     }
   });
+}
+
+/**
+ * Is the captcha answer readable from this build at all?
+ *
+ * `GET /api/captcha/debug/{id}` exists only when authenc is compiled with
+ * `--features captcha-debug` (see `router.rs`: the route is behind `#[cfg]`,
+ * so in a release image it is not merely disabled — it is absent). That is
+ * correct: an environment that hands out captcha answers has no captcha.
+ *
+ * The consequence is structural, not incidental. Any spec that drives the
+ * LOGIN FORM needs the answer, so those specs can only ever run where the
+ * debug build runs — CI. Against staging or production they must SKIP, and say
+ * why, rather than fail 21 times with `expect(received).toBeTruthy()` and
+ * `Received: null`, which reads like a product defect and is not one.
+ *
+ * Specs that only need a session should use `loginViaApi` instead, which needs
+ * no captcha and does run against staging.
+ */
+const captchaDebugByOrigin = new Map<string, boolean>();
+
+/**
+ * @param base origin to probe. Defaults to AUTHENC_URL; pass `''` from specs
+ *   whose requests are baseURL-relative (the single-origin cross-app ingress),
+ *   so the probe asks the same server the spec will actually talk to.
+ */
+export async function hasCaptchaDebugEndpoint(
+  api: APIRequestContext,
+  base: string = AUTHENC_URL,
+): Promise<boolean> {
+  const cached = captchaDebugByOrigin.get(base);
+  if (cached !== undefined) return cached;
+  let available = false;
+  try {
+    const challenge = await api.post(`${base}/api/captcha/challenge`, {
+      data: {},
+      headers: { 'content-type': 'application/json' },
+      timeout: 10000,
+    });
+    if (challenge.ok()) {
+      const id = (await challenge.json()).challenge_id;
+      const probe = await api.get(`${base}/api/captcha/debug/${id}`, { timeout: 10000 });
+      available = probe.ok();
+    }
+  } catch {
+    available = false;
+  }
+  captchaDebugByOrigin.set(base, available);
+  return available;
+}
+
+/**
+ * Skip the calling test unless the captcha answer is readable from this build.
+ *
+ * Lives here rather than being pasted into each `beforeEach` so the reason
+ * stays in one place: a skip whose message drifts out of date is worse than no
+ * message, because the next reader trusts it.
+ */
+export async function skipUnlessCaptchaDebug(
+  api: APIRequestContext,
+  base: string = AUTHENC_URL,
+): Promise<void> {
+  test.skip(
+    !(await hasCaptchaDebugEndpoint(api, base)),
+    'authenc is built without --features captcha-debug, so the captcha answer ' +
+      'cannot be read and the login FORM cannot be driven. Correct for a ' +
+      'production-like build; use loginViaApi for session setup instead.',
+  );
 }
 
 async function fetchCaptchaAnswer(page: Page, challengeId: string): Promise<string | null> {

@@ -13,6 +13,7 @@
  * 4. Login form is submitted with real credentials
  */
 import { test, expect, Page, Route } from '@playwright/test';
+import { hasCaptchaDebugEndpoint, skipUnlessCaptchaDebug } from './helpers/real-auth';
 
 // ── Configuration ──────────────────────────────────────────────────────────
 
@@ -357,12 +358,23 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 2: Captcha challenge loads ──────────
 
   test('captcha challenge loads in login form', async ({ page }) => {
+    await setupAllProxies(page);
+    await navigateToLogin(page);
+
+    // Captcha heading: "Verifikasi Keamanan". The widget renders in every
+    // build, so this half is asserted everywhere — splitting it out of the
+    // answer-interception check below keeps that coverage on staging instead
+    // of skipping the whole test for a capability only half of it needs.
+    await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('.captcha-container')).toBeVisible();
+  });
+
+  test('captcha answer is intercepted by the proxy', async ({ page }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
-    // Captcha heading: "Verifikasi Keamanan"
     await expect(page.locator('#captcha-title')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.captcha-container')).toBeVisible();
 
     // Verify the captcha answer was intercepted (poll briefly — proxy callback may lag)
     await expect(async () => {
@@ -373,6 +385,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 3: Captcha refreshes on incorrect submission ──────────
 
   test('captcha refreshes when wrong answer is entered', async ({ page }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
@@ -412,6 +425,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 4: Captcha solving via API ──────────
 
   test('captcha can be solved via API', async ({ page }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const result = await solveCaptchaViaApi(page);
 
     expect(result.challengeId).toBeTruthy();
@@ -429,6 +443,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   test('fixture operator can login with captcha solving and reach the dashboard', async ({
     page,
   }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
@@ -469,6 +484,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 5: Full login flow (fixture validator_pusat) ──────────
 
   test('fixture validator_pusat can login with captcha solving', async ({ page }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
@@ -504,6 +520,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 6: Login fails with wrong password ──────────
 
   test('login fails with incorrect password', async ({ page }) => {
+    await skipUnlessCaptchaDebug(page.request);
     const { getCaptchaAnswer } = await setupAllProxies(page);
     await navigateToLogin(page);
 
@@ -559,6 +576,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 8: Direct API login test (no browser) ──────────
 
   test('API: login succeeds with correct credentials + captcha token', async ({ request }) => {
+    await skipUnlessCaptchaDebug(request);
     // Step 1: Get captcha challenge
     const challengeResp = await request.post(`${AUTHENC_URL}/api/captcha/challenge`, {
       data: { challenge_type: 'text_recognition', difficulty: 2 },
@@ -603,6 +621,7 @@ test.describe('Portal Authentication - Real E2E', () => {
   // ────────── Test 9: API login fails with wrong password ──────────
 
   test('API: login fails with incorrect password', async ({ request }) => {
+    await skipUnlessCaptchaDebug(request);
     // Get and solve captcha
     const challengeResp = await request.post(`${AUTHENC_URL}/api/captcha/challenge`, {
       data: { challenge_type: 'text_recognition', difficulty: 2 },

@@ -28,6 +28,7 @@ import {
   loginViaUi,
   pageToken,
   setupAllProxies,
+  skipUnlessCaptchaDebug,
 } from './helpers/real-auth';
 
 /** Decode a JWT payload without verifying (test-side introspection only). */
@@ -57,6 +58,7 @@ test.describe('Portal core — operator', () => {
 
   test.beforeEach(async ({ page }) => {
     ({ getCaptchaAnswer } = await setupAllProxies(page));
+    await skipUnlessCaptchaDebug(page.request);
     await loginViaUi(page, OPERATOR_USER, getCaptchaAnswer);
   });
 
@@ -161,6 +163,7 @@ test.describe('Portal core — sessions self-service (operator_b)', () => {
 
   test.beforeEach(async ({ page }) => {
     ({ getCaptchaAnswer } = await setupAllProxies(page));
+    await skipUnlessCaptchaDebug(page.request);
     await loginViaUi(page, OPERATOR_B_USER, getCaptchaAnswer);
   });
 
@@ -261,6 +264,7 @@ test.describe('Portal core — admin (IAM users/roles/audit)', () => {
 
   test.beforeEach(async ({ page }) => {
     ({ getCaptchaAnswer } = await setupAllProxies(page));
+    await skipUnlessCaptchaDebug(page.request);
     await loginViaUi(page, ADMIN_USER, getCaptchaAnswer);
   });
 
