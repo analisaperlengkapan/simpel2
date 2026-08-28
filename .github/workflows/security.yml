@@ -448,6 +448,28 @@ jobs:
       # sengaja dirusak — `as $var` di-cross-product antar dokumen, jadi ia
       # membandingkan pasangan yang salah. Ketahuan karena diuji dengan kenari,
       # bukan karena dibaca ulang.
+      # Sebuah NetworkPolicy yang menyebut port yang tak dilayani siapa pun,
+      # dan sebuah Service yang tak punya policy Ingress sama sekali, sama-sama
+      # merender YAML yang sah — `helm lint`, `helm template`, dan kube-linter
+      # semuanya hijau. Integrasi putus lewat KEDUANYA sekaligus: egress
+      # diizinkan ke port 50053 (tak ada yang mendengarkan; service-nya
+      # 50051/8080) dan tak pernah ada policy Ingress untuknya. Karena policy
+      # egress memakai `podSelector: {}`, satu digit itu memutus integrasi untuk
+      # SELURUH namespace selama 3 hari tanpa satu pun sinyal merah.
+      #
+      # Cakupannya diturunkan dari render — port dari objek Service, pasangan
+      # yang dibutuhkan dari URL yang benar-benar dikonfigurasi — jadi service
+      # baru ikut tercakup pada hari ia ditambahkan, bukan saat seseorang ingat
+      # memperbarui daftar.
+      - name: NetworkPolicy cocok dengan port Service dan URL terkonfigurasi
+        if: steps.filter.outputs.helm == 'true'
+        run: |
+          set -euo pipefail
+          for f in staging production; do
+            docker run --rm -i mikefarah/yq:4.44.3 -o=json eval-all '[.]' \
+              < "rendered/${f}.yaml" \
+              | python3 ./infra/scripts/check-netpol-service-ports.py "$f"
+          done
       - name: Setiap emptyDir dikecualikan dari backup Velero
         if: steps.filter.outputs.helm == 'true'
         run: |

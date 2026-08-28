@@ -144,6 +144,10 @@ simpelv1:
   env:
     APP_ENV: production
     QUEUE_CONNECTION: redis
+    # Production tidak pernah menimpa ini, jadi ia mewarisi default chart yang
+    # rusak (`http://portal:3000/portal`) — alamat in-cluster yang dikirim ke
+    # browser pengguna.
+    PORTAL_URL: "https://simpel.kejaksaan.go.id/portal"
   podAntiAffinity:
     type: required
   dbBackup:
