@@ -20,10 +20,11 @@
 // ============================================================================
 
 use super::models::*;
-use super::services::PenghapusanBmnService;
+use super::services::{LampiranUpload, PenghapusanBmnService, TransitionActor};
 use crate::contracts::DocumentStorage;
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use axum::{
     Json,
     extract::{Multipart, Path, Query, State},
@@ -133,9 +134,11 @@ pub async fn create_penghapusan_bmn(
 pub async fn get_penghapusan_bmn(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
-    let penghapusan = service.get_by_id(id).await?;
+    let penghapusan = service
+        .get_by_id(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -148,9 +151,11 @@ pub async fn get_penghapusan_bmn(
 pub async fn verify_penghapusan_asset_siman(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<SimanAssetVerification>>, AppError> {
-    let verification = service.verify_asset_siman(id).await?;
+    let verification = service
+        .verify_asset_siman(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         verification,
@@ -164,7 +169,9 @@ pub async fn get_penghapusan_bmn_detail(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<PenghapusanBmnDetailResponse>>, AppError> {
-    let mut detail = service.get_detail(id).await?;
+    let mut detail = service
+        .get_detail(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     // `get_detail` answers "what may happen next" from the STATE alone. Narrow
     // it to "what may THIS caller do", so the FE can render the list verbatim
@@ -224,12 +231,18 @@ pub async fn list_penghapusan_bmn(
 pub async fn update_penghapusan_bmn(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<UpdatePenghapusanBmnRequest>,
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
+    // Editing a usulan is the operator's move, the same one `delete` below
+    // already gated. This handler used to take `_claims` and check neither role
+    // nor satker, so any authenticated caller could rewrite any satker's draft.
+    claims.require_any_role(&["operator_satker"])?;
     request.validate()?;
 
-    let penghapusan = service.update(id, request).await?;
+    let penghapusan = service
+        .update(id, request, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -246,7 +259,9 @@ pub async fn delete_penghapusan_bmn(
     // RBAC (Fase 0.3): hanya operator_satker atau admin yg boleh delete
     // usulan (Draft saja per logika service); admin sbg escape hatch.
     claims.require_any_role(&["operator_satker"])?;
-    service.delete(id).await?;
+    service
+        .delete(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok((
         StatusCode::OK,
@@ -276,7 +291,13 @@ pub async fn submit_to_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(PenghapusanBmnStatus::SubmitWilayah.actor_roles())?;
     let penghapusan = service
-        .submit_to_wilayah(id, claims.user_id, claims.role.clone(), body.catatan)
+        .submit_to_wilayah(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.catatan,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -298,7 +319,13 @@ pub async fn forward_to_pusat(
     }
 
     let penghapusan = service
-        .forward_to_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
+        .forward_to_pusat(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.catatan,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -323,7 +350,13 @@ pub async fn verifikasi_pusat(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     claims.require_any_role(PenghapusanBmnStatus::VerifikasiPusat.actor_roles())?;
     let penghapusan = service
-        .verifikasi_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
+        .verifikasi_pusat(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.catatan,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -351,7 +384,13 @@ pub async fn return_to_operator(
     }
 
     let penghapusan = service
-        .return_to_operator(id, claims.user_id, claims.role.clone(), body.catatan)
+        .return_to_operator(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            body.catatan,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -372,7 +411,13 @@ pub async fn validator_wilayah_action(
     match body.aksi.as_str() {
         "forward" => {
             let penghapusan = service
-                .forward_to_pusat(id, claims.user_id, claims.role.clone(), body.catatan)
+                .forward_to_pusat(
+                    id,
+                    claims.user_id,
+                    claims.role.clone(),
+                    body.catatan,
+                    &SatkerScope::from_claims(&claims),
+                )
                 .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
@@ -386,7 +431,13 @@ pub async fn validator_wilayah_action(
                 ));
             }
             let penghapusan = service
-                .return_to_operator(id, claims.user_id, claims.role.clone(), body.catatan)
+                .return_to_operator(
+                    id,
+                    claims.user_id,
+                    claims.role.clone(),
+                    body.catatan,
+                    &SatkerScope::from_claims(&claims),
+                )
                 .await?;
             Ok(Json(ApiResponse::success(
                 penghapusan,
@@ -414,7 +465,12 @@ pub async fn generate_konsep_sk(
     // satu dari kedua role.
     claims.require_any_role(PenghapusanBmnStatus::KonsepSKGenerated.actor_roles())?;
     let penghapusan = service
-        .generate_konsep_sk(id, claims.user_id, claims.role.clone())
+        .generate_konsep_sk(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -430,7 +486,7 @@ pub async fn generate_konsep_sk(
 pub async fn serve_konsep_sk(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path((id, format)): Path<(Uuid, String)>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::body::Body;
     use axum::http::header;
@@ -444,12 +500,15 @@ pub async fn serve_konsep_sk(
         )));
     }
 
-    let path = service.konsep_sk_path(id, format).await?.ok_or_else(|| {
-        AppError::NotFound(format!(
-            "Konsep SK ({}) belum digenerate untuk penghapusan {}",
-            format, id
-        ))
-    })?;
+    let path = service
+        .konsep_sk_path(id, format, &SatkerScope::from_claims(&claims))
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "Konsep SK ({}) belum digenerate untuk penghapusan {}",
+                format, id
+            ))
+        })?;
 
     let bytes = tokio::fs::read(&path)
         .await
@@ -489,6 +548,7 @@ pub async fn upload_signed_sk(
             claims.user_id,
             claims.role.clone(),
             body.signed_sk_pdf_url,
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 
@@ -513,9 +573,10 @@ pub async fn upload_lampiran(
     claims: Claims,
     mut multipart: Multipart,
 ) -> Result<Json<ApiResponse<UploadLampiranResponse>>, AppError> {
-    // Verifikasi entity ada — biarkan repository pertanggungjawab; lookup
-    // di sini juga memastikan FK constraint nantinya tidak gagal di insert.
-    let _existing = service.get_by_id(id).await?;
+    // Verifikasi entity ada DAN dalam scope pemanggil — lookup ini juga
+    // memastikan FK constraint nantinya tidak gagal di insert.
+    let scope = SatkerScope::from_claims(&claims);
+    let _existing = service.get_by_id(id, &scope).await?;
 
     // Presigned URL TTL: 1 tahun. FilesystemStorage abaikan TTL & emit
     // static URL; S3 adapter akan rotate sendiri.
@@ -564,7 +625,7 @@ pub async fn upload_lampiran(
                     .presigned_url(&handle.key, url_ttl)
                     .await
                     .map_err(|e| AppError::Internal(format!("Presigned URL: {}", e)))?;
-                service.set_surat_usulan_url(id, &url).await?;
+                service.set_surat_usulan_url(id, &url, &scope).await?;
                 surat_usulan_url = Some(url);
             }
             "lampiran" => {
@@ -591,11 +652,14 @@ pub async fn upload_lampiran(
                 let lampiran = service
                     .add_lampiran(
                         id,
-                        &original_name,
-                        &url,
-                        content_type.as_deref(),
-                        Some(size),
-                        Some(claims.user_id),
+                        LampiranUpload {
+                            nama: &original_name,
+                            file_url: &url,
+                            content_type: content_type.as_deref(),
+                            size_bytes: Some(size),
+                            uploaded_by: Some(claims.user_id),
+                        },
+                        &scope,
                     )
                     .await?;
                 lampirans.push(lampiran);
@@ -628,9 +692,11 @@ pub async fn upload_lampiran(
 pub async fn list_lampiran(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PenghapusanBmnLampiran>>>, AppError> {
-    let items = service.list_lampiran(id).await?;
+    let items = service
+        .list_lampiran(id, &SatkerScope::from_claims(&claims))
+        .await?;
     Ok(Json(ApiResponse::success(
         items,
         "Lampiran retrieved successfully".to_string(),
@@ -665,7 +731,12 @@ pub async fn generate_konsep_sk_wilayah(
 ) -> Result<Json<ApiResponse<PenghapusanBmn>>, AppError> {
     require_validator_wilayah(&claims)?;
     let penghapusan = service
-        .generate_konsep_sk_wilayah(id, claims.user_id, claims.role.clone())
+        .generate_konsep_sk_wilayah(
+            id,
+            claims.user_id,
+            claims.role.clone(),
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
     Ok(Json(ApiResponse::success(
         penghapusan,
@@ -687,6 +758,7 @@ pub async fn upload_signed_sk_wilayah(
             claims.user_id,
             claims.role.clone(),
             body.signed_sk_pdf_url,
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
     Ok(Json(ApiResponse::success(
@@ -715,16 +787,17 @@ pub async fn transition_penghapusan_bmn(
     claims.require_any_role(PenghapusanBmnStatus::Rejected.actor_roles())?;
     request.validate()?;
 
-    let ip_address = "127.0.0.1".to_string();
-
     let penghapusan = service
         .transition(
             id,
             request.to_state,
-            claims.user_id,
-            claims.role.clone(),
-            request.catatan,
-            ip_address,
+            TransitionActor::new(
+                claims.user_id,
+                claims.role.clone(),
+                request.catatan,
+                "127.0.0.1",
+            ),
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 
@@ -738,9 +811,11 @@ pub async fn transition_penghapusan_bmn(
 pub async fn get_penghapusan_document(
     State(service): State<Arc<PenghapusanBmnService>>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<String>>, AppError> {
-    let penghapusan = service.get_by_id(id).await?;
+    let penghapusan = service
+        .get_by_id(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     // First check new konsep_sk_url, then fallback to legacy document_url
     let document_url = penghapusan
