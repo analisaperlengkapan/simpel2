@@ -95,6 +95,38 @@ impl PakaianDinasRepository {
         Ok((items, total))
     }
 
+    /// Is this campaign one the caller may see at all?
+    ///
+    /// The same predicate the LIST uses (`campaign_visibility_condition`), so
+    /// a campaign cannot be absent from a caller's list yet readable by id.
+    /// Read-only callers use this as a gate; the workflow paths do not need it
+    /// because every action on a campaign is already a cross-satker role's.
+    pub async fn campaign_in_scope(&self, id: Uuid, scope: &SatkerScope) -> AppResult<bool> {
+        let client = self
+            .pool
+            .get()
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let cond = campaign_visibility_condition(scope, &mut params)
+            .map(|c| format!(" AND {c}"))
+            .unwrap_or_default();
+        let refs: Vec<&(dyn ToSql + Sync)> =
+            params.iter().map(|b| &**b as &(dyn ToSql + Sync)).collect();
+        let row = client
+            .query_one(
+                &format!(
+                    "SELECT EXISTS (SELECT 1 FROM perlengkapan.pengajuan_pakaian_dinas p \
+                     WHERE p.id = $1{cond}) AS visible"
+                ),
+                &refs,
+            )
+            .await
+            .map_err(|e| bad_request(&e.to_string()))?;
+        Ok(row.get::<_, bool>("visible"))
+    }
+
     pub async fn get_pengajuan_by_id(&self, id: Uuid) -> AppResult<PengajuanPakaianDinas> {
         let client = self
             .pool

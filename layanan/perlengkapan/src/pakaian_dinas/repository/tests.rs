@@ -1,5 +1,6 @@
 use crate::pakaian_dinas::models::*;
 use crate::pakaian_dinas::repository::laporan::{JenisPakaianPredicate, push_laporan_filters};
+use crate::shared::satker_scope::SatkerScope;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
@@ -13,9 +14,17 @@ fn test_repository_new() {
 }
 
 fn build(filter: &LaporanFilter, mode: JenisPakaianPredicate) -> (String, usize, Option<usize>) {
+    build_scoped(filter, mode, &SatkerScope::All)
+}
+
+fn build_scoped(
+    filter: &LaporanFilter,
+    mode: JenisPakaianPredicate,
+    scope: &SatkerScope,
+) -> (String, usize, Option<usize>) {
     let mut sql = String::from("WHERE ps.pengajuan_id = $1");
     let mut params: Vec<Box<dyn ToSql + Sync + Send>> = vec![Box::new(Uuid::nil())];
-    let built = push_laporan_filters(&mut sql, &mut params, filter, 2, mode);
+    let built = push_laporan_filters(&mut sql, &mut params, filter, 2, mode, scope);
     // One bound value per placeholder, always — a mismatch here is the bug that
     // makes tokio-postgres fail at bind time rather than at compile time.
     assert_eq!(params.len(), built.next_idx - 1);
@@ -146,4 +155,81 @@ fn reported_jenis_pakaian_placeholder_matches_the_sql() {
         sql.contains(&format!("ppx.jenis_pakaian_id = ${idx}")),
         "reported placeholder ${idx} is not the one in: {sql}"
     );
+}
+
+// ── Scope is part of the filter builder, not an optional extra ────────────
+
+/// The scope binds BEFORE any client-chosen filter, so its placeholder is `$2`
+/// and every later filter shifts up by one. Getting this wrong does not fail to
+/// compile; it binds the satker code to whichever value happens to sit at that
+/// index, and the report quietly answers about the wrong thing.
+#[test]
+fn scope_binds_first_and_shifts_the_client_filters() {
+    let filter = LaporanFilter {
+        jenis_kelamin: Some("L".to_string()),
+        ..Default::default()
+    };
+    let (sql, next, _) = build_scoped(
+        &filter,
+        JenisPakaianPredicate::ExistsOnPegawai,
+        &SatkerScope::Satker("02.28".to_string()),
+    );
+    assert!(sql.contains("AND ps.satker_id = $2"), "sql: {sql}");
+    assert!(sql.contains("AND psp.jenis_kelamin = $3"), "sql: {sql}");
+    assert_eq!(next, 4);
+}
+
+/// A client-supplied `satker_id` narrows; it never widens. Both predicates are
+/// present and ANDed, so asking about another satker returns nothing rather
+/// than that satker's rows.
+#[test]
+fn a_client_satker_filter_can_only_narrow() {
+    let filter = LaporanFilter {
+        satker_id: Some("02.99".to_string()),
+        ..Default::default()
+    };
+    let (sql, _, _) = build_scoped(
+        &filter,
+        JenisPakaianPredicate::ExistsOnPegawai,
+        &SatkerScope::Satker("02.28".to_string()),
+    );
+    assert_eq!(
+        sql.matches("ps.satker_id = $").count(),
+        2,
+        "both the scope and the client filter must be present: {sql}"
+    );
+}
+
+#[test]
+fn a_denied_scope_matches_no_row() {
+    let (sql, next, _) = build_scoped(
+        &LaporanFilter::default(),
+        JenisPakaianPredicate::ExistsOnPegawai,
+        &SatkerScope::Denied,
+    );
+    assert!(sql.contains("AND FALSE"), "sql: {sql}");
+    // FALSE binds nothing, so the next placeholder is unchanged.
+    assert_eq!(next, 2);
+}
+
+#[test]
+fn an_unrestricted_scope_adds_nothing() {
+    let (sql, next, _) = build_scoped(
+        &LaporanFilter::default(),
+        JenisPakaianPredicate::ExistsOnPegawai,
+        &SatkerScope::All,
+    );
+    assert_eq!(sql, "WHERE ps.pengajuan_id = $1");
+    assert_eq!(next, 2);
+}
+
+#[test]
+fn a_wilayah_scope_resolves_through_the_shared_view() {
+    let (sql, _, _) = build_scoped(
+        &LaporanFilter::default(),
+        JenisPakaianPredicate::ExistsOnPegawai,
+        &SatkerScope::Wilayah("02.28".to_string()),
+    );
+    assert!(sql.contains("integrasi.v_satker_wilayah"), "sql: {sql}");
+    assert!(!sql.contains("mysimkari_satker"), "sql: {sql}");
 }

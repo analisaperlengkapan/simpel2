@@ -527,3 +527,144 @@ test.describe('Pakaian dinas employee scoping — server-side', () => {
     ).toBe(own);
   });
 });
+
+/**
+ * Pakaian dinas — a campaign's per-satker surfaces, server-side.
+ *
+ * The campaign itself is nationwide and pusat-authored; a satker's RESPONSE to
+ * it is not. Measured against deployed staging (rc29), operator_a (0200010)
+ * saw operator_b's (0200020) participation row on the campaign's satker list,
+ * read it by id, read its approval trail — names and NIPs of the validators
+ * who acted — and got the NATIONAL employee list back from the daftar report.
+ *
+ * Read-only: nothing here mutates, so retries see the same state.
+ */
+test.describe('Pakaian dinas campaign scoping — server-side', () => {
+  const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** A campaign both operators can see, plus its participation rows as pusat sees them. */
+  async function campaignWithTwoParticipants(request: APIRequestContext) {
+    const tokP = await tokenFor(request, 'validator_pusat');
+    const list = await request.get(`${API}/pengajuan?per_page=50`, { headers: bearer(tokP) });
+    expect(list.status(), 'pusat must be able to list campaigns').toBe(200);
+    const campaigns = ((await list.json()) as PaginatedResponse<{ id: string }>).data;
+
+    for (const c of campaigns) {
+      const resp = await request.get(`${API}/pengajuan/${c.id}/satker?per_page=50`, {
+        headers: bearer(tokP),
+      });
+      if (!resp.ok()) continue;
+      const rows = ((await resp.json()) as PaginatedResponse<{ id: string; satker_id: string }>)
+        .data;
+      const own = rows.find((r) => r.satker_id === userByKey('operator_a').satkerCode);
+      const foreign = rows.find((r) => r.satker_id === userByKey('operator_b').satkerCode);
+      if (own && foreign) return { campaignId: c.id, own, foreign };
+    }
+    return null;
+  }
+
+  test('the participant list shows a satker only its own row', async ({ request }) => {
+    const found = await campaignWithTwoParticipants(request);
+    expect(
+      found,
+      'the seed must give ONE campaign participation rows for BOTH operators, or this suite proves nothing',
+    ).toBeTruthy();
+
+    const tokA = await tokenFor(request, 'operator_a');
+    const resp = await request.get(`${API}/pengajuan/${found!.campaignId}/satker?per_page=50`, {
+      headers: bearer(tokA),
+    });
+    expect(resp.status()).toBe(200);
+    const body = (await resp.json()) as PaginatedResponse<{ satker_id: string }>;
+    const others = body.data.filter((r) => r.satker_id !== userByKey('operator_a').satkerCode);
+    expect(others, `operator_a must see only its own participation row`).toEqual([]);
+    // The total is scoped too — a scoped page beside a national total still
+    // says how many participants are being withheld.
+    expect(body.total).toBe(body.data.length);
+  });
+
+  test('a participation row and its approval trail of another satker are closed', async ({
+    request,
+  }) => {
+    const found = await campaignWithTwoParticipants(request);
+    expect(found).toBeTruthy();
+    const tokA = await tokenFor(request, 'operator_a');
+
+    // Positive control: the caller's own row is readable.
+    const own = await request.get(`${API}/satker/${found!.own.id}`, { headers: bearer(tokA) });
+    expect(own.status(), `own participation row: ${await own.text()}`).toBe(200);
+
+    const foreign = await request.get(`${API}/satker/${found!.foreign.id}`, {
+      headers: bearer(tokA),
+    });
+    expect(
+      foreign.status(),
+      `another satker's participation row: ${await foreign.text()}`,
+    ).toBe(404);
+
+    // The trail names who acted, with their NIPs. Out of scope it is empty
+    // rather than 404 — indistinguishable from "nothing has happened yet",
+    // which is the point: no oracle either way.
+    const trail = await request.get(`${API}/satker/${found!.foreign.id}/aktivitas`, {
+      headers: bearer(tokA),
+    });
+    expect(trail.status()).toBe(200);
+    expect(((await trail.json()) as { data: unknown[] }).data).toEqual([]);
+  });
+
+  test('the daftar report is scoped and a client filter can only narrow', async ({ request }) => {
+    const found = await campaignWithTwoParticipants(request);
+    expect(found).toBeTruthy();
+    const tokA = await tokenFor(request, 'operator_a');
+    const ownSatker = userByKey('operator_a').satkerCode;
+    const foreignSatker = userByKey('operator_b').satkerCode;
+    const base = `${API}/laporan/daftar-pegawai?pengajuan_id=${found!.campaignId}&page=1&per_page=100`;
+
+    const mine = await request.get(base, { headers: bearer(tokA) });
+    expect(mine.status(), await mine.text()).toBe(200);
+    const rows = ((await mine.json()) as PaginatedResponse<{ satker_nama?: string }>).data;
+    // Derived, not hard-coded: whatever the seed contains, none of it may come
+    // from the other operator's satker.
+    const namesResp = await request.get(`${API}/pegawai-satker/${ownSatker}`, {
+      headers: bearer(tokA),
+    });
+    expect(namesResp.status()).toBe(200);
+
+    const foreignRoster = await request.get(`${API}/pegawai-satker/${foreignSatker}`, {
+      headers: bearer(await tokenFor(request, 'operator_b')),
+    });
+    const foreignNips = new Set(
+      ((await foreignRoster.json()) as { data: Array<{ nip: string }> }).data.map((p) => p.nip),
+    );
+    const leaked = rows.filter((r) => foreignNips.has((r as { nip?: string }).nip ?? ''));
+    expect(leaked, 'the national employee list used to come back here').toEqual([]);
+
+    // Naming the other satker narrows to nothing rather than widening to them.
+    const narrowed = await request.get(`${base}&satker_id=${foreignSatker}`, {
+      headers: bearer(tokA),
+    });
+    expect(narrowed.status()).toBe(200);
+    expect(((await narrowed.json()) as PaginatedResponse<unknown>).data).toEqual([]);
+  });
+
+  test('only pusat may author a campaign', async ({ request }) => {
+    const tokA = await tokenFor(request, 'operator_a');
+    const resp = await request.post(`${API}/pengajuan`, {
+      headers: bearer(tokA),
+      data: {
+        nama: 'E2E RBAC probe — must be refused',
+        tahun: 2026,
+        tgl_mulai: '2026-01-01',
+        tgl_selesai: '2026-12-31',
+        pilihan_satker: 'semua',
+        spesifikasi_ids: ['00000000-0000-0000-0000-000000000000'],
+      },
+    });
+    // 403 before any business validation — the point is that authorization
+    // decides, not that the payload happens to be incomplete.
+    expect(resp.status(), `a satker operator must not author a campaign: ${await resp.text()}`).toBe(
+      403,
+    );
+  });
+});

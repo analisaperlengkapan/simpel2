@@ -16,6 +16,7 @@
 use super::models::{DaftarReport, LaporanFilter, RekapReport, ReportHeader};
 use super::services::PakaianDinasService;
 use crate::shared::error::*;
+use crate::shared::satker_scope::SatkerScope;
 use rust_xlsxwriter::{Format, FormatAlign, FormatBorder, Workbook, Worksheet};
 use uuid::Uuid;
 
@@ -25,8 +26,11 @@ pub async fn generate_rekap_xlsx(
     service: &PakaianDinasService,
     pengajuan_id: Uuid,
     filter: &LaporanFilter,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let report = service.build_rekap_report(pengajuan_id, filter).await?;
+    let report = service
+        .build_rekap_report(pengajuan_id, filter, scope)
+        .await?;
     render_rekap_xlsx(&report)
 }
 
@@ -34,8 +38,11 @@ pub async fn generate_daftar_xlsx(
     service: &PakaianDinasService,
     pengajuan_id: Uuid,
     filter: &LaporanFilter,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let report = service.build_daftar_report(pengajuan_id, filter).await?;
+    let report = service
+        .build_daftar_report(pengajuan_id, filter, scope)
+        .await?;
     render_daftar_xlsx(&report)
 }
 

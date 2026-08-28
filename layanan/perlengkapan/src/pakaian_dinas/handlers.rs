@@ -381,9 +381,13 @@ pub async fn get_all_pengajuan_pakaian(
 pub async fn get_pengajuan_pakaian_by_id(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PengajuanPakaianDinas>>, AppError> {
-    let item = service.get_pengajuan_by_id(id).await?;
+    // Gated on the same visibility the list uses: a campaign missing from your
+    // list must not be readable by id.
+    let item = service
+        .get_pengajuan_by_id_scoped(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         item,
@@ -396,6 +400,15 @@ pub async fn create_pengajuan_pakaian(
     claims: Claims,
     Json(request): Json<CreatePengajuanRequest>,
 ) -> Result<(StatusCode, Json<ApiResponse<PengajuanPakaianDinas>>), AppError> {
+    // A campaign is a pusat instrument: it targets satkers nationwide and
+    // every satker-tier caller is a RESPONDENT to it. `pakaian_dinas::scope`
+    // already relies on that ("campaigns can only be authored by
+    // validator_pusat, who is a cross-satker role and already sees all") — the
+    // list-scoping's no-`created_by`-escape-hatch argument rests on it. It was
+    // documented but never enforced: this handler read `claims` only for a
+    // user id, so any authenticated caller reached campaign creation and was
+    // stopped, if at all, by business validation.
+    claims.require_any_role(&["validator_pusat"])?;
     let user_id = Some(claims.user_id);
     let item = service.create_pengajuan(request, user_id).await?;
 
@@ -411,8 +424,11 @@ pub async fn create_pengajuan_pakaian(
 pub async fn delete_pengajuan_pakaian(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<()>>, AppError> {
+    // Deleting a campaign cascades through every participating satker's rows.
+    // Same authority as creating one.
+    claims.require_any_role(&["validator_pusat"])?;
     service.delete_pengajuan(id).await?;
 
     Ok(Json(ApiResponse::success(
@@ -427,11 +443,17 @@ pub async fn get_pengajuan_satker_list(
     State(service): State<PakaianDinasService>,
     Path(pengajuan_id): Path<Uuid>,
     Query(pagination): Query<PaginationQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<PengajuanSatker>>, AppError> {
     pagination.validate()?;
+    // The campaign may be nationwide; a satker's response to it is not.
     let (items, total) = service
-        .get_pengajuan_satker_list(pengajuan_id, pagination.page, pagination.per_page)
+        .get_pengajuan_satker_list(
+            pengajuan_id,
+            pagination.page,
+            pagination.per_page,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(PaginatedResponse::new(
@@ -446,9 +468,11 @@ pub async fn get_pengajuan_satker_list(
 pub async fn get_pengajuan_satker_by_id(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PengajuanSatker>>, AppError> {
-    let item = service.get_pengajuan_satker_by_id(id).await?;
+    let item = service
+        .get_pengajuan_satker_by_id(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         item,
@@ -460,9 +484,12 @@ pub async fn get_pengajuan_satker_by_id(
 pub async fn get_pengajuan_satker_aktivitas(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengajuanSatkerAktivitas>>>, AppError> {
-    let items = service.list_satker_aktivitas(id).await?;
+    // The trail names the people who acted, with their NIPs.
+    let items = service
+        .list_satker_aktivitas(id, &SatkerScope::from_claims(&claims))
+        .await?;
     Ok(Json(ApiResponse::success(
         items,
         "Riwayat aktivitas satker berhasil diambil".to_string(),
@@ -480,8 +507,17 @@ pub async fn process_validator_action(
     let user_nama = claims.name.as_deref().unwrap_or("unknown");
     let user_role = &claims.role;
 
+    // The role gate lives in `determine_next_status`; this is the object gate
+    // beside it. Without it a validator could approve or reject a satker's
+    // submission from outside their own satker or wilayah entirely.
     let item = service
-        .process_validator_action(request, user_nip, user_nama, user_role)
+        .process_validator_action(
+            request,
+            user_nip,
+            user_nama,
+            user_role,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -645,7 +681,7 @@ pub async fn get_pegawai_with_sizes(
 pub async fn get_laporan_rekap_ukuran(
     State(service): State<PakaianDinasService>,
     Query(query): Query<LaporanRekapQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<LaporanRekapUkuran>>>, AppError> {
     let filter = LaporanFilter {
         pengajuan_id: Some(query.pengajuan_id),
@@ -657,8 +693,14 @@ pub async fn get_laporan_rekap_ukuran(
         ..Default::default()
     };
 
+    // Unscoped, this returned the national table to a satker operator. The
+    // client's own `satker_id` filter is a convenience, not a boundary.
     let items = service
-        .get_laporan_rekap_ukuran(query.pengajuan_id, filter)
+        .get_laporan_rekap_ukuran(
+            query.pengajuan_id,
+            filter,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -670,7 +712,7 @@ pub async fn get_laporan_rekap_ukuran(
 pub async fn get_laporan_daftar_pegawai(
     State(service): State<PakaianDinasService>,
     Query(query): Query<LaporanDaftarQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<PaginatedResponse<LaporanDaftarPegawai>>, AppError> {
     query.pagination.validate()?;
 
@@ -690,6 +732,7 @@ pub async fn get_laporan_daftar_pegawai(
             filter,
             query.pagination.page,
             query.pagination.per_page,
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 
@@ -774,10 +817,12 @@ pub async fn reject_pengajuan_handler(
 pub async fn download_rekapitulasi_handler(
     State(service): State<PakaianDinasService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<serde_json::Value>>, AppError> {
     // Get pengajuan to check document URL
-    let pengajuan = service.get_pengajuan_by_id(id).await?;
+    let pengajuan = service
+        .get_pengajuan_by_id_scoped(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     // Check if document exists
     let document_url = pengajuan
@@ -812,10 +857,15 @@ pub struct CetakQuery {
 pub async fn cetak_laporan(
     State(service): State<PakaianDinasService>,
     Query(query): Query<CetakQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
+
+    // The exported file is the same data as the on-screen report, so it needs
+    // the same scope. `query.satker_id` is a filter the client chooses; it can
+    // only narrow what the scope already allows, never widen it.
+    let scope = SatkerScope::from_claims(&claims);
 
     let filter = LaporanFilter {
         pengajuan_id: Some(query.pengajuan_id),
@@ -829,9 +879,13 @@ pub async fn cetak_laporan(
 
     match (query.jenis_laporan.as_str(), query.jenis_file.as_str()) {
         ("rekap", "excel") => {
-            let buffer =
-                super::xlsx_export::generate_rekap_xlsx(&service, query.pengajuan_id, &filter)
-                    .await?;
+            let buffer = super::xlsx_export::generate_rekap_xlsx(
+                &service,
+                query.pengajuan_id,
+                &filter,
+                &scope,
+            )
+            .await?;
             let headers = [
                 (
                     header::CONTENT_TYPE,
@@ -845,9 +899,13 @@ pub async fn cetak_laporan(
             Ok((headers, buffer).into_response())
         }
         ("daftar", "excel") => {
-            let buffer =
-                super::xlsx_export::generate_daftar_xlsx(&service, query.pengajuan_id, &filter)
-                    .await?;
+            let buffer = super::xlsx_export::generate_daftar_xlsx(
+                &service,
+                query.pengajuan_id,
+                &filter,
+                &scope,
+            )
+            .await?;
             let headers = [
                 (
                     header::CONTENT_TYPE,
@@ -861,9 +919,13 @@ pub async fn cetak_laporan(
             Ok((headers, buffer).into_response())
         }
         ("rekap", "pdf") => {
-            let buffer =
-                super::pdf_export::generate_rekap_pdf(&service, query.pengajuan_id, &filter)
-                    .await?;
+            let buffer = super::pdf_export::generate_rekap_pdf(
+                &service,
+                query.pengajuan_id,
+                &filter,
+                &scope,
+            )
+            .await?;
             let headers = [
                 (header::CONTENT_TYPE, "application/pdf"),
                 (
@@ -874,9 +936,13 @@ pub async fn cetak_laporan(
             Ok((headers, buffer).into_response())
         }
         ("daftar", "pdf") => {
-            let buffer =
-                super::pdf_export::generate_daftar_pdf(&service, query.pengajuan_id, &filter)
-                    .await?;
+            let buffer = super::pdf_export::generate_daftar_pdf(
+                &service,
+                query.pengajuan_id,
+                &filter,
+                &scope,
+            )
+            .await?;
             let headers = [
                 (header::CONTENT_TYPE, "application/pdf"),
                 (

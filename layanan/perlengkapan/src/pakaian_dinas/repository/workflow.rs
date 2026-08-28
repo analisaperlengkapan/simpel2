@@ -1,6 +1,7 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
 use crate::shared::error::{AppResult, bad_request};
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 use uuid::Uuid;
 
 impl PakaianDinasRepository {
@@ -122,9 +123,17 @@ impl PakaianDinasRepository {
 
     /// Per-satker activity history, oldest first — backs the workflow timeline
     /// in the FE satker detail view (#40).
+    /// Workflow history of ONE satker's participation row.
+    ///
+    /// The activity table has no satker column of its own, so the scope is
+    /// applied to its parent: the caller must be able to see the participation
+    /// row before they can read who acted on it and what they wrote. Unscoped,
+    /// this handed a satker operator another satker's approval trail, complete
+    /// with the validators' names and NIPs.
     pub async fn list_satker_aktivitas(
         &self,
-        satker_id: Uuid,
+        pengajuan_satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
         let client = self
             .pool
@@ -132,14 +141,20 @@ impl PakaianDinasRepository {
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
 
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_satker_id)];
+        let scope_sql = crate::shared::satker_scope::scope_and(scope, "ps.satker_id", &mut params);
         let rows = client
             .query(
-                "SELECT id, pengajuan_satker_id, aktivitas_id, komentar, nip, nama, \
-                        pangkat, jabatan, role, created_at \
-                 FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas \
-                 WHERE pengajuan_satker_id = $1 \
-                 ORDER BY created_at ASC",
-                &[&satker_id],
+                &format!(
+                    "SELECT a.id, a.pengajuan_satker_id, a.aktivitas_id, a.komentar, a.nip, \
+                            a.nama, a.pangkat, a.jabatan, a.role, a.created_at \
+                     FROM perlengkapan.pengajuan_pakaian_dinas_satker_aktivitas a \
+                     JOIN perlengkapan.pengajuan_pakaian_dinas_satker ps \
+                       ON ps.id = a.pengajuan_satker_id \
+                     WHERE a.pengajuan_satker_id = $1{scope_sql} \
+                     ORDER BY a.created_at ASC"
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| bad_request(&e.to_string()))?;
