@@ -210,7 +210,7 @@ simpelv1:
   env:
     APP_ENV: staging
     QUEUE_CONNECTION: sync
-    PORTAL_URL: "http://portal:3000/portal"
+    PORTAL_URL: "http://10.1.7.121/portal"
   # DB sudah ter-initialize di staging postgres-0 via postgres-init job.
   # Skip restore-from-backup init container (butuh ConfigMap simpelv1-db-backup
   # yang berisi SQL dump). Set ke "none" agar init container db-migrate

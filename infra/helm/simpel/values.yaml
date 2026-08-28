@@ -704,7 +704,13 @@ simpelv1:
     QUEUE_CONNECTION: sync
     REDIS_HOST: ""                         # default: redis.<ns>.svc.cluster.local
     REDIS_PORT: "6379"
-    PORTAL_URL: "http://portal:3000/portal"
+    # Dikirim ke BROWSER sebagai redirect oleh `TokenToOAuthMiddleware`
+    # (`return redirect("{portal_url}/login?...")`), jadi ia harus alamat yang
+    # bisa dijangkau browser — bukan nama Service di dalam cluster. Nilai lama
+    # `http://portal:3000/portal` salah dua kali: browser di luar cluster tak
+    # bisa me-resolve `portal`, dan VirtualService pun mengarahkan portal ke
+    # port 8080, bukan 3000. Tiap environment menimpanya seperti `appUrl`.
+    PORTAL_URL: "http://localhost:3000/portal"
     # All three point at the single gateway sidecar (127.0.0.1:8090); the sidecar
     # fans out to the right upstream gRPC service per path. See simpelv1.gateway.
     AUTHENC_GATEWAY_URL: "http://127.0.0.1:8090"

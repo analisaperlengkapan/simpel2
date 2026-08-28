@@ -95,6 +95,32 @@ spec:
         - { protocol: TCP, port: 8088 }
         - { protocol: TCP, port: 9088 }
 ---
+# `default-deny-ingress` menutup semua ingress, lalu tiap dependensi backend
+# dibukakan satu policy sendiri (authenc/postgres/secreton/redis). Integrasi
+# tidak pernah mendapat miliknya, jadi 50051/8080 tertutup untuk SEMUA pod
+# di namespace — hanya istio-ingressgateway yang boleh masuk (lewat
+# `allow-ingress-gateway`). Konsumennya: perlengkapan (gRPC fetch-at-read) dan
+# simpelv1 lewat gateway sidecar.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-to-integrasi
+  namespace: {{ $ns }}
+  labels:
+    {{- include "simpel.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: layanan-integrasi
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: backend } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: frontend } }
+      ports:
+        - { protocol: TCP, port: 50051 }
+        - { protocol: TCP, port: 8080 }
+---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -233,10 +259,18 @@ spec:
       ports:
         - { protocol: TCP, port: 8088 }
         - { protocol: TCP, port: 9088 }
+    # 50051 = gRPC (semua konsumen), 8080 = HTTP monitoring. Port 50053 dulu
+    # ditulis di sini dan TIDAK ADA yang mendengarkannya — `layanan-integrasi`
+    # mengekspos 50051/8080. Karena `podSelector: {}` membuat SETIAP pod
+    # egress-restricted, satu digit itu memutus integrasi untuk seluruh
+    # namespace: `is_integrasi_sync_risky` menunggu 25s + 30s lalu menyerah,
+    # jadi tiap keputusan Validator Pusat memakan ~55 detik dan klien menerima
+    # 504 dari gateway (batas 30s) walau transisinya berhasil.
     - to:
         - podSelector: { matchLabels: { app.kubernetes.io/name: layanan-integrasi } }
       ports:
-        - { protocol: TCP, port: 50053 }
+        - { protocol: TCP, port: 50051 }
+        - { protocol: TCP, port: 8080 }
 {{- end }}
 {{- if .Values.networkPolicies.allowIstioControlPlaneEgress }}
 ---
