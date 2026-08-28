@@ -4,7 +4,6 @@
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use validator::Validate;
 
 /// Search query with filters and pagination
@@ -59,8 +58,13 @@ impl SearchQuery {
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SearchFilters {
-    /// Filter by satker ID
-    pub satker_id: Option<Uuid>,
+    /// Filter by satker — MySIMKARI `kode_satker` (TEXT), not a surrogate id.
+    ///
+    /// This was `Option<Uuid>`, which no longer matched anything the schema
+    /// stores: satker keys became `kode_satker` in V006 (#94), and comparing a
+    /// uuid against that column is a bind-time type error rather than an empty
+    /// result.
+    pub satker_id: Option<String>,
 
     /// Filter by tahun anggaran
     pub tahun_anggaran: Option<i32>,
@@ -77,9 +81,6 @@ pub struct SearchFilters {
     /// Filter by date range (created_at)
     pub date_from: Option<String>,
     pub date_to: Option<String>,
-
-    /// Filter by is_sbsk
-    pub is_sbsk: Option<bool>,
 }
 
 impl SearchFilters {
@@ -88,9 +89,9 @@ impl SearchFilters {
         Self::default()
     }
 
-    /// Set satker filter
-    pub fn with_satker(mut self, satker_id: Uuid) -> Self {
-        self.satker_id = Some(satker_id);
+    /// Set satker filter (MySIMKARI `kode_satker`)
+    pub fn with_satker(mut self, satker_id: impl Into<String>) -> Self {
+        self.satker_id = Some(satker_id.into());
         self
     }
 
@@ -121,7 +122,6 @@ impl SearchFilters {
             || self.priority_level.is_some()
             || self.date_from.is_some()
             || self.date_to.is_some()
-            || self.is_sbsk.is_some()
     }
 }
 
@@ -337,13 +337,14 @@ mod tests {
 
     #[test]
     fn test_search_filters() {
-        let satker_id = Uuid::new_v4();
+        // MySIMKARI `kode_satker`, the key the schema actually stores (V006/#94).
+        let satker_id = "0200010";
         let filters = SearchFilters::new()
             .with_satker(satker_id)
             .with_tahun_anggaran(2024)
             .with_status(vec!["APPROVED".to_string()]);
 
-        assert_eq!(filters.satker_id, Some(satker_id));
+        assert_eq!(filters.satker_id.as_deref(), Some(satker_id));
         assert_eq!(filters.tahun_anggaran, Some(2024));
         assert!(filters.has_filters());
     }
