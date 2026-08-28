@@ -16,13 +16,10 @@
         }
     </script>
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/favicon.png">
-
-    <!-- Preload critical fonts -->
-    <link rel="preload" href="/fonts/inter-regular.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/fonts/inter-medium.woff2" as="font" type="font/woff2" crossorigin="anonymous">
-    <link rel="preload" href="/fonts/inter-semibold.woff2" as="font" type="font/woff2" crossorigin="anonymous">
+    <!-- Favicon. Relative so it resolves through <base href="/portal/"> to the
+         copy-dir'd asset; an absolute /favicon.png 404s behind the ingress and
+         there has never been a file at that path. -->
+    <link rel="icon" type="image/png" href="assets/kejaksaan-logo.png">
 
     <!-- DNS prefetch -->
     <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
@@ -39,39 +36,6 @@
         data-wasm-opt-params="--enable-bulk-memory --enable-nontrapping-float-to-int --enable-sign-ext" />
 
     <style>
-        /* Font faces */
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 400;
-            font-display: swap;
-            src: local('Inter'), url('/fonts/inter-regular.woff2') format('woff2');
-        }
-
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 500;
-            font-display: swap;
-            src: local('Inter Medium'), url('/fonts/inter-medium.woff2') format('woff2');
-        }
-
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 600;
-            font-display: swap;
-            src: local('Inter SemiBold'), url('/fonts/inter-semibold.woff2') format('woff2');
-        }
-
-        @font-face {
-            font-family: 'Inter';
-            font-style: normal;
-            font-weight: 700;
-            font-display: swap;
-            src: local('Inter Bold'), url('/fonts/inter-bold.woff2') format('woff2');
-        }
-
         * {
             margin: 0;
             padding: 0;
