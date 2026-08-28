@@ -16,12 +16,49 @@ use super::models::*;
 use super::repository::PenghapusanBmnRepository;
 use crate::bank_aset::repository::BankAsetRepository;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use crate::shared::siman_columns::normalize_kode_barang;
 use crate::workflow::engine::{TransitionRequest, WorkflowEngine};
 use deadpool_postgres::Pool;
 use std::sync::Arc;
 use tracing::{info, warn};
 use uuid::Uuid;
+
+/// Who is making a workflow move, and what the audit trail should record.
+///
+/// These four always travel together — every `transition` call passes all of
+/// them — so they are one parameter rather than four. Bundling them is also
+/// what keeps the signature under clippy's argument limit now that the satker
+/// scope is a required argument.
+pub struct TransitionActor {
+    pub user_id: Uuid,
+    pub user_role: String,
+    pub catatan: Option<String>,
+    pub ip_address: String,
+}
+
+impl TransitionActor {
+    /// The common case: an action taken by the authenticated caller, with the
+    /// action name standing in for `ip_address` (which is what every caller in
+    /// this module already passed).
+    pub fn new(user_id: Uuid, user_role: String, catatan: Option<String>, action: &str) -> Self {
+        Self {
+            user_id,
+            user_role,
+            catatan,
+            ip_address: action.to_string(),
+        }
+    }
+}
+
+/// One uploaded attachment, as the handler already holds it.
+pub struct LampiranUpload<'a> {
+    pub nama: &'a str,
+    pub file_url: &'a str,
+    pub content_type: Option<&'a str>,
+    pub size_bytes: Option<i64>,
+    pub uploaded_by: Option<Uuid>,
+}
 
 pub struct PenghapusanBmnService {
     pool: Pool,
@@ -106,14 +143,18 @@ impl PenghapusanBmnService {
             .await
     }
 
-    /// Get penghapusan BMN by ID
-    pub async fn get_by_id(&self, id: Uuid) -> AppResult<PenghapusanBmn> {
-        self.repository.get_by_id(id).await
+    /// Get penghapusan BMN by ID, within the caller's satker scope.
+    pub async fn get_by_id(&self, id: Uuid, scope: &SatkerScope) -> AppResult<PenghapusanBmn> {
+        self.repository.get_by_id(id, scope).await
     }
 
     /// Get penghapusan BMN detail with allowed transitions
-    pub async fn get_detail(&self, id: Uuid) -> AppResult<PenghapusanBmnDetailResponse> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+    pub async fn get_detail(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PenghapusanBmnDetailResponse> {
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         let transitions: Vec<PenghapusanTransitionInfo> = status
@@ -153,8 +194,12 @@ impl PenghapusanBmnService {
     /// kondisi terkini (BAIK/RR/RB) + nilai perolehan. Tujuan: mencegah
     /// penerbitan SK penghapusan atas aset yg sudah tidak ada / tidak cocok.
     /// Bersifat read-only & best-effort — sumber: replika `integrasi.siman_aset`.
-    pub async fn verify_asset_siman(&self, id: Uuid) -> AppResult<SimanAssetVerification> {
-        let record = self.repository.get_by_id(id).await?;
+    pub async fn verify_asset_siman(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<SimanAssetVerification> {
+        let record = self.repository.get_by_id(id, scope).await?;
         let bank_repo = BankAsetRepository::new(self.pool.clone());
         // Authoritative SIMAN cross-check — unscoped on purpose; the penghapusan
         // record's satker ownership was validated when it was created.
@@ -288,7 +333,13 @@ impl PenghapusanBmnService {
 
     /// Set Surat Usulan file URL setelah file di-upload via DocumentStorage.
     /// Hanya entity yg sudah ada yg boleh — caller wajib pastikan ID valid.
-    pub async fn set_surat_usulan_url(&self, id: Uuid, file_url: &str) -> AppResult<()> {
+    pub async fn set_surat_usulan_url(
+        &self,
+        id: Uuid,
+        file_url: &str,
+        scope: &SatkerScope,
+    ) -> AppResult<()> {
+        self.repository.get_by_id(id, scope).await?;
         self.repository.set_surat_usulan_url(id, file_url).await
     }
 
@@ -298,20 +349,18 @@ impl PenghapusanBmnService {
     pub async fn add_lampiran(
         &self,
         penghapusan_id: Uuid,
-        nama: &str,
-        file_url: &str,
-        content_type: Option<&str>,
-        size_bytes: Option<i64>,
-        uploaded_by: Option<Uuid>,
+        upload: LampiranUpload<'_>,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmnLampiran> {
+        self.repository.get_by_id(penghapusan_id, scope).await?;
         self.repository
             .insert_lampiran(
                 penghapusan_id,
-                nama,
-                file_url,
-                content_type,
-                size_bytes,
-                uploaded_by,
+                upload.nama,
+                upload.file_url,
+                upload.content_type,
+                upload.size_bytes,
+                upload.uploaded_by,
             )
             .await
     }
@@ -319,7 +368,9 @@ impl PenghapusanBmnService {
     pub async fn list_lampiran(
         &self,
         penghapusan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PenghapusanBmnLampiran>> {
+        self.repository.get_by_id(penghapusan_id, scope).await?;
         self.repository.list_lampiran(penghapusan_id).await
     }
 
@@ -328,8 +379,9 @@ impl PenghapusanBmnService {
         &self,
         id: Uuid,
         request: UpdatePenghapusanBmnRequest,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
 
         if !matches!(
@@ -341,12 +393,12 @@ impl PenghapusanBmnService {
             ));
         }
 
-        self.repository.update(id, request).await
+        self.repository.update(id, request, scope).await
     }
 
     /// Delete penghapusan BMN (only in Draft status)
-    pub async fn delete(&self, id: Uuid) -> AppResult<()> {
-        let current = self.repository.get_by_id(id).await?;
+    pub async fn delete(&self, id: Uuid, scope: &SatkerScope) -> AppResult<()> {
+        let current = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&current.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::Draft) {
@@ -355,7 +407,7 @@ impl PenghapusanBmnService {
             ));
         }
 
-        self.repository.delete(id).await
+        self.repository.delete(id, scope).await
     }
 
     /// Operator Satker submits to Validator Wilayah
@@ -365,16 +417,15 @@ impl PenghapusanBmnService {
         user_id: Uuid,
         user_role: String,
         catatan: Option<String>,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
         self.transition(
             id,
             PenghapusanBmnStatus::SubmitWilayah
                 .to_state_name()
                 .to_string(),
-            user_id,
-            user_role,
-            catatan,
-            "submit_to_wilayah".to_string(),
+            TransitionActor::new(user_id, user_role, catatan, "submit_to_wilayah"),
+            scope,
         )
         .await
     }
@@ -386,7 +437,13 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         user_role: String,
         catatan: Option<String>,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
+        // Scope BEFORE the write, not just before the transition: this stamps
+        // the record with a validator identity, so an out-of-scope caller must
+        // not reach it even if the transition would later be refused.
+        self.repository.get_by_id(id, scope).await?;
+
         // Update validator wilayah info
         self.repository
             .update_validator_wilayah(id, validator_id, catatan.clone())
@@ -397,10 +454,8 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::SubmitPusat
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            catatan,
-            "forward_to_pusat".to_string(),
+            TransitionActor::new(validator_id, user_role, catatan, "forward_to_pusat"),
+            scope,
         )
         .await
     }
@@ -421,7 +476,10 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         user_role: String,
         catatan: Option<String>,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
+        self.repository.get_by_id(id, scope).await?;
+
         self.repository
             .update_verifikasi_pusat(id, validator_id, catatan.clone())
             .await?;
@@ -431,10 +489,8 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::VerifikasiPusat
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            catatan,
-            "verifikasi_pusat".to_string(),
+            TransitionActor::new(validator_id, user_role, catatan, "verifikasi_pusat"),
+            scope,
         )
         .await
     }
@@ -446,7 +502,10 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         user_role: String,
         catatan: Option<String>,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
+        self.repository.get_by_id(id, scope).await?;
+
         self.repository
             .update_validator_wilayah(id, validator_id, catatan.clone())
             .await?;
@@ -456,17 +515,21 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::ReturnedToOperator
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            catatan,
-            "return_to_operator".to_string(),
+            TransitionActor::new(validator_id, user_role, catatan, "return_to_operator"),
+            scope,
         )
         .await
     }
 
     /// Filesystem path the konsep-sk route handler streams from. `format` is
     /// "docx" or "pdf".
-    pub async fn konsep_sk_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
+    pub async fn konsep_sk_path(
+        &self,
+        id: Uuid,
+        format: &str,
+        scope: &SatkerScope,
+    ) -> AppResult<Option<String>> {
+        self.repository.get_by_id(id, scope).await?;
         self.repository.konsep_sk_path(id, format).await
     }
 
@@ -480,8 +543,9 @@ impl PenghapusanBmnService {
         id: Uuid,
         validator_id: Uuid,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::VerifikasiPusat) {
@@ -580,10 +644,15 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::KonsepSKGenerated
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            Some("Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string()),
-            "generate_konsep_sk".to_string(),
+            TransitionActor::new(
+                validator_id,
+                user_role,
+                Some(
+                    "Konsep Usulan SK Penghapusan BMN berhasil digenerate (DOCX + PDF)".to_string(),
+                ),
+                "generate_konsep_sk",
+            ),
+            scope,
         )
         .await
     }
@@ -595,8 +664,9 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         user_role: String,
         signed_sk_pdf_url: String,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
 
         if !matches!(status, PenghapusanBmnStatus::KonsepSKGenerated) {
@@ -615,10 +685,13 @@ impl PenghapusanBmnService {
         self.transition(
             id,
             PenghapusanBmnStatus::SKSigned.to_state_name().to_string(),
-            validator_id,
-            user_role,
-            Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
-            "upload_signed_sk".to_string(),
+            TransitionActor::new(
+                validator_id,
+                user_role,
+                Some("Usulan SK Penghapusan BMN telah ditandatangani".to_string()),
+                "upload_signed_sk",
+            ),
+            scope,
         )
         .await?;
 
@@ -628,10 +701,13 @@ impl PenghapusanBmnService {
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
-            validator_id,
-            "system".to_string(),
-            Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
-            "complete".to_string(),
+            TransitionActor::new(
+                validator_id,
+                "system".to_string(),
+                Some("Proses Usulan SK Penghapusan BMN selesai".to_string()),
+                "complete",
+            ),
+            scope,
         )
         .await
     }
@@ -648,8 +724,9 @@ impl PenghapusanBmnService {
         id: Uuid,
         validator_id: Uuid,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
         if penghapusan.kewenangan_penetap_sk.to_uppercase() != "WILAYAH" {
             return Err(crate::shared::error::AppError::BadRequest(
                 "Endpoint ini hanya utk kewenangan WILAYAH. Gunakan /generate-sk utk PUSAT.".into(),
@@ -680,10 +757,13 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::KonsepSKWilayahGenerated
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
-            "generate_konsep_sk_wilayah".into(),
+            TransitionActor::new(
+                validator_id,
+                user_role,
+                Some("Konsep SK Wilayah digenerate (mewakili Kepala Kejaksaan Tinggi)".into()),
+                "generate_konsep_sk_wilayah",
+            ),
+            scope,
         )
         .await
     }
@@ -696,8 +776,9 @@ impl PenghapusanBmnService {
         validator_id: Uuid,
         user_role: String,
         signed_sk_pdf_url: String,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
         let status = PenghapusanBmnStatus::from_state_name(&penghapusan.status).unwrap_or_default();
         if !matches!(status, PenghapusanBmnStatus::KonsepSKWilayahGenerated) {
             return Err(crate::shared::error::AppError::WorkflowError(
@@ -716,10 +797,13 @@ impl PenghapusanBmnService {
             PenghapusanBmnStatus::SKSignedWilayah
                 .to_state_name()
                 .to_string(),
-            validator_id,
-            user_role,
-            Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
-            "upload_signed_sk_wilayah".into(),
+            TransitionActor::new(
+                validator_id,
+                user_role,
+                Some("SK Wilayah ditandatangani Kepala Kejaksaan Tinggi".into()),
+                "upload_signed_sk_wilayah",
+            ),
+            scope,
         )
         .await?;
         // Auto-complete = SYSTEM continuation (see upload_signed_sk): run as
@@ -728,34 +812,39 @@ impl PenghapusanBmnService {
         self.transition(
             id,
             PenghapusanBmnStatus::Completed.to_state_name().to_string(),
-            validator_id,
-            "system".to_string(),
-            Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
-            "complete_wilayah".into(),
+            TransitionActor::new(
+                validator_id,
+                "system".to_string(),
+                Some("Proses Usulan SK Penghapusan BMN (jalur Wilayah) selesai".into()),
+                "complete_wilayah",
+            ),
+            scope,
         )
         .await
     }
 
-    /// Perform workflow transition
+    /// Perform workflow transition, within the caller's satker scope.
+    ///
+    /// Role gating answers "may this role ever do this"; the scope answers "may
+    /// this caller do it to THIS record". Without the second, a validator
+    /// wilayah in one Kejati could forward a usulan belonging to another.
     pub async fn transition(
         &self,
         id: Uuid,
         to_state: String,
-        user_id: Uuid,
-        user_role: String,
-        catatan: Option<String>,
-        ip_address: String,
+        actor: TransitionActor,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
-        let penghapusan = self.repository.get_by_id(id).await?;
+        let penghapusan = self.repository.get_by_id(id, scope).await?;
 
         let transition_request = TransitionRequest {
             entity_id: id,
             from_state: penghapusan.status.clone(),
             to_state: to_state.clone(),
-            user_id,
-            user_role,
-            catatan,
-            ip_address,
+            user_id: actor.user_id,
+            user_role: actor.user_role,
+            catatan: actor.catatan,
+            ip_address: actor.ip_address,
         };
 
         self.workflow_engine
@@ -764,6 +853,6 @@ impl PenghapusanBmnService {
             .map_err(|e| crate::shared::error::AppError::WorkflowError(e.to_string()))?;
 
         self.repository.update_status(id, &to_state).await?;
-        self.repository.get_by_id(id).await
+        self.repository.get_by_id(id, scope).await
     }
 }

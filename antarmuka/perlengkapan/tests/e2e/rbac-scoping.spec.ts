@@ -24,11 +24,14 @@
  * fixture-table comment in helpers/real-auth.ts for what the hard-coded form
  * did when it was first pointed at staging.
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext } from '@playwright/test';
 import {
+  PERLENGKAPAN_API_URL,
   TEST_USERS,
+  type PaginatedResponse,
   userByKey,
   credsFor,
+  tokenFor,
   apiLogin,
   bankAsetList,
   bankAsetListJson,
@@ -231,6 +234,155 @@ test.describe('Perlengkapan admin API authZ — server-side (cross-satker requir
 
   test('admin API rejects an unauthenticated request (401)', async ({ request }) => {
     const resp = await adminMasterList(request, null);
+    expect(resp.status(), 'no Bearer token → unauthorized').toBe(401);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Object-level scoping on penghapusan BMN (#66 follow-through).
+//
+// The list endpoint was scoped; every BY-ID endpoint of the module was not.
+// Role gating answered "may this role ever do this" and stopped there, so an
+// operator holding `operator_satker` could read, edit, and drive the workflow
+// of a usulan belonging to a satker that is not theirs — `update` did not even
+// check the role, taking `_claims` and ignoring it entirely.
+//
+// The ids are DERIVED: each operator's own first row is by construction
+// in-scope for them and out of scope for the other (proven by the isolation
+// test above), so this needs no hard-coded UUID and works against the CI seed
+// and staging alike.
+//
+// Every probe below is non-destructive. The PUT body is `{}` — the update is
+// COALESCE-based, so even a leak would change no column value. Nothing here
+// advances a workflow state, which keeps the spec re-runnable after a retry
+// (the state-pollution trap that made 36 of 39 failures self-inflicted once).
+// ═══════════════════════════════════════════════════════════════════════════
+test.describe('Penghapusan BMN object-level scoping — server-side', () => {
+  const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/penghapusan-bmn`;
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** First usulan visible to `token`, or null when that operator has none. */
+  async function firstUsulan(request: APIRequestContext, token: string) {
+    const resp = await request.get(`${API}?per_page=1`, { headers: bearer(token) });
+    if (!resp.ok()) throw new Error(`penghapusan list failed (${resp.status()}): ${await resp.text()}`);
+    const body = (await resp.json()) as PaginatedResponse<{ id: string; satker_code?: string }>;
+    return body.data[0] ?? null;
+  }
+
+  /** Both operators' ids in one place — every test below needs the same pair. */
+  async function idPair(request: APIRequestContext) {
+    const tokA = await tokenFor(request, 'operator_a');
+    const tokB = await tokenFor(request, 'operator_b');
+    const own = await firstUsulan(request, tokA);
+    const foreign = await firstUsulan(request, tokB);
+    expect(own, 'operator_a must own at least one usulan penghapusan').toBeTruthy();
+    expect(foreign, 'operator_b must own at least one usulan penghapusan').toBeTruthy();
+    expect(
+      own!.id,
+      'the seed must give the two operators DIFFERENT usulan, or this suite proves nothing',
+    ).not.toBe(foreign!.id);
+    return { tokA, ownId: own!.id, foreignId: foreign!.id };
+  }
+
+  // Positive control first: if these went red the negatives below would pass
+  // for the wrong reason (everything denied is not the same as scoped).
+  test('an operator reads its OWN usulan (200) on both read surfaces', async ({ request }) => {
+    const { tokA, ownId } = await idPair(request);
+
+    const detail = await request.get(`${API}/${ownId}/detail`, { headers: bearer(tokA) });
+    expect(detail.status(), 'operator_a must read the detail of its own usulan').toBe(200);
+
+    const one = await request.get(`${API}/${ownId}`, { headers: bearer(tokA) });
+    expect(one.status(), 'operator_a must read its own usulan').toBe(200);
+  });
+
+  // The read surfaces. 404 rather than 403 on purpose: a 403 confirms the id
+  // exists in someone else's satker, which is the existence oracle #93 closed
+  // for satker detail. 403 is accepted so the assertion tests containment
+  // rather than one particular status.
+  const readSurfaces: Array<[string, (id: string) => string]> = [
+    ['GET /{id}', (id) => `${API}/${id}`],
+    ['GET /{id}/detail', (id) => `${API}/${id}/detail`],
+    ['GET /{id}/verifikasi-siman', (id) => `${API}/${id}/verifikasi-siman`],
+    ['GET /{id}/lampiran', (id) => `${API}/${id}/lampiran`],
+    ['GET /{id}/document', (id) => `${API}/${id}/document`],
+  ];
+
+  for (const [label, url] of readSurfaces) {
+    test(`${label} fails closed across satkers`, async ({ request }) => {
+      const { tokA, foreignId } = await idPair(request);
+      const resp = await request.get(url(foreignId), { headers: bearer(tokA) });
+      expect(
+        [403, 404],
+        `operator_a must not read another satker's usulan via ${label}; got ${resp.status()}`,
+      ).toContain(resp.status());
+    });
+  }
+
+  // The write surface that had no gate at all. This is the one that mattered:
+  // a PUT here rewrote another satker's usulan and returned 200.
+  test('PUT /{id} fails closed across satkers', async ({ request }) => {
+    const { tokA, foreignId } = await idPair(request);
+    const resp = await request.put(`${API}/${foreignId}`, {
+      headers: bearer(tokA),
+      data: {},
+    });
+    expect(
+      [403, 404],
+      `operator_a must not edit another satker's usulan; got ${resp.status()}`,
+    ).toContain(resp.status());
+  });
+
+  // Workflow moves. operator_a genuinely HOLDS operator_satker, so the role
+  // gate passes and only the object scope can stop this — which is exactly the
+  // hole: role-gated is not the same as scoped.
+  test('POST /{id}/submit-wilayah fails closed across satkers', async ({ request }) => {
+    const { tokA, foreignId } = await idPair(request);
+    const resp = await request.post(`${API}/${foreignId}/submit-wilayah`, {
+      headers: bearer(tokA),
+      data: { catatan: 'e2e cross-satker probe' },
+    });
+    expect(
+      [403, 404],
+      `operator_a must not submit another satker's usulan; got ${resp.status()}`,
+    ).toContain(resp.status());
+  });
+
+  // A validator_wilayah is scoped to its wilayah, not to "any usulan awaiting
+  // a wilayah decision". Whether the two seeded satkers share a wilayah is an
+  // environment fact, so derive the expectation instead of asserting a status:
+  // the validator may act only on what its own list shows it.
+  test('a validator_wilayah can only act on usulan its own list contains', async ({ request }) => {
+    const tokW = await tokenFor(request, 'validator_wilayah');
+    const tokB = await tokenFor(request, 'operator_b');
+
+    const visible = await request.get(`${API}?per_page=200`, { headers: bearer(tokW) });
+    expect(visible.status(), 'validator_wilayah must be able to list').toBe(200);
+    const ids = new Set(
+      ((await visible.json()) as PaginatedResponse<{ id: string }>).data.map((r) => r.id),
+    );
+
+    const foreign = await firstUsulan(request, tokB);
+    expect(foreign, 'operator_b must own at least one usulan penghapusan').toBeTruthy();
+
+    const resp = await request.get(`${API}/${foreign!.id}`, { headers: bearer(tokW) });
+    if (ids.has(foreign!.id)) {
+      expect(
+        resp.status(),
+        'the usulan IS in the validator wilayah list, so reading it must succeed',
+      ).toBe(200);
+    } else {
+      expect(
+        [403, 404],
+        `the usulan is NOT in the validator wilayah list, so reading it must fail closed; got ${resp.status()}`,
+      ).toContain(resp.status());
+    }
+  });
+
+  test('penghapusan rejects an unauthenticated by-id request (401)', async ({ request }) => {
+    const tokB = await tokenFor(request, 'operator_b');
+    const foreign = await firstUsulan(request, tokB);
+    const resp = await request.get(`${API}/${foreign!.id}`);
     expect(resp.status(), 'no Bearer token → unauthorized').toBe(401);
   });
 });

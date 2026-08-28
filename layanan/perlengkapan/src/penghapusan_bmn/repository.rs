@@ -6,8 +6,32 @@
 
 use super::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use deadpool_postgres::Pool;
 use uuid::Uuid;
+
+/// Boxed bind parameter, so the scope predicate can be spliced into queries
+/// whose parameter list is otherwise fixed.
+type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+
+/// Borrow `params` in the shape `query`/`execute` want.
+fn as_refs(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
+    params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect()
+}
+
+/// `scope` as a trailing `AND` clause over `satker_code`, plus its binds.
+///
+/// Returns an empty string for the unrestricted tier so callers can splice it
+/// in unconditionally.
+fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
+    match scope.push_condition("satker_code", params) {
+        Some(cond) => format!(" AND {cond}"),
+        None => String::new(),
+    }
+}
 
 pub struct PenghapusanBmnRepository {
     pool: Pool,
@@ -216,17 +240,26 @@ impl PenghapusanBmnRepository {
         Ok(())
     }
 
-    /// Get penghapusan BMN by ID
-    pub async fn get_by_id(&self, id: Uuid) -> AppResult<PenghapusanBmn> {
+    /// Get penghapusan BMN by ID, restricted to the caller's satker scope.
+    ///
+    /// The scope lives in the WHERE clause rather than in a fetch-then-compare,
+    /// so an out-of-scope id is indistinguishable from one that does not exist:
+    /// both are `NotFound`. Answering 403 would confirm the record exists in
+    /// somebody else's satker — the existence oracle #93 closed for satker
+    /// detail, and the same reasoning applies to a usulan penghapusan.
+    ///
+    /// Every by-id path in this module reaches the record through here, so the
+    /// signature is what enforces scoping: a caller cannot read a record
+    /// without producing a scope for it.
+    pub async fn get_by_id(&self, id: Uuid, scope: &SatkerScope) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
-        let query = r#"
-            SELECT * FROM perlengkapan.penghapusan_bmn
-            WHERE id = $1
-        "#;
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let scope_sql = scope_and(scope, &mut params);
+        let query = format!("SELECT * FROM perlengkapan.penghapusan_bmn WHERE id = $1{scope_sql}");
 
         let row = client
-            .query_opt(query, &[&id])
+            .query_opt(&query, &as_refs(&params))
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Penghapusan BMN not found: {}", id)))?;
 
@@ -336,17 +369,36 @@ impl PenghapusanBmnRepository {
         Ok((penghapusan, total))
     }
 
-    /// Update penghapusan BMN (Draft/ReturnedToOperator only)
+    /// Update penghapusan BMN (Draft/ReturnedToOperator only), restricted to
+    /// the caller's satker scope.
+    ///
+    /// The scope is part of the UPDATE itself, not a preceding read: a check
+    /// that happens in an earlier statement is a check the next refactor can
+    /// leave behind. Out of scope, zero rows match and the caller gets the same
+    /// `NotFound` a nonexistent id would produce.
     pub async fn update(
         &self,
         id: Uuid,
         request: UpdatePenghapusanBmnRequest,
+        scope: &SatkerScope,
     ) -> AppResult<PenghapusanBmn> {
         let client = self.pool.get().await?;
 
+        let mut params: Vec<BoxedParam> = vec![
+            Box::new(request.tanggal_penghapusan),
+            Box::new(request.alasan),
+            Box::new(request.metode_penghapusan),
+            Box::new(request.nilai_perolehan),
+            Box::new(request.lampiran_persyaratan),
+            Box::new(request.catatan_operator),
+            Box::new(id),
+        ];
+        let scope_sql = scope_and(scope, &mut params);
+
         // V029: Saat user menyimpan nilai_perolehan baru, anggap data sudah
         // diverifikasi → reset flag backfill ke FALSE.
-        let query = r#"
+        let query = format!(
+            r#"
             UPDATE perlengkapan.penghapusan_bmn
             SET tanggal_penghapusan = COALESCE($1, tanggal_penghapusan),
                 alasan = COALESCE($2, alasan),
@@ -359,40 +411,36 @@ impl PenghapusanBmnRepository {
                 lampiran_persyaratan = COALESCE($5, lampiran_persyaratan),
                 catatan_operator = COALESCE($6, catatan_operator),
                 updated_at = NOW()
-            WHERE id = $7
+            WHERE id = $7{scope_sql}
             RETURNING *
-        "#;
+        "#
+        );
 
         let row = client
-            .query_opt(
-                query,
-                &[
-                    &request.tanggal_penghapusan,
-                    &request.alasan,
-                    &request.metode_penghapusan,
-                    &request.nilai_perolehan,
-                    &request.lampiran_persyaratan,
-                    &request.catatan_operator,
-                    &id,
-                ],
-            )
+            .query_opt(&query, &as_refs(&params))
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Penghapusan BMN not found: {}", id)))?;
 
         Ok(PenghapusanBmn::from_row(&row))
     }
 
-    /// Delete penghapusan BMN (soft delete by setting status to CANCELLED)
-    pub async fn delete(&self, id: Uuid) -> AppResult<()> {
+    /// Delete penghapusan BMN (soft delete by setting status to CANCELLED),
+    /// restricted to the caller's satker scope — in the UPDATE itself, for the
+    /// reason given on [`Self::update`].
+    pub async fn delete(&self, id: Uuid, scope: &SatkerScope) -> AppResult<()> {
         let client = self.pool.get().await?;
 
-        let query = r#"
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let scope_sql = scope_and(scope, &mut params);
+        let query = format!(
+            r#"
             UPDATE perlengkapan.penghapusan_bmn
             SET status = 'CANCELLED', updated_at = NOW()
-            WHERE id = $1
-        "#;
+            WHERE id = $1{scope_sql}
+        "#
+        );
 
-        let rows_affected = client.execute(query, &[&id]).await?;
+        let rows_affected = client.execute(&query, &as_refs(&params)).await?;
 
         if rows_affected == 0 {
             return Err(AppError::NotFound(format!(
@@ -668,5 +716,65 @@ impl PenghapusanBmnRepository {
             )
             .await?;
         Ok(rows.iter().map(PenghapusanBmnLampiran::from_row).collect())
+    }
+}
+
+#[cfg(test)]
+mod scope_sql_tests {
+    use super::*;
+
+    /// The failure mode this file is exposed to is not "scope forgotten" — the
+    /// signatures make that a compile error now — but "scope spliced with the
+    /// WRONG placeholder number". `update` binds $1..$7 before the predicate,
+    /// so the predicate must start at $8. At $1 it would compare `satker_code`
+    /// against `tanggal_penghapusan`, which Postgres rejects at runtime only,
+    /// long after `cargo check` is happy.
+    #[test]
+    fn predicate_numbers_binds_after_the_existing_ones() {
+        let mut params: Vec<BoxedParam> = (0i32..7).map(|i| Box::new(i) as BoxedParam).collect();
+        let sql = scope_and(&SatkerScope::Satker("0200010".to_string()), &mut params);
+        assert_eq!(sql, " AND satker_code = $8");
+        assert_eq!(params.len(), 8, "the bind must be pushed, not just named");
+    }
+
+    /// `get_by_id`/`delete` bind only the id, so the predicate lands at $2.
+    #[test]
+    fn predicate_follows_a_single_leading_bind() {
+        let mut params: Vec<BoxedParam> = vec![Box::new(uuid::Uuid::nil())];
+        let sql = scope_and(&SatkerScope::Satker("0200010".to_string()), &mut params);
+        assert_eq!(sql, " AND satker_code = $2");
+    }
+
+    /// Cross-satker roles must add no clause at all — an empty string is what
+    /// lets the callers splice unconditionally.
+    #[test]
+    fn unrestricted_scope_adds_no_clause_and_no_bind() {
+        let mut params: Vec<BoxedParam> = vec![Box::new(uuid::Uuid::nil())];
+        assert_eq!(scope_and(&SatkerScope::All, &mut params), "");
+        assert_eq!(params.len(), 1);
+    }
+
+    /// A caller with no satker identity matches nothing, rather than
+    /// everything. Fail closed is the whole point of the Denied tier.
+    #[test]
+    fn denied_scope_matches_no_row() {
+        let mut params: Vec<BoxedParam> = vec![Box::new(uuid::Uuid::nil())];
+        assert_eq!(scope_and(&SatkerScope::Denied, &mut params), " AND FALSE");
+        assert_eq!(params.len(), 1, "FALSE needs no bind");
+    }
+
+    /// The wilayah tier resolves through `integrasi.v_satker_wilayah` — the one
+    /// definition every scope in the service reads. Asserting the view name
+    /// here keeps a copy of the wilayah rule from being introduced by hand.
+    #[test]
+    fn wilayah_scope_resolves_through_the_shared_view() {
+        let mut params: Vec<BoxedParam> = vec![Box::new(uuid::Uuid::nil())];
+        let sql = scope_and(&SatkerScope::Wilayah("0200010".to_string()), &mut params);
+        assert!(sql.contains("integrasi.v_satker_wilayah"), "got: {sql}");
+        assert!(
+            sql.contains("$2"),
+            "the caller code must bind after the id: {sql}"
+        );
+        assert_eq!(params.len(), 2);
     }
 }
