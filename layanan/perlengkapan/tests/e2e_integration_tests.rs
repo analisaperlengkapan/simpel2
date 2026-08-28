@@ -4,6 +4,7 @@ mod common;
 mod integration {
     mod dashboard_metrics_test;
     mod kebutuhan_bmn_workflow_test;
+    mod kebutuhan_search_test;
     mod pakaian_dinas_campaign_scope_test;
     mod pakaian_dinas_pegawai_scope_test;
     mod pakaian_dinas_ukuran_test;

@@ -259,7 +259,16 @@ impl SearchEngineDb {
 
     /// Get search suggestions based on partial query
     ///
-    /// Returns top 10 most relevant suggestions
+    /// Returns the most relevant distinct campaign names, best match first.
+    ///
+    /// The previous form was `SELECT DISTINCT nama … ORDER BY similarity(nama,
+    /// $2)`, which Postgres rejects outright: "for SELECT DISTINCT, ORDER BY
+    /// expressions must appear in select list". It is a parse-time error, so
+    /// the endpoint answered 500 to every caller in every environment from the
+    /// day it was written — no input reached it, and no row was needed to
+    /// trigger it. `GROUP BY nama` gives the same distinct set while making the
+    /// ordering expression legal, since it is functionally dependent on the
+    /// group key. `nama ASC` breaks ties so repeated calls agree.
     pub async fn get_suggestions(
         &self,
         partial_query: &str,
@@ -268,14 +277,19 @@ impl SearchEngineDb {
         let client = self.db_pool.get().await?;
 
         let sql = r#"
-            SELECT DISTINCT nama
+            SELECT nama
             FROM perlengkapan.pengajuan_kebutuhan_bmn
             WHERE nama ILIKE $1
-            ORDER BY similarity(nama, $2) DESC
+            GROUP BY nama
+            ORDER BY similarity(nama, $2) DESC, nama ASC
             LIMIT $3
         "#;
 
         let pattern = format!("%{}%", partial_query);
+        // LIMIT is int8. Binding the i32 straight through is the second fault
+        // in this one query, and it could never surface while the first one
+        // stopped the statement at parse time.
+        let limit = i64::from(limit);
         let rows = client
             .query(sql, &[&pattern, &partial_query, &limit])
             .await?;
