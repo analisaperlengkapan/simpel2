@@ -17,9 +17,11 @@ type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
 /// It was 500, and `nama_satker` outgrew it. Measured on the staging SIMAN
 /// snapshot (2026-08-26):
 ///
-///     nama_satker   554 distinct     <- over the old cap
-///     jenis_aset     15
-///     ur_kondisi      4
+/// ```text
+/// nama_satker   554 distinct     <- over the old cap
+/// jenis_aset     15
+/// ur_kondisi      4
+/// ```
 ///
 /// With `ORDER BY count DESC` the 54 satkers that fell off were the ones
 /// holding the FEWEST assets — the smallest offices, which no national user
