@@ -189,19 +189,43 @@ async fn check_redis_health(state: &AppState) -> ComponentHealth {
     }
 }
 
-/// Check Authenc service connectivity
+/// Check Authenc service connectivity.
+///
+/// Uses authenc's `HealthCheck` RPC. The previous implementation probed with
+/// `validate_token("health_check_token")` and then matched `Ok(_) | Err(_)`,
+/// which had two consequences:
+///
+/// 1. The arm was total, so this function could only ever return `Healthy` —
+///    including when authenc was down. `readiness_check` documents that it
+///    returns 503 when a hard dependency is down, and for authenc it never
+///    could.
+/// 2. That string is not a JWT, so every probe made authenc log
+///    `Token validation failed: Invalid token: Invalid JWT format`. Three
+///    probes across two replicas kept a permanent error stream running with
+///    no user in sight, which is exactly the signal one reads authenc's log
+///    to find.
 async fn check_authenc_health(state: &AppState) -> ComponentHealth {
     let start = Instant::now();
+    let result = state.authenc.health_check().await;
+    let response_time = start.elapsed().as_secs_f64() * 1000.0;
 
-    // Try to validate a dummy token (will fail but tests connectivity)
-    match state.authenc.validate_token("health_check_token").await {
-        Ok(_) | Err(_) => {
-            // Any response (even error) means service is reachable
-            let response_time = start.elapsed().as_secs_f64() * 1000.0;
+    match result {
+        Ok(()) => ComponentHealth {
+            name: "authenc".to_string(),
+            status: HealthStatus::Healthy,
+            message: Some("Reachable".to_string()),
+            response_time_ms: Some(response_time),
+        },
+        Err(e) => {
+            tracing::error!(error = %e, "Authenc health check failed");
             ComponentHealth {
                 name: "authenc".to_string(),
-                status: HealthStatus::Healthy,
-                message: Some("Reachable".to_string()),
+                // Hard dependency: `validate_token` is on the path of every
+                // authenticated request, so a perlengkapan replica that cannot
+                // reach authenc cannot serve. Readiness sheds it; liveness is
+                // a separate, dependency-free endpoint and does not restart it.
+                status: HealthStatus::Unhealthy,
+                message: Some(format!("Unreachable: {}", e)),
                 response_time_ms: Some(response_time),
             }
         }

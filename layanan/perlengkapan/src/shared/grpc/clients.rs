@@ -178,6 +178,32 @@ impl AuthencClient {
         Self { client: None }
     }
 
+    /// Probe authenc reachability without minting a bogus token.
+    ///
+    /// The health check used to call `validate_token("health_check_token")`.
+    /// That string is not a JWT, so authenc rejected it and logged
+    /// `Token validation failed: Invalid token: Invalid JWT format` on every
+    /// probe. With startup + liveness + readiness all polling this service,
+    /// that produced a permanent stream of authentication errors in authenc's
+    /// log which buried the real ones. `HealthCheck` is the purpose-built RPC
+    /// and logs at `debug`.
+    ///
+    /// Returns `Err` only when authenc could not be reached at all — the
+    /// distinction the caller needs and could not previously make.
+    pub async fn health_check(&self) -> Result<()> {
+        let Some(ref client) = self.client else {
+            // Dev/dummy client: there is no upstream, so there is nothing that
+            // can be unreachable. Matches `validate_token`'s dev behaviour.
+            return Ok(());
+        };
+        let mut client = client.clone();
+        let request = tonic::Request::new(common::v1::HealthCheckRequest {
+            service: "authenc".to_string(),
+        });
+        client.health_check(request).await?;
+        Ok(())
+    }
+
     pub async fn validate_token(&self, token: &str) -> Result<authenc::v1::ValidateTokenResponse> {
         if let Some(ref client) = self.client {
             let mut client = client.clone();
@@ -481,3 +507,34 @@ impl IntegrasiClient {
 }
 
 // Re-export commonly used types from integrasi proto
+
+#[cfg(test)]
+mod health_check_tests {
+    use super::*;
+
+    /// The property the old code could not express: an authenc that cannot be
+    /// reached must surface as `Err`. `check_authenc_health` matched
+    /// `Ok(_) | Err(_)` and reported `Healthy` either way, so readiness could
+    /// never go 503 no matter what happened to authenc — while its own doc
+    /// comment promised exactly that. Pin the distinction here so it cannot
+    /// quietly collapse back into "always healthy".
+    #[tokio::test]
+    async fn unreachable_authenc_is_an_error() {
+        // Port 1 is reserved and nothing listens on it. `connect_lazy` does not
+        // fail at construction, so the failure lands on the CALL — which is the
+        // behaviour the health check depends on.
+        let client = AuthencClient::connect_lazy("http://127.0.0.1:1".to_string())
+            .expect("connect_lazy does not dial, so it cannot fail here");
+        assert!(
+            client.health_check().await.is_err(),
+            "an unreachable authenc must report an error, not health"
+        );
+    }
+
+    /// The dev/dummy client has no upstream at all, so there is nothing that
+    /// can be unreachable — it must not report the local stub as an outage.
+    #[tokio::test]
+    async fn dummy_client_is_healthy() {
+        assert!(AuthencClient::dummy().health_check().await.is_ok());
+    }
+}
