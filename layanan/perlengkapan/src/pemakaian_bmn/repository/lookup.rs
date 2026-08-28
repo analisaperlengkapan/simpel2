@@ -336,7 +336,9 @@ impl PemakaianBmnRepository {
     /// Kembar dgn `KebutuhanBmnRepository::satker_code_in_scope`: tier murni
     /// (All/Denied/Satker) diputuskan tanpa DB oleh `SatkerScope` sendiri agar
     /// aturannya tak punya salinan kedua; hanya Wilayah yang perlu
-    /// `integrasi.v_satker_wilayah`.
+    /// `integrasi.v_satker_wilayah`, lewat
+    /// `SatkerScope::WILAYAH_MEMBERSHIP_SQL` — satu definisi, bukan satu
+    /// salinan per repository.
     pub async fn satker_code_in_scope(
         &self,
         scope: &crate::shared::satker_scope::SatkerScope,
@@ -349,21 +351,7 @@ impl PemakaianBmnRepository {
 
         let client = self.pool.client().await?;
         let row = client
-            .query_one(
-                r#"
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM integrasi.v_satker_wilayah s
-                    WHERE s.kode_satker = $1
-                      AND s.wilayah_code = (
-                          SELECT w.wilayah_code
-                          FROM integrasi.v_satker_wilayah w
-                          WHERE w.kode_satker = $2
-                      )
-                ) AS in_scope
-                "#,
-                &[&code, &caller],
-            )
+            .query_one(SatkerScope::WILAYAH_MEMBERSHIP_SQL, &[&code, &caller])
             .await
             .map_err(|e| AppError::Database(e.to_string()))?;
         Ok(row.get::<_, bool>("in_scope"))

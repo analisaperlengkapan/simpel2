@@ -24,7 +24,33 @@
 use crate::shared::middleware::Claims;
 
 /// Boxed bind parameter compatible with the repositories' dynamic-SQL builders.
-type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+pub type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+
+/// Borrow a boxed param list in the shape `query`/`execute` want.
+pub fn as_refs(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
+    params
+        .iter()
+        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
+        .collect()
+}
+
+/// `scope` as an extra `AND` over `col`, plus its bind parameter.
+///
+/// Returns an empty string for the unrestricted tier so callers can splice it
+/// in unconditionally. `col` MUST be a trusted, fixed column name.
+///
+/// Numbering is the part no type can check: the predicate takes whatever
+/// placeholder comes after the binds already in `params`, so callers must push
+/// their value binds FIRST. Bound too early it compares the satker column
+/// against some unrelated value and quietly matches nothing — which reads as a
+/// working deny to anyone who only tested the negative case. Each call site
+/// pins its own expected `$n` in a test.
+pub fn scope_and(scope: &SatkerScope, col: &str, params: &mut Vec<BoxedParam>) -> String {
+    match scope.push_condition(col, params) {
+        Some(cond) => format!(" AND {cond}"),
+        None => String::new(),
+    }
+}
 
 /// Visibility scope for a single request against a workflow table keyed by
 /// MySIMKARI `satker_code`.
@@ -78,6 +104,27 @@ impl SatkerScope {
             Self::Wilayah(_) => None,
         }
     }
+
+    /// The one query behind every repository's `satker_code_in_scope`: is a
+    /// SINGLE `code` ($1) inside the wilayah of the caller ($2)?
+    ///
+    /// Sibling of the Wilayah arm of [`Self::push_condition`] — same definition
+    /// of the tier, same view — but shaped as EXISTS because it tests one code
+    /// instead of filtering a set. It lives here as a constant because two
+    /// repositories had already grown their own verbatim copy of it, and a
+    /// third was about to; a rule with N copies drifts at the first edit.
+    pub const WILAYAH_MEMBERSHIP_SQL: &'static str = r#"
+        SELECT EXISTS (
+            SELECT 1
+            FROM integrasi.v_satker_wilayah s
+            WHERE s.kode_satker = $1
+              AND s.wilayah_code = (
+                  SELECT w.wilayah_code
+                  FROM integrasi.v_satker_wilayah w
+                  WHERE w.kode_satker = $2
+              )
+        ) AS in_scope
+    "#;
 
     /// Append this scope as a SQL condition over the given MySIMKARI satker-code
     /// column (`col`, e.g. `"satker_code"`). Pushes the bind parameter (when any)

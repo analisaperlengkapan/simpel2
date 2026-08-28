@@ -6,31 +6,17 @@
 
 use super::models::*;
 use crate::shared::error::{AppError, AppResult};
-use crate::shared::satker_scope::SatkerScope;
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 
-/// Boxed bind parameter, so the scope predicate can be spliced into queries
-/// whose parameter list is otherwise fixed.
-type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
-
-/// Borrow `params` in the shape `query`/`execute` want.
-fn as_refs(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
-    params
-        .iter()
-        .map(|p| p.as_ref() as &(dyn tokio_postgres::types::ToSql + Sync))
-        .collect()
-}
-
-/// `scope` as a trailing `AND` clause over `satker_code`, plus its binds.
+/// `scope` as a trailing `AND` over this table's `satker_code`.
 ///
-/// Returns an empty string for the unrestricted tier so callers can splice it
-/// in unconditionally.
+/// A thin binding of the shared helper to this module's column, so the three
+/// repositories that splice a scope into a fixed parameter list share one
+/// implementation instead of one verbatim copy each.
 fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
-    match scope.push_condition("satker_code", params) {
-        Some(cond) => format!(" AND {cond}"),
-        None => String::new(),
-    }
+    crate::shared::satker_scope::scope_and(scope, "satker_code", params)
 }
 
 pub struct PenghapusanBmnRepository {

@@ -211,6 +211,49 @@ fn cte_names(src: &str) -> BTreeSet<String> {
 /// environment — while all of its tables live in the `perlengkapan` schema.
 /// #123 (`FROM v_user_role_summary`) is exactly that shape, and it slipped
 /// past the first version of this guard, which only looked at qualified names.
+/// Blank out SQL comments (`-- …` to end of line, and `/* … */`) inside an SQL
+/// literal, preserving every newline so reported line offsets stay exact.
+///
+/// The scanner strips *Rust* comments before it ever sees a literal, but SQL
+/// written inside a raw string can carry its own commentary, and prose is not
+/// SQL. Without this, a note reading "infer the type from the target column
+/// the way it does for VALUES" parses as `FROM the` and the guard reports a
+/// phantom relation named `the`. That is the third time a guard in this repo
+/// has read a comment as code (#856, #857); strip first, match second.
+pub(super) fn strip_sql_comments(literal: &str) -> String {
+    let bytes: Vec<char> = literal.chars().collect();
+    let mut out = String::with_capacity(literal.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == '-' && i + 1 < bytes.len() && bytes[i + 1] == '-' {
+            while i < bytes.len() && bytes[i] != '\n' {
+                out.push(' ');
+                i += 1;
+            }
+            continue;
+        }
+        if bytes[i] == '/' && i + 1 < bytes.len() && bytes[i + 1] == '*' {
+            let mut depth = 1;
+            out.push_str("  ");
+            i += 2;
+            while i < bytes.len() && depth > 0 {
+                if bytes[i] == '*' && i + 1 < bytes.len() && bytes[i + 1] == '/' {
+                    depth -= 1;
+                    out.push_str("  ");
+                    i += 2;
+                    continue;
+                }
+                out.push(if bytes[i] == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            continue;
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    out
+}
+
 fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
     // `INTO` also covers `INSERT INTO`; `UPDATE` covers the bare form. The
     // optional `\.<name>` group is what distinguishes the two cases: when it
@@ -247,6 +290,8 @@ fn scan_relation_refs(src_dir: &Path) -> Vec<RelationRef> {
                 if !looks_like_sql(&literal) {
                     continue;
                 }
+                // Prose inside the SQL is not SQL — see `strip_sql_comments`.
+                let literal = strip_sql_comments(&literal);
                 let literal = literal.as_str();
                 for caps in re.captures_iter(literal) {
                     let offset = caps
@@ -384,4 +429,39 @@ async fn every_perlengkapan_relation_referenced_in_sql_actually_exists() {
         missing.len(),
         missing.into_iter().collect::<Vec<_>>().join("\n")
     );
+}
+
+/// The guard must not read prose as SQL — both directions.
+#[test]
+fn sql_comments_are_stripped_before_relations_are_matched() {
+    let re = regex::Regex::new(
+        r"(?i)\b(?:FROM|JOIN|INTO|UPDATE)\s+([a-z_][a-z0-9_]*)(?:\.([a-z_][a-z0-9_]*))?\b",
+    )
+    .unwrap();
+
+    // The exact shape that produced a phantom relation named `the`.
+    let sql = "-- infer the type from the target column the way it does\n\
+               SELECT 1 FROM integrasi.mysimkari_pegawai p\n";
+    let stripped = strip_sql_comments(sql);
+    let hits: Vec<String> = re
+        .captures_iter(&stripped)
+        .map(|c| c[1].to_string())
+        .collect();
+    assert_eq!(hits, vec!["integrasi".to_string()], "prose must not match");
+
+    // Line numbering must survive, or every report points at the wrong line.
+    assert_eq!(stripped.matches('\n').count(), sql.matches('\n').count());
+
+    // And the guard must still SEE real SQL: a stripper that ate everything
+    // would make this whole test file pass while checking nothing.
+    assert!(
+        strip_sql_comments("SELECT 1 FROM perlengkapan.audit_log")
+            .contains("FROM perlengkapan.audit_log")
+    );
+
+    // Block comments too.
+    let block = "SELECT 1 /* FROM ghost_table */ FROM perlengkapan.audit_log";
+    let stripped = strip_sql_comments(block);
+    assert!(!stripped.contains("ghost_table"));
+    assert!(stripped.contains("FROM perlengkapan.audit_log"));
 }

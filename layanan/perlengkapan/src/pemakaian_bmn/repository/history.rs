@@ -2,19 +2,12 @@ use super::PemakaianBmnRepository;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
-use crate::shared::satker_scope::SatkerScope;
+use crate::shared::satker_scope::{BoxedParam, SatkerScope};
 
-type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
-
-/// `scope` as an extra `AND` clause, plus its bind parameters.
-///
-/// Returns an empty string for the unrestricted tier so the caller can splice
-/// it in unconditionally.
+/// `scope` as a trailing `AND` over this table's `satker_code` — see the note
+/// on the shared helper it binds.
 fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
-    match scope.push_condition("satker_code", params) {
-        Some(cond) => format!(" AND {cond}"),
-        None => String::new(),
-    }
+    crate::shared::satker_scope::scope_and(scope, "satker_code", params)
 }
 
 impl PemakaianBmnRepository {

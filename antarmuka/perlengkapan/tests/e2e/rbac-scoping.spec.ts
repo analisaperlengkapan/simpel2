@@ -386,3 +386,144 @@ test.describe('Penghapusan BMN object-level scoping — server-side', () => {
     expect(resp.status(), 'no Bearer token → unauthorized').toBe(401);
   });
 });
+
+/**
+ * Pakaian dinas — employee surfaces, object-level scoping, server-side.
+ *
+ * These endpoints return personal data (NIP, name, phone, gender, rank) and
+ * uniform measurements for a satker the CALLER names in the path, and accept
+ * profile writes for an employee the caller names by NIP. Every one of them
+ * took an unused `_claims`, and the gap was measured against deployed staging
+ * rather than inferred: operator_a (0200010) read operator_b's (0200020)
+ * roster on all three read paths, and wrote a profile onto b's employee — 200
+ * each time, the row rewritten.
+ *
+ * Non-destructive by construction: the cross-satker write must be REFUSED, so
+ * a passing run changes nothing and a retry sees the same state. The one write
+ * that is expected to succeed is idempotent (same values every run).
+ */
+test.describe('Pakaian dinas employee scoping — server-side', () => {
+  const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pakaian-dinas`;
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** The three read paths, all keyed by a satker code the caller supplies. */
+  const rosterPaths = (satker: string) => [
+    `${API}/pegawai-satker/${satker}`,
+    `${API}/pegawai-satker/${satker}/with-sizes`,
+    `${API}/pegawai-satker/${satker}/roster`,
+  ];
+
+  test('an operator reads its own satker roster', async ({ request }) => {
+    const tok = await tokenFor(request, 'operator_a');
+    const own = userByKey('operator_a').satkerCode;
+    for (const url of rosterPaths(own)) {
+      const resp = await request.get(url, { headers: bearer(tok) });
+      expect(resp.status(), `own roster must stay readable: ${url}`).toBe(200);
+    }
+  });
+
+  test('an operator cannot read another satker roster', async ({ request }) => {
+    const tok = await tokenFor(request, 'operator_a');
+    const foreign = userByKey('operator_b').satkerCode;
+    expect(foreign, 'the two operators must sit in DIFFERENT satkers').not.toBe(
+      userByKey('operator_a').satkerCode,
+    );
+
+    for (const url of rosterPaths(foreign)) {
+      const resp = await request.get(url, { headers: bearer(tok) });
+      // 404, not 403: a 403 confirms the satker exists and has staff, which is
+      // the cross-tenant existence oracle #93 closed.
+      expect(
+        resp.status(),
+        `cross-satker roster must fail closed: ${url} -> ${await resp.text()}`,
+      ).toBe(404);
+    }
+  });
+
+  test('the roster endpoints reject an unauthenticated request (401)', async ({ request }) => {
+    for (const url of rosterPaths(userByKey('operator_a').satkerCode)) {
+      const resp = await request.get(url);
+      expect(resp.status(), `no Bearer token → unauthorized: ${url}`).toBe(401);
+    }
+  });
+
+  test('an operator cannot write a profile onto another satker employee', async ({ request }) => {
+    const tokA = await tokenFor(request, 'operator_a');
+    const tokB = await tokenFor(request, 'operator_b');
+    const foreignSatker = userByKey('operator_b').satkerCode;
+
+    // Take the target NIP from b's OWN roster, so the test names a real
+    // employee of the other satker rather than a guess.
+    const rosterB = await request.get(`${API}/pegawai-satker/${foreignSatker}`, {
+      headers: bearer(tokB),
+    });
+    expect(rosterB.status(), 'operator_b must be able to read its own roster').toBe(200);
+    const staff = ((await rosterB.json()) as { data: Array<{ nip: string }> }).data;
+    expect(staff.length, 'operator_b satker must have at least one employee seeded').toBeGreaterThan(0);
+    const targetNip = staff[0].nip;
+
+    const resp = await request.post(`${API}/pegawai-profile`, {
+      headers: bearer(tokA),
+      data: {
+        nip: targetNip,
+        nama: 'DITULIS OLEH OPERATOR SATKER LAIN',
+        // The body used to decide which satker the row belonged to. Claiming
+        // the victim's satker is exactly what made the staging probe land.
+        kode_satker: foreignSatker,
+        ukuran_baju: 'XXL',
+        with_hijab: false,
+      },
+    });
+    expect(
+      resp.status(),
+      `cross-satker profile write must be refused: ${await resp.text()}`,
+    ).toBe(404);
+
+    // Refused must mean nothing was written. Read it back as the satker that
+    // OWNS the record, so a leak would be visible rather than merely absent.
+    const after = await request.get(`${API}/pegawai-satker/${foreignSatker}/with-sizes`, {
+      headers: bearer(tokB),
+    });
+    expect(after.status()).toBe(200);
+    const rows = ((await after.json()) as {
+      data: Array<{ pegawai: { nip: string }; existing_sizes: { nama?: string } | null }>;
+    }).data;
+    const victim = rows.find((r) => r.pegawai.nip === targetNip);
+    expect(victim, 'the target employee must still be in the roster').toBeTruthy();
+    expect(
+      victim!.existing_sizes?.nama ?? '',
+      'a refused write must leave no trace on the record',
+    ).not.toContain('OPERATOR SATKER LAIN');
+  });
+
+  test('a profile write takes its satker from the source of truth, not the body', async ({
+    request,
+  }) => {
+    const tok = await tokenFor(request, 'operator_a');
+    const own = userByKey('operator_a').satkerCode;
+    const foreign = userByKey('operator_b').satkerCode;
+
+    const roster = await request.get(`${API}/pegawai-satker/${own}`, { headers: bearer(tok) });
+    expect(roster.status()).toBe(200);
+    const staff = ((await roster.json()) as { data: Array<{ nip: string }> }).data;
+    expect(staff.length, 'operator_a satker must have at least one employee seeded').toBeGreaterThan(0);
+
+    // In scope for this employee, but lying about which satker they belong to.
+    // Idempotent: same values every run, so retries are safe.
+    const resp = await request.post(`${API}/pegawai-profile`, {
+      headers: bearer(tok),
+      data: {
+        nip: staff[0].nip,
+        kode_satker: foreign,
+        ukuran_baju: 'L',
+        with_hijab: false,
+      },
+    });
+    expect(resp.status(), await resp.text()).toBe(200);
+    const saved = (await resp.json()) as { data: { kode_satker: string } };
+    expect(
+      saved.data.kode_satker,
+      'the satker written must come from MySIMKARI, not from the request body',
+    ).toBe(own);
+  });
+});

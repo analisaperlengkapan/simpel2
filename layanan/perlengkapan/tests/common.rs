@@ -365,6 +365,58 @@ pub async fn setup_test_db() -> (Database, String) {
         .await
         .unwrap();
 
+    // ── Cross-schema SoT stub: MySIMKARI employees ────────────────────────
+    //
+    // The pakaian-dinas roster reads and the profile upsert both key off this
+    // table: the roster IS this table, and the upsert takes the employee's
+    // satker from it rather than from the request body. Columns mirror the
+    // owner's DDL (`layanan/integrasi/migrations/001_init_schema.sql`), not a
+    // convenient subset — a stub that diverges certifies bugs (#17).
+    //
+    // Three employees across two Kejati: SKR001 and SKR002 under KJT01, SKR003
+    // under KJT02, so both the satker tier and the wilayah tier have a positive
+    // AND a negative case to land on.
+    client
+        .batch_execute(
+            "CREATE TABLE IF NOT EXISTS integrasi.mysimkari_pegawai (
+                 id BIGSERIAL PRIMARY KEY,
+                 nip TEXT NOT NULL UNIQUE,
+                 nama TEXT,
+                 satker_id TEXT,
+                 nama_satker TEXT,
+                 jabatan TEXT,
+                 jenis_jabatan_terakhir TEXT,
+                 eselon TEXT,
+                 golpang TEXT,
+                 gol_kd TEXT,
+                 jk TEXT,
+                 agama TEXT,
+                 email_dinas TEXT,
+                 no_hp TEXT,
+                 nrp TEXT,
+                 foto TEXT,
+                 bidang TEXT,
+                 jabat_tmt TEXT,
+                 status_pegawai TEXT NOT NULL DEFAULT 'aktif',
+                 synced_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                 created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                 updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+             );",
+        )
+        .await
+        .unwrap();
+    client
+        .execute(
+            "INSERT INTO integrasi.mysimkari_pegawai (nip, nama, satker_id, nama_satker, jabatan, jk)
+             VALUES ('19800101000000001', 'Pegawai Uji A', 'SKR001', 'KEJAKSAAN NEGERI UJI A', 'Staf', 'L'),
+                    ('19800101000000002', 'Pegawai Uji B', 'SKR002', 'KEJAKSAAN NEGERI UJI B', 'Staf', 'P'),
+                    ('19800101000000003', 'Pegawai Uji C', 'SKR003', 'KEJAKSAAN NEGERI UJI C', 'Staf', 'L')
+             ON CONFLICT (nip) DO NOTHING",
+            &[],
+        )
+        .await
+        .unwrap();
+
     // The wilayah tier's single definition. READ FROM THE OWNER'S MIGRATION
     // rather than restated here: a hand-written cross-schema stub is what
     // certified bugs in #17 (the old stub made 14 tests pass and 3 fail; the
