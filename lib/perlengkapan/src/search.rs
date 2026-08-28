@@ -81,7 +81,6 @@ pub struct SearchFilters {
     /// Filter by date range (created_at)
     pub date_from: Option<String>,
     pub date_to: Option<String>,
-
 }
 
 impl SearchFilters {
