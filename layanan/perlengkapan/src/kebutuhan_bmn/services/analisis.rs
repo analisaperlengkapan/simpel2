@@ -373,14 +373,73 @@ impl KebutuhanBmnService {
         None
     }
 
+    /// Hard ceiling for the whole sync-status probe.
+    ///
+    /// `fetch_sync_status` already treats an unreachable integrasi as "unknown"
+    /// rather than "risky" — the probe is explicitly NOT allowed to block a
+    /// decision. But not blocking on the RESULT is not the same as not blocking
+    /// in TIME, and the two probes used to run one after the other with no
+    /// ceiling of their own. When integrasi was unreachable (a NetworkPolicy
+    /// opened port 50053 while the service listens on 50051), that cost 25s then
+    /// 30s, serially, on `keputusan-pusat`:
+    ///
+    /// ```text
+    /// 07:34:11.717  request masuk
+    /// 07:34:36.900  mysimkari menyerah        (+25,2s)
+    /// 07:35:06.935  siman menyerah            (+30,0s)
+    /// 07:35:06.960  SELURUH kerja DB selesai  (+0,025s)
+    /// ```
+    ///
+    /// The gateway cuts clients off at 30s, so every Validator Pusat approval
+    /// returned 504 while the transition itself succeeded ~20s later via the
+    /// cancel-safe middleware. The netpol is fixed, but nothing stopped this
+    /// from recurring the next time integrasi is slow or down.
+    ///
+    /// 3s is far below the gateway's 30s and far above a healthy round trip
+    /// (measured 0,02s in-cluster once the policy was correct).
+    const SYNC_PROBE_BUDGET: std::time::Duration = std::time::Duration::from_secs(3);
+
     pub(crate) async fn get_integrasi_sync_metadata(&self) -> Option<IntegrasiSyncMetadata> {
         let integrasi_client = self.integrasi_client.as_ref()?;
 
-        let mysimkari =
-            Self::fetch_sync_status(integrasi_client, DataSource::Mysimkari, "mysimkari").await;
-        let siman = Self::fetch_sync_status(integrasi_client, DataSource::Siman, "siman").await;
+        // Concurrent, so the ceiling covers both probes rather than each one,
+        // and a healthy pair costs one round trip instead of two.
+        let probes = async {
+            tokio::join!(
+                Self::fetch_sync_status(integrasi_client, DataSource::Mysimkari, "mysimkari"),
+                Self::fetch_sync_status(integrasi_client, DataSource::Siman, "siman"),
+            )
+        };
+
+        let (mysimkari, siman) = match tokio::time::timeout(Self::SYNC_PROBE_BUDGET, probes).await {
+            Ok(pair) => pair,
+            Err(_) => {
+                warn!(
+                    "Integrasi sync-status probe exceeded {:?}; treating both sources as unknown \
+                     rather than holding the caller's request open",
+                    Self::SYNC_PROBE_BUDGET
+                );
+                (
+                    Self::unknown_sync_status("mysimkari"),
+                    Self::unknown_sync_status("siman"),
+                )
+            }
+        };
 
         Some(IntegrasiSyncMetadata { mysimkari, siman })
+    }
+
+    /// "We could not find out", which `is_integrasi_sync_risky` reads as
+    /// not-risky — the same value the per-probe error path already produces.
+    fn unknown_sync_status(source_name: &str) -> IntegrasiSyncStatus {
+        IntegrasiSyncStatus {
+            source: source_name.to_string(),
+            state: "SYNC_STATE_UNSPECIFIED".to_string(),
+            last_sync_at: None,
+            next_sync_at: None,
+            records_synced: 0,
+            error_message: None,
+        }
     }
 
     async fn fetch_sync_status(
