@@ -134,6 +134,32 @@ ON CONFLICT (id) DO UPDATE SET
   satker_nama = EXCLUDED.satker_nama,
   status_kode = EXCLUDED.status_kode;
 
+-- One workflow-history row per satker, matching the status each row sits at.
+--
+-- A participation row at SubmitWilayah/SubmitPusat with an EMPTY trail is not a
+-- state the workflow can produce, and the emptiness is not harmless: the RBAC
+-- suite asserts that another satker's trail comes back empty, and against a
+-- seed with no trail at all that assertion passes while proving nothing —
+-- "scoped out" and "nothing has happened yet" are the same empty list. The
+-- suite now refuses to draw the conclusion unless the OWNING satker sees a
+-- non-empty trail, which is what these rows provide.
+INSERT INTO perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
+  (id, pengajuan_satker_id, from_status_kode, to_status_kode, user_id, nip, nama, role, aksi, komentar)
+VALUES
+  ('c1000000-0000-4c00-8c00-00000000c001', 'c1000000-0000-4c00-8c00-0000000a0001', 2000, 2001, '11111111-1111-4111-8111-111111111111', '200000000000000001', 'E2E Operator Jakpus', 'operator_satker',  'submit',  'Seed: diajukan ke wilayah'),
+  ('c1000000-0000-4c00-8c00-00000000c002', 'c1000000-0000-4c00-8c00-0000000a0002', 2001, 2002, '33333333-3333-4333-8333-333333333333', '200000000000000003', 'E2E Validator Wilayah', 'validator_wilayah', 'forward', 'Seed: diteruskan ke pusat'),
+  ('c1000000-0000-4c00-8c00-00000000c003', 'c1000000-0000-4c00-8c00-0000000a0003', 2004, 2005, '44444444-4444-4444-8444-444444444444', '200000000000000004', 'E2E Validator Pusat',   'validator_pusat',   'approve', 'Seed: disetujui pusat')
+ON CONFLICT (id) DO UPDATE SET
+  pengajuan_satker_id = EXCLUDED.pengajuan_satker_id,
+  from_status_kode = EXCLUDED.from_status_kode,
+  to_status_kode = EXCLUDED.to_status_kode,
+  user_id = EXCLUDED.user_id,
+  nip = EXCLUDED.nip,
+  nama = EXCLUDED.nama,
+  role = EXCLUDED.role,
+  aksi = EXCLUDED.aksi,
+  komentar = EXCLUDED.komentar;
+
 -- One pre-existing barang per satker row so (a) the operator's "Submit ke
 -- Wilayah" is valid without depending on the add-barang modal, and (b) the
 -- wilayah/pusat detail views are non-empty. Operator ALSO adds one via the UI
