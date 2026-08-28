@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use crate::workflow::engine::TransitionRequest;
 use tracing::info;
 use uuid::Uuid;
@@ -9,8 +10,15 @@ impl PemakaianBmnService {
     /// Get permit with allowed transitions
     ///
     /// Requirements: REQ-P001
-    pub async fn get_permit_detail(&self, id: Uuid) -> AppResult<IzinPemakaianDetailResponse> {
-        let izin = self.repository.get_by_id(id).await?;
+    pub async fn get_permit_detail(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<IzinPemakaianDetailResponse> {
+        // The LIST behind this has been scoped since #66; the detail was not.
+        // Measured on staging, one satker's operator read another satker's
+        // permit in full — the employee's name, the asset, the dates.
+        let izin = self.repository.get_by_id(id, scope).await?;
 
         // Get allowed transitions from workflow engine
         let current_status =
@@ -54,8 +62,9 @@ impl PemakaianBmnService {
         user_id: Uuid,
         user_role: String,
         client_ip: String,
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
         let current_status =
             PemakaianBmnStatus::from_state_name(&current.status).ok_or_else(|| {
                 AppError::BadRequest(format!("Unknown current status: {}", current.status))
@@ -127,7 +136,7 @@ impl PemakaianBmnService {
             .await?;
 
         // Get updated permit
-        let updated = self.repository.get_by_id(id).await?;
+        let updated = self.repository.get_by_id(id, scope).await?;
 
         // Special handling for APPROVED -> ACTIVE transition
         if target_status == PemakaianBmnStatus::Approved {

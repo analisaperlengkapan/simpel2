@@ -13,6 +13,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::{Claims, ClientIp};
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 use super::models::*;
@@ -27,7 +28,8 @@ pub async fn get_permit_by_id(
 ) -> Result<Json<ApiResponse<IzinPemakaianDetailResponse>>, AppError> {
     use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
 
-    let mut response = service.get_permit_detail(id).await?;
+    let scope = SatkerScope::from_claims(&claims);
+    let mut response = service.get_permit_detail(id, &scope).await?;
 
     // The service answers "what may happen next" from the STATE. Narrow it to
     // "what may THIS caller do" by handing each candidate back to the same
@@ -136,7 +138,14 @@ pub async fn transition_permit_status(
     );
 
     let permit = service
-        .transition_permit_status(id, request, claims.user_id, claims.role.clone(), ip)
+        .transition_permit_status(
+            id,
+            request,
+            claims.user_id,
+            claims.role.clone(),
+            ip,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -154,7 +163,9 @@ pub async fn activate_permit(
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
     info!("Activating permit {}", id);
 
-    let permit = service.activate_permit(id, claims.user_id).await?;
+    let permit = service
+        .activate_permit(id, claims.user_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         permit,
@@ -173,7 +184,9 @@ pub async fn get_permit_document(
 ) -> Result<axum::response::Redirect, AppError> {
     info!("Fetching document for permit {}", id);
 
-    let permit = service.get_permit_detail(id).await?;
+    let permit = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     // Creator or cross-satker role (pusat/admin) may access; everyone else is
     // rejected until authenc exposes per-user satker codes (commit 20 lands a
@@ -208,7 +221,9 @@ pub async fn generate_konsep_surat(
     Path(id): Path<Uuid>,
     claims: Claims,
 ) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
-    let permit = service.generate_konsep_surat(id, claims.user_id).await?;
+    let permit = service
+        .generate_konsep_surat(id, claims.user_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(lib_perlengkapan::response::ApiResponse::success(
         permit,
@@ -224,7 +239,7 @@ pub async fn generate_konsep_surat(
 pub async fn serve_konsep_surat(
     State(service): State<PemakaianBmnService>,
     Path((id, format)): Path<(Uuid, String)>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::body::Body;
     use axum::http::header;
@@ -239,7 +254,7 @@ pub async fn serve_konsep_surat(
     }
 
     let path = service
-        .konsep_surat_path(id, format)
+        .konsep_surat_path(id, format, &SatkerScope::from_claims(&claims))
         .await?
         .ok_or_else(|| {
             AppError::NotFound(format!(
@@ -285,11 +300,15 @@ pub async fn serve_konsep_surat(
 pub async fn serve_sk_izin_pdf(
     State(service): State<PemakaianBmnService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
-    let bytes = super::sk_izin_pdf::generate_sk_izin_pdf(&service, id).await?;
+    // Measured on staging: this served another satker's 5 057-byte decision
+    // letter to an operator with no claim to the permit.
+    let bytes =
+        super::sk_izin_pdf::generate_sk_izin_pdf(&service, id, &SatkerScope::from_claims(&claims))
+            .await?;
     let filename = format!("SK-Izin-Pemakaian-BMN-{}.pdf", id);
     let headers = [
         (header::CONTENT_TYPE, "application/pdf"),
@@ -310,7 +329,12 @@ pub async fn upload_signed_pdf(
     Json(body): Json<UploadSignedPdfRequest>,
 ) -> Result<Json<lib_perlengkapan::response::ApiResponse<IzinPemakaianBmn>>, AppError> {
     let permit = service
-        .upload_signed_pdf(id, body.signed_pdf_url, claims.user_id)
+        .upload_signed_pdf(
+            id,
+            body.signed_pdf_url,
+            claims.user_id,
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(lib_perlengkapan::response::ApiResponse::success(
@@ -334,7 +358,10 @@ pub async fn revoke_permit(
     // Admin tidak boleh — guard ini di-cek SEBELUM policy.authorize() agar
     // admin bypass di policy.authorize() tidak overwrite stakeholder mandate.
     enforce_no_admin_revoke(&claims)?;
-    let permit_now = service.get_permit_detail(id).await?.izin;
+    let permit_now = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?
+        .izin;
     PemakaianBmnPolicy.authorize(
         &claims,
         PemakaianBmnAction::Revoke,
@@ -343,7 +370,13 @@ pub async fn revoke_permit(
     info!("Revoking permit {}", id);
 
     let permit = service
-        .revoke_permit(id, request, claims.user_id, claims.username.clone())
+        .revoke_permit(
+            id,
+            request,
+            claims.user_id,
+            claims.username.clone(),
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -369,6 +402,7 @@ pub async fn renew_permit(
             claims.user_id,
             claims.username.clone(),
             claims.satker_code.clone(),
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 
@@ -666,7 +700,10 @@ pub async fn validator_satker_action(
     Json(request): Json<ValidatorSatkerActionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
     use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
-    let permit_now = service.get_permit_detail(id).await?.izin;
+    let permit_now = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?
+        .izin;
     let state = Some(permit_now.status.as_str());
     let action = match &request {
         ValidatorSatkerActionRequest::Forward(_) => PemakaianBmnAction::ValidatorSatkerForward,
@@ -719,7 +756,10 @@ pub async fn approver_satker_action(
     Json(request): Json<ApproverSatkerActionRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
     use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
-    let permit_now = service.get_permit_detail(id).await?.izin;
+    let permit_now = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?
+        .izin;
     let state = Some(permit_now.status.as_str());
     let action = match &request {
         ApproverSatkerActionRequest::Approve(_) => PemakaianBmnAction::ApproverSatkerApprove,
@@ -765,7 +805,10 @@ pub async fn operator_resubmit(
     Json(request): Json<OperatorResubmitRequest>,
 ) -> Result<Json<ApiResponse<IzinPemakaianBmn>>, AppError> {
     use crate::shared::policy::{PemakaianBmnAction, PemakaianBmnPolicy, WorkflowPolicy};
-    let permit_now = service.get_permit_detail(id).await?.izin;
+    let permit_now = service
+        .get_permit_detail(id, &SatkerScope::from_claims(&claims))
+        .await?
+        .izin;
     PemakaianBmnPolicy.authorize(
         &claims,
         PemakaianBmnAction::Resubmit,

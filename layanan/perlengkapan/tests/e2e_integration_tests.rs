@@ -12,6 +12,7 @@ mod integration {
     mod pakaian_dinas_workflow_test;
     mod pemakaian_asset_identity_test;
     mod pemakaian_bmn_workflow_test;
+    mod pemakaian_detail_scope_test;
     mod pemakaian_monitoring_scope_test;
     mod penghapusan_bmn_workflow_test;
     mod rbac_403_test;

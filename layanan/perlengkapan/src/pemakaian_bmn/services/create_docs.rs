@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::info;
 use uuid::Uuid;
 use validator::Validate;
@@ -103,15 +104,28 @@ impl PemakaianBmnService {
             }
         }
 
-        // Reload permit with bmn_items
-        permit = self.repository.get_by_id(permit.id).await?;
+        // Reload permit with bmn_items. `All` on purpose: this is the row
+        // this call just created from the caller's own claims, so a scope
+        // here could only fail to find what we just wrote.
+        permit = self
+            .repository
+            .get_by_id(permit.id, &SatkerScope::All)
+            .await?;
 
         Ok(permit)
     }
 
     /// Filesystem path the konsep-surat route handler streams from.
     /// `format` is "docx" or "pdf".
-    pub async fn konsep_surat_path(&self, id: Uuid, format: &str) -> AppResult<Option<String>> {
+    pub async fn konsep_surat_path(
+        &self,
+        id: Uuid,
+        format: &str,
+        scope: &SatkerScope,
+    ) -> AppResult<Option<String>> {
+        // Reached by permit id and streams a document, so it needs the same
+        // gate as the detail behind it.
+        self.repository.get_by_id(id, scope).await?;
         self.repository.konsep_surat_path(id, format).await
     }
 
@@ -126,8 +140,9 @@ impl PemakaianBmnService {
         &self,
         id: Uuid,
         _user_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
         let status = PemakaianBmnStatus::from_state_name(&current.status)
             .unwrap_or(PemakaianBmnStatus::Draft);
 
@@ -224,7 +239,7 @@ impl PemakaianBmnService {
             "Generated konsep surat (DOCX + PDF) for permit {} at {}",
             id, dir
         );
-        self.repository.get_by_id(id).await
+        self.repository.get_by_id(id, scope).await
     }
 
     /// Upload signed PDF izin pemakaian BMN and mark as completed
@@ -235,8 +250,9 @@ impl PemakaianBmnService {
         id: Uuid,
         signed_pdf_url: String,
         _user_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
 
         // Konsep surat must have been generated first
         if current.konsep_surat_url.is_none() {
@@ -254,6 +270,6 @@ impl PemakaianBmnService {
             "Uploaded signed PDF for permit {}, marking as completed",
             id
         );
-        self.repository.get_by_id(id).await
+        self.repository.get_by_id(id, scope).await
     }
 }

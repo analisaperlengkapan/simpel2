@@ -2,6 +2,7 @@ use super::PemakaianBmnRepository;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::repo::PoolExt;
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 use uuid::Uuid;
 
 impl PemakaianBmnRepository {
@@ -89,20 +90,35 @@ impl PemakaianBmnRepository {
         Ok(self.row_to_permit(row))
     }
 
-    /// Get permit by ID
+    /// Get permit by ID, restricted to `scope`.
+    ///
+    /// A permit is a named person holding a named asset for a stated period —
+    /// the very thing the monitoring surfaces were scoped for. The LIST has
+    /// been scoped since #66; this, the detail behind it, was not, and neither
+    /// were the eleven other places that reach a permit by id.
+    ///
+    /// `scope` is in the signature rather than left to the callers because
+    /// that is the third time the same shape has bitten this repository: #93
+    /// scoped one kebutuhan endpoint and left five siblings, and the same
+    /// happened in pakaian dinas. A rule the compiler enforces cannot be
+    /// applied once and forgotten at the next call site.
+    ///
     /// Requirements: REQ-P001
-    pub async fn get_by_id(&self, id: Uuid) -> AppResult<IzinPemakaianBmn> {
+    pub async fn get_by_id(&self, id: Uuid, scope: &SatkerScope) -> AppResult<IzinPemakaianBmn> {
         let client = self.pool.client().await?;
 
-        let query = r#"
-            SELECT * FROM perlengkapan.izin_pemakaian_bmn
-            WHERE id = $1
-        "#;
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let scope_sql = crate::shared::satker_scope::scope_and(scope, "satker_code", &mut params);
+        let query =
+            format!("SELECT * FROM perlengkapan.izin_pemakaian_bmn WHERE id = $1{scope_sql}");
 
         let row = client
-            .query_opt(query, &[&id])
+            .query_opt(&query, &as_refs(&params))
             .await
             .map_err(|e| AppError::Database(e.to_string()))?
+            // NotFound, not Forbidden: 403 confirms the permit exists under
+            // another satker, which is the cross-tenant existence oracle #93
+            // closed for satker detail.
             .ok_or_else(|| AppError::NotFound(format!("Izin pemakaian not found: {}", id)))?;
 
         Ok(self.row_to_permit(row))
@@ -119,8 +135,10 @@ impl PemakaianBmnRepository {
     ) -> AppResult<IzinPemakaianBmn> {
         let client = self.pool.client().await?;
 
-        // First check if permit is in DRAFT status
-        let current = self.get_by_id(id).await?;
+        // First check if permit is in DRAFT status. `All`: the caller's scope
+        // was already applied by the service that reached this update, and a
+        // second narrowing here would only make the status message wrong.
+        let current = self.get_by_id(id, &SatkerScope::All).await?;
         if current.status != "DRAFT" {
             return Err(AppError::BadRequest(
                 "Hanya izin dengan status DRAFT yang dapat diubah".to_string(),

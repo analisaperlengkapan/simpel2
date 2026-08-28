@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::info;
 use uuid::Uuid;
 use validator::Validate;
@@ -15,13 +16,14 @@ impl PemakaianBmnService {
         request: RevokePermitRequest,
         user_id: Uuid,
         user_nama: String,
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
         // Validate request
         request
             .validate()
             .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
 
         // Can only revoke ACTIVE permits
         if current.status != "ACTIVE" {
@@ -52,8 +54,9 @@ impl PemakaianBmnService {
         user_nama: String,
         // Renewing operator's MySIMKARI satker_code (from JWT claims, #66).
         satker_code: Option<String>,
+        scope: &SatkerScope,
     ) -> AppResult<IzinPemakaianBmn> {
-        let current = self.repository.get_by_id(id).await?;
+        let current = self.repository.get_by_id(id, scope).await?;
 
         // Can renew ACTIVE or EXPIRED permits
         if !matches!(current.status.as_str(), "ACTIVE" | "EXPIRED") {
