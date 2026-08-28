@@ -3,6 +3,7 @@ mod common;
 #[cfg(test)]
 mod integration {
     mod dashboard_metrics_test;
+    mod kebutuhan_bmn_scope_test;
     mod kebutuhan_bmn_workflow_test;
     mod pakaian_dinas_campaign_scope_test;
     mod pakaian_dinas_pegawai_scope_test;

@@ -2,6 +2,7 @@ use super::KebutuhanBmnService;
 use crate::kebutuhan_bmn::models::*;
 use crate::kebutuhan_bmn::repository::KebutuhanBmnRepository;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use chrono::Datelike;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -38,15 +39,25 @@ impl KebutuhanBmnService {
         info!("Creating pengajuan kebutuhan BMN: {}", request.nama);
         let pengajuan = self.repository.create_pengajuan(request, user_id).await?;
 
-        // Build response with related data
-        self.get_pengajuan_detail(pengajuan.id).await
+        // Build response with related data. `All` because the campaign was
+        // just created by a pusat role and has no participants yet — there is
+        // nothing a narrower scope could hide, and passing the creator's own
+        // would only invite the reader to think one was being enforced here.
+        self.get_pengajuan_detail(pengajuan.id, &SatkerScope::All)
+            .await
     }
 
     /// Get pengajuan with full details
-    pub async fn get_pengajuan_detail(&self, id: Uuid) -> AppResult<PengajuanDetailResponse> {
+    pub async fn get_pengajuan_detail(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PengajuanDetailResponse> {
         let pengajuan = self.repository.get_pengajuan_by_id(id).await?;
         let assets = self.repository.get_pengajuan_assets(id).await?;
-        let satkers = self.repository.get_pengajuan_satkers(id).await?;
+        // The campaign header is nationwide; the participant list inside this
+        // response is not.
+        let satkers = self.repository.get_pengajuan_satkers(id, scope).await?;
 
         // Get allowed transitions from workflow engine
         let allowed_transitions = self.get_allowed_transitions(pengajuan.status);

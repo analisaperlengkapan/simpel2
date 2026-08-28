@@ -12,8 +12,15 @@ impl KebutuhanBmnService {
     pub async fn get_pengajuan_satkers(
         &self,
         pengajuan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnSatker>> {
-        self.repository.get_pengajuan_satkers(pengajuan_id).await
+        // The campaign may target the whole country; which satkers are taking
+        // part, and where each has got to, is per-satker data. Measured on
+        // staging this listed all three participants — including one in
+        // another wilayah — to a single satker's operator.
+        self.repository
+            .get_pengajuan_satkers(pengajuan_id, scope)
+            .await
     }
 
     /// Get satker with its barang list, scoped to the caller (#93).
@@ -28,23 +35,12 @@ impl KebutuhanBmnService {
         per_page: i32,
         scope: &SatkerScope,
     ) -> AppResult<SatkerWithBarangResponse> {
-        let satker = self.repository.get_satker_by_id(satker_id).await?;
-
-        // NotFound, BUKAN Forbidden. 403 mengkonfirmasi bahwa record-nya ADA
-        // sehingga endpoint berubah jadi existence-oracle lintas satker: siapa
-        // pun bisa memetakan UUID mana yang valid. 404 gagal-tertutup dan tak
-        // membocorkan apa pun. Sama dgn perilaku bank_aset yang sudah di-assert
-        // e2e ("detail fails closed across satkers (404)").
-        if !self
-            .repository
-            .satker_code_in_scope(scope, &satker.satker_id)
-            .await?
-        {
-            return Err(AppError::NotFound(format!(
-                "Satker pengajuan {} tidak ditemukan",
-                satker_id
-            )));
-        }
+        // The scope now rides inside the fetch itself (see the trait doc on
+        // `get_satker_by_id`), so out of scope this IS the NotFound the
+        // comment here used to construct by hand. 404, not 403: 403 would
+        // confirm the id exists under another satker and turn the endpoint
+        // into a cross-tenant existence oracle.
+        let satker = self.repository.get_satker_by_id(satker_id, scope).await?;
 
         let (barang_list, total_barang) = self
             .repository
@@ -92,14 +88,18 @@ impl KebutuhanBmnService {
         satker_id: Uuid,
         request: CreateBarangRequest,
         user_id: Option<Uuid>,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnBarang> {
         // Validate request
         request
             .validate()
             .map_err(|e| AppError::BadRequest(format!("Validation error: {}", e)))?;
 
-        // Verify satker is in input mode
-        let satker = self.repository.get_satker_by_id(satker_id).await?;
+        // Verify satker is in input mode — and that it is a satker this
+        // caller may touch at all. The status gate below is not an
+        // authorization check: a row in the right status still belongs to
+        // whichever satker owns it.
+        let satker = self.repository.get_satker_by_id(satker_id, scope).await?;
         if !matches!(
             satker.status,
             KebutuhanBmnStatus::InputBarang | KebutuhanBmnStatus::RevisiSatker
@@ -168,12 +168,19 @@ impl KebutuhanBmnService {
     }
 
     /// Delete a barang
-    pub async fn delete_barang(&self, barang_id: Uuid, user_id: Option<Uuid>) -> AppResult<()> {
-        // Check if barang's satker is in editable status
+    pub async fn delete_barang(
+        &self,
+        barang_id: Uuid,
+        user_id: Option<Uuid>,
+        scope: &SatkerScope,
+    ) -> AppResult<()> {
+        // Check if barang's satker is in editable status — and that the satker
+        // is one this caller may touch. A barang is reached by its own id, so
+        // without this the owning satker was never consulted.
         let barang = self.repository.get_barang_by_id(barang_id).await?;
         let satker = self
             .repository
-            .get_satker_by_id(barang.pengajuan_satker_id)
+            .get_satker_by_id(barang.pengajuan_satker_id, scope)
             .await?;
 
         if !matches!(

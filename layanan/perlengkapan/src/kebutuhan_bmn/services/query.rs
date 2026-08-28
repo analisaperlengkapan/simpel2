@@ -3,6 +3,7 @@ use crate::kebutuhan_bmn::models::*;
 use crate::kebutuhan_bmn::repository::KebutuhanBmnRepository;
 use crate::kebutuhan_bmn::siman_integration::SimanAsset;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use uuid::Uuid;
 
 impl KebutuhanBmnService {
@@ -50,8 +51,9 @@ impl KebutuhanBmnService {
     pub async fn get_satker_aktivitas(
         &self,
         satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnAktivitas>> {
-        self.repository.get_satker_aktivitas(satker_id).await
+        self.repository.get_satker_aktivitas(satker_id, scope).await
     }
 
     // ========================================================================

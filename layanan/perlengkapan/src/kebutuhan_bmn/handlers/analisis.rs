@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::shared::error::{AppError, bad_request};
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::ApiResponse;
 
 use crate::kebutuhan_bmn::models::*;
@@ -21,9 +22,13 @@ use crate::kebutuhan_bmn::services::KebutuhanBmnService;
 pub async fn get_analisis_kelayakan(
     State(service): State<KebutuhanBmnService>,
     Path(satker_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<AnalisisKelayakanResponse>>, AppError> {
-    let response = service.get_analisis_kelayakan(satker_id).await?;
+    // `get_satker_detail` on the same `satker/{id}` path has been scoped since
+    // #93; this sibling never was, and it returns the fuller picture.
+    let response = service
+        .get_analisis_kelayakan(satker_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         response,
@@ -39,10 +44,11 @@ pub async fn preview_laporan_analisis(
     State(service): State<KebutuhanBmnService>,
     Path(satker_id): Path<Uuid>,
     Query(query): Query<LaporanFormatQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
+    let scope = SatkerScope::from_claims(&claims);
     let format = query
         .format
         .as_deref()
@@ -53,9 +59,10 @@ pub async fn preview_laporan_analisis(
             "Hanya format=pdf yg didukung utk preview inline. Gunakan endpoint download utk format lain.",
         ));
     }
-    let bytes =
-        crate::kebutuhan_bmn::pdf_laporan::generate_laporan_analisis_pdf(&service, satker_id)
-            .await?;
+    let bytes = crate::kebutuhan_bmn::pdf_laporan::generate_laporan_analisis_pdf(
+        &service, satker_id, &scope,
+    )
+    .await?;
     let headers = [
         (header::CONTENT_TYPE, "application/pdf"),
         (
@@ -74,10 +81,13 @@ pub async fn download_laporan_analisis(
     State(service): State<KebutuhanBmnService>,
     Path(satker_id): Path<Uuid>,
     Query(query): Query<LaporanFormatQuery>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<axum::response::Response, AppError> {
     use axum::http::header;
     use axum::response::IntoResponse;
+    // Measured on staging: this returned a 4 973-byte PDF of ANOTHER satker's
+    // analysis to an operator who had no claim to it.
+    let scope = SatkerScope::from_claims(&claims);
     let format = query
         .format
         .as_deref()
@@ -86,7 +96,7 @@ pub async fn download_laporan_analisis(
     match format.as_str() {
         "pdf" => {
             let bytes = crate::kebutuhan_bmn::pdf_laporan::generate_laporan_analisis_pdf(
-                &service, satker_id,
+                &service, satker_id, &scope,
             )
             .await?;
             let headers = [

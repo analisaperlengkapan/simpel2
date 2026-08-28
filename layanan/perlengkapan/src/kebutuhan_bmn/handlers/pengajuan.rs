@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::{Claims, ClientIp};
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 use crate::kebutuhan_bmn::models::*;
@@ -86,9 +87,13 @@ pub async fn get_all_pengajuan(
 pub async fn get_pengajuan_by_id(
     State(service): State<KebutuhanBmnService>,
     Path(id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PengajuanDetailResponse>>, AppError> {
-    let response = service.get_pengajuan_detail(id).await?;
+    // The campaign header is nationwide reference data; the participant list
+    // this response embeds is not.
+    let response = service
+        .get_pengajuan_detail(id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         response,
@@ -174,9 +179,11 @@ pub async fn transition_pengajuan_status(
 pub async fn get_pengajuan_satkers(
     State(service): State<KebutuhanBmnService>,
     Path(pengajuan_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengajuanKebutuhanBmnSatker>>>, AppError> {
-    let satkers = service.get_pengajuan_satkers(pengajuan_id).await?;
+    let satkers = service
+        .get_pengajuan_satkers(pengajuan_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         satkers,

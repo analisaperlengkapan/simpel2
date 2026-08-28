@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::ApiResponse;
 
 use crate::kebutuhan_bmn::models::*;
@@ -28,7 +29,16 @@ pub async fn create_barang(
     info!("Creating barang for satker {}: {}", satker_id, request.nama);
 
     let user_id = Some(claims.user_id);
-    let barang = service.create_barang(satker_id, request, user_id).await?;
+    // Reached by the SATKER's id: without a scope, an operator could add a
+    // barang to any satker's submission that happened to be in an input state.
+    let barang = service
+        .create_barang(
+            satker_id,
+            request,
+            user_id,
+            &SatkerScope::from_claims(&claims),
+        )
+        .await?;
 
     Ok((
         StatusCode::CREATED,
@@ -68,7 +78,10 @@ pub async fn delete_barang(
     info!("Deleting barang: {}", barang_id);
 
     let user_id = Some(claims.user_id);
-    service.delete_barang(barang_id, user_id).await?;
+    // Reached by the BARANG's own id, so the owning satker was never consulted.
+    service
+        .delete_barang(barang_id, user_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         (),

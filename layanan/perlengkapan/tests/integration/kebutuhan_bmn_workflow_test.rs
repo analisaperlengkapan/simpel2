@@ -43,7 +43,13 @@ async fn test_complete_kebutuhan_bmn_workflow() {
     let operator_satker_id = "00000000-0000-0000-0000-000000000001";
     let validator_wilayah_id = "00000000-0000-0000-0000-000000000002";
     let satker_id = "SKR001";
-    let wilayah_id = "WIL001";
+    // The validator_wilayah's claim carries their OWN satker code — the
+    // Kejati's — and the wilayah tier resolves the region from it through
+    // `integrasi.v_satker_wilayah`. "WIL001" was not a satker code at all:
+    // it named nothing in the fixture and nothing in MySIMKARI, which went
+    // unnoticed for as long as no by-id handler read the claim. KJT01 is the
+    // Kejati the fixture puts above both SKR001 and SKR002.
+    let wilayah_id = "KJT01";
 
     // 1. Validator Pusat creates pengajuan
     let mut req = server.post("/kebutuhan-bmn/pengajuan").json(&json!({
@@ -184,7 +190,8 @@ async fn test_kebutuhan_bmn_rejection_workflow() {
     let operator_satker_id = "00000000-0000-0000-0000-000000000001";
     let validator_wilayah_id = "00000000-0000-0000-0000-000000000002";
     let satker_id = "SKR002";
-    let wilayah_id = "WIL001";
+    // KJT01 = the Kejati above SKR002 (see the note in the test above).
+    let wilayah_id = "KJT01";
 
     let mut req = server.post("/kebutuhan-bmn/pengajuan")
         .json(&json!({"nama": "Kebutuhan BMN 2026", "tahun": 2026, "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31"}));

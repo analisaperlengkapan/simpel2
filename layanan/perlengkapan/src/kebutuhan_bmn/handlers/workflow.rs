@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::ApiResponse;
 
 use crate::kebutuhan_bmn::models::*;
@@ -29,6 +30,9 @@ pub async fn validator_wilayah_action(
             Some(claims.user_id),
             Some(user_info),
             claims.role.clone(),
+            // `require_role` above answers "may a validator_wilayah ever do
+            // this". This answers "may THIS one, to THIS satker".
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 
@@ -54,6 +58,10 @@ pub async fn validator_pusat_keputusan(
             Some(claims.user_id),
             Some(user_info),
             claims.role.clone(),
+            // Pusat is a cross-satker role, so this resolves to `All` and
+            // changes nothing for them. It is passed anyway: the day a
+            // narrower role is given this action, the scope is already here.
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 

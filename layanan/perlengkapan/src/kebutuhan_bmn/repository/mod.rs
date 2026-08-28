@@ -77,8 +77,22 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     async fn get_pengajuan_satkers(
         &self,
         pengajuan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnSatker>>;
-    async fn get_satker_by_id(&self, id: Uuid) -> AppResult<PengajuanKebutuhanBmnSatker>;
+    /// Fetch one participation row, restricted to `scope`.
+    ///
+    /// `scope` is in the SIGNATURE, not left to the caller, because it was
+    /// left to the caller once: #93 scoped `get_satker_with_barang` and the
+    /// five sibling endpoints on the same `satker/{id}` path — aktivitas,
+    /// analisis, laporan preview/download, and the four workflow actions —
+    /// all kept reading the row unscoped. Measured on staging, an operator
+    /// downloaded another satker's analysis PDF. A rule the compiler enforces
+    /// cannot be applied to one call site and forgotten at the next.
+    async fn get_satker_by_id(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PengajuanKebutuhanBmnSatker>;
     async fn create_pengajuan_satker(
         &self,
         pengajuan_id: Uuid,
@@ -121,6 +135,7 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     async fn get_satker_aktivitas(
         &self,
         satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnAktivitas>>;
     async fn create_aktivitas(
         &self,
