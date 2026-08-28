@@ -4,6 +4,7 @@ use crate::kebutuhan_bmn::repository::KebutuhanBmnRepository;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
+use crate::shared::satker_scope::SatkerScope;
 use std::collections::HashMap;
 use tracing::warn;
 use uuid::Uuid;
@@ -14,8 +15,13 @@ impl KebutuhanBmnService {
     pub async fn get_analisis_kelayakan(
         &self,
         satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<AnalisisKelayakanResponse> {
-        let satker = self.repository.get_satker_by_id(satker_id).await?;
+        // This is the whole of another satker's feasibility case: what they
+        // asked for, what SIMAN says they already hold, and the gap between.
+        // The laporan preview/download endpoints render exactly this into a
+        // PDF, which is how an operator downloaded another satker's report.
+        let satker = self.repository.get_satker_by_id(satker_id, scope).await?;
         let (barang_list, _) = self
             .repository
             .get_satker_barang(satker_id, 1, 1000, None)

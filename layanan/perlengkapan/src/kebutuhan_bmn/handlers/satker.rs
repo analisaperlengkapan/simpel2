@@ -94,7 +94,14 @@ pub async fn transition_satker_status(
     let user_info = Some(extract_user_info(&claims));
 
     let satker = service
-        .transition_satker_status(satker_id, request, user_id, user_info, claims.role.clone())
+        .transition_satker_status(
+            satker_id,
+            request,
+            user_id,
+            user_info,
+            claims.role.clone(),
+            &SatkerScope::from_claims(&claims),
+        )
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -107,9 +114,12 @@ pub async fn transition_satker_status(
 pub async fn get_satker_aktivitas(
     State(service): State<KebutuhanBmnService>,
     Path(satker_id): Path<Uuid>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PengajuanKebutuhanBmnAktivitas>>>, AppError> {
-    let aktivitas = service.get_satker_aktivitas(satker_id).await?;
+    // The trail names every validator who acted, with their user id and NIP.
+    let aktivitas = service
+        .get_satker_aktivitas(satker_id, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         aktivitas,
@@ -137,6 +147,7 @@ pub async fn submit_satker_to_wilayah(
             Some(claims.user_id),
             Some(user_info),
             claims.role.clone(),
+            &SatkerScope::from_claims(&claims),
         )
         .await?;
 

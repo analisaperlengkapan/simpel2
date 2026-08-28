@@ -1,7 +1,7 @@
 use super::{KebutuhanBmnRepository, PgKebutuhanBmnRepository, UserInfo};
 use crate::kebutuhan_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
-use crate::shared::satker_scope::SatkerScope;
+use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use tracing::{error, info};
@@ -517,17 +517,22 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
     async fn get_pengajuan_satkers(
         &self,
         pengajuan_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnSatker>> {
         let client = self.get_client().await?;
 
+        let mut params: Vec<BoxedParam> = vec![Box::new(pengajuan_id)];
+        let scope_sql = crate::shared::satker_scope::scope_and(scope, "satker_id", &mut params);
         let rows = client
             .query(
-                r#"
+                &format!(
+                    r#"
                 SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker
-                WHERE pengajuan_id = $1
+                WHERE pengajuan_id = $1{scope_sql}
                 ORDER BY prioritas ASC, satker_nama ASC
-                "#,
-                &[&pengajuan_id],
+                "#
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
@@ -538,16 +543,32 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             .collect())
     }
 
-    async fn get_satker_by_id(&self, id: Uuid) -> AppResult<PengajuanKebutuhanBmnSatker> {
+    async fn get_satker_by_id(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PengajuanKebutuhanBmnSatker> {
         let client = self.get_client().await?;
 
+        // The predicate rides in the WHERE rather than in a check the caller
+        // makes afterwards: a check that happens in a later statement is a
+        // check the next refactor can leave behind — and this row's readers
+        // include four workflow actions that write.
+        let mut params: Vec<BoxedParam> = vec![Box::new(id)];
+        let scope_sql = crate::shared::satker_scope::scope_and(scope, "satker_id", &mut params);
         let row = client
             .query_opt(
-                "SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker WHERE id = $1",
-                &[&id],
+                &format!(
+                    "SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker \
+                     WHERE id = $1{scope_sql}"
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+            // NotFound, not Forbidden: 403 confirms the id exists under some
+            // other satker, which is the cross-tenant existence oracle #93
+            // closed for satker detail — and then left open on its siblings.
             .ok_or_else(|| AppError::NotFound(format!("Satker {} not found", id)))?;
 
         Ok(PengajuanKebutuhanBmnSatker::from_row(&row))
@@ -812,17 +833,29 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
     async fn get_satker_aktivitas(
         &self,
         satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanKebutuhanBmnAktivitas>> {
         let client = self.get_client().await?;
 
+        // The activity table has no satker column of its own, so the scope is
+        // applied to its parent: you must be able to see the participation row
+        // before you can read who acted on it. Measured on staging, this
+        // returned another satker's trail — and another WILAYAH's — complete
+        // with each validator's user id and NIP.
+        let mut params: Vec<BoxedParam> = vec![Box::new(satker_id)];
+        let scope_sql = crate::shared::satker_scope::scope_and(scope, "s.satker_id", &mut params);
         let rows = client
             .query(
-                r#"
-                SELECT * FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
-                WHERE pengajuan_satker_id = $1
-                ORDER BY created_at DESC
-                "#,
-                &[&satker_id],
+                &format!(
+                    r#"
+                SELECT a.* FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas a
+                JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker s
+                  ON s.id = a.pengajuan_satker_id
+                WHERE a.pengajuan_satker_id = $1{scope_sql}
+                ORDER BY a.created_at DESC
+                "#
+                ),
+                &as_refs(&params),
             )
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;

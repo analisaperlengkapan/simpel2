@@ -23,6 +23,7 @@ use super::models::{AnalisisKelayakanResponse, BarangWithExistingInventory};
 use super::services::KebutuhanBmnService;
 use crate::shared::error::AppResult;
 use crate::shared::pdf::{PageGeometry, PdfBuilder};
+use crate::shared::satker_scope::SatkerScope;
 
 // ─── Page geometry (A4 portrait) ─────────────────────────────────────────
 const PAGE_W: f32 = 210.0;
@@ -62,8 +63,9 @@ fn geom() -> PageGeometry {
 pub async fn generate_laporan_analisis_pdf(
     service: &KebutuhanBmnService,
     satker_id: Uuid,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let analisis = service.get_analisis_kelayakan(satker_id).await?;
+    let analisis = service.get_analisis_kelayakan(satker_id, scope).await?;
     render_pdf(&analisis)
 }
 

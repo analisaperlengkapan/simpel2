@@ -2,6 +2,7 @@ use super::KebutuhanBmnService;
 use crate::kebutuhan_bmn::models::*;
 use crate::kebutuhan_bmn::repository::{KebutuhanBmnRepository, UserInfo};
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use crate::workflow::engine::TransitionRequest;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -86,8 +87,17 @@ impl KebutuhanBmnService {
         // Get updated pengajuan
         let updated = self.repository.get_pengajuan_by_id(id).await?;
 
-        // Update all satkers to new status and create activity logs
-        let satkers = self.repository.get_pengajuan_satkers(id).await?;
+        // Update all satkers to new status and create activity logs.
+        //
+        // `All` on purpose, and not the caller's scope: this is the campaign's
+        // own fan-out over its children, already gated by the campaign-level
+        // role check. Handing it a narrower scope would silently advance only
+        // some participants and leave the rest behind — a partial transition
+        // is worse than a refused one.
+        let satkers = self
+            .repository
+            .get_pengajuan_satkers(id, &SatkerScope::All)
+            .await?;
         for satker in satkers {
             self.repository
                 .update_satker_status(satker.id, target_status.to_code(), user_id)
@@ -120,8 +130,13 @@ impl KebutuhanBmnService {
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
-        let current = self.repository.get_satker_by_id(satker_id).await?;
+        // Scoped read BEFORE the write, and it is the only read of this row:
+        // the status checks below are workflow guards, not authorization. A
+        // row in the right state still belongs to whichever satker owns it,
+        // and every path from here stamps a validator identity onto it.
+        let current = self.repository.get_satker_by_id(satker_id, scope).await?;
         let target_status = KebutuhanBmnStatus::from_code(request.target_status)
             .ok_or_else(|| AppError::BadRequest("Invalid target status code".to_string()))?;
 
@@ -221,8 +236,13 @@ impl KebutuhanBmnService {
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
-        let current = self.repository.get_satker_by_id(satker_id).await?;
+        // Scoped read BEFORE the write, and it is the only read of this row:
+        // the status checks below are workflow guards, not authorization. A
+        // row in the right state still belongs to whichever satker owns it,
+        // and every path from here stamps a validator identity onto it.
+        let current = self.repository.get_satker_by_id(satker_id, scope).await?;
 
         // Only allow from InputBarang or RevisiSatker
         if !matches!(
@@ -277,8 +297,15 @@ impl KebutuhanBmnService {
             komentar: request.catatan_satker.clone(),
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
-            .await
+        self.transition_satker_status(
+            satker_id,
+            transition_request,
+            user_id,
+            user_info,
+            user_role,
+            scope,
+        )
+        .await
     }
 
     /// Validator Wilayah action: forward to pusat or return to operator
@@ -289,8 +316,13 @@ impl KebutuhanBmnService {
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
-        let current = self.repository.get_satker_by_id(satker_id).await?;
+        // Scoped read BEFORE the write, and it is the only read of this row:
+        // the status checks below are workflow guards, not authorization. A
+        // row in the right state still belongs to whichever satker owns it,
+        // and every path from here stamps a validator identity onto it.
+        let current = self.repository.get_satker_by_id(satker_id, scope).await?;
 
         if current.status != KebutuhanBmnStatus::SubmitWilayah {
             return Err(AppError::BadRequest(
@@ -320,6 +352,7 @@ impl KebutuhanBmnService {
                     user_id,
                     user_info,
                     user_role,
+                    scope,
                 )
                 .await
             }
@@ -343,6 +376,7 @@ impl KebutuhanBmnService {
                     user_id,
                     user_info,
                     user_role,
+                    scope,
                 )
                 .await
             }
@@ -361,8 +395,13 @@ impl KebutuhanBmnService {
         user_id: Option<Uuid>,
         user_info: Option<UserInfo>,
         user_role: String,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanKebutuhanBmnSatker> {
-        let current = self.repository.get_satker_by_id(satker_id).await?;
+        // Scoped read BEFORE the write, and it is the only read of this row:
+        // the status checks below are workflow guards, not authorization. A
+        // row in the right state still belongs to whichever satker owns it,
+        // and every path from here stamps a validator identity onto it.
+        let current = self.repository.get_satker_by_id(satker_id, scope).await?;
 
         if !matches!(
             current.status,
@@ -460,6 +499,7 @@ impl KebutuhanBmnService {
                 user_id,
                 user_info.clone(),
                 user_role.clone(),
+                scope,
             )
             .await?;
         }
@@ -469,8 +509,15 @@ impl KebutuhanBmnService {
             komentar: keputusan_alasan,
         };
 
-        self.transition_satker_status(satker_id, transition_request, user_id, user_info, user_role)
-            .await
+        self.transition_satker_status(
+            satker_id,
+            transition_request,
+            user_id,
+            user_info,
+            user_role,
+            scope,
+        )
+        .await
     }
 
     fn is_admin_user(user_info: &Option<UserInfo>) -> bool {

@@ -668,3 +668,111 @@ test.describe('Pakaian dinas campaign scoping — server-side', () => {
     );
   });
 });
+
+/**
+ * Kebutuhan BMN — per-satker surfaces, server-side.
+ *
+ * #93 scoped ONE endpoint on the `satker/{id}` path — the detail — and its
+ * siblings kept reading the row unscoped. Measured against deployed staging
+ * (rc29), operator_a (0200010) against another satker's participation row:
+ *
+ * ```text
+ * GET .../satker/{foreign}            -> 404   (#93, working)
+ * GET .../satker/{foreign}/aktivitas  -> 200, the trail, with each
+ *                                        validator's user id and NIP
+ * GET .../satker/{foreign}/analisis   -> 200, their whole feasibility case
+ * GET .../satker/{foreign}/laporan/download -> 200, a 4 973-byte PDF
+ * GET .../pengajuan/{id}/satker       -> 200, every participant, including
+ *                                        one in another wilayah
+ * ```
+ *
+ * Read-only, so retries see the same state.
+ */
+test.describe('Kebutuhan BMN satker scoping — server-side', () => {
+  const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/kebutuhan-bmn`;
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** A campaign whose participants include both operators' satkers. */
+  async function campaignWithBothOperators(request: APIRequestContext) {
+    const tokP = await tokenFor(request, 'validator_pusat');
+    const list = await request.get(`${API}/pengajuan?per_page=50`, { headers: bearer(tokP) });
+    expect(list.status(), 'pusat must be able to list kebutuhan campaigns').toBe(200);
+    const campaigns = ((await list.json()) as PaginatedResponse<{ id: string }>).data;
+
+    for (const c of campaigns) {
+      const resp = await request.get(`${API}/pengajuan/${c.id}/satker`, { headers: bearer(tokP) });
+      if (!resp.ok()) continue;
+      const rows = ((await resp.json()) as { data: Array<{ id: string; satker_id: string }> }).data;
+      const own = rows.find((r) => r.satker_id === userByKey('operator_a').satkerCode);
+      const foreign = rows.find((r) => r.satker_id === userByKey('operator_b').satkerCode);
+      if (own && foreign) return { campaignId: c.id, own, foreign, all: rows };
+    }
+    return null;
+  }
+
+  test('the participant list shows a satker only its own row', async ({ request }) => {
+    const found = await campaignWithBothOperators(request);
+    expect(
+      found,
+      'the seed must give ONE kebutuhan campaign participation rows for BOTH operators',
+    ).toBeTruthy();
+
+    const tokA = await tokenFor(request, 'operator_a');
+    const resp = await request.get(`${API}/pengajuan/${found!.campaignId}/satker`, {
+      headers: bearer(tokA),
+    });
+    expect(resp.status()).toBe(200);
+    const rows = ((await resp.json()) as { data: Array<{ satker_id: string }> }).data;
+    expect(
+      rows.filter((r) => r.satker_id !== userByKey('operator_a').satkerCode),
+      'an operator must see only its own participation row',
+    ).toEqual([]);
+    // The positive half: it must still see its OWN row, or this proves nothing.
+    expect(rows.length).toBe(1);
+  });
+
+  test('the approval trail of another satker is closed', async ({ request }) => {
+    const found = await campaignWithBothOperators(request);
+    expect(found).toBeTruthy();
+    const tokA = await tokenFor(request, 'operator_a');
+    const tokB = await tokenFor(request, 'operator_b');
+
+    // Establish that the foreign trail is non-empty for the satker that OWNS
+    // it — otherwise an empty answer below would prove nothing.
+    const ownersView = await request.get(`${API}/satker/${found!.foreign.id}/aktivitas`, {
+      headers: bearer(tokB),
+    });
+    expect(ownersView.status()).toBe(200);
+    const ownerRows = ((await ownersView.json()) as { data: unknown[] }).data;
+
+    const resp = await request.get(`${API}/satker/${found!.foreign.id}/aktivitas`, {
+      headers: bearer(tokA),
+    });
+    expect(resp.status()).toBe(200);
+    const leaked = ((await resp.json()) as { data: unknown[] }).data;
+    expect(leaked, 'the trail names every validator who acted, with their NIP').toEqual([]);
+    expect(
+      ownerRows.length,
+      'the owning satker must see a non-empty trail, or the assertion above is vacuous',
+    ).toBeGreaterThan(0);
+  });
+
+  test('the feasibility analysis and its PDF are closed across satkers', async ({ request }) => {
+    const found = await campaignWithBothOperators(request);
+    expect(found).toBeTruthy();
+    const tokA = await tokenFor(request, 'operator_a');
+
+    for (const suffix of ['analisis', 'laporan/preview', 'laporan/download']) {
+      const own = await request.get(`${API}/satker/${found!.own.id}/${suffix}`, {
+        headers: bearer(tokA),
+      });
+      expect(own.status(), `own ${suffix}: ${await own.text()}`).toBe(200);
+
+      const foreign = await request.get(`${API}/satker/${found!.foreign.id}/${suffix}`, {
+        headers: bearer(tokA),
+      });
+      // 404, not 403 — see #93.
+      expect(foreign.status(), `another satker's ${suffix} was served`).toBe(404);
+    }
+  });
+});
