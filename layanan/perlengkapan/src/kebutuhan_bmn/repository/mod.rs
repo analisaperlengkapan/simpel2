@@ -132,6 +132,31 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     async fn set_barang_prioritas(&self, items: Vec<PrioritasItem>) -> AppResult<()>;
 
     // Workflow Aktivitas
+    /// Assets this satker already holds under `kode_barang`, read from the
+    /// live SIMAN source of truth (`integrasi.siman_aset`).
+    ///
+    /// Returns the total count and up to `sample_limit` rows for display.
+    ///
+    /// The feasibility analysis exists to compare what a satker ASKS FOR
+    /// against what it ALREADY HAS, and until now it never looked: the SIMAN
+    /// client it called through was never constructed anywhere in the
+    /// application, so the comparison always fell through to a stored
+    /// `existing_count` column and an empty asset list.
+    ///
+    /// Matching is by satker + barang code, which is what the domain means by
+    /// the same kind of asset: an asset's identity is kode satker + kode
+    /// barang + NUP, and NUP is the sequence number WITHIN a code at a satker.
+    /// Both halves of the code comparison go through the shared normaliser —
+    /// SIMAN stores undotted digits, the rest of the system carries the dotted
+    /// presentation form, and comparing them raw is an equality that never
+    /// holds while producing an empty result rather than an error.
+    async fn count_siman_assets_for(
+        &self,
+        satker_code: &str,
+        kode_barang: &str,
+        sample_limit: i64,
+    ) -> AppResult<(i32, Vec<ExistingAssetInfo>)>;
+
     async fn get_satker_aktivitas(
         &self,
         satker_id: Uuid,

@@ -830,6 +830,90 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
         Ok(())
     }
 
+    async fn count_siman_assets_for(
+        &self,
+        satker_code: &str,
+        kode_barang: &str,
+        sample_limit: i64,
+    ) -> AppResult<(i32, Vec<ExistingAssetInfo>)> {
+        use crate::shared::siman_columns::{
+            ASSET_KONDISI_SQL, ASSET_NAMA_BARANG_SQL, ASSET_NUP_SQL, kode_barang_norm_sql,
+            normalize_kode_barang,
+        };
+
+        // A barang with no code cannot be matched against SIMAN at all; say so
+        // by returning nothing rather than matching every asset in the satker.
+        if kode_barang.trim().is_empty() {
+            return Ok((0, Vec::new()));
+        }
+
+        let client = self.get_client().await?;
+        let norm = normalize_kode_barang(kode_barang);
+
+        // MySIMKARI `kode_satker` -> SIMAN `kdsatker_keu` through the
+        // integrasi-owned map. The two coding schemes differ, and matching on
+        // `nama_satker` is the string-equality trap that map exists to replace.
+        let where_sql = format!(
+            "WHERE {kode} = $1 \
+             AND kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
+                                  WHERE kode_satker = $2 AND kdsatker_keu IS NOT NULL)",
+            kode = kode_barang_norm_sql("")
+        );
+
+        let count_row = client
+            .query_one(
+                &format!("SELECT COUNT(*)::int8 AS total FROM integrasi.siman_aset {where_sql}"),
+                &[&norm, &satker_code],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        let total: i64 = count_row.get("total");
+
+        let rows = client
+            .query(
+                &format!(
+                    "SELECT {ASSET_NUP_SQL} AS no_aset, \
+                            {ASSET_NAMA_BARANG_SQL} AS nama_aset, \
+                            {ASSET_KONDISI_SQL} AS kondisi, \
+                            NULLIF(alamat, '') AS lokasi \
+                     FROM integrasi.siman_aset {where_sql} \
+                     ORDER BY id \
+                     LIMIT $3"
+                ),
+                &[&norm, &satker_code, &sample_limit],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        let sample = rows
+            .iter()
+            .map(|r| ExistingAssetInfo {
+                no_aset: r
+                    .try_get::<_, Option<String>>("no_aset")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default(),
+                nama_aset: r
+                    .try_get::<_, Option<String>>("nama_aset")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default(),
+                kondisi: r
+                    .try_get::<_, Option<String>>("kondisi")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default(),
+                lokasi: r.try_get::<_, Option<String>>("lokasi").ok().flatten(),
+            })
+            .collect();
+
+        // The count is what the gap is computed from, so it must not be capped
+        // by the sample limit. i32 to match the column the analysis compares
+        // against; a satker holding >2 billion of one barang code is not a
+        // case this system has.
+        Ok((total.min(i64::from(i32::MAX)) as i32, sample))
+    }
+
     async fn get_satker_aktivitas(
         &self,
         satker_id: Uuid,

@@ -28,7 +28,6 @@ pub mod rekap_export;
 pub mod repository;
 pub mod scope;
 pub mod services;
-pub mod siman_integration;
 
 #[cfg(test)]
 mod tests;

@@ -3,9 +3,11 @@
 //! Business logic layer for BMN needs analysis system.
 //! Handles workflow management, validation, and integration with external services.
 //!
-//! ## SIMAN Integration
-//! This service integrates with SIMAN (Sistem Informasi Manajemen Aset Negara)
-//! to fetch existing BMN inventory for feasibility analysis.
+//! ## SIMAN
+//! The feasibility analysis compares a satker's request against the assets it
+//! already holds, read from `integrasi.siman_aset` — the same source of truth
+//! `bank_aset` reads. It used to go through a remote-API client that was never
+//! constructed anywhere, so the comparison never happened.
 
 use std::sync::Arc;
 
@@ -14,7 +16,6 @@ use crate::shared::grpc::clients::IntegrasiClient;
 use crate::workflow::engine::WorkflowEngine;
 
 use super::repository::PgKebutuhanBmnRepository;
-use super::siman_integration::SimanIntegration;
 
 // ============================================================================
 // Service Interface
@@ -27,7 +28,6 @@ pub struct KebutuhanBmnService {
     #[allow(dead_code)]
     authenc_client: AuthencClient,
     integrasi_client: Option<IntegrasiClient>,
-    siman: Option<Arc<SimanIntegration>>,
     workflow_engine: Arc<WorkflowEngine>,
 }
 
@@ -42,23 +42,6 @@ impl KebutuhanBmnService {
             repository: Arc::new(repository),
             authenc_client,
             integrasi_client: None,
-            siman: None,
-            workflow_engine: Arc::new(workflow_engine),
-        }
-    }
-
-    /// Create a new service instance with SIMAN integration
-    pub fn with_siman(
-        repository: PgKebutuhanBmnRepository,
-        authenc_client: AuthencClient,
-        siman: SimanIntegration,
-        workflow_engine: WorkflowEngine,
-    ) -> Self {
-        Self {
-            repository: Arc::new(repository),
-            authenc_client,
-            integrasi_client: None,
-            siman: Some(Arc::new(siman)),
             workflow_engine: Arc::new(workflow_engine),
         }
     }
@@ -67,11 +50,6 @@ impl KebutuhanBmnService {
     pub fn with_integrasi_client(mut self, integrasi_client: IntegrasiClient) -> Self {
         self.integrasi_client = Some(integrasi_client);
         self
-    }
-
-    /// Set SIMAN integration after construction
-    pub fn set_siman(&mut self, siman: SimanIntegration) {
-        self.siman = Some(Arc::new(siman));
     }
 
     // ========================================================================
