@@ -16,6 +16,7 @@ use super::services::PakaianDinasService;
 use crate::shared::error::*;
 use crate::shared::middleware::Claims;
 use crate::shared::pagination::PaginationQuery;
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::response::{ApiResponse, PaginatedResponse};
 
 // ============ Query Parameters ============
@@ -532,10 +533,17 @@ pub async fn update_personal_ukuran(
 /// (eselon, jenis_kelamin, jenis_pegawai, with_hijab, mapped_unit_kerja).
 pub async fn upsert_pegawai_profile(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(request): Json<UpsertPegawaiProfileRequest>,
 ) -> Result<Json<ApiResponse<PegawaiPakaianDinas>>, AppError> {
-    let item = service.repository.upsert_pegawai_profile(&request).await?;
+    // The request used to carry `kode_satker`, and nothing checked it: one
+    // satker's operator could overwrite another satker's employee — measured
+    // on staging, 200 with the row rewritten. The satker now comes from the
+    // SoT and the caller's scope gates which employees they may touch.
+    let item = service
+        .repository
+        .upsert_pegawai_profile(&request, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         item,
@@ -547,12 +555,12 @@ pub async fn upsert_pegawai_profile(
 /// entire satker roster in one request.
 pub async fn bulk_upsert_pegawai_profiles(
     State(service): State<PakaianDinasService>,
-    _claims: Claims,
+    claims: Claims,
     Json(requests): Json<Vec<UpsertPegawaiProfileRequest>>,
 ) -> Result<Json<ApiResponse<usize>>, AppError> {
     let count = service
         .repository
-        .bulk_upsert_pegawai_profiles(&requests)
+        .bulk_upsert_pegawai_profiles(&requests, &SatkerScope::from_claims(&claims))
         .await?;
 
     Ok(Json(ApiResponse::success(
@@ -567,9 +575,14 @@ pub async fn get_pegawai_by_satker(
     State(service): State<PakaianDinasService>,
     // MySIMKARI `kode_satker`, not a uuid (V006/#94).
     Path(satker_code): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<MysimkariPegawai>>>, AppError> {
-    let items = service.get_pegawai_by_satker(&satker_code).await?;
+    // A roster is named people, not reference data. This handler took
+    // `_claims` and read neither role nor satker, so any authenticated caller
+    // could name any satker in the path and read its staff list.
+    let items = service
+        .get_pegawai_by_satker(&satker_code, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         items,
@@ -583,9 +596,11 @@ pub async fn get_pegawai_roster_with_sync(
     State(service): State<PakaianDinasService>,
     // MySIMKARI `kode_satker`, not a uuid (V006/#94).
     Path(satker_code): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<PegawaiRosterWithSync>>, AppError> {
-    let roster = service.get_pegawai_roster_with_sync(&satker_code).await?;
+    let roster = service
+        .get_pegawai_roster_with_sync(&satker_code, &SatkerScope::from_claims(&claims))
+        .await?;
 
     Ok(Json(ApiResponse::success(
         roster,
@@ -604,9 +619,12 @@ pub async fn get_pegawai_with_sizes(
     State(service): State<PakaianDinasService>,
     // MySIMKARI `kode_satker`, not a uuid (V006/#94).
     Path(satker_code): Path<String>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<Json<ApiResponse<Vec<PegawaiWithSizes>>>, AppError> {
-    let items = service.get_pegawai_with_sizes(&satker_code).await?;
+    // Same roster, plus each person's uniform measurements.
+    let items = service
+        .get_pegawai_with_sizes(&satker_code, &SatkerScope::from_claims(&claims))
+        .await?;
 
     let response: Vec<PegawaiWithSizes> = items
         .into_iter()

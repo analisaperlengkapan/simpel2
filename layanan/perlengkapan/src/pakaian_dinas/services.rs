@@ -14,6 +14,7 @@ use crate::contracts::AuditSink;
 use crate::shared::error::{AppError, AppResult, bad_request};
 use crate::shared::grpc::clients::IntegrasiClient;
 use crate::shared::grpc::clients::integrasi::v1::{DataSource, SyncState};
+use crate::shared::satker_scope::SatkerScope;
 use lib_perlengkapan::audit::{AuditAction, AuditEvent};
 
 /// Validate periode pengajuan pakaian dinas (Fase 1.8). Mengembalikan
@@ -119,10 +120,11 @@ impl PakaianDinasService {
     pub async fn get_pegawai_roster_with_sync(
         &self,
         satker_code: &str,
+        scope: &SatkerScope,
     ) -> AppResult<PegawaiRosterWithSync> {
         let pegawai = self
             .repository
-            .get_mysimkari_pegawai_by_satker(satker_code)
+            .get_mysimkari_pegawai_by_satker(satker_code, scope)
             .await?;
 
         let sync = match &self.integrasi_client {
@@ -544,9 +546,10 @@ impl PakaianDinasService {
     pub async fn get_pegawai_by_satker(
         &self,
         satker_code: &str,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<MysimkariPegawai>> {
         self.repository
-            .get_mysimkari_pegawai_by_satker(satker_code)
+            .get_mysimkari_pegawai_by_satker(satker_code, scope)
             .await
     }
 
@@ -554,10 +557,11 @@ impl PakaianDinasService {
     pub async fn get_pegawai_with_sizes(
         &self,
         satker_code: &str,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<(MysimkariPegawai, Option<PegawaiPakaianDinas>)>> {
         let pegawai_list = self
             .repository
-            .get_mysimkari_pegawai_by_satker(satker_code)
+            .get_mysimkari_pegawai_by_satker(satker_code, scope)
             .await?;
 
         let mut result = Vec::with_capacity(pegawai_list.len());

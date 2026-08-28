@@ -1195,28 +1195,15 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             return Ok(scope.contains_code_local(code).unwrap_or(false));
         };
 
-        // Sengaja kembar dgn cabang Wilayah di `SatkerScope::push_condition`:
-        // "satker target berada di wilayah yang sama dengan satker pemanggil",
-        // wilayah di-resolve dari `integrasi.v_satker_wilayah`. Bentuk EXISTS
-        // dipakai di sini karena kita menguji SATU kode, bukan memfilter
-        // sekumpulan baris.
+        // Kueri-nya = `SatkerScope::WILAYAH_MEMBERSHIP_SQL`, satu-satunya
+        // salinan: sengaja kembar dgn cabang Wilayah di
+        // `SatkerScope::push_condition` ("satker target berada di wilayah yang
+        // sama dengan satker pemanggil", di-resolve dari
+        // `integrasi.v_satker_wilayah`), hanya berbentuk EXISTS karena di sini
+        // kita menguji SATU kode, bukan memfilter sekumpulan baris.
         let client = self.get_client().await?;
         let row = client
-            .query_one(
-                r#"
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM integrasi.v_satker_wilayah s
-                    WHERE s.kode_satker = $1
-                      AND s.wilayah_code = (
-                          SELECT w.wilayah_code
-                          FROM integrasi.v_satker_wilayah w
-                          WHERE w.kode_satker = $2
-                      )
-                ) AS in_scope
-                "#,
-                &[&code, &caller],
-            )
+            .query_one(SatkerScope::WILAYAH_MEMBERSHIP_SQL, &[&code, &caller])
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
         Ok(row.get::<_, bool>("in_scope"))
