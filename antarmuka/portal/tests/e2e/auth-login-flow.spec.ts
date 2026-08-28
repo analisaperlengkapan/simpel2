@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { skipUnlessCaptchaDebug } from './helpers/real-auth';
 
 /**
  * Cross-app SSO — REAL end-to-end (F-GW PR-E), no mock token.
@@ -142,6 +143,7 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   test('real portal login carries the JWT cross-app and mounts the perlengkapan dashboard', async ({
     page,
   }) => {
+    await skipUnlessCaptchaDebug(page.request, '');
     // 1. perlengkapan → its own login → follow the SSO link to the portal login.
     await reachPortalLoginViaPerlengkapan(page);
 
@@ -162,6 +164,7 @@ test.describe('Cross-app SSO (real, single-origin ingress)', () => {
   test('logout from perlengkapan clears the session and returns to the portal login', async ({
     page,
   }) => {
+    await skipUnlessCaptchaDebug(page.request, '');
     await reachPortalLoginViaPerlengkapan(page);
     await loginViaPortalUI(page);
     await page.waitForURL(/\/perlengkapan\/.*dashboard/, { timeout: 30000 });
