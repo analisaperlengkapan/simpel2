@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use tokio_postgres::Row;
+use tracing::warn;
 
 use super::models::*;
 use super::scope::AsetScope;
@@ -8,6 +9,29 @@ use crate::shared::error::{AppError, AppResult, not_found};
 
 /// Boxed bind parameter for the dynamic-SQL builders below.
 type BoxedParam = Box<dyn tokio_postgres::types::ToSql + Sync + Send>;
+
+/// Safety valve on `filter_options`, NOT a business rule — so it must sit far
+/// above the natural cardinality of every column it guards, or it silently
+/// becomes one.
+///
+/// It was 500, and `nama_satker` outgrew it. Measured on the staging SIMAN
+/// snapshot (2026-08-26):
+///
+/// ```text
+/// nama_satker   554 distinct     <- over the old cap
+/// jenis_aset     15
+/// ur_kondisi      4
+/// ```
+///
+/// With `ORDER BY count DESC` the 54 satkers that fell off were the ones
+/// holding the FEWEST assets — the smallest offices, which no national user
+/// could then select in the Bank Aset filter at all. Nothing reported it: the
+/// endpoint answered 200 with a list that merely stopped early.
+///
+/// 5 000 is chosen against the domain, not by taste: Kejaksaan has on the order
+/// of 550 satkers nationally and that number moves by a handful per year, so
+/// the cap now bounds a pathological query without ever bounding a real one.
+const FILTER_OPTION_LIMIT: i64 = 5_000;
 
 /// Borrow a boxed-param vec as the `&[&dyn ToSql]` slice tokio-postgres wants.
 fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSql + Sync)> {
@@ -626,12 +650,23 @@ impl BankAsetRepository {
                  WHERE {col} IS NOT NULL AND {col} <> ''{and_clause}
                  GROUP BY {col}
                  ORDER BY count DESC, value ASC
-                 LIMIT 500"
+                 LIMIT {FILTER_OPTION_LIMIT}"
             );
             let rows = client
                 .query(&sql, scope_p)
                 .await
                 .map_err(|e| AppError::Database(e.to_string()))?;
+            // Hitting the cap means the dropdown is INCOMPLETE, and the old
+            // limit hid that: it dropped the satkers with the fewest assets,
+            // which are the smallest ones — the least likely to be missed and
+            // the least able to complain. Say so instead of truncating in
+            // silence.
+            if rows.len() as i64 >= FILTER_OPTION_LIMIT {
+                warn!(
+                    "bank_aset filter options for `{col}` hit the {FILTER_OPTION_LIMIT} cap — \
+                     the dropdown is truncated and some values cannot be selected"
+                );
+            }
             Ok(rows
                 .iter()
                 .map(|r| FilterOption {
