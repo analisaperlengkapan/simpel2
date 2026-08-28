@@ -56,7 +56,6 @@ pub async fn search_kebutuhan(
             priority_level: None,
             date_from: params.date_from.clone(),
             date_to: params.date_to.clone(),
-            is_sbsk: params.is_sbsk,
         },
         pagination: Pagination {
             page: params.page,

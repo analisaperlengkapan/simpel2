@@ -1,5 +1,4 @@
 use serde::Deserialize;
-use uuid::Uuid;
 
 use crate::shared::error::{AppError, bad_request};
 use crate::shared::middleware::Claims;
@@ -117,11 +116,11 @@ pub struct SearchQueryParams {
     pub per_page: i32,
 
     /// Filters
-    pub satker_id: Option<Uuid>,
+    /// MySIMKARI `kode_satker` (TEXT), not a surrogate id (V006/#94).
+    pub satker_id: Option<String>,
     pub tahun_anggaran: Option<i32>,
     pub status: Option<String>, // Comma-separated list
     pub kode_barang: Option<String>,
-    pub is_sbsk: Option<bool>,
     pub date_from: Option<String>,
     pub date_to: Option<String>,
 
