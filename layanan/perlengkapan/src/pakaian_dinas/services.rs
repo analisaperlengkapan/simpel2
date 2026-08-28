@@ -345,6 +345,20 @@ impl PakaianDinasService {
         self.repository.get_pengajuan_by_id(id).await
     }
 
+    /// Campaign detail for a READ endpoint, gated on the same visibility the
+    /// list uses. Out of scope answers NotFound, matching the list: a campaign
+    /// absent from your list must not be readable by id.
+    pub async fn get_pengajuan_by_id_scoped(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PengajuanPakaianDinas> {
+        if !self.repository.campaign_in_scope(id, scope).await? {
+            return Err(AppError::NotFound("Pengajuan tidak ditemukan".to_string()));
+        }
+        self.repository.get_pengajuan_by_id(id).await
+    }
+
     pub async fn create_pengajuan(
         &self,
         request: CreatePengajuanRequest,
@@ -388,14 +402,19 @@ impl PakaianDinasService {
         pengajuan_id: Uuid,
         page: i32,
         per_page: i32,
+        scope: &SatkerScope,
     ) -> AppResult<(Vec<PengajuanSatker>, i64)> {
         self.repository
-            .get_pengajuan_satker_list(pengajuan_id, page, per_page)
+            .get_pengajuan_satker_list(pengajuan_id, page, per_page, scope)
             .await
     }
 
-    pub async fn get_pengajuan_satker_by_id(&self, id: Uuid) -> AppResult<PengajuanSatker> {
-        self.repository.get_pengajuan_satker_by_id(id).await
+    pub async fn get_pengajuan_satker_by_id(
+        &self,
+        id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<PengajuanSatker> {
+        self.repository.get_pengajuan_satker_by_id(id, scope).await
     }
 
     // ============ Workflow Actions ============
@@ -407,11 +426,16 @@ impl PakaianDinasService {
         user_nip: &str,
         user_nama: &str,
         user_role: &str,
+        scope: &SatkerScope,
     ) -> AppResult<PengajuanSatker> {
-        // Get current satker submission
+        // Scoped read FIRST, and it is the only read of this row: everything
+        // below — the transition, the activity row stamped with the actor's
+        // NIP, the audit event — hangs off it. `determine_next_status` gates
+        // the ROLE, which answers "may a validator_wilayah ever approve"; it
+        // has never answered "may THIS validator approve THIS satker's row".
         let satker = self
             .repository
-            .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
+            .get_pengajuan_satker_by_id(request.pengajuan_satker_id, scope)
             .await?;
 
         // Determine next status based on current status, action, and role.
@@ -457,7 +481,7 @@ impl PakaianDinasService {
 
         // Return the freshly-transitioned satker.
         self.repository
-            .get_pengajuan_satker_by_id(request.pengajuan_satker_id)
+            .get_pengajuan_satker_by_id(request.pengajuan_satker_id, scope)
             .await
     }
 
@@ -465,9 +489,12 @@ impl PakaianDinasService {
     /// the FE timeline.
     pub async fn list_satker_aktivitas(
         &self,
-        satker_id: Uuid,
+        pengajuan_satker_id: Uuid,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<PengajuanSatkerAktivitas>> {
-        self.repository.list_satker_aktivitas(satker_id).await
+        self.repository
+            .list_satker_aktivitas(pengajuan_satker_id, scope)
+            .await
     }
 
     /// Determine the next workflow status based on current status and action
@@ -582,9 +609,10 @@ impl PakaianDinasService {
         &self,
         pengajuan_id: Uuid,
         filter: LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<LaporanRekapUkuran>> {
         self.repository
-            .get_laporan_rekap_ukuran(pengajuan_id, &filter)
+            .get_laporan_rekap_ukuran(pengajuan_id, &filter, scope)
             .await
     }
 
@@ -594,9 +622,10 @@ impl PakaianDinasService {
         filter: LaporanFilter,
         page: i32,
         per_page: i32,
+        scope: &SatkerScope,
     ) -> AppResult<(Vec<LaporanDaftarPegawai>, i64)> {
         self.repository
-            .get_laporan_daftar_pegawai(pengajuan_id, &filter, page, per_page)
+            .get_laporan_daftar_pegawai(pengajuan_id, &filter, page, per_page, scope)
             .await
     }
 
@@ -653,15 +682,21 @@ impl PakaianDinasService {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<DaftarReport> {
         let header = self.build_report_header(pengajuan_id, filter).await?;
+        // Not scoped, deliberately: the column set comes from the CAMPAIGN's
+        // clothing catalogue (`..._pakaian` keyed by pengajuan_id), which is the
+        // same list for every satker taking part. It reveals nothing about who
+        // ordered what — the rows below are what carry that, and those are
+        // scoped.
         let columns = self
             .repository
             .get_laporan_daftar_columns(pengajuan_id, filter)
             .await?;
         let rows = self
             .repository
-            .get_laporan_daftar_long(pengajuan_id, filter)
+            .get_laporan_daftar_long(pengajuan_id, filter, scope)
             .await?;
         Ok(build_daftar_report(header, columns, rows))
     }
@@ -671,6 +706,7 @@ impl PakaianDinasService {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<RekapReport> {
         let header = self.build_report_header(pengajuan_id, filter).await?;
         // Master ukuran ordering per group (by `urutan`).
@@ -681,7 +717,7 @@ impl PakaianDinasService {
         }
         let rows = self
             .repository
-            .get_laporan_rekap_long(pengajuan_id, filter)
+            .get_laporan_rekap_long(pengajuan_id, filter, scope)
             .await?;
         Ok(build_rekap_report(header, &ukuran_order, rows))
     }

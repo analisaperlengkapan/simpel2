@@ -49,6 +49,7 @@ fn auth_headers(role: &str, user_id: &str, satker_id: &str) -> Headers {
 
 const ADMIN: &str = "00000000-0000-0000-0000-000000000003";
 const OPERATOR: &str = "00000000-0000-0000-0000-000000000001";
+const PUSAT: &str = "00000000-0000-0000-0000-000000000002";
 const SATKER: &str = "SKR001";
 
 async fn post(
@@ -165,13 +166,16 @@ async fn test_pakaian_dinas_pengajuan_create() {
     let res = post(
         &server,
         "/pakaian-dinas/pengajuan",
-        "operator_satker",
-        OPERATOR,
+        // A campaign is authored by pusat, not by a satker operator — the
+        // module's own scope doc has always said so, and the handler now
+        // enforces it.
+        "validator_pusat",
+        PUSAT,
         json!({
         "nama": "Pengajuan PDH 2026", "tahun": 2026,
         "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
         "pilihan_satker": "sebagian", "spesifikasi_ids": [spesifikasi_id],
-        "satker_ids": ["0200010"]}),
+        "satker_ids": [SATKER]}),
     )
     .await;
     assert_eq!(res.status_code(), 201, "create pengajuan: {:?}", res.text());
@@ -227,12 +231,15 @@ async fn test_pakaian_dinas_validator_workflow() {
     let r = post(
         &server,
         "/pakaian-dinas/pengajuan",
-        "operator_satker",
-        OPERATOR,
+        // A campaign is authored by pusat, not by a satker operator — the
+        // module's own scope doc has always said so, and the handler now
+        // enforces it.
+        "validator_pusat",
+        PUSAT,
         json!({"nama": "Pengajuan PDH 2026", "tahun": 2026,
                "tgl_mulai": "2026-01-01", "tgl_selesai": "2026-12-31",
                "pilihan_satker": "sebagian", "spesifikasi_ids": [spec_id],
-               "satker_ids": ["0200010"]}),
+               "satker_ids": [SATKER]}),
     )
     .await;
     assert_eq!(r.status_code(), 201, "create pengajuan: {:?}", r.text());
@@ -254,8 +261,11 @@ async fn test_pakaian_dinas_validator_workflow() {
                     &satker_row_id,
                     &Uuid::parse_str(&pengajuan_id).unwrap(),
                     // MySIMKARI kode_satker — the column is varchar(20) (V006/#94),
-                    // not a uuid.
-                    &"0200010",
+                    // not a uuid. It must be the SAME satker the auth headers
+                    // carry (`SATKER`): the validator action is satker-scoped,
+                    // so a row belonging to someone else is correctly 404 and
+                    // the workflow below would never start.
+                    &SATKER,
                     &Uuid::parse_str(OPERATOR).unwrap(),
                 ],
             )

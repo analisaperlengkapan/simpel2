@@ -1,6 +1,7 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
 use crate::shared::error::{AppResult, bad_request};
+use crate::shared::satker_scope::SatkerScope;
 use tokio_postgres::types::ToSql;
 use uuid::Uuid;
 
@@ -51,7 +52,21 @@ pub(crate) fn push_laporan_filters(
     filter: &LaporanFilter,
     mut idx: usize,
     jenis_pakaian: JenisPakaianPredicate,
+    scope: &SatkerScope,
 ) -> LaporanFilterSql {
+    // The caller's scope, ALWAYS, before any client-supplied narrowing. The
+    // `satker_id` filter below is a convenience the client chooses; this is
+    // not. Together they mean a client filter can only narrow what the scope
+    // already allows, never widen it — the laporan surfaces used to return the
+    // national table to a satker operator, measured on staging.
+    //
+    // `scope` is in this signature rather than at the six query sites for the
+    // same reason `filter` is: this function exists because those sites had
+    // already drifted apart once.
+    if let Some(cond) = scope.push_condition("ps.satker_id", params) {
+        sql.push_str(&format!(" AND {cond}"));
+        idx = params.len() + 1;
+    }
     if let Some(ref jk) = filter.jenis_kelamin {
         sql.push_str(&format!(" AND psp.jenis_kelamin = ${idx}"));
         params.push(Box::new(jk.clone()));
@@ -105,6 +120,7 @@ impl PakaianDinasRepository {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<LaporanRekapUkuran>> {
         let client = self
             .pool
@@ -136,6 +152,7 @@ impl PakaianDinasRepository {
             filter,
             2,
             JenisPakaianPredicate::Column,
+            scope,
         );
 
         query.push_str(" GROUP BY pp.spesifikasi_nama, pp.spesifikasi_ukuran_group, pu.ukuran ORDER BY pp.spesifikasi_nama, pu.ukuran");
@@ -156,6 +173,7 @@ impl PakaianDinasRepository {
         filter: &LaporanFilter,
         page: i32,
         per_page: i32,
+        scope: &SatkerScope,
     ) -> AppResult<(Vec<LaporanDaftarPegawai>, i64)> {
         let client = self
             .pool
@@ -173,6 +191,7 @@ impl PakaianDinasRepository {
             filter,
             2,
             JenisPakaianPredicate::ExistsOnPegawai,
+            scope,
         );
         let idx = built.next_idx;
         // The COUNT below shares `where_clause` but joins neither `pu` nor `pp`,
@@ -347,6 +366,7 @@ impl PakaianDinasRepository {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<DaftarLongRow>> {
         let client = self
             .pool
@@ -362,6 +382,7 @@ impl PakaianDinasRepository {
             filter,
             2,
             JenisPakaianPredicate::ExistsOnPegawai,
+            scope,
         );
         // Keeps the LEFT JOIN shape — a pegawai with no recorded size still
         // appears once with a NULL item — while restricting which item rows
@@ -418,6 +439,7 @@ impl PakaianDinasRepository {
         &self,
         pengajuan_id: Uuid,
         filter: &LaporanFilter,
+        scope: &SatkerScope,
     ) -> AppResult<Vec<RekapLongRow>> {
         let client = self
             .pool
@@ -450,6 +472,7 @@ impl PakaianDinasRepository {
             filter,
             2,
             JenisPakaianPredicate::Column,
+            scope,
         );
 
         query.push_str(

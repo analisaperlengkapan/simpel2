@@ -16,6 +16,7 @@ use super::models::{DaftarReport, LaporanFilter, RekapReport, ReportHeader};
 use super::services::PakaianDinasService;
 use crate::shared::error::AppResult;
 use crate::shared::pdf::{PageGeometry, PdfBuilder};
+use crate::shared::satker_scope::SatkerScope;
 
 // ─── Page geometry (A4 landscape) ────────────────────────────────────────
 const PAGE_W: f32 = 297.0;
@@ -123,8 +124,11 @@ pub async fn generate_rekap_pdf(
     service: &PakaianDinasService,
     pengajuan_id: Uuid,
     filter: &LaporanFilter,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let report = service.build_rekap_report(pengajuan_id, filter).await?;
+    let report = service
+        .build_rekap_report(pengajuan_id, filter, scope)
+        .await?;
     render_rekap_pdf(&report)
 }
 
@@ -132,8 +136,11 @@ pub async fn generate_daftar_pdf(
     service: &PakaianDinasService,
     pengajuan_id: Uuid,
     filter: &LaporanFilter,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let report = service.build_daftar_report(pengajuan_id, filter).await?;
+    let report = service
+        .build_daftar_report(pengajuan_id, filter, scope)
+        .await?;
     render_daftar_pdf(&report)
 }
 
