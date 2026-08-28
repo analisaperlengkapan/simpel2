@@ -1,6 +1,7 @@
 use super::PemakaianBmnService;
 use crate::pemakaian_bmn::models::*;
 use crate::shared::error::{AppError, AppResult};
+use crate::shared::satker_scope::SatkerScope;
 use tracing::{info, warn};
 use uuid::Uuid;
 
@@ -64,7 +65,10 @@ impl PemakaianBmnService {
         // Auto-activate: generate nomor_izin + SK Izin 2-halaman.
         // Kegagalan aktivasi tidak boleh me-rollback approval — biar
         // operator dapat retry aktivasi manual jika misal SIMAN sedang down.
-        match self.activate_permit(approved.id, approver_id).await {
+        match self
+            .activate_permit(approved.id, approver_id, &SatkerScope::All)
+            .await
+        {
             Ok(active) => Ok(active),
             Err(e) => {
                 tracing::warn!(
@@ -104,8 +108,13 @@ impl PemakaianBmnService {
     /// Activate a permit (generate permit number and set to ACTIVE)
     ///
     /// Requirements: REQ-P005, REQ-P006
-    pub async fn activate_permit(&self, id: Uuid, user_id: Uuid) -> AppResult<IzinPemakaianBmn> {
-        let current = self.repository.get_by_id(id).await?;
+    pub async fn activate_permit(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+        scope: &SatkerScope,
+    ) -> AppResult<IzinPemakaianBmn> {
+        let current = self.repository.get_by_id(id, scope).await?;
 
         // Can only activate APPROVED permits
         if current.status != "APPROVED" {
@@ -134,6 +143,10 @@ impl PemakaianBmnService {
                 user_id,
                 "system".to_string(),
                 "system".to_string(),
+                // System-driven: the caller's scope was applied by whichever
+                // handler reached this, and auto-activation must not skip a
+                // permit because the approver happens to sit elsewhere.
+                &SatkerScope::All,
             )
             .await?;
 

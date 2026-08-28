@@ -21,6 +21,7 @@ use super::models::IzinPemakaianBmn;
 use super::services::PemakaianBmnService;
 use crate::shared::error::AppResult;
 use crate::shared::pdf::{PageGeometry, PdfBuilder};
+use crate::shared::satker_scope::SatkerScope;
 
 // ─── Page geometry (A4 portrait) ─────────────────────────────────────────
 const PAGE_W: f32 = 210.0;
@@ -59,8 +60,9 @@ fn geom() -> PageGeometry {
 pub async fn generate_sk_izin_pdf(
     service: &PemakaianBmnService,
     permit_id: Uuid,
+    scope: &SatkerScope,
 ) -> AppResult<Vec<u8>> {
-    let detail = service.get_permit_detail(permit_id).await?;
+    let detail = service.get_permit_detail(permit_id, scope).await?;
     render_pdf(&detail.izin)
 }
 

@@ -776,3 +776,81 @@ test.describe('Kebutuhan BMN satker scoping — server-side', () => {
     }
   });
 });
+
+/**
+ * Pemakaian BMN — the surfaces reached BY PERMIT ID, server-side.
+ *
+ * The LIST has been scoped since #66 and is asserted above. The detail behind
+ * it was not. Measured against deployed staging (rc29), operator_a (0200010)
+ * against operator_b's permit (0200020):
+ *
+ * ```text
+ * GET /pemakaian-bmn/{foreign}             -> 200, the whole record
+ * GET /pemakaian-bmn/{foreign}/sk-izin.pdf -> 200, application/pdf, 5 057 bytes
+ * ```
+ *
+ * A permit names a person, an asset and a period — the fields the stakeholder
+ * asked to be limited per role. Read-only, so retries see the same state.
+ */
+test.describe('Pemakaian BMN permit scoping — server-side', () => {
+  const API = `${PERLENGKAPAN_API_URL}/api/v1/perlengkapan/pemakaian-bmn`;
+  const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+  /** One permit each operator owns, taken from their OWN scoped list. */
+  async function permitPair(request: APIRequestContext) {
+    const tokA = await tokenFor(request, 'operator_a');
+    const tokB = await tokenFor(request, 'operator_b');
+
+    const mine = await request.get(`${API}?per_page=50`, { headers: bearer(tokA) });
+    expect(mine.status(), 'operator_a must be able to list permits').toBe(200);
+    const own = ((await mine.json()) as PaginatedResponse<{ id: string }>).data[0];
+
+    const theirs = await request.get(`${API}?per_page=50`, { headers: bearer(tokB) });
+    expect(theirs.status(), 'operator_b must be able to list permits').toBe(200);
+    const foreign = ((await theirs.json()) as PaginatedResponse<{ id: string }>).data[0];
+
+    expect(own, 'operator_a must own at least one permit').toBeTruthy();
+    expect(foreign, 'operator_b must own at least one permit').toBeTruthy();
+    expect(
+      own!.id,
+      'the seed must give the two operators DIFFERENT permits, or this suite proves nothing',
+    ).not.toBe(foreign!.id);
+    return { tokA, ownId: own!.id, foreignId: foreign!.id };
+  }
+
+  test('a permit detail is closed across satkers', async ({ request }) => {
+    const { tokA, ownId, foreignId } = await permitPair(request);
+
+    const own = await request.get(`${API}/${ownId}`, { headers: bearer(tokA) });
+    expect(own.status(), `own permit: ${await own.text()}`).toBe(200);
+
+    const foreign = await request.get(`${API}/${foreignId}`, { headers: bearer(tokA) });
+    // 404, not 403: 403 would confirm the permit exists under another satker.
+    expect(foreign.status(), `another satker's permit: ${await foreign.text()}`).toBe(404);
+    expect(
+      await foreign.text(),
+      'the holder should not be named in the refusal',
+    ).not.toContain('pegawai_nama');
+  });
+
+  test('the decision letter is closed across satkers', async ({ request }) => {
+    const { tokA, ownId, foreignId } = await permitPair(request);
+
+    const own = await request.get(`${API}/${ownId}/sk-izin.pdf`, { headers: bearer(tokA) });
+    expect(own.status(), `own SK: ${own.status()}`).toBe(200);
+    expect(own.headers()['content-type']).toContain('application/pdf');
+
+    const foreign = await request.get(`${API}/${foreignId}/sk-izin.pdf`, {
+      headers: bearer(tokA),
+    });
+    expect(foreign.status(), "another satker's decision letter was served").toBe(404);
+  });
+
+  test('the permit surfaces reject an unauthenticated request (401)', async ({ request }) => {
+    const { ownId } = await permitPair(request);
+    for (const url of [`${API}/${ownId}`, `${API}/${ownId}/sk-izin.pdf`]) {
+      const resp = await request.get(url);
+      expect(resp.status(), `no Bearer token → unauthorized: ${url}`).toBe(401);
+    }
+  });
+});
