@@ -273,7 +273,12 @@ impl KebutuhanBmnService {
             .repository
             .get_satker_barang(satker_id, 1, 1000, None)
             .await?;
-        let (_, _, snapshot) = self.compute_live_analisis(barang_list).await;
+        // `current` is the participation row this submit is about, so its
+        // satker_id is the satker whose existing assets the snapshot compares
+        // against.
+        let (_, _, snapshot) = self
+            .compute_live_analisis(barang_list, &current.satker_id)
+            .await;
         match serde_json::to_value(&snapshot) {
             Ok(v) => {
                 if let Err(e) = self.repository.save_analisis_snapshot(satker_id, &v).await {

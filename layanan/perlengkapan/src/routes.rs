@@ -392,14 +392,6 @@ pub fn create_routes(state: AppState) -> Router {
             post(kebutuhan_bmn::set_barang_prioritas),
         )
         // SIMAN Integration
-        .route(
-            "/kebutuhan-bmn/siman/search",
-            get(kebutuhan_bmn::search_siman_assets),
-        )
-        .route(
-            "/kebutuhan-bmn/siman/summary/{satker_id}",
-            get(kebutuhan_bmn::get_siman_satker_summary),
-        )
         // Advanced Search
         .route(
             "/kebutuhan-bmn/search",

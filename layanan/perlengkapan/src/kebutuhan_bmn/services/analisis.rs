@@ -48,7 +48,9 @@ impl KebutuhanBmnService {
                 (b, s, true, Some(at))
             }
             None => {
-                let (b, s, _) = self.compute_live_analisis(barang_list).await;
+                let (b, s, _) = self
+                    .compute_live_analisis(barang_list, &satker.satker_id)
+                    .await;
                 (b, s, false, None)
             }
         };
@@ -79,6 +81,10 @@ impl KebutuhanBmnService {
     pub(crate) async fn compute_live_analisis(
         &self,
         barang_list: Vec<PengajuanKebutuhanBmnBarang>,
+        // MySIMKARI `kode_satker` of the satker this analysis belongs to. The
+        // comparison is "what does THIS satker already hold", so it cannot be
+        // derived from the barang rows — it has to be handed in.
+        satker_code: &str,
     ) -> (
         Vec<BarangWithExistingInventory>,
         AnalisisSummary,
@@ -92,28 +98,35 @@ impl KebutuhanBmnService {
         for barang in barang_list {
             total_diminta += barang.jumlah as i64;
 
-            // Fetch existing assets from SIMAN if integration is available
-            let (existing_count, existing_assets) = if let Some(ref siman) = self.siman {
-                let matching_assets = siman
-                    .get_matching_assets(&barang.nama, None, 20)
-                    .await
-                    .unwrap_or_default();
-
-                let count = matching_assets.len() as i32;
-                let assets_info: Vec<ExistingAssetInfo> = matching_assets
-                    .into_iter()
-                    .map(|a| ExistingAssetInfo {
-                        no_aset: a.no_aset,
-                        nama_aset: a.nama_aset,
-                        kondisi: a.kondisi,
-                        lokasi: a.lokasi,
-                    })
-                    .collect();
-
-                (count, assets_info)
-            } else {
-                // Fallback to stored existing_count from barang table
-                (barang.existing_count, vec![])
+            // What this satker already holds under the same barang code, read
+            // from `integrasi.siman_aset` — the live source of truth the rest
+            // of the system reads.
+            //
+            // This branch used to hang off an Option<SimanIntegration> that was
+            // never constructed anywhere in the application, so it always fell
+            // through to the stored `existing_count` column and an empty asset
+            // list. The screen said "dibandingkan dengan SIMAN" and nothing had
+            // been compared.
+            //
+            // A SIMAN read that fails must not fail the whole analysis: fall
+            // back to the stored column and say so in the log, rather than
+            // turning a degraded comparison into a 500 on a page the operator
+            // needs to keep working.
+            let kode = barang.kode_barang.clone().unwrap_or_default();
+            let (existing_count, existing_assets) = match self
+                .repository
+                .count_siman_assets_for(satker_code, &kode, 20)
+                .await
+            {
+                Ok(found) => found,
+                Err(e) => {
+                    warn!(
+                        "SIMAN lookup failed for satker {} barang {}: {}. \
+                         Falling back to the stored existing_count.",
+                        satker_code, kode, e
+                    );
+                    (barang.existing_count, vec![])
+                }
             };
 
             total_existing += existing_count as i64;
@@ -136,6 +149,14 @@ impl KebutuhanBmnService {
                     })
                     .collect(),
             });
+
+            // The response flattens the barang row, so `existing_count` on the
+            // wire is the row's STORED column — not the number the gap beside
+            // it was computed from. Left alone the payload contradicts itself:
+            // "existing_count 0, gap 3", with two matching assets listed under
+            // it. Carry the computed value onto the row that gets serialised.
+            let mut barang = barang;
+            barang.existing_count = existing_count;
 
             barang_with_inventory.push(BarangWithExistingInventory {
                 barang,

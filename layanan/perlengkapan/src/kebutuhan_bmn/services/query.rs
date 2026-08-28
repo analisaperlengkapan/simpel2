@@ -1,43 +1,11 @@
 use super::KebutuhanBmnService;
 use crate::kebutuhan_bmn::models::*;
 use crate::kebutuhan_bmn::repository::KebutuhanBmnRepository;
-use crate::kebutuhan_bmn::siman_integration::SimanAsset;
 use crate::shared::error::{AppError, AppResult};
 use crate::shared::satker_scope::SatkerScope;
 use uuid::Uuid;
 
 impl KebutuhanBmnService {
-    /// Search for existing assets from SIMAN
-    /// Returns similar assets from inventory for a specific barang
-    pub async fn search_siman_assets(
-        &self,
-        search_term: &str,
-        kategori: Option<&str>,
-        limit: usize,
-    ) -> AppResult<Vec<SimanAsset>> {
-        let siman = self
-            .siman
-            .as_ref()
-            .ok_or_else(|| AppError::Internal("SIMAN integration not configured".to_string()))?;
-
-        siman
-            .get_matching_assets(search_term, kategori, limit)
-            .await
-    }
-
-    /// Get satker asset summary from SIMAN
-    pub async fn get_satker_siman_summary(
-        &self,
-        satker_id: &str,
-    ) -> AppResult<crate::kebutuhan_bmn::siman_integration::SatkerAssetSummary> {
-        let siman = self
-            .siman
-            .as_ref()
-            .ok_or_else(|| AppError::Internal("SIMAN integration not configured".to_string()))?;
-
-        siman.get_satker_asset_summary(satker_id).await
-    }
-
     // ========================================================================
     // Dashboard & Statistics
     // ========================================================================
