@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod bank_aset;
 pub mod dashboard;
+pub mod dashboard_panels;
 pub mod kebutuhan_bmn;
 pub mod login;
 pub mod not_found;
