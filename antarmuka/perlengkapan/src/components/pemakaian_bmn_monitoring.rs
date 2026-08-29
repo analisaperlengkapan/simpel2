@@ -334,7 +334,11 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                     </div>
                                                                     <div class=sisa_class>{sisa_label}</div>
                                                                 </td>
-                                                                <td class="px-4 py-3 text-sm">{row.status.clone()}</td>
+                                                                <td class="px-4 py-3 text-sm">
+                                                                    <span class=crate::components::status_badge::status_badge_classes(
+                                                                        &row.status_tone,
+                                                                    )>{row.status_label.clone()}</span>
+                                                                </td>
                                                                 <td class="px-4 py-3 text-sm">
                                                                     <a
                                                                         href=crate::routes::url::pemakaian_detail(&row.id)
@@ -605,7 +609,11 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                             {history.tanggal_mulai.clone()} " - "
                                                                             {history.tanggal_selesai.clone()}
                                                                         </td>
-                                                                        <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            <span class=crate::components::status_badge::status_badge_classes(
+                                                                                &history.status_tone,
+                                                                            )>{history.status_label.clone()}</span>
+                                                                        </td>
                                                                         <td class="px-4 py-3 text-sm">
                                                                             {history.created_at.clone()}
                                                                         </td>
@@ -684,7 +692,11 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                             {history.tanggal_mulai.clone()} " - "
                                                                             {history.tanggal_selesai.clone()}
                                                                         </td>
-                                                                        <td class="px-4 py-3 text-sm">{history.status.clone()}</td>
+                                                                        <td class="px-4 py-3 text-sm">
+                                                                            <span class=crate::components::status_badge::status_badge_classes(
+                                                                                &history.status_tone,
+                                                                            )>{history.status_label.clone()}</span>
+                                                                        </td>
                                                                         <td class="px-4 py-3 text-sm">
                                                                             {history.created_at.clone()}
                                                                         </td>

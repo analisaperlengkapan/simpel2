@@ -13,6 +13,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::shared::status_tone::StatusTone;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -137,6 +139,71 @@ impl PenghapusanBmnStatus {
         }
     }
 
+    /// Nada semantik untuk badge status — lihat
+    /// [`crate::shared::status_tone`].
+    ///
+    /// Dua cabang kewenangan (Pusat dan Wilayah, V029) sengaja bernada sama:
+    /// yang membedakan keduanya adalah siapa penandatangannya, bukan seberapa
+    /// jauh usulan itu berjalan.
+    pub fn tone(&self) -> StatusTone {
+        match self {
+            Self::Draft => StatusTone::Neutral,
+            Self::SubmitWilayah | Self::SubmitPusat | Self::VerifikasiPusat => StatusTone::Info,
+            // Konsep SK sudah ada tapi belum ditandatangani — masih menunggu
+            // tindakan, jadi belum boleh terlihat seperti selesai.
+            Self::KonsepSKGenerated | Self::KonsepSKWilayahGenerated => StatusTone::Warning,
+            Self::SKSigned | Self::SKSignedWilayah | Self::Completed => StatusTone::Success,
+            Self::ReturnedToOperator => StatusTone::Warning,
+            Self::Rejected => StatusTone::Danger,
+        }
+    }
+
+    /// Satu kalimat "apa berikutnya" untuk fase ini, ditampilkan di halaman
+    /// detail.
+    ///
+    /// Ikut tinggal di sisi enum karena alasan yang sama dengan
+    /// [`label`](Self::label): salinannya di frontend melewatkan kedua state
+    /// cabang wilayah (V029) dan menampilkan "Fase tidak dikenal." pada
+    /// usulan yang justru sedang berjalan normal.
+    pub fn hint(&self) -> &'static str {
+        match self {
+            Self::Draft => "Lengkapi data usulan lalu ajukan ke validator wilayah.",
+            Self::SubmitWilayah => "Menunggu verifikasi validator wilayah.",
+            Self::ReturnedToOperator => {
+                "Usulan dikembalikan. Perbaiki sesuai catatan lalu ajukan ulang."
+            }
+            Self::SubmitPusat => "Menunggu verifikasi validator pusat.",
+            Self::VerifikasiPusat => "Validator pusat sedang memverifikasi dokumen.",
+            Self::KonsepSKGenerated => {
+                "Konsep SK sudah digenerate — cetak, tandatangani, lalu unggah SK yang telah ditandatangani."
+            }
+            Self::KonsepSKWilayahGenerated => {
+                "Konsep SK wilayah sudah digenerate — cetak, mintakan tanda tangan Kepala Kejati, lalu unggah SK-nya."
+            }
+            Self::SKSigned => "SK tertandatangan sudah tersimpan. Lanjutkan ke penyelesaian.",
+            Self::SKSignedWilayah => {
+                "SK wilayah tertandatangan sudah tersimpan. Lanjutkan ke penyelesaian."
+            }
+            Self::Completed => "Usulan selesai. Penghapusan BMN telah tercatat.",
+            Self::Rejected => "Usulan ditolak. Periksa catatan validator untuk alasan penolakan.",
+        }
+    }
+
+    /// Label + nada untuk nama state sebagaimana tersimpan di kolom `status`.
+    ///
+    /// State tak dikenal dikembalikan apa adanya — menampilkan nilainya jauh
+    /// lebih menolong daripada kata generik yang menyembunyikannya.
+    pub fn describe(state: &str) -> (String, StatusTone, String) {
+        match Self::from_state_name(state) {
+            Some(s) => (s.label().to_string(), s.tone(), s.hint().to_string()),
+            None => (
+                state.to_string(),
+                StatusTone::Neutral,
+                "Fase tidak dikenal.".to_string(),
+            ),
+        }
+    }
+
     pub fn to_state_name(&self) -> &'static str {
         match self {
             Self::Draft => "DRAFT",
@@ -255,6 +322,18 @@ pub struct PenghapusanBmn {
     /// `nilai_residu`. UI dapat menampilkan banner "perlu diverifikasi".
     pub nilai_perolehan_dari_backfill: bool,
     pub status: String,
+    /// Label bahasa Indonesia untuk `status`, diturunkan dari
+    /// [`PenghapusanBmnStatus::label`]. Frontend merendernya apa adanya dan
+    /// tidak menyimpan kosakata status sendiri.
+    #[serde(default)]
+    pub status_label: String,
+    /// Kelas semantik badge (`neutral`/`info`/`success`/`warning`/`danger`).
+    #[serde(default)]
+    pub status_tone: StatusTone,
+    /// Satu kalimat "apa berikutnya" untuk fase ini
+    /// ([`PenghapusanBmnStatus::hint`]).
+    #[serde(default)]
+    pub status_hint: String,
     pub status_kode: i32,
 
     // Lampiran
@@ -523,6 +602,7 @@ impl PenghapusanBmn {
         let status_kode = PenghapusanBmnStatus::from_state_name(&status_str)
             .map(|s| s.to_code())
             .unwrap_or(4000);
+        let (status_label, status_tone, status_hint) = PenghapusanBmnStatus::describe(&status_str);
         Self {
             id: row.get("id"),
             satker_id: row.get("satker_id"),
@@ -538,6 +618,9 @@ impl PenghapusanBmn {
                 .try_get("nilai_perolehan_dari_backfill")
                 .unwrap_or(false),
             status: status_str,
+            status_label,
+            status_tone,
+            status_hint,
             status_kode,
             lampiran_persyaratan: row.try_get("lampiran_persyaratan").ok().flatten(),
             lampiran_pendukung: row
@@ -809,5 +892,61 @@ mod tests {
             4010
         );
         assert_eq!(PenghapusanBmnStatus::SKSignedWilayah.to_code(), 4011);
+    }
+    /// Setiap status yang bisa tersimpan di kolom harus punya label dan
+    /// petunjuk fase sendiri.
+    ///
+    /// Yang dulu tidak dijaga: salinan kosakata di frontend melewatkan
+    /// `KONSEP_SK_WILAYAH_GENERATED` dan `SK_SIGNED_WILAYAH`, sehingga
+    /// SELURUH cabang kewenangan wilayah (V029) tampil "Lainnya" dan halaman
+    /// detailnya berkata "Fase tidak dikenal." tentang usulan yang berjalan
+    /// normal.
+    #[test]
+    fn every_status_names_itself_and_explains_the_next_step() {
+        let all = [
+            PenghapusanBmnStatus::Draft,
+            PenghapusanBmnStatus::SubmitWilayah,
+            PenghapusanBmnStatus::ReturnedToOperator,
+            PenghapusanBmnStatus::SubmitPusat,
+            PenghapusanBmnStatus::VerifikasiPusat,
+            PenghapusanBmnStatus::KonsepSKGenerated,
+            PenghapusanBmnStatus::KonsepSKWilayahGenerated,
+            PenghapusanBmnStatus::SKSigned,
+            PenghapusanBmnStatus::SKSignedWilayah,
+            PenghapusanBmnStatus::Completed,
+            PenghapusanBmnStatus::Rejected,
+        ];
+
+        let mut labels: Vec<&str> = Vec::new();
+        for status in all {
+            let (label, tone, hint) = PenghapusanBmnStatus::describe(status.to_state_name());
+            assert_eq!(label, status.label(), "{status:?}");
+            assert_ne!(
+                label,
+                status.to_state_name(),
+                "{status:?} masih menampilkan token mesin"
+            );
+            assert_eq!(tone, status.tone());
+            assert_eq!(hint, status.hint());
+            assert_ne!(
+                hint, "Fase tidak dikenal.",
+                "{status:?} tanpa petunjuk fase"
+            );
+            labels.push(status.label());
+        }
+
+        labels.sort_unstable();
+        let mut unique = labels.clone();
+        unique.dedup();
+        assert_eq!(unique.len(), labels.len(), "dua status berbagi label");
+    }
+
+    /// Kanari arah sebaliknya.
+    #[test]
+    fn an_unknown_state_is_shown_verbatim() {
+        let (label, tone, hint) = PenghapusanBmnStatus::describe("BELUM_ADA_DI_ENUM");
+        assert_eq!(label, "BELUM_ADA_DI_ENUM");
+        assert_eq!(tone, crate::shared::status_tone::StatusTone::Neutral);
+        assert_eq!(hint, "Fase tidak dikenal.");
     }
 }

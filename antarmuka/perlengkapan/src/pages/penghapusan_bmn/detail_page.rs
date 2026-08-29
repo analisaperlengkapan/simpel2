@@ -18,6 +18,7 @@ use crate::api::penghapusan_bmn;
 use crate::components::layout::{
     EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
 };
+use crate::components::status_badge::status_tone_classes;
 use crate::routes::path;
 
 #[component]
@@ -235,7 +236,11 @@ fn DetailBody(
         .unwrap_or_else(|| "-".to_string());
 
     view! {
-        <StatusSummary status=status.clone() />
+        <StatusSummary
+            status_label=p.status_label.clone()
+            status_tone=p.status_tone.clone()
+            stage_hint=p.status_hint.clone()
+        />
 
         <SectionCard
             title="Informasi Usulan"
@@ -451,9 +456,8 @@ async fn dispatch_transition(
 }
 
 #[component]
-fn StatusSummary(status: String) -> impl IntoView {
-    let (status_label, status_tone) = status_descriptor(&status);
-    let stage_hint = stage_hint(&status);
+fn StatusSummary(status_label: String, status_tone: String, stage_hint: String) -> impl IntoView {
+    let status_tone = status_tone_classes(&status_tone);
 
     view! {
         <SectionCard
@@ -755,65 +759,6 @@ fn UploadSignedSKModal(
                 </div>
             </div>
         </div>
-    }
-}
-
-fn status_descriptor(status: &str) -> (&'static str, &'static str) {
-    match status {
-        "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
-        "SUBMIT_WILAYAH" | "SUBMITTED" => (
-            "Review Wilayah",
-            "bg-info-500/10 text-info-300 ring-info-500/20",
-        ),
-        "RETURNED_TO_OPERATOR" => (
-            "Dikembalikan ke Operator",
-            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
-        ),
-        "SUBMIT_PUSAT" | "REVIEWED" => (
-            "Review Pusat",
-            "bg-info-500/10 text-info-300 ring-info-500/20",
-        ),
-        "VERIFIKASI_PUSAT" => (
-            "Verifikasi Pusat",
-            "bg-info-500/10 text-info-300 ring-info-500/20",
-        ),
-        "KONSEP_SK_GENERATED" => (
-            "Konsep SK",
-            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
-        ),
-        "SK_SIGNED" | "APPROVED" => (
-            "SK Ditandatangani",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "COMPLETED" => (
-            "Selesai",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "REJECTED" => (
-            "Ditolak",
-            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
-        ),
-        _ => (
-            "Lainnya",
-            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
-        ),
-    }
-}
-
-fn stage_hint(status: &str) -> &'static str {
-    match status {
-        "DRAFT" => "Lengkapi data usulan lalu ajukan ke validator wilayah.",
-        "SUBMIT_WILAYAH" | "SUBMITTED" => "Menunggu verifikasi validator wilayah.",
-        "RETURNED_TO_OPERATOR" => "Usulan dikembalikan. Perbaiki sesuai catatan lalu ajukan ulang.",
-        "SUBMIT_PUSAT" | "REVIEWED" => "Menunggu verifikasi validator pusat.",
-        "VERIFIKASI_PUSAT" => "Validator pusat sedang memverifikasi dokumen.",
-        "KONSEP_SK_GENERATED" => {
-            "Konsep SK sudah digenerate — cetak, tandatangani, lalu unggah SK yang telah ditandatangani."
-        }
-        "SK_SIGNED" | "APPROVED" => "SK tertandatangan sudah tersimpan. Lanjutkan ke penyelesaian.",
-        "COMPLETED" => "Usulan selesai. Penghapusan BMN telah tercatat.",
-        "REJECTED" => "Usulan ditolak. Periksa catatan validator untuk alasan penolakan.",
-        _ => "Fase tidak dikenal.",
     }
 }
 

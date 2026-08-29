@@ -321,6 +321,19 @@ jobs:
       - name: Comparisons in view! attributes are braced
         shell: bash
         run: python3 ./infra/scripts/check-view-attr-comparisons.py
+      # Label status pernah disalin ke frontend sebagai `match` atas nama
+      # state. Salinannya jadi EMPAT, masing-masing dengan celah berbeda:
+      # kedua state V035 (`SUBMITTED_APPROVER_SATKER`, `REVISI_OPERATOR`) dan
+      # kedua state cabang wilayah V029 (`KONSEP_SK_WILAYAH_GENERATED`,
+      # `SK_SIGNED_WILAYAH`) jatuh ke lengan `_ =>` dan tampil sebagai
+      # "Lainnya" — jadi izin yang sedang menunggu Approver Satker, dan seluruh
+      # cabang kewenangan wilayah, tak punya nama di layar. Tabel monitoring
+      # bahkan mencetak `ACTIVE` mentah. Tak satu pun berstatus HTTP, gagal
+      # cargo check, atau memerahkan tes. Kosakatanya kini hanya di enum
+      # backend; guard ini menurunkan daftarnya dari `to_state_name()`.
+      - name: Frontend keeps no copy of the status vocabulary
+        shell: bash
+        run: python3 ./infra/scripts/check-fe-status-vocabulary.py
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds

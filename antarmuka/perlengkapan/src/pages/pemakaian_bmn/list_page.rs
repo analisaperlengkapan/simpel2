@@ -15,6 +15,7 @@ use crate::api::pemakaian_bmn::{self, IzinPemakaianBmn};
 use crate::components::layout::{
     EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
 };
+use crate::components::status_badge::status_tone_classes;
 use crate::routes::path;
 
 const PER_PAGE: i32 = 20;
@@ -376,7 +377,8 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
             let nup = p.bmn_nup.clone();
             let periode = format!("{} → {}", p.tanggal_mulai, p.tanggal_selesai);
             let countdown = countdown_label(&p.tanggal_selesai, &p.status);
-            let (status_label, status_tone) = status_descriptor(&p.status);
+            let status_label = p.status_label.clone();
+            let status_tone = status_tone_classes(&p.status_tone);
             view! {
                 <tr class="border-b border-white/[0.04] last:border-0">
                     <td class="py-3 pr-3">
@@ -437,37 +439,6 @@ fn render_table(items: Vec<IzinPemakaianBmn>) -> impl IntoView + use<> {
                 <tbody>{rows}</tbody>
             </table>
         </div>
-    }
-}
-
-fn status_descriptor(status: &str) -> (&'static str, &'static str) {
-    match status {
-        "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
-        "SUBMITTED" => ("Diajukan", "bg-info-500/10 text-info-300 ring-info-500/20"),
-        "APPROVED" => (
-            "Disetujui",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "REJECTED" => (
-            "Ditolak",
-            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
-        ),
-        "ACTIVE" => (
-            "Aktif",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "EXPIRED" => (
-            "Kadaluarsa",
-            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
-        ),
-        "REVOKED" => (
-            "Dicabut",
-            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
-        ),
-        _ => (
-            "Lainnya",
-            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
-        ),
     }
 }
 

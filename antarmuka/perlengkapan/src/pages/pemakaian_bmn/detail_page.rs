@@ -17,6 +17,7 @@ use crate::api::pemakaian_bmn::{
 use crate::components::layout::{
     EmptyState, ErrorState, LoadingState, PageBreadcrumb, PageLayout, SectionCard,
 };
+use crate::components::status_badge::status_tone_classes;
 use crate::routes::path;
 
 #[component]
@@ -272,7 +273,8 @@ fn DetailBody(
 
     view! {
         <LifecycleSummary
-            status=status.clone()
+            status_label=izin.status_label.clone()
+            status_tone=izin.status_tone.clone()
             days=days
             expiring_soon=expiring_soon
             periode=periode.clone()
@@ -498,7 +500,8 @@ async fn dispatch_satker_action(
 
 #[component]
 fn LifecycleSummary(
-    status: String,
+    status_label: String,
+    status_tone: String,
     days: Option<i64>,
     expiring_soon: bool,
     periode: String,
@@ -507,34 +510,7 @@ fn LifecycleSummary(
     on_renew: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
     on_revoke: impl Fn(web_sys::MouseEvent) + 'static + Copy + Send + Sync,
 ) -> impl IntoView {
-    let (status_label, status_tone) = match status.as_str() {
-        "DRAFT" => ("Draft", "bg-slate-500/10 text-slate-300 ring-slate-500/20"),
-        "SUBMITTED" => ("Diajukan", "bg-info-500/10 text-info-300 ring-info-500/20"),
-        "APPROVED" => (
-            "Disetujui",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "ACTIVE" => (
-            "Aktif",
-            "bg-success-500/10 text-success-300 ring-success-500/20",
-        ),
-        "EXPIRED" => (
-            "Kadaluarsa",
-            "bg-warning-500/10 text-warning-300 ring-warning-500/20",
-        ),
-        "REVOKED" => (
-            "Dicabut",
-            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
-        ),
-        "REJECTED" => (
-            "Ditolak",
-            "bg-danger-500/10 text-danger-300 ring-danger-500/20",
-        ),
-        _ => (
-            "Lainnya",
-            "bg-slate-500/10 text-slate-300 ring-slate-500/20",
-        ),
-    };
+    let status_tone = status_tone_classes(&status_tone);
 
     let countdown = match days {
         Some(d) if d < 0 => (format!("Lewat {} hari", -d), "text-danger-300"),

@@ -51,6 +51,17 @@ pub struct PenghapusanBmnWorkflow {
     #[serde(default)]
     pub nilai_perolehan_dari_backfill: bool,
     pub status: String,
+    /// Label status dari backend (`PenghapusanBmnStatus::label`). Dirender apa
+    /// adanya — frontend tidak lagi menyimpan kosakata statusnya sendiri.
+    #[serde(default)]
+    pub status_label: String,
+    /// Nada semantik badge: `neutral`/`info`/`success`/`warning`/`danger`.
+    #[serde(default)]
+    pub status_tone: String,
+    /// Satu kalimat "apa berikutnya" untuk fase ini
+    /// (`PenghapusanBmnStatus::hint`).
+    #[serde(default)]
+    pub status_hint: String,
     pub status_kode: i32,
     // Lampiran
     pub lampiran_persyaratan: Option<String>,

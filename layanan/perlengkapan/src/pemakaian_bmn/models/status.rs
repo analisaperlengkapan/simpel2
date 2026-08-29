@@ -1,6 +1,8 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::shared::status_tone::StatusTone;
+
 // ============================================================================
 // Workflow Status Enum
 // ============================================================================
@@ -68,6 +70,36 @@ impl PemakaianBmnStatus {
             Self::Expired => "Kadaluarsa",
             Self::Revoked => "Dicabut",
             Self::Cancelled => "Dibatalkan",
+        }
+    }
+
+    /// Nada semantik untuk badge status.
+    ///
+    /// Dikirim ke frontend bersama [`label`](Self::label) supaya frontend
+    /// tidak perlu tahu daftar statusnya sama sekali — lihat
+    /// [`crate::shared::status_tone`].
+    pub fn tone(&self) -> StatusTone {
+        match self {
+            Self::Draft | Self::Cancelled => StatusTone::Neutral,
+            Self::Submitted | Self::SubmittedApproverSatker => StatusTone::Info,
+            Self::Approved | Self::Active => StatusTone::Success,
+            // Menunggu perbaikan pengaju, atau izin lewat masa berlaku:
+            // keduanya perlu tindakan, bukan kegagalan.
+            Self::RevisiOperator | Self::Expired => StatusTone::Warning,
+            Self::Rejected | Self::Revoked => StatusTone::Danger,
+        }
+    }
+
+    /// Label + nada untuk sebuah nama state sebagaimana tersimpan di kolom
+    /// `status` (TEXT).
+    ///
+    /// State yang tak dikenal dikembalikan **apa adanya**, bukan diganti kata
+    /// generik seperti "Lainnya": kalau suatu saat kolom berisi nilai di luar
+    /// enum, yang paling menolong adalah melihat nilainya.
+    pub fn describe(state: &str) -> (String, StatusTone) {
+        match Self::from_state_name(state) {
+            Some(s) => (s.label().to_string(), s.tone()),
+            None => (state.to_string(), StatusTone::Neutral),
         }
     }
 

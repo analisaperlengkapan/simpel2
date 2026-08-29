@@ -87,14 +87,7 @@ impl PemakaianBmnRepository {
 
         let permit_history = history_rows
             .into_iter()
-            .map(|row| PermitHistoryEntry {
-                id: row.get("id"),
-                nomor_izin: row.get("nomor_izin"),
-                tanggal_mulai: row.get("tanggal_mulai"),
-                tanggal_selesai: row.get("tanggal_selesai"),
-                status: row.get("status"),
-                created_at: row.get("created_at"),
-            })
+            .map(|row| PermitHistoryEntry::from_row(&row))
             .collect();
 
         Ok(BmnUsageStats {
@@ -166,14 +159,7 @@ impl PemakaianBmnRepository {
 
         let permit_history = history_rows
             .into_iter()
-            .map(|row| PermitHistoryEntry {
-                id: row.get("id"),
-                nomor_izin: row.get("nomor_izin"),
-                tanggal_mulai: row.get("tanggal_mulai"),
-                tanggal_selesai: row.get("tanggal_selesai"),
-                status: row.get("status"),
-                created_at: row.get("created_at"),
-            })
+            .map(|row| PermitHistoryEntry::from_row(&row))
             .collect();
 
         Ok(PegawaiUsageStats {

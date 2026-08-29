@@ -25,4 +25,5 @@ pub mod penghapusan_form;
 pub mod profile_menu;
 pub mod role_switcher;
 pub mod sidebar;
+pub mod status_badge;
 pub mod workflow_ui;
