@@ -118,7 +118,29 @@ global:
   #
   # PR lain yang mendarat bersamanya TIDAK butuh image: #845 (urutan hook Helm)
   # dan #851 (deploy.sh) hanya infra, #846/#848/#850 hanya CI.
-  imageTag: v0.1.0-rc29
+  # rc30 membawa sepuluh perubahan kode, delapan di antaranya menutup kebocoran
+  # data lintas-satker yang DIUKUR pada rc29 yang sedang berjalan — bukan
+  # diduga. Pola yang sama berulang di semuanya: mekanisme yang benar dipasang
+  # di satu tempat lalu tidak di sebelahnya.
+  #
+  #   #869 usulan penghapusan: operator satker lain PUT + DELETE -> 200
+  #   #870 pakaian dinas: roster & profil pegawai satker lain dibaca DAN ditulis
+  #   #871 pakaian dinas: respons campaign per-satker + laporan nasional bocor
+  #   #872 kebutuhan: #93 men-scope satu endpoint, lima saudaranya terbuka —
+  #        termasuk PDF analisis satker lain (4.973 byte, terunduh)
+  #   #875 pemakaian: DAFTAR ber-scope sejak #66, DETAIL di baliknya tidak;
+  #        surat keputusan PDF satker lain tersaji
+  #
+  # Tiga sisanya memperbaiki endpoint yang tak pernah bisa jalan:
+  #   #873 `search/suggestions` gagal PARSE kuerinya sendiri sejak ditulis
+  #   #874 `search` panik di baris pertama yang cocok (`panic=abort` = proses
+  #        mati); enam kesalahan, termasuk tiga filter menyebut kolom hantu
+  #   #876 analisis kelayakan TAK PERNAH membaca SIMAN — klien-nya `Option`
+  #        yang tak pernah diisi. ANGKA DI LAYAR ANALISIS AKAN BERUBAH.
+  #
+  # #866/#867/#868 (readiness authenc, asersi e2e, probe integrasi) sudah
+  # mendarat sebelum rc29 di-deploy tetapi belum pernah ada di image mana pun.
+  imageTag: v0.1.0-rc30
   imagePullPolicy: IfNotPresent
   domain: 10.1.7.121
   # PENGECUALIAN BERTANGGAL (2026-08-18): staging tetap di `longhorn`
