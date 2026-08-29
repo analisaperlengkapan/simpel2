@@ -62,7 +62,7 @@ pub fn Panel(
 #[component]
 pub fn KomposisiAset(data: BankAsetDashboard) -> impl IntoView {
     let mut cats = data.kategori_breakdown.clone();
-    cats.sort_by(|a, b| b.count.cmp(&a.count));
+    cats.sort_by_key(|c| std::cmp::Reverse(c.count));
     let (head, tail) = cats.split_at(cats.len().min(6));
     let mut slices: Vec<Slice> = head
         .iter()
@@ -228,7 +228,7 @@ pub fn StatusKebutuhan(m: PerlengkapanDashboardMetrics) -> impl IntoView {
         .clone()
         .into_iter()
         .collect();
-    items.sort_by(|a, b| b.1.cmp(&a.1));
+    items.sort_by_key(|i| std::cmp::Reverse(i.1));
     let slices: Vec<Slice> = items
         .iter()
         .enumerate()
@@ -375,7 +375,7 @@ pub fn DistribusiUkuran(m: PerlengkapanDashboardMetrics) -> impl IntoView {
         .clone()
         .into_iter()
         .collect();
-    items.sort_by(|a, b| b.1.cmp(&a.1));
+    items.sort_by_key(|i| std::cmp::Reverse(i.1));
     let slices: Vec<Slice> = items
         .iter()
         .take(10)
@@ -406,7 +406,7 @@ pub fn StatusModul(
     #[prop(into)] statuses: std::collections::HashMap<String, i64>,
 ) -> impl IntoView {
     let mut items: Vec<(String, i64)> = statuses.into_iter().collect();
-    items.sort_by(|a, b| b.1.cmp(&a.1));
+    items.sort_by_key(|i| std::cmp::Reverse(i.1));
     let slices: Vec<Slice> = items
         .iter()
         .enumerate()

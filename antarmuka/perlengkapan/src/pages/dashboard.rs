@@ -292,7 +292,6 @@ async fn query_filter_options(
         ..Default::default()
     })
     .await
-    .map_err(Into::into)
 }
 
 /// The workflow / kebutuhan / module figures, for the running budget year.
