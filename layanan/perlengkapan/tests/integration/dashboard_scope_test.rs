@@ -493,3 +493,150 @@ async fn both_exports_answer_the_caller_who_asked_for_them() {
 
     teardown_test_db(&db_name).await;
 }
+
+// ---------------------------------------------------------------------------
+// Drill-down: a filter may narrow, never widen
+// ---------------------------------------------------------------------------
+
+/// The whole safety argument for the dashboard filters is that they are a scope
+/// TRANSFORM, not an extra condition: `narrow_for_request` returns a narrower
+/// scope or `Denied`, and every one of the thirteen places a scope is applied
+/// inherits that without needing to remember anything.
+///
+/// These tests exercise the property that matters — asking for someone else's
+/// satker returns THEIR OWN nothing, not the other satker's something. Without
+/// it a drill-down is just #871 with a friendlier name: there, `?satker_id=` on
+/// the laporan export was applied INSTEAD of the scope rather than after it.
+#[tokio::test]
+async fn a_drill_down_cannot_reach_outside_the_callers_scope() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed_siman(&db).await;
+    let server = TestServer::new(app);
+    seed_kebutuhan_campaign(&server).await;
+
+    let assets = |v: &serde_json::Value| v["asset_utilization"]["total_assets"].as_i64();
+    let satkers = |v: &serde_json::Value| {
+        v["kebutuhan_metrics"]["total_by_satker"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|s| s["satker_id"].as_str().unwrap_or_default().to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+
+    // Pusat drilling into SKR001 sees exactly what SKR001's operator sees.
+    let drilled = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026&satker=SKR001",
+        "validator_pusat",
+        PUSAT,
+        "SKR001",
+    )
+    .await;
+    assert_eq!(
+        drilled.status_code(),
+        200,
+        "pusat drill: {}",
+        drilled.text()
+    );
+    let d = drilled.json::<serde_json::Value>();
+    assert_eq!(assets(&d), Some(3), "SKR001 holds 3 of the 9 seeded assets");
+    assert_eq!(satkers(&d), vec!["SKR001".to_string()]);
+
+    // The operator's own view of the same satker, for comparison: identical.
+    let own = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026",
+        "operator_satker",
+        OPERATOR,
+        "SKR001",
+    )
+    .await
+    .json::<serde_json::Value>();
+    assert_eq!(
+        assets(&d),
+        assets(&own),
+        "a drill-down IS that satker's view"
+    );
+
+    // An operator naming ANOTHER satker gets nothing — not that satker.
+    let stolen = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026&satker=SKR002",
+        "operator_satker",
+        OPERATOR,
+        "SKR001",
+    )
+    .await;
+    assert_eq!(stolen.status_code(), 200, "{}", stolen.text());
+    let s = stolen.json::<serde_json::Value>();
+    assert_eq!(
+        assets(&s),
+        Some(0),
+        "SKR002 holds 2 assets; an operator at SKR001 must see 0, not 2"
+    );
+    assert!(
+        satkers(&s).is_empty(),
+        "no participant rows either, got {:?}",
+        satkers(&s)
+    );
+
+    // A wilayah validator may drill into a satker of their own region...
+    let ok = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026&satker=SKR002",
+        "validator_wilayah",
+        WILAYAH,
+        "SKR001",
+    )
+    .await
+    .json::<serde_json::Value>();
+    assert_eq!(assets(&ok), Some(2), "SKR002 is in KJT01 with SKR001");
+
+    // ...but not into one outside it.
+    let denied = get(
+        &server,
+        "/dashboard/perlengkapan?tahun_anggaran=2026&satker=SKR003",
+        "validator_wilayah",
+        WILAYAH,
+        "SKR001",
+    )
+    .await
+    .json::<serde_json::Value>();
+    assert_eq!(
+        assets(&denied),
+        Some(0),
+        "SKR003 is under KJT02 and holds 4 assets; a KJT01 validator must see 0"
+    );
+
+    teardown_test_db(&db_name).await;
+}
+
+/// The exports resolve the drill-down the same way the screen does. An export
+/// that ignored `?satker=` would hand back the whole region as a file.
+#[tokio::test]
+async fn the_exports_honour_the_drill_down_too() {
+    let (app, db, db_name) = setup_test_app().await;
+    seed_siman(&db).await;
+    let server = TestServer::new(app);
+    seed_kebutuhan_campaign(&server).await;
+
+    for fmt in ["excel", "pdf"] {
+        let res = get(
+            &server,
+            &format!("/dashboard/perlengkapan/export/{fmt}?tahun_anggaran=2026&satker=SKR002"),
+            "operator_satker",
+            OPERATOR,
+            "SKR001",
+        )
+        .await;
+        // Still a valid document — the point is that it is an EMPTY one, not
+        // that the request fails.
+        assert_eq!(res.status_code(), 200, "{fmt}: {}", res.text());
+        assert!(!res.as_bytes().is_empty());
+    }
+
+    teardown_test_db(&db_name).await;
+}

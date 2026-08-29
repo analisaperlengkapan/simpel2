@@ -8,7 +8,18 @@ use serde::{Deserialize, Serialize};
 // KEBUTUHAN BMN MODELS
 // ============================================================================
 
-/// Workflow status codes for BMN needs requests
+/// Workflow status codes for BMN needs requests.
+///
+/// Mirrors `layanan/perlengkapan` `KebutuhanBmnStatus` — the enum that writes
+/// the column — code for code. It previously did not, and the drift was not
+/// cosmetic: this copy had 2004 = AnalisisKelayakan and 2005 =
+/// PenyusunanPrioritas, so every badge on a request queued for Validator Pusat
+/// announced that Pusat was already analysing it, and 2010 (RevisiWilayah) had
+/// no label at all. The backend enum, `ms_workflow_status`, and this copy must
+/// agree; two of the three had already moved on.
+///
+/// `PENYUSUNAN_PRIORITAS` is gone on purpose: the workflow config records that
+/// the step was merged into the analysis and never existed as its own state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
 #[derive(Default)]
@@ -16,14 +27,15 @@ pub enum KebutuhanBmnStatus {
     #[default]
     Draft = 2000,
     InputBarang = 2001,
-    SubmitSatker = 2002,
+    SubmitWilayah = 2002,
     RevisiSatker = 2003,
-    AnalisisKelayakan = 2004,
-    PenyusunanPrioritas = 2005,
+    SubmitPusat = 2004,
+    AnalisisKelayakan = 2005,
     Approved = 2006,
     Rejected = 2007,
     Completed = 2008,
     Cancelled = 2009,
+    RevisiWilayah = 2010,
 }
 
 impl KebutuhanBmnStatus {
@@ -31,14 +43,15 @@ impl KebutuhanBmnStatus {
         match code {
             2000 => Some(Self::Draft),
             2001 => Some(Self::InputBarang),
-            2002 => Some(Self::SubmitSatker),
+            2002 => Some(Self::SubmitWilayah),
             2003 => Some(Self::RevisiSatker),
-            2004 => Some(Self::AnalisisKelayakan),
-            2005 => Some(Self::PenyusunanPrioritas),
+            2004 => Some(Self::SubmitPusat),
+            2005 => Some(Self::AnalisisKelayakan),
             2006 => Some(Self::Approved),
             2007 => Some(Self::Rejected),
             2008 => Some(Self::Completed),
             2009 => Some(Self::Cancelled),
+            2010 => Some(Self::RevisiWilayah),
             _ => None,
         }
     }
@@ -47,31 +60,41 @@ impl KebutuhanBmnStatus {
         match self {
             Self::Draft => "Draft",
             Self::InputBarang => "Input Barang",
-            Self::SubmitSatker => "Diajukan ke Validator",
+            Self::SubmitWilayah => "Diajukan ke Validator Wilayah",
             Self::RevisiSatker => "Revisi Satker",
+            Self::SubmitPusat => "Diajukan ke Validator Pusat",
             Self::AnalisisKelayakan => "Analisis Kelayakan",
-            Self::PenyusunanPrioritas => "Penyusunan Prioritas",
             Self::Approved => "Disetujui",
             Self::Rejected => "Ditolak",
             Self::Completed => "Selesai",
             Self::Cancelled => "Dibatalkan",
+            Self::RevisiWilayah => "Revisi Wilayah",
         }
+    }
+
+    /// Is this a state the workflow can no longer leave? Used for period
+    /// badges instead of a code range, which had 2008 (Completed) falling off
+    /// the end of `2001..=2005` into an "Unknown" label.
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            Self::Approved | Self::Rejected | Self::Completed | Self::Cancelled
+        )
     }
 
     pub fn badge_class(&self) -> &'static str {
         match self {
             Self::Draft => "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
             Self::InputBarang => "bg-info-500/15 text-info-300 ring-1 ring-info-500/25",
-            Self::SubmitSatker => "bg-gold-500/15 text-gold-300 ring-1 ring-gold-500/25",
+            Self::SubmitWilayah => "bg-gold-500/15 text-gold-300 ring-1 ring-gold-500/25",
             Self::RevisiSatker => "bg-warning-500/15 text-warning-300 ring-1 ring-warning-500/25",
+            Self::SubmitPusat => "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25",
             Self::AnalisisKelayakan => "bg-purple-500/15 text-purple-300 ring-1 ring-purple-500/25",
-            Self::PenyusunanPrioritas => {
-                "bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25"
-            }
             Self::Approved => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
             Self::Rejected => "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25",
             Self::Completed => "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
             Self::Cancelled => "bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25",
+            Self::RevisiWilayah => "bg-warning-500/15 text-warning-300 ring-1 ring-warning-500/25",
         }
     }
 }
@@ -434,4 +457,19 @@ pub struct RekapLaporanRow {
     pub jml_setuju: i32,
     pub status_kode: i32,
     pub status_nama: Option<String>,
+}
+
+/// One selectable status for the laporan filter.
+/// Mirrors `layanan/perlengkapan` `StatusOption`.
+///
+/// This list used to be a `const` array in the page. It had drifted: it named
+/// 2004 "Analisis Kelayakan" (2004 is "Diajukan ke Validator Pusat") and
+/// offered "Penyusunan Prioritas", a step the workflow does not have. Reading
+/// it from the same table the status column reads is what keeps the filter and
+/// the column from disagreeing again.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct StatusOption {
+    pub kode: i32,
+    pub nama: String,
+    pub is_terminal: bool,
 }

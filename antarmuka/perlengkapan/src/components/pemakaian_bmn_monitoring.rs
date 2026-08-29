@@ -120,8 +120,8 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
     view! {
         <div class="p-6 space-y-6">
             <div>
-                <h2 class="text-2xl font-bold text-gray-800">"Monitoring Pemakaian BMN"</h2>
-                <p class="text-sm text-gray-600 mt-1">
+                <h2 class="text-2xl font-bold text-slate-100">"Monitoring Pemakaian BMN"</h2>
+                <p class="text-sm text-slate-300 mt-1">
                     "Pantau penggunaan dan riwayat pemakaian BMN"
                 </p>
             </div>
@@ -134,7 +134,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         {(0..3)
                             .map(|_| {
                                 view! {
-                                    <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6 animate-pulse h-24"></div>
+                                    <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6 animate-pulse h-24"></div>
                                 }
                             })
                             .collect_view()}
@@ -157,20 +157,20 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         .unwrap_or_else(|| "-".to_string());
                     view! {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                <p class="text-sm text-gray-600">"BMN Sedang Dipakai"</p>
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
+                                <p class="text-sm text-slate-300">"BMN Sedang Dipakai"</p>
                                 <p class="text-3xl font-bold text-emerald-600 mt-1">{sedang}</p>
-                                <p class="text-xs text-gray-500 mt-1">"Izin pemakaian aktif"</p>
+                                <p class="text-xs text-slate-400 mt-1">"Izin pemakaian aktif"</p>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                <p class="text-sm text-gray-600">"BMN Tidak Dipakai"</p>
-                                <p class="text-3xl font-bold text-blue-600 mt-1">{tidak}</p>
-                                <p class="text-xs text-gray-500 mt-1">{tidak_sub}</p>
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
+                                <p class="text-sm text-slate-300">"BMN Tidak Dipakai"</p>
+                                <p class="text-3xl font-bold text-info-400 mt-1">{tidak}</p>
+                                <p class="text-xs text-slate-400 mt-1">{tidak_sub}</p>
                             </div>
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                                <p class="text-sm text-gray-600">"Akan Expired (30 hari)"</p>
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
+                                <p class="text-sm text-slate-300">"Akan Expired (30 hari)"</p>
                                 <p class="text-3xl font-bold text-yellow-600 mt-1">{expired}</p>
-                                <p class="text-xs text-gray-500 mt-1">
+                                <p class="text-xs text-slate-400 mt-1">
                                     "Izin berakhir ≤ 30 hari"
                                 </p>
                             </div>
@@ -182,14 +182,14 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             // Daftar pemakaian BMN — batas per-role diturunkan backend dari
             // klaim: pusat semua, wilayah sebatas wilayahnya, satker sebatas
             // satkernya. Frontend tidak mengirim satker apa pun.
-            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800">
+                    <h3 class="text-lg font-semibold text-slate-100">
                         "Daftar Pemakaian BMN"
                     </h3>
                     <input
                         type="text"
-                        class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-full sm:w-80"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30 w-full sm:w-80"
                         placeholder="Cari nama barang / NUP / pegawai"
                         prop:value=move || pemakaian_search.get()
                         on:input=move |ev| {
@@ -201,7 +201,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                 <Suspense fallback=move || {
                     view! {
                         <div class="text-center py-4">
-                            <span class="fa-spin text-gray-400">
+                            <span class="fa-spin text-slate-500">
                                 <AppIcon icon=SPINNER />
                             </span>
                         </div>
@@ -211,13 +211,13 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         match pemakaian_rows.get().flatten() {
                             None => {
                                 view! {
-                                    <p class="text-gray-600 text-center py-4">"Gagal memuat data"</p>
+                                    <p class="text-slate-300 text-center py-4">"Gagal memuat data"</p>
                                 }
                                     .into_any()
                             }
                             Some(page) if page.data.is_empty() => {
                                 view! {
-                                    <p class="text-gray-600 text-center py-4">
+                                    <p class="text-slate-300 text-center py-4">
                                         "Tidak ada pemakaian BMN pada cakupan Anda"
                                     </p>
                                 }
@@ -231,27 +231,27 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                 view! {
                                     <div class="overflow-x-auto">
                                         <table class="w-full" data-testid="tabel-pemakaian-bmn">
-                                            <thead class="bg-gray-50 border-b">
+                                            <thead class="bg-white/[0.02] border-b">
                                                 <tr>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Satker"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Nama Barang"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "NUP"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Pegawai Pemakai"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Jangka Waktu"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Status"
                                                     </th>
-                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                         "Aksi"
                                                     </th>
                                                 </tr>
@@ -283,41 +283,41 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                         } else if sisa <= 30 {
                                                             "text-xs text-yellow-600"
                                                         } else {
-                                                            "text-xs text-gray-500"
+                                                            "text-xs text-slate-400"
                                                         };
                                                         view! {
-                                                            <tr class="hover:bg-gray-50">
+                                                            <tr class="hover:bg-white/[0.02]">
                                                                 <td class="px-4 py-3 text-sm">
                                                                     <div>{satker}</div>
                                                                     {satker_code
                                                                         .map(|c| {
                                                                             view! {
-                                                                                <div class="text-xs text-gray-500">{c}</div>
+                                                                                <div class="text-xs text-slate-400">{c}</div>
                                                                             }
                                                                         })}
                                                                 </td>
                                                                 <td class="px-4 py-3 text-sm">
                                                                     <div>{row.nama_barang.clone()}</div>
-                                                                    <div class="text-xs text-gray-500">
+                                                                    <div class="text-xs text-slate-400">
                                                                         {row.kode_barang.clone()}
                                                                     </div>
                                                                     {merk_tipe
                                                                         .map(|m| {
                                                                             view! {
-                                                                                <div class="text-xs text-gray-400">{m}</div>
+                                                                                <div class="text-xs text-slate-500">{m}</div>
                                                                             }
                                                                         })}
                                                                 </td>
                                                                 <td class="px-4 py-3 text-sm">{row.nup.clone()}</td>
                                                                 <td class="px-4 py-3 text-sm">
                                                                     <div>{row.pegawai_nama.clone()}</div>
-                                                                    <div class="text-xs text-gray-500">
+                                                                    <div class="text-xs text-slate-400">
                                                                         {row.pegawai_nip.clone()}
                                                                     </div>
                                                                     {jabatan
                                                                         .map(|j| {
                                                                             view! {
-                                                                                <div class="text-xs text-gray-400">{j}</div>
+                                                                                <div class="text-xs text-slate-500">{j}</div>
                                                                             }
                                                                         })}
                                                                 </td>
@@ -329,7 +329,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                             row.tanggal_selesai,
                                                                         )}
                                                                     </div>
-                                                                    <div class="text-xs text-gray-500">
+                                                                    <div class="text-xs text-slate-400">
                                                                         {format!("{} hari", row.durasi_hari)}
                                                                     </div>
                                                                     <div class=sisa_class>{sisa_label}</div>
@@ -338,7 +338,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                 <td class="px-4 py-3 text-sm">
                                                                     <a
                                                                         href=crate::routes::url::pemakaian_detail(&row.id)
-                                                                        class="text-blue-600 hover:text-blue-800"
+                                                                        class="text-info-400 hover:text-blue-800"
                                                                     >
                                                                         "Detail"
                                                                     </a>
@@ -351,7 +351,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                         </table>
                                     </div>
                                     <div class="flex items-center justify-between mt-4">
-                                        <p class="text-sm text-gray-600">
+                                        <p class="text-sm text-slate-300">
                                             {format!("{total} pemakaian — halaman {current} dari {}", total_pages.max(1))}
                                         </p>
                                         <div class="flex gap-2">
@@ -364,7 +364,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                             </button>
                                             <button
                                                 class="px-3 py-1 border rounded disabled:opacity-40"
-                                                prop:disabled=move || current >= total_pages
+                                                prop:disabled=move || { current >= total_pages }
                                                 on:click=move |_| set_pemakaian_page.update(|p| *p += 1)
                                             >
                                                 "Berikutnya"
@@ -380,8 +380,8 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             </div>
 
             // Expiring Permits Alert
-            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
+                <h3 class="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
                     <span class="text-yellow-500">
                         <AppIcon icon=WARNING />
                     </span>
@@ -390,7 +390,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                 <Suspense fallback=move || {
                     view! {
                         <div class="text-center py-4">
-                            <span class="fa-spin text-gray-400">
+                            <span class="fa-spin text-slate-500">
                                 <AppIcon icon=SPINNER />
                             </span>
                         </div>
@@ -403,7 +403,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                             .map(|permits: Vec<IzinPemakaianBmn>| {
                                 if permits.is_empty() {
                                     view! {
-                                        <p class="text-gray-600 text-center py-4">
+                                        <p class="text-slate-300 text-center py-4">
                                             "Tidak ada izin yang akan berakhir dalam 30 hari"
                                         </p>
                                     }
@@ -412,21 +412,21 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                     view! {
                                         <div class="overflow-x-auto">
                                             <table class="w-full">
-                                                <thead class="bg-gray-50 border-b">
+                                                <thead class="bg-white/[0.02] border-b">
                                                     <tr>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                             "Nomor Izin"
                                                         </th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                             "Pemohon"
                                                         </th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                             "BMN"
                                                         </th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                             "Berakhir"
                                                         </th>
-                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                             "Aksi"
                                                         </th>
                                                     </tr>
@@ -437,7 +437,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                         key=|p| p.id.clone()
                                                         children=move |permit| {
                                                             view! {
-                                                                <tr class="hover:bg-gray-50">
+                                                                <tr class="hover:bg-white/[0.02]">
                                                                     <td class="px-4 py-3 text-sm">
                                                                         {permit
                                                                             .nomor_izin
@@ -456,7 +456,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                                     <td class="px-4 py-3 text-sm">
                                                                         <a
                                                                             href=crate::routes::url::pemakaian_detail(&permit.id)
-                                                                            class="text-blue-600 hover:text-blue-800"
+                                                                            class="text-info-400 hover:text-blue-800"
                                                                         >
                                                                             "Detail"
                                                                         </a>
@@ -474,7 +474,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                             })
                             .unwrap_or_else(|| {
                                 view! {
-                                    <p class="text-gray-600 text-center py-4">
+                                    <p class="text-slate-300 text-center py-4">
                                         "Gagal memuat data"
                                     </p>
                                 }
@@ -485,11 +485,11 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             </div>
 
             // Search Section
-            <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4">"Cari Riwayat Pemakaian"</h3>
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
+                <h3 class="text-lg font-semibold text-slate-100 mb-4">"Cari Riwayat Pemakaian"</h3>
                 <div class="flex gap-4 mb-6">
                     <select
-                        class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30"
                         prop:value=move || search_type.get()
                         on:change=move |ev| set_search_type.set(event_target_value(&ev))
                     >
@@ -498,7 +498,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                     </select>
                     <input
                         type="text"
-                        class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30 flex-1"
                         placeholder=move || {
                             if search_type.get() == "bmn" {
                                 "Masukkan NUP BMN"
@@ -510,7 +510,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         on:input=move |ev| set_search_query.set(event_target_value(&ev))
                     />
                     <button
-                        class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        class="px-6 py-2 bg-info-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                         on:click=handle_search
                         prop:disabled=move || searching.get() || search_query.get().is_empty()
                     >
@@ -567,23 +567,23 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                         </div>
 
                                         <div>
-                                            <h4 class="font-semibold text-gray-800 mb-2">
+                                            <h4 class="font-semibold text-slate-100 mb-2">
                                                 "Riwayat Pemakaian"
                                             </h4>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full">
-                                                    <thead class="bg-gray-50 border-b">
+                                                    <thead class="bg-white/[0.02] border-b">
                                                         <tr>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Nomor Izin"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Periode"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Status"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Dibuat"
                                                             </th>
                                                         </tr>
@@ -594,7 +594,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                             key=|h| h.id.clone()
                                                             children=move |history| {
                                                                 view! {
-                                                                    <tr class="hover:bg-gray-50">
+                                                                    <tr class="hover:bg-white/[0.02]">
                                                                         <td class="px-4 py-3 text-sm">
                                                                             {history
                                                                                 .nomor_izin
@@ -646,23 +646,23 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                         </div>
 
                                         <div>
-                                            <h4 class="font-semibold text-gray-800 mb-2">
+                                            <h4 class="font-semibold text-slate-100 mb-2">
                                                 "Riwayat Pemakaian"
                                             </h4>
                                             <div class="overflow-x-auto">
                                                 <table class="w-full">
-                                                    <thead class="bg-gray-50 border-b">
+                                                    <thead class="bg-white/[0.02] border-b">
                                                         <tr>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Nomor Izin"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Periode"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Status"
                                                             </th>
-                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600">
+                                                            <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300">
                                                                 "Dibuat"
                                                             </th>
                                                         </tr>
@@ -673,7 +673,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                                             key=|h| h.id.clone()
                                                             children=move |history| {
                                                                 view! {
-                                                                    <tr class="hover:bg-gray-50">
+                                                                    <tr class="hover:bg-white/[0.02]">
                                                                         <td class="px-4 py-3 text-sm">
                                                                             {history
                                                                                 .nomor_izin

@@ -446,6 +446,23 @@ pub async fn fetch_rekap_laporan(
     })
 }
 
+/// Statuses the laporan filter may offer, from `ms_workflow_status`.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_laporan_status_options()
+-> Result<ApiResponse<Vec<StatusOption>>, crate::api::AppError> {
+    auth_get_json(&format!("{}/laporan/status-options", KEBUTUHAN_BMN_BASE)).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_laporan_status_options()
+-> Result<ApiResponse<Vec<StatusOption>>, crate::api::AppError> {
+    Ok(ApiResponse {
+        success: true,
+        data: vec![],
+        message: "Server-side stub".to_string(),
+    })
+}
+
 /// `format` = "xlsx" | "pdf".
 #[cfg(target_arch = "wasm32")]
 pub async fn export_rekap_laporan(

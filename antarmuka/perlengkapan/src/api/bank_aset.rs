@@ -237,8 +237,44 @@ fn urlencoding_simple(s: &str) -> String {
     out
 }
 
-pub async fn fetch_dashboard() -> AppResult<BankAsetDashboard> {
-    let url = format!("{API_BASE}/bank-aset/dashboard");
+/// The dashboard drill-down, as the frontend holds it.
+///
+/// Every field NARROWS. None of them can widen: the server pushes the caller's
+/// scope before these are applied, so naming a satker outside the caller's tier
+/// answers with zeros rather than with that satker. That guarantee lives on the
+/// server — this struct is only how the request says what it wants.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+pub struct AsetFilterQuery {
+    pub jenis: Option<String>,
+    /// `kdsatker_keu`, not the name: two satkers can share a name.
+    pub satker_kode: Option<String>,
+    /// SIMAN `wilayah_kode` (digits 6-9 of `kdsatker_keu`).
+    pub wilayah: Option<String>,
+    pub tgl_from: Option<String>,
+    pub tgl_to: Option<String>,
+}
+
+impl AsetFilterQuery {
+    /// `""` when nothing is set, else a leading-`?` query string.
+    pub fn to_query(&self) -> String {
+        let mut buf = String::new();
+        for (k, v) in [
+            ("jenis", &self.jenis),
+            ("satker_kode", &self.satker_kode),
+            ("wilayah", &self.wilayah),
+            ("tgl_from", &self.tgl_from),
+            ("tgl_to", &self.tgl_to),
+        ] {
+            if let Some(v) = v.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+                push_query(&mut buf, k, v);
+            }
+        }
+        buf
+    }
+}
+
+pub async fn fetch_dashboard(filter: &AsetFilterQuery) -> AppResult<BankAsetDashboard> {
+    let url = format!("{API_BASE}/bank-aset/dashboard{}", filter.to_query());
     let resp: ApiResponseWrap<BankAsetDashboard> = api_get(&url).await?;
     if !resp.success {
         return Err(AppError::server(resp.message));
@@ -268,6 +304,18 @@ pub async fn fetch_last_sync() -> AppResult<LastSyncInfo> {
 pub struct FilterOption {
     pub value: String,
     pub count: i64,
+    /// Human label when `value` is a code (satker_kode, wilayah). Absent when
+    /// the value IS the label, so this mirrors the backend's
+    /// `skip_serializing_if`.
+    #[serde(default)]
+    pub label: Option<String>,
+}
+
+impl FilterOption {
+    /// What to put in the dropdown: the label when there is one, else the value.
+    pub fn display(&self) -> &str {
+        self.label.as_deref().unwrap_or(&self.value)
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -275,13 +323,23 @@ pub struct BankAsetFilterOptions {
     pub jenis: Vec<FilterOption>,
     pub kategori: Vec<FilterOption>,
     pub kondisi: Vec<FilterOption>,
+    /// Satker by NAME — what the Bank Aset list filters on. Two satkers can
+    /// share a name, so the dashboard drill-down uses `satker_kode` instead.
     pub satker: Vec<FilterOption>,
+    /// Satker by CODE (`kdsatker_keu`), with the name as label.
+    #[serde(default)]
+    pub satker_kode: Vec<FilterOption>,
+    /// Region by SIMAN `wilayah_kode`, with the Kejati name as label.
+    #[serde(default)]
+    pub wilayah: Vec<FilterOption>,
 }
 
 /// Distinct filter values (jenis BMN, kategori, kondisi, satker) for populating
 /// the filter dropdowns dynamically from real SIMAN data.
-pub async fn fetch_filter_options() -> AppResult<BankAsetFilterOptions> {
-    let url = format!("{API_BASE}/bank-aset/filter-options");
+pub async fn fetch_filter_options(filter: &AsetFilterQuery) -> AppResult<BankAsetFilterOptions> {
+    // Narrowed by the same filter the data is: selecting a region should leave
+    // the satker list holding that region's satkers, not all 554.
+    let url = format!("{API_BASE}/bank-aset/filter-options{}", filter.to_query());
     let resp: ApiResponseWrap<BankAsetFilterOptions> = api_get(&url).await?;
     if !resp.success {
         return Err(AppError::server(resp.message));

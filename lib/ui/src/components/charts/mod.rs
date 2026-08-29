@@ -29,3 +29,7 @@
 
 #[doc(hidden)]
 pub use leptos_chartistry as chartistry;
+
+mod primitives;
+
+pub use primitives::{DonutChart, HBarChart, Slice, TrendLine, format_id, format_rupiah_short};

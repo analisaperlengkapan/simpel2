@@ -306,6 +306,21 @@ jobs:
       - name: Frontend DTOs name only fields the backend sends
         shell: bash
         run: python3 ./infra/scripts/check-fe-be-dto-drift.py
+      # `view!` tokenises `>` as the end of the opening tag — inside an
+      # attribute value too. So `prop:disabled=move || page.get() >= total`
+      # ends the tag at the `>`, and every attribute after it becomes a text
+      # node: the `on:click` is never attached, `prop:disabled` gets an i32
+      # (truthy on every page but 0), and the Rust source renders on the page.
+      # 26 attribute values across both frontends and `lib/ui` — every
+      # paginated list plus `DarkPagination` — so no list could reach page two.
+      # cargo check sees valid markup, no test clicks page two, and the one
+      # true signal (rustc calling the callback unused) had been silenced twice
+      # over: a hand-written `#[allow(unused_variables)]` on two components,
+      # and `_`-prefix renames on a prop and two handlers. Found by reading a
+      # screenshot, 2026-08-29. Fix is a brace group: `=move || { a >= b }`.
+      - name: Comparisons in view! attributes are braced
+        shell: bash
+        run: python3 ./infra/scripts/check-view-attr-comparisons.py
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds

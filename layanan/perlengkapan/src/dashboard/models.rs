@@ -7,6 +7,19 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize)]
 pub struct DashboardParams {
     pub tahun_anggaran: i32,
+    /// Narrow to ONE satker (MySIMKARI `kode_satker`), for a pusat or wilayah
+    /// reader drilling into a single unit.
+    ///
+    /// It can only narrow. The scope predicate is pushed onto every query
+    /// before this one is (see `dashboard/repository.rs`), so naming a satker
+    /// outside the caller's tier yields an empty dashboard, never that satker's.
+    /// A drill-down that widened would be #871 again — there, `?satker_id=` on
+    /// the laporan export was applied INSTEAD of the scope rather than after it.
+    #[serde(default)]
+    pub satker: Option<String>,
+    /// Narrow the SIMAN half to one wilayah (`kdsatker_keu` digits 6-9).
+    #[serde(default)]
+    pub wilayah: Option<String>,
 }
 
 /// Complete perlengkapan dashboard metrics

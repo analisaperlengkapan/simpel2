@@ -53,6 +53,12 @@ pub trait KebutuhanBmnRepository: Send + Sync {
         scope: &crate::shared::satker_scope::SatkerScope,
     ) -> AppResult<Vec<RekapLaporanRow>>;
 
+    /// The statuses this workflow can actually be in, for the laporan filter.
+    /// Read from `ms_workflow_status` so the dropdown and the status column
+    /// resolve through the same master; no scope, because the list of possible
+    /// statuses is not itself satker data.
+    async fn list_status_options(&self) -> AppResult<Vec<StatusOption>>;
+
     async fn update_pengajuan(
         &self,
         id: Uuid,

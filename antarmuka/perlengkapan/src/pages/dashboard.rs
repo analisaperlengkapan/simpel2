@@ -1,12 +1,42 @@
 //! Dashboard Home for Perlengkapan.
 //!
-//! This page focuses on clear information hierarchy, responsive layout,
-//! and maintainable utility-class styling.
+//! # What this page is
+//!
+//! An operational summary, ordered by how a reader uses it: what the asset base
+//! looks like, what needs a decision today, then the analysis behind both. The
+//! wording, the tiers and the panels all follow from one fact — these numbers
+//! are SCOPED, so what an operator sees is their satker, what a wilayah
+//! validator sees is their region, and the page has to say which.
+//!
+//! # No sample data, anywhere
+//!
+//! Every figure is a query result from one of two scoped endpoints,
+//! `GET /bank-aset/dashboard` and `GET /dashboard/perlengkapan`. Nothing is a
+//! placeholder series, an illustrative example, or a designed-in shape. Where
+//! the backend has no such measurement the panel says so rather than drawing
+//! something plausible.
+//!
+//! # "Real time" here means polled, and says so
+//!
+//! Both queries refresh on an interval and the page stamps the moment it last
+//! succeeded, so a stale figure is visible as stale. It deliberately does NOT
+//! subscribe to `/dashboard/ws`: that socket authenticates and then delivers
+//! nothing, because `broadcast_dashboard_update` has no callers anywhere in the
+//! backend. Subscribing to it would look like live push and be a spinner that
+//! never turns.
 
-use crate::api::bank_aset::{BankAsetDashboard, fetch_dashboard};
+use crate::api::bank_aset::{
+    AsetFilterQuery, BankAsetDashboard, BankAsetFilterOptions, fetch_dashboard,
+    fetch_filter_options,
+};
+use crate::api::dashboard::{PerlengkapanDashboardMetrics, fetch_perlengkapan_metrics};
 use crate::components::role_switcher::use_active_role;
+use crate::pages::dashboard_panels::{
+    DistribusiUkuran, FilterBar, Hambatan, KebutuhanPerSatker, KesenjanganKebutuhan, KomposisiAset,
+    NilaiPerJenis, SatkerTeratas, StatusKebutuhan, StatusModul, TrenKebutuhan, TrenPerolehan,
+};
 use crate::routes;
-use chrono::Datelike;
+use chrono::{Datelike, Timelike};
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use leptos_meta::Title;
@@ -37,22 +67,49 @@ fn StatCard(
     #[prop(into)] value: String,
     subtitle: &'static str,
     tone: &'static str,
+    /// Share of the whole, 0-100. An absolute count alone does not say whether
+    /// 76 459 damaged assets is a crisis or a rounding error; against 624 533
+    /// it is 12%, and that is the figure a reader actually reasons with.
+    #[prop(default = None)]
+    share: Option<f64>,
 ) -> impl IntoView {
-    let (icon_bg, icon_text, glow) = match tone {
-        "blue" => ("bg-blue-500/15", "text-blue-300", "shadow-blue-500/30"),
+    let (icon_bg, icon_text, glow, bar) = match tone {
+        "blue" => (
+            "bg-blue-500/15",
+            "text-blue-300",
+            "shadow-blue-500/30",
+            "bg-blue-400",
+        ),
         "green" => (
             "bg-emerald-500/15",
             "text-emerald-300",
             "shadow-emerald-500/30",
+            "bg-emerald-400",
         ),
-        "amber" => ("bg-amber-500/15", "text-amber-300", "shadow-amber-500/30"),
-        "red" => ("bg-rose-500/15", "text-rose-300", "shadow-rose-500/30"),
+        "amber" => (
+            "bg-amber-500/15",
+            "text-amber-300",
+            "shadow-amber-500/30",
+            "bg-amber-400",
+        ),
+        "red" => (
+            "bg-rose-500/15",
+            "text-rose-300",
+            "shadow-rose-500/30",
+            "bg-rose-400",
+        ),
         "violet" => (
             "bg-violet-500/15",
             "text-violet-300",
             "shadow-violet-500/30",
+            "bg-violet-400",
         ),
-        _ => ("bg-slate-500/15", "text-slate-300", "shadow-slate-500/30"),
+        _ => (
+            "bg-slate-500/15",
+            "text-slate-300",
+            "shadow-slate-500/30",
+            "bg-slate-400",
+        ),
     };
 
     view! {
@@ -74,6 +131,23 @@ fn StatCard(
                     {label}
                 </p>
                 <p class="mt-2 text-3xl font-extrabold leading-none text-white">{value}</p>
+                {share
+                    .map(|pct| {
+                        let pct = pct.clamp(0.0, 100.0);
+                        view! {
+                            <div class="mt-3">
+                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                                    <div
+                                        class=format!("h-full rounded-full {}", bar)
+                                        style=format!("width:{pct:.1}%")
+                                    ></div>
+                                </div>
+                                <p class="mt-1.5 text-xs font-semibold text-slate-400">
+                                    {format!("{pct:.1}% dari total")}
+                                </p>
+                            </div>
+                        }
+                    })}
                 <p class="mt-2 text-xs text-slate-500">{subtitle}</p>
             </div>
         </article>
@@ -196,11 +270,55 @@ fn QuickNav(
 /// shown 624 533 assets across 556 satkers here while the Bank Aset page
 /// correctly showed their own 1 681. One endpoint means the two pages cannot
 /// disagree, and the scope is inherited rather than re-implemented.
-async fn query_dashboard_stats(_: ()) -> Result<BankAsetDashboard, crate::api::AppError> {
-    // No `map_err(Into::into)`: both sides are already `api::error::AppError`,
-    // and clippy's `useless_conversion` is denied in CI.
-    fetch_dashboard().await
+async fn query_dashboard_stats(
+    key: (AsetFilterQuery, u32),
+) -> Result<BankAsetDashboard, crate::api::AppError> {
+    // No `map_err(Into::into)`: both sides are already
+    // `api::error::AppError`, and clippy's `useless_conversion` is denied
+    // in CI.
+    fetch_dashboard(&key.0).await
 }
+
+/// Dropdown contents, narrowed by the selected region.
+///
+/// A separate query from the data so changing a region does not re-fetch the
+/// aggregates twice, and so an options failure leaves the dashboard readable
+/// with the filters unavailable rather than blanking the page.
+async fn query_filter_options(
+    wilayah: Option<String>,
+) -> Result<BankAsetFilterOptions, crate::api::AppError> {
+    fetch_filter_options(&AsetFilterQuery {
+        wilayah,
+        ..Default::default()
+    })
+    .await
+}
+
+/// The workflow / kebutuhan / module figures, for the running budget year.
+///
+/// This endpoint had NO frontend caller at all (#97) — which is exactly why the
+/// 500 it used to return went unnoticed until an e2e probed it directly (#116),
+/// and why the seven aggregates behind it reached no screen. The key carries
+/// both the year and the refresh tick so a poll actually refetches instead of
+/// being served from cache.
+async fn query_perlengkapan_metrics(
+    key: (i32, Option<String>, Option<String>, u32),
+) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
+    fetch_perlengkapan_metrics(key.0, key.1.as_deref(), key.2.as_deref()).await
+}
+
+/// How often the page refetches, in milliseconds.
+///
+/// 60 s rather than a few seconds: every tick is two aggregate queries over
+/// 624 533 SIMAN rows plus seven workflow aggregates, and none of these figures
+/// move faster than a human approval. A dashboard that hammers the database to
+/// look live is a load generator, not a monitor.
+///
+/// `cfg`-gated with its only consumer: `set_interval` exists on wasm alone, and
+/// an unconditional constant here is dead code in the host-target build that
+/// `cargo check` runs (see antarmuka/AGENTS.md on dual-cfg crates).
+#[cfg(target_arch = "wasm32")]
+const REFRESH_MS: u64 = 60_000;
 
 /// Assets in a given condition, from the SIMAN `kondisi_breakdown`.
 ///
@@ -314,17 +432,93 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Aset BMN, kebutuhan, dan perlengkapan pada satuan kerja Anda.",
     };
 
-    // Derived, not written down. This chip read "Tahun Anggaran 2025" as a
-    // hard-coded literal: wrong from 1 January 2026 onward, and already
-    // disagreeing with the export button on this same page, which has always
-    // taken the year from the clock.
-    let tahun_anggaran = move || chrono::Local::now().year();
+    // Drill-down state. The satker value is the MySIMKARI `kode_satker` — the
+    // one identity both halves of the dashboard key on, so a single selection
+    // narrows the SIMAN aggregates and the perlengkapan workflow rows alike.
+    //
+    // These can only NARROW, and that is enforced on the SERVER: it resolves
+    // the request against the caller's claims and returns a narrower scope or
+    // Denied, never a wider one. So nothing here has to police itself, and a
+    // hand-edited query string gets zeros rather than someone else's satker.
+    let f_wilayah = RwSignal::new(None::<String>);
+    let f_satker = RwSignal::new(None::<String>);
+    let f_jenis = RwSignal::new(None::<String>);
+    let f_from = RwSignal::new(None::<String>);
+    let f_to = RwSignal::new(None::<String>);
+    // Was the hard-coded literal "Tahun Anggaran 2025" — wrong from 1 January,
+    // and already disagreeing with the export button on this same page, which
+    // has always taken the year from the clock. Now derived AND selectable.
+    let f_tahun = RwSignal::new(chrono::Local::now().year());
+    let tahun_anggaran = move || f_tahun.get();
+
+    let aset_filter = move || AsetFilterQuery {
+        jenis: f_jenis.get(),
+        satker_kode: f_satker.get(),
+        wilayah: f_wilayah.get(),
+        tgl_from: f_from.get(),
+        tgl_to: f_to.get(),
+    };
 
     // leptos-fetch — `()` keyed cache so a tab-switch back to the
     // dashboard re-uses the previous load instantly.
     let client: QueryClient = expect_context();
-    let stats_resource = client.local_resource(query_dashboard_stats, || ());
+
+    // Polling, plus a manual refresh, plus a visible stamp of the last success.
+    // Bumping the tick changes the query key, which is what makes leptos-fetch
+    // refetch rather than answer from cache.
+    let tick = RwSignal::new(0_u32);
+    let refreshed_at = RwSignal::new(String::new());
+    // The filters are part of the query KEY, which is what makes a selection
+    // refetch instead of being answered from cache.
+    let stats_resource =
+        client.local_resource(query_dashboard_stats, move || (aset_filter(), tick.get()));
+    let metrics_resource = client.local_resource(query_perlengkapan_metrics, move || {
+        (
+            tahun_anggaran(),
+            f_satker.get(),
+            f_wilayah.get(),
+            tick.get(),
+        )
+    });
+    let options_resource = client.local_resource(query_filter_options, move || f_wilayah.get());
+
+    // Stamp the clock whenever a load lands, so "60 detik lalu" is observable
+    // rather than promised.
+    Effect::new(move |_| {
+        if stats_resource.get().is_some() {
+            let now = chrono::Local::now();
+            refreshed_at.set(format!(
+                "{:02}:{:02}:{:02}",
+                now.hour(),
+                now.minute(),
+                now.second()
+            ));
+        }
+    });
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        use leptos::leptos_dom::helpers::set_interval;
+        use std::time::Duration;
+        set_interval(
+            move || tick.update(|t| *t = t.wrapping_add(1)),
+            Duration::from_millis(REFRESH_MS),
+        );
+    }
+
     let is_admin = move || active_role.get() == "admin";
+    // A satker-tier caller's "top satker" list is one row naming themselves,
+    // and their kebutuhan-by-satker breakdown likewise. Those panels are for
+    // readers who actually oversee more than one.
+    // Only a reader who already sees the whole country may pick an arbitrary
+    // region; a wilayah validator's region is fixed by their claims.
+    let is_pusat = move || matches!(active_role.get().as_str(), "validator_pusat" | "admin");
+    let is_multi_satker = move || {
+        matches!(
+            active_role.get().as_str(),
+            "validator_wilayah" | "validator_pusat" | "admin"
+        )
+    };
 
     view! {
         <Title text="Dashboard — SIMPEL Perlengkapan" />
@@ -392,9 +586,62 @@ pub fn DashboardHome() -> impl IntoView {
                             </strong>
                             " satuan kerja"
                         </div>
+                        // When the figures were last actually fetched, and a way
+                        // to force it. Stated rather than implied: the page
+                        // polls, it does not receive push updates, and a reader
+                        // deciding on these numbers is entitled to know how old
+                        // they are.
+                        <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-400 sm:text-sm">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                            "Diperbarui "
+                            <strong class="text-slate-200">
+                                {move || {
+                                    let t = refreshed_at.get();
+                                    if t.is_empty() { "—".to_string() } else { t }
+                                }}
+                            </strong>
+                            <button
+                                type="button"
+                                class="ml-1 rounded-md border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition-colors hover:border-white/25 hover:text-white"
+                                on:click=move |_| tick.update(|t| *t = t.wrapping_add(1))
+                                aria-label="Muat ulang data dasbor"
+                            >
+                                "Muat ulang"
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
+
+            // Drill-down. Rendered only where it can do something: a satker
+            // operator's scope IS one satker, so a satker selector would offer
+            // a single option that changes nothing, and a region selector would
+            // offer a region they cannot widen to. The options themselves are
+            // scoped server-side — measured on staging, `/filter-options`
+            // returns 1 satker to an operator, 7 to a wilayah validator and 554
+            // to pusat — so the list cannot offer what its reader may not see.
+            <Show when=move || is_multi_satker()>
+                {move || {
+                    options_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .map(|opts| {
+                            view! {
+                                <FilterBar
+                                    options=opts
+                                    show_wilayah=is_pusat()
+                                    show_satker=true
+                                    wilayah=f_wilayah
+                                    satker=f_satker
+                                    jenis=f_jenis
+                                    tahun=f_tahun
+                                    tgl_from=f_from
+                                    tgl_to=f_to
+                                />
+                            }
+                        })
+                }}
+            </Show>
 
             <Suspense fallback=move || {
                 view! {
@@ -419,6 +666,22 @@ pub fn DashboardHome() -> impl IntoView {
                         }
                         None => ("-".into(), "-".into(), "-".into(), "-".into()),
                     };
+                    let share = |n: i64| {
+                        stats
+                            .as_ref()
+                            .filter(|s| s.total_aset > 0)
+                            .map(|s| n as f64 / s.total_aset as f64 * 100.0)
+                    };
+                    let (sh_baik, sh_ringan, sh_berat) = match &stats {
+                        Some(s) => {
+                            (
+                                share(count_kondisi(s, |k| k == "BAIK")),
+                                share(count_kondisi(s, |k| k == "RUSAK RINGAN")),
+                                share(count_kondisi(s, |k| k == "RUSAK BERAT")),
+                            )
+                        }
+                        None => (None, None, None),
+                    };
                     // "Perlu Perbaikan" used to be ONE card summing every
                     // RUSAK* bucket. Measured on staging that card read 76 459,
                     // of which 64 522 (84%) are "Rusak Berat" — in BMN practice
@@ -442,6 +705,7 @@ pub fn DashboardHome() -> impl IntoView {
                                 value=baik
                                 subtitle="Layak digunakan"
                                 tone="green"
+                                share=sh_baik
                             />
                             <StatCard
                                 icon="fas fa-screwdriver-wrench"
@@ -449,6 +713,7 @@ pub fn DashboardHome() -> impl IntoView {
                                 value=ringan
                                 subtitle="Kandidat perbaikan"
                                 tone="amber"
+                                share=sh_ringan
                             />
                             <StatCard
                                 icon="fas fa-trash-can"
@@ -456,9 +721,184 @@ pub fn DashboardHome() -> impl IntoView {
                                 value=berat
                                 subtitle="Kandidat penghapusan"
                                 tone="red"
+                                share=sh_berat
                             />
                         </div>
                     }
+                }}
+            </Suspense>
+
+            // ── Perlu tindakan ───────────────────────────────────────────
+            //
+            // The condition row above describes the asset base; this one is
+            // about today. Both read `/dashboard/perlengkapan`, whose seven
+            // aggregates had reached no screen at all until now (#97).
+            <Suspense fallback=move || {
+                view! {
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                    </div>
+                }
+            }>
+                {move || {
+                    let m = metrics_resource.get().and_then(|r| r.ok());
+                    let (sla, avg, pakai, hapus) = match &m {
+                        Some(m) => {
+                            (
+                                format_number(m.workflow_metrics.sla_breaches_today),
+                                format!("{:.0}", m.workflow_metrics.average_processing_time_hours),
+                                format_number(m.pemakaian_metrics.total),
+                                format_number(m.penghapusan_metrics.total),
+                            )
+                        }
+                        None => ("-".into(), "-".into(), "-".into(), "-".into()),
+                    };
+                    view! {
+                        <div>
+                            <SectionHeader title="Perlu Tindakan" tone="gold" />
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                                <StatCard
+                                    icon="fas fa-triangle-exclamation"
+                                    label="Melewati Batas Waktu"
+                                    value=sla
+                                    subtitle="Berkas belum selesai lebih dari 2 hari"
+                                    tone="red"
+                                />
+                                <StatCard
+                                    icon="fas fa-clock"
+                                    label="Rata-rata Proses"
+                                    value=avg
+                                    subtitle="Jam, dari diajukan sampai selesai"
+                                    tone="blue"
+                                />
+                                <StatCard
+                                    icon="fas fa-id-badge"
+                                    label="Izin Pemakaian"
+                                    value=pakai
+                                    subtitle="Seluruh berkas izin pemakaian BMN"
+                                    tone="violet"
+                                />
+                                <StatCard
+                                    icon="fas fa-file-circle-minus"
+                                    label="Usulan Penghapusan"
+                                    value=hapus
+                                    subtitle="Seluruh usulan SK penghapusan"
+                                    tone="amber"
+                                />
+                            </div>
+                        </div>
+                    }
+                }}
+            </Suspense>
+
+            // ── Analisis aset ────────────────────────────────────────────
+            <Suspense fallback=move || {
+                view! {
+                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                    </div>
+                }
+            }>
+                {move || {
+                    stats_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .map(|d| {
+                            let multi = is_multi_satker();
+                            view! {
+                                <div class="space-y-4">
+                                    <SectionHeader title="Analisis Aset" tone="teal" />
+                                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                        <KomposisiAset data=d.clone() />
+                                        <NilaiPerJenis data=d.clone() />
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                        <TrenPerolehan data=d.clone() />
+                                        <Show when=move || multi>
+                                            <SatkerTeratas data=d.clone() />
+                                        </Show>
+                                    </div>
+                                </div>
+                            }
+                        })
+                }}
+            </Suspense>
+
+            // ── Analisis kebutuhan & alur ────────────────────────────────
+            <Suspense fallback=|| {
+                view! { <StatCardSkeleton /> }
+            }>
+                {move || {
+                    metrics_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .map(|m| {
+                            let multi_k = is_multi_satker();
+                            let m_satker = m.clone();
+                            // `Show` children are an `Fn` closure that may run
+                            // many times, so it needs its own value rather than
+                            // borrowing one the rest of the view still uses.
+                            view! {
+                                <div class="space-y-4">
+                                    <SectionHeader
+                                        title="Kebutuhan & Alur Persetujuan"
+                                        tone="gold"
+                                    />
+                                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                        <StatusKebutuhan m=m.clone() />
+                                        <Hambatan m=m.clone() />
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                        <TrenKebutuhan m=m.clone() />
+                                        <Show when=move || multi_k>
+                                            <KebutuhanPerSatker m=m_satker.clone() />
+                                        </Show>
+                                    </div>
+                                    <KesenjanganKebutuhan m=m.clone() />
+                                </div>
+                            }
+                        })
+                }}
+            </Suspense>
+
+            // ── Perlengkapan & pengelolaan ───────────────────────────────
+            //
+            // The last three series in the payload, none of which had ever
+            // reached a screen: uniform sizes (what procurement orders), and
+            // the status split of the two pengelolaan modules.
+            <Suspense fallback=|| {
+                view! { <StatCardSkeleton /> }
+            }>
+                {move || {
+                    metrics_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .map(|m| {
+                            let pemakaian = m.pemakaian_metrics.total_by_status.clone();
+                            let penghapusan = m.penghapusan_metrics.total_by_status.clone();
+                            view! {
+                                <div class="space-y-4">
+                                    <SectionHeader title="Perlengkapan & Pengelolaan" tone="teal" />
+                                    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                                        <DistribusiUkuran m=m.clone() />
+                                        <StatusModul
+                                            title="Status Izin Pemakaian"
+                                            subtitle="Seluruh berkas izin pemakaian BMN"
+                                            statuses=pemakaian
+                                        />
+                                    </div>
+                                    <StatusModul
+                                        title="Status Usulan Penghapusan"
+                                        subtitle="Seluruh usulan SK penghapusan BMN"
+                                        statuses=penghapusan
+                                    />
+                                </div>
+                            }
+                        })
                 }}
             </Suspense>
 

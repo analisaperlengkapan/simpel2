@@ -10,8 +10,8 @@
 //! Requirements: REQ-K001, REQ-K002, REQ-K003
 
 use crate::api::{
-    CreateKebutuhanBmnRequest, KebutuhanBmnQuery, KebutuhanBmnSummary, PilihanSatker,
-    UpdateKebutuhanBmnRequest, create_kebutuhan_bmn, fetch_kebutuhan_bmn_list,
+    CreateKebutuhanBmnRequest, KebutuhanBmnQuery, KebutuhanBmnStatus, KebutuhanBmnSummary,
+    PilihanSatker, UpdateKebutuhanBmnRequest, create_kebutuhan_bmn, fetch_kebutuhan_bmn_list,
     update_kebutuhan_bmn,
 };
 use crate::components::layout::PageLayout;
@@ -217,34 +217,23 @@ fn PeriodList(
 
 #[component]
 fn PeriodCard(period: KebutuhanBmnSummary, on_edit: Callback<()>) -> impl IntoView {
-    let status_badge = match period.status_kode {
-        2000 => (
+    // Badge from the shared status enum, not a code range written out here.
+    // The range version mislabelled two states and lost two more: 2006
+    // (Disetujui) read "Selesai", while 2008 — the state that really is
+    // finished — and 2010 fell past `2001..=2005` into a literal "Unknown".
+    let status = KebutuhanBmnStatus::from_code(period.status_kode);
+    let status_badge = (
+        status.map_or(
             "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
-            "Draft",
+            |s| s.badge_class(),
         ),
-        2001..=2005 => (
-            "bg-info-500/15 text-info-300 ring-1 ring-info-500/25",
-            "Aktif",
-        ),
-        2006 => (
-            "bg-success-500/15 text-success-300 ring-1 ring-success-500/25",
-            "Selesai",
-        ),
-        2007 => (
-            "bg-danger-500/15 text-danger-300 ring-1 ring-danger-500/25",
-            "Ditolak",
-        ),
-        2009 => (
-            "bg-slate-500/15 text-slate-400 ring-1 ring-slate-500/25",
-            "Dibatalkan",
-        ),
-        _ => (
-            "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
-            "Unknown",
-        ),
-    };
+        status.map_or("Status tidak dikenal", |s| s.label()),
+    );
 
-    let is_active = period.status_kode >= 2001 && period.status_kode <= 2005;
+    // "Active" is "not yet terminal", which the enum already knows. The old
+    // `2001..=2005` bound happened to name the right five states, but it could
+    // not grow: 2010 (Revisi Wilayah) is in progress and fell outside it.
+    let is_active = status.is_some_and(|s| !s.is_terminal() && s != KebutuhanBmnStatus::Draft);
 
     view! {
         <div class="group relative overflow-hidden rounded-lg border border-white/10 bg-slate-800/50 p-4 transition-all hover:border-white/20 hover:bg-slate-800/80">

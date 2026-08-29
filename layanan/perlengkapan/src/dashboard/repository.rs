@@ -28,6 +28,31 @@ fn aset_and(scope: &AsetScope, params: &mut Vec<BoxedParam>) -> String {
     }
 }
 
+/// Human label for a workflow status, resolved from the seeded master rather
+/// than shown raw.
+///
+/// These two rekaps grouped by the `status` TEXT column and put its literal
+/// contents on screen: users read `KONSEP_SK_GENERATED`, `SUBMIT_WILAYAH`,
+/// `SUBMIT_PUSAT`, `ACTIVE`. The integer `status_kode` beside it (4005, 4001,
+/// 4003, 3004) resolves through `ms_workflow_status` to "Konsep SK Digenerate",
+/// "Diajukan ke Validator Wilayah", "Diajukan ke Validator Pusat", "Aktif" —
+/// which is exactly what `fetch_kebutuhan_metrics` above already does. Doing it
+/// here too means one definition of a status label instead of a translation
+/// table in the frontend that drifts from the seed.
+///
+/// Three levels, in order of how much is actually known:
+///   1. the master's name — the answer whenever the code is seeded;
+///   2. `Kode 4009` when there IS a code but no master row — obviously
+///      unmapped, so a missing seed reads as a gap rather than as a
+///      plausible-looking constant;
+///   3. the raw `status` text when there is no code at all, which is the
+///      legacy shape and at least a real word. An earlier draft of this
+///      constant folded 2 and 3 together and produced "Kode DRAFT" — the test
+///      caught it.
+const STATUS_LABEL_SQL: &str = "COALESCE(w.nama, \
+     CASE WHEN p.status_kode IS NOT NULL THEN 'Kode ' || p.status_kode::text END, \
+     p.status)";
+
 /// `AsetScope` as a complete `WHERE` clause (empty for the unrestricted tier).
 fn aset_where(scope: &AsetScope, params: &mut Vec<BoxedParam>) -> String {
     match scope.push_condition(params) {
@@ -483,12 +508,14 @@ pub async fn fetch_pemakaian_status_metrics(
     // `satker_code` is the authoritative owner column added by V003 — the same
     // one the pemakaian list and detail are scoped on (#66, #875).
     let mut params: Vec<BoxedParam> = Vec::new();
-    let scope_sql = scope_and(scope, "satker_code", &mut params);
+    let scope_sql = scope_and(scope, "p.satker_code", &mut params);
     let sql = format!(
-        "SELECT status, COUNT(*) AS count
-             FROM perlengkapan.izin_pemakaian_bmn
+        "SELECT {STATUS_LABEL_SQL} AS status, COUNT(*) AS count
+             FROM perlengkapan.izin_pemakaian_bmn p
+             LEFT JOIN perlengkapan.ms_workflow_status w
+                    ON w.modul = 'pemakaian_bmn' AND w.kode = p.status_kode
              WHERE TRUE{scope_sql}
-             GROUP BY status"
+             GROUP BY 1"
     );
     let rows = client.query(sql.as_str(), &as_refs(&params)).await?;
     Ok(rows_to_status_metrics(rows))
@@ -501,12 +528,14 @@ pub async fn fetch_penghapusan_status_metrics(
 ) -> Result<ModuleStatusMetrics, AppError> {
     let client = db_pool.get().await?;
     let mut params: Vec<BoxedParam> = Vec::new();
-    let scope_sql = scope_and(scope, "satker_code", &mut params);
+    let scope_sql = scope_and(scope, "p.satker_code", &mut params);
     let sql = format!(
-        "SELECT status, COUNT(*) AS count
-             FROM perlengkapan.penghapusan_bmn
+        "SELECT {STATUS_LABEL_SQL} AS status, COUNT(*) AS count
+             FROM perlengkapan.penghapusan_bmn p
+             LEFT JOIN perlengkapan.ms_workflow_status w
+                    ON w.modul = 'penghapusan_bmn' AND w.kode = p.status_kode
              WHERE TRUE{scope_sql}
-             GROUP BY status"
+             GROUP BY 1"
     );
     let rows = client.query(sql.as_str(), &as_refs(&params)).await?;
     Ok(rows_to_status_metrics(rows))

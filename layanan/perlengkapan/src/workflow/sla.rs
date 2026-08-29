@@ -5,6 +5,7 @@
 // ============================================================================
 
 use crate::contracts::NotificationSender;
+use crate::kebutuhan_bmn::models::KebutuhanBmnStatus;
 use crate::shared::metrics;
 use crate::workflow::config::WorkflowConfig;
 use crate::workflow::notification_types::{
@@ -347,27 +348,36 @@ impl SlaMonitor {
     async fn get_approver_and_requester(&self, entity_id: Uuid) -> Result<(Uuid, Uuid), SlaError> {
         let client = self.db_pool.get().await?;
 
-        let query = r#"
+        // The codes come from the enum, not from a name lookup in
+        // `ms_aktivitas_bmn`. That subquery used to resolve
+        // `('ANALISIS_KELAYAKAN', 'APPROVED')` against a master whose numbering
+        // parted ways with the workflow at 2004: it returned 2004 and 2006,
+        // where 2004 is SubmitPusat. The "approver" this function found was
+        // therefore often the Validator WILAYAH who forwarded the request, and
+        // the SLA escalation went to the wrong official. The Pusat step is
+        // 2005; 2006 is the approval itself.
+        let query = format!(
+            r#"
             SELECT
                 pks.created_by as requester_id,
                 COALESCE(
                     (SELECT user_id
                      FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_aktivitas
                      WHERE pengajuan_satker_id = pks.id
-                     AND to_status_kode IN (
-                         SELECT kode FROM perlengkapan.ms_aktivitas_bmn
-                         WHERE nama IN ('ANALISIS_KELAYAKAN', 'APPROVED')
-                     )
+                     AND to_status_kode IN ({analisis}, {approved})
                      ORDER BY created_at DESC
                      LIMIT 1),
                     pks.created_by
                 ) as approver_id
             FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pks
             WHERE pks.id = $1
-        "#;
+        "#,
+            analisis = KebutuhanBmnStatus::AnalisisKelayakan.to_code(),
+            approved = KebutuhanBmnStatus::Approved.to_code(),
+        );
 
         let row = client
-            .query_opt(query, &[&entity_id])
+            .query_opt(&query, &[&entity_id])
             .await?
             .ok_or_else(|| SlaError::EntityNotFound(entity_id))?;
 

@@ -183,10 +183,12 @@ pub fn LoadingPanel(
 /// />
 /// ```
 #[component]
-// Leptos `view!` macro kadang men-shadow nama variable ke move-closure inner; clippy
-// salah deteksi `on_next` sebagai unused walau dipakai di line ~210. Suppress untuk
-// fungsi ini saja.
-#[allow(unused_variables)]
+// The `#[allow(unused_variables)]` that used to sit here claimed clippy was
+// wrong about `on_next` being unused. Clippy was right: a mangled `>=` had
+// turned this button's `on:click` into a text node, so the callback really was
+// never called — the suppression was hiding a dead "Selanjutnya" button, not a
+// false positive. Do not re-add it; if `on_next` goes unused again, that is
+// the same bug returning.
 pub fn DarkPagination(
     /// Current page number (1-based).
     #[prop(into)]
@@ -226,11 +228,9 @@ pub fn DarkPagination(
                 <button
                     type="button"
                     class="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || current_page.get()
-                >
-                    = total_pages
+                    prop:disabled=move || { current_page.get() >= total_pages }
                     on:click=move |_| on_next.run(())
-                    >
+                >
                     "Selanjutnya"
                     <span class="text-[0.6rem]">
                         <AppIcon icon=CARET_RIGHT />

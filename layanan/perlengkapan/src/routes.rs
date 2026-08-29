@@ -296,6 +296,12 @@ pub fn create_routes(state: AppState) -> Router {
             "/kebutuhan-bmn/laporan/rekap/export",
             get(kebutuhan_bmn::export_rekap_laporan),
         )
+        // Feeds the laporan status filter. Registered next to the recap it
+        // filters so the two stay visibly paired.
+        .route(
+            "/kebutuhan-bmn/laporan/status-options",
+            get(kebutuhan_bmn::get_laporan_status_options),
+        )
         // Pengajuan CRUD
         .route(
             "/kebutuhan-bmn/pengajuan",

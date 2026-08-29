@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 use leptos_router::components::A;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{DATABASE, LIST, MAP_PIN_AREA};
 
 use crate::api::bank_aset::{self, BankAsetDashboard, LastSyncInfo};
@@ -26,7 +27,7 @@ pub fn BankAsetDashboardPage() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            let dash = bank_aset::fetch_dashboard().await;
+            let dash = bank_aset::fetch_dashboard(&Default::default()).await;
             let sync = bank_aset::fetch_last_sync().await;
             match (dash, sync) {
                 (Ok(d), Ok(s)) => {
@@ -101,9 +102,12 @@ pub fn BankAsetDashboardPage() -> impl IntoView {
 
 #[component]
 fn DashboardContent(data: BankAsetDashboard, last_sync: Option<LastSyncInfo>) -> impl IntoView {
+    // Was printed as stored — `2026-08-28T09:28:53.886456Z` — which is both
+    // unreadable and, being UTC, the wrong hour for a reader in WIB.
     let sync_label = last_sync
         .as_ref()
-        .and_then(|s| s.last_sync_at.clone())
+        .and_then(|s| s.last_sync_at.as_deref())
+        .map(format_iso_local)
         .unwrap_or_else(|| "Belum pernah sinkron".to_string());
 
     let total_nilai = format_rupiah(data.total_nilai_perolehan);

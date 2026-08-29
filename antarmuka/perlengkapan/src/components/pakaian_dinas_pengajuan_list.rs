@@ -460,7 +460,7 @@ fn status_badge(status: String, is_open: bool) -> impl IntoView {
 fn render_pengajuan_cards(
     data: Vec<PengajuanPakaianDinas>,
     total: i64,
-    _total_pages: i32,
+    total_pages: i32,
     page: ReadSignal<i32>,
     set_page: WriteSignal<i32>,
     refresh_trigger: RwSignal<i32>,
@@ -571,11 +571,9 @@ fn render_pengajuan_cards(
                 </button>
                 <button
                     class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || page.get()
-                >
-                    = total_pages
+                    prop:disabled=move || { page.get() >= total_pages }
                     on:click=move |_| set_page.update(|p| *p += 1)
-                    >
+                >
                     "Selanjutnya"
                 </button>
             </div>

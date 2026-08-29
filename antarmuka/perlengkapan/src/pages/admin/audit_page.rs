@@ -439,7 +439,7 @@ fn Pagination(
             }
         }
     };
-    let _next_handler = {
+    let next_handler = {
         let on_change = Rc::clone(&on_change);
         move |_: leptos::ev::MouseEvent| {
             let cur = page.get();
@@ -470,11 +470,9 @@ fn Pagination(
                 <button
                     type="button"
                     class="focus-ring rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                    prop:disabled=move || page.get()
-                >
-                    = total_pages.get()
+                    prop:disabled=move || { page.get() >= total_pages.get() }
                     on:click=next_handler
-                    >
+                >
                     "Berikutnya"
                     <span class="ml-1">
                         <AppIcon icon=CARET_RIGHT />

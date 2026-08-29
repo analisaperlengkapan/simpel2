@@ -8,11 +8,21 @@
 //!
 //! Naming: keep the user-facing label to plain "Notifikasi" — "Center" /
 //! "Pusat" was an English-ism that didn't fit the Indonesian context.
+//!
+//! Styling: this page was written against Tailwind's light palette (`bg-white`,
+//! `text-gray-*`) while the app is navy. The consequence was not merely
+//! inconsistent: the title `<span>` carried no colour class, so it inherited
+//! the app's light body colour and rendered white-on-white — every title on
+//! the page was invisible, as were both action buttons. The palette below is
+//! the one the dashboard and laporan pages use.
 
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::notifikasi::{NotifikasiItem, list_notifikasi, mark_all_read, mark_read};
+// Shared with the helpdesk tickets and the bank-aset dashboard, which
+// printed the same stored format the same wrong way.
+use lib_ui::utils::formatters::format_iso_local;
 
 const PAGE_SIZE: i64 = 50;
 
@@ -81,18 +91,21 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
     };
 
     view! {
-        <div class="max-w-4xl mx-auto p-6">
-            <div class="flex items-center justify-between mb-4">
+        <div style="max-width: 900px; margin: 0 auto;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px;">
                 <div>
-                    <h1 class="text-2xl font-bold text-gray-800">"Notifikasi"</h1>
-                    <p class="text-sm text-gray-500">
+                    <h1 style="font-size: 1.4rem; font-weight: 800; color: #e2e8f0; margin: 0;">
+                        "Notifikasi"
+                    </h1>
+                    <p style="font-size: 0.82rem; color: #64748b; margin: 4px 0 0;">
                         "Notifikasi sistem (workflow, tiket bantuan, SLA)."
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
-                    <label class="text-sm text-gray-600 flex items-center gap-2">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: #94a3b8; cursor: pointer;">
                         <input
                             type="checkbox"
+                            style="accent-color: #fbbf24;"
                             prop:checked=move || unread_only.get()
                             on:change=move |ev| set_unread_only.set(event_target_checked(&ev))
                         />
@@ -100,7 +113,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                     </label>
                     <button
                         type="button"
-                        class="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                        style="padding: 7px 14px; font-size: 0.78rem; font-weight: 600; color: #e2e8f0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer;"
                         on:click=on_mark_all
                     >
                         "Tandai semua dibaca"
@@ -109,44 +122,69 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
             </div>
 
             <Show when=move || error.get().is_some()>
-                <div class="mb-3 p-3 bg-red-50 text-red-700 rounded border border-red-200 text-sm">
+                <div style="margin-bottom: 12px; padding: 12px 14px; background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.3); border-radius: 10px; color: #fca5a5; font-size: 0.8rem;">
                     {move || error.get().unwrap_or_default()}
                 </div>
             </Show>
 
             <Show when=move || loading.get()>
-                <div class="text-sm text-gray-400">"Memuat notifikasi..."</div>
+                <div style="font-size: 0.82rem; color: #64748b; padding: 8px 0;">
+                    "Memuat notifikasi..."
+                </div>
             </Show>
 
-            <ul class="space-y-2">
+            <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px;">
                 <For
                     each=move || items.get()
-                    key=|n| n.id.clone()
+                    // Keyed on `read` as well as `id`. With the id alone the
+                    // row was never re-rendered after "Tandai dibaca", because
+                    // `is_unread` below is a plain bool captured at render
+                    // time — the signal updated and the card did not.
+                    key=|n| (n.id.clone(), n.read)
                     children=move |n| {
                         let id = n.id.clone();
                         let is_unread = !n.read;
+                        // Unread is marked by an amber left edge rather than a
+                        // filled background: on a dark surface a tinted card
+                        // reads as "disabled", the opposite of the intent.
+                        let card = format!(
+                            "padding: 14px 16px 14px 18px; background: rgba(255,255,255,0.04); \
+                             border: 1px solid {}; border-left: 3px solid {}; \
+                             border-radius: 12px; display: flex; align-items: flex-start; \
+                             justify-content: space-between; gap: 12px;",
+                            if is_unread {
+                                "rgba(251,191,36,0.28)"
+                            } else {
+                                "rgba(255,255,255,0.07)"
+                            },
+                            if is_unread { "#fbbf24" } else { "transparent" },
+                        );
+                        let waktu = format_iso_local(&n.created_at);
                         view! {
-                            <li
-                                class:bg-blue-50=is_unread
-                                class:border-blue-200=is_unread
-                                class="p-3 bg-white border rounded-lg flex items-start justify-between"
-                            >
-                                <div class="flex-1 mr-3">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium text-sm">{n.title.clone()}</span>
+                            <li style=card>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <span style="font-size: 0.85rem; font-weight: 700; color: #e2e8f0;">
+                                            {n.title.clone()}
+                                        </span>
                                         {category_chip(n.category.clone())}
                                         {priority_chip(n.priority.clone())}
                                     </div>
-                                    <p class="text-sm text-gray-700 mt-1">{n.message.clone()}</p>
-                                    <div class="text-xs text-gray-400 mt-2">
-                                        {n.created_at.clone()}
+                                    <p style="font-size: 0.82rem; color: #cbd5e1; margin: 6px 0 0; line-height: 1.5;">
+                                        {n.message.clone()}
+                                    </p>
+                                    <div style="font-size: 0.72rem; color: #64748b; margin-top: 8px;">
+                                        {waktu}
                                         {n
                                             .action_url
                                             .clone()
                                             .map(|u| {
                                                 view! {
                                                     " · "
-                                                    <a href=u class="text-blue-600 hover:underline">
+                                                    <a
+                                                        href=u
+                                                        style="color: #60a5fa; text-decoration: none; font-weight: 600;"
+                                                    >
                                                         "Buka"
                                                     </a>
                                                 }
@@ -156,7 +194,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                                 <Show when=move || is_unread>
                                     <button
                                         type="button"
-                                        class="text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded"
+                                        style="flex-shrink: 0; padding: 5px 10px; font-size: 0.72rem; font-weight: 600; color: #fbbf24; background: rgba(251,191,36,0.12); border: 1px solid rgba(251,191,36,0.25); border-radius: 7px; cursor: pointer;"
                                         on:click={
                                             let id = id.clone();
                                             move |_| dispatch_mark_one(id.clone(), set_items, set_error)
@@ -172,33 +210,48 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
             </ul>
 
             <Show when=move || !loading.get() && items.get().is_empty()>
-                <p class="text-sm text-gray-400 text-center py-12">"Belum ada notifikasi."</p>
+                <p style="font-size: 0.85rem; color: #64748b; text-align: center; padding: 48px 0;">
+                    "Belum ada notifikasi."
+                </p>
             </Show>
         </div>
     }
 }
 
-fn category_chip(category: String) -> impl IntoView {
-    let (bg, label) = match category.as_str() {
-        "warning" => ("bg-amber-100 text-amber-700", "Peringatan"),
-        "error" => ("bg-red-100 text-red-700", "Kesalahan"),
-        "success" => ("bg-green-100 text-green-700", "Sukses"),
-        "system" => ("bg-gray-100 text-gray-700", "Sistem"),
-        _ => ("bg-blue-100 text-blue-700", "Info"),
-    };
-    view! { <span class=format!("text-[10px] px-2 py-0.5 rounded {}", bg)>{label}</span> }
+/// Tinted on the dark surface rather than Tailwind's `-100/-700` pairs, which
+/// were built for a white page and washed out here.
+fn chip_style(color: &str) -> String {
+    format!(
+        "font-size: 0.65rem; font-weight: 700; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 6px; background: {c}1f; color: {c}; border: 1px solid {c}33; white-space: nowrap;",
+        c = color
+    )
 }
 
+fn category_chip(category: String) -> impl IntoView {
+    let (color, label) = match category.as_str() {
+        "warning" => ("#fbbf24", "Peringatan"),
+        "error" => ("#f87171", "Kesalahan"),
+        "success" => ("#34d399", "Sukses"),
+        "system" => ("#94a3b8", "Sistem"),
+        _ => ("#60a5fa", "Info"),
+    };
+    view! { <span style=chip_style(color)>{label}</span> }
+}
+
+/// Only `high` and `urgent` get a chip — a badge on every row is a badge on
+/// none. Wording is Indonesian like everything else on the page; "URGENT" /
+/// "HIGH" were the raw enum values showing through.
 fn priority_chip(priority: String) -> impl IntoView {
-    let visible = matches!(priority.as_str(), "high" | "urgent");
-    let (bg, label) = match priority.as_str() {
-        "urgent" => ("bg-rose-100 text-rose-700", "URGENT"),
-        "high" => ("bg-orange-100 text-orange-700", "HIGH"),
+    let (color, label) = match priority.as_str() {
+        "urgent" => ("#fb7185", "SEGERA"),
+        "high" => ("#fb923c", "PENTING"),
         _ => ("", ""),
     };
+    let visible = !label.is_empty();
+    let style = chip_style(color);
     view! {
         <Show when=move || visible>
-            <span class=format!("text-[10px] px-2 py-0.5 rounded {}", bg)>{label}</span>
+            <span style=style.clone()>{label}</span>
         </Show>
     }
 }

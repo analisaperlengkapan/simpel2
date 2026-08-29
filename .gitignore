@@ -159,6 +159,12 @@ lerna-debug.log*
 **/*.wasm
 **/*.js
 **/*.d.ts
+# …but the `**/*.js` above is about wasm-bindgen output, not test code. The
+# visual-sweep harness sits in the e2e directory and must be tracked: kept out
+# of the repo it gets re-derived from scratch each session, and on 2026-08-29
+# a re-derivation got the route nesting wrong and photographed the 404 page 24
+# times while reporting full coverage.
+!antarmuka/*/tests/e2e/_*.js
 # Cargo.lock policy:
 # - Binary / application crate (workspace ini): WAJIB tracked untuk reproducible build.
 # - Library-only crate: skip (tapi tidak applicable di sini, semua workspace member jadi binary).

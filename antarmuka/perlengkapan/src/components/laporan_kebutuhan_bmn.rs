@@ -8,7 +8,9 @@
 //! an operator sees only their own satker's items and the exports carry
 //! exactly the rows on screen.
 
-use crate::api::{RekapLaporanRow, fetch_rekap_laporan};
+use crate::api::{
+    RekapLaporanRow, StatusOption, fetch_laporan_status_options, fetch_rekap_laporan,
+};
 // Only the wasm build downloads a file; the host-target stub below is a no-op,
 // so these two are wasm-only imports (see `download_export`).
 #[cfg(target_arch = "wasm32")]
@@ -31,27 +33,45 @@ async fn query_rekap_laporan(
         .map_err(|e| e.to_string())
 }
 
-/// Status codes for the kebutuhan-BMN workflow, from `ms_aktivitas_bmn`
-/// (the 2000-series). Label = the human wording used elsewhere in the UI.
-const STATUS_OPTIONS: [(i32, &str); 10] = [
-    (2000, "Draft"),
-    (2001, "Input Barang"),
-    (2002, "Diajukan ke Validator"),
-    (2003, "Revisi Satker"),
-    (2004, "Analisis Kelayakan"),
-    (2005, "Penyusunan Prioritas"),
-    (2006, "Disetujui"),
-    (2007, "Ditolak"),
-    (2008, "Selesai"),
-    (2009, "Dibatalkan"),
-];
+/// The filter's options come from the server, not from a list here.
+///
+/// A `const` array used to hold them, and it had drifted from the workflow it
+/// described: it named 2004 "Analisis Kelayakan" when 2004 is "Diajukan ke
+/// Validator Pusat", and offered "Penyusunan Prioritas" — a step the workflow
+/// config says was merged away and never existed on its own. Choosing it
+/// filtered for the items actually under analysis, one row off from what the
+/// label promised. `/kebutuhan-bmn/laporan/status-options` reads the same
+/// `ms_workflow_status` rows the status column resolves through, so the two
+/// cannot disagree again.
+async fn query_status_options(_: ()) -> Result<Vec<StatusOption>, String> {
+    fetch_laporan_status_options()
+        .await
+        .map(|r| r.data)
+        .map_err(|e| e.to_string())
+}
 
-fn status_color(kode: i32) -> &'static str {
-    match kode {
-        2006 | 2008 => "#34d399",
-        2007 | 2009 => "#f87171",
-        2002 | 2004 | 2005 => "#fbbf24",
-        _ => "#64748b",
+/// Colour by outcome rather than by a hard-coded code range — the range was
+/// part of what drifted. `is_terminal` comes from the same `ms_workflow_status`
+/// row as the label, so "still moving" (amber) is authoritative.
+///
+/// Splitting the terminal states into red and green is NOT: `ms_workflow_status`
+/// records whether a state is final, not whether it was a good outcome, so this
+/// reads the label for the two stems every module uses ("Ditolak", "Dibatalkan").
+/// A rejection state named something else would read green. The honest fix is a
+/// column on the master; until there is one, this is a stated heuristic and not
+/// a claim.
+fn status_color(opt: Option<&StatusOption>) -> &'static str {
+    match opt {
+        Some(o) if o.is_terminal => {
+            let n = o.nama.to_lowercase();
+            if n.contains("tolak") || n.contains("batal") {
+                "#f87171"
+            } else {
+                "#34d399"
+            }
+        }
+        Some(_) => "#fbbf24",
+        None => "#64748b",
     }
 }
 
@@ -112,6 +132,8 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
     let data = client.local_resource(query_rekap_laporan, move || {
         (tahun.get(), status_filter.get())
     });
+    // Fetched once (constant key); the option list does not depend on filters.
+    let status_options = client.local_resource(query_status_options, || ());
 
     // Year options span a window around the *actual* current year so a fresh
     // campaign is always selectable — the previous hard-coded 2023–2025 list
@@ -182,12 +204,17 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                     }
                 >
                     <option value="">"Semua Status"</option>
-                    {STATUS_OPTIONS
-                        .iter()
-                        .map(|(kode, label)| {
-                            view! { <option value=kode.to_string()>{label.to_string()}</option> }
-                        })
-                        .collect_view()}
+                    {move || {
+                        status_options
+                            .get()
+                            .and_then(|r| r.ok())
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|o| {
+                                view! { <option value=o.kode.to_string()>{o.nama}</option> }
+                            })
+                            .collect_view()
+                    }}
                 </select>
             </div>
 
@@ -196,6 +223,7 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
             }>
                 {move || {
                     let items = data.get().and_then(|r| r.ok()).unwrap_or_default();
+                    let opts = status_options.get().and_then(|r| r.ok()).unwrap_or_default();
                     let total_baris = items.len();
                     let total_diusulkan: i32 = items.iter().map(|i| i.jumlah).sum();
                     let total_disetujui: i32 = items.iter().map(|i| i.jml_setuju).sum();
@@ -274,11 +302,15 @@ pub fn LaporanKebutuhanBmn() -> impl IntoView {
                                                     .satker_nama
                                                     .clone()
                                                     .unwrap_or_else(|| item.satker_id.clone());
+                                                // Label from the row; colour from the option
+                                                // list, so both trace back to the same master.
+                                                let color = status_color(
+                                                    opts.iter().find(|o| o.kode == item.status_kode),
+                                                );
                                                 let status = item
                                                     .status_nama
                                                     .clone()
                                                     .unwrap_or_else(|| "—".to_string());
-                                                let color = status_color(item.status_kode);
                                                 let jumlah = item.jumlah;
                                                 view! {
                                                     <tr style="border-bottom: 1px solid rgba(255,255,255,0.04);">

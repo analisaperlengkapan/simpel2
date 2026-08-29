@@ -272,6 +272,17 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 params.push(Box::new(code.clone()));
                 param_idx += 1;
             }
+            // A cross-satker reader drilled into one region: the region is
+            // named directly instead of being resolved from a member satker.
+            SatkerScope::WilayahKode(wilayah) => {
+                conditions.push(format!(
+                    "ps.satker_id IN (SELECT s.kode_satker FROM integrasi.v_satker_wilayah s \
+                     WHERE s.wilayah_code = ${})",
+                    param_idx
+                ));
+                params.push(Box::new(wilayah.clone()));
+                param_idx += 1;
+            }
         }
 
         if let Some(tahun) = filter.tahun {
@@ -290,8 +301,17 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
-        // `ms_aktivitas_bmn` is the same status-label lookup that
-        // `vw_kebutuhan_bmn_summary` joins; LEFT so an unmapped code still
+        // Label comes from `ms_workflow_status`, NOT `ms_aktivitas_bmn`.
+        // The two masters disagree about this very workflow from 2004 down:
+        // ms_aktivitas_bmn calls 2004 ANALISIS_KELAYAKAN and 2005
+        // PENYUSUNAN_PRIORITAS, while the enum that actually writes the column
+        // (`KebutuhanBmnStatus`) has 2004 = SubmitPusat and 2005 =
+        // AnalisisKelayakan — and says PENYUSUNAN_PRIORITAS is a step this
+        // workflow does not have. Joining the wrong master did not merely
+        // print a raw token; it told a Pusat validator that an item merely
+        // *queued* for them was already under analysis. `ms_workflow_status`
+        // agrees with the enum, and is keyed by `modul` because status codes
+        // are only unique within a module. LEFT so an unmapped code still
         // yields a row (with a NULL label) rather than dropping the item.
         let query = format!(
             r#"
@@ -307,14 +327,14 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 psb.jumlah      AS jumlah,
                 COALESCE(psb.jml_setuju, 0) AS jml_setuju,
                 ps.status_kode  AS status_kode,
-                m.nama          AS status_nama
+                w.nama          AS status_nama
             FROM perlengkapan.pengajuan_kebutuhan_bmn_satker_barang psb
             JOIN perlengkapan.pengajuan_kebutuhan_bmn_satker ps
               ON ps.id = psb.pengajuan_satker_id
             JOIN perlengkapan.pengajuan_kebutuhan_bmn p
               ON p.id = ps.pengajuan_id
-            LEFT JOIN perlengkapan.ms_aktivitas_bmn m
-              ON m.kode = ps.status_kode
+            LEFT JOIN perlengkapan.ms_workflow_status w
+              ON w.kode = ps.status_kode AND w.modul = 'kebutuhan_bmn'
             {}
             ORDER BY p.tahun DESC, ps.satker_nama ASC, psb.nama ASC
             "#,
@@ -346,6 +366,34 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 jml_setuju: r.get("jml_setuju"),
                 status_kode: r.get("status_kode"),
                 status_nama: r.get("status_nama"),
+            })
+            .collect())
+    }
+
+    async fn list_status_options(&self) -> AppResult<Vec<StatusOption>> {
+        let client = self.get_client().await?;
+        let rows = client
+            .query(
+                // `is_terminal` is `boolean DEFAULT false` and therefore
+                // NULLABLE. Decoding a NULL into `bool` panics, and this
+                // workspace builds release with `panic = "abort"`, so that
+                // would take the process down rather than the request.
+                // COALESCE at the source, not a fallible get at the sink.
+                "SELECT kode, nama, COALESCE(is_terminal, false) AS is_terminal
+                 FROM perlengkapan.ms_workflow_status
+                 WHERE modul = 'kebutuhan_bmn'
+                 ORDER BY urutan, kode",
+                &[],
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        Ok(rows
+            .iter()
+            .map(|r| StatusOption {
+                kode: r.get("kode"),
+                nama: r.get("nama"),
+                is_terminal: r.get("is_terminal"),
             })
             .collect())
     }

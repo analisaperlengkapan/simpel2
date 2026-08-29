@@ -53,6 +53,22 @@ pub fn campaign_visibility_condition(
                         WHERE ps.pengajuan_id = p.id AND ps.satker_id = ${i}))"
             ))
         }
+        // Drilled into one region by a reader who may see it: the campaigns
+        // that region can see. `wilayah_id` on a campaign IS the Kejati's
+        // `wilayah_code`, so it compares directly here where the Wilayah tier
+        // below has to resolve the caller's region from their satker first.
+        SatkerScope::WilayahKode(wilayah) => {
+            params.push(Box::new(wilayah.clone()));
+            let i = params.len();
+            Some(format!(
+                "id IN (SELECT pp.id FROM perlengkapan.pengajuan_kebutuhan_bmn pp \
+                 WHERE pp.scope_satker = 'semua' \
+                    OR (pp.scope_satker = 'wilayah' AND pp.wilayah_id = ${i}) \
+                    OR EXISTS (SELECT 1 FROM perlengkapan.pengajuan_kebutuhan_bmn_satker pt \
+                        JOIN integrasi.v_satker_wilayah ms ON ms.kode_satker = pt.satker_id \
+                        WHERE pt.pengajuan_id = pp.id AND ms.wilayah_code = ${i}))"
+            ))
+        }
         SatkerScope::Wilayah(code) => {
             params.push(Box::new(code.clone()));
             let i = params.len();

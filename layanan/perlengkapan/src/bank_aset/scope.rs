@@ -56,6 +56,10 @@ pub enum AsetScope {
     All,
     /// Restrict to the caller's wilayah. Holds the caller MySIMKARI `kode_satker`.
     Wilayah(String),
+    /// Restrict to ONE region by its SIMAN `wilayah_kode` (digits 6-9 of
+    /// `kdsatker_keu`). Produced only by [`AsetScope::narrowed_to_wilayah`];
+    /// never derived from claims.
+    WilayahKode(String),
     /// Restrict to the caller's own satker. Holds the caller MySIMKARI `kode_satker`.
     Satker(String),
     /// Fail closed — no satker identity. Yields zero rows.
@@ -83,6 +87,40 @@ impl AsetScope {
             "validator_wilayah" => Self::Wilayah(code.to_string()),
             // operator_satker, validator_satker, and any other satker-bound role.
             _ => Self::Satker(code.to_string()),
+        }
+    }
+
+    /// Narrow to a SINGLE satker for a drill-down. Mirrors
+    /// [`crate::shared::satker_scope::SatkerScope::narrowed_to`] so the two
+    /// halves of a filtered dashboard cannot end up describing different
+    /// populations.
+    ///
+    /// `code` is a MySIMKARI `kode_satker`; the mapping to `kdsatker_keu`
+    /// happens in the predicate, as it does for the untouched tiers.
+    pub fn narrowed_to(&self, code: &str, in_scope: bool) -> Self {
+        let allowed = match self {
+            Self::All => true,
+            Self::Denied => false,
+            Self::Satker(own) => own == code,
+            Self::Wilayah(_) | Self::WilayahKode(_) => in_scope,
+        };
+        if allowed {
+            Self::Satker(code.to_string())
+        } else {
+            Self::Denied
+        }
+    }
+
+    /// Narrow to one region by SIMAN `wilayah_kode`. Only a reader who already
+    /// sees everything may pick an arbitrary region; a regional validator may
+    /// pick only their own, and a satker-tier reader may not widen to one.
+    pub fn narrowed_to_wilayah(&self, wilayah_kode: &str, caller_wilayah: Option<&str>) -> Self {
+        match self {
+            Self::All => Self::WilayahKode(wilayah_kode.to_string()),
+            Self::Wilayah(_) if caller_wilayah == Some(wilayah_kode) => {
+                Self::WilayahKode(wilayah_kode.to_string())
+            }
+            _ => Self::Denied,
         }
     }
 
@@ -114,6 +152,13 @@ impl AsetScope {
                      (SELECT wilayah_kode FROM integrasi.v_satker_code_map \
                       WHERE kode_satker = ${i} AND wilayah_kode IS NOT NULL)"
                 ))
+            }
+            Self::WilayahKode(wilayah) => {
+                params.push(Box::new(wilayah.clone()));
+                let i = params.len();
+                // The region compared directly, which is what the tier above
+                // resolves to anyway — one less subquery for the same rows.
+                Some(format!("substring(kdsatker_keu FROM 6 FOR 4) = ${i}"))
             }
         }
     }

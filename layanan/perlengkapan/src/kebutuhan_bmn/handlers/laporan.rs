@@ -15,7 +15,7 @@ use axum::{
     extract::{Query, State},
 };
 
-use crate::kebutuhan_bmn::models::{RekapLaporanFilter, RekapLaporanRow};
+use crate::kebutuhan_bmn::models::{RekapLaporanFilter, RekapLaporanRow, StatusOption};
 use crate::kebutuhan_bmn::services::KebutuhanBmnService;
 use crate::shared::error::{AppError, bad_request};
 use crate::shared::middleware::Claims;
@@ -41,6 +41,22 @@ pub async fn get_rekap_laporan(
     Ok(Json(ApiResponse::success(
         rows,
         "Rekap laporan kebutuhan BMN".to_string(),
+    )))
+}
+
+/// GET /kebutuhan-bmn/laporan/status-options
+///
+/// The statuses the laporan filter may offer. Served rather than hard-coded in
+/// the frontend because the hard-coded copy had drifted from the workflow: it
+/// listed a step that does not exist and mislabelled two that do.
+pub async fn get_laporan_status_options(
+    State(service): State<KebutuhanBmnService>,
+    _claims: Claims,
+) -> Result<Json<ApiResponse<Vec<StatusOption>>>, AppError> {
+    let options = service.list_status_options().await?;
+    Ok(Json(ApiResponse::success(
+        options,
+        "Daftar status kebutuhan BMN".to_string(),
     )))
 }
 

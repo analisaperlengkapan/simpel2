@@ -7,6 +7,7 @@ mod integration {
     mod kebutuhan_analisis_siman_test;
     mod kebutuhan_bmn_scope_test;
     mod kebutuhan_bmn_workflow_test;
+    mod kebutuhan_laporan_status_label_test;
     mod kebutuhan_search_test;
     mod pakaian_dinas_campaign_scope_test;
     mod pakaian_dinas_pegawai_scope_test;
