@@ -148,6 +148,10 @@ pub struct LastSyncInfo {
 pub struct FilterOption {
     pub value: String,
     pub count: i64,
+    /// Human label when `value` is a code. `None` when the value IS the label
+    /// (jenis, kategori, kondisi), so existing dropdowns are unaffected.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 /// Distinct values per filterable column, served to the FE so filter dropdowns
@@ -158,5 +162,18 @@ pub struct BankAsetFilterOptions {
     pub jenis: Vec<FilterOption>,
     pub kategori: Vec<FilterOption>,
     pub kondisi: Vec<FilterOption>,
+    /// Satker by NAME. Legacy: the Bank Aset list filters `nama_satker`, and
+    /// its dropdown is built from this. Two satkers can share a name (554
+    /// distinct names for 556 distinct codes on staging), so a name-keyed
+    /// filter silently merges them.
     pub satker: Vec<FilterOption>,
+    /// Satker by CODE — `value` is `kdsatker_keu`, `label` the name. This is
+    /// the identity, and what the dashboard drill-down filters on.
+    #[serde(default)]
+    pub satker_kode: Vec<FilterOption>,
+    /// Wilayah by code — `value` is digits 6-9 of `kdsatker_keu`, the same
+    /// expression `AsetScope`'s wilayah tier compares against, so "filter to
+    /// this region" and "be a validator of this region" select the same rows.
+    #[serde(default)]
+    pub wilayah: Vec<FilterOption>,
 }

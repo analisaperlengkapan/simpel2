@@ -115,34 +115,7 @@ impl BankAsetRepository {
             conditions.push(cond);
         }
 
-        if let Some(jenis) = &filter.jenis {
-            params.push(Box::new(jenis.clone()));
-            conditions.push(format!("jenis_aset = ${}", params.len()));
-        }
-        if let Some(cat) = &filter.kategori {
-            params.push(Box::new(cat.clone()));
-            conditions.push(format!("{ASSET_KATEGORI_SQL} = ${}", params.len()));
-        }
-        if let Some(kondisi) = &filter.kondisi {
-            params.push(Box::new(kondisi.clone()));
-            conditions.push(format!("ur_kondisi = ${}", params.len()));
-        }
-        if let Some(satker) = &filter.satker {
-            params.push(Box::new(satker.clone()));
-            conditions.push(format!("nama_satker = ${}", params.len()));
-        }
-        if let Some(q) = &filter.search {
-            // `no_aset` in this list is what makes the FE placeholder
-            // "Cari nama/kode/NUP/merk..." truthful: NUP *is* `no_aset` (see
-            // ASSET_NUP_SQL), so searching by NUP resolves here. Searching the
-            // `nup` column instead would match nothing but the e2e seed rows.
-            params.push(Box::new(format!("%{}%", q)));
-            let idx = params.len();
-            conditions.push(format!(
-                "(ur_sskel ILIKE ${idx} OR nama ILIKE ${idx} OR kd_brg ILIKE ${idx} OR no_aset ILIKE ${idx} OR merk ILIKE ${idx})",
-                idx = idx
-            ));
-        }
+        push_asset_filters(&filter.f, &mut params, &mut conditions);
 
         let where_clause = if conditions.is_empty() {
             String::new()
@@ -386,26 +359,47 @@ impl BankAsetRepository {
             .ok_or_else(|| not_found("Aset", &id.to_string()))
     }
 
-    pub async fn dashboard(&self, scope: &AsetScope) -> AppResult<BankAsetDashboard> {
+    /// Summary of the caller's visible assets, narrowed by `filter`.
+    ///
+    /// The filter arrives on the SIGNATURE rather than being applied afterwards
+    /// so that every one of the six queries below is built from the same
+    /// `where_clause` — a summary whose totals answer one question and whose
+    /// breakdown answers another is worse than no summary.
+    pub async fn dashboard(
+        &self,
+        filter: &AsetFilter,
+        scope: &AsetScope,
+    ) -> AppResult<BankAsetDashboard> {
         let client = self
             .pool
             .get()
             .await
             .map_err(|e| AppError::Internal(format!("DB conn: {}", e)))?;
 
-        // RBAC scope predicate (references `$1` when present); shared by every
-        // aggregate below. `where_clause` for queries without a WHERE, `and_clause`
-        // for the one that already has one.
+        // RBAC scope predicate FIRST, then the caller's filters — the order is
+        // the guarantee. A filter appended to an already-scoped condition list
+        // can only ever remove rows, so `?satker_kode=` belonging to another
+        // region yields an empty summary rather than that region's summary.
+        // Reversing these two lines is how a drill-down becomes a leak.
         let mut scope_params: Vec<BoxedParam> = Vec::new();
-        let scope_cond = scope.push_condition(&mut scope_params);
-        let where_clause = scope_cond
-            .as_ref()
-            .map(|c| format!(" WHERE {c}"))
-            .unwrap_or_default();
-        let and_clause = scope_cond
-            .as_ref()
-            .map(|c| format!(" AND {c}"))
-            .unwrap_or_default();
+        let mut conditions: Vec<String> = Vec::new();
+        if let Some(cond) = scope.push_condition(&mut scope_params) {
+            conditions.push(cond);
+        }
+        push_asset_filters(filter, &mut scope_params, &mut conditions);
+
+        // `where_clause` for queries without a WHERE, `and_clause` for the one
+        // that already has one.
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", conditions.join(" AND "))
+        };
+        let and_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!(" AND {}", conditions.join(" AND "))
+        };
         let p = as_sql_params(&scope_params);
 
         let totals = client
@@ -685,9 +679,72 @@ impl BankAsetRepository {
                 .map(|r| FilterOption {
                     value: r.get("value"),
                     count: r.get("count"),
+                    label: None,
                 })
                 .collect())
         }
+
+        // Code-keyed options carry a separate label, so they need their own
+        // query rather than the `distinct` helper above.
+        //
+        // Both read the asset table through a SUBQUERY that carries the scope
+        // predicate. That is not stylistic: the predicate names `kdsatker_keu`
+        // unqualified, and the joins below introduce a second column of that
+        // name — spliced into the outer query it would be ambiguous, and
+        // Postgres would reject it at parse time.
+        let satker_kode_sql = format!(
+            "SELECT a.kdsatker_keu AS value,
+                    MIN(a.nama_satker) AS label,
+                    COUNT(*)::BIGINT AS count
+               FROM (SELECT kdsatker_keu, nama_satker
+                       FROM integrasi.siman_aset
+                      WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
+              GROUP BY a.kdsatker_keu
+              ORDER BY count DESC, value ASC
+              LIMIT {FILTER_OPTION_LIMIT}"
+        );
+        let satker_kode = client
+            .query(&satker_kode_sql, &scope_p)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .iter()
+            .map(|r| FilterOption {
+                value: r.get("value"),
+                count: r.get("count"),
+                label: r.get::<_, Option<String>>("label"),
+            })
+            .collect();
+
+        // Wilayah label comes from `v_satker_wilayah` — THE definition of the
+        // tier (integrasi migration 005), the same one every MySIMKARI-side
+        // scope climbs. Falling back to the bare code keeps SIMAN-only satkers
+        // (65 on staging, whose kode_satker MySIMKARI does not know) visible
+        // rather than dropping their region from the list.
+        let wilayah_sql = format!(
+            "SELECT a.wk AS value,
+                    MIN(w.wilayah_nama) AS label,
+                    COUNT(*)::BIGINT AS count
+               FROM (SELECT substring(kdsatker_keu FROM 6 FOR 4) AS wk, kdsatker_keu
+                       FROM integrasi.siman_aset
+                      WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
+               LEFT JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
+               LEFT JOIN integrasi.v_satker_wilayah  w ON w.kode_satker  = m.kode_satker
+              WHERE a.wk IS NOT NULL AND a.wk <> ''
+              GROUP BY a.wk
+              ORDER BY count DESC, value ASC
+              LIMIT {FILTER_OPTION_LIMIT}"
+        );
+        let wilayah = client
+            .query(&wilayah_sql, &scope_p)
+            .await
+            .map_err(|e| AppError::Database(e.to_string()))?
+            .iter()
+            .map(|r| FilterOption {
+                value: r.get("value"),
+                count: r.get("count"),
+                label: r.get::<_, Option<String>>("label"),
+            })
+            .collect();
 
         Ok(BankAsetFilterOptions {
             jenis: distinct(&client, "jenis_aset", &and_clause, &scope_p).await?,
@@ -697,19 +754,115 @@ impl BankAsetRepository {
             kategori: distinct(&client, ASSET_KATEGORI_SQL, &and_clause, &scope_p).await?,
             kondisi: distinct(&client, "ur_kondisi", &and_clause, &scope_p).await?,
             satker: distinct(&client, "nama_satker", &and_clause, &scope_p).await?,
+            satker_kode,
+            wilayah,
         })
     }
+}
+
+/// The SIMAN-asset predicate, shared by every surface that reads
+/// `integrasi.siman_aset`.
+///
+/// It exists so the list and the dashboard cannot disagree about what a filter
+/// MEANS. They used to: the list honoured jenis/kategori/kondisi/satker while
+/// the dashboard honoured nothing at all, so "Peralatan Mesin Non TIK" narrowed
+/// a table and left the summary above it describing the whole population.
+///
+/// Every field NARROWS. None of them can widen: [`push_asset_filters`] is only
+/// ever called after the caller's [`AsetScope`] predicate is already in the
+/// condition list, so the strongest thing a filter can do to an out-of-scope
+/// satker is return nothing.
+#[derive(Debug, Default, Clone)]
+pub struct AsetFilter {
+    pub jenis: Option<String>,
+    pub kategori: Option<String>,
+    pub kondisi: Option<String>,
+    /// Legacy: matches `nama_satker` exactly. Kept because the Bank Aset page's
+    /// dropdown is populated with names; prefer [`Self::satker_kode`].
+    pub satker: Option<String>,
+    /// The satker's SIMAN finance code (`kdsatker_keu`) — the identity, where
+    /// `satker` above is a label two satkers can share (554 distinct names for
+    /// 556 distinct codes on staging).
+    pub satker_kode: Option<String>,
+    /// SIMAN wilayah code, digits 6-9 of `kdsatker_keu` — the same expression
+    /// [`AsetScope`]'s wilayah tier compares against, so a pusat user filtering
+    /// to a region sees exactly what that region's validator sees.
+    pub wilayah: Option<String>,
+    /// Acquisition date bounds, inclusive, as `YYYY-MM-DD`.
+    pub tgl_from: Option<String>,
+    pub tgl_to: Option<String>,
+    pub search: Option<String>,
 }
 
 pub struct ListFilter {
     pub page: i32,
     pub per_page: i32,
-    pub jenis: Option<String>,
-    pub kategori: Option<String>,
-    pub kondisi: Option<String>,
-    pub satker: Option<String>,
-    pub search: Option<String>,
     pub sort: Option<String>,
+    pub f: AsetFilter,
+}
+
+/// Append `filter` as extra `AND` conditions. Call AFTER the scope predicate.
+///
+/// `tgl_perlh` is compared as TEXT rather than cast to `date`. That is not
+/// laziness: the column IS text, and every one of the 624 533 staging rows is
+/// ISO `YYYY-MM-DD` (measured: zero rows fail `^\d{4}-\d{2}-\d{2}$`), for
+/// which lexicographic order and calendar order are the same. A `::date` cast
+/// would be equivalent today and would throw on the first malformed row a
+/// future ingest writes — and with `panic = "abort"` that is the process, not
+/// the request.
+pub fn push_asset_filters(
+    filter: &AsetFilter,
+    params: &mut Vec<BoxedParam>,
+    conditions: &mut Vec<String>,
+) {
+    if let Some(jenis) = &filter.jenis {
+        params.push(Box::new(jenis.clone()));
+        conditions.push(format!("jenis_aset = ${}", params.len()));
+    }
+    if let Some(cat) = &filter.kategori {
+        params.push(Box::new(cat.clone()));
+        conditions.push(format!("{ASSET_KATEGORI_SQL} = ${}", params.len()));
+    }
+    if let Some(kondisi) = &filter.kondisi {
+        params.push(Box::new(kondisi.clone()));
+        conditions.push(format!("ur_kondisi = ${}", params.len()));
+    }
+    if let Some(satker) = &filter.satker {
+        params.push(Box::new(satker.clone()));
+        conditions.push(format!("nama_satker = ${}", params.len()));
+    }
+    if let Some(kode) = &filter.satker_kode {
+        params.push(Box::new(kode.clone()));
+        conditions.push(format!("kdsatker_keu = ${}", params.len()));
+    }
+    if let Some(w) = &filter.wilayah {
+        params.push(Box::new(w.clone()));
+        conditions.push(format!(
+            "substring(kdsatker_keu FROM 6 FOR 4) = ${}",
+            params.len()
+        ));
+    }
+    if let Some(from) = &filter.tgl_from {
+        params.push(Box::new(from.clone()));
+        conditions.push(format!("tgl_perlh >= ${}", params.len()));
+    }
+    if let Some(to) = &filter.tgl_to {
+        params.push(Box::new(to.clone()));
+        conditions.push(format!("tgl_perlh <= ${}", params.len()));
+    }
+    if let Some(q) = &filter.search {
+        // `no_aset` in this list is what makes the FE placeholder
+        // "Cari nama/kode/NUP/merk..." truthful: NUP *is* `no_aset` (see
+        // ASSET_NUP_SQL), so searching by NUP resolves here. Searching the
+        // `nup` column instead would match nothing but the e2e seed rows.
+        params.push(Box::new(format!("%{}%", q)));
+        let idx = params.len();
+        conditions.push(format!(
+            "(ur_sskel ILIKE ${idx} OR nama ILIKE ${idx} OR kd_brg ILIKE ${idx} \
+             OR no_aset ILIKE ${idx} OR merk ILIKE ${idx})",
+            idx = idx
+        ));
+    }
 }
 
 // The release profile builds with panic=abort, so ANY decode panic here kills

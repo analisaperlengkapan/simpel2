@@ -387,7 +387,10 @@ pub fn DistribusiUkuran(m: PerlengkapanDashboardMetrics) -> impl IntoView {
     view! {
         <Panel
             title="Distribusi Ukuran Pakaian Dinas"
-            subtitle=format!("Dari {} pengajuan pada tahun berjalan", format_id(jenis as f64))
+            subtitle=format!(
+                "Jumlah pegawai per ukuran, dari {} kampanye tahun berjalan",
+                format_id(jenis as f64),
+            )
         >
             <HBarChart slices=slices />
         </Panel>

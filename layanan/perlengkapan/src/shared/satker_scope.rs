@@ -60,6 +60,10 @@ pub enum SatkerScope {
     All,
     /// Restrict to the caller's wilayah. Holds the caller MySIMKARI `kode_satker`.
     Wilayah(String),
+    /// Restrict to ONE wilayah by its Kejati `wilayah_code`. Produced only by
+    /// [`SatkerScope::narrowed_to_wilayah`] when a cross-satker reader drills
+    /// into a region; never derived from claims.
+    WilayahKode(String),
     /// Restrict to the caller's own satker. Holds the caller MySIMKARI `kode_satker`.
     Satker(String),
     /// Fail closed — no satker identity. Yields zero rows.
@@ -101,7 +105,44 @@ impl SatkerScope {
             Self::All => Some(true),
             Self::Denied => Some(false),
             Self::Satker(own) => Some(own == code),
-            Self::Wilayah(_) => None,
+            Self::Wilayah(_) | Self::WilayahKode(_) => None,
+        }
+    }
+
+    /// Narrow this scope to a SINGLE satker for a drill-down.
+    ///
+    /// `in_scope` is the database answer to "is `code` inside this scope",
+    /// needed only for the wilayah tiers — pass the result of the repository's
+    /// `satker_code_in_scope`; it is ignored for the tiers
+    /// [`Self::contains_code_local`] can settle without a query.
+    ///
+    /// This is the whole safety argument for the dashboard drill-down, and the
+    /// reason it is a scope TRANSFORM rather than an extra `AND` at each of the
+    /// thirteen places a scope is applied: narrowing cannot widen. A caller who
+    /// may not see `code` gets [`Self::Denied`], and every query downstream
+    /// inherits it without needing to remember anything.
+    pub fn narrowed_to(&self, code: &str, in_scope: bool) -> Self {
+        if self.contains_code_local(code).unwrap_or(in_scope) {
+            Self::Satker(code.to_string())
+        } else {
+            Self::Denied
+        }
+    }
+
+    /// Narrow to one wilayah, identified by its Kejati `wilayah_code`.
+    ///
+    /// `caller_wilayah` is the caller's own region (`None` for cross-satker
+    /// roles, who have no single one). Only a reader who already sees the whole
+    /// country, or who is a validator of exactly that region, may select it —
+    /// anyone else gets [`Self::Denied`].
+    pub fn narrowed_to_wilayah(&self, wilayah_code: &str, caller_wilayah: Option<&str>) -> Self {
+        match self {
+            Self::All => Self::WilayahKode(wilayah_code.to_string()),
+            Self::Wilayah(_) if caller_wilayah == Some(wilayah_code) => {
+                Self::WilayahKode(wilayah_code.to_string())
+            }
+            // A satker-tier reader selecting their own region would be widening.
+            _ => Self::Denied,
         }
     }
 
@@ -141,6 +182,16 @@ impl SatkerScope {
                 params.push(Box::new(code.clone()));
                 let i = params.len();
                 Some(format!("{col} = ${i}"))
+            }
+            Self::WilayahKode(wilayah) => {
+                params.push(Box::new(wilayah.clone()));
+                let i = params.len();
+                // The region named directly, rather than resolved from a member
+                // satker — same view, same column, one less indirection.
+                Some(format!(
+                    "{col} IN (SELECT s.kode_satker FROM integrasi.v_satker_wilayah s \
+                     WHERE s.wilayah_code = ${i})"
+                ))
             }
             Self::Wilayah(code) => {
                 params.push(Box::new(code.clone()));
@@ -327,4 +378,124 @@ mod tests {
         assert!(cond.contains("$1"));
         assert_eq!(p.len(), 1);
     }
+}
+
+/// Resolve the drill-down a request asked for, against the scope its claims
+/// grant.
+///
+/// One place, because the alternative is every dashboard-ish endpoint growing
+/// its own membership check — which is exactly how `satker_code_in_scope` came
+/// to have three verbatim copies before it moved into this module.
+///
+/// Returns the pair the caller should actually query with. When the request
+/// names no drill-down, the scopes come back untouched; when it names one the
+/// caller may not see, both come back [`SatkerScope::Denied`] /
+/// [`crate::bank_aset::AsetScope::Denied`] — an empty dashboard, never someone
+/// else's.
+pub async fn narrow_for_request(
+    pool: &deadpool_postgres::Pool,
+    scope: &SatkerScope,
+    aset: &crate::bank_aset::AsetScope,
+    satker: Option<&str>,
+    wilayah: Option<&str>,
+) -> Result<(SatkerScope, crate::bank_aset::AsetScope), crate::shared::error::AppError> {
+    // A single satker wins over a region: it is the narrower of the two, and
+    // accepting both would leave "which one applies?" to query-string order.
+    if let Some(code) = satker.map(str::trim).filter(|s| !s.is_empty()) {
+        // Only the wilayah tiers need the database to answer; the others are
+        // settled by `contains_code_local` and the flag is ignored.
+        let in_scope = match scope.contains_code_local(code) {
+            Some(v) => v,
+            None => {
+                let SatkerScope::Wilayah(caller) = scope else {
+                    // WilayahKode is never a claims-derived tier, so a
+                    // drill-down from one is a second narrowing: allow it only
+                    // within the region already selected.
+                    return Ok((SatkerScope::Denied, crate::bank_aset::AsetScope::Denied));
+                };
+                let client = pool.get().await?;
+                let row = client
+                    .query_one(SatkerScope::WILAYAH_MEMBERSHIP_SQL, &[&code, &caller])
+                    .await
+                    .map_err(|e| {
+                        crate::shared::error::AppError::Database(format!("satker membership: {e}"))
+                    })?;
+                row.get::<_, bool>("in_scope")
+            }
+        };
+        return Ok((
+            scope.narrowed_to(code, in_scope),
+            aset.narrowed_to(code, in_scope),
+        ));
+    }
+
+    if let Some(w) = wilayah.map(str::trim).filter(|s| !s.is_empty()) {
+        // `w` is SIMAN's `wilayah_kode` (digits 6-9 of `kdsatker_keu`) — what
+        // `/bank-aset/filter-options` serves. The two scopes speak DIFFERENT
+        // code systems for the same region: `AsetScope` compares that SIMAN
+        // code, while `SatkerScope` compares the Kejati's MySIMKARI
+        // `wilayah_code`. Handing one string to both would silently scope the
+        // perlengkapan half to nothing while the SIMAN half narrowed
+        // correctly — a half-filtered dashboard, which is worse than an
+        // unfiltered one because it looks like it worked.
+        //
+        // They ARE a measured bijection (see the note in bank_aset::scope), so
+        // the translation is a lookup, not a guess.
+        let client = pool.get().await?;
+        let kejati: Option<String> = client
+            .query_opt(
+                "SELECT w.wilayah_code
+                   FROM integrasi.v_satker_code_map m
+                   JOIN integrasi.v_satker_wilayah  w ON w.kode_satker = m.kode_satker
+                  WHERE m.wilayah_kode = $1
+                  LIMIT 1",
+                &[&w],
+            )
+            .await
+            .map_err(|e| {
+                crate::shared::error::AppError::Database(format!("wilayah translation: {e}"))
+            })?
+            .map(|r| r.get::<_, String>("wilayah_code"));
+
+        // The caller's own region in BOTH spellings, so each half compares
+        // like with like. `None` for cross-satker roles, who have no single
+        // region and may therefore select any.
+        let (caller_kejati, caller_siman) = match scope {
+            SatkerScope::Wilayah(code) => {
+                let row = client
+                    .query_opt(
+                        "SELECT w.wilayah_code, m.wilayah_kode
+                           FROM integrasi.v_satker_wilayah w
+                           LEFT JOIN integrasi.v_satker_code_map m ON m.kode_satker = w.kode_satker
+                          WHERE w.kode_satker = $1",
+                        &[code],
+                    )
+                    .await
+                    .map_err(|e| {
+                        crate::shared::error::AppError::Database(format!("caller wilayah: {e}"))
+                    })?;
+                match row {
+                    Some(r) => (
+                        Some(r.get::<_, String>("wilayah_code")),
+                        r.get::<_, Option<String>>("wilayah_kode"),
+                    ),
+                    None => (None, None),
+                }
+            }
+            _ => (None, None),
+        };
+
+        // An unmappable region fails closed rather than falling through to an
+        // unnarrowed scope.
+        let satker_scope = match kejati.as_deref() {
+            Some(k) => scope.narrowed_to_wilayah(k, caller_kejati.as_deref()),
+            None => SatkerScope::Denied,
+        };
+        return Ok((
+            satker_scope,
+            aset.narrowed_to_wilayah(w, caller_siman.as_deref()),
+        ));
+    }
+
+    Ok((scope.clone(), aset.clone()))
 }

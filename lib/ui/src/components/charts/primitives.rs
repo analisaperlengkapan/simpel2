@@ -347,7 +347,23 @@ pub fn TrendLine(
         .map(|(l, v)| format!("{l}: {}", format_id(*v)))
         .collect::<Vec<_>>()
         .join(", ");
-    let labels: Vec<String> = points.iter().map(|(l, _)| l.clone()).collect();
+    // Thin the axis so the labels stay readable. Twenty-eight acquisition years
+    // rendered every label and produced "2007200820092010..." — a solid bar of
+    // digits that says less than no axis at all. First and last are always kept
+    // so the range is still legible; the gaps between them are evenly spaced.
+    let n = points.len();
+    let keep_every = ((n as f64) / 6.0).ceil().max(1.0) as usize;
+    let labels: Vec<String> = points
+        .iter()
+        .enumerate()
+        .map(|(i, (l, _))| {
+            if i == 0 || i == n - 1 || i % keep_every == 0 {
+                l.clone()
+            } else {
+                String::new()
+            }
+        })
+        .collect();
     let last = points
         .last()
         .map(|(_, v)| format_id(*v))
@@ -379,7 +395,7 @@ pub fn TrendLine(
                     })}
             </svg>
             <div class="mt-1 flex justify-between text-[11px] text-slate-500">
-                {labels.into_iter().map(|l| view! { <span>{l}</span> }).collect_view()}
+                {labels.into_iter().map(|l| view! { <span class="tabular-nums">{l}</span> }).collect_view()}
             </div>
             <p class="sr-only">{format!("Nilai terakhir: {last}")}</p>
         </div>

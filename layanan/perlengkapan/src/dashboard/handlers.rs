@@ -33,8 +33,19 @@ pub async fn get_perlengkapan_dashboard_metrics(
     // Selatan and Bandung.
     claims: Claims,
 ) -> Result<Json<PerlengkapanDashboardMetrics>, AppError> {
-    let scope = SatkerScope::from_claims(&claims);
-    let aset_scope = AsetScope::from_claims(&claims);
+    // The drill-down is resolved against the caller's claims, never instead of
+    // them: `narrow_for_request` can only return a NARROWER scope, or Denied.
+    // Exports resolve it the same way — one that ignored the filter would hand
+    // back the whole region when the reader asked for one satker, and one that
+    // applied it instead of the scope would be #871 in a downloadable form.
+    let (scope, aset_scope) = crate::shared::satker_scope::narrow_for_request(
+        &state.db_pool,
+        &SatkerScope::from_claims(&claims),
+        &AsetScope::from_claims(&claims),
+        params.satker.as_deref(),
+        params.wilayah.as_deref(),
+    )
+    .await?;
     let metrics = state
         .dashboard_service
         .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)
@@ -60,8 +71,19 @@ pub async fn export_dashboard_excel(
 ) -> Result<impl IntoResponse, AppError> {
     // Same scope as the on-screen dashboard: an export that widened what the
     // page shows would be the leak all over again in a downloadable form.
-    let scope = SatkerScope::from_claims(&claims);
-    let aset_scope = AsetScope::from_claims(&claims);
+    // The drill-down is resolved against the caller's claims, never instead of
+    // them: `narrow_for_request` can only return a NARROWER scope, or Denied.
+    // Exports resolve it the same way — one that ignored the filter would hand
+    // back the whole region when the reader asked for one satker, and one that
+    // applied it instead of the scope would be #871 in a downloadable form.
+    let (scope, aset_scope) = crate::shared::satker_scope::narrow_for_request(
+        &state.db_pool,
+        &SatkerScope::from_claims(&claims),
+        &AsetScope::from_claims(&claims),
+        params.satker.as_deref(),
+        params.wilayah.as_deref(),
+    )
+    .await?;
     let metrics = state
         .dashboard_service
         .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)
@@ -107,8 +129,19 @@ pub async fn export_dashboard_pdf(
 ) -> Result<impl IntoResponse, AppError> {
     // Same scope as the on-screen dashboard: an export that widened what the
     // page shows would be the leak all over again in a downloadable form.
-    let scope = SatkerScope::from_claims(&claims);
-    let aset_scope = AsetScope::from_claims(&claims);
+    // The drill-down is resolved against the caller's claims, never instead of
+    // them: `narrow_for_request` can only return a NARROWER scope, or Denied.
+    // Exports resolve it the same way — one that ignored the filter would hand
+    // back the whole region when the reader asked for one satker, and one that
+    // applied it instead of the scope would be #871 in a downloadable form.
+    let (scope, aset_scope) = crate::shared::satker_scope::narrow_for_request(
+        &state.db_pool,
+        &SatkerScope::from_claims(&claims),
+        &AsetScope::from_claims(&claims),
+        params.satker.as_deref(),
+        params.wilayah.as_deref(),
+    )
+    .await?;
     let metrics = state
         .dashboard_service
         .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)

@@ -272,6 +272,17 @@ impl KebutuhanBmnRepository for PgKebutuhanBmnRepository {
                 params.push(Box::new(code.clone()));
                 param_idx += 1;
             }
+            // A cross-satker reader drilled into one region: the region is
+            // named directly instead of being resolved from a member satker.
+            SatkerScope::WilayahKode(wilayah) => {
+                conditions.push(format!(
+                    "ps.satker_id IN (SELECT s.kode_satker FROM integrasi.v_satker_wilayah s \
+                     WHERE s.wilayah_code = ${})",
+                    param_idx
+                ));
+                params.push(Box::new(wilayah.clone()));
+                param_idx += 1;
+            }
         }
 
         if let Some(tahun) = filter.tahun {
