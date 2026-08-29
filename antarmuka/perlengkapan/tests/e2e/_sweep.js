@@ -42,11 +42,21 @@ const routes = require('child_process')
 (async () => {
   const browser = await chromium.launch();
   const findings = [];
+  const skipped = [];
   for (const [role, nip] of USERS) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const page = await ctx.newPage();
     const res = await ctx.request.post(`${LOCAL}/api/v1/auth/login`, { data: { username: nip, password: PASS } });
-    if (!res.ok()) { console.log(`${role}: login ${res.status()}`); await ctx.close(); continue; }
+    if (!res.ok()) {
+      // A role that cannot log in is a hole in the sweep, not a note in the
+      // log. `pegawai-bandung` is seeded in the CI fixture but not on staging,
+      // so deriving the user list from that fixture over-promises against this
+      // target — the run must say so rather than quietly cover 7 of 8.
+      findings.push(`${role} -> LOGIN-GAGAL ${res.status()} — peran ini TIDAK tersapu`);
+      skipped.push(role);
+      await ctx.close();
+      continue;
+    }
     const tok = (await res.json()).access_token;
     await page.addInitScript(t => {
       localStorage.setItem('access_token', t);
@@ -130,7 +140,14 @@ const routes = require('child_process')
     await ctx.close();
   }
   await browser.close();
-  console.log(`\n${routes.length} rute x ${USERS.length} peran = ${routes.length * USERS.length} screenshot`);
+  // Count what was CAPTURED. The previous line multiplied routes by roles and
+  // printed 256 while 224 files existed, because one role never logged in —
+  // a summary claiming coverage the run did not have.
+  const swept = USERS.length - skipped.length;
+  console.log(`\n${routes.length} rute x ${swept} peran tersapu = ${routes.length * swept} screenshot`);
+  if (skipped.length) {
+    console.log(`PERAN TIDAK TERSAPU (${skipped.length}): ${skipped.join(', ')}`);
+  }
   console.log(findings.length ? `\nPERLU DIPERIKSA (${findings.length}):` : '\nTidak ada penanda otomatis.');
   findings.forEach(f => console.log('  ' + f));
 })();
