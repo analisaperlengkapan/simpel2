@@ -12,11 +12,13 @@ use crate::{AppState, dashboard, kebutuhan_bmn, pakaian_dinas, pemakaian_bmn, ro
 
 pub fn create_routes(state: AppState) -> Router {
     Router::new()
-        // Dashboard
-        .route(
-            "/dashboard/stats",
-            get(dashboard::handlers::get_dashboard_stats),
-        )
+        // Dashboard.
+        //
+        // `/dashboard/stats` used to sit here: a SECOND aggregate over
+        // `integrasi.siman_aset` whose payload was a strict subset of
+        // `/bank-aset/dashboard` (total/nilai/satker/kondisi/kategori), computed
+        // by its own query. Two queries, one table, one of them scoped and one
+        // not — the home page now reads the scoped superset instead.
         .route(
             "/dashboard/perlengkapan",
             get(dashboard::handlers::get_perlengkapan_dashboard_metrics),
@@ -277,11 +279,12 @@ pub fn create_routes(state: AppState) -> Router {
             get(pakaian_dinas::download_rekapitulasi_handler),
         )
         // ============ Kebutuhan BMN Routes ============
-        // Dashboard
-        .route(
-            "/kebutuhan-bmn/dashboard",
-            get(kebutuhan_bmn::get_dashboard_stats),
-        )
+        //
+        // `/kebutuhan-bmn/dashboard` used to sit here. It had no caller in
+        // either frontend and no e2e — a third counting of kebutuhan campaigns
+        // beside `/dashboard/perlengkapan` and `/kebutuhan-bmn/laporan/rekap`,
+        // each with its own definition. Removed rather than given a fourth
+        // scope to maintain.
         // Laporan rekap (E-5) — cross-campaign recap + XLSX/PDF export.
         // Registered before `/kebutuhan-bmn/pengajuan/{id}` style paths so the
         // literal segment is never shadowed by a param route.

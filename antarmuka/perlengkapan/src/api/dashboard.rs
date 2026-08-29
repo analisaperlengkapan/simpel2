@@ -1,13 +1,12 @@
-//! Dashboard API — fetch stats from backend.
-
-use super::client::api_get;
-use super::types::{ApiResponse, DashboardStats};
-
-/// Fetch dashboard statistics from `GET /dashboard/stats`.
-pub async fn fetch_dashboard_stats() -> Result<DashboardStats, crate::api::AppError> {
-    let resp: ApiResponse<DashboardStats> = api_get("/dashboard/stats").await?;
-    Ok(resp.data)
-}
+//! Dashboard API — the recap export.
+//!
+//! `fetch_dashboard_stats` used to live here, against `GET /dashboard/stats`.
+//! That endpoint was a second aggregate over the same SIMAN table whose payload
+//! was a strict subset of `GET /bank-aset/dashboard` — and unlike that one it
+//! was never scoped, so it answered every operator with all 624 533 national
+//! assets while the bank-aset card beside it correctly answered their own
+//! 1 681. The home page now reads the scoped superset via
+//! [`crate::api::bank_aset::fetch_dashboard`]; there is one definition again.
 
 /// Download the perlengkapan dashboard recap as `format` ("excel" | "pdf").
 ///

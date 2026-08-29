@@ -472,29 +472,6 @@ mod response_tests {
         assert_eq!(summary.total_gap, 70);
         assert_eq!(summary.kelayakan_persen, 30.0);
     }
-
-    #[test]
-    fn test_stats_by_tahun() {
-        let stats = StatsByTahun {
-            tahun: 2026,
-            total: 50,
-        };
-
-        assert_eq!(stats.tahun, 2026);
-        assert_eq!(stats.total, 50);
-    }
-
-    #[test]
-    fn test_stats_by_status() {
-        let stats = StatsByStatus {
-            status_kode: 2000,
-            status_nama: "Draft".to_string(),
-            total: 10,
-        };
-
-        assert_eq!(stats.status_kode, 2000);
-        assert_eq!(stats.status_nama, "Draft");
-    }
 }
 
 // ============================================================================
@@ -576,66 +553,5 @@ mod asset_type_tests {
 
         assert!(request.kode_barang.is_none());
         assert!(request.nm_barang.is_some());
-    }
-}
-
-// ============================================================================
-// Dashboard Stats Tests
-// ============================================================================
-
-mod dashboard_tests {
-    use super::*;
-
-    #[test]
-    fn test_dashboard_stats_structure() {
-        let stats = KebutuhanBmnDashboardStats {
-            total_pengajuan: 100,
-            pengajuan_draft: 20,
-            pengajuan_in_progress: 50,
-            pengajuan_completed: 30,
-            total_satker_terlibat: 150,
-            total_barang_diminta: 500,
-            total_barang_disetujui: 400,
-            by_tahun: vec![
-                StatsByTahun {
-                    tahun: 2026,
-                    total: 60,
-                },
-                StatsByTahun {
-                    tahun: 2025,
-                    total: 40,
-                },
-            ],
-            by_status: vec![StatsByStatus {
-                status_kode: 2000,
-                status_nama: "Draft".to_string(),
-                total: 20,
-            }],
-        };
-
-        assert_eq!(stats.total_pengajuan, 100);
-        assert_eq!(
-            stats.pengajuan_draft + stats.pengajuan_in_progress + stats.pengajuan_completed,
-            100
-        );
-        assert_eq!(stats.by_tahun.len(), 2);
-    }
-
-    #[test]
-    fn test_dashboard_approval_rate() {
-        let stats = KebutuhanBmnDashboardStats {
-            total_pengajuan: 100,
-            pengajuan_draft: 10,
-            pengajuan_in_progress: 40,
-            pengajuan_completed: 50,
-            total_satker_terlibat: 200,
-            total_barang_diminta: 1000,
-            total_barang_disetujui: 800,
-            by_tahun: vec![],
-            by_status: vec![],
-        };
-
-        let approval_rate = stats.total_barang_disetujui as f64 / stats.total_barang_diminta as f64;
-        assert!((approval_rate - 0.8).abs() < 0.001);
     }
 }

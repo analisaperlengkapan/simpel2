@@ -347,9 +347,15 @@ test.describe("Dashboard", () => {
   // #97: the exports now have a real FE caller. Asserting the BUTTON drives a
   // download closes the gap that let a 500 endpoint sit unnoticed — a
   // server-side probe alone keeps passing with no UI behind it.
+  // Labels are "Excel" / "PDF", not "Export Excel" / "Export PDF": the section
+  // header beside them already reads "Unduh rekap", so the old labels stated
+  // the verb twice. `getByRole("button", { name })` is an accessible-name
+  // match, so these are exact — deliberately, since `getByText` would match a
+  // substring case-insensitively and pass while reading something else
+  // entirely.
   for (const [label, ext] of [
-    ["Export Excel", "xlsx"],
-    ["Export PDF", "pdf"],
+    ["Excel", "xlsx"],
+    ["PDF", "pdf"],
   ] as const) {
     test(`dashboard "${label}" button downloads a file`, async ({ page }) => {
       await page.goto(`${BASE}/dashboard`, { waitUntil: "domcontentloaded" });

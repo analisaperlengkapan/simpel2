@@ -3,15 +3,15 @@
 //! This page focuses on clear information hierarchy, responsive layout,
 //! and maintainable utility-class styling.
 
-use crate::api::dashboard::fetch_dashboard_stats;
-use crate::api::types::DashboardStats;
+use crate::api::bank_aset::{BankAsetDashboard, fetch_dashboard};
 use crate::components::role_switcher::use_active_role;
 use crate::routes;
+use chrono::Datelike;
 use leptos::prelude::*;
 use leptos_fetch::QueryClient;
 use leptos_meta::Title;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
-use phosphor_leptos::{CALENDAR, CARET_RIGHT, SHIELD};
+use phosphor_leptos::{BUILDINGS, CALENDAR, CARET_RIGHT, SHIELD};
 
 #[component]
 fn SectionHeader(title: &'static str, tone: &'static str) -> impl IntoView {
@@ -46,6 +46,7 @@ fn StatCard(
             "shadow-emerald-500/30",
         ),
         "amber" => ("bg-amber-500/15", "text-amber-300", "shadow-amber-500/30"),
+        "red" => ("bg-rose-500/15", "text-rose-300", "shadow-rose-500/30"),
         "violet" => (
             "bg-violet-500/15",
             "text-violet-300",
@@ -186,9 +187,34 @@ fn QuickNav(
     }
 }
 
-/// leptos-fetch query wrapper for the dashboard stats endpoint.
-async fn query_dashboard_stats(_: ()) -> Result<DashboardStats, crate::api::AppError> {
-    fetch_dashboard_stats().await
+/// leptos-fetch query wrapper for the SIMAN summary.
+///
+/// Reads `GET /bank-aset/dashboard` — the SAME endpoint the Bank Aset page
+/// uses. The home page used to call `/dashboard/stats`, a second aggregate over
+/// the same table whose payload was a strict subset of this one and which was
+/// never row-scoped: measured on staging, an operator at satker 0200010 was
+/// shown 624 533 assets across 556 satkers here while the Bank Aset page
+/// correctly showed their own 1 681. One endpoint means the two pages cannot
+/// disagree, and the scope is inherited rather than re-implemented.
+async fn query_dashboard_stats(_: ()) -> Result<BankAsetDashboard, crate::api::AppError> {
+    // No `map_err(Into::into)`: both sides are already `api::error::AppError`,
+    // and clippy's `useless_conversion` is denied in CI.
+    fetch_dashboard().await
+}
+
+/// Assets in a given condition, from the SIMAN `kondisi_breakdown`.
+///
+/// The breakdown keeps SIMAN's own labels ("Baik", "Rusak Ringan", "Rusak
+/// Berat"), so "needs repair" is every RUSAK* bucket summed rather than a
+/// single field. `/dashboard/stats` used to do this sum in SQL with
+/// `LIKE 'RUSAK%'`; doing it here keeps the endpoint generic and the two
+/// readers honest about which buckets they folded together.
+fn count_kondisi(d: &BankAsetDashboard, pred: impl Fn(&str) -> bool) -> i64 {
+    d.kondisi_breakdown
+        .iter()
+        .filter(|k| pred(&k.kondisi.to_uppercase()))
+        .map(|k| k.count)
+        .sum()
 }
 
 /// Fetch the dashboard recap as bytes and hand it to the browser as a download.
@@ -268,6 +294,32 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Operator Satker",
     };
 
+    // What this page actually covers, said out loud. The numbers below are
+    // scoped per tier, so a heading that reads the same for everyone invites
+    // exactly the misreading the scoping was meant to end: an operator seeing
+    // "Ringkasan Sistem Manajemen" above 1 681 assets has no way to tell
+    // whether that is the country or their own office.
+    let scope_word = move || match active_role.get().as_str() {
+        "validator_wilayah" => "Wilayah Anda",
+        "validator_pusat" | "admin" => "Nasional",
+        _ => "Satuan Kerja Anda",
+    };
+    let scope_sentence = move || match active_role.get().as_str() {
+        "validator_wilayah" => {
+            "Aset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja di wilayah Anda."
+        }
+        "validator_pusat" | "admin" => {
+            "Aset BMN, kebutuhan, dan perlengkapan pada seluruh satuan kerja Kejaksaan RI."
+        }
+        _ => "Aset BMN, kebutuhan, dan perlengkapan pada satuan kerja Anda.",
+    };
+
+    // Derived, not written down. This chip read "Tahun Anggaran 2025" as a
+    // hard-coded literal: wrong from 1 January 2026 onward, and already
+    // disagreeing with the export button on this same page, which has always
+    // taken the year from the clock.
+    let tahun_anggaran = move || chrono::Local::now().year();
+
     // leptos-fetch — `()` keyed cache so a tab-switch back to the
     // dashboard re-uses the previous load instantly.
     let client: QueryClient = expect_context();
@@ -284,18 +336,23 @@ pub fn DashboardHome() -> impl IntoView {
                 <div class="relative z-10">
                     <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-gold-300">
                         <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
-                        "Portal Perlengkapan Kejaksaan"
+                        // "Portal" is a DIFFERENT application here
+                        // (antarmuka/portal, the SSO landing app). Naming this
+                        // microfrontend "Portal" too made the two
+                        // indistinguishable in the one place a user looks to
+                        // find out where they are.
+                        "Perlengkapan · Kejaksaan RI"
                     </div>
 
                     <h1 class="mt-4 text-2xl font-black leading-tight text-white sm:text-4xl">
                         "Ringkasan "
                         <span class="bg-gradient-to-r from-gold-300 to-amber-400 bg-clip-text text-transparent">
-                            "Sistem Manajemen"
+                            {scope_word}
                         </span>
                     </h1>
 
                     <p class="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base">
-                        "Akses cepat untuk memantau aset, kebutuhan, dan operasional perlengkapan secara terintegrasi."
+                        {scope_sentence}
                     </p>
 
                     <div class="mt-6 flex flex-wrap gap-3">
@@ -309,7 +366,31 @@ pub fn DashboardHome() -> impl IntoView {
                             <span class="text-blue-300">
                                 <AppIcon icon=CALENDAR />
                             </span>
-                            "Tahun Anggaran 2025"
+                            "Tahun Anggaran "
+                            {tahun_anggaran}
+                        </div>
+                        // Coverage, beside the role that grants it. This used
+                        // to be a headline metric ("Satuan Kerja / Unit kerja
+                        // aktif"), wrong twice over: nothing here measures
+                        // whether a satker is active, and once scoped the number
+                        // is a constant 1 for every operator — the majority of
+                        // users — while the four headline slots are needed for
+                        // figures that actually move.
+                        <div class="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-navy-950/50 px-3 py-2 text-xs text-slate-300 sm:text-sm">
+                            <span class="text-violet-300">
+                                <AppIcon icon=BUILDINGS />
+                            </span>
+                            "Cakupan: "
+                            <strong class="text-white">
+                                {move || {
+                                    stats_resource
+                                        .get()
+                                        .and_then(|r| r.ok())
+                                        .map(|s| format_number(s.total_satker))
+                                        .unwrap_or_else(|| "—".to_string())
+                                }}
+                            </strong>
+                            " satuan kerja"
                         </div>
                     </div>
                 </div>
@@ -327,17 +408,24 @@ pub fn DashboardHome() -> impl IntoView {
             }>
                 {move || {
                     let stats = stats_resource.get().and_then(|r| r.ok());
-                    let (total, baik, rusak, satker) = match &stats {
+                    let (total, baik, ringan, berat) = match &stats {
                         Some(s) => {
                             (
                                 format_number(s.total_aset),
-                                format_number(s.aset_baik),
-                                format_number(s.aset_rusak),
-                                format_number(s.total_satker),
+                                format_number(count_kondisi(s, |k| k == "BAIK")),
+                                format_number(count_kondisi(s, |k| k == "RUSAK RINGAN")),
+                                format_number(count_kondisi(s, |k| k == "RUSAK BERAT")),
                             )
                         }
                         None => ("-".into(), "-".into(), "-".into(), "-".into()),
                     };
+                    // "Perlu Perbaikan" used to be ONE card summing every
+                    // RUSAK* bucket. Measured on staging that card read 76 459,
+                    // of which 64 522 (84%) are "Rusak Berat" — in BMN practice
+                    // a candidate for PENGHAPUSAN, not repair. The single label
+                    // therefore pointed the reader at the wrong next action for
+                    // most of what it counted, so the bucket is split and each
+                    // half names the action it actually implies.
 
                     view! {
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -345,29 +433,29 @@ pub fn DashboardHome() -> impl IntoView {
                                 icon="fas fa-box"
                                 label="Total Aset BMN"
                                 value=total
-                                subtitle="Terintegrasi SIMAN"
+                                subtitle="Sumber: SIMAN"
                                 tone="blue"
                             />
                             <StatCard
                                 icon="fas fa-check-circle"
                                 label="Kondisi Baik"
                                 value=baik
-                                subtitle="Siap pakai"
+                                subtitle="Layak digunakan"
                                 tone="green"
                             />
                             <StatCard
-                                icon="fas fa-exclamation-triangle"
-                                label="Perlu Perbaikan"
-                                value=rusak
-                                subtitle="Tindakan diperlukan"
+                                icon="fas fa-screwdriver-wrench"
+                                label="Rusak Ringan"
+                                value=ringan
+                                subtitle="Kandidat perbaikan"
                                 tone="amber"
                             />
                             <StatCard
-                                icon="fas fa-building"
-                                label="Satuan Kerja"
-                                value=satker
-                                subtitle="Unit kerja aktif"
-                                tone="violet"
+                                icon="fas fa-trash-can"
+                                label="Rusak Berat"
+                                value=berat
+                                subtitle="Kandidat penghapusan"
+                                tone="red"
                             />
                         </div>
                     }
@@ -386,14 +474,14 @@ pub fn DashboardHome() -> impl IntoView {
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
                     on:click=move |_| download_dashboard_export("excel")
                 >
-                    "Export Excel"
+                    "Excel"
                 </button>
                 <button
                     type="button"
                     class="rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-xs font-semibold text-slate-100 transition-colors hover:border-white/20 hover:bg-slate-900/80"
                     on:click=move |_| download_dashboard_export("pdf")
                 >
-                    "Export PDF"
+                    "PDF"
                 </button>
             </section>
 
@@ -404,35 +492,35 @@ pub fn DashboardHome() -> impl IntoView {
                         href=routes::path::BANK_ASET_DAFTAR
                         icon="fas fa-boxes"
                         label="Bank Aset"
-                        description="Katalog dan registrasi BMN"
+                        description="Katalog aset BMN dari SIMAN"
                         tone="emerald"
                     />
                     <QuickNav
                         href=routes::path::KEBUTUHAN_DAFTAR
                         icon="fas fa-clipboard-list"
                         label="Kebutuhan BMN"
-                        description="Analisis kebutuhan dan perencanaan"
+                        description="Pengajuan RKBMN dan analisis kelayakan"
                         tone="blue"
                     />
                     <QuickNav
                         href=routes::path::PAKAIAN_PENGAJUAN
                         icon="fas fa-tshirt"
                         label="Pakaian Dinas"
-                        description="Pengajuan dan distribusi atribut"
+                        description="Pengajuan dan rekap ukuran pakaian dinas"
                         tone="purple"
                     />
                     <QuickNav
                         href=routes::path::PENGELOLAAN_PEMAKAIAN
                         icon="fas fa-file-signature"
                         label="Pemakaian BMN"
-                        description="Izin pemakaian dan monitoring"
+                        description="Izin pemakaian dan pemantauannya"
                         tone="indigo"
                     />
                     <QuickNav
                         href=routes::path::PENGELOLAAN_PENGHAPUSAN
                         icon="fas fa-trash-alt"
                         label="Penghapusan BMN"
-                        description="Disposal dan penghapusan BMN"
+                        description="Usulan SK penghapusan aset"
                         tone="red"
                     />
                 </div>
@@ -460,15 +548,15 @@ pub fn DashboardHome() -> impl IntoView {
                         <QuickNav
                             href=routes::path::ADMIN_ROLES
                             icon="fas fa-user-tag"
-                            label="Otorisasi (RBAC)"
+                            label="Otorisasi Peran"
                             description="Konfigurasi hak akses peran"
                             tone="orange"
                         />
                         <QuickNav
                             href=routes::path::ADMIN_AUDIT
                             icon="fas fa-history"
-                            label="Audit Log"
-                            description="Jejak audit seluruh aktivitas"
+                            label="Jejak Audit"
+                            description="Riwayat seluruh aktivitas pengguna"
                             tone="indigo"
                         />
                         <QuickNav
@@ -481,8 +569,8 @@ pub fn DashboardHome() -> impl IntoView {
                         <QuickNav
                             href=routes::path::ADMIN_WORKFLOW
                             icon="fas fa-project-diagram"
-                            label="Workflow Config"
-                            description="Konfigurasi workflow persetujuan"
+                            label="Konfigurasi Alur Kerja"
+                            description="Alur dan tahapan persetujuan"
                             tone="blue"
                         />
                     </div>

@@ -48,8 +48,8 @@ fn as_sql_params(params: &[BoxedParam]) -> Vec<&(dyn tokio_postgres::types::ToSq
 // the BMN utilisation report in `pemakaian_bmn` kept reading the dead half long
 // after the bank-aset surfaces were fixed.
 use crate::shared::siman_columns::{
-    ASSET_KATEGORI_SQL, ASSET_NAMA_BARANG_SQL, ASSET_NUP_SQL, kode_barang_norm_sql,
-    normalize_kode_barang,
+    ASSET_KATEGORI_SQL, ASSET_KONDISI_SQL, ASSET_NAMA_BARANG_SQL, ASSET_NUP_SQL,
+    kode_barang_norm_sql, normalize_kode_barang,
 };
 
 #[derive(Clone)]
@@ -414,7 +414,12 @@ impl BankAsetRepository {
                     "SELECT
                     COUNT(*)::BIGINT AS total_aset,
                     COALESCE(SUM(CASE WHEN rph_aset ~ '^[0-9]+(\\.[0-9]+)?$' THEN rph_aset::FLOAT8 ELSE 0 END), 0)::FLOAT8 AS total_nilai,
-                    COUNT(DISTINCT nama_satker)::BIGINT AS total_satker,
+                    -- Counted on the CODE, not the name. Measured on staging:
+                    -- 556 distinct `kdsatker_keu` but only 554 distinct
+                    -- `nama_satker`, so two satkers were folded into one and the
+                    -- tile under-reported. A satker's identity is its code
+                    -- (#43); `nama_satker` is a label that can collide.
+                    COUNT(DISTINCT kdsatker_keu)::BIGINT AS total_satker,
                     COUNT(DISTINCT {ASSET_KATEGORI_SQL})::BIGINT AS total_kategori
                  FROM integrasi.siman_aset{where_clause}"
                 ),
@@ -431,9 +436,17 @@ impl BankAsetRepository {
         let kondisi_rows = client
             .query(
                 &format!(
-                    "SELECT COALESCE(ur_kondisi, 'TIDAK DIKETAHUI') AS kondisi, COUNT(*)::BIGINT AS count
+                    // Condition read through the shared expression rather than
+                    // a local `COALESCE(ur_kondisi, …)`. This was the fifth
+                    // spelling of "an asset's condition" in the crate: it
+                    // ignored `kondisi` entirely and treated `''` as a real
+                    // value. Harmless today (`kondisi` is populated in 0 of
+                    // 624 533 staging rows) and precisely the kind of harmless
+                    // that stops being harmless the day the ingest is fixed.
+                    "SELECT COALESCE(NULLIF({ASSET_KONDISI_SQL}, ''), 'TIDAK DIKETAHUI') AS kondisi,
+                        COUNT(*)::BIGINT AS count
                  FROM integrasi.siman_aset{where_clause}
-                 GROUP BY COALESCE(ur_kondisi, 'TIDAK DIKETAHUI')
+                 GROUP BY 1
                  ORDER BY count DESC"
                 ),
                 &p,

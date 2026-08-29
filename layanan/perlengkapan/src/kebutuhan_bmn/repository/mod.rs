@@ -174,7 +174,6 @@ pub trait KebutuhanBmnRepository: Send + Sync {
     ) -> AppResult<PengajuanKebutuhanBmnAktivitas>;
 
     // Dashboard Statistics
-    async fn get_dashboard_stats(&self) -> AppResult<KebutuhanBmnDashboardStats>;
 
     // Pengajuan Status Update
     async fn update_pengajuan_status(

@@ -1,9 +1,11 @@
 // Dashboard business logic services
 
+use crate::bank_aset::AsetScope;
 use crate::dashboard::models::*;
 use crate::dashboard::repository;
 use crate::shared::error::AppError;
 use crate::shared::pdf::{PageGeometry, PdfBuilder};
+use crate::shared::satker_scope::SatkerScope;
 use deadpool_postgres::Pool;
 use rust_xlsxwriter::*;
 
@@ -44,26 +46,35 @@ impl DashboardService {
         Self { db_pool }
     }
 
-    /// Lightweight SIMAN summary card (`/dashboard/stats`).
-    pub async fn get_dashboard_stats(&self) -> Result<DashboardStats, AppError> {
-        repository::fetch_dashboard_stats(&self.db_pool).await
-    }
-
     /// Get complete perlengkapan dashboard metrics
+    ///
+    /// Every one of the seven aggregates is scoped. Both scopes are needed and
+    /// neither substitutes for the other: perlengkapan's workflow rows are keyed
+    /// by the MySIMKARI `kode_satker` the caller's JWT carries, while SIMAN
+    /// assets are keyed by the disjoint finance code `kdsatker_keu`. Threading
+    /// them through the repository SIGNATURES rather than filtering afterwards
+    /// is what makes the coverage checkable — adding an eighth aggregate that
+    /// forgets to scope will not compile.
     pub async fn get_perlengkapan_dashboard_metrics(
         &self,
         params: &DashboardParams,
+        scope: &SatkerScope,
+        aset_scope: &AsetScope,
     ) -> Result<PerlengkapanDashboardMetrics, AppError> {
         // Fetch all metrics concurrently
-        let kebutuhan_metrics_future = repository::fetch_kebutuhan_metrics(&self.db_pool, params);
-        let gap_analysis_future = repository::fetch_gap_analysis(&self.db_pool, 10);
+        let kebutuhan_metrics_future =
+            repository::fetch_kebutuhan_metrics(&self.db_pool, params, scope);
+        let gap_analysis_future =
+            repository::fetch_gap_analysis(&self.db_pool, 10, scope, aset_scope);
         let pakaian_dinas_metrics_future =
-            repository::fetch_pakaian_dinas_metrics(&self.db_pool, params);
-        let workflow_metrics_future = repository::fetch_workflow_metrics(&self.db_pool);
-        let asset_utilization_future = repository::fetch_asset_utilization(&self.db_pool);
-        let pemakaian_metrics_future = repository::fetch_pemakaian_status_metrics(&self.db_pool);
+            repository::fetch_pakaian_dinas_metrics(&self.db_pool, params, scope);
+        let workflow_metrics_future = repository::fetch_workflow_metrics(&self.db_pool, scope);
+        let asset_utilization_future =
+            repository::fetch_asset_utilization(&self.db_pool, aset_scope);
+        let pemakaian_metrics_future =
+            repository::fetch_pemakaian_status_metrics(&self.db_pool, scope);
         let penghapusan_metrics_future =
-            repository::fetch_penghapusan_status_metrics(&self.db_pool);
+            repository::fetch_penghapusan_status_metrics(&self.db_pool, scope);
 
         // Wait for all futures to complete
         let (
