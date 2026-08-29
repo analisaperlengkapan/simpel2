@@ -5,6 +5,7 @@ use leptos::task::spawn_local;
 use leptos_router::components::A;
 use leptos_router::hooks::use_params_map;
 use lib_ui::components::icon::{AppIcon, icon_from_fa_class};
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::ARROW_LEFT;
 
 use super::dashboard_page::format_rupiah;
@@ -173,7 +174,7 @@ fn DetailBody(
                     label="Lokasi"
                     value=item.lokasi.clone().unwrap_or_else(|| "-".to_string())
                 />
-                <InfoField label="Diperbarui" value=item.updated_at.clone() />
+                <InfoField label="Diperbarui" value=format_iso_local(&item.updated_at) />
             </div>
         </SectionCard>
 

@@ -297,3 +297,85 @@ pub fn title_case(s: &str) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
+
+/// Indonesian short month names, indexed by `month() - 1`.
+const BULAN_SINGKAT: [&str; 12] = [
+    "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
+];
+
+/// `"2026-08-28T09:26:04.708688+00:00"` → `"28 Agu 2026, 16:26"` for a reader
+/// in WIB.
+///
+/// Backends here store timestamps in UTC and serialise them RFC 3339. Four
+/// surfaces printed that string exactly as stored — microseconds, offset and
+/// all — and because the offset was `+00:00` while the reader is in WIB, the
+/// hour shown was **wrong by seven**, not merely ugly: a notification created
+/// at 16:26 read 09:26. `with_timezone(&Local)` moves it to the reader's own
+/// clock (in wasm, the browser's).
+///
+/// Lives here rather than beside any one caller because every hand-written
+/// copy of a mapping in this repo has eventually drifted from its siblings.
+///
+/// A value that will not parse is returned unchanged: hiding data behind a
+/// formatter error is worse than showing it in the wrong shape.
+pub fn format_iso_local(iso: &str) -> String {
+    use chrono::{Datelike, Timelike};
+    match DateTime::parse_from_rfc3339(iso) {
+        Ok(dt) => {
+            let local = dt.with_timezone(&Local);
+            format!(
+                "{} {} {}, {:02}:{:02}",
+                local.day(),
+                BULAN_SINGKAT[(local.month() as usize).saturating_sub(1).min(11)],
+                local.year(),
+                local.hour(),
+                local.minute(),
+            )
+        }
+        Err(_) => iso.to_string(),
+    }
+}
+
+/// Same as [`format_iso_local`] for an optional value; `None` and an empty
+/// string both render as an em dash rather than as "None".
+pub fn format_iso_local_opt(iso: Option<&str>) -> String {
+    match iso {
+        Some(s) if !s.trim().is_empty() => format_iso_local(s),
+        _ => "—".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod iso_local_tests {
+    use super::{format_iso_local, format_iso_local_opt};
+
+    /// The rendered hour depends on the reader's clock, so pin what does not:
+    /// none of the storage format may survive to the screen.
+    #[test]
+    fn the_storage_format_never_reaches_the_reader() {
+        let out = format_iso_local("2026-08-28T09:26:04.708688+00:00");
+        assert!(!out.contains('T'), "ISO separator survived: {out}");
+        assert!(!out.contains("+00:00"), "offset survived: {out}");
+        assert!(!out.contains("708688"), "microseconds survived: {out}");
+        assert!(out.contains("2026"), "the year should remain: {out}");
+
+        // The `Z` spelling is the one the helpdesk tickets use.
+        let z = format_iso_local("2026-08-28T09:28:53.886456Z");
+        assert!(!z.contains('Z') && !z.contains('T'), "Z form survived: {z}");
+    }
+
+    /// Both ends of the month table must be reachable: December must not fall
+    /// off the end, January must not wrap to December.
+    #[test]
+    fn both_ends_of_the_month_table_are_reachable() {
+        assert!(format_iso_local("2026-01-15T00:00:00+07:00").contains("Jan"));
+        assert!(format_iso_local("2026-12-15T00:00:00+07:00").contains("Des"));
+    }
+
+    #[test]
+    fn an_unparseable_value_is_passed_through_not_hidden() {
+        assert_eq!(format_iso_local("kemarin"), "kemarin");
+        assert_eq!(format_iso_local_opt(None), "—");
+        assert_eq!(format_iso_local_opt(Some("  ")), "—");
+    }
+}

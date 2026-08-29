@@ -12,13 +12,14 @@
 
 use crate::api::bantuan::{
     CreateTicketRequest, SupportTicket, add_comment, create_ticket, get_ticket, list_comments,
-    list_tickets, status_label, update_status,
+    list_tickets, priority_label, status_label, update_status,
 };
 use crate::components::layout::{FormField, PageLayout, SectionCard};
 use crate::components::role_switcher::use_active_role;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use lib_ui::components::icon::AppIcon;
+use lib_ui::utils::formatters::format_iso_local;
 use phosphor_leptos::{
     ARROW_CLOCKWISE, CHAT_CIRCLE, CHECK_CIRCLE, CLOCK, ENVELOPE, PAPER_PLANE_TILT, PHONE,
     WARNING_CIRCLE,
@@ -356,7 +357,7 @@ pub fn HelpdeskPage() -> impl IntoView {
                                                             data-status=status.clone()
                                                         >
                                                             <td class="px-3 py-2 text-slate-200">{t.subject}</td>
-                                                            <td class="px-3 py-2 text-slate-400">{t.priority}</td>
+                                                            <td class="px-3 py-2 text-slate-400">{priority_label(&t.priority)}</td>
                                                             <td class="px-3 py-2">
                                                                 <span class=format!(
                                                                     "rounded-full px-2 py-0.5 text-xs font-semibold {}",
@@ -364,7 +365,7 @@ pub fn HelpdeskPage() -> impl IntoView {
                                                                 )>{status_label(&status)}</span>
                                                             </td>
                                                             <td class="px-3 py-2 text-slate-400">{satker}</td>
-                                                            <td class="px-3 py-2 text-slate-400">{t.created_at}</td>
+                                                            <td class="px-3 py-2 text-slate-400">{format_iso_local(&t.created_at)}</td>
                                                             <td class="px-3 py-2">
                                                                 <div class="flex items-center gap-2">
                                                                     <button
@@ -568,7 +569,7 @@ fn TicketComments(ticket_id: String) -> impl IntoView {
                                             data-comment-id=c.id.clone()
                                         >
                                             <p class="text-xs text-slate-500">
-                                                {who} " · " {c.created_at.clone()}
+                                                {who} " · " {format_iso_local(&c.created_at)}
                                             </p>
                                             <p class="mt-1 text-sm text-slate-200">{c.content}</p>
                                         </div>

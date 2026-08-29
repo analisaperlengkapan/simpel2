@@ -20,36 +20,11 @@ use leptos::prelude::*;
 use leptos::task::spawn_local;
 
 use crate::api::notifikasi::{NotifikasiItem, list_notifikasi, mark_all_read, mark_read};
+// Shared with the helpdesk tickets and the bank-aset dashboard, which
+// printed the same stored format the same wrong way.
+use lib_ui::utils::formatters::format_iso_local;
 
 const PAGE_SIZE: i64 = 50;
-
-/// `"2026-08-28T09:26:04.708688+00:00"` → `"28 Agu 2026, 16:26"`.
-///
-/// The raw value was printed straight to the page, microseconds and all. It is
-/// also stored in UTC, so a notification created at 16:26 WIB was being shown
-/// as 09:26 — a wrong time, not just an ugly one. `with_timezone(&Local)`
-/// moves it to the reader's clock. A value we cannot parse falls back to the
-/// original string rather than hiding data behind a formatter error.
-fn format_waktu(iso: &str) -> String {
-    const BULAN: [&str; 12] = [
-        "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des",
-    ];
-    match chrono::DateTime::parse_from_rfc3339(iso) {
-        Ok(dt) => {
-            use chrono::{Datelike, Timelike};
-            let local = dt.with_timezone(&chrono::Local);
-            format!(
-                "{} {} {}, {:02}:{:02}",
-                local.day(),
-                BULAN[(local.month() as usize).saturating_sub(1).min(11)],
-                local.year(),
-                local.hour(),
-                local.minute(),
-            )
-        }
-        Err(_) => iso.to_string(),
-    }
-}
 
 #[component]
 pub fn NotifikasiInboxPage() -> impl IntoView {
@@ -184,7 +159,7 @@ pub fn NotifikasiInboxPage() -> impl IntoView {
                             },
                             if is_unread { "#fbbf24" } else { "transparent" },
                         );
-                        let waktu = format_waktu(&n.created_at);
+                        let waktu = format_iso_local(&n.created_at);
                         view! {
                             <li style=card>
                                 <div style="flex: 1; min-width: 0;">
@@ -278,39 +253,5 @@ fn priority_chip(priority: String) -> impl IntoView {
         <Show when=move || visible>
             <span style=style.clone()>{label}</span>
         </Show>
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::format_waktu;
-
-    /// The exact rendered hour depends on the reader's clock, so pin what is
-    /// deterministic: none of the storage format may survive to the page.
-    #[test]
-    fn the_storage_format_never_reaches_the_reader() {
-        let out = format_waktu("2026-08-28T09:26:04.708688+00:00");
-        assert!(!out.contains('T'), "ISO separator survived: {out}");
-        assert!(!out.contains("+00:00"), "UTC offset survived: {out}");
-        assert!(!out.contains("708688"), "microseconds survived: {out}");
-        assert!(
-            out.contains("2026"),
-            "the year should still be there: {out}"
-        );
-    }
-
-    /// A value we cannot parse is shown as-is. Hiding it behind "-" would lose
-    /// data to a formatter bug.
-    #[test]
-    fn an_unparseable_value_is_passed_through() {
-        assert_eq!(format_waktu("kemarin"), "kemarin");
-    }
-
-    /// The month table is indexed by `month() - 1`; December must not fall off
-    /// the end and January must not wrap to December.
-    #[test]
-    fn both_ends_of_the_month_table_are_reachable() {
-        assert!(format_waktu("2026-01-15T00:00:00+07:00").contains("Jan"));
-        assert!(format_waktu("2026-12-15T00:00:00+07:00").contains("Des"));
     }
 }

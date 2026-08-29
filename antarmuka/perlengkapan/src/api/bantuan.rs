@@ -74,6 +74,22 @@ pub fn status_label(status: &str) -> &'static str {
     }
 }
 
+/// Human label for a ticket priority, matching the backend's
+/// `support_tickets_priority_valid` CHECK vocabulary.
+///
+/// Lives beside [`status_label`] because it is the same job; the ticket table
+/// translated the status and printed the priority raw, so the column read
+/// "high" on an otherwise Indonesian page.
+pub fn priority_label(priority: &str) -> &'static str {
+    match priority {
+        "urgent" => "Segera",
+        "high" => "Penting",
+        "normal" => "Normal",
+        "low" => "Rendah",
+        _ => "Tidak Diketahui",
+    }
+}
+
 /// `POST /bantuan/tiket`
 pub async fn create_ticket(req: &CreateTicketRequest) -> AppResult<SupportTicket> {
     let resp: ApiResponseWrap<SupportTicket> = api_post("/bantuan/tiket", req).await?;
