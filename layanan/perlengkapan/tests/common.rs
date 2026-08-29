@@ -376,6 +376,16 @@ pub async fn setup_test_db() -> (Database, String) {
     // Three employees across two Kejati: SKR001 and SKR002 under KJT01, SKR003
     // under KJT02, so both the satker tier and the wilayah tier have a positive
     // AND a negative case to land on.
+    //
+    // `satker_id` holds the satker's `api_id`, NOT its `kode_satker`. That is
+    // the shape the real table has — measured on staging, 21 325 of 21 328
+    // rows join to `mysimkari_satker.api_id` and exactly 3 match a
+    // `kode_satker`. This fixture used to seed the code, which made every test
+    // over it certify a query that finds nobody in production: the roster
+    // returned an empty list for all 191 satkers that have people, and the
+    // profile upsert affected 0 rows for every satker-scoped caller. A stub
+    // that does not have the owner's shape does not test the query, it
+    // vouches for the bug.
     client
         .batch_execute(
             "CREATE TABLE IF NOT EXISTS integrasi.mysimkari_pegawai (
@@ -408,9 +418,9 @@ pub async fn setup_test_db() -> (Database, String) {
     client
         .execute(
             "INSERT INTO integrasi.mysimkari_pegawai (nip, nama, satker_id, nama_satker, jabatan, jk)
-             VALUES ('19800101000000001', 'Pegawai Uji A', 'SKR001', 'KEJAKSAAN NEGERI UJI A', 'Staf', 'L'),
-                    ('19800101000000002', 'Pegawai Uji B', 'SKR002', 'KEJAKSAAN NEGERI UJI B', 'Staf', 'P'),
-                    ('19800101000000003', 'Pegawai Uji C', 'SKR003', 'KEJAKSAAN NEGERI UJI C', 'Staf', 'L')
+             VALUES ('19800101000000001', 'Pegawai Uji A', 'api-skr001', 'KEJAKSAAN NEGERI UJI A', 'Staf', 'L'),
+                    ('19800101000000002', 'Pegawai Uji B', 'api-skr002', 'KEJAKSAAN NEGERI UJI B', 'Staf', 'P'),
+                    ('19800101000000003', 'Pegawai Uji C', 'api-skr003', 'KEJAKSAAN NEGERI UJI C', 'Staf', 'L')
              ON CONFLICT (nip) DO NOTHING",
             &[],
         )

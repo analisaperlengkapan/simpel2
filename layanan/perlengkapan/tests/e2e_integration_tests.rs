@@ -13,6 +13,7 @@ mod integration {
     mod pakaian_dinas_pegawai_scope_test;
     mod pakaian_dinas_ukuran_test;
     mod pakaian_dinas_workflow_test;
+    mod pegawai_satker_link_test;
     mod pemakaian_asset_identity_test;
     mod pemakaian_bmn_workflow_test;
     mod pemakaian_detail_scope_test;

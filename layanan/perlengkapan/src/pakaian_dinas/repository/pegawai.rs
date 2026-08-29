@@ -1,6 +1,7 @@
 use super::PakaianDinasRepository;
 use crate::pakaian_dinas::models::*;
 use crate::shared::error::{AppResult, bad_request};
+use crate::shared::pegawai_ref::{PEGAWAI_KODE_SATKER_SQL, PEGAWAI_SATKER_JOIN_SQL};
 use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 
 /// `scope` as an extra `AND` over the SoT row's satker column.
@@ -9,7 +10,11 @@ use crate::shared::satker_scope::{BoxedParam, SatkerScope, as_refs};
 /// see the shared helper's note on why numbering is the part no type can
 /// check. `the_upsert_takes_exactly_thirteen_value_binds` below pins it.
 fn scope_and(scope: &SatkerScope, params: &mut Vec<BoxedParam>) -> String {
-    crate::shared::satker_scope::scope_and(scope, "p.satker_id", params)
+    // NOT `p.satker_id`: that column holds the upstream API's UUID, not the
+    // `kode_satker` a scope carries, so the predicate matched zero rows for
+    // every satker-scoped caller and the upsert silently affected nothing.
+    // See [`crate::shared::pegawai_ref`] for the measurement.
+    crate::shared::satker_scope::scope_and(scope, PEGAWAI_KODE_SATKER_SQL, params)
 }
 
 /// The 13 binds the upsert takes, in order. `kode_satker` is deliberately NOT
@@ -55,9 +60,10 @@ fn upsert_profile_sql(scope_sql: &str) -> String {
         -- it does for `VALUES`, so an uncast $n fails to prepare with
         -- "could not determine data type".
         SELECT $1::varchar,$2::varchar,$3::varchar,$4::varchar,$5::varchar,
-               $6::varchar,$7::varchar,$8::boolean,$9::text,p.satker_id,
+               $6::varchar,$7::varchar,$8::boolean,$9::text,{kode_satker},
                $10::varchar,$11::varchar,$12::varchar,$13::timestamptz
         FROM integrasi.mysimkari_pegawai p
+        {satker_join}
         WHERE p.nip = $1{scope_sql}
         ON CONFLICT (nip) DO UPDATE SET
             nama = COALESCE(EXCLUDED.nama, pegawai_pakaian_dinas.nama),
@@ -73,7 +79,9 @@ fn upsert_profile_sql(scope_sql: &str) -> String {
             ukuran_celana = COALESCE(EXCLUDED.ukuran_celana, pegawai_pakaian_dinas.ukuran_celana),
             ukuran_sepatu = COALESCE(EXCLUDED.ukuran_sepatu, pegawai_pakaian_dinas.ukuran_sepatu),
             updated_at = EXCLUDED.updated_at
-        "#
+        "#,
+        satker_join = PEGAWAI_SATKER_JOIN_SQL,
+        kode_satker = PEGAWAI_KODE_SATKER_SQL,
     )
 }
 
@@ -226,11 +234,12 @@ impl PakaianDinasRepository {
 
     // ============ MySIMKARI Integration ============
 
-    /// `integrasi.mysimkari_pegawai.satker_id` is **TEXT** holding the MySIMKARI
-    /// `kode_satker` — integrasi's own child tables key satkers by the business
-    /// code, never by the bigint surrogate. This used to take a `Uuid`, which
-    /// tokio-postgres refuses to bind to a text column, so the employee lookup
-    /// that the whole pakaian-dinas flow depends on failed at runtime (#94).
+    /// This comment used to claim `integrasi.mysimkari_pegawai.satker_id`
+    /// held the MySIMKARI `kode_satker`. It holds the upstream API's UUID
+    /// (`mysimkari_satker.api_id`), so `WHERE satker_id = $1` with a code
+    /// returned an EMPTY roster for every one of the 191 satkers that have
+    /// people in them — see [`crate::shared::pegawai_ref`]. The satker is now
+    /// resolved through a join instead of assumed from the column name.
     /// An employee roster is named people — NIP, name, phone, gender, rank —
     /// so it is satker data, not reference data. `scope` is in the signature
     /// rather than left to the three handlers that call this, because a rule
@@ -257,11 +266,17 @@ impl PakaianDinasRepository {
 
         let rows = client
             .query(
-                r#"
-                SELECT * FROM integrasi.mysimkari_pegawai
-                WHERE satker_id = $1
-                ORDER BY nama ASC
-                "#,
+                &format!(
+                    r#"
+                    SELECT p.*
+                    FROM integrasi.mysimkari_pegawai p
+                    {join}
+                    WHERE {kode_satker} = $1
+                    ORDER BY p.nama ASC
+                    "#,
+                    join = PEGAWAI_SATKER_JOIN_SQL,
+                    kode_satker = PEGAWAI_KODE_SATKER_SQL,
+                ),
                 &[&satker_code],
             )
             .await
