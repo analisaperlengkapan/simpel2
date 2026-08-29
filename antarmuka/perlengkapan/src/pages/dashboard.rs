@@ -197,7 +197,9 @@ fn QuickNav(
 /// correctly showed their own 1 681. One endpoint means the two pages cannot
 /// disagree, and the scope is inherited rather than re-implemented.
 async fn query_dashboard_stats(_: ()) -> Result<BankAsetDashboard, crate::api::AppError> {
-    fetch_dashboard().await.map_err(Into::into)
+    // No `map_err(Into::into)`: both sides are already `api::error::AppError`,
+    // and clippy's `useless_conversion` is denied in CI.
+    fetch_dashboard().await
 }
 
 /// Assets in a given condition, from the SIMAN `kondisi_breakdown`.
