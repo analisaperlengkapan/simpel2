@@ -385,11 +385,12 @@ pub fn BankAsetListPage() -> impl IntoView {
                             </span>
                             "Sebelumnya"
                         </button>
-                        <button type="button" on:click=go_next disabled=move || page.get()>
-                            = total_pages.get() || loading.get()
-                            class=
-                            "focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
-                            >
+                        <button
+                            type="button"
+                            on:click=go_next
+                            disabled=move || { page.get() >= total_pages.get() || loading.get() }
+                            class="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-200 transition hover:bg-white/[0.08] disabled:opacity-40"
+                        >
                             "Selanjutnya"
                             <span class="text-[0.6rem]">
                                 <AppIcon icon=CARET_RIGHT />

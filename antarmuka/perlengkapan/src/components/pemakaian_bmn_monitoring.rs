@@ -364,7 +364,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                                             </button>
                                             <button
                                                 class="px-3 py-1 border rounded disabled:opacity-40"
-                                                prop:disabled=move || current >= total_pages
+                                                prop:disabled=move || { current >= total_pages }
                                                 on:click=move |_| set_pemakaian_page.update(|p| *p += 1)
                                             >
                                                 "Berikutnya"

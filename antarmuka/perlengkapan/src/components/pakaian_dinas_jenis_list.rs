@@ -306,11 +306,9 @@ fn render_jenis_table(
                     </button>
                     <button
                         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.08] disabled:opacity-40"
-                        prop:disabled=move || page.get()
-                    >
-                        = total_pages
+                        prop:disabled=move || { page.get() >= total_pages }
                         on:click=move |_| set_page.update(|p| *p += 1)
-                        >
+                    >
                         "Selanjutnya"
                     </button>
                 </div>

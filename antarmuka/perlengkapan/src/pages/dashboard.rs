@@ -730,7 +730,7 @@ pub fn DashboardHome() -> impl IntoView {
             </Suspense>
 
             // ── Perlu tindakan ───────────────────────────────────────────
-            // 
+            //
             // The condition row above describes the asset base; this one is
             // about today. Both read `/dashboard/perlengkapan`, whose seven
             // aggregates had reached no screen at all until now (#97).
@@ -867,7 +867,7 @@ pub fn DashboardHome() -> impl IntoView {
             </Suspense>
 
             // ── Perlengkapan & pengelolaan ───────────────────────────────
-            // 
+            //
             // The last three series in the payload, none of which had ever
             // reached a screen: uniform sizes (what procurement orders), and
             // the status split of the two pengelolaan modules.
