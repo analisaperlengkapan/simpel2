@@ -122,24 +122,24 @@ pub fn PenghapusanForm() -> impl IntoView {
 
     view! {
         <Title text="Usulan Penghapusan BMN — SIMPEL" />
-        <div class="max-w-2xl mx-auto p-6 bg-white rounded-xl shadow-sm border border-gray-100">
-            <h2 class="text-xl font-bold text-gray-800 mb-6">"Usulan SK Penghapusan BMN"</h2>
+        <div class="max-w-2xl mx-auto p-6 bg-surface-panel rounded-xl shadow-sm border border-white/[0.06]">
+            <h2 class="text-xl font-bold text-slate-100 mb-6">"Usulan SK Penghapusan BMN"</h2>
 
             <form on:submit=on_submit class="space-y-4">
                 // -- Identifikasi BMN --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2">
+                <h3 class="text-lg font-semibold text-slate-200 border-b pb-2">
                     "Identifikasi BMN"
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="satker_id">
+                        <label class="block text-sm font-medium text-slate-200 mb-1" for="satker_id">
                             "Satuan Kerja (Satker ID)"
                         </label>
                         <input
                             id="satker_id"
                             type="text"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             placeholder="ID Satuan Kerja"
                             prop:value=move || form.get().satker_id.clone()
                             on:input=move |ev| {
@@ -149,13 +149,13 @@ pub fn PenghapusanForm() -> impl IntoView {
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="asset_id">
+                        <label class="block text-sm font-medium text-slate-200 mb-1" for="asset_id">
                             "Asset ID (UUID)"
                         </label>
                         <input
                             id="asset_id"
                             type="text"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             placeholder="550e8400-e29b-41d4-a716-446655440000"
                             prop:value=move || form.get().asset_id.clone()
                             on:input=move |ev| form.update(|f| f.asset_id = event_target_value(&ev))
@@ -167,7 +167,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-slate-200 mb-1"
                             for="kode_barang"
                         >
                             "Kode Barang"
@@ -175,7 +175,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                         <input
                             id="kode_barang"
                             type="text"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             placeholder="Kode barang BMN"
                             prop:value=move || form.get().kode_barang.clone()
                             on:input=move |ev| {
@@ -186,7 +186,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                     </div>
                     <div>
                         <label
-                            class="block text-sm font-medium text-gray-700 mb-1"
+                            class="block text-sm font-medium text-slate-200 mb-1"
                             for="nama_barang"
                         >
                             "Nama Barang"
@@ -194,7 +194,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                         <input
                             id="nama_barang"
                             type="text"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             placeholder="Nama barang BMN"
                             prop:value=move || form.get().nama_barang.clone()
                             on:input=move |ev| {
@@ -204,13 +204,13 @@ pub fn PenghapusanForm() -> impl IntoView {
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="nup">
+                        <label class="block text-sm font-medium text-slate-200 mb-1" for="nup">
                             "NUP"
                         </label>
                         <input
                             id="nup"
                             type="text"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             placeholder="Nomor Urut Pendaftaran"
                             prop:value=move || form.get().nup.clone()
                             on:input=move |ev| form.update(|f| f.nup = event_target_value(&ev))
@@ -220,9 +220,9 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 // -- Item BMN tambahan (Fase 2.8, multi-item) --
-                <div class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                <div class="mt-4 rounded-lg border border-white/[0.06] bg-white/[0.03] p-4">
                     <div class="flex items-center justify-between mb-2">
-                        <h4 class="text-sm font-semibold text-gray-700">
+                        <h4 class="text-sm font-semibold text-slate-200">
                             "Item BMN Tambahan (opsional)"
                         </h4>
                         <button
@@ -233,14 +233,14 @@ pub fn PenghapusanForm() -> impl IntoView {
                             "+ Tambah Item"
                         </button>
                     </div>
-                    <p class="mb-3 text-xs text-gray-500">
+                    <p class="mb-3 text-xs text-slate-500">
                         "Item utama diisi di atas. Tambahkan BMN lain bila satu usulan SK mencakup beberapa aset."
                     </p>
                     {move || {
                         let rows = extras.get();
                         if rows.is_empty() {
                             view! {
-                                <p class="text-xs text-gray-400 italic">
+                                <p class="text-xs text-slate-500 italic">
                                     "Belum ada item tambahan."
                                 </p>
                             }
@@ -257,7 +257,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                     <input
                                                         type="text"
                                                         placeholder="Kode Barang"
-                                                        class="md:col-span-3 px-3 py-1.5 border rounded text-sm"
+                                                        class="md:col-span-3 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                         prop:value=item.kode_barang.clone()
                                                         on:input=move |ev| {
                                                             extras
@@ -271,7 +271,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                     <input
                                                         type="text"
                                                         placeholder="Nama Barang"
-                                                        class="md:col-span-4 px-3 py-1.5 border rounded text-sm"
+                                                        class="md:col-span-4 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                         prop:value=item.nama_barang.clone()
                                                         on:input=move |ev| {
                                                             extras
@@ -285,7 +285,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                     <input
                                                         type="text"
                                                         placeholder="NUP"
-                                                        class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                        class="md:col-span-2 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                         prop:value=item.nup.clone()
                                                         on:input=move |ev| {
                                                             extras
@@ -299,7 +299,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                     <input
                                                         type="number"
                                                         placeholder="Nilai"
-                                                        class="md:col-span-2 px-3 py-1.5 border rounded text-sm"
+                                                        class="md:col-span-2 px-3 py-1.5 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                                                         prop:value=item.nilai_perolehan.clone()
                                                         on:input=move |ev| {
                                                             extras
@@ -312,7 +312,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                                                     />
                                                     <button
                                                         type="button"
-                                                        class="md:col-span-1 rounded bg-red-100 px-2 py-1.5 text-xs text-red-700 hover:bg-red-200"
+                                                        class="md:col-span-1 rounded bg-danger-500/10 px-2 py-1.5 text-xs text-danger-300 hover:bg-red-200"
                                                         on:click=move |_| {
                                                             extras
                                                                 .update(|v| {
@@ -336,31 +336,31 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 // -- Detail Penghapusan --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">
+                <h3 class="text-lg font-semibold text-slate-200 border-b pb-2 mt-6">
                     "Detail Penghapusan"
                 </h3>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="tanggal">
+                        <label class="block text-sm font-medium text-slate-200 mb-1" for="tanggal">
                             "Tanggal Penghapusan"
                         </label>
                         <input
                             id="tanggal"
                             type="date"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             prop:value=move || form.get().tanggal.clone()
                             on:input=move |ev| form.update(|f| f.tanggal = event_target_value(&ev))
                             required
                         />
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="metode">
+                        <label class="block text-sm font-medium text-slate-200 mb-1" for="metode">
                             "Metode Penghapusan"
                         </label>
                         <select
                             id="metode"
-                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                             prop:value=move || form.get().metode.clone()
                             on:change=move |ev| form.update(|f| f.metode = event_target_value(&ev))
                             required
@@ -375,12 +375,12 @@ pub fn PenghapusanForm() -> impl IntoView {
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="alasan">
+                    <label class="block text-sm font-medium text-slate-200 mb-1" for="alasan">
                         "Alasan Penghapusan"
                     </label>
                     <textarea
                         id="alasan"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         rows="3"
                         placeholder="Kondisi rusak berat, hilang, dsb."
                         prop:value=move || form.get().alasan.clone()
@@ -391,7 +391,7 @@ pub fn PenghapusanForm() -> impl IntoView {
 
                 <div>
                     <label
-                        class="block text-sm font-medium text-gray-700 mb-1"
+                        class="block text-sm font-medium text-slate-200 mb-1"
                         for="nilai_perolehan"
                     >
                         "Nilai Perolehan (Rp)"
@@ -399,30 +399,30 @@ pub fn PenghapusanForm() -> impl IntoView {
                     <input
                         id="nilai_perolehan"
                         type="number"
-                        class="w-full px-4 py-2 border rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        class="w-full cursor-not-allowed rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-2 text-slate-400"
                         placeholder="Diambil otomatis dari SIMAN saat submit"
                         prop:value=move || form.get().nilai_perolehan.clone()
                         readonly=true
                     />
-                    <p class="mt-1 text-xs text-gray-500">
+                    <p class="mt-1 text-xs text-slate-500">
                         "Nilai perolehan diambil langsung dari data SIMAN berdasarkan NUP + kode barang. "
                         "Jika BMN tidak ditemukan di SIMAN, sistem akan menolak usulan."
                     </p>
                 </div>
 
                 // -- Lampiran & Catatan --
-                <h3 class="text-lg font-semibold text-gray-700 border-b pb-2 mt-6">
+                <h3 class="text-lg font-semibold text-slate-200 border-b pb-2 mt-6">
                     "Lampiran & Catatan"
                 </h3>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="lampiran">
+                    <label class="block text-sm font-medium text-slate-200 mb-1" for="lampiran">
                         "Lampiran Persyaratan (URL)"
                     </label>
                     <input
                         id="lampiran"
                         type="text"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         placeholder="URL dokumen persyaratan penghapusan"
                         prop:value=move || form.get().lampiran_persyaratan.clone()
                         on:input=move |ev| {
@@ -430,18 +430,18 @@ pub fn PenghapusanForm() -> impl IntoView {
                         }
                         required
                     />
-                    <p class="text-xs text-gray-500 mt-1">
+                    <p class="text-xs text-slate-500 mt-1">
                         "Upload dokumen persyaratan terlebih dahulu, kemudian tempel URL-nya di sini."
                     </p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="catatan">
+                    <label class="block text-sm font-medium text-slate-200 mb-1" for="catatan">
                         "Catatan Operator"
                     </label>
                     <textarea
                         id="catatan"
-                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        class="w-full px-4 py-2 rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         rows="2"
                         placeholder="Catatan tambahan (opsional)"
                         prop:value=move || form.get().catatan_operator.clone()
@@ -454,7 +454,7 @@ pub fn PenghapusanForm() -> impl IntoView {
                 <div class="pt-4 flex justify-end gap-3">
                     <a
                         href=routes::path::PENGELOLAAN_PENGHAPUSAN
-                        class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                        class="px-4 py-2 text-slate-200 bg-white/[0.05] rounded-lg hover:bg-white/[0.09] transition-colors"
                     >
                         "Batal"
                     </a>

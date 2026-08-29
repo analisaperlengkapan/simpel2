@@ -55,23 +55,19 @@ pub enum StepStatus {
 }
 
 impl StepStatus {
-    fn dot_class(self, dark: bool) -> &'static str {
-        match (self, dark) {
-            (StepStatus::Done, _) => "bg-green-500 border-green-500",
-            (StepStatus::Current, false) => "bg-blue-500 border-blue-500 ring-4 ring-blue-100",
-            (StepStatus::Current, true) => "bg-blue-400 border-blue-400 ring-4 ring-blue-500/20",
-            (StepStatus::Rejected, _) => "bg-red-500 border-red-500",
+    fn dot_class(self) -> &'static str {
+        match self {
+            StepStatus::Done => "bg-success-500 border-success-500",
+            StepStatus::Current => "bg-info-400 border-info-400 ring-4 ring-info-500/25",
+            StepStatus::Rejected => "bg-danger-500 border-danger-500",
         }
     }
 
-    fn label_class(self, dark: bool) -> &'static str {
-        match (self, dark) {
-            (StepStatus::Done, false) => "text-gray-900",
-            (StepStatus::Done, true) => "text-slate-100",
-            (StepStatus::Current, false) => "text-blue-700 font-semibold",
-            (StepStatus::Current, true) => "text-blue-300 font-semibold",
-            (StepStatus::Rejected, false) => "text-red-700 font-semibold",
-            (StepStatus::Rejected, true) => "text-red-300 font-semibold",
+    fn label_class(self) -> &'static str {
+        match self {
+            StepStatus::Done => "text-slate-100",
+            StepStatus::Current => "text-info-300 font-semibold",
+            StepStatus::Rejected => "text-danger-300 font-semibold",
         }
     }
 }
@@ -117,31 +113,18 @@ impl WorkflowStep {
 
 /// Timeline vertikal tahapan workflow.
 ///
-/// `dark=true` menyesuaikan palet netral (teks/garis/catatan) untuk halaman
-/// bertema gelap (design system surface-panel/slate — Kebutuhan BMN, Pakaian
-/// Dinas). Default terang (Pemakaian/Penghapusan).
+/// The `dark` prop is gone. It existed because Pemakaian and Penghapusan were
+/// light-themed pages while Kebutuhan BMN and Pakaian Dinas were not; both of
+/// those pages are dark now, so the light arm had no callers left — and once
+/// the palette was converted, two of its four arms had become identical to
+/// their dark twin anyway. Both call sites passed `dark=true`.
 #[component]
-pub fn WorkflowTimeline(
-    #[prop(into)] steps: Vec<WorkflowStep>,
-    #[prop(optional)] dark: bool,
-) -> impl IntoView {
+pub fn WorkflowTimeline(#[prop(into)] steps: Vec<WorkflowStep>) -> impl IntoView {
     let last = steps.len().saturating_sub(1);
-    let line_class = if dark { "bg-white/10" } else { "bg-gray-200" };
-    let actor_class = if dark {
-        "text-xs text-slate-400"
-    } else {
-        "text-xs text-gray-500"
-    };
-    let ts_class = if dark {
-        "text-xs text-slate-500"
-    } else {
-        "text-xs text-gray-400"
-    };
-    let note_class = if dark {
-        "mt-1 rounded bg-white/[0.04] px-2 py-1 text-xs italic text-slate-300"
-    } else {
-        "mt-1 rounded bg-gray-50 px-2 py-1 text-xs italic text-gray-600"
-    };
+    let line_class = "bg-white/10";
+    let actor_class = "text-xs text-slate-400";
+    let ts_class = "text-xs text-slate-500";
+    let note_class = "mt-1 rounded bg-white/[0.04] px-2 py-1 text-xs italic text-slate-300";
     view! {
         <ol class="relative">
             {steps
@@ -163,12 +146,12 @@ pub fn WorkflowTimeline(
                                 })} // Dot
                             <span class=format!(
                                 "relative z-10 mt-1 h-4 w-4 flex-shrink-0 rounded-full border-2 {}",
-                                step.status.dot_class(dark),
+                                step.status.dot_class(),
                             )>// Body
                             </span> <div class="min-w-0 flex-1">
                                 <p class=format!(
                                     "text-sm {}",
-                                    step.status.label_class(dark),
+                                    step.status.label_class(),
                                 )>{step.label}</p>
                                 {step
                                     .actor
@@ -259,17 +242,17 @@ pub fn ApprovalDialog(
                 }
             }
         >
-            <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-                <h3 class="mb-2 text-lg font-semibold text-gray-800">{title}</h3>
+            <div class="w-full max-w-md rounded-2xl border border-white/[0.06] bg-surface-panel p-6 shadow-xl">
+                <h3 class="mb-2 text-lg font-semibold text-slate-100">{title}</h3>
                 {description
                     .map(|d| {
-                        view! { <p class="mb-4 text-sm text-gray-600">{d}</p> }
+                        view! { <p class="mb-4 text-sm text-slate-400">{d}</p> }
                     })}
 
                 <div class="mb-4">
-                    <label class="mb-1 block text-sm font-medium text-gray-700">{note_label}</label>
+                    <label class="mb-1 block text-sm font-medium text-slate-200">{note_label}</label>
                     <textarea
-                        class="w-full rounded-lg border px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 outline-none"
+                        class="w-full px-3 py-2 text-sm rounded-lg border border-white/10 bg-slate-900/70 text-slate-100 placeholder:text-slate-500 outline-none transition-colors hover:border-white/20 focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/40"
                         rows="3"
                         placeholder=note_placeholder.unwrap_or_default()
                         prop:value=move || note.get()
@@ -279,7 +262,7 @@ pub fn ApprovalDialog(
                         error
                             .get()
                             .map(|msg| {
-                                view! { <p class="mt-1 text-xs text-red-600">{msg}</p> }
+                                view! { <p class="mt-1 text-xs text-danger-400">{msg}</p> }
                             })
                     }}
                 </div>
@@ -287,7 +270,7 @@ pub fn ApprovalDialog(
                 <div class="flex justify-end gap-2">
                     <button
                         type="button"
-                        class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        class="rounded-lg border border-white/10 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-white/[0.04] disabled:opacity-50"
                         prop:disabled=move || is_busy()
                         on:click=move |_| on_close.run(())
                     >
