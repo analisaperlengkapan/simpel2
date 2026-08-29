@@ -134,7 +134,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         {(0..3)
                             .map(|_| {
                                 view! {
-                                    <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6 animate-pulse h-24"></div>
+                                    <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6 animate-pulse h-24"></div>
                                 }
                             })
                             .collect_view()}
@@ -157,17 +157,17 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                         .unwrap_or_else(|| "-".to_string());
                     view! {
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                                 <p class="text-sm text-slate-300">"BMN Sedang Dipakai"</p>
                                 <p class="text-3xl font-bold text-emerald-600 mt-1">{sedang}</p>
                                 <p class="text-xs text-slate-400 mt-1">"Izin pemakaian aktif"</p>
                             </div>
-                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                                 <p class="text-sm text-slate-300">"BMN Tidak Dipakai"</p>
                                 <p class="text-3xl font-bold text-info-400 mt-1">{tidak}</p>
                                 <p class="text-xs text-slate-400 mt-1">{tidak_sub}</p>
                             </div>
-                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+                            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                                 <p class="text-sm text-slate-300">"Akan Expired (30 hari)"</p>
                                 <p class="text-3xl font-bold text-yellow-600 mt-1">{expired}</p>
                                 <p class="text-xs text-slate-400 mt-1">
@@ -182,14 +182,14 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             // Daftar pemakaian BMN — batas per-role diturunkan backend dari
             // klaim: pusat semua, wilayah sebatas wilayahnya, satker sebatas
             // satkernya. Frontend tidak mengirim satker apa pun.
-            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <h3 class="text-lg font-semibold text-slate-100">
                         "Daftar Pemakaian BMN"
                     </h3>
                     <input
                         type="text"
-                        class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none w-full sm:w-80"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30 w-full sm:w-80"
                         placeholder="Cari nama barang / NUP / pegawai"
                         prop:value=move || pemakaian_search.get()
                         on:input=move |ev| {
@@ -380,7 +380,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             </div>
 
             // Expiring Permits Alert
-            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                 <h3 class="text-lg font-semibold text-slate-100 mb-4 flex items-center gap-2">
                     <span class="text-yellow-500">
                         <AppIcon icon=WARNING />
@@ -485,11 +485,11 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
             </div>
 
             // Search Section
-            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04]/[0.04] p-6">
+            <div class="rounded-lg border border-white/[0.06] bg-white/[0.04] p-6">
                 <h3 class="text-lg font-semibold text-slate-100 mb-4">"Cari Riwayat Pemakaian"</h3>
                 <div class="flex gap-4 mb-6">
                     <select
-                        class="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30"
                         prop:value=move || search_type.get()
                         on:change=move |ev| set_search_type.set(event_target_value(&ev))
                     >
@@ -498,7 +498,7 @@ pub fn PemakaianBmnMonitoring() -> impl IntoView {
                     </select>
                     <input
                         type="text"
-                        class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        class="rounded-lg border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-gold-500/40 focus:ring-2 focus:ring-gold-500/30 flex-1"
                         placeholder=move || {
                             if search_type.get() == "bmn" {
                                 "Masukkan NUP BMN"
