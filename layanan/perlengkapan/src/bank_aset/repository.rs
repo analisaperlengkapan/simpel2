@@ -627,7 +627,15 @@ impl BankAsetRepository {
     /// Distinct values (with counts) for the filterable columns, so the FE can
     /// populate filter dropdowns DYNAMICALLY from the actual data instead of
     /// hard-coded lists. Columns are a fixed allow-list (no arbitrary-column SQL).
-    pub async fn filter_options(&self, scope: &AsetScope) -> AppResult<BankAsetFilterOptions> {
+    /// Distinct filter values within what the caller can see, narrowed by
+    /// `filter` so a selected region shrinks the satker list rather than
+    /// leaving 554 entries for a reader who has already said which seven they
+    /// mean.
+    pub async fn filter_options(
+        &self,
+        filter: &AsetFilter,
+        scope: &AsetScope,
+    ) -> AppResult<BankAsetFilterOptions> {
         let client = self
             .pool
             .get()
@@ -637,10 +645,16 @@ impl BankAsetRepository {
         // RBAC scope predicate (references `$1` when present): only offer filter
         // values that exist within the caller's visible asset set.
         let mut scope_params: Vec<BoxedParam> = Vec::new();
-        let and_clause = scope
-            .push_condition(&mut scope_params)
-            .map(|c| format!(" AND {c}"))
-            .unwrap_or_default();
+        let mut conds: Vec<String> = Vec::new();
+        if let Some(c) = scope.push_condition(&mut scope_params) {
+            conds.push(c);
+        }
+        push_asset_filters(filter, &mut scope_params, &mut conds);
+        let and_clause = if conds.is_empty() {
+            String::new()
+        } else {
+            format!(" AND {}", conds.join(" AND "))
+        };
         let scope_p = as_sql_params(&scope_params);
 
         // (label_expr, column) — column names are a hard-coded allow-list.
@@ -692,14 +706,20 @@ impl BankAsetRepository {
         // unqualified, and the joins below introduce a second column of that
         // name — spliced into the outer query it would be ambiguous, and
         // Postgres would reject it at parse time.
+        // `value` is the MySIMKARI `kode_satker`, not `kdsatker_keu`: it is the
+        // identity both halves of the dashboard key on, so one selection
+        // filters both. Satkers SIMAN knows but MySIMKARI does not (65 on
+        // staging) have no such identity and are therefore not selectable —
+        // they remain visible in the unfiltered totals.
         let satker_kode_sql = format!(
-            "SELECT a.kdsatker_keu AS value,
-                    MIN(a.nama_satker) AS label,
+            "SELECT m.kode_satker AS value,
+                    MIN(COALESCE(m.nama_satker, a.nama_satker)) AS label,
                     COUNT(*)::BIGINT AS count
                FROM (SELECT kdsatker_keu, nama_satker
                        FROM integrasi.siman_aset
                       WHERE kdsatker_keu IS NOT NULL AND kdsatker_keu <> ''{and_clause}) a
-              GROUP BY a.kdsatker_keu
+               JOIN integrasi.v_satker_code_map m ON m.kdsatker_keu = a.kdsatker_keu
+              GROUP BY m.kode_satker
               ORDER BY count DESC, value ASC
               LIMIT {FILTER_OPTION_LIMIT}"
         );
@@ -780,9 +800,15 @@ pub struct AsetFilter {
     /// Legacy: matches `nama_satker` exactly. Kept because the Bank Aset page's
     /// dropdown is populated with names; prefer [`Self::satker_kode`].
     pub satker: Option<String>,
-    /// The satker's SIMAN finance code (`kdsatker_keu`) — the identity, where
-    /// `satker` above is a label two satkers can share (554 distinct names for
-    /// 556 distinct codes on staging).
+    /// The satker's MySIMKARI `kode_satker` — the system's canonical satker
+    /// identity (#43, #94), mapped to SIMAN's `kdsatker_keu` by the same
+    /// cross-reference view [`AsetScope::Satker`] uses.
+    ///
+    /// NOT `kdsatker_keu` directly, even though that is what this table is
+    /// keyed by. The perlengkapan half of the dashboard is keyed by
+    /// `kode_satker`, so a drill-down carrying the SIMAN code would filter one
+    /// half and not the other — and `satker` above is a NAME, which two
+    /// satkers can share (554 distinct names for 556 distinct codes).
     pub satker_kode: Option<String>,
     /// SIMAN wilayah code, digits 6-9 of `kdsatker_keu` — the same expression
     /// [`AsetScope`]'s wilayah tier compares against, so a pusat user filtering
@@ -833,7 +859,11 @@ pub fn push_asset_filters(
     }
     if let Some(kode) = &filter.satker_kode {
         params.push(Box::new(kode.clone()));
-        conditions.push(format!("kdsatker_keu = ${}", params.len()));
+        conditions.push(format!(
+            "kdsatker_keu IN (SELECT kdsatker_keu FROM integrasi.v_satker_code_map \
+             WHERE kode_satker = ${} AND kdsatker_keu IS NOT NULL)",
+            params.len()
+        ));
     }
     if let Some(w) = &filter.wilayah {
         params.push(Box::new(w.clone()));

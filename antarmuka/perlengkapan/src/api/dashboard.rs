@@ -130,9 +130,18 @@ pub struct PerlengkapanDashboardMetrics {
 /// filtering client-side, and nothing here may be assumed nationwide.
 pub async fn fetch_perlengkapan_metrics(
     tahun_anggaran: i32,
+    satker: Option<&str>,
+    wilayah: Option<&str>,
 ) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
-    api_get(&format!(
-        "/dashboard/perlengkapan?tahun_anggaran={tahun_anggaran}"
-    ))
-    .await
+    let mut url = format!("/dashboard/perlengkapan?tahun_anggaran={tahun_anggaran}");
+    // `satker` is the MySIMKARI `kode_satker` — the same value the SIMAN half
+    // of the dashboard sends as `satker_kode`. One selection, one identity,
+    // both halves narrowed; the server maps it to `kdsatker_keu` where needed.
+    if let Some(s) = satker.map(str::trim).filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&satker={}", urlencoding::encode(s)));
+    }
+    if let Some(w) = wilayah.map(str::trim).filter(|s| !s.is_empty()) {
+        url.push_str(&format!("&wilayah={}", urlencoding::encode(w)));
+    }
+    api_get(&url).await
 }

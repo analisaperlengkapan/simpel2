@@ -228,11 +228,12 @@ pub async fn get_bank_aset_last_sync(
 /// the FE filter dropdowns dynamically from real data.
 pub async fn get_bank_aset_filter_options(
     State(state): State<AppState>,
+    Query(query): Query<AsetFilterQuery>,
     claims: Claims,
 ) -> Result<Json<ApiResponse<BankAsetFilterOptions>>, AppError> {
     let scope = AsetScope::from_claims(&claims);
     let repo = BankAsetRepository::new(state.db_pool.clone());
-    let data = repo.filter_options(&scope).await?;
+    let data = repo.filter_options(&query.into_filter(), &scope).await?;
     Ok(Json(ApiResponse::success(
         data,
         "Filter options retrieved successfully".to_string(),

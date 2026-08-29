@@ -46,7 +46,7 @@ pub fn BankAsetListPage() -> impl IntoView {
     // Load filter options once on mount (no reactive deps → runs a single time).
     Effect::new(move |_| {
         spawn_local(async move {
-            if let Ok(opts) = bank_aset::fetch_filter_options().await {
+            if let Ok(opts) = bank_aset::fetch_filter_options(&Default::default()).await {
                 set_jenis_opts.set(opts.jenis);
                 set_kategori_opts.set(opts.kategori);
                 set_kondisi_opts.set(opts.kondisi);

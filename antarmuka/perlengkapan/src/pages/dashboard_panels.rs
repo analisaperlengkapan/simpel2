@@ -21,6 +21,7 @@
 
 use crate::api::bank_aset::BankAsetDashboard;
 use crate::api::dashboard::PerlengkapanDashboardMetrics;
+use chrono::Datelike;
 use leptos::prelude::*;
 use lib_ui::components::charts::{
     DonutChart, HBarChart, Slice, TrendLine, format_id, format_rupiah_short,
@@ -416,5 +417,218 @@ pub fn StatusModul(
         <Panel title=title subtitle=subtitle>
             <HBarChart slices=slices />
         </Panel>
+    }
+}
+
+/// The drill-down controls, showing only what the caller's tier can act on.
+///
+/// A satker operator gets no satker selector: their scope IS one satker, so the
+/// control would offer a single option that changes nothing. A wilayah
+/// validator gets a satker selector but no region selector, for the same
+/// reason one level up. The options themselves come from
+/// `/bank-aset/filter-options`, which is scoped server-side — measured on
+/// staging, that endpoint returns 1 satker to an operator, 7 to a wilayah
+/// validator and 554 to pusat — so the dropdown cannot offer a satker its
+/// reader may not see, and the server would refuse it anyway.
+#[component]
+pub fn FilterBar(
+    options: crate::api::bank_aset::BankAsetFilterOptions,
+    show_wilayah: bool,
+    show_satker: bool,
+    wilayah: RwSignal<Option<String>>,
+    satker: RwSignal<Option<String>>,
+    jenis: RwSignal<Option<String>>,
+    tahun: RwSignal<i32>,
+    tgl_from: RwSignal<Option<String>>,
+    tgl_to: RwSignal<Option<String>>,
+) -> impl IntoView {
+    // Years offered run from the current one backwards; the campaign data this
+    // filters is keyed by budget year, which cannot be in the future.
+    let now = chrono::Local::now().year();
+    let years: Vec<i32> = (now - 5..=now).rev().collect();
+
+    // Satker options are NOT filtered client-side by the selected region. They
+    // arrive already narrowed: the page refetches `/bank-aset/filter-options`
+    // with the region applied, so the list is the server's answer rather than
+    // this component's guess about how a code is composed.
+    let sel = "rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 \
+               outline-none transition-colors hover:border-white/20 focus:border-gold-400/50";
+    let lab = "mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500";
+
+    let has_any = move || {
+        wilayah.get().is_some()
+            || satker.get().is_some()
+            || jenis.get().is_some()
+            || tgl_from.get().is_some()
+            || tgl_to.get().is_some()
+    };
+
+    view! {
+        <section class="rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur">
+            <div class="flex flex-wrap items-end gap-3">
+                <Show when=move || show_wilayah>
+                    <div>
+                        <label class=lab for="f-wilayah">
+                            "Wilayah"
+                        </label>
+                        <select
+                            id="f-wilayah"
+                            class=sel
+                            on:change=move |ev| {
+                                let v = event_target_value(&ev);
+                                wilayah.set(if v.is_empty() { None } else { Some(v) });
+                                satker.set(None);
+                            }
+                        >
+                            <option value="">"Seluruh wilayah"</option>
+                            {options
+                                .wilayah
+                                .iter()
+                                .map(|o| {
+                                    let v = o.value.clone();
+                                    let text = format!(
+                                        "{} ({})",
+                                        o.display(),
+                                        format_id(o.count as f64),
+                                    );
+                                    view! { <option value=v>{text}</option> }
+                                })
+                                .collect_view()}
+                        </select>
+                    </div>
+                </Show>
+
+                <Show when=move || show_satker>
+                    <div>
+                        <label class=lab for="f-satker">
+                            "Satuan Kerja"
+                        </label>
+                        <select
+                            id="f-satker"
+                            class=sel
+                            on:change=move |ev| {
+                                let v = event_target_value(&ev);
+                                satker.set(if v.is_empty() { None } else { Some(v) });
+                            }
+                        >
+                            <option value="">"Seluruh satuan kerja"</option>
+                            {options
+                                .satker_kode
+                                .iter()
+                                .map(|o| {
+                                    let v = o.value.clone();
+                                    let text = format!(
+                                        "{} ({})",
+                                        o.display(),
+                                        format_id(o.count as f64),
+                                    );
+                                    view! { <option value=v>{text}</option> }
+                                })
+                                .collect_view()}
+                        </select>
+                    </div>
+                </Show>
+
+                <div>
+                    <label class=lab for="f-jenis">
+                        "Jenis Aset"
+                    </label>
+                    <select
+                        id="f-jenis"
+                        class=sel
+                        on:change=move |ev| {
+                            let v = event_target_value(&ev);
+                            jenis.set(if v.is_empty() { None } else { Some(v) });
+                        }
+                    >
+                        <option value="">"Seluruh jenis"</option>
+                        {options
+                            .jenis
+                            .iter()
+                            .map(|o| {
+                                let v = o.value.clone();
+                                let text = format!(
+                                    "{} ({})",
+                                    o.display(),
+                                    format_id(o.count as f64),
+                                );
+                                view! { <option value=v>{text}</option> }
+                            })
+                            .collect_view()}
+                    </select>
+                </div>
+
+                <div>
+                    <label class=lab for="f-tahun">
+                        "Tahun Anggaran"
+                    </label>
+                    <select
+                        id="f-tahun"
+                        class=sel
+                        on:change=move |ev| {
+                            if let Ok(v) = event_target_value(&ev).parse::<i32>() {
+                                tahun.set(v);
+                            }
+                        }
+                    >
+                        {years
+                            .into_iter()
+                            .map(|y| {
+                                view! {
+                                    <option value=y.to_string() selected=move || tahun.get() == y>
+                                        {y.to_string()}
+                                    </option>
+                                }
+                            })
+                            .collect_view()}
+                    </select>
+                </div>
+
+                <div>
+                    <label class=lab for="f-from">
+                        "Perolehan Dari"
+                    </label>
+                    <input
+                        id="f-from"
+                        type="date"
+                        class=sel
+                        on:change=move |ev| {
+                            let v = event_target_value(&ev);
+                            tgl_from.set(if v.is_empty() { None } else { Some(v) });
+                        }
+                    />
+                </div>
+                <div>
+                    <label class=lab for="f-to">
+                        "Sampai"
+                    </label>
+                    <input
+                        id="f-to"
+                        type="date"
+                        class=sel
+                        on:change=move |ev| {
+                            let v = event_target_value(&ev);
+                            tgl_to.set(if v.is_empty() { None } else { Some(v) });
+                        }
+                    />
+                </div>
+
+                <Show when=has_any>
+                    <button
+                        type="button"
+                        class="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-300 transition-colors hover:border-white/25 hover:text-white"
+                        on:click=move |_| {
+                            wilayah.set(None);
+                            satker.set(None);
+                            jenis.set(None);
+                            tgl_from.set(None);
+                            tgl_to.set(None);
+                        }
+                    >
+                        "Bersihkan filter"
+                    </button>
+                </Show>
+            </div>
+        </section>
     }
 }

@@ -25,11 +25,14 @@
 //! backend. Subscribing to it would look like live push and be a spinner that
 //! never turns.
 
-use crate::api::bank_aset::{BankAsetDashboard, fetch_dashboard};
+use crate::api::bank_aset::{
+    AsetFilterQuery, BankAsetDashboard, BankAsetFilterOptions, fetch_dashboard,
+    fetch_filter_options,
+};
 use crate::api::dashboard::{PerlengkapanDashboardMetrics, fetch_perlengkapan_metrics};
 use crate::components::role_switcher::use_active_role;
 use crate::pages::dashboard_panels::{
-    DistribusiUkuran, Hambatan, KebutuhanPerSatker, KesenjanganKebutuhan, KomposisiAset,
+    DistribusiUkuran, FilterBar, Hambatan, KebutuhanPerSatker, KesenjanganKebutuhan, KomposisiAset,
     NilaiPerJenis, SatkerTeratas, StatusKebutuhan, StatusModul, TrenKebutuhan, TrenPerolehan,
 };
 use crate::routes;
@@ -267,10 +270,29 @@ fn QuickNav(
 /// shown 624 533 assets across 556 satkers here while the Bank Aset page
 /// correctly showed their own 1 681. One endpoint means the two pages cannot
 /// disagree, and the scope is inherited rather than re-implemented.
-async fn query_dashboard_stats(_tick: u32) -> Result<BankAsetDashboard, crate::api::AppError> {
-    // No `map_err(Into::into)`: both sides are already `api::error::AppError`,
-    // and clippy's `useless_conversion` is denied in CI.
-    fetch_dashboard().await
+async fn query_dashboard_stats(
+    key: (AsetFilterQuery, u32),
+) -> Result<BankAsetDashboard, crate::api::AppError> {
+    // No `map_err(Into::into)`: both sides are already
+    // `api::error::AppError`, and clippy's `useless_conversion` is denied
+    // in CI.
+    fetch_dashboard(&key.0).await
+}
+
+/// Dropdown contents, narrowed by the selected region.
+///
+/// A separate query from the data so changing a region does not re-fetch the
+/// aggregates twice, and so an options failure leaves the dashboard readable
+/// with the filters unavailable rather than blanking the page.
+async fn query_filter_options(
+    wilayah: Option<String>,
+) -> Result<BankAsetFilterOptions, crate::api::AppError> {
+    fetch_filter_options(&AsetFilterQuery {
+        wilayah,
+        ..Default::default()
+    })
+    .await
+    .map_err(Into::into)
 }
 
 /// The workflow / kebutuhan / module figures, for the running budget year.
@@ -281,9 +303,9 @@ async fn query_dashboard_stats(_tick: u32) -> Result<BankAsetDashboard, crate::a
 /// both the year and the refresh tick so a poll actually refetches instead of
 /// being served from cache.
 async fn query_perlengkapan_metrics(
-    key: (i32, u32),
+    key: (i32, Option<String>, Option<String>, u32),
 ) -> Result<PerlengkapanDashboardMetrics, crate::api::AppError> {
-    fetch_perlengkapan_metrics(key.0).await
+    fetch_perlengkapan_metrics(key.0, key.1.as_deref(), key.2.as_deref()).await
 }
 
 /// How often the page refetches, in milliseconds.
@@ -411,11 +433,32 @@ pub fn DashboardHome() -> impl IntoView {
         _ => "Aset BMN, kebutuhan, dan perlengkapan pada satuan kerja Anda.",
     };
 
-    // Derived, not written down. This chip read "Tahun Anggaran 2025" as a
-    // hard-coded literal: wrong from 1 January 2026 onward, and already
-    // disagreeing with the export button on this same page, which has always
-    // taken the year from the clock.
-    let tahun_anggaran = move || chrono::Local::now().year();
+    // Drill-down state. The satker value is the MySIMKARI `kode_satker` — the
+    // one identity both halves of the dashboard key on, so a single selection
+    // narrows the SIMAN aggregates and the perlengkapan workflow rows alike.
+    //
+    // These can only NARROW, and that is enforced on the SERVER: it resolves
+    // the request against the caller's claims and returns a narrower scope or
+    // Denied, never a wider one. So nothing here has to police itself, and a
+    // hand-edited query string gets zeros rather than someone else's satker.
+    let f_wilayah = RwSignal::new(None::<String>);
+    let f_satker = RwSignal::new(None::<String>);
+    let f_jenis = RwSignal::new(None::<String>);
+    let f_from = RwSignal::new(None::<String>);
+    let f_to = RwSignal::new(None::<String>);
+    // Was the hard-coded literal "Tahun Anggaran 2025" — wrong from 1 January,
+    // and already disagreeing with the export button on this same page, which
+    // has always taken the year from the clock. Now derived AND selectable.
+    let f_tahun = RwSignal::new(chrono::Local::now().year());
+    let tahun_anggaran = move || f_tahun.get();
+
+    let aset_filter = move || AsetFilterQuery {
+        jenis: f_jenis.get(),
+        satker_kode: f_satker.get(),
+        wilayah: f_wilayah.get(),
+        tgl_from: f_from.get(),
+        tgl_to: f_to.get(),
+    };
 
     // leptos-fetch — `()` keyed cache so a tab-switch back to the
     // dashboard re-uses the previous load instantly.
@@ -426,10 +469,19 @@ pub fn DashboardHome() -> impl IntoView {
     // refetch rather than answer from cache.
     let tick = RwSignal::new(0_u32);
     let refreshed_at = RwSignal::new(String::new());
-    let stats_resource = client.local_resource(query_dashboard_stats, move || tick.get());
+    // The filters are part of the query KEY, which is what makes a selection
+    // refetch instead of being answered from cache.
+    let stats_resource =
+        client.local_resource(query_dashboard_stats, move || (aset_filter(), tick.get()));
     let metrics_resource = client.local_resource(query_perlengkapan_metrics, move || {
-        (tahun_anggaran(), tick.get())
+        (
+            tahun_anggaran(),
+            f_satker.get(),
+            f_wilayah.get(),
+            tick.get(),
+        )
     });
+    let options_resource = client.local_resource(query_filter_options, move || f_wilayah.get());
 
     // Stamp the clock whenever a load lands, so "60 detik lalu" is observable
     // rather than promised.
@@ -459,6 +511,9 @@ pub fn DashboardHome() -> impl IntoView {
     // A satker-tier caller's "top satker" list is one row naming themselves,
     // and their kebutuhan-by-satker breakdown likewise. Those panels are for
     // readers who actually oversee more than one.
+    // Only a reader who already sees the whole country may pick an arbitrary
+    // region; a wilayah validator's region is fixed by their claims.
+    let is_pusat = move || matches!(active_role.get().as_str(), "validator_pusat" | "admin");
     let is_multi_satker = move || {
         matches!(
             active_role.get().as_str(),
@@ -559,6 +614,36 @@ pub fn DashboardHome() -> impl IntoView {
                 </div>
             </section>
 
+            // Drill-down. Rendered only where it can do something: a satker
+            // operator's scope IS one satker, so a satker selector would offer
+            // a single option that changes nothing, and a region selector would
+            // offer a region they cannot widen to. The options themselves are
+            // scoped server-side — measured on staging, `/filter-options`
+            // returns 1 satker to an operator, 7 to a wilayah validator and 554
+            // to pusat — so the list cannot offer what its reader may not see.
+            <Show when=move || is_multi_satker()>
+                {move || {
+                    options_resource
+                        .get()
+                        .and_then(|r| r.ok())
+                        .map(|opts| {
+                            view! {
+                                <FilterBar
+                                    options=opts
+                                    show_wilayah=is_pusat()
+                                    show_satker=true
+                                    wilayah=f_wilayah
+                                    satker=f_satker
+                                    jenis=f_jenis
+                                    tahun=f_tahun
+                                    tgl_from=f_from
+                                    tgl_to=f_to
+                                />
+                            }
+                        })
+                }}
+            </Show>
+
             <Suspense fallback=move || {
                 view! {
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -645,7 +730,7 @@ pub fn DashboardHome() -> impl IntoView {
             </Suspense>
 
             // ── Perlu tindakan ───────────────────────────────────────────
-            //
+            // 
             // The condition row above describes the asset base; this one is
             // about today. Both read `/dashboard/perlengkapan`, whose seven
             // aggregates had reached no screen at all until now (#97).
@@ -782,7 +867,7 @@ pub fn DashboardHome() -> impl IntoView {
             </Suspense>
 
             // ── Perlengkapan & pengelolaan ───────────────────────────────
-            //
+            // 
             // The last three series in the payload, none of which had ever
             // reached a screen: uniform sizes (what procurement orders), and
             // the status split of the two pengelolaan modules.

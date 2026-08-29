@@ -26,7 +26,7 @@ pub fn BankAsetDashboardPage() -> impl IntoView {
         set_loading.set(true);
         set_error.set(None);
         spawn_local(async move {
-            let dash = bank_aset::fetch_dashboard().await;
+            let dash = bank_aset::fetch_dashboard(&Default::default()).await;
             let sync = bank_aset::fetch_last_sync().await;
             match (dash, sync) {
                 (Ok(d), Ok(s)) => {
