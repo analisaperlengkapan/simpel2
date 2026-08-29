@@ -355,7 +355,7 @@ pub fn KebutuhanBmnList() -> impl IntoView {
                                                                     </td>
                                                                     <td class="px-3 py-3">
                                                                         <span class=format!(
-                                                                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 {}",
+                                                                            "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {}",
                                                                             badge_class,
                                                                         )>{item.status_nama.clone()}</span>
                                                                     </td>
@@ -416,21 +416,15 @@ pub fn KebutuhanBmnList() -> impl IntoView {
     }
 }
 
-/// Map KebutuhanBmnStatus to dark-theme badge classes.
+/// Badge classes for a status, delegating to the enum.
+///
+/// This used to be a third copy of the mapping (the enum has one, and
+/// `period_management` had its own), and it had already drifted: it coloured
+/// `PenyusunanPrioritas`, a state the workflow does not have. One definition
+/// means one place to be wrong.
 fn status_badge_class(status: Option<&KebutuhanBmnStatus>) -> &'static str {
-    use KebutuhanBmnStatus::*;
-    match status {
-        Some(Draft) | Some(Cancelled) => "bg-slate-500/15 text-slate-300 ring-slate-500/25",
-        Some(InputBarang) | Some(PenyusunanPrioritas) => {
-            "bg-info-500/15 text-info-300 ring-info-500/25"
-        }
-        Some(SubmitSatker) => "bg-gold-500/15 text-gold-300 ring-gold-500/25",
-        Some(RevisiSatker) => "bg-warning-500/15 text-warning-300 ring-warning-500/25",
-        Some(AnalisisKelayakan) => "bg-purple-500/15 text-purple-300 ring-purple-500/25",
-        Some(Approved) | Some(Completed) => {
-            "bg-success-500/15 text-success-300 ring-success-500/25"
-        }
-        Some(Rejected) => "bg-danger-500/15 text-danger-300 ring-danger-500/25",
-        None => "bg-slate-500/15 text-slate-300 ring-slate-500/25",
-    }
+    status.map_or(
+        "bg-slate-500/15 text-slate-300 ring-1 ring-slate-500/25",
+        |s| s.badge_class(),
+    )
 }

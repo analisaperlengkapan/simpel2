@@ -15,6 +15,14 @@ HTTP status:
     campaign list AND the report page's period dropdown both dead, against a
     backend answering 200 every time.
 
+The fourth drift was not a struct at all, so this guard could not see it:
+`KebutuhanBmnStatus` is mirrored as an ENUM WITH DISCRIMINANTS, and the two
+copies disagreed from 2004 down (frontend 2004 = AnalisisKelayakan, backend
+2004 = SubmitPusat). Nothing failed to deserialise -- the code is just an
+integer -- so every badge on a request queued for Validator Pusat announced
+that Pusat had already analysed it. Enum parity is therefore checked too, by
+variant name AND value.
+
 Two severities, both failures:
 
   MISSING-REQUIRED  the frontend field is neither `Option<...>` nor
@@ -47,6 +55,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 FE_GLOB = "antarmuka/*/src/api/*.rs"
+# Enums are mirrored in the same api modules, but the backend keeps its
+# status enums under `models/`, which BE_GLOBS already covers.
 BE_GLOBS = ("layanan/*/src/**/*.rs", "layanan/*/crates/*/src/**/*.rs")
 
 SKIP_DIRS = {"target", "node_modules", "dist", ".git"}
@@ -72,6 +82,41 @@ SERDE_SKIP_RE = re.compile(r"serde\s*\([^)]*\bskip\b")
 # Frontend fields allowed to have no backend counterpart. Every entry needs a
 # written reason; an empty allowlist is the healthy state.
 ALLOWLIST: dict[tuple[str, str], str] = {}
+
+
+# `pub enum X { Variant = 1000, ... }` -- only the explicit-discriminant kind.
+# A mirrored enum whose values are positional carries no wire meaning to compare.
+ENUM_RE = re.compile(
+    r"^[ \t]*pub enum (\w+)[ \t]*\{(.*?)^\}",
+    re.M | re.S,
+)
+ENUM_VARIANT_RE = re.compile(r"^[ \t]*(\w+)[ \t]*=[ \t]*(-?\d+)[ \t]*,", re.M)
+
+
+def parse_enums(path: Path) -> dict[str, dict[str, int]]:
+    """Name -> {variant: discriminant} for enums that spell their values out."""
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    found: dict[str, dict[str, int]] = {}
+    for m in ENUM_RE.finditer(src):
+        name, body = m.group(1), m.group(2)
+        variants = {v: int(d) for v, d in ENUM_VARIANT_RE.findall(body)}
+        if variants:
+            found[name] = variants
+    return found
+
+
+def collect_enums(globs) -> dict[str, dict[str, int]]:
+    out: dict[str, dict[str, int]] = {}
+    for glob in globs:
+        for path in ROOT.glob(glob):
+            if not _relevant(path):
+                continue
+            for name, variants in parse_enums(path).items():
+                out.setdefault(name, {}).update(variants)
+    return out
 
 
 def _relevant(path: Path) -> bool:
@@ -181,9 +226,52 @@ def main() -> int:
             else:
                 required.append(f"  MISSING-REQUIRED {where}")
 
-    if not required and not empty:
-        print(f"check-fe-be-dto-drift: {compared} frontend DTOs match their backend twin.")
+    # Enum discriminants: same idea, different shape. A mirrored status enum
+    # that renumbers itself does not fail to parse -- it silently relabels.
+    fe_enums = collect_enums((FE_GLOB,))
+    be_enums = collect_enums(BE_GLOBS)
+    enum_drift: list[str] = []
+    enums_compared = 0
+    for name in sorted(fe_enums):
+        if name not in be_enums:
+            continue
+        enums_compared += 1
+        fe_v, be_v = fe_enums[name], be_enums[name]
+        # Compare by VALUE, which is what crosses the wire. A frontend variant
+        # is free to be absent; one that claims a value the backend gives to a
+        # different state is the bug.
+        be_by_value = {v: k for k, v in be_v.items()}
+        for variant, value in sorted(fe_v.items(), key=lambda kv: kv[1]):
+            upstream = be_by_value.get(value)
+            if upstream is None:
+                enum_drift.append(
+                    f"  UNKNOWN-CODE     {name}::{variant} = {value} — the backend has no state with this value"
+                )
+            elif upstream != variant:
+                enum_drift.append(
+                    f"  RENUMBERED       {name}::{variant} = {value} — upstream {value} is {name}::{upstream}"
+                )
+
+    if not required and not empty and not enum_drift:
+        print(
+            f"check-fe-be-dto-drift: {compared} frontend DTOs and "
+            f"{enums_compared} mirrored enums match their backend twin."
+        )
         return 0
+
+    if enum_drift:
+        print("Frontend enum values that mean something else upstream:\n", file=sys.stderr)
+        for line in enum_drift:
+            print(line, file=sys.stderr)
+        print(
+            "\nA renumbered mirror does not fail to deserialise — the code is an\n"
+            "integer either way. It relabels: KebutuhanBmnStatus 2004 was\n"
+            "AnalisisKelayakan here and SubmitPusat upstream, so every request\n"
+            "merely queued for Validator Pusat was shown as already analysed.\n",
+            file=sys.stderr,
+        )
+        if not required and not empty:
+            return 1
 
     print("Frontend DTO fields the backend never sends:\n", file=sys.stderr)
     for line in required:

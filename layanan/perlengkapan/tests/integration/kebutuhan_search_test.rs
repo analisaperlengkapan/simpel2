@@ -337,21 +337,43 @@ async fn the_status_filter_accepts_a_name_or_a_code() {
     assert_eq!(by_code.status_code(), 200, "{:?}", by_code.text());
     assert_eq!(rows(&by_code).len(), 1, "2000 is the seeded state");
 
-    let by_name = pusat_get(
-        &server,
-        "/kebutuhan-bmn/search?q=Meja&page=1&per_page=20&status=DRAFT",
-    )
-    .await;
-    assert_eq!(by_name.status_code(), 200, "{:?}", by_name.text());
-    assert_eq!(rows(&by_name).len(), 1, "2000 is DRAFT in ms_aktivitas_bmn");
+    // The label now comes from `ms_workflow_status` ("Draft"), not from
+    // `ms_aktivitas_bmn` ("DRAFT"). Both spellings must keep working, so the
+    // comparison is case-insensitive — a caller who wrote the old token for a
+    // state whose two masters agreed is not broken by the switch.
+    for spelling in ["Draft", "DRAFT", "draft"] {
+        let by_name = pusat_get(
+            &server,
+            &format!("/kebutuhan-bmn/search?q=Meja&page=1&per_page=20&status={spelling}"),
+        )
+        .await;
+        assert_eq!(by_name.status_code(), 200, "{:?}", by_name.text());
+        assert_eq!(rows(&by_name).len(), 1, "2000 is Draft, spelled {spelling}");
+    }
 
+    // A real label that no seeded row carries.
     let neither = pusat_get(
         &server,
-        "/kebutuhan-bmn/search?q=Meja&page=1&per_page=20&status=REJECTED",
+        "/kebutuhan-bmn/search?q=Meja&page=1&per_page=20&status=Ditolak",
     )
     .await;
     assert_eq!(neither.status_code(), 200);
     assert!(rows(&neither).is_empty());
+
+    // And the machine tokens that named the WRONG step are deliberately gone:
+    // 2004 was `ANALISIS_KELAYAKAN` in the old master and is the queue for
+    // Pusat in the enum, so keeping that spelling reachable would keep the
+    // mistake reachable.
+    let old_token = pusat_get(
+        &server,
+        "/kebutuhan-bmn/search?q=Meja&page=1&per_page=20&status=ANALISIS_KELAYAKAN",
+    )
+    .await;
+    assert_eq!(old_token.status_code(), 200);
+    assert!(
+        rows(&old_token).is_empty(),
+        "the old token must not resolve to a state at all"
+    );
 
     teardown_test_db(&db_name).await;
 }

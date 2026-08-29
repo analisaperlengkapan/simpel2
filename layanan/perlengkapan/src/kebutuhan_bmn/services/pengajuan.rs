@@ -93,6 +93,12 @@ impl KebutuhanBmnService {
         self.repository.get_rekap_laporan(filter, scope).await
     }
 
+    /// Statuses available to the laporan filter — see
+    /// [`super::super::repository::KebutuhanBmnRepository::list_status_options`].
+    pub async fn list_status_options(&self) -> AppResult<Vec<StatusOption>> {
+        self.repository.list_status_options().await
+    }
+
     /// V029 (Fase 1.7): Daftar Kejaksaan Tinggi dari `integrasi.v_satker_wilayah`
     /// — satu-satunya definisi tier wilayah. Dipakai FE untuk dropdown
     /// "Scope satker = wilayah".

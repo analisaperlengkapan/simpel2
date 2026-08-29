@@ -78,14 +78,24 @@ impl SearchEngineDb {
         }
 
         // `status_kode` is an integer and the filter arrives as text, so the
-        // old `k.status_kode = ANY($n)` could not bind at all. Match the human
-        // name the view resolves, or the code written as text, so both a
-        // "SubmitWilayah" and a "2002" from the query string work.
+        // old `k.status_kode = ANY($n)` could not bind at all. Match the label
+        // the view resolves, or the code written as text, so both a
+        // "Diajukan ke Validator Pusat" and a "2004" from the query string work.
+        //
+        // Case-insensitive, because the vocabulary just changed under callers:
+        // the view used to label from `ms_aktivitas_bmn`, whose `nama` is the
+        // machine token (`DRAFT`, `SUBMIT_SATKER`). It now labels from
+        // `ms_workflow_status` ("Draft", "Diajukan ke Validator Wilayah"), so
+        // `?status=DRAFT` still finds Draft. The old tokens are deliberately
+        // NOT matched beyond case: from 2004 down they name the WRONG step
+        // (`ANALISIS_KELAYAKAN` was 2004, which is the queue for Pusat), and
+        // honouring them would keep that mistake reachable through the API.
         if let Some(ref status_list) = query.filters.status
             && !status_list.is_empty()
         {
             filters.push_str(&format!(
-                " AND (v.status_nama = ANY(${idx}) OR k.status_kode::text = ANY(${idx}))",
+                " AND (lower(v.status_nama) = ANY(ARRAY(SELECT lower(u) FROM unnest(${idx}::text[]) u)) \
+                   OR k.status_kode::text = ANY(${idx}))",
                 idx = param_idx
             ));
             params.push(Box::new(status_list.clone()));

@@ -187,7 +187,9 @@ pub struct BatchOperationResponse {
 ///
 /// Status is the **satker-level** `status_kode` (where a request actually
 /// sits in the workflow), not the campaign-level one; the label is joined
-/// from `ms_aktivitas_bmn`, the same lookup `vw_kebutuhan_bmn_summary` uses.
+/// from `ms_workflow_status` — the master that agrees with
+/// [`KebutuhanBmnStatus`](crate::kebutuhan_bmn::models::KebutuhanBmnStatus),
+/// the enum that writes the column.
 #[derive(Debug, Clone, Serialize)]
 pub struct RekapLaporanRow {
     pub pengajuan_id: Uuid,
@@ -202,6 +204,23 @@ pub struct RekapLaporanRow {
     pub jml_setuju: i32,
     pub status_kode: i32,
     pub status_nama: Option<String>,
+}
+
+/// One selectable status for the Laporan Kebutuhan BMN filter, read from
+/// `ms_workflow_status` (`modul = 'kebutuhan_bmn'`).
+///
+/// The frontend used to hard-code this list, and it had drifted: it offered
+/// "Penyusunan Prioritas" (a step this workflow does not have) and named 2004
+/// "Analisis Kelayakan" when 2004 is "Diajukan ke Validator Pusat". Serving it
+/// from the same table the status column reads means the filter and the column
+/// can no longer disagree.
+#[derive(Debug, Clone, Serialize)]
+pub struct StatusOption {
+    pub kode: i32,
+    pub nama: String,
+    /// Terminal states are the ones no further transition leaves; the UI uses
+    /// this to colour them rather than re-deriving it from a code range.
+    pub is_terminal: bool,
 }
 
 /// Satu Kejaksaan Tinggi, untuk dropdown "Scope satker = wilayah".
