@@ -74,20 +74,28 @@ pub fn status_label(status: &str) -> &'static str {
     }
 }
 
-/// Human label for a ticket priority, matching the backend's
-/// `support_tickets_priority_valid` CHECK vocabulary.
+/// Selectable priorities — mirrors the backend's `PRIORITIES` and the
+/// `support_tickets_priority_valid` CHECK. The submit form has always rendered
+/// these labels; the ticket table printed the raw value beside them, so the
+/// same page said "Tinggi" in its dropdown and "high" in its column.
+pub const PRIORITY_OPTIONS: [(&str, &str); 4] = [
+    ("low", "Rendah"),
+    ("normal", "Normal"),
+    ("high", "Tinggi"),
+    ("urgent", "Mendesak"),
+];
+
+/// Human label for a ticket priority.
 ///
-/// Lives beside [`status_label`] because it is the same job; the ticket table
-/// translated the status and printed the priority raw, so the column read
-/// "high" on an otherwise Indonesian page.
+/// Reads [`PRIORITY_OPTIONS`] rather than restating it. Writing the four arms
+/// out again is how a page ends up with two names for one value — the first
+/// draft of this function said "Penting" where the form says "Tinggi".
 pub fn priority_label(priority: &str) -> &'static str {
-    match priority {
-        "urgent" => "Segera",
-        "high" => "Penting",
-        "normal" => "Normal",
-        "low" => "Rendah",
-        _ => "Tidak Diketahui",
-    }
+    PRIORITY_OPTIONS
+        .iter()
+        .find(|(value, _)| *value == priority)
+        .map(|(_, label)| *label)
+        .unwrap_or("Tidak Diketahui")
 }
 
 /// `POST /bantuan/tiket`

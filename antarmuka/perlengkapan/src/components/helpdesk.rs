@@ -11,8 +11,8 @@
 //! server-enforced). Every ticket row can expand into its comment thread.
 
 use crate::api::bantuan::{
-    CreateTicketRequest, SupportTicket, add_comment, create_ticket, get_ticket, list_comments,
-    list_tickets, priority_label, status_label, update_status,
+    CreateTicketRequest, PRIORITY_OPTIONS, SupportTicket, add_comment, create_ticket, get_ticket,
+    list_comments, list_tickets, priority_label, status_label, update_status,
 };
 use crate::components::layout::{FormField, PageLayout, SectionCard};
 use crate::components::role_switcher::use_active_role;
@@ -24,15 +24,6 @@ use phosphor_leptos::{
     ARROW_CLOCKWISE, CHAT_CIRCLE, CHECK_CIRCLE, CLOCK, ENVELOPE, PAPER_PLANE_TILT, PHONE,
     WARNING_CIRCLE,
 };
-
-/// Selectable priorities — mirrors the backend's `PRIORITIES` and the
-/// `support_tickets_priority_valid` CHECK.
-const PRIORITY_OPTIONS: [(&str, &str); 4] = [
-    ("low", "Rendah"),
-    ("normal", "Normal"),
-    ("high", "Tinggi"),
-    ("urgent", "Mendesak"),
-];
 
 /// Tailwind classes per status, so a ticket's state is legible at a glance.
 fn status_class(status: &str) -> &'static str {
