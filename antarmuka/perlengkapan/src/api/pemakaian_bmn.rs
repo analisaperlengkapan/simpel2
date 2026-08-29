@@ -714,3 +714,75 @@ pub async fn fetch_pemakaian_monitoring(
         message: "Server-side stub".to_string(),
     })
 }
+
+// ============================================================================
+// Referensi pegawai — ketik NIP, identitasnya terisi sendiri
+// ============================================================================
+
+/// Identitas pegawai dari `integrasi.mysimkari_pegawai` (SoT kepegawaian).
+///
+/// `pangkat` berasal dari kolom `golpang`, yang menggabungkan pangkat dan
+/// golongan dalam satu string ("Jaksa Utama Pratama / (IV/b)"). Formulir
+/// karenanya tidak boleh memecahnya jadi dua isian: sumbernya memang satu.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PegawaiInfo {
+    pub nip: String,
+    pub nama: Option<String>,
+    pub jabatan: Option<String>,
+    pub pangkat: Option<String>,
+    /// MySIMKARI `kode_satker`, sudah di-resolve backend dari `api_id`.
+    pub satker_id: Option<String>,
+    pub nama_satker: Option<String>,
+    pub foto: Option<String>,
+}
+
+/// Izin pemakaian yang masih aktif atas nama pegawai tersebut. Backend sudah
+/// mengirimkannya, dan itu justru yang perlu dilihat operator sebelum
+/// mengajukan izin baru.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PemakaianAktifEntry {
+    pub permit_id: String,
+    pub nomor_izin: Option<String>,
+    pub bmn_nup: String,
+    pub bmn_nama_barang: String,
+    pub tanggal_mulai: String,
+    pub tanggal_selesai: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CekPegawaiResponse {
+    pub pegawai: PegawaiInfo,
+    #[serde(default)]
+    pub pemakaian_aktif: Vec<PemakaianAktifEntry>,
+}
+
+/// `GET /pemakaian-bmn/cek-pegawai/{nip}`.
+///
+/// `Ok(None)` = NIP tidak ada dalam cakupan pemanggil. Cakupan diturunkan
+/// server dari klaim, jadi frontend tidak mengirim satker sama sekali —
+/// mengirimkannya adalah yang dulu membuat siapa pun bisa membaca rekaman
+/// pegawai satker lain.
+///
+/// "Tidak ada" dan "ada tapi di satker lain" sengaja dipetakan ke jawaban yang
+/// sama: membedakannya akan memberi tahu pemanggil bahwa NIP itu memang ada.
+#[cfg(target_arch = "wasm32")]
+pub async fn fetch_cek_pegawai(
+    nip: &str,
+) -> Result<Option<CekPegawaiResponse>, crate::api::AppError> {
+    use crate::api::AppError;
+    let url = format!("{}/cek-pegawai/{}", PEMAKAIAN_BMN_BASE, nip);
+    match auth_get_json::<ApiResponse<CekPegawaiResponse>>(&url).await {
+        Ok(resp) => Ok(Some(resp.data)),
+        // 400 pada endpoint ini berarti "tidak ditemukan / di luar satker",
+        // dan `from_status` memetakan 400 ke `Validation`.
+        Err(AppError::NotFound(_)) | Err(AppError::Validation(_)) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub async fn fetch_cek_pegawai(
+    _nip: &str,
+) -> Result<Option<CekPegawaiResponse>, crate::api::AppError> {
+    Ok(None)
+}
