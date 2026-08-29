@@ -2,6 +2,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::shared::status_tone::StatusTone;
+
 // ============================================================================
 // Main Entity: Izin Pemakaian BMN
 // ============================================================================
@@ -78,6 +80,14 @@ pub struct IzinPemakaianBmn {
 
     // Workflow Status
     pub status: String,
+    /// Label bahasa Indonesia untuk `status`, diturunkan dari
+    /// [`PemakaianBmnStatus::label`](super::PemakaianBmnStatus::label).
+    /// Diisi saat baris dibaca; frontend merendernya apa adanya.
+    #[serde(default)]
+    pub status_label: String,
+    /// Kelas semantik badge (`neutral`/`info`/`success`/`warning`/`danger`).
+    #[serde(default)]
+    pub status_tone: StatusTone,
     pub catatan_approval: Option<String>,
     pub catatan_revocation: Option<String>,
 

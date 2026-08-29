@@ -330,6 +330,9 @@ impl PemakaianBmnRepository {
                     (None, Some(t)) => Some(t.to_string()),
                     (None, None) => None,
                 };
+                let status: String = row.get("status");
+                let (status_label, status_tone) =
+                    crate::pemakaian_bmn::models::PemakaianBmnStatus::describe(&status);
                 crate::pemakaian_bmn::models::PemakaianBmnMonitoringRow {
                     id: row.get("id"),
                     nomor_izin: row.get("nomor_izin"),
@@ -347,7 +350,9 @@ impl PemakaianBmnRepository {
                     tanggal_selesai: row.get("tanggal_selesai"),
                     durasi_hari: row.get("durasi_hari"),
                     sisa_hari: row.get("sisa_hari"),
-                    status: row.get("status"),
+                    status,
+                    status_label,
+                    status_tone,
                 }
             })
             .collect();

@@ -59,6 +59,13 @@ pub struct IzinPemakaianBmn {
     pub signed_pdf_uploaded_at: Option<String>,
     pub is_completed: Option<bool>,
     pub status: String,
+    /// Label status dari backend (`PemakaianBmnStatus::label`). Dirender apa
+    /// adanya — frontend tidak lagi menyimpan kosakata statusnya sendiri.
+    #[serde(default)]
+    pub status_label: String,
+    /// Nada semantik badge: `neutral`/`info`/`success`/`warning`/`danger`.
+    #[serde(default)]
+    pub status_tone: String,
     // Satker-internal approval chain (V035). These were missing entirely, so
     // the FE could not even display who validated or approved a permit — let
     // alone drive the chain. Nullability mirrors the backend entity field for
@@ -228,6 +235,13 @@ pub struct PermitHistoryEntry {
     pub tanggal_mulai: String,
     pub tanggal_selesai: String,
     pub status: String,
+    /// Label status dari backend (`PemakaianBmnStatus::label`). Dirender apa
+    /// adanya — frontend tidak lagi menyimpan kosakata statusnya sendiri.
+    #[serde(default)]
+    pub status_label: String,
+    /// Nada semantik badge: `neutral`/`info`/`success`/`warning`/`danger`.
+    #[serde(default)]
+    pub status_tone: String,
     pub created_at: String,
 }
 
@@ -293,6 +307,13 @@ pub struct PemakaianBmnMonitoringRow {
     pub durasi_hari: i64,
     pub sisa_hari: i64,
     pub status: String,
+    /// Label status dari backend (`PemakaianBmnStatus::label`). Dirender apa
+    /// adanya — frontend tidak lagi menyimpan kosakata statusnya sendiri.
+    #[serde(default)]
+    pub status_label: String,
+    /// Nada semantik badge: `neutral`/`info`/`success`/`warning`/`danger`.
+    #[serde(default)]
+    pub status_tone: String,
 }
 
 /// A page of monitoring rows.

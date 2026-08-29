@@ -175,3 +175,62 @@ fn test_jenis_bmn_required_fields() {
     let laptop = JenisBmn::Laptop;
     assert!(laptop.required_fields().contains(&"serial_number"));
 }
+
+/// Setiap status yang bisa tersimpan di kolom harus punya label sendiri.
+///
+/// Ini yang dulu tidak dijaga: salinan kosakata di frontend melewatkan
+/// `SUBMITTED_APPROVER_SATKER` dan `REVISI_OPERATOR`, jadi izin yang sedang
+/// menunggu Approver Satker — langkah tengah dari seluruh alur V035 — tampil
+/// sebagai "Lainnya".
+#[test]
+fn every_status_names_itself_and_no_two_share_a_label() {
+    let all = [
+        PemakaianBmnStatus::Draft,
+        PemakaianBmnStatus::Submitted,
+        PemakaianBmnStatus::SubmittedApproverSatker,
+        PemakaianBmnStatus::RevisiOperator,
+        PemakaianBmnStatus::Approved,
+        PemakaianBmnStatus::Rejected,
+        PemakaianBmnStatus::Active,
+        PemakaianBmnStatus::Expired,
+        PemakaianBmnStatus::Revoked,
+        PemakaianBmnStatus::Cancelled,
+    ];
+
+    let mut labels: Vec<&str> = Vec::new();
+    for status in all {
+        let (label, tone) = PemakaianBmnStatus::describe(status.to_state_name());
+        assert_eq!(
+            label,
+            status.label(),
+            "describe() harus memakai label enum untuk {:?}",
+            status
+        );
+        assert_ne!(
+            label,
+            status.to_state_name(),
+            "{:?} masih menampilkan token mesin, bukan label",
+            status
+        );
+        assert_eq!(tone, status.tone());
+        labels.push(status.label());
+    }
+
+    labels.sort_unstable();
+    let unique = {
+        let mut l = labels.clone();
+        l.dedup();
+        l.len()
+    };
+    assert_eq!(unique, labels.len(), "dua status berbagi label: {labels:?}");
+}
+
+/// Kanari arah sebaliknya: state di luar enum tidak boleh diberi nama karangan.
+/// Menampilkan nilainya apa adanya jauh lebih menolong daripada "Lainnya",
+/// yang menyembunyikan justru hal yang perlu dilihat.
+#[test]
+fn an_unknown_state_is_shown_verbatim_not_renamed() {
+    let (label, tone) = PemakaianBmnStatus::describe("BELUM_ADA_DI_ENUM");
+    assert_eq!(label, "BELUM_ADA_DI_ENUM");
+    assert_eq!(tone, crate::shared::status_tone::StatusTone::Neutral);
+}

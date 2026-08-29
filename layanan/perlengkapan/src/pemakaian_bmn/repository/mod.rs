@@ -21,6 +21,9 @@ impl PemakaianBmnRepository {
 
     /// Helper function to convert database row to IzinPemakaianBmn
     pub(crate) fn row_to_permit(&self, row: tokio_postgres::Row) -> IzinPemakaianBmn {
+        let status: String = row.get("status");
+        let (status_label, status_tone) =
+            crate::pemakaian_bmn::models::PemakaianBmnStatus::describe(&status);
         IzinPemakaianBmn {
             id: row.get("id"),
             nomor_izin: row.get("nomor_izin"),
@@ -68,7 +71,9 @@ impl PemakaianBmnRepository {
             signed_pdf_url: row.try_get("signed_pdf_url").ok().flatten(),
             signed_pdf_uploaded_at: row.try_get("signed_pdf_uploaded_at").ok().flatten(),
             is_completed: row.try_get("is_completed").unwrap_or(false),
-            status: row.get("status"),
+            status,
+            status_label,
+            status_tone,
             catatan_approval: row.get("catatan_approval"),
             catatan_revocation: row.get("catatan_revocation"),
             approved_by: row.get("approved_by"),

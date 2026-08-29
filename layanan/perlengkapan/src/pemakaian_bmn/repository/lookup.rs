@@ -126,14 +126,20 @@ impl PemakaianBmnRepository {
             .map_err(|e| AppError::Database(e.to_string()))?;
         Ok(rows
             .iter()
-            .map(|r| PemakaianHistoriEntry {
-                permit_id: r.get("id"),
-                nomor_izin: r.try_get("nomor_izin").ok().flatten(),
-                bmn_nup: r.get("bmn_nup"),
-                bmn_nama_barang: r.get("bmn_nama_barang"),
-                status: r.get("status"),
-                tanggal_mulai: r.get("tanggal_mulai"),
-                tanggal_selesai: r.get("tanggal_selesai"),
+            .map(|r| {
+                let status: String = r.get("status");
+                let (status_label, status_tone) = PemakaianBmnStatus::describe(&status);
+                PemakaianHistoriEntry {
+                    permit_id: r.get("id"),
+                    nomor_izin: r.try_get("nomor_izin").ok().flatten(),
+                    bmn_nup: r.get("bmn_nup"),
+                    bmn_nama_barang: r.get("bmn_nama_barang"),
+                    status,
+                    status_label,
+                    status_tone,
+                    tanggal_mulai: r.get("tanggal_mulai"),
+                    tanggal_selesai: r.get("tanggal_selesai"),
+                }
             })
             .collect())
     }

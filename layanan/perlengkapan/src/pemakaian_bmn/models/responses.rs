@@ -3,6 +3,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use super::*;
+use crate::shared::status_tone::StatusTone;
 
 // ============================================================================
 // Response DTOs
@@ -111,6 +112,13 @@ pub struct PemakaianHistoriEntry {
     pub bmn_nup: String,
     pub bmn_nama_barang: String,
     pub status: String,
+    /// Label bahasa Indonesia untuk `status`, diturunkan dari
+    /// [`PemakaianBmnStatus::label`](crate::pemakaian_bmn::models::PemakaianBmnStatus::label).
+    /// Frontend merender ini apa adanya dan tidak menyimpan kosakata status
+    /// sendiri.
+    pub status_label: String,
+    /// Kelas semantik badge (`neutral`/`info`/`success`/`warning`/`danger`).
+    pub status_tone: StatusTone,
     pub tanggal_mulai: NaiveDate,
     pub tanggal_selesai: NaiveDate,
 }
@@ -138,7 +146,35 @@ pub struct PermitHistoryEntry {
     pub tanggal_mulai: NaiveDate,
     pub tanggal_selesai: NaiveDate,
     pub status: String,
+    /// Label bahasa Indonesia untuk `status`, diturunkan dari
+    /// [`PemakaianBmnStatus::label`](crate::pemakaian_bmn::models::PemakaianBmnStatus::label).
+    /// Frontend merender ini apa adanya dan tidak menyimpan kosakata status
+    /// sendiri.
+    pub status_label: String,
+    /// Kelas semantik badge (`neutral`/`info`/`success`/`warning`/`danger`).
+    pub status_tone: StatusTone,
     pub created_at: DateTime<Utc>,
+}
+
+impl PermitHistoryEntry {
+    /// Satu titik pemetaan baris → entri riwayat. Dua pemanggil (riwayat per
+    /// BMN dan per pegawai) dulu menyalin daftar field yang sama; label status
+    /// harus lahir di sini supaya tidak ada pemanggil yang terlewat.
+    pub fn from_row(row: &tokio_postgres::Row) -> Self {
+        let status: String = row.get("status");
+        let (status_label, status_tone) =
+            crate::pemakaian_bmn::models::PemakaianBmnStatus::describe(&status);
+        Self {
+            id: row.get("id"),
+            nomor_izin: row.get("nomor_izin"),
+            tanggal_mulai: row.get("tanggal_mulai"),
+            tanggal_selesai: row.get("tanggal_selesai"),
+            status,
+            status_label,
+            status_tone,
+            created_at: row.get("created_at"),
+        }
+    }
 }
 /// Usage statistics for a BMN
 #[derive(Debug, Clone, Serialize)]
@@ -274,6 +310,13 @@ pub struct PemakaianBmnMonitoringRow {
     /// namun izin belum di-expire — kondisi yang memang perlu terlihat.
     pub sisa_hari: i64,
     pub status: String,
+    /// Label bahasa Indonesia untuk `status`, diturunkan dari
+    /// [`PemakaianBmnStatus::label`](crate::pemakaian_bmn::models::PemakaianBmnStatus::label).
+    /// Frontend merender ini apa adanya dan tidak menyimpan kosakata status
+    /// sendiri.
+    pub status_label: String,
+    /// Kelas semantik badge (`neutral`/`info`/`success`/`warning`/`danger`).
+    pub status_tone: StatusTone,
 }
 
 /// Halaman hasil listing monitoring pemakaian BMN.
