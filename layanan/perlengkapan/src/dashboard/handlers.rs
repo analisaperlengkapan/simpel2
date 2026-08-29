@@ -1,31 +1,17 @@
 // Dashboard HTTP handlers
 
 use crate::AppState;
+use crate::bank_aset::AsetScope;
 use crate::dashboard::models::*;
 use crate::shared::error::AppError;
 use crate::shared::middleware::Claims;
+use crate::shared::satker_scope::SatkerScope;
 use axum::{
     Json,
     extract::{Query, State},
     http::header,
     response::IntoResponse,
 };
-use lib_perlengkapan::response::ApiResponse;
-
-/// GET /api/v1/dashboard/stats
-///
-/// Lightweight SIMAN-summary card (total aset/nilai/satker + per-kategori).
-pub async fn get_dashboard_stats(
-    State(state): State<AppState>,
-    _claims: Claims,
-) -> Result<Json<ApiResponse<DashboardStats>>, AppError> {
-    let stats = state.dashboard_service.get_dashboard_stats().await?;
-
-    Ok(Json(ApiResponse::success(
-        stats,
-        "Dashboard statistics retrieved successfully".to_string(),
-    )))
-}
 
 /// GET /api/v1/dashboard/perlengkapan
 ///
@@ -39,14 +25,19 @@ pub async fn get_dashboard_stats(
 pub async fn get_perlengkapan_dashboard_metrics(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
-    // Nationwide perlengkapan aggregates. There is no auth middleware layer on
-    // this router — `Claims` IS the gate (see shared/middleware) — so omitting
-    // it published this data to anyone who could reach the service.
-    _claims: Claims,
+    // There is no auth middleware layer on this router — `Claims` IS the gate
+    // (see shared/middleware) — so omitting it published this data to anyone
+    // who could reach the service. Taking `Claims` closed that; it did NOT
+    // scope the rows, which is a separate question and stayed open: measured on
+    // staging, an operator at 0200010 read `total_by_satker` naming Jakarta
+    // Selatan and Bandung.
+    claims: Claims,
 ) -> Result<Json<PerlengkapanDashboardMetrics>, AppError> {
+    let scope = SatkerScope::from_claims(&claims);
+    let aset_scope = AsetScope::from_claims(&claims);
     let metrics = state
         .dashboard_service
-        .get_perlengkapan_dashboard_metrics(&params)
+        .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)
         .await?;
 
     Ok(Json(metrics))
@@ -65,12 +56,15 @@ pub async fn get_perlengkapan_dashboard_metrics(
 pub async fn export_dashboard_excel(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
-    // Get dashboard metrics
+    // Same scope as the on-screen dashboard: an export that widened what the
+    // page shows would be the leak all over again in a downloadable form.
+    let scope = SatkerScope::from_claims(&claims);
+    let aset_scope = AsetScope::from_claims(&claims);
     let metrics = state
         .dashboard_service
-        .get_perlengkapan_dashboard_metrics(&params)
+        .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)
         .await?;
 
     // Generate Excel file
@@ -109,12 +103,15 @@ pub async fn export_dashboard_excel(
 pub async fn export_dashboard_pdf(
     State(state): State<AppState>,
     Query(params): Query<DashboardParams>,
-    _claims: Claims,
+    claims: Claims,
 ) -> Result<impl IntoResponse, AppError> {
-    // Get dashboard metrics
+    // Same scope as the on-screen dashboard: an export that widened what the
+    // page shows would be the leak all over again in a downloadable form.
+    let scope = SatkerScope::from_claims(&claims);
+    let aset_scope = AsetScope::from_claims(&claims);
     let metrics = state
         .dashboard_service
-        .get_perlengkapan_dashboard_metrics(&params)
+        .get_perlengkapan_dashboard_metrics(&params, &scope, &aset_scope)
         .await?;
 
     // Generate PDF file

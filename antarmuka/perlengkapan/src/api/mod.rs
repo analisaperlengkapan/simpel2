@@ -15,7 +15,6 @@ pub mod notifikasi;
 pub mod pakaian_dinas;
 pub mod pemakaian_bmn;
 pub mod penghapusan_bmn;
-pub mod types;
 pub mod workflow;
 
 // Re-exports for backward compat (old components use `crate::api::TypeName`)

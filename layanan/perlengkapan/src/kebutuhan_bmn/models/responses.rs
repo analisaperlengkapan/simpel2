@@ -157,33 +157,6 @@ pub struct AnalisisSnapshotAsset {
     pub kondisi: String,
     pub lokasi: Option<String>,
 }
-// ============================================================================
-// Dashboard Statistics
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KebutuhanBmnDashboardStats {
-    pub total_pengajuan: i64,
-    pub pengajuan_draft: i64,
-    pub pengajuan_in_progress: i64,
-    pub pengajuan_completed: i64,
-    pub total_satker_terlibat: i64,
-    pub total_barang_diminta: i64,
-    pub total_barang_disetujui: i64,
-    pub by_tahun: Vec<StatsByTahun>,
-    pub by_status: Vec<StatsByStatus>,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StatsByTahun {
-    pub tahun: i32,
-    pub total: i64,
-}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StatsByStatus {
-    pub status_kode: i32,
-    pub status_nama: String,
-    pub total: i64,
-}
 /// Result of a single item in batch operation
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchOperationItemResult {

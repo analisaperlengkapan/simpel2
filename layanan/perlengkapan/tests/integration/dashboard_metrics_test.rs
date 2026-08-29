@@ -72,10 +72,9 @@ async fn dashboard_metrics_survive_an_empty_database() {
     // Shape check: every sub-query must have produced its key, not just "the
     // request did not 500". A partially-populated payload is how a silently
     // swallowed error would look.
-    // NOTE the envelope asymmetry, pinned here so a future change to either side
-    // breaks loudly: `/dashboard/perlengkapan` returns the metrics object BARE,
-    // while `/dashboard/stats` wraps its payload in `{success, data}`. Both are
-    // consumed by the same FE module.
+    // NOTE `/dashboard/perlengkapan` returns the metrics object BARE, with no
+    // `{success, data}` envelope — unlike every other endpoint in this service.
+    // Pinned here so a change on either side breaks loudly.
     let data: serde_json::Value = res.json();
     for key in [
         "kebutuhan_metrics",
@@ -102,36 +101,40 @@ async fn dashboard_metrics_survive_an_empty_database() {
     teardown_test_db(&db_name).await;
 }
 
-/// `/dashboard/stats` read two views (`integrasi.v_siman_summary_total` and
-/// `..._per_kategori`) that NOTHING in this repo creates, so it was a guaranteed
-/// 500 in every environment. Its e2e passed regardless because it asserted the
-/// static card labels, which render whether or not the fetch succeeds.
+/// The shapes that used to kill `/dashboard/stats`, aimed at the endpoint that
+/// replaced it.
+///
+/// `/dashboard/stats` was removed: it was a SECOND aggregate over
+/// `integrasi.siman_aset` whose payload was a strict subset of
+/// `/bank-aset/dashboard`, computed by its own query — and unlike that one it
+/// was never row-scoped, so it answered every operator with all 624 533
+/// national assets. Deleting it must not delete the faults it had learned to
+/// survive, so its assertions move here rather than disappearing:
+///
+///   * `kondisi` NULL with `ur_kondisi` set — the shape of ALL 624 533 staging
+///     rows (`kondisi` is populated in 0 of them). A breakdown keyed on
+///     `kondisi` alone counts zero assets in every condition.
+///   * a non-numeric `rph_aset` — a bare `::FLOAT8` throws on it, and with
+///     `panic = "abort"` that is process death, not a 500.
+///   * `total_satker` over two satkers, so it is not merely the row count.
+///
+/// The satker count is asserted on the CODE. `/bank-aset/dashboard` counted
+/// `DISTINCT nama_satker`; measured on staging that is 554 where
+/// `DISTINCT kdsatker_keu` is 556, so two satkers sharing a name were folded
+/// into one.
 #[tokio::test]
-async fn dashboard_stats_aggregates_the_siman_sot() {
+async fn bank_aset_dashboard_survives_the_shapes_that_killed_dashboard_stats() {
     let (app, db, db_name) = setup_test_app().await;
 
-    // Rows chosen to pin the exact faults this endpoint had:
-    //  - `kondisi` NULL / `ur_kondisi` set, the shape the e2e seed and much real
-    //    data actually carry (the old filter tested `kondisi` alone and counted
-    //    zero good assets);
-    //  - a non-numeric `rph_aset`, which a bare ::FLOAT8 cast would throw on;
-    //  - two distinct kdsatker_keu, so total_satker is not just row count.
     let client = db.pool().get().await.unwrap();
-    // Exact counts are asserted below, so this test owns the table outright
-    // instead of adding to whatever the harness seeded for other suites.
     client
         .execute("TRUNCATE integrasi.siman_aset", &[])
         .await
         .unwrap();
     client
         .execute(
-            // Production shape: `kategori_aset` and `kode_barang` stay NULL
-            // (SIMAN writes neither), the taxonomy lives in `jenis_aset` and the
-            // barang code in `kd_brg`. This fixture used to fill the dead pair
-            // and assert the breakdown off `kategori_aset` — so the test PASSED
-            // while the endpoint bucketed all 624 533 production assets under a
-            // single '(tanpa kategori)' label. `jenis_aset` values are real
-            // SIMAN taxonomy entries.
+            // Production shape: `kondisi` and `kategori_aset` NULL throughout;
+            // the taxonomy lives in `jenis_aset`, the condition in `ur_kondisi`.
             "INSERT INTO integrasi.siman_aset
                 (jenis_aset, nama, ur_kondisi, kdsatker_keu, kd_brg, rph_aset)
              VALUES
@@ -146,32 +149,36 @@ async fn dashboard_stats_aggregates_the_siman_sot() {
     drop(client);
 
     let server = TestServer::new(app);
-    let res = get(&server, "/dashboard/stats").await;
-    assert_eq!(res.status_code(), 200, "stats: {}", res.text());
+    let res = get(&server, "/bank-aset/dashboard").await;
+    assert_eq!(
+        res.status_code(),
+        200,
+        "bank-aset dashboard: {}",
+        res.text()
+    );
 
     let body: serde_json::Value = res.json();
     let data = &body["data"];
     assert_eq!(data["total_aset"], 4);
     assert_eq!(data["total_satker"], 2, "distinct kdsatker_keu");
-    // 3 rows say BAIK via ur_kondisi; the old `kondisi = 'BAIK'` filter saw none.
-    assert_eq!(data["aset_baik"], 3);
-    assert_eq!(data["aset_rusak"], 1);
     // The 'n/a' row contributes 0 rather than throwing.
-    assert_eq!(data["total_nilai_aset"], 269_000_000.0);
+    assert_eq!(data["total_nilai_perolehan"], 269_000_000.0);
 
-    // Breakdown driven by `jenis_aset`. Had it still read `kategori_aset` —
-    // NULL in every real row — all four would collapse into one bucket, which
-    // is precisely what production served.
-    let categories = data["categories"].as_array().expect("categories array");
-    assert_eq!(
-        categories.len(),
-        2,
-        "Peralatan Mesin Non TIK + Alat Angkutan Bermotor, got {categories:?}"
-    );
-    // Ordered by count DESC: Non TIK has 3 rows, Angkutan Bermotor 1.
-    assert_eq!(categories[0]["category"], "Peralatan Mesin Non TIK");
-    assert_eq!(categories[0]["count"], 3);
-    assert_eq!(categories[0]["value"], 19_000_000.0);
+    let kondisi: std::collections::HashMap<&str, i64> = data["kondisi_breakdown"]
+        .as_array()
+        .expect("kondisi_breakdown array")
+        .iter()
+        .map(|k| {
+            (
+                k["kondisi"].as_str().unwrap_or_default(),
+                k["count"].as_i64().unwrap_or_default(),
+            )
+        })
+        .collect();
+    // Three rows say Baik via `ur_kondisi`; a breakdown keyed on `kondisi`
+    // alone would put all four under one unknown bucket.
+    assert_eq!(kondisi.get("Baik"), Some(&3), "got {kondisi:?}");
+    assert_eq!(kondisi.get("Rusak Ringan"), Some(&1), "got {kondisi:?}");
 
     teardown_test_db(&db_name).await;
 }

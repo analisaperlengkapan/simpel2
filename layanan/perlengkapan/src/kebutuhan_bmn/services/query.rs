@@ -10,11 +10,6 @@ impl KebutuhanBmnService {
     // Dashboard & Statistics
     // ========================================================================
 
-    /// Get dashboard statistics
-    pub async fn get_dashboard_stats(&self) -> AppResult<KebutuhanBmnDashboardStats> {
-        self.repository.get_dashboard_stats().await
-    }
-
     /// Get workflow history for a satker
     pub async fn get_satker_aktivitas(
         &self,

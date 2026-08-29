@@ -6,7 +6,6 @@
 pub mod analisis;
 pub mod barang;
 pub mod batch;
-pub mod dashboard;
 pub mod laporan;
 pub mod params;
 pub mod pengajuan;
@@ -17,7 +16,6 @@ pub mod workflow;
 pub use analisis::*;
 pub use barang::*;
 pub use batch::*;
-pub use dashboard::*;
 pub use laporan::*;
 pub use params::*;
 pub use pengajuan::*;
