@@ -48,9 +48,12 @@
  *   `sort=nama_asc` is `ORDER BY ur_sskel` (`repository.rs:98`) — so the whole
  *   stack is consistently ur_sskel-based. The strings on screen are therefore the
  *   `ur_sskel` column, NOT the brand names above:
- *     E2E-A-1 "Kendaraan Dinas Roda 4"   E2E-A-2 "Personal Computer Unit"
- *     E2E-B-1 "Kendaraan Dinas Roda 2"   E2E-B-2 "Tanah Bangunan Kantor"
- *     E2E-C-1 "Personal Computer Unit"
+ *     E2E-A-1 "Station Wagon"    E2E-A-2 "Note Book"
+ *     E2E-B-1 "Sepeda Motor"     E2E-B-2 "Tanah Bangunan Kantor Pemerintah"
+ *     E2E-C-1 "Printer (Peralatan Personal Komputer)"
+ *   Those are the names SIMAN itself gives those five barang codes. They used
+ *   to be invented, which mattered here more than anywhere: this file asserts
+ *   the strings, so it was certifying the fiction.
  *   (Search still matches the brand: the BE ILIKEs ur_sskel OR nama OR kd_brg OR
  *   no_aset OR merk, so "Toyota" narrows to E2E-A-1 by `nama`/`merk`.)
  */
@@ -164,7 +167,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     await page.getByRole("button", { name: "Terapkan" }).click();
     // Real server-side search: only the Toyota row survives (matched on nama/merk).
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-A-1"]);
-    await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
+    await expect(page.getByText("Station Wagon").first()).toBeVisible();
 
     // Reset clears the search too, so the list returns to the caller's FULL
     // scope — which is 5 only on an empty CI database. Assert the real claim
@@ -188,7 +191,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     // immune to the seeded row count changing.
     await page.getByRole("combobox").filter({ hasText: "Semua Kondisi" }).selectOption("Rusak Ringan");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-C-1"]);
-    await expect(page.getByText("Personal Computer Unit").first()).toBeVisible();
+    await expect(page.getByText("Printer (Peralatan Personal Komputer)").first()).toBeVisible();
   });
 
   test("jenis filter isolates the single Tanah asset", async ({ page }) => {
@@ -196,7 +199,7 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
 
     await page.getByRole("combobox").filter({ hasText: "Semua Jenis BMN" }).selectOption("Tanah");
     await expect.poll(() => visibleNups(page), { timeout: 20000 }).toEqual(["E2E-B-2"]);
-    await expect(page.getByText("Tanah Bangunan Kantor").first()).toBeVisible();
+    await expect(page.getByText("Tanah Bangunan Kantor Pemerintah").first()).toBeVisible();
   });
 
   test("sort by Nama A→Z reorders the rows server-side", async ({ page }) => {
@@ -204,17 +207,16 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
 
     await page.getByRole("combobox").filter({ hasText: "Terbaru diperbarui" }).selectOption("nama_asc");
     // `nama_asc` is ORDER BY ur_sskel ASC server-side, so the row order becomes:
-    //   "Kendaraan Dinas Roda 2" (E2E-B-1) < "Kendaraan Dinas Roda 4" (E2E-A-1)
-    //   < "Personal Computer Unit" (E2E-A-2, E2E-C-1 — tied) < "Tanah Bangunan
-    //   Kantor" (E2E-B-2).
-    // Assert only the parts the tie does not make ambiguous, which is still
-    // enough to prove the order changed from the default (updated_at DESC).
+    //   "Note Book" (E2E-A-2) < "Printer (Peralatan Personal Komputer)" (E2E-C-1)
+    //   < "Sepeda Motor" (E2E-B-1) < "Station Wagon" (E2E-A-1)
+    //   < "Tanah Bangunan Kantor Pemerintah" (E2E-B-2)
+    // The five real names differ at the first letter (N/P/Se/St/T), so the order
+    // is the same under any collation AND there is no longer a tie — the whole
+    // sequence is assertable, where the invented names shared a string and left
+    // two positions ambiguous.
     await expect
-      .poll(async () => (await nupsInDomOrder(page)).slice(0, 2), { timeout: 20000 })
-      .toEqual(["E2E-B-1", "E2E-A-1"]);
-    await expect
-      .poll(async () => (await nupsInDomOrder(page)).at(-1), { timeout: 20000 })
-      .toBe("E2E-B-2");
+      .poll(() => nupsInDomOrder(page), { timeout: 20000 })
+      .toEqual(["E2E-A-2", "E2E-C-1", "E2E-B-1", "E2E-A-1", "E2E-B-2"]);
   });
 
   test("Detail opens the asset detail page with the real record", async ({ page }) => {
@@ -229,8 +231,8 @@ test.describe("Bank Aset — daftar controls (validator_pusat, narrowed to the s
     await page.getByRole("link", { name: "Detail" }).first().click();
     await expect(page).toHaveURL(/\/bank-aset\/daftar\/\d+/);
     await expect(page.getByText("Detail Aset").first()).toBeVisible();
-    await expect(page.getByText("Kendaraan Dinas Roda 4").first()).toBeVisible();
-    await expect(page.getByText("3050104001").first()).toBeVisible(); // kode barang
+    await expect(page.getByText("Station Wagon").first()).toBeVisible();
+    await expect(page.getByText("3020101003").first()).toBeVisible(); // kode barang
   });
 });
 

@@ -397,8 +397,8 @@ VALUES
    'DRAFT', 4000, 'Seed F-E2E penghapusan (operator step)', 'PUSAT',
    '11111111-1111-4111-8111-111111111111', '0200010'),
   -- H2 names an asset that EXISTS at 0200010 under a different barang code:
-  -- NUP E2E-A-1 is kd_brg 3050104001 (kendaraan), not the laptop code asked
-  -- for. This is the "mohon verifikasi manual" branch — reachable only
+  -- NUP E2E-A-1 is kd_brg 3020101003 (Station Wagon), not the laptop code
+  -- asked for. This is the "mohon verifikasi manual" branch — reachable only
   -- because satker is part of the key, since NUP alone would have matched
   -- some arbitrary asset anywhere in the country.
   ('e1000000-0000-4e00-8e00-0000000a0002', '3.10.01.02.003', 'E2E Aset Hapus B (kode barang beda)', 'E2E-A-1',
@@ -493,7 +493,7 @@ VALUES
   -- I2 @SUBMITTED(3001): the entry point of the satker approval chain (#96).
   -- validator_satker forwards it, then approver_satker approves it, both
   -- through the UI.
-  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3050104001', 'E2E Laptop Ajuan Satker',
+  ('e2000000-0000-4e00-8e00-0000000b0002', 'E2E-IZIN-002', 'LAPTOP', 'E2E-A-1', '3020101003', 'E2E Laptop Ajuan Satker',
    'SN-E2E-0002', '200000000000000001', 'E2E Operator Jakpus', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000001', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '2026-02-01', '2026-11-30',
    'SUBMITTED', 3001, 'Penunjang tugas operasional', '0200010'),
@@ -502,7 +502,7 @@ VALUES
   -- rows and "all rows" are the same set, so a scope that does nothing passes.
   -- 0200020 shares operator_a's wilayah (both kdsatker_keu carry 9999), which
   -- is what makes the wilayah tier distinguishable from the satker tier.
-  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3050201002', 'E2E Laptop Jaksel',
+  ('e2000000-0000-4e00-8e00-0000000b0003', 'E2E-IZIN-003', 'LAPTOP', 'E2E-B-1', '3020104001', 'E2E Laptop Jaksel',
    'SN-E2E-0003', '200000000000000002', 'E2E Operator Jaksel', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000002', 'KEJAKSAAN NEGERI JAKARTA SELATAN', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Jaksel', '0200020'),
@@ -514,7 +514,7 @@ VALUES
   -- scope that leaks nationwide still passes. There is no user seeded at this
   -- satker on purpose: the row exists to be INVISIBLE to the DKI validator, not
   -- to be acted on.
-  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3100105010', 'E2E Laptop Bandung',
+  ('e2000000-0000-4e00-8e00-0000000b0004', 'E2E-IZIN-004', 'LAPTOP', 'E2E-C-1', '3100203003', 'E2E Laptop Bandung',
    'SN-E2E-0004', '300000000000000001', 'E2E Operator Bandung', 'Operator Satker',
    'e2a00000-0000-4e00-8e00-000000000003', 'KEJAKSAAN NEGERI BANDUNG', '2026-03-01', '2026-10-31',
    'ACTIVE', 3004, 'Penunjang tugas kedinasan Bandung', '0300010')

@@ -374,6 +374,21 @@ jobs:
         run: |
           python3 ./infra/scripts/check-guard-imports-are-stdlib.py
           python3 ./infra/scripts/check-guard-imports-are-stdlib.py --self-test
+      # Kodefikasi SIMAN adalah FUNGSI: 2.033 kode barang, 2.033 nama, nol kode
+      # bermakna ganda di 624.533 baris. Fixture e2e melanggarnya tanpa
+      # ketahuan — tiap kode yang dipakainya nyata, hanya namanya milik barang
+      # lain: 3050104001 ("Lemari Besi/Metal", 7.428 aset) diberi nama
+      # "Kendaraan Dinas Roda 4" dan diisi Toyota Avanza; 3050201002 ("Meja
+      # Kerja Kayu", 43.791 aset) diberi motor. Satu baris fixture melawan
+      # 43.791 baris nyata TETAP contoh-tandingan: ia membuat kodefikasi
+      # tampak banyak-ke-banyak, persis sifat yang harus bisa diandalkan
+      # pemilih kode barang. Sekitar 10 asersi e2e menegaskan nama karangan
+      # itu, jadi suite-nya justru MENSERTIFIKASI fiksinya.
+      - name: e2e fixtures use the codification SIMAN publishes
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-e2e-fixture-codification.py
+          python3 ./infra/scripts/check-e2e-fixture-codification.py --self-test
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds

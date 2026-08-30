@@ -213,7 +213,7 @@ test.describe("Penghapusan BMN — verifikasi SIMAN by kode satker + kode barang
     expect(v.layak_lanjut, "safe to proceed").toBe(true);
     // nama barang = the STANDARD name that belongs to the barang code
     // (`ur_sskel`), never the SIMAN operator's own label for the item.
-    expect(v.nama_barang_siman).toBe("Personal Computer Unit");
+    expect(v.nama_barang_siman).toBe("Note Book");
   });
 
   test("H2 finds the NUP at its own satker but under a different barang code", async ({ request }) => {
@@ -223,7 +223,7 @@ test.describe("Penghapusan BMN — verifikasi SIMAN by kode satker + kode barang
     expect(v.layak_lanjut, "validator must check manually").toBe(false);
     // Reachable ONLY because satker is part of the key: keyed on NUP alone the
     // fallback would have matched an arbitrary row anywhere in the country.
-    expect(v.kode_barang_siman).toBe("3050104001");
+    expect(v.kode_barang_siman).toBe("3020101003");
     expect(v.pesan).toContain("0200010");
   });
 
@@ -408,7 +408,7 @@ test.describe("Pengelolaan — create-form pages", () => {
     // wrong element here before.
     const identitas = page.getByTestId("aset-terpilih");
     await expect(identitas, "picked asset never rendered").toBeVisible({ timeout: 20000 });
-    await expect(identitas, "kode barang must come from SIMAN kd_brg").toContainText("3050104001");
+    await expect(identitas, "kode barang must come from SIMAN kd_brg").toContainText("3020101003");
     await expect(identitas).toContainText("E2E-A-1");
 
     // Availability is checked on pick — no separate button to press, because

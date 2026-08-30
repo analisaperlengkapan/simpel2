@@ -167,14 +167,34 @@ DELETE FROM integrasi.siman_aset
 -- That mattered: penghapusan-bmn refuses a create whose kode_barang disagrees
 -- with SIMAN's, so a fixture in the wrong format either fails a correct check or
 -- (as here) hides one behind values no real asset carries.
+--
+-- The (kd_brg, ur_sskel) PAIRS are copied too, and that took a second pass. The
+-- formats above were real while the pairings were invented, which is a worse
+-- failure than either alone: every code below existed, so nothing looked wrong,
+-- but each carried a name belonging to a different item entirely.
+--
+--   3050104001 is "Lemari Besi/Metal" (7 428 rows) — the fixture filed a Toyota
+--                Avanza under it
+--   3050201002 is "Meja Kerja Kayu" (43 791 rows)  — the fixture filed a Honda
+--                Vario under it
+--   3100102003 is "Note Book" (2 141 rows)         — labelled "Personal
+--                Computer Unit" here
+--   2010101001 is "Tanah Bangunan Rumah Negara Golongan I" (166 rows)
+--   3100105010 carries no real asset at all
+--
+-- In real SIMAN data the codification is a clean FUNCTION: one code, one name.
+-- These five rows were the only counter-examples in 624 533, so they made it
+-- look many-to-many — precisely the property a codification picker has to rely
+-- on. The codes below are the real ones for the items the seed means, and the
+-- names are the ones SIMAN gives them.
 INSERT INTO integrasi.siman_aset
   (jenis_aset, kategori_aset, no_aset, ur_sskel, nama, kd_brg, merk, tipe, ur_kondisi, alamat, nama_satker, kdsatker_keu, nup, rph_aset, tgl_perlh)
 VALUES
-  ('Alat Angkutan Bermotor',      NULL, 'E2E-A-1', 'Kendaraan Dinas Roda 4', 'Toyota Avanza', '3050104001', 'Toyota', 'Avanza 1.3', 'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '250000000', '2020-01-15'),
-  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-A-2', 'Personal Computer Unit',  'Laptop Dell',   '3100102003', 'Dell',   'Latitude',   'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '15000000',  '2021-03-10'),
-  ('Alat Angkutan Bermotor',      NULL, 'E2E-B-1', 'Kendaraan Dinas Roda 2', 'Honda Vario',   '3050201002', 'Honda',  'Vario 125',  'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '22000000',  '2019-07-01'),
-  ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor',  'Tanah Kantor',  '2010101001', NULL,     NULL,         'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
-  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Personal Computer Unit',  'Printer Epson', '3100105010', 'Epson',  'L3210',      'Rusak Ringan', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-A-1', 'Station Wagon',                    'Toyota Avanza', '3020101003', 'Toyota', 'Avanza 1.3', 'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '250000000', '2020-01-15'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-A-2', 'Note Book',                        'Laptop Dell',   '3100102003', 'Dell',   'Latitude',   'Baik', 'Jl. Sunda Kelapa No.1', 'KEJAKSAAN NEGERI JAKARTA PUSAT', '006019999010001KD', NULL, '15000000',  '2021-03-10'),
+  ('Alat Angkutan Bermotor',      NULL, 'E2E-B-1', 'Sepeda Motor',                     'Honda Vario',   '3020104001', 'Honda',  'Vario 125',  'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '22000000',  '2019-07-01'),
+  ('Tanah',                       NULL, 'E2E-B-2', 'Tanah Bangunan Kantor Pemerintah', 'Tanah Kantor',  '2010104001', NULL,     NULL,         'Baik', 'Jl. Ampera Raya No.2',  'KEJAKSAAN NEGERI JAKARTA SELATAN', '006019999020001KD', NULL, '5000000000','2010-01-01'),
+  ('Peralatan Mesin Khusus TIK',  NULL, 'E2E-C-1', 'Printer (Peralatan Personal Komputer)', 'Printer Epson', '3100203003', 'Epson', 'L3210', 'Rusak Ringan', 'Jl. Asia Afrika No.3', 'KEJAKSAAN NEGERI BANDUNG', '006018888010001KD', NULL, '4000000', '2022-11-20');
 
 -- ----------------------------------------------------------------------------
 -- 4. authenc: per-role test users (single role each so the JWT role is
