@@ -193,49 +193,14 @@ pub async fn fetch_detail(id: &str) -> AppResult<BankAsetDetail> {
     Ok(resp.data)
 }
 
-/// Slim BMN lookup by NUP — the subset of the `GET /bank-aset/lookup?nup=`
-/// payload the pemakaian-bmn form auto-fills (serde ignores the rest).
-#[derive(Debug, Clone, serde::Deserialize)]
-pub struct BankAsetLookup {
-    pub kode_barang: Option<String>,
-    pub nama_barang: Option<String>,
-    pub merk: Option<String>,
-    pub tahun_perolehan: Option<String>,
-}
-
-/// Returns `Ok(Some(_))` on a hit, `Ok(None)` on a 404 (NUP not in
-/// `integrasi.siman_aset`), and `Err(_)` on a transport / server error so
-/// callers can surface the right UX.
-pub async fn lookup_by_nup(nup: &str) -> AppResult<Option<BankAsetLookup>> {
-    let encoded = urlencoding_simple(nup);
-    let url = format!("{API_BASE}/bank-aset/lookup?nup={}", encoded);
-    let resp: ApiResponseWrap<BankAsetLookup> = match api_get(&url).await {
-        Ok(r) => r,
-        Err(AppError::NotFound(_)) => return Ok(None),
-        Err(e) => return Err(e),
-    };
-    if !resp.success {
-        return Err(AppError::server(resp.message));
-    }
-    Ok(Some(resp.data))
-}
-
-/// Minimal URL-encoder for the NUP query parameter — covers the characters
-/// present in a real NUP (digits, dashes) plus the small set of safe
-/// fallbacks. Avoids pulling in a heavyweight URL crate.
-fn urlencoding_simple(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' || ch == '.' {
-            out.push(ch);
-        } else {
-            for byte in ch.to_string().as_bytes() {
-                out.push_str(&format!("%{:02X}", byte));
-            }
-        }
-    }
-    out
-}
+// `GET /bank-aset/lookup?nup=` tidak lagi dipanggil dari sini.
+//
+// Ia mencari aset dengan NUP saja, dan NUP saja bukan identitas: ia nomor urut
+// DI DALAM satu satker untuk satu kode barang, jadi berulang — 24.715 aset
+// ber-NUP "2" pada snapshot staging. Formulir pemakaian kini memakai pemilih
+// yang mengembalikan baris asetnya utuh (kode satker + kode barang + NUP), jadi
+// pembungkus ini beserta encoder kecilnya dibuang alih-alih dibungkam
+// `#[allow(dead_code)]`. Endpoint backend-nya kini tanpa pemanggil frontend.
 
 /// The dashboard drill-down, as the frontend holds it.
 ///
