@@ -3,8 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+  # DELIBERATELY unfiltered by base branch. `branches: [main]` here meant a
+  # stacked PR (base = another PR's branch) ran NO CI at all, while the branch
+  # ruleset — which targets `main` — reported its required checks as satisfied.
+  # The PR then read `mergeStateStatus: CLEAN` with zero jobs having run.
+  # Enforced by infra/scripts/check-pr-workflows-run-on-every-pr.py.
   pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       run_e2e:
@@ -347,6 +351,29 @@ jobs:
       - name: Perlengkapan carries no light-palette class
         shell: bash
         run: python3 ./infra/scripts/check-dark-theme-palette.py
+      # `pull_request: branches: [main]` membaca seperti "gerbangi PR" tapi
+      # berperilaku "gerbangi PR yang kebetulan menyasar main". PR bertumpuk
+      # (base = branch PR lain) tak cocok pemicu mana pun, jadi NOL job jalan —
+      # dan karena ruleset juga menyasar main, tak ada pula check yang
+      # DIWAJIBKAN. GitHub lalu melaporkan `mergeStateStatus: CLEAN`, nilai
+      # yang sama dengan PR hijau sepenuhnya. Tiga PR dalam satu tumpukan duduk
+      # di "CLEAN" tanpa satu pun verifikasi.
+      - name: PR workflows are not filtered by base branch
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-pr-workflows-run-on-every-pr.py
+          python3 ./infra/scripts/check-pr-workflows-run-on-every-pr.py --self-test
+      # Image runner ARC memakai Python polos, jadi `import yaml` LULUS di mesin
+      # pengembang dan GAGAL di runner — skrip keluar non-nol karena alasan yang
+      # tak ada hubungannya dengan yang diperiksanya, dan temuan yang jadi
+      # alasan keberadaannya tak pernah dibuat. Sudah 3× di job ini: fallback
+      # PyYAML actionlint (40+ hari merah palsu), `bc`/`yq` exit 127, lalu
+      # penjaga di atas gagal di run CI PERTAMANYA karena hal yang sama.
+      - name: CI guard scripts import only the standard library
+        shell: bash
+        run: |
+          python3 ./infra/scripts/check-guard-imports-are-stdlib.py
+          python3 ./infra/scripts/check-guard-imports-are-stdlib.py --self-test
       # The chart pulls `simpelv2-<image.name>`; release.yml publishes
       # `simpelv2-<matrix name>`. Nothing compared the two, and they drifted:
       # the chart wanted `simpelv2-gateway` while the release builds
